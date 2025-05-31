@@ -1,0 +1,294 @@
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Loader2, CheckCircle2 } from 'lucide-react';
+import * as React from 'react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { useEffect, useState, useCallback } from 'react';
+
+const formSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio'),
+  description: z.string().min(1, 'La descripción es obligatoria'),
+  price: z
+    .string()
+    .min(1, 'El precio es obligatorio')
+    .refine(
+      (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
+      'El precio debe ser un número válido',
+    ),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+export default function EditServicePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const router = useRouter();
+  const resolvedParams = React.use(params);
+  const [serviceId, setServiceId] = useState<string>('');
+  const isNew = serviceId === 'new';
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      price: '',
+    },
+  });
+
+  const fetchService = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/services/${serviceId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        form.reset({
+          name: data.data.name,
+          description: data.data.description,
+          price: data.data.price.toString(),
+        });
+      } else {
+        toast.error('No se pudo cargar el servicio');
+        router.push('/dashboard/services');
+      }
+    } catch (error) {
+      console.error('Error fetching service:', error);
+      toast.error('Ocurrió un error al cargar el servicio');
+      router.push('/dashboard/services');
+    }
+  }, [serviceId, form, router]);
+
+  useEffect(() => {
+    setServiceId(resolvedParams.id);
+  }, [resolvedParams.id]);
+
+  useEffect(() => {
+    if (!isNew && serviceId) {
+      fetchService();
+    }
+  }, [serviceId, isNew, fetchService]);
+
+  async function onSubmit(values: FormValues) {
+    try {
+      const method = isNew ? 'POST' : 'PUT';
+      const url = isNew ? '/api/services' : `/api/services/${serviceId}`;
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...values,
+          price: parseFloat(values.price),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(
+          isNew
+            ? 'Servicio creado correctamente'
+            : 'Servicio actualizado correctamente',
+        );
+        router.push('/dashboard/services');
+      } else {
+        toast.error(
+          isNew
+            ? 'No se pudo crear el servicio'
+            : 'No se pudo actualizar el servicio',
+        );
+      }
+    } catch (e) {
+      console.error('Error:', e);
+      toast.error('Ocurrió un error');
+    }
+  }
+
+  return (
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/dashboard/services">
+                  Servicios
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>
+                  {isNew ? 'Nuevo Servicio' : 'Editar Servicio'}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="mx-auto w-full max-w-2xl">
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="space-y-4 pb-8">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl">
+                    {isNew ? 'Nuevo Servicio' : 'Editar Servicio'}
+                  </CardTitle>
+                  <CardDescription>
+                    {isNew
+                      ? 'Completa los datos para crear un nuevo servicio'
+                      : 'Modifica los datos del servicio'}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-8"
+                >
+                  <div className="grid gap-6">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel className="text-sm font-medium text-foreground">
+                            Nombre del servicio
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ej: Limpieza de oficinas"
+                              className="h-12 border-2 focus:border-primary transition-colors"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel className="text-sm font-medium text-foreground">
+                            Descripción
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Describe el servicio..."
+                              className="min-h-[100px] border-2 focus:border-primary transition-colors"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel className="text-sm font-medium text-foreground">
+                            Precio
+                          </FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                $
+                              </span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                className="pl-8 h-12 border-2 focus:border-primary transition-colors"
+                                {...field}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-4 pt-6">
+                    <Button
+                      type="submit"
+                      className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {isNew
+                            ? 'Creando servicio...'
+                            : 'Actualizando servicio...'}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {isNew ? 'Crear Servicio' : 'Actualizar Servicio'}
+                        </>
+                      )}
+                    </Button>
+
+                    <p className="text-center text-xs text-muted-foreground">
+                      {isNew
+                        ? 'Al crear el servicio, estará disponible inmediatamente para los tickets'
+                        : 'Los cambios se guardarán automáticamente'}
+                    </p>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}
