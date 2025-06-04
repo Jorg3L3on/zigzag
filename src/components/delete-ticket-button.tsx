@@ -8,23 +8,32 @@ import { toast } from 'sonner';
 
 interface DeleteTicketButtonProps {
   id: number;
+  onDelete?: (id: number) => void;
 }
 
-export function DeleteTicketButton({ id }: DeleteTicketButtonProps) {
+export function DeleteTicketButton({ id, onDelete }: DeleteTicketButtonProps) {
   const router = useRouter();
 
   async function handleDelete() {
     try {
+      // Optimistically remove the ticket from the UI
+      if (onDelete) {
+        onDelete(id);
+      }
+
       const result = await deleteTicket(id);
       if (result.success) {
         toast.success('Ticket eliminado correctamente');
-        router.refresh();
       } else {
         toast.error('Error al eliminar el ticket');
+        // If there's an error, refresh the page to restore the correct state
+        router.refresh();
       }
     } catch (e) {
       console.error(e);
       toast.error('Error al eliminar el ticket');
+      // If there's an error, refresh the page to restore the correct state
+      router.refresh();
     }
   }
 

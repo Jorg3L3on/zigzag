@@ -15,7 +15,6 @@ import {
 import { updateTicket, finishTicket } from '@/actions/tickets';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
@@ -219,8 +218,14 @@ export default function EditTicketPage({
           },
         };
 
-        // Generate and save PDF
+        // Generate PDF
         const pdf = await html2pdf().set(opt).from(element).output('blob');
+
+        // Create a URL for the PDF
+        const pdfUrl = URL.createObjectURL(pdf);
+
+        // Open PDF in new tab
+        window.open(pdfUrl, '_blank');
 
         // Create FormData and append the PDF
         const formData = new FormData();
@@ -297,7 +302,7 @@ export default function EditTicketPage({
                   {!isFinished && (
                     <Button
                       onClick={generatePDF}
-                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                      className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Generar PDF
@@ -351,23 +356,24 @@ export default function EditTicketPage({
                           <Popover>
                             <PopoverTrigger asChild>
                               <FormControl>
-                                <div
+                                <Button
+                                  variant="outline"
                                   className={cn(
-                                    'w-full h-12 border-2 pl-10 text-left font-normal hover:border-primary transition-colors flex items-center cursor-pointer rounded-md',
+                                    'w-full h-12 pl-10 text-left font-normal hover:border-primary transition-colors relative',
                                     !field.value && 'text-muted-foreground',
                                     isFinished &&
                                       'opacity-50 cursor-not-allowed',
                                   )}
+                                  disabled={isFinished}
                                 >
-                                  <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                   {field.value &&
                                   !isNaN(field.value.getTime()) ? (
                                     format(field.value, 'PPP', { locale: es })
                                   ) : (
                                     <span>Selecciona una fecha</span>
                                   )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </div>
+                                </Button>
                               </FormControl>
                             </PopoverTrigger>
                             {!isFinished && (

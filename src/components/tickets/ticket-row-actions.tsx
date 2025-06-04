@@ -16,6 +16,11 @@ interface Ticket {
   document: string | null;
 }
 
+interface TicketRowActionsProps {
+  ticket: Ticket;
+  onDelete?: (id: number) => void;
+}
+
 export function TicketDownloadButton({
   document,
 }: {
@@ -42,41 +47,29 @@ export function TicketDownloadButton({
   );
 }
 
-export function TicketRowActions({ ticket }: { ticket: Ticket }) {
+export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
   return (
-    <div className="flex items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link
-              href={`/dashboard/tickets/${ticket.id}`}
-              className="flex items-center"
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              Ver
-            </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <Link href={`/dashboard/tickets/${ticket.id}`}>
+          <DropdownMenuItem>
+            <Eye className="mr-2 h-4 w-4" />
+            Ver detalles
           </DropdownMenuItem>
-          {!ticket.document && (
-            <DropdownMenuItem asChild>
-              <Link
-                href={`/dashboard/tickets/${ticket.id}/edit`}
-                className="flex items-center"
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </Link>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem className="p-0">
-            <DeleteTicketButton id={Number(ticket.id)} />
+        </Link>
+        <Link href={`/dashboard/tickets/${ticket.id}/edit`}>
+          <DropdownMenuItem>
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        </Link>
+        <DeleteTicketButton id={Number(ticket.id)} onDelete={onDelete} />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

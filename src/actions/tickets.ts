@@ -42,7 +42,9 @@ export async function createTicket(
   data: CreateTicketInput,
 ): Promise<{ success: boolean; data?: Ticket; error?: string }> {
   try {
+    console.log('Creating ticket with data:', data);
     const validatedData = ticketSchema.parse(data);
+    console.log('Validated data:', validatedData);
 
     const ticket = await prisma.ticket.create({
       data: {
@@ -56,10 +58,12 @@ export async function createTicket(
       },
     });
 
+    console.log('Created ticket:', ticket);
     return { success: true, data: ticket };
   } catch (error) {
     console.error('Error creating ticket:', error);
     if (error instanceof z.ZodError) {
+      console.error('Validation errors:', error.errors);
       return { success: false, error: 'Invalid ticket data' };
     }
     return { success: false, error: 'Error creating ticket' };
@@ -71,6 +75,7 @@ export async function getTickets(companyId: number | null) {
     const tickets = await prisma.ticket.findMany({
       where: {
         company_id: companyId,
+        deleted_at: null,
       },
       include: {
         services_tickets: {
@@ -160,8 +165,11 @@ export async function updateTicket(
 
 export async function deleteTicket(id: number) {
   try {
-    await prisma.ticket.delete({
+    await prisma.ticket.update({
       where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
     });
 
     return { success: true };

@@ -115,6 +115,12 @@ export default function CreateTicketPage() {
   });
 
   React.useEffect(() => {
+    if (selectedCompany?.id && selectedCompany?.name !== 'System') {
+      form.setValue('company_id', selectedCompany.id);
+    }
+  }, [selectedCompany?.id, selectedCompany?.name, form]);
+
+  React.useEffect(() => {
     const fetchClients = async () => {
       if (selectedCompany?.id) {
         const result = await getClients(selectedCompany.id);
@@ -142,18 +148,24 @@ export default function CreateTicketPage() {
 
   async function onSubmit(values: FormValues) {
     try {
+      setLoading(true);
+      console.log('Submitting form with values:', values);
       const result = await createTicket({
         ...values,
         company_id: selectedCompany?.id ?? 0,
       });
+      console.log('Create ticket result:', result);
       if (result.success && result.data) {
         toast.success('Ticket creado correctamente');
         router.push(`/dashboard/tickets/${result.data.id}/services`);
       } else {
-        toast.error('No se pudo crear el ticket');
+        toast.error(result.error || 'No se pudo crear el ticket');
       }
-    } catch {
-      toast.error('Ocurrió un error');
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      toast.error('Ocurrió un error al crear el ticket');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -200,7 +212,11 @@ export default function CreateTicketPage() {
             <CardContent className="space-y-8">
               <Form {...form}>
                 <form
-                  onSubmit={form.handleSubmit(onSubmit)}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    console.log('Form submitted');
+                    form.handleSubmit(onSubmit)(e);
+                  }}
                   className="space-y-8"
                 >
                   <div className="grid gap-6">
@@ -326,20 +342,20 @@ export default function CreateTicketPage() {
                           <Popover>
                             <PopoverTrigger asChild>
                               <FormControl>
-                                <div
+                                <Button
+                                  variant="outline"
                                   className={cn(
-                                    'w-full h-12 border-2 pl-10 text-left font-normal hover:border-primary transition-colors flex items-center cursor-pointer rounded-md',
+                                    'w-full h-12 pl-10 text-left font-normal hover:border-primary transition-colors relative',
                                     !field.value && 'text-muted-foreground',
                                   )}
                                 >
-                                  <CalendarComponent className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                   {field.value ? (
                                     format(field.value, 'PPP', { locale: es })
                                   ) : (
                                     <span>Selecciona una fecha</span>
                                   )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </div>
+                                </Button>
                               </FormControl>
                             </PopoverTrigger>
                             <PopoverContent
@@ -368,9 +384,10 @@ export default function CreateTicketPage() {
                     <Button
                       type="submit"
                       className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-                      disabled={form.formState.isSubmitting || !selectedClient}
+                      disabled={loading || !selectedClient}
+                      onClick={() => console.log('Button clicked')}
                     >
-                      {form.formState.isSubmitting ? (
+                      {loading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Creando ticket...

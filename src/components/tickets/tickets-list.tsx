@@ -30,19 +30,36 @@ interface Ticket {
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const fetchTickets = React.useCallback(async () => {
+    if (!selectedCompany?.id) return;
+
+    try {
+      const result = await getTickets(selectedCompany.id);
+      if (result.success && result.data) {
+        setTickets(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCompany?.id]);
 
   React.useEffect(() => {
-    const fetchTickets = async () => {
-      const result = await getTickets(selectedCompany?.id ?? null);
-      if (result.success && Array.isArray(result.data)) {
-        setTickets(result.data);
-      } else {
-        setTickets([]);
-      }
-    };
-
     fetchTickets();
-  }, [selectedCompany]);
+  }, [fetchTickets]);
+
+  const handleDelete = (id: number) => {
+    setTickets((prevTickets) =>
+      prevTickets.filter((ticket) => Number(ticket.id) !== id),
+    );
+  };
+
+  if (loading) {
+    return <div>Cargando tickets...</div>;
+  }
 
   return (
     <div className="rounded-md border">
@@ -81,7 +98,7 @@ export default function TicketsList() {
                   <FormattedCurrency amount={ticket.total} />
                 </TableCell>
                 <TableCell>
-                  <TicketRowActions ticket={ticket} />
+                  <TicketRowActions ticket={ticket} onDelete={handleDelete} />
                 </TableCell>
               </TableRow>
             ))
