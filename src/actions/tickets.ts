@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const ticketSchema = z.object({
+  client_id: z.number().optional(),
   client_name: z.string().min(1, 'Client name is required'),
   client_tel: z.string().min(1, 'Client phone is required'),
   email: z.string().email('Invalid email address').optional(),
@@ -16,55 +17,61 @@ const ticketSchema = z.object({
       price: z.number().min(0),
     }),
   ),
+  company_id: z.number(),
 });
 
 export type CreateTicketInput = z.infer<typeof ticketSchema>;
 
-export async function createTicket(data: CreateTicketInput) {
+export type Ticket = {
+  id: bigint;
+  client_id: number | null;
+  client_name: string | null;
+  client_tel: string | null;
+  email: string | null;
+  document: string | null;
+  ticket_date: Date | null;
+  total: number | null;
+  finished: boolean;
+  created_at: Date;
+  updated_at: Date | null;
+  deleted_at: Date | null;
+  company_id: number | null;
+};
+
+export async function createTicket(
+  data: CreateTicketInput,
+): Promise<{ success: boolean; data?: Ticket; error?: string }> {
   try {
     const validatedData = ticketSchema.parse(data);
 
     const ticket = await prisma.ticket.create({
       data: {
+        client_id: validatedData.client_id,
         client_name: validatedData.client_name,
         client_tel: validatedData.client_tel,
         email: validatedData.email,
         document: validatedData.document,
         ticket_date: validatedData.ticket_date,
-        total: validatedData.services.reduce(
-          (acc: number, service) => acc + service.price * service.quantity,
-          0,
-        ),
-        services_tickets: {
-          create: validatedData.services.map((service) => ({
-            service_id: service.service_id,
-            quantity: service.quantity,
-            price: service.price,
-            sub_total: service.price * service.quantity,
-          })),
-        },
-      },
-      include: {
-        services_tickets: {
-          include: {
-            service: true,
-          },
-        },
+        company_id: validatedData.company_id,
       },
     });
 
     return { success: true, data: ticket };
-  } catch (error: unknown) {
+  } catch (error) {
+    console.error('Error creating ticket:', error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors };
+      return { success: false, error: 'Invalid ticket data' };
     }
-    return { success: false, error: 'Failed to create ticket' };
+    return { success: false, error: 'Error creating ticket' };
   }
 }
 
-export async function getTickets() {
+export async function getTickets(companyId: number | null) {
   try {
     const tickets = await prisma.ticket.findMany({
+      where: {
+        company_id: companyId,
+      },
       include: {
         services_tickets: {
           include: {

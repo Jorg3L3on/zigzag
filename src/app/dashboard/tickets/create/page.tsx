@@ -12,7 +12,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { createTicket } from '@/actions/tickets';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -30,6 +29,7 @@ import {
   Phone,
   Loader2,
   CheckCircle2,
+  Plus,
 } from 'lucide-react';
 import * as React from 'react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -51,8 +51,27 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { useCompany } from '@/contexts/company-context';
+import { getClients, Client } from '@/actions/clients';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { ClientForm } from '@/components/clients/client-form';
 
 const formSchema = z.object({
+  client_id: z.number().optional(),
   client_name: z.string().min(1, 'El nombre es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono es obligatorio'),
   email: z.string().email('Correo inválido').optional(),
@@ -65,27 +84,68 @@ const formSchema = z.object({
       price: z.number().min(0),
     }),
   ),
+  company_id: z.number(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function CreateTicketPage() {
+  const { selectedCompany } = useCompany();
   const router = useRouter();
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [isNewClientDialogOpen, setIsNewClientDialogOpen] =
+    React.useState(false);
+  const [selectedClient, setSelectedClient] = React.useState<Client | null>(
+    null,
+  );
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      client_id: undefined,
       client_name: '',
       client_tel: '',
       email: '',
       document: '',
       ticket_date: undefined,
       services: [],
+      company_id: selectedCompany?.id ?? 0,
     },
   });
 
+  React.useEffect(() => {
+    const fetchClients = async () => {
+      if (selectedCompany?.id) {
+        const result = await getClients(selectedCompany.id);
+        if (result.success && result.data) {
+          setClients(result.data);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchClients();
+  }, [selectedCompany?.id]);
+
+  const handleClientSelect = (clientId: string) => {
+    const client = clients.find((c) => c.id === parseInt(clientId));
+    if (client) {
+      setSelectedClient(client);
+      form.setValue('client_id', client.id);
+      form.setValue('client_name', client.name);
+      form.setValue('client_tel', client.phone || '');
+      form.setValue('email', client.email || '');
+      form.setValue('document', client.document || '');
+    }
+  };
+
   async function onSubmit(values: FormValues) {
     try {
-      const result = await createTicket(values);
+      const result = await createTicket({
+        ...values,
+        company_id: selectedCompany?.id ?? 0,
+      });
       if (result.success && result.data) {
         toast.success('Ticket creado correctamente');
         router.push(`/dashboard/tickets/${result.data.id}/services`);
@@ -129,7 +189,7 @@ export default function CreateTicketPage() {
                     Información del Cliente
                   </CardTitle>
                   <CardDescription>
-                    Completa todos los campos para crear el ticket
+                    Selecciona un cliente existente o crea uno nuevo
                   </CardDescription>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
@@ -144,77 +204,116 @@ export default function CreateTicketPage() {
                   className="space-y-8"
                 >
                   <div className="grid gap-6">
-                    <FormField
-                      control={form.control}
-                      name="client_name"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel className="text-sm font-medium text-foreground">
-                            Nombre del cliente o empresa
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                              <Input
-                                placeholder="Hotel Ejemplo, Empresa ABC..."
-                                className="pl-10 h-12 border-2 focus:border-primary transition-colors"
-                                {...field}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="flex items-center gap-4">
                       <FormField
                         control={form.control}
-                        name="client_tel"
+                        name="client_id"
                         render={({ field }) => (
-                          <FormItem className="space-y-3">
+                          <FormItem className="flex-1">
                             <FormLabel className="text-sm font-medium text-foreground">
-                              Número de teléfono
+                              Seleccionar Cliente
                             </FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                  placeholder="55 1234 5678"
-                                  className="pl-10 h-12 border-2 focus:border-primary transition-colors"
-                                  {...field}
-                                />
-                              </div>
-                            </FormControl>
+                            <Select
+                              onValueChange={handleClientSelect}
+                              value={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="h-12 border-2 focus:border-primary transition-colors">
+                                  <SelectValue placeholder="Selecciona un cliente" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {loading ? (
+                                  <SelectItem value="loading" disabled>
+                                    Cargando...
+                                  </SelectItem>
+                                ) : (
+                                  clients.map((client) => (
+                                    <SelectItem
+                                      key={client.id}
+                                      value={client.id.toString()}
+                                    >
+                                      {client.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem className="space-y-3">
-                            <FormLabel className="text-sm font-medium text-foreground">
-                              Correo electrónico
-                            </FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                  type="email"
-                                  placeholder="ejemplo@correo.com"
-                                  className="pl-10 h-12 border-2 focus:border-primary transition-colors"
-                                  {...field}
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <Dialog
+                        open={isNewClientDialogOpen}
+                        onOpenChange={setIsNewClientDialogOpen}
+                      >
+                        <DialogTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-12 mt-6"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nuevo Cliente
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+                            <DialogDescription>
+                              Completa los datos del nuevo cliente
+                            </DialogDescription>
+                          </DialogHeader>
+                          <ClientForm
+                            onSuccess={() => {
+                              setIsNewClientDialogOpen(false);
+                              // Refresh clients list
+                              if (selectedCompany?.id) {
+                                getClients(selectedCompany.id).then(
+                                  (result) => {
+                                    if (result.success && result.data) {
+                                      setClients(result.data);
+                                    }
+                                  },
+                                );
+                              }
+                            }}
+                          />
+                        </DialogContent>
+                      </Dialog>
                     </div>
+
+                    {selectedClient && (
+                      <div className="rounded-lg border bg-card p-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">
+                              {selectedClient.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                            <span>{selectedClient.phone}</span>
+                          </div>
+                          {selectedClient.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <span>{selectedClient.email}</span>
+                            </div>
+                          )}
+                          {selectedClient.document && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                Doc:
+                              </span>
+                              <span>{selectedClient.document}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <FormField
                       control={form.control}
@@ -269,7 +368,7 @@ export default function CreateTicketPage() {
                     <Button
                       type="submit"
                       className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-                      disabled={form.formState.isSubmitting}
+                      disabled={form.formState.isSubmitting || !selectedClient}
                     >
                       {form.formState.isSubmitting ? (
                         <>

@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(
+  request: Request,
+  { params }: { params: { company_id: string } },
+) {
   try {
     const services = await prisma.service.findMany({
       orderBy: {
         name: 'asc',
+      },
+      where: {
+        company_id: parseInt(params.company_id),
       },
     });
 
@@ -19,7 +25,10 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: { company_id: string } },
+) {
   try {
     const body = await request.json();
     const { name, description, price } = body;
@@ -29,6 +38,7 @@ export async function POST(request: Request) {
         name,
         description,
         price,
+        company_id: parseInt(params.company_id),
       },
     });
 

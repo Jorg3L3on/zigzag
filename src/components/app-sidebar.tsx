@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { GalleryVerticalEnd, Home, Package, Ticket } from 'lucide-react';
+import { GalleryVerticalEnd, Home, Package, Ticket, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 import { NavMain } from '@/components/nav-main';
@@ -15,20 +15,15 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar';
 
+interface Company {
+  id: number;
+  name: string;
+  logo: string | null;
+  is_system: boolean;
+}
+
 // This is sample data.
 const data = {
-  user: {
-    name: 'shadcn',
-    email: 'm@example.com',
-    avatar: '/avatars/shadcn.jpg',
-  },
-  teams: [
-    {
-      name: 'Acme Inc',
-      logo: GalleryVerticalEnd,
-      plan: 'Enterprise',
-    },
-  ],
   navMain: [
     {
       title: 'Inicio',
@@ -65,11 +60,57 @@ const data = {
         },
       ],
     },
+    {
+      title: 'Clientes',
+      url: '/dashboard/clients',
+      icon: User,
+      items: [
+        {
+          title: 'Ver clientes',
+          url: '/dashboard/clients',
+        },
+        {
+          title: 'Crear cliente',
+          url: '/dashboard/clients/new',
+        },
+      ],
+    },
   ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const [companies, setCompanies] = React.useState<Company[]>([]);
+
+  React.useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await fetch('/api/companies');
+        if (!response.ok) throw new Error('Failed to fetch companies');
+        const data = await response.json();
+        setCompanies(data);
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  const teams = React.useMemo(() => {
+    const mappedTeams = companies.map((company) => ({
+      id: company.id,
+      name: company.name,
+      logo: company.logo
+        ? () => (
+            <img src={company.logo!} alt={company.name} className="size-4" />
+          )
+        : GalleryVerticalEnd,
+      plan: 'Enterprise',
+      is_system: company.is_system,
+    }));
+    return mappedTeams;
+  }, [companies]);
 
   const navItems = React.useMemo(() => {
     return data.navMain.map((item) => ({
@@ -81,7 +122,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />

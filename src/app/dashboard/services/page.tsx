@@ -1,5 +1,5 @@
-import { ServicesList } from '@/components/services/services-list';
+import { ServicesListClient } from '@/components/services/services-list-client';
 
 export default function ServicesPage() {
-  return <ServicesList />;
+  return <ServicesListClient />;
 }

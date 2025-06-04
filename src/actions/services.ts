@@ -10,20 +10,23 @@ export interface Service {
   description: string;
   price: number;
   created_at: Date;
-  updated_at: Date;
+  updated_at: Date | null;
+  deleted_at: Date | null;
+  company_id: number | null;
 }
 
 export interface CreateServiceData {
   name: string;
   description: string;
   price: number;
+  company_id: number;
 }
 
 export interface UpdateServiceData extends Partial<CreateServiceData> {
   id: number;
 }
 
-export async function getServices(): Promise<{
+export async function getServices(companyId: number | null): Promise<{
   success: boolean;
   data?: Service[];
   error?: string;
@@ -32,6 +35,9 @@ export async function getServices(): Promise<{
     const services = await db.service.findMany({
       orderBy: {
         created_at: 'desc',
+      },
+      where: {
+        company_id: companyId,
       },
     });
 
@@ -51,6 +57,7 @@ export async function createService(
         name: data.name,
         description: data.description,
         price: data.price,
+        company_id: data.company_id,
       },
     });
 

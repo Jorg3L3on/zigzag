@@ -36,6 +36,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useEffect, useState, useCallback } from 'react';
+import { useCompany } from '@/contexts/company-context';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
@@ -56,6 +57,7 @@ export default function EditServicePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { selectedCompany } = useCompany();
   const router = useRouter();
   const resolvedParams = React.use(params);
   const [serviceId, setServiceId] = useState<string>('');
@@ -104,7 +106,9 @@ export default function EditServicePage({
   async function onSubmit(values: FormValues) {
     try {
       const method = isNew ? 'POST' : 'PUT';
-      const url = isNew ? '/api/services' : `/api/services/${serviceId}`;
+      const url = isNew
+        ? `/api/services?company_id=${selectedCompany?.id}`
+        : `/api/services/${serviceId}?company_id=${selectedCompany?.id}`;
 
       const response = await fetch(url, {
         method,

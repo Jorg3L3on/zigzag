@@ -48,7 +48,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string; company_id: string } },
 ) {
   try {
     const body = await request.json();
@@ -62,6 +62,7 @@ export async function PUT(
         name,
         description,
         price,
+        company_id: parseInt(params.company_id),
       },
     });
 

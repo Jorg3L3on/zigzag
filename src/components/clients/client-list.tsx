@@ -38,54 +38,45 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Service, deleteService, getServices } from '@/actions/services';
+import { Client, deleteClient, getClients } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 
-export function ServicesListClient() {
+export function ClientList() {
   const { selectedCompany } = useCompany();
-  const [services, setServices] = useState<Service[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [serviceToDelete, setServiceToDelete] = useState<number | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<number | null>(null);
   const router = useRouter();
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   const handleDelete = async (id: number) => {
     try {
       setLoading(true);
-      const result = await deleteService(id);
+      const result = await deleteClient(id);
       if (result.success) {
-        toast.success('Servicio eliminado correctamente');
-        setServices(services.filter((service) => service.id !== id));
+        toast.success('Cliente eliminado correctamente');
+        setClients(clients.filter((client) => client.id !== id));
       } else {
-        toast.error(result.error || 'Error al eliminar el servicio');
+        toast.error(result.error || 'Error al eliminar el cliente');
       }
     } catch (error) {
       console.error(error);
-      toast.error('Error al eliminar el servicio');
+      toast.error('Error al eliminar el cliente');
     } finally {
       setLoading(false);
       setDeleteDialogOpen(false);
-      setServiceToDelete(null);
+      setClientToDelete(null);
     }
   };
 
   React.useEffect(() => {
-    const fetchServices = async () => {
-      const result = await getServices(selectedCompany?.id ?? null);
+    const fetchClients = async () => {
+      const result = await getClients(selectedCompany?.id ?? null);
       if (result.success) {
-        setServices(result.data!);
+        setClients(result.data!);
       }
     };
-    fetchServices();
+    fetchClients();
   }, [selectedCompany]);
 
   return (
@@ -97,7 +88,7 @@ export function ServicesListClient() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Servicios</BreadcrumbPage>
+                <BreadcrumbPage>Clientes</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -111,18 +102,18 @@ export function ServicesListClient() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <CardTitle className="text-xl">
-                    Catálogo de Servicios
+                    Catálogo de Clientes
                   </CardTitle>
                   <CardDescription>
-                    Administra los servicios disponibles
+                    Administra los clientes registrados
                   </CardDescription>
                 </div>
                 <Button
-                  onClick={() => router.push('/dashboard/services/new')}
+                  onClick={() => router.push('/dashboard/clients/new')}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Servicio
+                  Nuevo Cliente
                 </Button>
               </div>
             </CardHeader>
@@ -136,48 +127,56 @@ export function ServicesListClient() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nombre</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Dirección</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {services.map((service) => (
-                      <TableRow key={service.id}>
-                        <TableCell className="font-medium">
-                          {service.name}
-                        </TableCell>
-                        <TableCell>{service.description}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(service.price)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                router.push(
-                                  `/dashboard/services/${service.id}/edit`,
-                                )
-                              }
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setServiceToDelete(service.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
+                    {clients.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center">
+                          No hay clientes registrados
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      clients.map((client) => (
+                        <TableRow key={client.id}>
+                          <TableCell className="font-medium">
+                            {client.name}
+                          </TableCell>
+                          <TableCell>{client.phone}</TableCell>
+                          <TableCell>{client.email || '-'}</TableCell>
+                          <TableCell>{client.address || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/clients/${client.id}/edit`,
+                                  )
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setClientToDelete(client.id);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -192,13 +191,13 @@ export function ServicesListClient() {
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente el
-              servicio.
+              cliente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => serviceToDelete && handleDelete(serviceToDelete)}
+              onClick={() => clientToDelete && handleDelete(clientToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,7 @@ import {
   createServiceTicket,
   updateServiceTicket,
   deleteServiceTicket,
+  getTicketServices,
 } from '@/actions/ticket-services';
 import { SidebarTrigger } from '../ui/sidebar';
 import { Separator } from '../ui/separator';
@@ -44,22 +45,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '../ui/breadcrumb';
+import { useCompany } from '@/contexts/company-context';
+import { getServices } from '@/actions/services';
 
-interface TicketServicesListClientProps {
-  initialServices: Service[];
-  initialTicketServices: ServiceTicket[];
-  ticketId: string;
-}
-
-export function TicketServicesListClient({
-  initialServices,
-  initialTicketServices,
-  ticketId,
-}: TicketServicesListClientProps) {
-  const [services] = useState<Service[]>(initialServices);
-  const [ticketServices, setTicketServices] = useState<ServiceTicket[]>(
-    initialTicketServices,
-  );
+export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
+  const { selectedCompany } = useCompany();
+  const [services, setServices] = useState<Service[]>([]);
+  const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
   const [selectedService, setSelectedService] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('1');
   const [price, setPrice] = useState<string>('');
@@ -72,6 +64,23 @@ export function TicketServicesListClient({
       service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       service.description.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  React.useEffect(() => {
+    const fetchServices = async () => {
+      const result = await getServices(selectedCompany?.id ?? null);
+      if (result.success) {
+        setServices(result.data!);
+      }
+    };
+    const fetchTicketServices = async () => {
+      const result = await getTicketServices(ticketId);
+      if (result.success) {
+        setTicketServices(result.data!);
+      }
+    };
+    fetchServices();
+    fetchTicketServices();
+  }, [selectedCompany, ticketId]);
 
   const resetForm = () => {
     setSelectedService('');
@@ -170,6 +179,15 @@ export function TicketServicesListClient({
       (total, service) => total + service.quantity * service.price,
       0,
     );
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
   };
 
   return (
@@ -377,6 +395,14 @@ export function TicketServicesListClient({
                         className="w-32"
                       />
                     </div>
+                    <div>
+                      <Label className="text-gray-700">Subtotal</Label>
+                      <p className="text-lg font-medium">
+                        {formatCurrency(
+                          serviceTicket.quantity * serviceTicket.price,
+                        )}
+                      </p>
+                    </div>
                     <div className="flex items-center">
                       <Button
                         variant="destructive"
@@ -398,7 +424,7 @@ export function TicketServicesListClient({
 
               <div className="mt-8 text-right border-t pt-4">
                 <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Total: ${calculateTotal().toFixed(2)}
+                  Total: {formatCurrency(calculateTotal())}
                 </p>
               </div>
             </CardContent>

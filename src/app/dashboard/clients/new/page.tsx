@@ -1,13 +1,5 @@
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
+import { Metadata } from 'next';
+import { ClientForm } from '@/components/clients/client-form';
 import {
   Card,
   CardContent,
@@ -15,13 +7,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import Link from 'next/link';
-import TicketsList from '@/components/tickets/tickets-list';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const metadata: Metadata = {
+  title: 'Nuevo Cliente',
+  description: 'Crea un nuevo cliente',
+};
 
-export default function TicketsPage() {
+export default function NewClientPage() {
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2">
@@ -30,8 +32,14 @@ export default function TicketsPage() {
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
             <BreadcrumbList>
+              <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbLink href="/dashboard/clients">
+                  Clientes
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Tickets</BreadcrumbPage>
+                <BreadcrumbPage>Nuevo Cliente</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -39,26 +47,22 @@ export default function TicketsPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full">
+        <div className="mx-auto w-full max-w-2xl">
           <Card className="border-0 shadow-lg">
             <CardHeader className="space-y-4 pb-8">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-xl">Tickets</CardTitle>
+                  <CardTitle className="text-xl">
+                    Información del Cliente
+                  </CardTitle>
                   <CardDescription>
-                    Lista de todos los tickets registrados
+                    Ingresa la información del nuevo cliente
                   </CardDescription>
                 </div>
-                <Link href="/dashboard/tickets/create">
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Ticket
-                  </Button>
-                </Link>
               </div>
             </CardHeader>
             <CardContent>
-              <TicketsList />
+              <ClientForm />
             </CardContent>
           </Card>
         </div>

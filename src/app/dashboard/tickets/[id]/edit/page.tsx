@@ -12,7 +12,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { updateTicket, finishTicket } from '@/actions/tickets';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -57,8 +56,11 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useEffect, useState, useRef } from 'react';
 import InvoiceTemplate from '@/components/pdf/invoice-template';
 import html2pdf from 'html2pdf.js';
+import { getClients, Client } from '@/actions/clients';
+import { useCompany } from '@/contexts/company-context';
 
 const formSchema = z.object({
+  client_id: z.number().optional(),
   client_name: z.string().min(1, 'El nombre es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono es obligatorio'),
   email: z.string().email('Correo inválido').optional(),
@@ -93,11 +95,14 @@ export default function EditTicketPage({
 }) {
   const resolvedParams = React.use(params);
   const router = useRouter();
+  const { selectedCompany } = useCompany();
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
   const [isFinished, setIsFinished] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      client_id: undefined,
       client_name: '',
       client_tel: '',
       email: '',
@@ -117,6 +122,7 @@ export default function EditTicketPage({
 
         if (data.success) {
           form.reset({
+            client_id: data.data.client_id,
             client_name: data.data.client_name,
             client_tel: data.data.client_tel,
             email: data.data.email || '',
@@ -132,6 +138,19 @@ export default function EditTicketPage({
           });
           setTicketServices(data.data.services_tickets);
           setIsFinished(data.data.finished);
+
+          // If there's a client_id, fetch the client details
+          if (data.data.client_id) {
+            const clientsResult = await getClients(selectedCompany?.id ?? null);
+            if (clientsResult.success && clientsResult.data) {
+              const client = clientsResult.data.find(
+                (c) => c.id === data.data.client_id,
+              );
+              if (client) {
+                setSelectedClient(client);
+              }
+            }
+          }
         } else {
           toast.error('No se pudo cargar el ticket');
           router.push('/dashboard/tickets');
@@ -144,13 +163,22 @@ export default function EditTicketPage({
     };
 
     fetchTicket();
-  }, [resolvedParams.id, form, router]);
+  }, [resolvedParams.id, form, router, selectedCompany?.id]);
 
   const calculateTotal = () => {
     return ticketServices.reduce(
       (total, service) => total + service.quantity * service.price,
       0,
     );
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
   };
 
   async function onSubmit(values: FormValues) {
@@ -218,15 +246,15 @@ export default function EditTicketPage({
         );
 
         if (result.success) {
-          setIsFinished(true);
           toast.success('PDF generado correctamente');
+          router.push('/dashboard/tickets');
         } else {
-          toast.error('Error al finalizar el ticket');
+          toast.error('No se pudo generar el PDF');
         }
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Error al generar el PDF');
+      toast.error('Ocurrió un error al generar el PDF');
     }
   };
 
@@ -262,11 +290,11 @@ export default function EditTicketPage({
                     Información del Cliente
                   </CardTitle>
                   <CardDescription>
-                    Modifica los campos necesarios
+                    Información del cliente asociado al ticket
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  {!isFinished ? (
+                  {!isFinished && (
                     <Button
                       onClick={generatePDF}
                       className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
@@ -274,127 +302,44 @@ export default function EditTicketPage({
                       <FileText className="mr-2 h-4 w-4" />
                       Generar PDF
                     </Button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                        Finalizado
-                      </div>
-                      <Button
-                        onClick={() => {
-                          const documentName = `${form.getValues(
-                            'client_name',
-                          )}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-                          if (pdfRef.current) {
-                            const element = pdfRef.current;
-                            const opt = {
-                              margin: 1,
-                              filename: documentName,
-                              image: { type: 'jpeg', quality: 0.98 },
-                              html2canvas: { scale: 2 },
-                              jsPDF: {
-                                unit: 'mm',
-                                format: 'a4',
-                                orientation: 'portrait',
-                              },
-                            };
-                            html2pdf().set(opt).from(element).save();
-                          }
-                        }}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                      >
-                        <FileText className="mr-2 h-4 w-4" />
-                        Descargar PDF
-                      </Button>
-                    </div>
                   )}
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
-                    <User className="h-6 w-6 text-white" />
-                  </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-8">
+              {selectedClient && (
+                <div className="rounded-lg border bg-card p-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{selectedClient.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedClient.phone}</span>
+                    </div>
+                    {selectedClient.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span>{selectedClient.email}</span>
+                      </div>
+                    )}
+                    {selectedClient.document && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Doc:</span>
+                        <span>{selectedClient.document}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-8"
                 >
                   <div className="grid gap-6">
-                    <FormField
-                      control={form.control}
-                      name="client_name"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel className="text-sm font-medium text-foreground">
-                            Nombre del cliente o empresa
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                              <Input
-                                placeholder="Hotel Ejemplo, Empresa ABC..."
-                                className="pl-10 h-12 border-2 focus:border-primary transition-colors"
-                                {...field}
-                                disabled={isFinished}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="client_tel"
-                        render={({ field }) => (
-                          <FormItem className="space-y-3">
-                            <FormLabel className="text-sm font-medium text-foreground">
-                              Número de teléfono
-                            </FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                  placeholder="55 1234 5678"
-                                  className="pl-10 h-12 border-2 focus:border-primary transition-colors"
-                                  {...field}
-                                  disabled={isFinished}
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem className="space-y-3">
-                            <FormLabel className="text-sm font-medium text-foreground">
-                              Correo electrónico
-                            </FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                  type="email"
-                                  placeholder="ejemplo@correo.com"
-                                  className="pl-10 h-12 border-2 focus:border-primary transition-colors"
-                                  {...field}
-                                  disabled={isFinished}
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
                     <FormField
                       control={form.control}
                       name="ticket_date"
@@ -530,16 +475,15 @@ export default function EditTicketPage({
                       <div>
                         <p className="text-sm text-gray-500">Precio</p>
                         <p className="font-medium">
-                          ${serviceTicket.price.toFixed(2)}
+                          {formatCurrency(serviceTicket.price)}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Subtotal</p>
                         <p className="font-medium">
-                          $
-                          {(
-                            serviceTicket.quantity * serviceTicket.price
-                          ).toFixed(2)}
+                          {formatCurrency(
+                            serviceTicket.quantity * serviceTicket.price,
+                          )}
                         </p>
                       </div>
                     </div>
@@ -554,7 +498,7 @@ export default function EditTicketPage({
 
                 <div className="mt-6 text-right">
                   <p className="text-xl font-bold">
-                    Total: ${calculateTotal().toFixed(2)}
+                    Total: {formatCurrency(calculateTotal())}
                   </p>
                 </div>
               </div>
