@@ -1,9 +1,9 @@
 'use client';
 
-import { GalleryVerticalEnd } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -58,12 +58,18 @@ export function LoginForm({
               href="#"
               className="flex flex-col items-center gap-2 font-medium"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-md">
-                <GalleryVerticalEnd className="size-6" />
+              <div className="flex h-20 w-20 items-center justify-center rounded-md">
+                <Image
+                  src="/favicon.ico"
+                  alt="zigzag logo"
+                  width={80}
+                  height={80}
+                  className="size-20"
+                />
               </div>
-              <span className="sr-only">Acme Inc.</span>
+              <span className="sr-only">zigzag</span>
             </a>
-            <h1 className="text-xl font-bold">Bienvenido a Acme Inc.</h1>
+            <h1 className="text-xl font-bold">Bienvenido a zigzag</h1>
           </div>
           <div className="flex flex-col gap-6">
             <div className="grid gap-2">
@@ -81,7 +87,11 @@ export function LoginForm({
               <Input id="password" name="password" type="password" required />
             </div>
             {error && <div className="text-sm text-red-500">{error}</div>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              disabled={isLoading}
+            >
               {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Button>
           </div>
