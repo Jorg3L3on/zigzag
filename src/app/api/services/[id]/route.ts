@@ -48,11 +48,11 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string; company_id: string } },
+  { params }: { params: { id: string } },
 ) {
   try {
     const body = await request.json();
-    const { name, description, price } = body;
+    const { name, description, price, company_id } = body;
 
     const service = await db.service.update({
       where: {
@@ -62,7 +62,8 @@ export async function PUT(
         name,
         description,
         price,
-        company_id: parseInt(params.company_id),
+        company_id: parseInt(company_id),
+        updated_at: new Date(),
       },
     });
 

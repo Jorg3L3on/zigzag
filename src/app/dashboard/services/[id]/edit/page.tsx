@@ -118,6 +118,7 @@ export default function EditServicePage({
         body: JSON.stringify({
           ...values,
           price: parseFloat(values.price),
+          company_id: selectedCompany?.id,
         }),
       });
 
