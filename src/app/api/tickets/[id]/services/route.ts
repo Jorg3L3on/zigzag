@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } },
 ) {
   try {
-    const ticketServices = await prisma.servicesTickets.findMany({
+    const ticketServices = await db.servicesTickets.findMany({
       where: {
         ticket_id: BigInt(params.id),
       },
@@ -33,7 +33,7 @@ export async function POST(
     const body = await request.json();
     const { service_id, quantity, price } = body;
 
-    const ticketService = await prisma.servicesTickets.create({
+    const ticketService = await db.servicesTickets.create({
       data: {
         service_id,
         ticket_id: BigInt(params.id),
@@ -46,7 +46,7 @@ export async function POST(
     });
 
     // Update ticket total
-    const ticketServices = await prisma.servicesTickets.findMany({
+    const ticketServices = await db.servicesTickets.findMany({
       where: {
         ticket_id: BigInt(params.id),
       },
@@ -57,7 +57,7 @@ export async function POST(
       0,
     );
 
-    await prisma.ticket.update({
+    await db.ticket.update({
       where: {
         id: BigInt(params.id),
       },

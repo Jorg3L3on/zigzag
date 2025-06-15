@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
 
 export async function GET(
   req: Request,
@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const client = await prisma.client.findFirst({
+    const client = await db.client.findFirst({
       where: {
         id: parseInt(params.clientId),
         company_id: session.user.company_id as number,
@@ -50,7 +50,7 @@ export async function PATCH(
       return new NextResponse('Name is required', { status: 400 });
     }
 
-    const client = await prisma.client.update({
+    const client = await db.client.update({
       where: {
         id: parseInt(params.clientId),
         company_id: session.user.company_id as number,
@@ -83,7 +83,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await prisma.client.update({
+    await db.client.update({
       where: {
         id: parseInt(params.clientId),
         company_id: session.user.company_id as number,

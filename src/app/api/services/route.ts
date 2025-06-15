@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
 export async function GET(
@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { company_id: string } },
 ) {
   try {
-    const services = await prisma.service.findMany({
+    const services = await db.service.findMany({
       orderBy: {
         name: 'asc',
       },
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, description, price } = body;
 
-    const service = await prisma.service.create({
+    const service = await db.service.create({
       data: {
         name,
         description,

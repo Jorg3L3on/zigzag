@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const clients = await prisma.client.findMany({
+    const clients = await db.client.findMany({
       where: {
         company_id: session.user.company_id as number,
         deleted_at: null,
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       return new NextResponse('Name is required', { status: 400 });
     }
 
-    const client = await prisma.client.create({
+    const client = await db.client.create({
       data: {
         name,
         email,

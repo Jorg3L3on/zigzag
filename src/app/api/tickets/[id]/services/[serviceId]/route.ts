@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 
 export async function PUT(
   request: Request,
@@ -9,7 +9,7 @@ export async function PUT(
     const body = await request.json();
     const { quantity, price } = body;
 
-    const ticketService = await prisma.servicesTickets.update({
+    const ticketService = await db.servicesTickets.update({
       where: {
         id: parseInt(params.serviceId),
       },
@@ -23,7 +23,7 @@ export async function PUT(
     });
 
     // Update ticket total
-    const ticketServices = await prisma.servicesTickets.findMany({
+    const ticketServices = await db.servicesTickets.findMany({
       where: {
         ticket_id: BigInt(params.id),
       },
@@ -34,7 +34,7 @@ export async function PUT(
       0,
     );
 
-    await prisma.ticket.update({
+    await db.ticket.update({
       where: {
         id: BigInt(params.id),
       },
@@ -58,14 +58,14 @@ export async function DELETE(
   { params }: { params: { id: string; serviceId: string } },
 ) {
   try {
-    await prisma.servicesTickets.delete({
+    await db.servicesTickets.delete({
       where: {
         id: parseInt(params.serviceId),
       },
     });
 
     // Update ticket total
-    const ticketServices = await prisma.servicesTickets.findMany({
+    const ticketServices = await db.servicesTickets.findMany({
       where: {
         ticket_id: BigInt(params.id),
       },
@@ -76,7 +76,7 @@ export async function DELETE(
       0,
     );
 
-    await prisma.ticket.update({
+    await db.ticket.update({
       where: {
         id: BigInt(params.id),
       },
