@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 import { z } from 'zod';
 
 const ticketSchema = z.object({
@@ -46,7 +46,7 @@ export async function createTicket(
     const validatedData = ticketSchema.parse(data);
     console.log('Validated data:', validatedData);
 
-    const ticket = await prisma.ticket.create({
+    const ticket = await db.ticket.create({
       data: {
         client_id: validatedData.client_id,
         client_name: validatedData.client_name,
@@ -72,7 +72,7 @@ export async function createTicket(
 
 export async function getTickets(companyId: number | null) {
   try {
-    const tickets = await prisma.ticket.findMany({
+    const tickets = await db.ticket.findMany({
       where: {
         company_id: companyId,
         deleted_at: null,
@@ -98,7 +98,7 @@ export async function getTickets(companyId: number | null) {
 
 export async function getTicketById(id: number) {
   try {
-    const ticket = await prisma.ticket.findUnique({
+    const ticket = await db.ticket.findUnique({
       where: { id },
       include: {
         services_tickets: {
@@ -125,7 +125,7 @@ export async function updateTicket(
   data: Partial<CreateTicketInput>,
 ) {
   try {
-    const ticket = await prisma.ticket.update({
+    const ticket = await db.ticket.update({
       where: { id },
       data: {
         client_name: data.client_name,
@@ -165,7 +165,7 @@ export async function updateTicket(
 
 export async function deleteTicket(id: number) {
   try {
-    await prisma.ticket.update({
+    await db.ticket.update({
       where: { id },
       data: {
         deleted_at: new Date(),
@@ -185,7 +185,7 @@ export async function finishTicket(
   total: number,
 ) {
   try {
-    const ticket = await prisma.ticket.update({
+    const ticket = await db.ticket.update({
       where: { id },
       data: {
         finished: true,

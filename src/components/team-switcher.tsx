@@ -33,21 +33,20 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
   const { selectedCompany, setSelectedCompany } = useCompany();
 
   React.useEffect(() => {
-    if (!selectedCompany && teams.length > 0) {
-      if (session?.user?.company_id) {
-        const userCompany = teams.find(
-          (team) => team.id === session.user.company_id,
-        );
-        if (userCompany) {
-          setSelectedCompany(userCompany);
-        } else {
-          setSelectedCompany(teams[0]);
-        }
+    // Reset selected company when session changes
+    if (session?.user?.company_id) {
+      const userCompany = teams.find(
+        (team) => team.id === session.user.company_id,
+      );
+      if (userCompany) {
+        setSelectedCompany(userCompany);
       } else {
         setSelectedCompany(teams[0]);
       }
+    } else if (teams.length > 0) {
+      setSelectedCompany(teams[0]);
     }
-  }, [teams, selectedCompany, setSelectedCompany, session?.user?.company_id]);
+  }, [teams, session?.user?.company_id, setSelectedCompany]);
 
   const handleCompanySelect = React.useCallback(
     (team: Team) => {
@@ -79,6 +78,10 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
   }
 
   const isSystemUser = session?.user?.company_is_system ?? false;
+  const userCompany = teams.find(
+    (team) => team.id === session?.user?.company_id,
+  );
+  const displayTeams = isSystemUser ? teams : userCompany ? [userCompany] : [];
 
   return (
     <SidebarMenu>
@@ -112,7 +115,7 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
             <DropdownMenuLabel className="text-xs text-muted-foreground">
               Empresas
             </DropdownMenuLabel>
-            {teams.map((team) => (
+            {displayTeams.map((team) => (
               <DropdownMenuItem
                 key={team.id}
                 onClick={() => handleCompanySelect(team)}

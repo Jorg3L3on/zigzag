@@ -1,10 +1,20 @@
 'use client';
 
 import * as React from 'react';
-import { GalleryVerticalEnd, Home, Package, Ticket, User } from 'lucide-react';
+import {
+  Building,
+  GalleryVerticalEnd,
+  Shield,
+  Home,
+  Package,
+  Ticket,
+  User,
+  Key,
+} from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 import { NavMain } from '@/components/nav-main';
+import { NavProject } from '@/components/nav-project';
 import { NavUser } from '@/components/nav-user';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
@@ -76,6 +86,28 @@ const data = {
       ],
     },
   ],
+  system: [
+    {
+      title: 'Usuarios',
+      url: '/dashboard/users',
+      icon: User,
+    },
+    {
+      title: 'Empresas',
+      url: '/dashboard/companies',
+      icon: Building,
+    },
+    {
+      title: 'Roles',
+      url: '/dashboard/roles',
+      icon: Shield,
+    },
+    {
+      title: 'Permisos',
+      url: '/dashboard/permissions',
+      icon: Key,
+    },
+  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -119,6 +151,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }));
   }, [pathname]);
 
+  const systemItems = React.useMemo(() => {
+    return data.system.map((item) => ({
+      ...item,
+      isActive: pathname.startsWith(item.url),
+    }));
+  }, [pathname]);
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -126,6 +165,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
+        <NavProject items={systemItems} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

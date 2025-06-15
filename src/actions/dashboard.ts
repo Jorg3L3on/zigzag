@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db';
 
 export interface DashboardMetrics {
   totalTickets: number;
@@ -29,7 +29,7 @@ export async function getDashboardMetrics(
   console.log('Getting metrics for company ID:', companyId);
 
   // First, let's verify the company exists
-  const company = await prisma.company.findUnique({
+  const company = await db.company.findUnique({
     where: { id: companyId },
   });
 
@@ -48,7 +48,7 @@ export async function getDashboardMetrics(
   }
 
   // Get all tickets for this company
-  const tickets = await prisma.ticket.findMany({
+  const tickets = await db.ticket.findMany({
     where: {
       company_id: companyId,
       deleted_at: null,
@@ -76,7 +76,7 @@ export async function getDashboardMetrics(
   );
 
   // Get clients
-  const clients = await prisma.client.findMany({
+  const clients = await db.client.findMany({
     where: {
       company_id: companyId,
       deleted_at: null,
@@ -95,7 +95,7 @@ export async function getDashboardMetrics(
   const totalClients = clients.length;
 
   // Get services
-  const services = await prisma.service.findMany({
+  const services = await db.service.findMany({
     where: {
       company_id: companyId,
       deleted_at: null,
