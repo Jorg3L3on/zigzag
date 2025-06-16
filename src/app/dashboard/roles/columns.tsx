@@ -3,7 +3,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { Company } from '@/generated/prisma';
+import { Company, Permission } from '@/generated/prisma';
 import { UpdateRoleDialog } from './update-role-dialog';
 import { DeleteRoleDialog } from './delete-role-dialog';
 import { useState } from 'react';
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 export type Role = {
   id: number;
@@ -20,6 +21,9 @@ export type Role = {
   description: string | null;
   created_at: Date;
   company: Company | null;
+  permissions: {
+    permission: Permission;
+  }[];
 };
 
 function RoleActions({ role }: { role: Role }) {
@@ -78,6 +82,21 @@ export const columns: ColumnDef<Role>[] = [
   {
     accessorKey: 'description',
     header: 'Descripción',
+  },
+  {
+    accessorKey: 'permissions',
+    header: 'Permisos',
+    cell: ({ row }) => {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {row.original.permissions.map(({ permission }) => (
+            <Badge key={permission.id} variant="secondary">
+              {permission.name}
+            </Badge>
+          ))}
+        </div>
+      );
+    },
   },
   {
     id: 'actions',

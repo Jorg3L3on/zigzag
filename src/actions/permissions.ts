@@ -12,14 +12,28 @@ export async function getPermissions() {
       include: {
         company: true,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
     });
-
     return { permissions };
   } catch (error) {
     console.error('Error al obtener los permisos:', error);
+    return { permissions: [] };
+  }
+}
+
+export async function getPermissionsByCompany(companyId: number) {
+  try {
+    const permissions = await db.permission.findMany({
+      where: {
+        company_id: companyId,
+        deleted_at: null,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+    return { permissions };
+  } catch (error) {
+    console.error('Error al obtener permisos por empresa:', error);
     return { permissions: [] };
   }
 }
@@ -39,12 +53,11 @@ export async function createPermission(data: {
         updated_at: new Date(),
       },
     });
-
     revalidatePath('/dashboard/permissions');
     return { permission };
   } catch (error) {
-    console.error('Error al crear el permiso:', error);
-    throw new Error('Error al crear el permiso');
+    console.error('Error al crear permiso:', error);
+    throw new Error('Error al crear permiso');
   }
 }
 
@@ -66,30 +79,35 @@ export async function updatePermission(
         updated_at: new Date(),
       },
     });
-
     revalidatePath('/dashboard/permissions');
     return { permission };
   } catch (error) {
-    console.error('Error al actualizar el permiso:', error);
-    throw new Error('Error al actualizar el permiso');
+    console.error('Error al actualizar permiso:', error);
+    throw new Error('Error al actualizar permiso');
   }
 }
 
 export async function deletePermission(id: number) {
   try {
-    const permission = await db.permission.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-        updated_at: new Date(),
+    // First delete all role permissions associated with this permission
+    await db.rolePermission.deleteMany({
+      where: {
+        permission_id: id,
       },
     });
 
+    // Then soft delete the permission
+    await db.permission.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
     revalidatePath('/dashboard/permissions');
-    return { permission };
+    return { success: true };
   } catch (error) {
-    console.error('Error al eliminar el permiso:', error);
-    throw new Error('Error al eliminar el permiso');
+    console.error('Error al eliminar permiso:', error);
+    throw new Error('Error al eliminar permiso');
   }
 }
 
@@ -102,6 +120,7 @@ export async function assignPermissionToRole(
       data: {
         role_id: roleId,
         permission_id: permissionId,
+        created_at: new Date(),
       },
     });
 

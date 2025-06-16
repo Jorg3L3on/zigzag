@@ -3,83 +3,124 @@
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
-interface CreateRoleData {
+export async function getRoles() {
+  try {
+    const roles = await db.role.findMany({
+      include: {
+        company: true,
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+    });
+    return { roles };
+  } catch (error) {
+    console.error('Error al obtener roles:', error);
+    return { roles: [] };
+  }
+}
+
+export async function createRole(data: {
   name: string;
   description?: string;
   company_id: number;
-}
-
-export async function createRole(data: CreateRoleData) {
+  permissions: number[];
+}) {
   try {
     const role = await db.role.create({
       data: {
         name: data.name,
         description: data.description,
         company_id: data.company_id,
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-    });
-    revalidatePath('/dashboard/roles');
-    return role;
-  } catch (error) {
-    console.error('Error creating role:', error);
-    throw new Error('Error al crear el rol');
-  }
-}
-
-export async function getRoles() {
-  try {
-    const roles = await db.role.findMany({
-      where: {
-        deleted_at: null,
-      },
-      orderBy: {
-        created_at: 'desc',
+        permissions: {
+          create: data.permissions.map((permissionId) => ({
+            permission_id: permissionId,
+          })),
+        },
       },
       include: {
         company: true,
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
       },
     });
-    return roles;
+    revalidatePath('/dashboard/roles');
+    return { role };
   } catch (error) {
-    console.error('Error fetching roles:', error);
-    throw new Error('Error al obtener los roles');
+    console.error('Error al crear rol:', error);
+    throw new Error('Error al crear rol');
   }
 }
 
-export async function updateRole(id: number, data: CreateRoleData) {
+export async function updateRole(
+  id: number,
+  data: {
+    name: string;
+    description?: string;
+    company_id: number;
+    permissions: number[];
+  },
+) {
   try {
+    // First, delete all existing permissions
+    await db.rolePermission.deleteMany({
+      where: {
+        role_id: id,
+      },
+    });
+
+    // Then update the role and create new permissions
     const role = await db.role.update({
       where: { id },
       data: {
         name: data.name,
         description: data.description,
         company_id: data.company_id,
-        updated_at: new Date(),
+        permissions: {
+          create: data.permissions.map((permissionId) => ({
+            permission_id: permissionId,
+          })),
+        },
+      },
+      include: {
+        company: true,
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
       },
     });
     revalidatePath('/dashboard/roles');
-    return role;
+    return { role };
   } catch (error) {
-    console.error('Error updating role:', error);
-    throw new Error('Error al actualizar el rol');
+    console.error('Error al actualizar rol:', error);
+    throw new Error('Error al actualizar rol');
   }
 }
 
 export async function deleteRole(id: number) {
   try {
-    const role = await db.role.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-        updated_at: new Date(),
+    // First delete all permissions
+    await db.rolePermission.deleteMany({
+      where: {
+        role_id: id,
       },
     });
+
+    // Then delete the role
+    await db.role.delete({
+      where: { id },
+    });
     revalidatePath('/dashboard/roles');
-    return role;
+    return { success: true };
   } catch (error) {
-    console.error('Error deleting role:', error);
-    throw new Error('Error al eliminar el rol');
+    console.error('Error al eliminar rol:', error);
+    throw new Error('Error al eliminar rol');
   }
 }

@@ -35,7 +35,7 @@ export function NavProject({
 }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Proyectos</SidebarGroupLabel>
+      <SidebarGroupLabel>Administración</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) =>
           item.items ? (

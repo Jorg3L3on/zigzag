@@ -12,6 +12,7 @@ import {
   Key,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
@@ -112,6 +113,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [companies, setCompanies] = React.useState<Company[]>([]);
 
   React.useEffect(() => {
@@ -158,6 +160,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }));
   }, [pathname]);
 
+  const isSystemCompany = session?.user?.company_is_system;
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -165,7 +169,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
-        <NavProject items={systemItems} />
+        {isSystemCompany && <NavProject items={systemItems} />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

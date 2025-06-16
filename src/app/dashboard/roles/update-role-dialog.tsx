@@ -32,13 +32,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
-import { Company } from '@/generated/prisma';
+import { getPermissionsByCompany } from '@/actions/permissions';
+import { Company, Permission } from '@/generated/prisma';
 import { Role } from './columns';
+import { Badge } from '@/components/ui/badge';
+import { X } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional(),
   company_id: z.number().min(1, 'La empresa es requerida'),
+  permissions: z.array(z.number()),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -55,6 +59,10 @@ export function UpdateRoleDialog({
   onOpenChange,
 }: UpdateRoleDialogProps) {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<Permission[]>(
+    [],
+  );
   const router = useRouter();
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -62,6 +70,7 @@ export function UpdateRoleDialog({
       name: role.name,
       description: role.description || '',
       company_id: role.company?.id || 0,
+      permissions: role.permissions.map((p) => p.permission.id),
     },
   });
 
@@ -76,10 +85,37 @@ export function UpdateRoleDialog({
   }, []);
 
   useEffect(() => {
+    const fetchPermissions = async () => {
+      const companyId = form.getValues('company_id');
+      if (companyId) {
+        const { permissions } = await getPermissionsByCompany(companyId);
+        if (permissions) {
+          setPermissions(permissions);
+          // Keep only permissions that belong to the new company
+          const validPermissions = role.permissions
+            .map((p) => p.permission)
+            .filter((p) => permissions.some((np) => np.id === p.id));
+          setSelectedPermissions(validPermissions);
+          form.setValue(
+            'permissions',
+            validPermissions.map((p) => p.id),
+          );
+        }
+      } else {
+        setPermissions([]);
+        setSelectedPermissions([]);
+        form.setValue('permissions', []);
+      }
+    };
+    fetchPermissions();
+  }, [form.watch('company_id'), role.permissions]);
+
+  useEffect(() => {
     form.reset({
       name: role.name,
       description: role.description || '',
       company_id: role.company?.id || 0,
+      permissions: role.permissions.map((p) => p.permission.id),
     });
   }, [role, form]);
 
@@ -94,6 +130,32 @@ export function UpdateRoleDialog({
       console.error('Error al actualizar el rol:', error);
     }
   }
+
+  const handlePermissionSelect = (permissionId: string) => {
+    const permission = permissions.find(
+      (p) => p.id.toString() === permissionId,
+    );
+    if (
+      permission &&
+      !selectedPermissions.find((p) => p.id === permission.id)
+    ) {
+      setSelectedPermissions([...selectedPermissions, permission]);
+      form.setValue('permissions', [
+        ...form.getValues('permissions'),
+        permission.id,
+      ]);
+    }
+  };
+
+  const removePermission = (permissionId: number) => {
+    setSelectedPermissions(
+      selectedPermissions.filter((p) => p.id !== permissionId),
+    );
+    form.setValue(
+      'permissions',
+      form.getValues('permissions').filter((id) => id !== permissionId),
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,6 +216,63 @@ export function UpdateRoleDialog({
                   <FormLabel>Descripción</FormLabel>
                   <FormControl>
                     <Textarea {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="permissions"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Permisos</FormLabel>
+                  <FormControl>
+                    <div className="space-y-4">
+                      <Select onValueChange={handlePermissionSelect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona permisos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {permissions
+                            .filter(
+                              (p) =>
+                                !selectedPermissions.find(
+                                  (sp) => sp.id === p.id,
+                                ),
+                            )
+                            .map((permission) => (
+                              <SelectItem
+                                key={permission.id}
+                                value={permission.id.toString()}
+                              >
+                                {permission.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedPermissions.map((permission) => (
+                          <Badge
+                            key={permission.id}
+                            variant="secondary"
+                            className="flex items-center gap-1"
+                          >
+                            {permission.name}
+                            <button
+                              type="button"
+                              onClick={() => removePermission(permission.id)}
+                              className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            >
+                              <X className="h-3 w-3" />
+                              <span className="sr-only">
+                                Remover {permission.name}
+                              </span>
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

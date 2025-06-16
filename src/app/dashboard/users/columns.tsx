@@ -1,7 +1,7 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { User } from '@/generated/prisma';
+import { User, Company, Role } from '@/generated/prisma';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash } from 'lucide-react';
 import {
@@ -14,7 +14,12 @@ import { UpdateUserDialog } from '@/app/dashboard/users/update-user-dialog';
 import { DeleteUserDialog } from '@/app/dashboard/users/delete-user-dialog';
 import { useState } from 'react';
 
-function CellActions({ user }: { user: User }) {
+type UserWithRelations = User & {
+  company: Company | null;
+  role: Role | null;
+};
+
+function CellActions({ user }: { user: UserWithRelations }) {
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -56,7 +61,7 @@ function CellActions({ user }: { user: User }) {
   );
 }
 
-export const columns: ColumnDef<User>[] = [
+export const columns: ColumnDef<UserWithRelations>[] = [
   {
     accessorKey: 'name',
     header: 'Nombre',
@@ -68,6 +73,16 @@ export const columns: ColumnDef<User>[] = [
   {
     accessorKey: 'company.name',
     header: 'Empresa',
+    cell: ({ row }) => {
+      return row.original.company?.name ?? 'N/A';
+    },
+  },
+  {
+    accessorKey: 'role.name',
+    header: 'Rol',
+    cell: ({ row }) => {
+      return row.original.role?.name ?? 'N/A';
+    },
   },
   {
     id: 'actions',

@@ -32,8 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Company } from '@/generated/prisma';
+import { Company, Role } from '@/generated/prisma';
 import { getCompanies } from '@/actions/companies';
+import { getRoles } from '@/actions/roles';
 
 const formSchema = z
   .object({
@@ -42,6 +43,7 @@ const formSchema = z
     password: z.string().min(1, 'La contraseña es requerida'),
     confirmPassword: z.string().min(1, 'La contraseña es requerida'),
     company_id: z.number().min(1, 'La empresa es requerida'),
+    role_id: z.number().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Las contraseñas no coinciden',
@@ -53,6 +55,7 @@ type FormData = z.infer<typeof formSchema>;
 export function CreateUserDialog() {
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const router = useRouter();
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -62,6 +65,7 @@ export function CreateUserDialog() {
       password: '',
       confirmPassword: '',
       company_id: undefined,
+      role_id: undefined,
     },
   });
 
@@ -74,6 +78,25 @@ export function CreateUserDialog() {
     };
     fetchCompanies();
   }, []);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      const companyId = form.getValues('company_id');
+      if (companyId) {
+        const { roles } = await getRoles();
+        if (roles) {
+          // Filter roles by company_id
+          const companyRoles = roles.filter(
+            (role) => role.company_id === companyId,
+          );
+          setRoles(companyRoles);
+        }
+      } else {
+        setRoles([]);
+      }
+    };
+    fetchRoles();
+  }, [form.watch('company_id')]);
 
   async function onSubmit(data: FormData) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -162,9 +185,11 @@ export function CreateUserDialog() {
                 <FormItem>
                   <FormLabel>Empresa</FormLabel>
                   <Select
-                    onValueChange={(value: string) =>
-                      field.onChange(Number(value))
-                    }
+                    onValueChange={(value: string) => {
+                      field.onChange(Number(value));
+                      // Reset role when company changes
+                      form.setValue('role_id', undefined);
+                    }}
                     defaultValue={field.value?.toString()}
                   >
                     <FormControl>
@@ -179,6 +204,36 @@ export function CreateUserDialog() {
                           value={company.id.toString()}
                         >
                           {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="role_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rol</FormLabel>
+                  <Select
+                    onValueChange={(value: string) =>
+                      field.onChange(Number(value))
+                    }
+                    defaultValue={field.value?.toString()}
+                    disabled={!form.getValues('company_id')}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un rol" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id.toString()}>
+                          {role.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { updateUser } from '@/actions/users';
 import { useRouter } from 'next/navigation';
-import { User, Company } from '@/generated/prisma';
+import { User, Company, Role } from '@/generated/prisma';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import {
@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
+import { getRoles } from '@/actions/roles';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Resolver } from 'react-hook-form';
 
@@ -42,6 +43,7 @@ const formSchema = z
     password: z.string().optional(),
     confirmPassword: z.string().optional(),
     company_id: z.number().min(1, 'La empresa es requerida'),
+    role_id: z.number().optional(),
     changePassword: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
@@ -78,6 +80,7 @@ export function UpdateUserDialog({
 }: UpdateUserDialogProps) {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema) as Resolver<FormData>,
     defaultValues: {
@@ -86,6 +89,7 @@ export function UpdateUserDialog({
       password: '',
       confirmPassword: '',
       company_id: user.company_id ?? 0,
+      role_id: user.role_id ?? undefined,
       changePassword: false,
     },
   });
@@ -103,12 +107,41 @@ export function UpdateUserDialog({
   }, []);
 
   useEffect(() => {
+    const fetchRoles = async () => {
+      const companyId = form.getValues('company_id');
+      if (companyId) {
+        const { roles } = await getRoles();
+        if (roles) {
+          // Filter roles by company_id
+          const companyRoles = roles.filter(
+            (role) => role.company_id === companyId,
+          );
+          setRoles(companyRoles);
+          // Keep only roles that belong to the new company
+          const currentRoleId = form.getValues('role_id');
+          if (
+            currentRoleId &&
+            !companyRoles.some((role) => role.id === currentRoleId)
+          ) {
+            form.setValue('role_id', undefined);
+          }
+        }
+      } else {
+        setRoles([]);
+        form.setValue('role_id', undefined);
+      }
+    };
+    fetchRoles();
+  }, [form.watch('company_id')]);
+
+  useEffect(() => {
     form.reset({
       name: user.name,
       email: user.email,
       password: '',
       confirmPassword: '',
       company_id: user.company_id ?? 0,
+      role_id: user.role_id ?? undefined,
       changePassword: false,
     });
   }, [user, form]);
@@ -220,9 +253,11 @@ export function UpdateUserDialog({
                 <FormItem>
                   <FormLabel>Empresa</FormLabel>
                   <Select
-                    onValueChange={(value: string) =>
-                      field.onChange(Number(value))
-                    }
+                    onValueChange={(value: string) => {
+                      field.onChange(Number(value));
+                      // Reset role when company changes
+                      form.setValue('role_id', undefined);
+                    }}
                     defaultValue={field.value?.toString()}
                   >
                     <FormControl>
@@ -237,6 +272,36 @@ export function UpdateUserDialog({
                           value={company.id.toString()}
                         >
                           {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="role_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rol</FormLabel>
+                  <Select
+                    onValueChange={(value: string) =>
+                      field.onChange(Number(value))
+                    }
+                    defaultValue={field.value?.toString()}
+                    disabled={!form.getValues('company_id')}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un rol" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id.toString()}>
+                          {role.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

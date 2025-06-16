@@ -10,6 +10,7 @@ const userSchema = z.object({
   email: z.string().email('El correo electrónico no es válido'),
   password: z.string().optional(),
   company_id: z.number().min(1, 'La empresa es requerida'),
+  role_id: z.number().optional(),
 });
 
 const createUserSchema = userSchema.extend({
@@ -24,6 +25,7 @@ export async function getUsers() {
     const users = await db.user.findMany({
       include: {
         company: true,
+        role: true,
       },
       orderBy: {
         created_at: 'desc',
@@ -51,6 +53,7 @@ export async function createUser(data: CreateUserFormData) {
         email: validatedData.email,
         password: hashedPassword,
         company_id: validatedData.company_id,
+        role_id: validatedData.role_id,
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -82,6 +85,7 @@ export async function updateUser(id: bigint, data: UserFormData) {
         email: validatedData.email,
         ...(validatedData.password && { password: hashedPassword }),
         company_id: validatedData.company_id,
+        role_id: validatedData.role_id,
         updated_at: new Date(),
       },
     });

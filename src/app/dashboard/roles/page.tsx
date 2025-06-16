@@ -19,7 +19,7 @@ import {
 import { CreateRoleDialog } from '@/app/dashboard/roles/create-role-dialog';
 
 export default async function RolesPage() {
-  const roles = await getRoles();
+  const { roles } = await getRoles();
 
   return (
     <>
