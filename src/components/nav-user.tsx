@@ -83,7 +83,9 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push('/dashboard/account')}
+              >
                 <BadgeCheck className="mr-2 h-4 w-4" />
                 Cuenta
               </DropdownMenuItem>

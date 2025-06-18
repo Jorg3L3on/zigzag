@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { updateUser } from '@/actions/users';
 import { useRouter } from 'next/navigation';
 import { User, Company, Role } from '@/generated/prisma';
@@ -225,7 +226,7 @@ export function UpdateUserDialog({
                     <FormItem>
                       <FormLabel>Contraseña</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" />
+                        <PasswordInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -238,7 +239,7 @@ export function UpdateUserDialog({
                     <FormItem>
                       <FormLabel>Confirmar Contraseña</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" />
+                        <PasswordInput {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
