@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp:*)",
+      "mcp__mysql__mysql_query",
+      "Bash(npm run rag:index)",
+      "Bash(npm run rag:search \"how does multi-tenancy work with company_id\")"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mysql"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "mysql": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-mysql",
+        "mysql://root:@localhost:3306/tickets"
+      ]
+    }
+  }
+}

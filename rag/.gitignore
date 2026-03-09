@@ -1,0 +1,3 @@
+# Generated vector index — rebuild with `npm run rag:index`
+index/vectors.json
+dist/

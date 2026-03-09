@@ -143,7 +143,6 @@ export async function updateTicket(
             service_id: service.service_id,
             quantity: service.quantity,
             price: service.price,
-            sub_total: service.price * service.quantity,
           })),
         },
       },
