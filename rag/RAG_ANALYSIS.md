@@ -151,7 +151,7 @@ The same identical pattern is used in `ask.ts`.
 
 The **system prompt** sent to Claude includes:
 
-- A fixed role description ("helpful assistant for the tickets2.0 project…").
+- A fixed role description ("helpful assistant for the ZigZag project…").
 - The rendered context block above (`## Documentation Context`).
 - The user's question (`## Question`).
 - Three bullet instructions (be concise, reference file paths, flag contradictions with CLAUDE.md).

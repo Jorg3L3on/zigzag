@@ -1,6 +1,6 @@
-# Tickets 2.0 - Ticket Management System
+# ZigZag — Ticket Management System
 
-A modern, multi-tenant ticket management system built with Next.js 15, Prisma, and PostgreSQL.
+A modern, multi-tenant ticket management system (**ZigZag**) built with Next.js 15, Prisma, and PostgreSQL.
 
 ## 🚀 Features
 
@@ -34,8 +34,8 @@ A modern, multi-tenant ticket management system built with Next.js 15, Prisma, a
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd tickets2.0
+git clone https://github.com/Jorg3L3on/zigzag.git
+cd zigzag
 ```
 
 ### 2. Install dependencies
@@ -49,12 +49,12 @@ npm install
 Copy [`.env.example`](.env.example) to `.env` (or create `.env.local`) in the project root:
 
 ```env
-# Database (create the database first, e.g. createdb tickets2)
-DATABASE_URL="postgresql://username:password@localhost:5432/tickets2"
+# Database (create the database first, e.g. createdb zigzag)
+DATABASE_URL="postgresql://username:password@localhost:5432/zigzag"
 
 # NextAuth
 NEXTAUTH_SECRET="your-secret-key"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3069"
 
 # Optional: For production
 NODE_ENV="development"
@@ -79,7 +79,7 @@ npm run seed
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to see the application.
+Visit [http://localhost:3069](http://localhost:3069) to see the application (default dev port in `package.json`).
 
 ## 🧪 Testing
 
@@ -182,8 +182,16 @@ npx prisma migrate reset
 **Database Connection**
 
 - Verify DATABASE_URL in `.env` or `.env.local`
-- Ensure PostgreSQL is running and the database exists
+- Ensure PostgreSQL is running and the database exists (default name in docs: **`zigzag`**)
 - Check database permissions
+
+If you previously used a database named `tickets2` locally, you can rename it in PostgreSQL (no active connections to that DB):
+
+```sql
+ALTER DATABASE tickets2 RENAME TO zigzag;
+```
+
+Then set `DATABASE_URL` to use `/zigzag` as the database name.
 
 **Authentication Issues**
 

@@ -131,7 +131,7 @@ async function main() {
     return;
   }
 
-  const prompt = `You are a helpful assistant for the tickets2.0 project (Next.js 15 + Prisma + MySQL + NextAuth v5).
+  const prompt = `You are a helpful assistant for the ZigZag project (Next.js 15 + Prisma + PostgreSQL + NextAuth v5).
 Answer the question using ONLY the documentation context provided below. If the context does not contain enough information, say so clearly and briefly.
 
 ## Documentation Context

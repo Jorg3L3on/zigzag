@@ -1,4 +1,4 @@
-# Diagnóstico del Proyecto: Tickets 2.0
+# Diagnóstico del Proyecto: ZigZag
 
 > Análisis estático completo — Febrero 2026
 

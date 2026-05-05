@@ -1,6 +1,6 @@
-# Mini RAG — tickets2.0 Knowledge Base
+# Mini RAG — ZigZag Knowledge Base
 
-A lightweight Retrieval-Augmented Generation system for the tickets2.0 project.
+A lightweight Retrieval-Augmented Generation system for the **ZigZag** project.
 No external vector database. No embedding API. Runs fully offline.
 
 ## How It Works

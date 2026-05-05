@@ -2,7 +2,7 @@
 
 ## Overview
 
-tickets2.0 is a multi-tenant ticket management system built with:
+**ZigZag** is a multi-tenant ticket management system built with:
 
 - **Framework**: Next.js 15 (App Router, Turbopack)
 - **Language**: TypeScript

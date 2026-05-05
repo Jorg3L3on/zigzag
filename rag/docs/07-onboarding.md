@@ -16,9 +16,9 @@ npm install
 cp .env.example .env
 
 # 3. Edit .env — set your database connection
-#    DATABASE_URL="postgresql://user:password@localhost:5432/tickets2"
+#    DATABASE_URL="postgresql://user:password@localhost:5432/zigzag"
 #    NEXTAUTH_SECRET="any-random-string"
-#    NEXTAUTH_URL="http://localhost:3000"
+#    NEXTAUTH_URL="http://localhost:3069"
 
 # 4. Run database migrations
 npx prisma migrate dev
@@ -33,7 +33,7 @@ npm run seed
 npm run dev
 ```
 
-App runs at http://localhost:3000.
+App runs at http://localhost:3069 (see `package.json` dev script port).
 
 ## Key Environment Variables
 

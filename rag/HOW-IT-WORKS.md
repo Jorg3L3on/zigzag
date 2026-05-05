@@ -134,7 +134,7 @@ Question ──► Search ──► Build prompt ──► Anthropic API ──�
 #### What the prompt looks like
 
 ```txt
-You are a helpful assistant for the tickets2.0 project...
+You are a helpful assistant for the ZigZag project...
 
 ## Documentation Context
 
