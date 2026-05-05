@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { updateUser } from '@/actions/users';
 import { useRouter } from 'next/navigation';
-import { User, Company, Role } from '@/generated/prisma';
+import { User, Company, Role } from '@/generated/prisma/client';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import {
@@ -148,7 +148,6 @@ export function UpdateUserDialog({
   }, [user, form]);
 
   async function onSubmit(data: FormData) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { confirmPassword, changePassword, ...userData } = data;
     if (!changePassword) {
       delete userData.password;

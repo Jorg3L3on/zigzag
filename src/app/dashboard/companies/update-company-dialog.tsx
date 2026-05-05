@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { updateCompany } from '@/actions/companies';
 import { useRouter } from 'next/navigation';
-import { Company } from '@/generated/prisma';
+import { Company } from '@/generated/prisma/client';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 

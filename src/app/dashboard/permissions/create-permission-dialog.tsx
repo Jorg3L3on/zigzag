@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
-import { Company } from '@/generated/prisma';
+import { Company } from '@/generated/prisma/client';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),

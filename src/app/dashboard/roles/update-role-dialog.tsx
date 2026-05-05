@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
 import { getPermissionsByCompany } from '@/actions/permissions';
-import { Company, Permission } from '@/generated/prisma';
+import { Company, Permission } from '@/generated/prisma/client';
 import { Role } from './columns';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';

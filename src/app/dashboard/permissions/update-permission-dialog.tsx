@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
-import { Company } from '@/generated/prisma';
+import { Company } from '@/generated/prisma/client';
 import { Permission } from './columns';
 
 const formSchema = z.object({

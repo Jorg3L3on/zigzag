@@ -64,7 +64,7 @@ export async function createUser(data: CreateUserFormData) {
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.errors[0].message };
+      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
     }
     return { error: 'Error al crear el usuario' };
   }
@@ -95,7 +95,7 @@ export async function updateUser(id: bigint, data: UserFormData) {
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.errors[0].message };
+      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
     }
     return { error: 'Error al actualizar el usuario' };
   }

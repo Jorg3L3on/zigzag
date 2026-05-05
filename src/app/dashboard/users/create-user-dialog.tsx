@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Company, Role } from '@/generated/prisma';
+import { Company, Role } from '@/generated/prisma/client';
 import { getCompanies } from '@/actions/companies';
 import { getRoles } from '@/actions/roles';
 
@@ -100,7 +100,6 @@ export function CreateUserDialog() {
   }, [companyId, form]);
 
   async function onSubmit(data: FormData) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { confirmPassword, ...userData } = data;
     const result = await createUser(userData);
     if (result.error) {

@@ -133,23 +133,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, []);
 
   const teams = React.useMemo(() => {
-    const mappedTeams = companies.map((company) => ({
-      id: company.id,
-      name: company.name,
-      logo: company.logo
-        ? () => (
-            <Image
-              src={company.logo}
-              alt={company.name}
-              width={16}
-              height={16}
-              className="size-4 rounded-sm object-cover"
-            />
-          )
-        : GalleryVerticalEnd,
-      plan: 'Enterprise',
-      is_system: company.is_system,
-    }));
+    const mappedTeams = companies.map((company) => {
+      const logoUrl = company.logo;
+
+      return {
+        id: company.id,
+        name: company.name,
+        logo: logoUrl
+          ? () => (
+              <Image
+                src={logoUrl}
+                alt={company.name}
+                width={16}
+                height={16}
+                className="size-4 rounded-sm object-cover"
+              />
+            )
+          : GalleryVerticalEnd,
+        plan: 'Enterprise',
+        is_system: company.is_system,
+      };
+    });
     return mappedTeams;
   }, [companies]);
 

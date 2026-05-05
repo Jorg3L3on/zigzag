@@ -55,7 +55,7 @@ export async function createCompany(data: CompanyFormData) {
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.errors[0].message };
+      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
     }
     return { error: 'Error al crear la empresa' };
   }
@@ -82,7 +82,7 @@ export async function updateCompany(id: number, data: CompanyFormData) {
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.errors[0].message };
+      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
     }
     return { error: 'Error al actualizar la empresa' };
   }

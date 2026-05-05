@@ -64,7 +64,7 @@ const formSchema = z.object({
   client_tel: z.string().min(1, 'El teléfono es obligatorio'),
   email: z.string().email('Correo inválido').optional(),
   document: z.string().optional(),
-  ticket_date: z.date({ required_error: 'Selecciona una fecha' }),
+  ticket_date: z.date(),
   services: z.array(
     z.object({
       service_id: z.number(),

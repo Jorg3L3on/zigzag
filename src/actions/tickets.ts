@@ -63,7 +63,7 @@ export async function createTicket(
   } catch (error) {
     console.error('Error creating ticket:', error);
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', error.errors);
+      console.error('Validation errors:', error.issues);
       return { success: false, error: 'Invalid ticket data' };
     }
     return { success: false, error: 'Error creating ticket' };
