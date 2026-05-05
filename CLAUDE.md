@@ -24,6 +24,8 @@ npm run test:e2e                # Playwright E2E (no tests written yet)
 ```
 
 > **Note:** The Prisma client is generated to `src/generated/prisma` (not the default `node_modules`). Always run `npx prisma generate` after schema changes.
+>
+> **Database:** PostgreSQL. Use a `postgresql://...` URL in `DATABASE_URL` (see `.env.example`).
 
 ## Architecture
 

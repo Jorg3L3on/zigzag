@@ -69,6 +69,7 @@ export function CreateUserDialog() {
       role_id: undefined,
     },
   });
+  const companyId = form.watch('company_id');
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -82,7 +83,6 @@ export function CreateUserDialog() {
 
   useEffect(() => {
     const fetchRoles = async () => {
-      const companyId = form.getValues('company_id');
       if (companyId) {
         const { roles } = await getRoles();
         if (roles) {
@@ -97,7 +97,7 @@ export function CreateUserDialog() {
       }
     };
     fetchRoles();
-  }, [form.watch('company_id')]);
+  }, [companyId, form]);
 
   async function onSubmit(data: FormData) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

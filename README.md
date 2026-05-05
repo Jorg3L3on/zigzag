@@ -1,6 +1,6 @@
 # Tickets 2.0 - Ticket Management System
 
-A modern, multi-tenant ticket management system built with Next.js 15, Prisma, and MySQL.
+A modern, multi-tenant ticket management system built with Next.js 15, Prisma, and PostgreSQL.
 
 ## 🚀 Features
 
@@ -16,7 +16,7 @@ A modern, multi-tenant ticket management system built with Next.js 15, Prisma, a
 ## 🛠️ Tech Stack
 
 - **Framework**: Next.js 15 with App Router
-- **Database**: MySQL with Prisma ORM
+- **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: NextAuth.js
 - **UI Components**: Shadcn/ui + Tailwind CSS
 - **Form Handling**: React Hook Form + Zod validation
@@ -26,7 +26,7 @@ A modern, multi-tenant ticket management system built with Next.js 15, Prisma, a
 ## 📋 Prerequisites
 
 - Node.js 18+
-- MySQL 8.0+
+- PostgreSQL 14+ (local, Docker, or hosted)
 - npm or yarn
 
 ## 🚀 Getting Started
@@ -46,11 +46,11 @@ npm install
 
 ### 3. Environment Setup
 
-Create a `.env.local` file in the root directory:
+Copy [`.env.example`](.env.example) to `.env` (or create `.env.local`) in the project root:
 
 ```env
-# Database
-DATABASE_URL="mysql://username:password@localhost:3306/tickets_db"
+# Database (create the database first, e.g. createdb tickets2)
+DATABASE_URL="postgresql://username:password@localhost:5432/tickets2"
 
 # NextAuth
 NEXTAUTH_SECRET="your-secret-key"
@@ -181,8 +181,8 @@ npx prisma migrate reset
 
 **Database Connection**
 
-- Verify DATABASE_URL in `.env.local`
-- Ensure MySQL server is running
+- Verify DATABASE_URL in `.env` or `.env.local`
+- Ensure PostgreSQL is running and the database exists
 - Check database permissions
 
 **Authentication Issues**

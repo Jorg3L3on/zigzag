@@ -4,9 +4,10 @@ import { db } from '@/lib/db';
 
 export async function GET(
   req: Request,
-  { params }: { params: { clientId: string } },
+  context: { params: Promise<{ clientId: string }> },
 ) {
   try {
+    const { clientId } = await context.params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -15,7 +16,7 @@ export async function GET(
 
     const client = await db.client.findFirst({
       where: {
-        id: parseInt(params.clientId),
+        id: parseInt(clientId),
         company_id: session.user.company_id as number,
         deleted_at: null,
       },
@@ -34,9 +35,10 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { clientId: string } },
+  context: { params: Promise<{ clientId: string }> },
 ) {
   try {
+    const { clientId } = await context.params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -52,7 +54,7 @@ export async function PATCH(
 
     const client = await db.client.update({
       where: {
-        id: parseInt(params.clientId),
+        id: parseInt(clientId),
         company_id: session.user.company_id as number,
       },
       data: {
@@ -74,9 +76,10 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { clientId: string } },
+  context: { params: Promise<{ clientId: string }> },
 ) {
   try {
+    const { clientId } = await context.params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -85,7 +88,7 @@ export async function DELETE(
 
     await db.client.update({
       where: {
-        id: parseInt(params.clientId),
+        id: parseInt(clientId),
         company_id: session.user.company_id as number,
       },
       data: {

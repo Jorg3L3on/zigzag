@@ -2,17 +2,22 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { company_id: string } },
-) {
+export async function GET(request: Request) {
   try {
+    const companyId = new URL(request.url).searchParams.get('company_id');
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'company_id query parameter is required' },
+        { status: 400 },
+      );
+    }
+
     const services = await db.service.findMany({
       orderBy: {
         name: 'asc',
       },
       where: {
-        company_id: parseInt(params.company_id),
+        company_id: parseInt(companyId, 10),
       },
     });
 

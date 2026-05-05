@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node.js 18+
-- MySQL 8+ (local or Docker)
+- PostgreSQL 14+ (local or Docker)
 - npm
 
 ## First-time Setup
@@ -16,7 +16,7 @@ npm install
 cp .env.example .env
 
 # 3. Edit .env — set your database connection
-#    DATABASE_URL="mysql://user:password@localhost:3306/tickets"
+#    DATABASE_URL="postgresql://user:password@localhost:5432/tickets2"
 #    NEXTAUTH_SECRET="any-random-string"
 #    NEXTAUTH_URL="http://localhost:3000"
 
@@ -39,7 +39,7 @@ App runs at http://localhost:3000.
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | MySQL connection string |
+| `DATABASE_URL` | PostgreSQL connection string (`postgresql://...`) |
 | `NEXTAUTH_SECRET` | Random string for JWT signing |
 | `NEXTAUTH_URL` | Base URL of the app |
 | `ANTHROPIC_API_KEY` | For RAG question answering (optional) |

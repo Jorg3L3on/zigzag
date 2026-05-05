@@ -48,15 +48,16 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
     const { name, description, price, company_id } = body;
 
     const service = await db.service.update({
       where: {
-        id: parseInt(params.id),
+        id: parseInt(id),
       },
       data: {
         name,
@@ -85,12 +86,13 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await context.params;
     await db.service.delete({
       where: {
-        id: parseInt(params.id),
+        id: parseInt(id),
       },
     });
 

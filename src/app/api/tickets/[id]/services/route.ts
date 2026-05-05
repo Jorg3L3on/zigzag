@@ -3,12 +3,13 @@ import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await context.params;
     const ticketServices = await db.servicesTickets.findMany({
       where: {
-        ticket_id: BigInt(params.id),
+        ticket_id: BigInt(id),
       },
       include: {
         service: true,
@@ -27,16 +28,17 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
     const { service_id, quantity, price } = body;
 
     const ticketService = await db.servicesTickets.create({
       data: {
         service_id,
-        ticket_id: BigInt(params.id),
+        ticket_id: BigInt(id),
         quantity,
         price,
       },
@@ -48,7 +50,7 @@ export async function POST(
     // Update ticket total
     const ticketServices = await db.servicesTickets.findMany({
       where: {
-        ticket_id: BigInt(params.id),
+        ticket_id: BigInt(id),
       },
     });
 
@@ -59,7 +61,7 @@ export async function POST(
 
     await db.ticket.update({
       where: {
-        id: BigInt(params.id),
+        id: BigInt(id),
       },
       data: {
         total,

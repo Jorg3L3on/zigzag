@@ -1,6 +1,6 @@
 # Database Schema
 
-Database: MySQL. ORM: Prisma 6. Client output: `src/generated/prisma`.
+Database: PostgreSQL. ORM: Prisma 6. Client output: `src/generated/prisma`.
 
 ## Models
 

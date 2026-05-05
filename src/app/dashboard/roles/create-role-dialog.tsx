@@ -65,6 +65,7 @@ export function CreateRoleDialog() {
       permissions: [],
     },
   });
+  const companyId = form.watch('company_id');
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -78,7 +79,6 @@ export function CreateRoleDialog() {
 
   useEffect(() => {
     const fetchPermissions = async () => {
-      const companyId = form.getValues('company_id');
       if (companyId) {
         const { permissions } = await getPermissionsByCompany(companyId);
         if (permissions) {
@@ -94,7 +94,7 @@ export function CreateRoleDialog() {
       }
     };
     fetchPermissions();
-  }, [form.watch('company_id')]);
+  }, [companyId, form]);
 
   async function onSubmit(data: FormData) {
     try {

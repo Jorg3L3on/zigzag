@@ -3,6 +3,18 @@ import { PrismaClient } from '../src/generated/prisma';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Insertar compania raiz para contexto multi-tenant
+  await prisma.company.create({
+    data: {
+      id: 1,
+      name: 'Root Company',
+      address: 'Local Address',
+      phone: '0000000000',
+      email: 'root@local.dev',
+      is_system: true,
+    },
+  });
+
   // Insertar servicios
   await prisma.service.createMany({
     data: [
@@ -90,7 +102,9 @@ async function main() {
       id: 1,
       name: 'jorge',
       email: 'jorgeleon983@outlook.com',
-      password: '$2y$12$5DetGVcGQT2HWepXqJTQ7e6oaibNgdaxWtjP2Hl8pIxWVA1zhd.vu',
+      company_id: 1,
+      password:
+        '$2b$12$XRd9/lHxdk7pzGgss6VIEuHvGFImk0198cPJRyEYOsXKSYTImV2pi',
       created_at: new Date('2024-10-03T08:15:18'),
       updated_at: new Date('2024-10-03T08:15:18'),
     },

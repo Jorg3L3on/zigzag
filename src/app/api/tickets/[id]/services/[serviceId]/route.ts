@@ -3,9 +3,10 @@ import { db } from '@/lib/db';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string; serviceId: string } },
+  context: { params: Promise<{ id: string; serviceId: string }> },
 ) {
   try {
+    const params = await context.params;
     const body = await request.json();
     const { quantity, price } = body;
 
@@ -55,9 +56,10 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string; serviceId: string } },
+  context: { params: Promise<{ id: string; serviceId: string }> },
 ) {
   try {
+    const params = await context.params;
     await db.servicesTickets.delete({
       where: {
         id: parseInt(params.serviceId),

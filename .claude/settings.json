@@ -1,14 +1,12 @@
 {
   "mcpServers": {
-    "mysql": {
+    "postgres": {
       "type": "stdio",
-      "command": "cmd",
+      "command": "npx",
       "args": [
-        "/c",
-        "npx",
         "-y",
-        "@modelcontextprotocol/server-mysql",
-        "mysql://root:@localhost:3306/tickets"
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://localhost:5432/tickets2"
       ]
     }
   }

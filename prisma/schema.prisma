@@ -10,7 +10,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -55,7 +55,7 @@ model Ticket {
   client_name      String?           @db.VarChar(100)
   client_tel       String?           @db.VarChar(10)
   ticket_date      DateTime?
-  total            Float?            @db.Double
+  total            Float?            @db.DoublePrecision
   email            String?           @db.VarChar(40)
   finished         Boolean           @default(false)
   document         String?           @db.VarChar(100)

@@ -11,6 +11,7 @@ import {
   User,
   Key,
 } from 'lucide-react';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
@@ -137,7 +138,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       name: company.name,
       logo: company.logo
         ? () => (
-            <img src={company.logo!} alt={company.name} className="size-4" />
+            <Image
+              src={company.logo}
+              alt={company.name}
+              width={16}
+              height={16}
+              className="size-4 rounded-sm object-cover"
+            />
           )
         : GalleryVerticalEnd,
       plan: 'Enterprise',

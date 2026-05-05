@@ -96,6 +96,7 @@ export function UpdateUserDialog({
   });
 
   const changePassword = form.watch('changePassword');
+  const companyId = form.watch('company_id');
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -109,7 +110,6 @@ export function UpdateUserDialog({
 
   useEffect(() => {
     const fetchRoles = async () => {
-      const companyId = form.getValues('company_id');
       if (companyId) {
         const { roles } = await getRoles();
         if (roles) {
@@ -133,7 +133,7 @@ export function UpdateUserDialog({
       }
     };
     fetchRoles();
-  }, [form.watch('company_id')]);
+  }, [companyId, form]);
 
   useEffect(() => {
     form.reset({

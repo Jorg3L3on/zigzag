@@ -6,7 +6,7 @@ tickets2.0 is a multi-tenant ticket management system built with:
 
 - **Framework**: Next.js 15 (App Router, Turbopack)
 - **Language**: TypeScript
-- **Database**: MySQL via Prisma ORM (client generated to `src/generated/prisma`)
+- **Database**: PostgreSQL via Prisma ORM (client generated to `src/generated/prisma`)
 - **Auth**: NextAuth v5 (beta) with JWT strategy
 - **UI**: Tailwind CSS + Radix UI + shadcn/ui components
 - **Validation**: Zod + React Hook Form

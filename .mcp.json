@@ -1,15 +1,12 @@
 {
   "mcpServers": {
-    "mysql": {
+    "postgres": {
       "command": "npx",
-      "args": ["-y", "@benborla29/mcp-server-mysql"],
-      "env": {
-        "MYSQL_HOST": "localhost",
-        "MYSQL_PORT": "3306",
-        "MYSQL_USER": "root",
-        "MYSQL_PASS": "",
-        "MYSQL_DB": "tickets"
-      }
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://localhost:5432/tickets2"
+      ]
     }
   }
 }

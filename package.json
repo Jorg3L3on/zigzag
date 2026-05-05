@@ -3,9 +3,9 @@
   "version": "2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack -p 3069",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3069",
     "lint": "next lint",
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "test": "jest",

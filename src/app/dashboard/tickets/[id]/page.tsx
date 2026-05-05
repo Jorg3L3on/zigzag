@@ -30,9 +30,10 @@ export const revalidate = 0;
 export default async function TicketDetailsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const result = await getTicketById(Number(params.id));
+  const { id } = await params;
+  const result = await getTicketById(Number(id));
 
   if (!result.success || !result.data) {
     notFound();

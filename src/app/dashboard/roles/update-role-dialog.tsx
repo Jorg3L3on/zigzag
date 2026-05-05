@@ -73,6 +73,7 @@ export function UpdateRoleDialog({
       permissions: role.permissions.map((p) => p.permission.id),
     },
   });
+  const companyId = form.watch('company_id');
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -86,7 +87,6 @@ export function UpdateRoleDialog({
 
   useEffect(() => {
     const fetchPermissions = async () => {
-      const companyId = form.getValues('company_id');
       if (companyId) {
         const { permissions } = await getPermissionsByCompany(companyId);
         if (permissions) {
@@ -108,7 +108,7 @@ export function UpdateRoleDialog({
       }
     };
     fetchPermissions();
-  }, [form.watch('company_id'), role.permissions]);
+  }, [companyId, form, role.permissions]);
 
   useEffect(() => {
     form.reset({

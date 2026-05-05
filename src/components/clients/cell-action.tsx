@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AlertModal } from '@/components/modals/alert-modal';
-import { ClientForm } from '@/components/clients/client-form';
 import { ClientColumn } from './columns';
 
 interface CellActionProps {
@@ -23,7 +22,6 @@ interface CellActionProps {
 
 export default function CellAction({ data }: CellActionProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -60,7 +58,11 @@ export default function CellAction({ data }: CellActionProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setOpen(true)}>
+          <DropdownMenuItem
+            onClick={() =>
+              router.push(`/dashboard/clients/${data.id}/edit`)
+            }
+          >
             <Pencil className="mr-2 h-4 w-4" /> Update
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setShowDeleteModal(true)}>
@@ -68,7 +70,6 @@ export default function CellAction({ data }: CellActionProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <ClientForm open={open} onOpenChange={setOpen} data={data} />
       <AlertModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
