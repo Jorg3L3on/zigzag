@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
-import { Company } from '@/generated/prisma/client';
+import type { Company } from '@/db/schema';
 import { Permission } from './columns';
 
 const formSchema = z.object({
@@ -64,6 +64,7 @@ export function UpdatePermissionDialog({
       company_id: permission.company?.id || 0,
     },
   });
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -96,7 +97,19 @@ export function UpdatePermissionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          form.reset({
+            name: permission.name,
+            description: permission.description || '',
+            company_id: permission.company?.id || 0,
+          });
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar Permiso</DialogTitle>
@@ -125,7 +138,7 @@ export function UpdatePermissionDialog({
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(Number(value))}
-                      defaultValue={field.value?.toString()}
+                      value={field.value ? field.value.toString() : undefined}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona una empresa" />
@@ -163,8 +176,9 @@ export function UpdatePermissionDialog({
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               type="submit"
+              disabled={isSubmitting}
             >
-              Actualizar Permiso
+              {isSubmitting ? 'Actualizando...' : 'Actualizar Permiso'}
             </Button>
           </form>
         </Form>

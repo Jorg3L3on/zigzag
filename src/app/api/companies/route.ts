@@ -1,8 +1,63 @@
 // /api/companies
 
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { count, eq, isNull } from 'drizzle-orm';
+import { company, service, ticket, user } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { NextResponse } from 'next/server';
+
+const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
+  if (!rows.length) {
+    return [];
+  }
+
+  const [usersGrouped, ticketsGrouped, servicesGrouped] = await Promise.all([
+    db
+      .select({ companyId: user.company_id, total: count() })
+      .from(user)
+      .where(isNull(user.deleted_at))
+      .groupBy(user.company_id),
+    db
+      .select({ companyId: ticket.company_id, total: count() })
+      .from(ticket)
+      .where(isNull(ticket.deleted_at))
+      .groupBy(ticket.company_id),
+    db
+      .select({ companyId: service.company_id, total: count() })
+      .from(service)
+      .where(isNull(service.deleted_at))
+      .groupBy(service.company_id),
+  ]);
+
+  const usersMap = new Map<number, number>();
+  const ticketsMap = new Map<number, number>();
+  const servicesMap = new Map<number, number>();
+
+  usersGrouped.forEach((row) => {
+    if (row.companyId) {
+      usersMap.set(row.companyId, Number(row.total));
+    }
+  });
+  ticketsGrouped.forEach((row) => {
+    if (row.companyId) {
+      ticketsMap.set(row.companyId, Number(row.total));
+    }
+  });
+  servicesGrouped.forEach((row) => {
+    if (row.companyId) {
+      servicesMap.set(row.companyId, Number(row.total));
+    }
+  });
+
+  return rows.map((c) => ({
+    ...c,
+    _count: {
+      users: usersMap.get(c.id) ?? 0,
+      tickets: ticketsMap.get(c.id) ?? 0,
+      services: servicesMap.get(c.id) ?? 0,
+    },
+  }));
+};
 
 export async function GET() {
   try {
@@ -12,55 +67,37 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({
-      where: { id: BigInt(session.user.id) },
-      include: { company: true },
+    const sessionUser = await db.query.user.findFirst({
+      where: eq(user.id, BigInt(session.user.id)),
+      with: { company: true },
     });
 
-    if (!user) {
+    if (!sessionUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    console.log('user', user);
-
-    // If user belongs to system company, show all companies
-    if (user.company?.is_system) {
-      console.log('user.company.is_system', user.company.is_system);
-      const companies = await db.company.findMany({
-        include: {
-          _count: {
-            select: {
-              users: true,
-              tickets: true,
-              services: true,
-            },
-          },
-        },
-      });
+    if (sessionUser.company?.is_system) {
+      const companiesList = await db.select().from(company);
+      const companies = await attachCounts(companiesList);
       return NextResponse.json(companies);
     }
 
-    console.log('user.company_id', user.company_id);
-
-    // If user belongs to a regular company, show only their company
-    if (!user.company_id) {
+    if (!sessionUser.company_id) {
       return NextResponse.json([]);
     }
 
-    const company = await db.company.findUnique({
-      where: { id: user.company_id },
-      include: {
-        _count: {
-          select: {
-            users: true,
-            tickets: true,
-            services: true,
-          },
-        },
-      },
-    });
+    const [companyRow] = await db
+      .select()
+      .from(company)
+      .where(eq(company.id, sessionUser.company_id))
+      .limit(1);
 
-    return NextResponse.json(company ? [company] : []);
+    if (!companyRow) {
+      return NextResponse.json([]);
+    }
+
+    const [withCounts] = await attachCounts([companyRow]);
+    return NextResponse.json([withCounts]);
   } catch (error) {
     console.error(error);
     return NextResponse.json(
@@ -78,12 +115,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({
-      where: { id: BigInt(session.user.id) },
-      include: { company: true },
+    const sessionUser = await db.query.user.findFirst({
+      where: eq(user.id, BigInt(session.user.id)),
+      with: { company: true },
     });
 
-    if (!user || !user.company?.is_system) {
+    if (!sessionUser || !sessionUser.company?.is_system) {
       return NextResponse.json(
         { error: 'Only system company users can create new companies' },
         { status: 403 },
@@ -91,14 +128,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const company = await db.company.create({
-      data: {
-        ...body,
+    const [created] = await db
+      .insert(company)
+      .values({
+        name: body.name,
+        address: body.address,
+        phone: body.phone,
+        email: body.email,
+        logo: body.logo ?? null,
         is_system: false,
-      },
-    });
+      })
+      .returning();
 
-    return NextResponse.json(company);
+    return NextResponse.json(created);
   } catch (error) {
     console.error(error);
     return NextResponse.json(
@@ -116,32 +158,39 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({
-      where: { id: BigInt(session.user.id) },
-      include: { company: true },
+    const sessionUser = await db.query.user.findFirst({
+      where: eq(user.id, BigInt(session.user.id)),
+      with: { company: true },
     });
 
-    if (!user) {
+    if (!sessionUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const body = await request.json();
 
-    // Only allow system company users to update any company
-    // or users to update their own company
-    if (!user.company?.is_system && user.company_id !== body.id) {
+    if (!sessionUser.company?.is_system && sessionUser.company_id !== body.id) {
       return NextResponse.json(
         { error: 'You can only update your own company' },
         { status: 403 },
       );
     }
 
-    const company = await db.company.update({
-      where: { id: body.id },
-      data: body,
-    });
+    const [updated] = await db
+      .update(company)
+      .set({
+        name: body.name,
+        address: body.address,
+        phone: body.phone,
+        email: body.email,
+        logo: body.logo,
+        is_system: sessionUser.company?.is_system ? Boolean(body.is_system) : false,
+        updated_at: new Date(),
+      })
+      .where(eq(company.id, body.id))
+      .returning();
 
-    return NextResponse.json(company);
+    return NextResponse.json(updated);
   } catch (error) {
     console.error(error);
     return NextResponse.json(

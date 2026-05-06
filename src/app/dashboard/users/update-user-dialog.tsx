@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { updateUser } from '@/actions/users';
 import { useRouter } from 'next/navigation';
-import { User, Company, Role } from '@/generated/prisma/client';
+import type { Company, Role, User } from '@/db/schema';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import {
@@ -97,6 +97,7 @@ export function UpdateUserDialog({
 
   const changePassword = form.watch('changePassword');
   const companyId = form.watch('company_id');
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -166,7 +167,24 @@ export function UpdateUserDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          form.reset({
+            name: user.name,
+            email: user.email,
+            password: '',
+            confirmPassword: '',
+            company_id: user.company_id ?? 0,
+            role_id: user.role_id ?? undefined,
+            changePassword: false,
+          });
+          setRoles([]);
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Actualizar Usuario</DialogTitle>
@@ -258,7 +276,7 @@ export function UpdateUserDialog({
                       // Reset role when company changes
                       form.setValue('role_id', undefined);
                     }}
-                    defaultValue={field.value?.toString()}
+                    value={field.value ? field.value.toString() : undefined}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -290,7 +308,7 @@ export function UpdateUserDialog({
                     onValueChange={(value: string) =>
                       field.onChange(Number(value))
                     }
-                    defaultValue={field.value?.toString()}
+                    value={field.value ? field.value.toString() : undefined}
                     disabled={!form.getValues('company_id')}
                   >
                     <FormControl>
@@ -313,8 +331,9 @@ export function UpdateUserDialog({
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-600"
               type="submit"
+              disabled={isSubmitting}
             >
-              Actualizar Usuario
+              {isSubmitting ? 'Actualizando...' : 'Actualizar Usuario'}
             </Button>
           </form>
         </Form>

@@ -3,7 +3,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { Company } from '@/generated/prisma/client';
+import type { Company } from '@/db/schema';
 import { UpdatePermissionDialog } from '@/app/dashboard/permissions/update-permission-dialog';
 import { DeletePermissionDialog } from '@/app/dashboard/permissions/delete-permission-dialog';
 import { useState } from 'react';

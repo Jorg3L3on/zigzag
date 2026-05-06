@@ -3,7 +3,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { Company, Permission } from '@/generated/prisma/client';
+import type { Company, Permission } from '@/db/schema';
 import { UpdateRoleDialog } from './update-role-dialog';
 import { DeleteRoleDialog } from './delete-role-dialog';
 import { useState } from 'react';

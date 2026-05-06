@@ -1,5 +1,7 @@
 'use server';
 
+import { desc, eq, isNull } from 'drizzle-orm';
+import { company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -16,16 +18,12 @@ export type CompanyFormData = z.infer<typeof companySchema>;
 
 export async function getCompanies() {
   try {
-    const companies = await db.company.findMany({
-      include: {
+    const companies = await db.query.company.findMany({
+      where: isNull(company.deleted_at),
+      with: {
         users: true,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
-      where: {
-        deleted_at: null,
-      },
+      orderBy: [desc(company.created_at)],
     });
     return { companies };
   } catch (e) {
@@ -38,20 +36,20 @@ export async function createCompany(data: CompanyFormData) {
   try {
     const validatedData = companySchema.parse(data);
 
-    const company = await db.company.create({
-      data: {
+    const [created] = await db
+      .insert(company)
+      .values({
         name: validatedData.name,
         address: validatedData.address,
         phone: validatedData.phone,
         email: validatedData.email,
         logo: validatedData.logo,
-        created_at: new Date(),
         updated_at: new Date(),
-      },
-    });
+      })
+      .returning();
 
     revalidatePath('/dashboard/companies');
-    return { company };
+    return { company: created };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
@@ -65,20 +63,21 @@ export async function updateCompany(id: number, data: CompanyFormData) {
   try {
     const validatedData = companySchema.parse(data);
 
-    const company = await db.company.update({
-      where: { id },
-      data: {
+    const [updated] = await db
+      .update(company)
+      .set({
         name: validatedData.name,
         address: validatedData.address,
         phone: validatedData.phone,
         email: validatedData.email,
         logo: validatedData.logo,
         updated_at: new Date(),
-      },
-    });
+      })
+      .where(eq(company.id, id))
+      .returning();
 
     revalidatePath('/dashboard/companies');
-    return { company };
+    return { company: updated };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
@@ -90,12 +89,10 @@ export async function updateCompany(id: number, data: CompanyFormData) {
 
 export async function deleteCompany(id: number) {
   try {
-    await db.company.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-      },
-    });
+    await db
+      .update(company)
+      .set({ deleted_at: new Date() })
+      .where(eq(company.id, id));
 
     revalidatePath('/dashboard/companies');
     return { success: true };

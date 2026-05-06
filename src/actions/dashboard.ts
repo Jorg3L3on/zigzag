@@ -1,5 +1,7 @@
 'use server';
 
+import { and, eq, isNull } from 'drizzle-orm';
+import { client, company, service, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 
 export interface DashboardMetrics {
@@ -16,27 +18,16 @@ export interface DashboardMetrics {
   }[];
 }
 
-// Helper function to safely stringify objects with BigInt
-function safeStringify(obj: unknown): string {
-  return JSON.stringify(obj, (key, value) =>
-    typeof value === 'bigint' ? value.toString() : value,
-  );
-}
-
 export async function getDashboardMetrics(
   companyId: number,
 ): Promise<DashboardMetrics> {
-  console.log('Getting metrics for company ID:', companyId);
+  const [companyRow] = await db
+    .select()
+    .from(company)
+    .where(eq(company.id, companyId))
+    .limit(1);
 
-  // First, let's verify the company exists
-  const company = await db.company.findUnique({
-    where: { id: companyId },
-  });
-
-  console.log('Company:', safeStringify(company));
-
-  if (!company) {
-    console.error('Company not found');
+  if (!companyRow) {
     return {
       totalTickets: 0,
       totalRevenue: 0,
@@ -47,77 +38,53 @@ export async function getDashboardMetrics(
     };
   }
 
-  // Get all tickets for this company
-  const tickets = await db.ticket.findMany({
-    where: {
-      company_id: companyId,
-      deleted_at: null,
-    },
-    include: {
+  const tickets = await db.query.ticket.findMany({
+    where: and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at)),
+    with: {
       services_tickets: true,
     },
   });
 
-  console.log('Found tickets:', safeStringify(tickets));
-
-  // Calculate metrics from the tickets
   const totalTickets = tickets.length;
   const totalRevenue = tickets
-    .filter((ticket) => ticket.finished)
-    .reduce((sum, ticket) => sum + (ticket.total || 0), 0);
+    .filter((t) => t.finished)
+    .reduce((sum, t) => sum + (t.total ?? 0), 0);
   const totalServicesSold = tickets.reduce(
-    (sum, ticket) =>
+    (sum, t) =>
       sum +
-      ticket.services_tickets.reduce(
-        (ticketSum, service) => ticketSum + service.quantity,
+      t.services_tickets.reduce(
+        (ticketSum, st) => ticketSum + st.quantity,
         0,
       ),
     0,
   );
 
-  // Get clients
-  const clients = await db.client.findMany({
-    where: {
-      company_id: companyId,
-      deleted_at: null,
-    },
-    include: {
+  const clients = await db.query.client.findMany({
+    where: and(eq(client.company_id, companyId), isNull(client.deleted_at)),
+    with: {
       tickets: {
-        where: {
-          deleted_at: null,
-        },
+        where: isNull(ticket.deleted_at),
       },
     },
   });
 
-  console.log('Found clients:', safeStringify(clients));
-
   const totalClients = clients.length;
 
-  // Get services
-  const services = await db.service.findMany({
-    where: {
-      company_id: companyId,
-      deleted_at: null,
-    },
-  });
-
-  console.log('Found services:', safeStringify(services));
+  const services = await db
+    .select()
+    .from(service)
+    .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)));
 
   const totalServices = services.length;
 
-  // Calculate client metrics
-  const clientMetrics = clients.map((client) => ({
-    id: client.id,
-    name: client.name,
-    ticketCount: client.tickets.length,
-    totalSpent: client.tickets.reduce(
-      (sum, ticket) => sum + (ticket.total || 0),
-      0,
-    ),
+  const clientMetrics = clients.map((c) => ({
+    id: c.id,
+    name: c.name,
+    ticketCount: c.tickets.length,
+    totalSpent: c.tickets.reduce((sum, t) => sum + (t.total ?? 0), 0),
   }));
 
-  const metrics = {
+  return {
     totalTickets,
     totalRevenue,
     totalClients,
@@ -125,8 +92,4 @@ export async function getDashboardMetrics(
     totalServicesSold,
     clientMetrics,
   };
-
-  console.log('Final metrics:', safeStringify(metrics));
-
-  return metrics;
 }

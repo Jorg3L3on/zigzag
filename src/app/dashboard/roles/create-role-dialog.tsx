@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
 import { getPermissionsByCompany } from '@/actions/permissions';
-import { Company, Permission } from '@/generated/prisma/client';
+import type { Company, Permission } from '@/db/schema';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 
@@ -66,6 +66,7 @@ export function CreateRoleDialog() {
     },
   });
   const companyId = form.watch('company_id');
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -136,7 +137,17 @@ export function CreateRoleDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          form.reset();
+          setSelectedPermissions([]);
+          setPermissions([]);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
           <Plus className="mr-2 h-4 w-4" />
@@ -171,7 +182,7 @@ export function CreateRoleDialog() {
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(Number(value))}
-                      defaultValue={field.value?.toString()}
+                      value={field.value ? field.value.toString() : undefined}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona una empresa" />
@@ -266,8 +277,9 @@ export function CreateRoleDialog() {
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               type="submit"
+              disabled={isSubmitting}
             >
-              Crear Rol
+              {isSubmitting ? 'Creando...' : 'Crear Rol'}
             </Button>
           </form>
         </Form>

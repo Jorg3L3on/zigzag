@@ -1,5 +1,7 @@
 'use server';
 
+import { desc, eq, and, isNull } from 'drizzle-orm';
+import { user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
@@ -22,17 +24,13 @@ export type CreateUserFormData = z.infer<typeof createUserSchema>;
 
 export async function getUsers() {
   try {
-    const users = await db.user.findMany({
-      include: {
+    const users = await db.query.user.findMany({
+      with: {
         company: true,
         role: true,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
-      where: {
-        deleted_at: null,
-      },
+      orderBy: [desc(user.created_at)],
+      where: isNull(user.deleted_at),
     });
     return { users };
   } catch (e) {
@@ -47,20 +45,20 @@ export async function createUser(data: CreateUserFormData) {
 
     const hashedPassword = await hash(validatedData.password, 10);
 
-    const user = await db.user.create({
-      data: {
+    const [created] = await db
+      .insert(user)
+      .values({
         name: validatedData.name,
         email: validatedData.email,
         password: hashedPassword,
         company_id: validatedData.company_id,
         role_id: validatedData.role_id,
-        created_at: new Date(),
         updated_at: new Date(),
-      },
-    });
+      })
+      .returning();
 
     revalidatePath('/dashboard/users');
-    return { user };
+    return { user: created };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
@@ -78,20 +76,21 @@ export async function updateUser(id: bigint, data: UserFormData) {
       ? await hash(validatedData.password, 10)
       : undefined;
 
-    const user = await db.user.update({
-      where: { id, deleted_at: null },
-      data: {
+    const [updated] = await db
+      .update(user)
+      .set({
         name: validatedData.name,
         email: validatedData.email,
         ...(validatedData.password && { password: hashedPassword }),
         company_id: validatedData.company_id,
         role_id: validatedData.role_id,
         updated_at: new Date(),
-      },
-    });
+      })
+      .where(and(eq(user.id, id), isNull(user.deleted_at)))
+      .returning();
 
     revalidatePath('/dashboard/users');
-    return { user };
+    return { user: updated };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
@@ -103,16 +102,17 @@ export async function updateUser(id: bigint, data: UserFormData) {
 
 export async function deleteUser(id: bigint) {
   try {
-    const user = await db.user.update({
-      where: { id, deleted_at: null },
-      data: {
+    const [updated] = await db
+      .update(user)
+      .set({
         deleted_at: new Date(),
         updated_at: new Date(),
-      },
-    });
+      })
+      .where(and(eq(user.id, id), isNull(user.deleted_at)))
+      .returning();
 
     revalidatePath('/dashboard/users');
-    return { user };
+    return { user: updated };
   } catch (e) {
     console.error(e);
     return { error: 'Error al eliminar el usuario' };

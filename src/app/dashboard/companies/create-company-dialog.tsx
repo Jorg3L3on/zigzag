@@ -49,6 +49,7 @@ export function CreateCompanyDialog() {
       logo: '',
     },
   });
+  const isSubmitting = form.formState.isSubmitting;
 
   async function onSubmit(data: FormData) {
     const result = await createCompany(data);
@@ -63,7 +64,15 @@ export function CreateCompanyDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          form.reset();
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
           <Plus className="mr-2 h-4 w-4" />
@@ -144,8 +153,9 @@ export function CreateCompanyDialog() {
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               type="submit"
+              disabled={isSubmitting}
             >
-              Crear Empresa
+              {isSubmitting ? 'Creando...' : 'Crear Empresa'}
             </Button>
           </form>
         </Form>

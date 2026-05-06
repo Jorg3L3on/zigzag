@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { updateCompany } from '@/actions/companies';
 import { useRouter } from 'next/navigation';
-import { Company } from '@/generated/prisma/client';
+import type { Company } from '@/db/schema';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
@@ -57,6 +57,7 @@ export function UpdateCompanyDialog({
       logo: company.logo || '',
     },
   });
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     form.reset({
@@ -80,7 +81,21 @@ export function UpdateCompanyDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          form.reset({
+            name: company.name,
+            email: company.email,
+            phone: company.phone,
+            address: company.address,
+            logo: company.logo || '',
+          });
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Actualizar Empresa</DialogTitle>
@@ -155,8 +170,9 @@ export function UpdateCompanyDialog({
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               type="submit"
+              disabled={isSubmitting}
             >
-              Actualizar Empresa
+              {isSubmitting ? 'Actualizando...' : 'Actualizar Empresa'}
             </Button>
           </form>
         </Form>

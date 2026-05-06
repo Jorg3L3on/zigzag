@@ -1,6 +1,6 @@
 # ZigZag — Ticket Management System
 
-A modern, multi-tenant ticket management system (**ZigZag**) built with Next.js 15, Prisma, and PostgreSQL.
+A modern, multi-tenant ticket management system (**ZigZag**) built with Next.js, Drizzle ORM, and PostgreSQL.
 
 ## 🚀 Features
 
@@ -16,7 +16,7 @@ A modern, multi-tenant ticket management system (**ZigZag**) built with Next.js 
 ## 🛠️ Tech Stack
 
 - **Framework**: Next.js 15 with App Router
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: NextAuth.js
 - **UI Components**: Shadcn/ui + Tailwind CSS
 - **Form Handling**: React Hook Form + Zod validation
@@ -52,6 +52,9 @@ Copy [`.env.example`](.env.example) to `.env` (or create `.env.local`) in the pr
 # Database (create the database first, e.g. createdb zigzag)
 DATABASE_URL="postgresql://username:password@localhost:5432/zigzag"
 
+# Optional for production migration commands
+DIRECT_URL="postgresql://username:password@localhost:5432/zigzag"
+
 # NextAuth
 NEXTAUTH_SECRET="your-secret-key"
 NEXTAUTH_URL="http://localhost:3069"
@@ -60,14 +63,14 @@ NEXTAUTH_URL="http://localhost:3069"
 NODE_ENV="development"
 ```
 
-### 4. Database Setup
+### 4. Database Setup (Drizzle canonical workflow)
 
 ```bash
-# Generate Prisma client
-npx prisma generate
+# Generate SQL migrations from schema changes
+npm run db:generate
 
-# Run migrations
-npx prisma migrate dev
+# Apply migrations
+npm run db:migrate
 
 # Seed the database
 npm run seed
@@ -131,13 +134,92 @@ The application uses NextAuth.js with a role-based permission system:
 - **Tickets**: Service requests and tracking
 - **Roles & Permissions**: Access control system
 
-## 🚀 Deployment
+## 🚀 Deployment (Vercel + Neon)
 
-### Vercel (Recommended)
+### 1) Prepare production env vars
 
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
+Use [`.env.production.example`](.env.production.example) as the canonical template.
+
+Required variables:
+
+- `DATABASE_URL`: Neon pooled connection string for app runtime
+- `DIRECT_URL`: Neon direct connection string for migrations
+- `NEXTAUTH_URL`: your deployed app URL (example: `https://<project>.vercel.app`)
+- `NEXTAUTH_SECRET`: secure random secret
+- `NODE_ENV=production`
+
+Generate a secure `NEXTAUTH_SECRET`:
+
+```bash
+openssl rand -base64 32
+```
+
+### 2) Create Neon project and database
+
+1. Create a Neon project (for example, `zigzag`)
+2. Create/open the `zigzag` database
+3. Copy both connection strings:
+   - **Pooled** URL for `DATABASE_URL`
+   - **Direct** URL for `DIRECT_URL`
+
+### 3) Apply Prisma migrations to Neon
+
+Before first production deployment, run:
+
+```bash
+# Set DATABASE_URL and DIRECT_URL in your shell or .env
+npm run migrate:deploy
+```
+
+Optional first-time seed:
+
+```bash
+npm run db:prod:setup
+```
+
+`migrate:deploy` uses `DIRECT_URL` when present, falling back to `DATABASE_URL`.
+
+### 4) Configure Vercel project
+
+1. Import the GitHub repository in Vercel
+2. Keep framework preset as **Next.js**
+3. Keep default domain (`*.vercel.app`)
+4. Add all required env vars in **Project Settings → Environment Variables**
+5. Deploy from `main` branch
+
+This repository includes `vercel.json` with a build command:
+
+```json
+{
+  "buildCommand": "npm run vercel-build"
+}
+```
+
+`vercel-build` runs `next build`.
+
+### 5) Verification checklist
+
+Before deploy:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+After deploy:
+
+1. Visit `/` and `/dashboard`
+2. Verify login works
+3. Execute at least one CRUD flow for clients/services/tickets
+4. Check Vercel logs for `500` errors
+
+### 6) Troubleshooting production
+
+- **Database connection errors**: verify `DATABASE_URL`/`DIRECT_URL` and Neon SSL params
+- **Migration failures**: run `npm run migrate:deploy` locally against Neon to inspect output
+- **Auth redirect/session issues**: verify `NEXTAUTH_URL` exactly matches deployed URL
+- **Build failures**: ensure `npm run vercel-build` is used and all required env vars are set in Vercel
 
 ### Manual Deployment
 
@@ -157,14 +239,17 @@ npm start
 - Prettier formatting
 - TypeScript strict mode enabled
 
-### Database Migrations
+### Database Migrations (Drizzle)
 
 ```bash
-# Create a new migration
-npx prisma migrate dev --name migration_name
+# Generate migration SQL after schema changes
+npm run db:generate
 
-# Reset database (development only)
-npx prisma migrate reset
+# Apply pending migrations
+npm run db:migrate
+
+# Open Drizzle Studio
+npm run db:studio
 ```
 
 ### Adding New Features

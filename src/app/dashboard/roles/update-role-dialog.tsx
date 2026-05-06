@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
 import { getPermissionsByCompany } from '@/actions/permissions';
-import { Company, Permission } from '@/generated/prisma/client';
+import type { Company, Permission } from '@/db/schema';
 import { Role } from './columns';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
@@ -74,6 +74,7 @@ export function UpdateRoleDialog({
     },
   });
   const companyId = form.watch('company_id');
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -87,28 +88,31 @@ export function UpdateRoleDialog({
 
   useEffect(() => {
     const fetchPermissions = async () => {
-      if (companyId) {
-        const { permissions } = await getPermissionsByCompany(companyId);
-        if (permissions) {
-          setPermissions(permissions);
-          // Keep only permissions that belong to the new company
-          const validPermissions = role.permissions
-            .map((p) => p.permission)
-            .filter((p) => permissions.some((np) => np.id === p.id));
-          setSelectedPermissions(validPermissions);
-          form.setValue(
-            'permissions',
-            validPermissions.map((p) => p.id),
-          );
-        }
-      } else {
+      if (!companyId) {
         setPermissions([]);
         setSelectedPermissions([]);
         form.setValue('permissions', []);
+        return;
       }
+
+      const { permissions } = await getPermissionsByCompany(companyId);
+      if (!permissions) {
+        return;
+      }
+
+      setPermissions(permissions);
+      const currentSelected = form.getValues('permissions');
+      const validPermissionIds = currentSelected.filter((id) =>
+        permissions.some((permission) => permission.id === id),
+      );
+      const validPermissions = permissions.filter((permission) =>
+        validPermissionIds.includes(permission.id),
+      );
+      setSelectedPermissions(validPermissions);
+      form.setValue('permissions', validPermissionIds);
     };
     fetchPermissions();
-  }, [companyId, form, role.permissions]);
+  }, [companyId, form]);
 
   useEffect(() => {
     form.reset({
@@ -158,7 +162,23 @@ export function UpdateRoleDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          const initialPermissions = role.permissions.map((p) => p.permission);
+          setSelectedPermissions(initialPermissions);
+          setPermissions(initialPermissions);
+          form.reset({
+            name: role.name,
+            description: role.description || '',
+            company_id: role.company?.id || 0,
+            permissions: initialPermissions.map((permission) => permission.id),
+          });
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar Rol</DialogTitle>
@@ -187,7 +207,7 @@ export function UpdateRoleDialog({
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(Number(value))}
-                      defaultValue={field.value?.toString()}
+                      value={field.value ? field.value.toString() : undefined}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona una empresa" />
@@ -282,8 +302,9 @@ export function UpdateRoleDialog({
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               type="submit"
+              disabled={isSubmitting}
             >
-              Actualizar Rol
+              {isSubmitting ? 'Actualizando...' : 'Actualizar Rol'}
             </Button>
           </form>
         </Form>

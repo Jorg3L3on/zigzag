@@ -1,15 +1,17 @@
 'use server';
 
+import { eq } from 'drizzle-orm';
+import { role, rolePermission } from '@/db/schema';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
 export async function getRoles() {
   try {
-    const roles = await db.role.findMany({
-      include: {
+    const roles = await db.query.role.findMany({
+      with: {
         company: true,
         permissions: {
-          include: {
+          with: {
             permission: true,
           },
         },
@@ -29,28 +31,43 @@ export async function createRole(data: {
   permissions: number[];
 }) {
   try {
-    const role = await db.role.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        company_id: data.company_id,
-        permissions: {
-          create: data.permissions.map((permissionId) => ({
+    let newRoleId = 0;
+    await db.transaction(async (tx) => {
+      const [newRole] = await tx
+        .insert(role)
+        .values({
+          name: data.name,
+          description: data.description,
+          company_id: data.company_id,
+        })
+        .returning();
+
+      newRoleId = newRole.id;
+
+      if (data.permissions.length > 0) {
+        await tx.insert(rolePermission).values(
+          data.permissions.map((permissionId) => ({
+            role_id: newRole.id,
             permission_id: permissionId,
           })),
-        },
-      },
-      include: {
+        );
+      }
+    });
+
+    const full = await db.query.role.findFirst({
+      where: eq(role.id, newRoleId),
+      with: {
         company: true,
         permissions: {
-          include: {
+          with: {
             permission: true,
           },
         },
       },
     });
+
     revalidatePath('/dashboard/roles');
-    return { role };
+    return { role: full };
   } catch (error) {
     console.error('Error al crear rol:', error);
     throw new Error('Error al crear rol');
@@ -67,37 +84,42 @@ export async function updateRole(
   },
 ) {
   try {
-    // First, delete all existing permissions
-    await db.rolePermission.deleteMany({
-      where: {
-        role_id: id,
-      },
-    });
+    await db.transaction(async (tx) => {
+      await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
 
-    // Then update the role and create new permissions
-    const role = await db.role.update({
-      where: { id },
-      data: {
-        name: data.name,
-        description: data.description,
-        company_id: data.company_id,
-        permissions: {
-          create: data.permissions.map((permissionId) => ({
+      await tx
+        .update(role)
+        .set({
+          name: data.name,
+          description: data.description,
+          company_id: data.company_id,
+        })
+        .where(eq(role.id, id));
+
+      if (data.permissions.length > 0) {
+        await tx.insert(rolePermission).values(
+          data.permissions.map((permissionId) => ({
+            role_id: id,
             permission_id: permissionId,
           })),
-        },
-      },
-      include: {
+        );
+      }
+    });
+
+    const full = await db.query.role.findFirst({
+      where: eq(role.id, id),
+      with: {
         company: true,
         permissions: {
-          include: {
+          with: {
             permission: true,
           },
         },
       },
     });
+
     revalidatePath('/dashboard/roles');
-    return { role };
+    return { role: full };
   } catch (error) {
     console.error('Error al actualizar rol:', error);
     throw new Error('Error al actualizar rol');
@@ -106,17 +128,11 @@ export async function updateRole(
 
 export async function deleteRole(id: number) {
   try {
-    // First delete all permissions
-    await db.rolePermission.deleteMany({
-      where: {
-        role_id: id,
-      },
+    await db.transaction(async (tx) => {
+      await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
+      await tx.delete(role).where(eq(role.id, id));
     });
 
-    // Then delete the role
-    await db.role.delete({
-      where: { id },
-    });
     revalidatePath('/dashboard/roles');
     return { success: true };
   } catch (error) {

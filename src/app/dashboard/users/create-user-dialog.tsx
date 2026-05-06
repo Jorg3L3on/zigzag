@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Company, Role } from '@/generated/prisma/client';
+import type { Company, Role } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
 import { getRoles } from '@/actions/roles';
 
@@ -70,6 +70,7 @@ export function CreateUserDialog() {
     },
   });
   const companyId = form.watch('company_id');
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -113,7 +114,16 @@ export function CreateUserDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          form.reset();
+          setRoles([]);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-600">
           <Plus className="mr-2 h-4 w-4" />
@@ -190,7 +200,7 @@ export function CreateUserDialog() {
                       // Reset role when company changes
                       form.setValue('role_id', undefined);
                     }}
-                    defaultValue={field.value?.toString()}
+                    value={field.value ? field.value.toString() : undefined}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -222,7 +232,7 @@ export function CreateUserDialog() {
                     onValueChange={(value: string) =>
                       field.onChange(Number(value))
                     }
-                    defaultValue={field.value?.toString()}
+                    value={field.value ? field.value.toString() : undefined}
                     disabled={!form.getValues('company_id')}
                   >
                     <FormControl>
@@ -245,8 +255,9 @@ export function CreateUserDialog() {
             <Button
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-600"
               type="submit"
+              disabled={isSubmitting}
             >
-              Crear Usuario
+              {isSubmitting ? 'Creando...' : 'Crear Usuario'}
             </Button>
           </form>
         </Form>

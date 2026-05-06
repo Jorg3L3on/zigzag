@@ -1,8 +1,10 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { and, eq } from 'drizzle-orm';
+import { servicesTickets } from '@/db/schema';
+import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
-import { Service } from './services';
+import { revalidatePath } from 'next/cache';
 
 export interface ServiceTicket {
   id: number;
@@ -23,20 +25,20 @@ export interface UpdateServiceTicketData {
   price: number;
 }
 
+const ticketIdBigInt = (ticketId: string) => BigInt(ticketId);
+
 export async function getTicketServices(
   ticketId: string,
 ): Promise<{ success: boolean; data?: ServiceTicket[]; error?: string }> {
   try {
-    const ticketServices = await db.servicesTickets.findMany({
-      where: {
-        ticket_id: parseInt(ticketId),
-      },
-      include: {
+    const ticketServicesRows = await db.query.servicesTickets.findMany({
+      where: eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+      with: {
         service: true,
       },
     });
 
-    return { success: true, data: ticketServices };
+    return { success: true, data: ticketServicesRows as ServiceTicket[] };
   } catch (error) {
     console.error('Error fetching ticket services:', error);
     return {
@@ -51,20 +53,23 @@ export async function createServiceTicket(
   data: CreateServiceTicketData,
 ): Promise<{ success: boolean; data?: ServiceTicket; error?: string }> {
   try {
-    const serviceTicket = await db.servicesTickets.create({
-      data: {
-        ticket_id: parseInt(ticketId),
+    const [serviceTicket] = await db
+      .insert(servicesTickets)
+      .values({
+        ticket_id: ticketIdBigInt(ticketId),
         service_id: data.service_id,
         quantity: data.quantity,
         price: data.price,
-      },
-      include: {
-        service: true,
-      },
+      })
+      .returning();
+
+    const full = await db.query.servicesTickets.findFirst({
+      where: eq(servicesTickets.id, serviceTicket.id),
+      with: { service: true },
     });
 
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
-    return { success: true, data: serviceTicket };
+    return { success: true, data: full as ServiceTicket };
   } catch (error) {
     console.error('Error creating service ticket:', error);
     return { success: false, error: 'Error al agregar el servicio al ticket' };
@@ -77,22 +82,27 @@ export async function updateServiceTicket(
   data: UpdateServiceTicketData,
 ): Promise<{ success: boolean; data?: ServiceTicket; error?: string }> {
   try {
-    const serviceTicket = await db.servicesTickets.update({
-      where: {
-        id: serviceTicketId,
-        ticket_id: parseInt(ticketId),
-      },
-      data: {
+    const [updated] = await db
+      .update(servicesTickets)
+      .set({
         quantity: data.quantity,
         price: data.price,
-      },
-      include: {
-        service: true,
-      },
+      })
+      .where(
+        and(
+          eq(servicesTickets.id, serviceTicketId),
+          eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+        ),
+      )
+      .returning();
+
+    const full = await db.query.servicesTickets.findFirst({
+      where: eq(servicesTickets.id, updated.id),
+      with: { service: true },
     });
 
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
-    return { success: true, data: serviceTicket };
+    return { success: true, data: full as ServiceTicket };
   } catch (error) {
     console.error('Error updating service ticket:', error);
     return {
@@ -107,12 +117,14 @@ export async function deleteServiceTicket(
   serviceTicketId: number,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await db.servicesTickets.delete({
-      where: {
-        id: serviceTicketId,
-        ticket_id: parseInt(ticketId),
-      },
-    });
+    await db
+      .delete(servicesTickets)
+      .where(
+        and(
+          eq(servicesTickets.id, serviceTicketId),
+          eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+        ),
+      );
 
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
     return { success: true };

@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { hash } from 'bcryptjs';
+import { and, eq, isNull } from 'drizzle-orm';
+import { user } from '@/db/schema';
+import { fail, ok, requireSession } from '@/lib/api-helpers';
+import { db } from '@/lib/db';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
 
-// Helper function to transform BigInt values
 function transformBigInt<T>(data: T): T {
   if (data === null || data === undefined) {
     return data;
@@ -29,36 +32,85 @@ function transformBigInt<T>(data: T): T {
 
 export async function GET() {
   try {
-    const users = await db.user.findMany();
-    return NextResponse.json(users);
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
+    }
+
+    const isSystemUser = session.user.company_is_system;
+    const users = isSystemUser
+      ? await db.select().from(user).where(isNull(user.deleted_at))
+      : await db
+          .select()
+          .from(user)
+          .where(
+            and(
+              isNull(user.deleted_at),
+              eq(user.company_id, session.user.company_id as number),
+            ),
+          );
+
+    return ok(transformBigInt(users));
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return fail('Internal server error', 500);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
+    }
+
     const body = await request.json();
-    const { password } = body;
+    const parsed = z
+      .object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(8),
+        company_id: z.number().int().positive().optional(),
+        role_id: z.number().int().positive().optional(),
+        email_verified_at: z.coerce.date().optional(),
+        remember_token: z.string().optional(),
+      })
+      .parse(body);
 
-    const hashedPassword = await hash(password, 10);
+    const isSystemUser = session.user.company_is_system;
+    const targetCompanyId = isSystemUser
+      ? (parsed.company_id ?? session.user.company_id)
+      : session.user.company_id;
 
-    const user = await db.user.create({
-      data: {
-        ...body,
+    if (!targetCompanyId) {
+      return fail('User company context is required', 400);
+    }
+
+    const hashedPassword = await hash(parsed.password, 10);
+
+    if (!isSystemUser && parsed.company_id && parsed.company_id !== targetCompanyId) {
+      return fail('Cannot create users for another company', 403);
+    }
+
+    const [created] = await db
+      .insert(user)
+      .values({
+        name: parsed.name,
+        email: parsed.email,
+        company_id: targetCompanyId,
+        role_id: parsed.role_id ?? null,
+        email_verified_at: parsed.email_verified_at ?? null,
+        remember_token: parsed.remember_token ?? null,
         password: hashedPassword,
-      },
-    });
-    return NextResponse.json(transformBigInt(user));
+      })
+      .returning();
+
+    return ok(transformBigInt(created), 201);
   } catch (e) {
+    if (e instanceof z.ZodError) {
+      return fail(e.issues[0]?.message ?? 'Invalid payload', 400);
+    }
     console.error(e);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return fail('Internal server error', 500);
   }
 }

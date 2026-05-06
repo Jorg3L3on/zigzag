@@ -1,24 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
 interface FormattedCurrencyProps {
   amount: number | null;
 }
 
 export function FormattedCurrency({ amount }: FormattedCurrencyProps) {
-  const [formattedAmount, setFormattedAmount] = useState<string>('Sin total');
+  if (amount === null) {
+    return <span>Sin total</span>;
+  }
 
-  useEffect(() => {
-    if (amount !== null) {
-      setFormattedAmount(
-        `$${amount.toLocaleString('es-MX', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`,
-      );
-    }
-  }, [amount]);
+  const formattedAmount = `$${amount.toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 
   return <span>{formattedAmount}</span>;
 }

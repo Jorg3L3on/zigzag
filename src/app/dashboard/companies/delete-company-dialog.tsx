@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { deleteCompany } from '@/actions/companies';
 import { useRouter } from 'next/navigation';
-import { Company } from '@/generated/prisma/client';
+import type { Company } from '@/db/schema';
 import { toast } from 'sonner';
 
 interface DeleteCompanyDialogProps {

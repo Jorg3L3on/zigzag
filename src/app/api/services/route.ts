@@ -1,67 +1,76 @@
-import { NextResponse } from 'next/server';
+import { asc, eq } from 'drizzle-orm';
+import { service } from '@/db/schema';
+import { fail, ok, requireSession } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
-import { auth } from '@/lib/auth';
+import { z } from 'zod';
 
 export async function GET(request: Request) {
   try {
-    const companyId = new URL(request.url).searchParams.get('company_id');
-    if (!companyId) {
-      return NextResponse.json(
-        { error: 'company_id query parameter is required' },
-        { status: 400 },
-      );
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
-    const services = await db.service.findMany({
-      orderBy: {
-        name: 'asc',
-      },
-      where: {
-        company_id: parseInt(companyId, 10),
-      },
-    });
+    const companyIdParam = new URL(request.url).searchParams.get('company_id');
+    const parsedCompanyId = companyIdParam ? Number.parseInt(companyIdParam, 10) : null;
+    const companyId = session.user.company_is_system
+      ? parsedCompanyId ?? session.user.company_id
+      : session.user.company_id;
 
-    return NextResponse.json(services);
+    if (!companyId || Number.isNaN(companyId)) {
+      return fail('Invalid company context', 400);
+    }
+
+    const services = await db
+      .select()
+      .from(service)
+      .where(eq(service.company_id, companyId))
+      .orderBy(asc(service.name));
+
+    return ok(services);
   } catch (error) {
     console.error('Error fetching services:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch services' },
-      { status: 500 },
-    );
+    return fail('Failed to fetch services', 500);
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const body = await request.json();
-    const { name, description, price } = body;
+    const parsed = z
+      .object({
+        name: z.string().min(1),
+        description: z.string().min(1),
+        price: z.number().nonnegative(),
+      })
+      .parse(body);
 
-    const service = await db.service.create({
-      data: {
-        name,
-        description,
-        price,
-        company_id: session.user.company_id as number,
-      },
-    });
+    const companyId = session.user.company_id;
+    if (!companyId) {
+      return fail('Invalid company context', 400);
+    }
 
-    return NextResponse.json({
-      success: true,
-      data: service,
-    });
+    const [created] = await db
+      .insert(service)
+      .values({
+        name: parsed.name,
+        description: parsed.description,
+        price: parsed.price,
+        company_id: companyId,
+      })
+      .returning();
+
+    return ok(created, 201);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return fail(error.issues[0]?.message ?? 'Invalid payload', 400);
+    }
     console.error('Error creating service:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Error al crear el servicio',
-      },
-      { status: 500 },
-    );
+    return fail('Error al crear el servicio', 500);
   }
 }

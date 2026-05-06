@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { deleteUser } from '@/actions/users';
 import { useRouter } from 'next/navigation';
-import { User } from '@/generated/prisma/client';
+import type { User } from '@/db/schema';
 import { toast } from 'sonner';
 
 interface DeleteUserDialogProps {
