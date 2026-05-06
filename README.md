@@ -162,7 +162,7 @@ openssl rand -base64 32
    - **Pooled** URL for `DATABASE_URL`
    - **Direct** URL for `DIRECT_URL`
 
-### 3) Apply Prisma migrations to Neon
+### 3) Apply migrations to Neon
 
 Before first production deployment, run:
 
@@ -171,7 +171,7 @@ Before first production deployment, run:
 npm run migrate:deploy
 ```
 
-Optional first-time seed:
+Optional first-time seed (only if you need starter/demo data):
 
 ```bash
 npm run db:prod:setup
@@ -186,6 +186,8 @@ npm run db:prod:setup
 3. Keep default domain (`*.vercel.app`)
 4. Add all required env vars in **Project Settings → Environment Variables**
 5. Deploy from `main` branch
+
+Vercel deployments do **not** use your local `.env` file. Keep secrets in Vercel env settings.
 
 This repository includes `vercel.json` with a build command:
 
@@ -207,6 +209,13 @@ npm test
 npm run build
 ```
 
+Recommended deploy sequence:
+
+1. Configure env vars in Vercel (Production and Preview as needed)
+2. Apply migrations to the target Neon DB: `npm run migrate:deploy`
+3. (Optional) Seed once with demo data: `npm run db:prod:setup`
+4. Redeploy
+
 After deploy:
 
 1. Visit `/` and `/dashboard`
@@ -216,7 +225,7 @@ After deploy:
 
 ### 6) Troubleshooting production
 
-- **Database connection errors**: verify `DATABASE_URL`/`DIRECT_URL` and Neon SSL params
+- **Database connection errors**: verify `DATABASE_URL`/`DIRECT_URL` and Neon SSL params (`sslmode=verify-full` in this repo templates)
 - **Migration failures**: run `npm run migrate:deploy` locally against Neon to inspect output
 - **Auth redirect/session issues**: verify `NEXTAUTH_URL` exactly matches deployed URL
 - **Build failures**: ensure `npm run vercel-build` is used and all required env vars are set in Vercel
