@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import * as schema from '../src/db/schema';
 import { company, service, servicesTickets, ticket, user } from '../src/db/schema';
@@ -13,97 +14,147 @@ const pool = new Pool({ connectionString });
 const db = drizzle(pool, { schema });
 
 async function main() {
-  await db.insert(company).values({
-    id: 1,
-    name: 'Root Company',
-    address: 'Local Address',
-    phone: '0000000000',
-    email: 'root@local.dev',
-    is_system: true,
-  });
+  // Reset to keep local seed deterministic.
+  await db.execute(
+    sql`TRUNCATE TABLE "ServicesTickets", "Ticket", "Client", "User", "Service", "Company" RESTART IDENTITY CASCADE`,
+  );
+
+  await db.insert(company).values([
+    {
+      id: 1,
+      name: 'SOLUCIONES CHANO',
+      address: 'C. Camarote #121',
+      phone: '(939) 165-46-35',
+      email: 'chano@test.com',
+      logo: null,
+      is_system: false,
+    },
+    {
+      id: 2,
+      name: 'zigzag',
+      address: 'C. Camarote #121',
+      phone: '(939) 165-46-35',
+      email: 'zigzag@test.com',
+      logo: '/favicon.ico',
+      is_system: true,
+    },
+    {
+      id: 3,
+      name: 'Empresa de prueba',
+      address: 'direccion',
+      phone: '999',
+      email: 'empresa@test.com',
+      logo: '',
+      is_system: false,
+    },
+  ]);
+
+  await db.insert(user).values([
+    {
+      id: 1n,
+      name: 'jorge',
+      email: 'jorgeleon983@outlook.com',
+      company_id: 1,
+      password:
+        '$2b$12$6SjcCwTOEYxnZwWPprPg9OrS5QIJ.g8axo3OpmE7CGfJUhx9fwlHK',
+    },
+    {
+      id: 2n,
+      name: 'jorg',
+      email: 'jorge@jorge.com',
+      company_id: 2,
+      password:
+        '$2b$12$6SjcCwTOEYxnZwWPprPg9OrS5QIJ.g8axo3OpmE7CGfJUhx9fwlHK',
+    },
+    {
+      id: 3n,
+      name: 'carmen',
+      email: 'carmen@solorzano.com',
+      company_id: 3,
+      password:
+        '$2b$10$/LQ52AQ6cG.uC9AleMV72OdDLVrcNpvcNp6.w5V6O2grk9Dd7ZCPO',
+    },
+  ]);
 
   await db.insert(service).values([
     {
       id: 1,
       name: 'Mantenimiento A/C',
-      description: 'Mantenimiento general de aire acondicionado',
+      description: 'Description for Mantenimiento A/C',
       price: 700.0,
+      company_id: 1,
     },
     {
       id: 2,
       name: 'Instalación A/C',
-      description: 'Instalación de nuevo equipo de aire acondicionado',
-      price: 1200.0,
+      description: 'Description for Instalación A/C',
+      price: 3900.0,
+      company_id: 1,
     },
     {
       id: 3,
-      name: 'Revisión de forros de tuvería',
-      description: 'Revisión y ajuste de forros de tubería',
-      price: 0.0,
+      name: 'Limpiar alfombras',
+      description: 'Alfombras limpias',
+      price: 59.99,
+      company_id: 1,
     },
     {
       id: 4,
-      name: 'Ajuste de presión de Refrigerador',
-      description: 'Ajuste de presión en sistema de refrigeración',
-      price: 0.0,
-    },
-    {
-      id: 5,
-      name: 'Lavado de condensador',
-      description: 'Limpieza y lavado de condensador',
-      price: 0.0,
-    },
-    {
-      id: 6,
-      name: 'Desmontar equipo',
-      description: 'Desmontaje de equipo de aire acondicionado',
-      price: 0.0,
+      name: 'Diagnóstico general',
+      description: 'Inspección y diagnóstico',
+      price: 250.0,
+      company_id: 2,
     },
   ]);
 
   await db.insert(ticket).values([
     {
       id: 1n,
-      client_name: 'Primera prueba',
+      client_name: 'Hotel Bugambilias',
       client_tel: '9613151559',
-      ticket_date: new Date('2024-10-02'),
-      email: 'jorgeleon983@gmail.com',
-      finished: false,
-      created_at: new Date('2024-10-03T08:20:32'),
-      updated_at: new Date('2024-10-03T08:20:32'),
+      ticket_date: new Date('2025-06-02'),
+      email: 'admin@example.com',
+      finished: true,
+      total: 240.17,
+      company_id: 1,
+      userId: 1n,
     },
     {
       id: 2n,
-      client_name: 'Segunda prueba',
+      client_name: 'TELMEX 1',
       client_tel: '9613151559',
-      ticket_date: new Date('2024-10-01'),
-      email: 'jorgeleon983@gmail.com',
+      ticket_date: new Date('2025-06-09'),
+      email: 'jorge@jorge.com',
       finished: false,
-      created_at: new Date('2024-10-03T08:31:56'),
-      updated_at: new Date('2024-10-03T08:31:56'),
+      total: 250.0,
+      company_id: 2,
+      userId: 2n,
     },
   ]);
 
-  await db.insert(servicesTickets).values({
-    id: 1,
-    service_id: 2,
-    ticket_id: 1n,
-    price: 1200.0,
-    quantity: 1,
-    created_at: new Date('2024-10-03T08:22:41'),
-    updated_at: new Date('2024-10-03T08:22:41'),
-  });
-
-  await db.insert(user).values({
-    id: 1n,
-    name: 'jorge',
-    email: 'jorgeleon983@outlook.com',
-    company_id: 1,
-    password:
-      '$2b$12$XRd9/lHxdk7pzGgss6VIEuHvGFImk0198cPJRyEYOsXKSYTImV2pi',
-    created_at: new Date('2024-10-03T08:15:18'),
-    updated_at: new Date('2024-10-03T08:15:18'),
-  });
+  await db.insert(servicesTickets).values([
+    {
+      id: 1,
+      service_id: 1,
+      ticket_id: 1n,
+      price: 700.0,
+      quantity: 1,
+    },
+    {
+      id: 2,
+      service_id: 3,
+      ticket_id: 1n,
+      price: 59.99,
+      quantity: 2,
+    },
+    {
+      id: 3,
+      service_id: 4,
+      ticket_id: 2n,
+      price: 250.0,
+      quantity: 1,
+    },
+  ]);
 }
 
 main()

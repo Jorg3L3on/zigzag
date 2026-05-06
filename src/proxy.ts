@@ -4,10 +4,8 @@ const LOGIN_PATH = '/login';
 const DASHBOARD_PATH = '/dashboard';
 
 const SESSION_COOKIE_NAMES = [
-  'authjs.session-token',
-  '__Secure-authjs.session-token',
-  'next-auth.session-token',
-  '__Secure-next-auth.session-token',
+  'zigzag.session-token',
+  '__Secure-zigzag.session-token',
 ];
 
 const hasSessionCookie = (request: NextRequest) => {

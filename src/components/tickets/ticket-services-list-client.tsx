@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import type { Service } from '@/db/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +28,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { PlusCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { Service } from '@/actions/services';
 import {
   ServiceTicket,
   createServiceTicket,

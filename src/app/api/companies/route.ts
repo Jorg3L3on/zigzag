@@ -67,29 +67,22 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sessionUser = await db.query.user.findFirst({
-      where: eq(user.id, BigInt(session.user.id)),
-      with: { company: true },
-    });
-
-    if (!sessionUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    if (sessionUser.company?.is_system) {
+    // Use token/session claims for read access to avoid hard 404s
+    // when a stale session points to a missing user record.
+    if (session.user.company_is_system) {
       const companiesList = await db.select().from(company);
       const companies = await attachCounts(companiesList);
       return NextResponse.json(companies);
     }
 
-    if (!sessionUser.company_id) {
+    if (!session.user.company_id) {
       return NextResponse.json([]);
     }
 
     const [companyRow] = await db
       .select()
       .from(company)
-      .where(eq(company.id, sessionUser.company_id))
+      .where(eq(company.id, session.user.company_id))
       .limit(1);
 
     if (!companyRow) {

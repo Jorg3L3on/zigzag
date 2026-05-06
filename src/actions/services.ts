@@ -7,8 +7,6 @@ import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 
-export type { Service };
-
 export interface CreateServiceData {
   name: string;
   description: string;

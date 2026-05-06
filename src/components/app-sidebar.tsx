@@ -121,7 +121,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const fetchCompanies = async () => {
       try {
         const response = await fetch('/api/companies');
-        if (!response.ok) throw new Error('Failed to fetch companies');
+        // During sign-out/session expiry we can receive non-200 responses.
+        // Keep sidebar stable instead of logging noisy runtime errors.
+        if (!response.ok) {
+          setCompanies([]);
+          return;
+        }
         const data = await response.json();
         setCompanies(data);
       } catch (error) {

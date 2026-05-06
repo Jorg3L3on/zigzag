@@ -38,7 +38,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Service, deleteService, getServices } from '@/actions/services';
+import { deleteService, getServices } from '@/actions/services';
+import type { Service } from '@/db/schema';
 import { useCompany } from '@/contexts/company-context';
 
 export function ServicesListClient() {
