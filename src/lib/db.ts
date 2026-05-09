@@ -15,8 +15,9 @@ const pool =
   globalForPool.pool ??
   new Pool({
     connectionString,
+    // IPv4; supported by `pg` at runtime but omitted from `PoolConfig` typings.
     family: 4,
-  });
+  } as ConstructorParameters<typeof Pool>[0]);
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPool.pool = pool;

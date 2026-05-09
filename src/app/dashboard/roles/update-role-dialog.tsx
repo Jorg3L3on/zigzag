@@ -71,7 +71,9 @@ export function UpdateRoleDialog({
       name: role.name,
       description: role.description || '',
       company_id: role.company?.id || 0,
-      permissions: role.permissions.map((p) => p.permission.id),
+      permissions: role.permissions.flatMap((p) =>
+        p.permission ? [p.permission.id] : [],
+      ),
     },
   });
   const companyId = form.watch('company_id');
@@ -97,16 +99,17 @@ export function UpdateRoleDialog({
       }
 
       const result = await getPermissionsByCompany(companyId);
-      if (!result.success || !result.data) {
+      const rows = result.data;
+      if (!result.success || !rows) {
         return;
       }
 
-      setPermissions(result.data);
+      setPermissions(rows);
       const currentSelected = form.getValues('permissions');
       const validPermissionIds = currentSelected.filter((id) =>
-        result.data.some((permission) => permission.id === id),
+        rows.some((permission) => permission.id === id),
       );
-      const validPermissions = result.data.filter((permission) =>
+      const validPermissions = rows.filter((permission) =>
         validPermissionIds.includes(permission.id),
       );
       setSelectedPermissions(validPermissions);
@@ -120,7 +123,9 @@ export function UpdateRoleDialog({
       name: role.name,
       description: role.description || '',
       company_id: role.company?.id || 0,
-      permissions: role.permissions.map((p) => p.permission.id),
+      permissions: role.permissions.flatMap((p) =>
+        p.permission ? [p.permission.id] : [],
+      ),
     });
   }, [role, form]);
 
@@ -174,7 +179,9 @@ export function UpdateRoleDialog({
       onOpenChange={(nextOpen) => {
         onOpenChange(nextOpen);
         if (!nextOpen) {
-          const initialPermissions = role.permissions.map((p) => p.permission);
+          const initialPermissions = role.permissions.flatMap((p) =>
+            p.permission ? [p.permission] : [],
+          );
           setSelectedPermissions(initialPermissions);
           setPermissions(initialPermissions);
           form.reset({

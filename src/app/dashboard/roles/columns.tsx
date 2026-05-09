@@ -22,7 +22,7 @@ export type Role = {
   created_at: Date;
   company: Company | null;
   permissions: {
-    permission: Permission;
+    permission: Permission | null;
   }[];
 };
 
@@ -89,11 +89,13 @@ export const columns: ColumnDef<Role>[] = [
     cell: ({ row }) => {
       return (
         <div className="flex flex-wrap gap-1">
-          {row.original.permissions.map(({ permission }) => (
-            <Badge key={permission.id} variant="secondary">
-              {permission.name}
-            </Badge>
-          ))}
+          {row.original.permissions.map(({ permission }) =>
+            permission ? (
+              <Badge key={permission.id} variant="secondary">
+                {permission.name}
+              </Badge>
+            ) : null,
+          )}
         </div>
       );
     },

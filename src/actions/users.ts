@@ -1,7 +1,7 @@
 'use server';
 
 import { desc, eq, and, isNull } from 'drizzle-orm';
-import { user } from '@/db/schema';
+import { user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { hash } from 'bcryptjs';
@@ -23,9 +23,14 @@ const createUserSchema = userSchema.extend({
 export type UserFormData = z.infer<typeof userSchema>;
 export type CreateUserFormData = z.infer<typeof createUserSchema>;
 
+type UserWithRelations = typeof user.$inferSelect & {
+  company: Company | null;
+  role: Role | null;
+};
+
 export async function getUsers(): Promise<{
   success: boolean;
-  data?: (typeof user.$inferSelect)[];
+  data?: UserWithRelations[];
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -38,7 +43,7 @@ export async function getUsers(): Promise<{
       orderBy: [desc(user.created_at)],
       where: isNull(user.deleted_at),
     });
-    return { success: true, data: users };
+    return { success: true, data: users as UserWithRelations[] };
   } catch (e) {
     console.error(e);
     return {

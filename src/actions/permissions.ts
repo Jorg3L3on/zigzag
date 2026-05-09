@@ -1,14 +1,18 @@
 'use server';
 
 import { and, asc, eq, isNull } from 'drizzle-orm';
-import { permission, rolePermission } from '@/db/schema';
+import { permission, rolePermission, type Company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
+type PermissionWithCompany = typeof permission.$inferSelect & {
+  company: Company | null;
+};
+
 export async function getPermissions(): Promise<{
   success: boolean;
-  data?: (typeof permission.$inferSelect)[];
+  data?: PermissionWithCompany[];
   error?: string;
   errorType?: ActionErrorType;
 }> {

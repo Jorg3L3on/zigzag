@@ -17,22 +17,24 @@ export async function GET(
     const { id } = await context.params;
     const result = await getTicketById(Number(id));
 
-    if (!result.success || !result.data) {
+    if (!result.success) {
       return fail(
-        result.error || 'Ticket no encontrado',
+        result.error,
         404,
         result.errorType || 'validation',
       );
     }
 
+    const ticketPayload = result.data;
+
     if (
       !session.user.company_is_system &&
-      result.data.company_id !== session.user.company_id
+      ticketPayload.company_id !== session.user.company_id
     ) {
       return fail('Forbidden', 403, 'auth');
     }
 
-    return ok(convertBigIntToString(result.data));
+    return ok(convertBigIntToString(ticketPayload));
   } catch (error: unknown) {
     console.error('Error fetching ticket:', error);
     return fail('Error al obtener el ticket', 500, 'server');

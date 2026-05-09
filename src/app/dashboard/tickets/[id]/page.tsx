@@ -157,7 +157,7 @@ export default async function TicketDetailsPage({
                         >
                           <div>
                             <p className="font-medium">
-                              {service.service.name}
+                              {service.service?.name ?? 'Servicio'}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {service.quantity} x{' '}

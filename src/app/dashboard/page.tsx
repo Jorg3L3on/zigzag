@@ -40,8 +40,23 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const metrics = await getDashboardMetrics(session.user.company_id);
-  console.log('Dashboard metrics:', metrics);
+  const metricsResponse = await getDashboardMetrics(session.user.company_id);
+  console.log('Dashboard metrics:', metricsResponse);
+
+  if (!metricsResponse.success || !metricsResponse.data) {
+    return (
+      <>
+        <TripledPageHeader items={[{ label: 'Dashboard' }]} />
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          <p className="text-muted-foreground">
+            {metricsResponse.error ?? 'No se pudieron cargar las métricas.'}
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  const metrics = metricsResponse.data;
 
   return (
     <>

@@ -1,14 +1,26 @@
 'use server';
 
 import { eq } from 'drizzle-orm';
-import { role, rolePermission } from '@/db/schema';
+import {
+  role,
+  rolePermission,
+  type Company,
+  type Permission,
+  type RolePermissionRow,
+} from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
+/** Matches `role.findMany({ with: { company, permissions.permission } })`. */
+type RoleWithRelations = typeof role.$inferSelect & {
+  company: Company | null;
+  permissions: Array<RolePermissionRow & { permission: Permission | null }>;
+};
+
 export async function getRoles(): Promise<{
   success: boolean;
-  data?: Awaited<ReturnType<typeof db.query.role.findMany>>;
+  data?: RoleWithRelations[];
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -23,7 +35,7 @@ export async function getRoles(): Promise<{
         },
       },
     });
-    return { success: true, data: roles };
+    return { success: true, data: roles as RoleWithRelations[] };
   } catch (error) {
     console.error('Error al obtener roles:', error);
     return {

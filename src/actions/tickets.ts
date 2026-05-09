@@ -1,7 +1,13 @@
 'use server';
 
 import { desc, eq, and, isNull, sql } from 'drizzle-orm';
-import { servicesTickets, ticket } from '@/db/schema';
+import {
+  servicesTickets,
+  ticket,
+  type Service,
+  type ServicesTicketsRow,
+  type TicketRow,
+} from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { z } from 'zod';
@@ -40,6 +46,19 @@ export type Ticket = {
   deleted_at: Date | null;
   company_id: number | null;
 };
+
+/** Row from `getTicketById` with relations (matches Drizzle `with` query). */
+export type TicketDetailData = TicketRow & {
+  services_tickets: Array<
+    ServicesTicketsRow & {
+      service: Service | null;
+    }
+  >;
+};
+
+export type GetTicketByIdResult =
+  | { success: true; data: TicketDetailData }
+  | { success: false; error: string; errorType?: ActionErrorType };
 
 type PgError = {
   code?: string;
@@ -126,7 +145,7 @@ export async function getTickets(
   companyId: number | null,
 ): Promise<{
   success: boolean;
-  data?: unknown[];
+  data?: TicketDetailData[];
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -148,7 +167,7 @@ export async function getTickets(
       orderBy: [desc(ticket.created_at)],
     });
 
-    return { success: true, data: tickets };
+    return { success: true, data: tickets as TicketDetailData[] };
   } catch (e) {
     console.error(e);
     return {
@@ -159,12 +178,7 @@ export async function getTickets(
   }
 }
 
-export async function getTicketById(id: number): Promise<{
-  success: boolean;
-  data?: unknown;
-  error?: string;
-  errorType?: ActionErrorType;
-}> {
+export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
   try {
     const ticketRow = await db.query.ticket.findFirst({
       where: eq(ticket.id, BigInt(id)),
@@ -181,7 +195,7 @@ export async function getTicketById(id: number): Promise<{
       return { success: false, error: 'Ticket no encontrado', errorType: 'validation' };
     }
 
-    return { success: true, data: ticketRow };
+    return { success: true, data: ticketRow as TicketDetailData };
   } catch (e) {
     console.error(e);
     return {
