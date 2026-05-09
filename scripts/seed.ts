@@ -13,6 +13,24 @@ if (!connectionString) {
 const pool = new Pool({ connectionString });
 const db = drizzle(pool, { schema });
 
+const TABLES_NEED_SEQUENCE_SYNC = [
+  'Company',
+  'Service',
+  'Ticket',
+  'ServicesTickets',
+  'User',
+] as const;
+
+async function syncPostgresIdSequences() {
+  for (const table of TABLES_NEED_SEQUENCE_SYNC) {
+    await db.execute(
+      sql.raw(
+        `SELECT setval(pg_get_serial_sequence('"${table}"', 'id')::regclass, (SELECT MAX(id) FROM "${table}"))`,
+      ),
+    );
+  }
+}
+
 async function main() {
   // Reset to keep local seed deterministic.
   await db.execute(
@@ -155,6 +173,8 @@ async function main() {
       quantity: 1,
     },
   ]);
+
+  await syncPostgresIdSequences();
 }
 
 main()

@@ -32,6 +32,10 @@ import {
   PlusCircle,
   FileText,
   Download,
+  CircleCheck,
+  Circle,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import * as React from 'react';
 import {
@@ -48,7 +52,7 @@ import InvoiceTemplate from '@/components/pdf/invoice-template';
 import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 import { TripledPageHeader, TripledStepper } from '@/components/tripled';
-import { createInvoicePdfExportOptions } from '@/lib/invoice-html2pdf-options';
+import { renderElementToPdfBlob } from '@/lib/pdf-export';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -91,6 +95,8 @@ export default function EditTicketPage({
   const [isFinished, setIsFinished] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isFullyPaid, setIsFullyPaid] = useState(true);
+  const [paidAmountInput, setPaidAmountInput] = useState('');
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -115,6 +121,11 @@ export default function EditTicketPage({
         const data = await response.json();
 
         if (data.success) {
+          const totalFromTicket =
+            typeof data.data.total === 'number' ? data.data.total : 0;
+          const paidFromTicket =
+            typeof data.data.paid === 'number' ? data.data.paid : null;
+
           form.reset({
             client_id: data.data.client_id,
             client_name: data.data.client_name,
@@ -132,6 +143,14 @@ export default function EditTicketPage({
           });
           setTicketServices(data.data.services_tickets);
           setIsFinished(data.data.finished);
+          if (paidFromTicket !== null) {
+            const normalizedPaid = Math.max(paidFromTicket, 0);
+            setIsFullyPaid(normalizedPaid >= totalFromTicket && totalFromTicket > 0);
+            setPaidAmountInput(normalizedPaid.toString());
+          } else {
+            setIsFullyPaid(true);
+            setPaidAmountInput('');
+          }
 
           // If there's a client_id, fetch the client details
           if (data.data.client_id) {
@@ -175,6 +194,22 @@ export default function EditTicketPage({
     }).format(amount);
   };
 
+  const parsePaidInput = (value: string): number => {
+    if (!value.trim()) return 0;
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(parsed, 0);
+  };
+
+  const updatePaidAmountInput = (nextValue: number) => {
+    setPaidAmountInput(String(Math.max(Number(nextValue.toFixed(2)), 0)));
+  };
+
+  const getFinalPaidAmount = (): number => {
+    if (isFullyPaid) return calculateTotal();
+    return parsePaidInput(paidAmountInput);
+  };
+
   async function onSubmit(values: FormValues) {
     try {
       const result = await updateTicket(Number(resolvedParams.id), values);
@@ -198,12 +233,8 @@ export default function EditTicketPage({
       const documentName = buildTicketPdfFileName();
 
       if (pdfRef.current) {
-        const html2pdfModule = await import('html2pdf.js');
-        const html2pdf = html2pdfModule.default;
         const element = pdfRef.current;
-        const opt = createInvoicePdfExportOptions(documentName);
-
-        const pdf = await html2pdf().set(opt).from(element).output('blob');
+        const pdf = await renderElementToPdfBlob(element);
         const pdfUrl = URL.createObjectURL(pdf);
         const downloadLink = document.createElement('a');
         downloadLink.href = pdfUrl;
@@ -213,7 +244,19 @@ export default function EditTicketPage({
         downloadLink.remove();
         URL.revokeObjectURL(pdfUrl);
 
-        const result = await finishTicket(Number(resolvedParams.id), calculateTotal());
+        const finalPaidAmount = getFinalPaidAmount();
+        const total = calculateTotal();
+
+        if (!isFullyPaid && finalPaidAmount > total) {
+          toast.error('El monto pagado no puede ser mayor al total');
+          return;
+        }
+
+        const result = await finishTicket(
+          Number(resolvedParams.id),
+          total,
+          finalPaidAmount,
+        );
 
         if (result.success) {
           toast.success('PDF generado correctamente');
@@ -239,12 +282,7 @@ export default function EditTicketPage({
 
       if (!pdfRef.current) return;
 
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default;
-      const pdf = await html2pdf()
-        .set(createInvoicePdfExportOptions(documentName))
-        .from(pdfRef.current)
-        .output('blob');
+      const pdf = await renderElementToPdfBlob(pdfRef.current);
 
       const pdfUrl = URL.createObjectURL(pdf);
       const downloadLink = document.createElement('a');
@@ -272,7 +310,7 @@ export default function EditTicketPage({
         ]}
       />
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="mx-auto w-full max-w-2xl">
           <TripledStepper
             steps={[
@@ -481,36 +519,37 @@ export default function EditTicketPage({
             <CardContent>
               <div className="space-y-4">
                 {ticketServices.map((serviceTicket) => (
-                  <div
-                    key={serviceTicket.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium">
-                        {serviceTicket.service.name}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {serviceTicket.service.description}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Cantidad</p>
-                        <p className="font-medium">{serviceTicket.quantity}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Precio</p>
-                        <p className="font-medium">
-                          {formatCurrency(serviceTicket.price)}
+                  <div key={serviceTicket.id} className="rounded-lg border p-4">
+                    <div className="space-y-4">
+                      <div className="min-w-0">
+                        <h3 className="font-medium break-words">
+                          {serviceTicket.service.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 break-words">
+                          {serviceTicket.service.description}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Subtotal</p>
-                        <p className="font-medium">
-                          {formatCurrency(
-                            serviceTicket.quantity * serviceTicket.price,
-                          )}
-                        </p>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-md border bg-gray-50 p-3">
+                          <p className="text-sm text-gray-500">Cantidad</p>
+                          <p className="font-medium break-all">
+                            {serviceTicket.quantity}
+                          </p>
+                        </div>
+                        <div className="rounded-md border bg-gray-50 p-3">
+                          <p className="text-sm text-gray-500">Precio</p>
+                          <p className="font-medium break-all">
+                            {formatCurrency(serviceTicket.price)}
+                          </p>
+                        </div>
+                        <div className="rounded-md border bg-gray-50 p-3">
+                          <p className="text-sm text-gray-500">Subtotal</p>
+                          <p className="font-medium break-all">
+                            {formatCurrency(
+                              serviceTicket.quantity * serviceTicket.price,
+                            )}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -538,10 +577,120 @@ export default function EditTicketPage({
                         Al finalizar, se genera el PDF y el ticket quedará en modo
                         solo lectura.
                       </p>
+                      <div className="space-y-3 rounded-md border bg-white p-3">
+                        <p className="text-sm font-medium text-foreground">
+                          Pago del ticket
+                        </p>
+                        <div className="grid gap-2">
+                          <button
+                            type="button"
+                            className={cn(
+                              'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                              isFullyPaid
+                                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                : 'border-border bg-background hover:bg-muted/50',
+                            )}
+                            onClick={() => setIsFullyPaid(true)}
+                          >
+                            {isFullyPaid ? (
+                              <CircleCheck className="h-4 w-4" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                            Pagado completo ({formatCurrency(calculateTotal())})
+                          </button>
+                          <button
+                            type="button"
+                            className={cn(
+                              'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                              !isFullyPaid
+                                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                : 'border-border bg-background hover:bg-muted/50',
+                            )}
+                            onClick={() => setIsFullyPaid(false)}
+                          >
+                            {!isFullyPaid ? (
+                              <CircleCheck className="h-4 w-4" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                            Pago parcial
+                          </button>
+                        </div>
+                        {!isFullyPaid && (
+                          <div className="space-y-2">
+                            <label
+                              htmlFor="paid-amount"
+                              className="text-xs text-muted-foreground"
+                            >
+                              Cuánto pagó el cliente
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0"
+                                onClick={() =>
+                                  updatePaidAmountInput(
+                                    parsePaidInput(paidAmountInput) - 1,
+                                  )
+                                }
+                                aria-label="Reducir monto pagado"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <input
+                                id="paid-amount"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                inputMode="decimal"
+                                value={paidAmountInput}
+                                onChange={(event) =>
+                                  setPaidAmountInput(event.target.value)
+                                }
+                                onBlur={(event) =>
+                                  updatePaidAmountInput(
+                                    parsePaidInput(event.target.value),
+                                  )
+                                }
+                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-center text-sm"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0"
+                                onClick={() =>
+                                  updatePaidAmountInput(
+                                    parsePaidInput(paidAmountInput) + 1,
+                                  )
+                                }
+                                aria-label="Aumentar monto pagado"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {parsePaidInput(paidAmountInput) >
+                              calculateTotal() && (
+                              <p className="text-xs text-red-600">
+                                El monto pagado no puede superar el total del
+                                ticket.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <Button
                         type="button"
                         onClick={generatePDF}
-                        disabled={isGeneratingPdf || ticketServices.length === 0}
+                        disabled={
+                          isGeneratingPdf ||
+                          ticketServices.length === 0 ||
+                          (!isFullyPaid &&
+                            parsePaidInput(paidAmountInput) > calculateTotal())
+                        }
                         className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200"
                       >
                         {isGeneratingPdf ? (
@@ -572,7 +721,7 @@ export default function EditTicketPage({
       </div>
 
       <div
-        className="pointer-events-none absolute top-0 left-[-12000px] z-[-1] overflow-visible bg-white"
+        className="pointer-events-none absolute left-0 -top-[12000px] z-[-1] overflow-visible bg-white"
         aria-hidden
       >
         <div ref={pdfRef} className="bg-white">
@@ -588,12 +737,13 @@ export default function EditTicketPage({
                 : format(new Date(), 'dd/MM/yyyy'),
               dueDate: format(new Date(), 'dd/MM/yyyy'),
               items: ticketServices.map((st) => ({
-                description: st.service.name,
+                description: `${st.service.name}|||${st.service.description ?? ''}`,
                 quantity: st.quantity.toString(),
                 unitPrice: st.price.toFixed(2),
                 total: (st.quantity * st.price).toFixed(2),
               })),
               total: calculateTotal().toFixed(2),
+              paidAmount: getFinalPaidAmount().toFixed(2),
             }}
           />
         </div>

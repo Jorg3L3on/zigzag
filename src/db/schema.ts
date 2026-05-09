@@ -144,6 +144,7 @@ export const ticket = pgTable(
     client_tel: varchar('client_tel', { length: 10 }),
     ticket_date: timestamp('ticket_date', { precision: 3, mode: 'date' }),
     total: doublePrecision('total'),
+    paid: doublePrecision('paid'),
     email: varchar('email', { length: 40 }),
     finished: boolean('finished').notNull().default(false),
     document: varchar('document', { length: 100 }),

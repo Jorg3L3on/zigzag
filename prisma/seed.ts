@@ -9,6 +9,23 @@ if (!connectionString) {
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
+/** SERIAL/BIGSERIAL sequences are not advanced when rows use explicit ids — fix before app inserts. */
+async function syncPostgresIdSequences() {
+  const tables = [
+    'Company',
+    'Service',
+    'Ticket',
+    'ServicesTickets',
+    'User',
+  ] as const;
+
+  for (const table of tables) {
+    await prisma.$executeRawUnsafe(
+      `SELECT setval(pg_get_serial_sequence('"${table}"', 'id')::regclass, (SELECT MAX(id) FROM "${table}"))`,
+    );
+  }
+}
+
 async function main() {
   // Insertar compania raiz para contexto multi-tenant
   await prisma.company.create({
@@ -116,6 +133,8 @@ async function main() {
       updated_at: new Date('2024-10-03T08:15:18'),
     },
   });
+
+  await syncPostgresIdSequences();
 }
 
 main()

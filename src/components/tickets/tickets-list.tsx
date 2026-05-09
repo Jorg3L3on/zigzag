@@ -124,57 +124,115 @@ export default function TicketsList() {
           description="No hay tickets que coincidan con la búsqueda."
         />
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="w-[50px]">PDF</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead className="w-[100px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTickets.map((ticket) => (
-                <TableRow
-                  key={ticket.id.toString()}
-                  className="cursor-pointer"
-                  tabIndex={0}
-                  onClick={() => router.push(`/dashboard/tickets/${ticket.id}/edit`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      router.push(`/dashboard/tickets/${ticket.id}/edit`);
-                    }
-                  }}
-                >
-                  <TableCell>{ticket.id}</TableCell>
-                  <TableCell>{ticket.client_name}</TableCell>
-                  <TableCell>
-                    <div onClick={(event) => event.stopPropagation()}>
-                      <TicketDownloadButton document={ticket.document} />
-                    </div>
-                  </TableCell>
-                  <TableCell>{ticket.client_tel}</TableCell>
-                  <TableCell>
-                    <FormattedDate date={ticket.ticket_date} />
-                  </TableCell>
-                  <TableCell>
-                    <FormattedCurrency amount={ticket.total} />
-                  </TableCell>
-                  <TableCell>
-                    <div onClick={(event) => event.stopPropagation()}>
-                      <TicketRowActions ticket={ticket} onDelete={handleDelete} />
-                    </div>
-                  </TableCell>
+        <>
+          <div className="space-y-3 md:hidden">
+            {filteredTickets.map((ticket) => (
+              <div
+                key={ticket.id.toString()}
+                className="cursor-pointer rounded-md border p-4"
+                tabIndex={0}
+                role="button"
+                aria-label={`Editar ticket ${ticket.id.toString()}`}
+                onClick={() => router.push(`/dashboard/tickets/${ticket.id}/edit`)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    router.push(`/dashboard/tickets/${ticket.id}/edit`);
+                  }
+                }}
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Ticket</p>
+                    <p className="text-sm font-semibold">#{ticket.id.toString()}</p>
+                  </div>
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <TicketDownloadButton document={ticket.document} />
+                    <TicketRowActions ticket={ticket} onDelete={handleDelete} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Cliente</p>
+                    <p className="font-medium">{ticket.client_name || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Teléfono</p>
+                    <p>{ticket.client_tel || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Fecha</p>
+                    <p>
+                      <FormattedDate date={ticket.ticket_date} />
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="font-medium">
+                      <FormattedCurrency amount={ticket.total} />
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden rounded-md border md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead className="w-[50px]">PDF</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="w-[100px]">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {filteredTickets.map((ticket) => (
+                  <TableRow
+                    key={ticket.id.toString()}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => router.push(`/dashboard/tickets/${ticket.id}/edit`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        router.push(`/dashboard/tickets/${ticket.id}/edit`);
+                      }
+                    }}
+                  >
+                    <TableCell>{ticket.id}</TableCell>
+                    <TableCell>{ticket.client_name}</TableCell>
+                    <TableCell>
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <TicketDownloadButton document={ticket.document} />
+                      </div>
+                    </TableCell>
+                    <TableCell>{ticket.client_tel}</TableCell>
+                    <TableCell>
+                      <FormattedDate date={ticket.ticket_date} />
+                    </TableCell>
+                    <TableCell>
+                      <FormattedCurrency amount={ticket.total} />
+                    </TableCell>
+                    <TableCell>
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <TicketRowActions ticket={ticket} onDelete={handleDelete} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

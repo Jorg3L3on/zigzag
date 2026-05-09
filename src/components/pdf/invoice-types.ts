@@ -14,8 +14,9 @@ export interface InvoiceData {
   issueDate: string;
   dueDate: string;
   items: InvoiceItem[];
-  /** Grand total from ticket (after-tax display uses computed breakdown when applicable). */
+  /** Grand total from ticket (rendered directly in the PDF summary). */
   total: string;
+  paidAmount?: string;
   poNumber?: string;
   paymentTerms?: string;
   termsAndConditions?: string;

@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { PlusCircle, Plus, CheckCircle2, Loader2 } from 'lucide-react';
+import { PlusCircle, Plus, CheckCircle2, Loader2, Minus } from 'lucide-react';
 import {
   ServiceTicket,
   createServiceTicket,
@@ -104,6 +104,26 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
     }
   };
 
+  const sanitizeInteger = (value: string, fallback = 1) => {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(parsed, 1);
+  };
+
+  const sanitizeDecimal = (value: string, fallback = 0) => {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(parsed, 0);
+  };
+
+  const updateDraftQuantity = (nextValue: number) => {
+    setQuantity(String(Math.max(nextValue, 1)));
+  };
+
+  const updateDraftPrice = (nextValue: number) => {
+    setPrice(String(Math.max(nextValue, 0)));
+  };
+
   const handleAddService = async () => {
     if (!selectedService || !quantity || !price) {
       toast.error('Por favor complete todos los campos');
@@ -112,10 +132,13 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
 
     setIsSubmitting(true);
     try {
+      const parsedQuantity = sanitizeInteger(quantity);
+      const parsedPrice = sanitizeDecimal(price);
+
       const result = await createServiceTicket(ticketId, {
         service_id: parseInt(selectedService),
-        quantity: parseInt(quantity),
-        price: parseFloat(price),
+        quantity: parsedQuantity,
+        price: parsedPrice,
       });
 
       if (result.success && result.data) {
@@ -179,6 +202,24 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
     }
   };
 
+  const handleServiceQuantityChange = (
+    serviceTicketId: number,
+    currentPrice: number,
+    value: string,
+  ) => {
+    if (value === '') return;
+    handleUpdateService(serviceTicketId, sanitizeInteger(value), currentPrice);
+  };
+
+  const handleServicePriceChange = (
+    serviceTicketId: number,
+    currentQuantity: number,
+    value: string,
+  ) => {
+    if (value === '') return;
+    handleUpdateService(serviceTicketId, currentQuantity, sanitizeDecimal(value));
+  };
+
   const handleDeleteService = async (serviceTicketId: number) => {
     try {
       const result = await deleteServiceTicket(ticketId, serviceTicketId);
@@ -232,7 +273,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
         ]}
       />
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div className="mx-auto w-full">
           <TripledStepper
             steps={[
@@ -244,7 +285,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
           />
           <Card className="border-0 shadow-lg">
             <CardHeader className="space-y-4 pb-8">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <CardTitle className="text-xl">Servicios Asignados</CardTitle>
                   <CardDescription>
@@ -261,12 +302,12 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                   }}
                 >
                   <DialogTrigger asChild>
-                    <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                    <Button className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                       <PlusCircle className="mr-2 h-5 w-5" />
                       Agregar Servicio
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-lg">
+                  <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-x-hidden sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle className="text-2xl font-bold text-gray-800">
                         {isCreatingNewService
@@ -300,9 +341,9 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                         />
                       </div>
                     ) : (
-                      <div className="grid gap-6 py-4">
+                      <div className="grid min-w-0 gap-6 py-4">
                         <div className="space-y-3">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
                             <div className="min-w-0 flex-1 space-y-3">
                               <Label className="text-sm font-medium text-foreground">
                                 Servicio
@@ -311,10 +352,10 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                                 value={selectedService}
                                 onValueChange={handleServiceSelect}
                               >
-                                <SelectTrigger className="w-full h-12 border-2 focus:border-primary transition-colors">
+                                <SelectTrigger className="h-auto min-h-12 w-full items-start whitespace-normal border-2 py-2 transition-colors focus:border-primary [&>span]:block [&>span]:max-w-[calc(100%-1.5rem)] [&>span]:whitespace-normal [&>span]:break-words [&>span]:text-left">
                                   <SelectValue placeholder="Seleccione un servicio" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-w-[calc(100vw-3rem)]">
                                   <div className="flex items-center px-3 pb-2">
                                     <Input
                                       placeholder="Buscar servicio..."
@@ -335,13 +376,12 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                                         <SelectItem
                                           key={service.id}
                                           value={service.id.toString()}
+                                          textValue={service.name}
+                                          className="items-start whitespace-normal py-2"
                                         >
-                                          <div className="flex flex-col">
-                                            <span>{service.name}</span>
-                                            <span className="text-xs text-gray-500">
-                                              {service.description}
-                                            </span>
-                                          </div>
+                                          <span className="block whitespace-normal break-words pr-2 leading-snug">
+                                            {service.name}
+                                          </span>
                                         </SelectItem>
                                       ))
                                     )}
@@ -361,32 +401,102 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                           </div>
                         </div>
 
-                        <div className="grid gap-6 md:grid-cols-2">
+                        <div className="grid min-w-0 gap-6 md:grid-cols-2">
                           <div className="space-y-3">
                             <Label className="text-sm font-medium text-foreground">
                               Cantidad
                             </Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={quantity}
-                              onChange={(e) => setQuantity(e.target.value)}
-                              className="h-12 border-2 focus:border-primary transition-colors"
-                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-12 w-12 shrink-0"
+                                onClick={() =>
+                                  updateDraftQuantity(sanitizeInteger(quantity) - 1)
+                                }
+                                aria-label="Reducir cantidad"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <Input
+                                type="number"
+                                min="1"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={quantity}
+                                onChange={(e) =>
+                                  setQuantity(e.target.value.replace(/[^\d]/g, ''))
+                                }
+                                onBlur={() => updateDraftQuantity(sanitizeInteger(quantity))}
+                                className="h-12 border-2 text-center focus:border-primary transition-colors"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-12 w-12 shrink-0"
+                                onClick={() =>
+                                  updateDraftQuantity(sanitizeInteger(quantity) + 1)
+                                }
+                                aria-label="Aumentar cantidad"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
 
                           <div className="space-y-3">
                             <Label className="text-sm font-medium text-foreground">
                               Precio
                             </Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={price}
-                              onChange={(e) => setPrice(e.target.value)}
-                              className="h-12 border-2 focus:border-primary transition-colors"
-                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-12 w-12 shrink-0"
+                                onClick={() =>
+                                  updateDraftPrice(
+                                    Number((sanitizeDecimal(price) - 1).toFixed(2)),
+                                  )
+                                }
+                                aria-label="Reducir precio"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <div className="relative flex-1">
+                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  $
+                                </span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  inputMode="decimal"
+                                  value={price}
+                                  onChange={(e) => setPrice(e.target.value)}
+                                  onBlur={() =>
+                                    updateDraftPrice(sanitizeDecimal(price))
+                                  }
+                                  className="h-12 border-2 pl-8 text-center focus:border-primary transition-colors"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-12 w-12 shrink-0"
+                                onClick={() =>
+                                  updateDraftPrice(
+                                    Number((sanitizeDecimal(price) + 1).toFixed(2)),
+                                  )
+                                }
+                                aria-label="Aumentar precio"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
 
@@ -418,65 +528,144 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
               {ticketServices.map((serviceTicket) => (
                 <div
                   key={serviceTicket.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow duration-200 bg-white"
+                  className="rounded-lg border bg-white p-4 transition-shadow duration-200 hover:shadow-md"
                 >
-                  <div className="flex-1">
+                  <div className="space-y-4">
                     <h3 className="font-medium text-gray-800">
                       {serviceTicket.service.name}
                     </h3>
                     <p className="text-sm text-gray-500">
                       {serviceTicket.service.description}
                     </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <Label className="text-gray-700">Cantidad</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={serviceTicket.quantity}
-                        onChange={(e) =>
-                          handleUpdateService(
-                            serviceTicket.id,
-                            parseInt(e.target.value),
-                            serviceTicket.price,
-                          )
-                        }
-                        className="w-20"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-700">Precio</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={serviceTicket.price}
-                        onChange={(e) =>
-                          handleUpdateService(
-                            serviceTicket.id,
-                            serviceTicket.quantity,
-                            parseFloat(e.target.value),
-                          )
-                        }
-                        className="w-32"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-700">Subtotal</Label>
-                      <p className="text-lg font-medium">
-                        {formatCurrency(
-                          serviceTicket.quantity * serviceTicket.price,
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex items-center">
-                      <TripledNativeDelete
-                        onDelete={() => handleDeleteService(serviceTicket.id)}
-                        buttonText="Eliminar"
-                        confirmLabel="Sí, eliminar"
-                        className="mt-5"
-                      />
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_auto_1fr_auto] lg:items-end">
+                      <div>
+                        <Label className="text-gray-700">Cantidad</Label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() =>
+                              handleUpdateService(
+                                serviceTicket.id,
+                                Math.max(serviceTicket.quantity - 1, 1),
+                                serviceTicket.price,
+                              )
+                            }
+                            aria-label="Reducir cantidad del servicio"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min="1"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={serviceTicket.quantity}
+                            onChange={(e) =>
+                              handleServiceQuantityChange(
+                                serviceTicket.id,
+                                serviceTicket.price,
+                                e.target.value,
+                              )
+                            }
+                            className="w-full text-center sm:w-24"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() =>
+                              handleUpdateService(
+                                serviceTicket.id,
+                                serviceTicket.quantity + 1,
+                                serviceTicket.price,
+                              )
+                            }
+                            aria-label="Aumentar cantidad del servicio"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-gray-700">Precio</Label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() =>
+                              handleUpdateService(
+                                serviceTicket.id,
+                                serviceTicket.quantity,
+                                Math.max(
+                                  Number((serviceTicket.price - 1).toFixed(2)),
+                                  0,
+                                ),
+                              )
+                            }
+                            aria-label="Reducir precio del servicio"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <div className="relative w-full sm:w-36">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                              $
+                            </span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              inputMode="decimal"
+                              value={serviceTicket.price}
+                              onChange={(e) =>
+                                handleServicePriceChange(
+                                  serviceTicket.id,
+                                  serviceTicket.quantity,
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full pl-8 text-center"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() =>
+                              handleUpdateService(
+                                serviceTicket.id,
+                                serviceTicket.quantity,
+                                Number((serviceTicket.price + 1).toFixed(2)),
+                              )
+                            }
+                            aria-label="Aumentar precio del servicio"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="rounded-md border bg-gray-50 p-3 lg:ml-2">
+                        <Label className="text-gray-700">Subtotal</Label>
+                        <p className="text-lg font-medium">
+                          {formatCurrency(
+                            serviceTicket.quantity * serviceTicket.price,
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-end lg:justify-end">
+                        <TripledNativeDelete
+                          onDelete={() => handleDeleteService(serviceTicket.id)}
+                          buttonText="Eliminar"
+                          confirmLabel="Sí, eliminar"
+                          className="w-full lg:mt-5"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -488,7 +677,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                 </div>
               )}
 
-              <div className="mt-8 text-right border-t pt-4">
+              <div className="mt-8 border-t pt-4 text-right">
                 <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Total: {formatCurrency(calculateTotal())}
                 </p>

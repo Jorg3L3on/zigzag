@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { getIsOnline } from '@/lib/network-awareness';
 
 export function useNetworkStatus() {
-  const [isOnline, setIsOnline] = useState<boolean>(() => getIsOnline());
+  // Assume online until mount so the first client render matches SSR (navigator is unavailable there).
+  const [isOnline, setIsOnline] = useState<boolean>(true);
 
   useEffect(() => {
+    setIsOnline(getIsOnline());
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 

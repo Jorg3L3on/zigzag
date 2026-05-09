@@ -55,6 +55,7 @@ model Ticket {
   client_tel       String?           @db.VarChar(10)
   ticket_date      DateTime?
   total            Float?            @db.DoublePrecision
+  paid             Float?            @db.DoublePrecision
   email            String?           @db.VarChar(40)
   finished         Boolean           @default(false)
   document         String?           @db.VarChar(100)

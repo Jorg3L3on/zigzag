@@ -13,8 +13,8 @@ export const INVOICE_COMPANY = {
   footerAddress: 'C. Camarote #121, México',
 } as const;
 
-/** Reference muted teal-gray accent — flat only (html2canvas-safe). */
-export const INVOICE_ACCENT = '#5F7C7B';
+/** Primary accent aligned with the app brand palette. */
+export const INVOICE_ACCENT = '#2563EB';
 
-/** Light lavender-gray table header band (reference). */
-export const INVOICE_TABLE_HEAD_BG = '#EFEEF5';
+/** Light blue-violet table header band aligned with the app palette. */
+export const INVOICE_TABLE_HEAD_BG = '#EEF2FF';

@@ -40,6 +40,7 @@ export type Ticket = {
   document: string | null;
   ticket_date: Date | null;
   total: number | null;
+  paid: number | null;
   finished: boolean;
   created_at: Date;
   updated_at: Date | null;
@@ -320,6 +321,7 @@ export async function deleteTicket(id: number): Promise<{
 export async function finishTicket(
   id: number,
   total: number,
+  paid: number,
 ): Promise<{
   success: boolean;
   data?: unknown;
@@ -333,6 +335,7 @@ export async function finishTicket(
         finished: true,
         document: null,
         total: total,
+        paid: paid,
       })
       .where(eq(ticket.id, BigInt(id)))
       .returning();
