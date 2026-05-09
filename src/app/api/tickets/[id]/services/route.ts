@@ -5,11 +5,15 @@ import { db } from '@/lib/db';
 import { convertBigIntToString } from '@/lib/utils';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { fail, ok } from '@/lib/api-helpers';
 
 async function ensureTicketAccess(ticketId: bigint) {
   const session = await auth();
   if (!session?.user?.id) {
-    return { session: null, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    return {
+      session: null,
+      response: fail('Unauthorized', 401, 'auth'),
+    };
   }
 
   const ticketRow = await db.query.ticket.findFirst({
@@ -19,7 +23,7 @@ async function ensureTicketAccess(ticketId: bigint) {
   if (!ticketRow) {
     return {
       session,
-      response: NextResponse.json({ error: 'Ticket not found' }, { status: 404 }),
+      response: fail('Ticket not found', 404, 'validation'),
     };
   }
 
@@ -27,7 +31,7 @@ async function ensureTicketAccess(ticketId: bigint) {
     !session.user.company_is_system &&
     ticketRow.company_id !== session.user.company_id
   ) {
-    return { session, response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+    return { session, response: fail('Forbidden', 403, 'auth') };
   }
 
   return { session, response: null };
@@ -52,13 +56,10 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(convertBigIntToString(ticketServicesRows));
+    return ok(convertBigIntToString(ticketServicesRows));
   } catch (error) {
     console.error('Error fetching ticket services:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch ticket services' },
-      { status: 500 },
-    );
+    return fail('Failed to fetch ticket services', 500, 'server');
   }
 }
 
@@ -112,18 +113,16 @@ export async function POST(
       });
     });
 
-    return NextResponse.json(convertBigIntToString(createdWithDetails));
+    return ok(convertBigIntToString(createdWithDetails), 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0]?.message ?? 'Invalid payload' },
-        { status: 400 },
+      return fail(
+        error.issues[0]?.message ?? 'Invalid payload',
+        400,
+        'validation',
       );
     }
     console.error('Error adding service to ticket:', error);
-    return NextResponse.json(
-      { error: 'Failed to add service to ticket' },
-      { status: 500 },
-    );
+    return fail('Failed to add service to ticket', 500, 'server');
   }
 }

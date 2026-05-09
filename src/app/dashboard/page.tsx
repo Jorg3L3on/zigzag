@@ -1,11 +1,3 @@
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
 import {
   Card,
   CardHeader,
@@ -26,6 +18,12 @@ import {
 } from '@/components/ui/table';
 import { Ticket, Users, DollarSign, Wrench, ShoppingCart } from 'lucide-react';
 import { redirect } from 'next/navigation';
+import {
+  TripledMetricCard,
+  TripledMotionDiv,
+  tripledStagger,
+  TripledPageHeader,
+} from '@/components/tripled';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -47,68 +45,35 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader items={[{ label: 'Dashboard' }]} />
       <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total de Tickets
-              </CardTitle>
-              <Ticket className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalTickets}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ingresos Totales
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                <FormattedCurrency amount={metrics.totalRevenue} />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total de Clientes
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalClients}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total de Servicios
-              </CardTitle>
-              <Wrench className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalServices}</div>
-            </CardContent>
-          </Card>
-        </div>
+        <TripledMotionDiv
+          className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+          variants={tripledStagger}
+          initial="hidden"
+          animate="visible"
+        >
+          <TripledMetricCard
+            title="Total de Tickets"
+            icon={<Ticket className="h-4 w-4 text-muted-foreground" />}
+            value={metrics.totalTickets}
+          />
+          <TripledMetricCard
+            title="Ingresos Totales"
+            icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+            value={<FormattedCurrency amount={metrics.totalRevenue} />}
+          />
+          <TripledMetricCard
+            title="Total de Clientes"
+            icon={<Users className="h-4 w-4 text-muted-foreground" />}
+            value={metrics.totalClients}
+          />
+          <TripledMetricCard
+            title="Total de Servicios"
+            icon={<Wrench className="h-4 w-4 text-muted-foreground" />}
+            value={metrics.totalServices}
+          />
+        </TripledMotionDiv>
         <Card>
           <CardHeader>
             <CardTitle>Servicios Vendidos</CardTitle>

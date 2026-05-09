@@ -1,13 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
 import {
   Card,
   CardContent,
@@ -17,6 +9,7 @@ import {
 } from '@/components/ui/card';
 import Link from 'next/link';
 import TicketsList from '@/components/tickets/tickets-list';
+import { TripledPageHeader } from '@/components/tripled';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,19 +17,7 @@ export const revalidate = 0;
 export default function TicketsPage() {
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Tickets</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader items={[{ label: 'Tickets' }]} />
 
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div className="mx-auto w-full">

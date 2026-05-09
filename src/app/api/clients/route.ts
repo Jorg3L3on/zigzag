@@ -1,14 +1,13 @@
 import { desc, eq, and, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { fail, ok, requireSession } from '@/lib/api-helpers';
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const clients = await db
@@ -22,25 +21,25 @@ export async function GET() {
       )
       .orderBy(desc(client.created_at));
 
-    return NextResponse.json(clients);
+    return ok(clients);
   } catch (error) {
     console.error('[CLIENTS_GET]', error);
-    return new NextResponse('Internal error', { status: 500 });
+    return fail('Internal error', 500, 'server');
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const body = await req.json();
     const { name, email, phone, document, address } = body;
 
     if (!name) {
-      return new NextResponse('Name is required', { status: 400 });
+      return fail('Name is required', 400, 'validation');
     }
 
     const [created] = await db
@@ -55,9 +54,9 @@ export async function POST(req: Request) {
       })
       .returning();
 
-    return NextResponse.json(created);
+    return ok(created, 201);
   } catch (error) {
     console.error('[CLIENTS_POST]', error);
-    return new NextResponse('Internal error', { status: 500 });
+    return fail('Internal error', 500, 'server');
   }
 }

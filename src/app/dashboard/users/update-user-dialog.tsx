@@ -36,6 +36,7 @@ import { getCompanies } from '@/actions/companies';
 import { getRoles } from '@/actions/roles';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Resolver } from 'react-hook-form';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z
   .object({
@@ -101,9 +102,9 @@ export function UpdateUserDialog({
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const { companies } = await getCompanies();
-      if (companies) {
-        setCompanies(companies);
+      const result = await getCompanies();
+      if (result.success && result.data) {
+        setCompanies(result.data);
       }
     };
     fetchCompanies();
@@ -112,10 +113,10 @@ export function UpdateUserDialog({
   useEffect(() => {
     const fetchRoles = async () => {
       if (companyId) {
-        const { roles } = await getRoles();
-        if (roles) {
+        const result = await getRoles();
+        if (result.success && result.data) {
           // Filter roles by company_id
-          const companyRoles = roles.filter(
+          const companyRoles = result.data.filter(
             (role) => role.company_id === companyId,
           );
           setRoles(companyRoles);
@@ -157,8 +158,14 @@ export function UpdateUserDialog({
       ...userData,
       password: userData.password || '',
     });
-    if (result.error) {
-      toast.error(result.error);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo actualizar el usuario',
+        ),
+      );
       return;
     }
     onOpenChange(false);

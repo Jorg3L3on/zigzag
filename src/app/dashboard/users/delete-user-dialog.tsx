@@ -13,6 +13,7 @@ import { deleteUser } from '@/actions/users';
 import { useRouter } from 'next/navigation';
 import type { User } from '@/db/schema';
 import { toast } from 'sonner';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface DeleteUserDialogProps {
   user: User;
@@ -29,8 +30,14 @@ export function DeleteUserDialog({
 
   async function onDelete() {
     const result = await deleteUser(user.id);
-    if (result.error) {
-      toast.error(result.error);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo eliminar el usuario',
+        ),
+      );
       return;
     }
     onOpenChange(false);

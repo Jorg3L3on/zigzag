@@ -37,6 +37,10 @@ import {
 } from '@/components/ui/card';
 import { useEffect, useState, useCallback } from 'react';
 import { useCompany } from '@/contexts/company-context';
+import {
+  classifyClientError,
+  getErrorMessageByType,
+} from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
@@ -83,12 +87,22 @@ export default function EditServicePage({
           price: data.data.price.toString(),
         });
       } else {
-        toast.error('No se pudo cargar el servicio');
+        const errorType = classifyClientError(
+          null,
+          response.status,
+          data.errorType,
+        );
+        toast.error(
+          getErrorMessageByType(errorType, 'No se pudo cargar el servicio'),
+        );
         router.push('/dashboard/services');
       }
     } catch (error) {
       console.error('Error fetching service:', error);
-      toast.error('Ocurrió un error al cargar el servicio');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Ocurrió un error al cargar el servicio'),
+      );
       router.push('/dashboard/services');
     }
   }, [serviceId, form, router]);
@@ -132,15 +146,24 @@ export default function EditServicePage({
         );
         router.push('/dashboard/services');
       } else {
+        const errorType = classifyClientError(
+          null,
+          response.status,
+          data.errorType,
+        );
         toast.error(
-          isNew
-            ? 'No se pudo crear el servicio'
-            : 'No se pudo actualizar el servicio',
+          getErrorMessageByType(
+            errorType,
+            isNew
+              ? 'No se pudo crear el servicio'
+              : 'No se pudo actualizar el servicio',
+          ),
         );
       }
     } catch (e) {
       console.error('Error:', e);
-      toast.error('Ocurrió un error');
+      const errorType = classifyClientError(e);
+      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
     }
   }
 

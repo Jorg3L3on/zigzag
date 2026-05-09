@@ -13,6 +13,7 @@ import { deleteRole } from '@/actions/roles';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Role } from './columns';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface DeleteRoleDialogProps {
   role: Role;
@@ -28,15 +29,21 @@ export function DeleteRoleDialog({
   const router = useRouter();
 
   const handleDelete = async () => {
-    try {
-      await deleteRole(role.id);
-      toast.success('Rol eliminado correctamente');
-      onOpenChange(false);
-      router.refresh();
-    } catch (error) {
-      toast.error('Error al eliminar el rol');
-      console.error('Error al eliminar el rol:', error);
+    const result = await deleteRole(role.id);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'Error al eliminar el rol',
+        ),
+      );
+      return;
     }
+
+    toast.success('Rol eliminado correctamente');
+    onOpenChange(false);
+    router.refresh();
   };
 
   return (

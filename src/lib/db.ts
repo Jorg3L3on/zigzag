@@ -15,6 +15,7 @@ const pool =
   globalForPool.pool ??
   new Pool({
     connectionString,
+    family: 4,
   });
 
 if (process.env.NODE_ENV !== 'production') {

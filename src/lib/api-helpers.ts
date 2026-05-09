@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import type { ActionErrorType } from '@/lib/errors';
 
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }
 
-export function fail(error: string, status = 400) {
-  return NextResponse.json({ success: false, error }, { status });
+export function fail(error: string, status = 400, errorType?: ActionErrorType) {
+  return NextResponse.json(
+    { success: false, error, ...(errorType ? { errorType } : {}) },
+    { status },
+  );
 }
 
 export async function requireSession() {

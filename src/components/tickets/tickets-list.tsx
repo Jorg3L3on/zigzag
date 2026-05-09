@@ -17,6 +17,12 @@ import {
   TicketDownloadButton,
 } from '@/components/tickets/ticket-row-actions';
 import { useCompany } from '@/contexts/company-context';
+import { Input } from '@/components/ui/input';
+import { TripledEmptyState } from '@/components/tripled';
+import { Search, Ticket as TicketIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface Ticket {
   id: bigint;
@@ -29,8 +35,11 @@ interface Ticket {
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
+  const router = useRouter();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [searchValue, setSearchValue] = React.useState('');
 
   const fetchTickets = React.useCallback(async () => {
     if (!selectedCompany?.id) return;
@@ -39,9 +48,22 @@ export default function TicketsList() {
       const result = await getTickets(selectedCompany.id);
       if (result.success && result.data) {
         setTickets(result.data);
+        setLoadError(null);
+      } else if (!result.success) {
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        setLoadError(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'No se pudieron cargar los tickets',
+          ),
+        );
       }
     } catch (error) {
       console.error('Error fetching tickets:', error);
+      const errorType = classifyClientError(error);
+      setLoadError(
+        getErrorMessageByType(errorType, 'No se pudieron cargar los tickets'),
+      );
     } finally {
       setLoading(false);
     }
@@ -61,50 +83,99 @@ export default function TicketsList() {
     return <div>Cargando tickets...</div>;
   }
 
+  const filteredTickets = tickets.filter((ticket) => {
+    const search = searchValue.toLowerCase();
+    return (
+      ticket.id.toString().includes(search) ||
+      (ticket.client_name ?? '').toLowerCase().includes(search) ||
+      (ticket.client_tel ?? '').toLowerCase().includes(search)
+    );
+  });
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>ID</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead className="w-[50px]">PDF</TableHead>
-            <TableHead>Teléfono</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead className="w-[100px]">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tickets?.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center">
-                No hay tickets registrados
-              </TableCell>
-            </TableRow>
-          ) : (
-            tickets?.map((ticket) => (
-              <TableRow key={ticket.id.toString()}>
-                <TableCell>{ticket.id}</TableCell>
-                <TableCell>{ticket.client_name}</TableCell>
-                <TableCell>
-                  <TicketDownloadButton document={ticket.document} />
-                </TableCell>
-                <TableCell>{ticket.client_tel}</TableCell>
-                <TableCell>
-                  <FormattedDate date={ticket.ticket_date} />
-                </TableCell>
-                <TableCell>
-                  <FormattedCurrency amount={ticket.total} />
-                </TableCell>
-                <TableCell>
-                  <TicketRowActions ticket={ticket} onDelete={handleDelete} />
-                </TableCell>
+    <div className="space-y-4">
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          value={searchValue}
+          onChange={(event) => setSearchValue(event.target.value)}
+          placeholder="Buscar por ID, cliente o teléfono..."
+        />
+      </div>
+
+      {loadError ? (
+        <div className="space-y-4">
+          <TripledEmptyState
+            icon={<TicketIcon className="h-4 w-4" />}
+            title="Error de carga"
+            description={loadError}
+          />
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={fetchTickets}>
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      ) : filteredTickets.length === 0 ? (
+        <TripledEmptyState
+          icon={<TicketIcon className="h-4 w-4" />}
+          title="Sin tickets"
+          description="No hay tickets que coincidan con la búsqueda."
+        />
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead className="w-[50px]">PDF</TableHead>
+                <TableHead>Teléfono</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead className="w-[100px]">Acciones</TableHead>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredTickets.map((ticket) => (
+                <TableRow
+                  key={ticket.id.toString()}
+                  className="cursor-pointer"
+                  tabIndex={0}
+                  onClick={() => router.push(`/dashboard/tickets/${ticket.id}/edit`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      router.push(`/dashboard/tickets/${ticket.id}/edit`);
+                    }
+                  }}
+                >
+                  <TableCell>{ticket.id}</TableCell>
+                  <TableCell>{ticket.client_name}</TableCell>
+                  <TableCell>
+                    <div onClick={(event) => event.stopPropagation()}>
+                      <TicketDownloadButton document={ticket.document} />
+                    </div>
+                  </TableCell>
+                  <TableCell>{ticket.client_tel}</TableCell>
+                  <TableCell>
+                    <FormattedDate date={ticket.ticket_date} />
+                  </TableCell>
+                  <TableCell>
+                    <FormattedCurrency amount={ticket.total} />
+                  </TableCell>
+                  <TableCell>
+                    <div onClick={(event) => event.stopPropagation()}>
+                      <TicketRowActions ticket={ticket} onDelete={handleDelete} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

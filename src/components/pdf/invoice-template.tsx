@@ -46,9 +46,12 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
         </div>
       </div>
 
-      <table className="w-full text-left border-t border-b border-gray-300 mb-4">
+      <table
+        className="w-full text-left border-t border-b mb-4"
+        style={{ borderColor: '#d1d5db' }}
+      >
         <thead>
-          <tr className="bg-gray-100">
+          <tr style={{ backgroundColor: '#f3f4f6' }}>
             <th className="p-2 font-semibold text-xs w-[40%]">Descripción</th>
             <th className="p-2 font-semibold text-xs w-[15%]">Cantidad</th>
             <th className="p-2 font-semibold text-xs w-[20%]">
@@ -59,7 +62,11 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
         </thead>
         <tbody>
           {data.items.map((item, index) => (
-            <tr key={index} className="border-t border-gray-200">
+            <tr
+              key={index}
+              className="border-t"
+              style={{ borderColor: '#e5e7eb' }}
+            >
               <td className="p-2 text-xs">{item.description}</td>
               <td className="p-2 text-xs">{item.quantity}</td>
               <td className="p-2 text-xs">${item.unitPrice}</td>
@@ -71,7 +78,10 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
 
       <div className="mt-6 flex justify-end">
         <div className="w-1/3">
-          <div className="flex justify-between border-t border-gray-300 py-2">
+          <div
+            className="flex justify-between border-t py-2"
+            style={{ borderColor: '#d1d5db' }}
+          >
             <span className="font-semibold text-xs">TOTAL (MXN):</span>
             <span className="text-xs">${data.total}</span>
           </div>

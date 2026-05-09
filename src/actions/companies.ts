@@ -3,6 +3,7 @@
 import { desc, eq, isNull } from 'drizzle-orm';
 import { company } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -16,7 +17,12 @@ const companySchema = z.object({
 
 export type CompanyFormData = z.infer<typeof companySchema>;
 
-export async function getCompanies() {
+export async function getCompanies(): Promise<{
+  success: boolean;
+  data?: (typeof company.$inferSelect)[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const companies = await db.query.company.findMany({
       where: isNull(company.deleted_at),
@@ -25,14 +31,23 @@ export async function getCompanies() {
       },
       orderBy: [desc(company.created_at)],
     });
-    return { companies };
+    return { success: true, data: companies };
   } catch (e) {
     console.error(e);
-    return { error: 'Error al obtener las empresas' };
+    return {
+      success: false,
+      error: 'Error al obtener las empresas',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function createCompany(data: CompanyFormData) {
+export async function createCompany(data: CompanyFormData): Promise<{
+  success: boolean;
+  data?: typeof company.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const validatedData = companySchema.parse(data);
 
@@ -49,17 +64,33 @@ export async function createCompany(data: CompanyFormData) {
       .returning();
 
     revalidatePath('/dashboard/companies');
-    return { company: created };
+    return { success: true, data: created };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
+      return {
+        success: false,
+        error: e.issues[0]?.message ?? 'Datos inválidos',
+        errorType: 'validation',
+      };
     }
-    return { error: 'Error al crear la empresa' };
+    return {
+      success: false,
+      error: 'Error al crear la empresa',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function updateCompany(id: number, data: CompanyFormData) {
+export async function updateCompany(
+  id: number,
+  data: CompanyFormData,
+): Promise<{
+  success: boolean;
+  data?: typeof company.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const validatedData = companySchema.parse(data);
 
@@ -77,17 +108,29 @@ export async function updateCompany(id: number, data: CompanyFormData) {
       .returning();
 
     revalidatePath('/dashboard/companies');
-    return { company: updated };
+    return { success: true, data: updated };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
+      return {
+        success: false,
+        error: e.issues[0]?.message ?? 'Datos inválidos',
+        errorType: 'validation',
+      };
     }
-    return { error: 'Error al actualizar la empresa' };
+    return {
+      success: false,
+      error: 'Error al actualizar la empresa',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function deleteCompany(id: number) {
+export async function deleteCompany(id: number): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     await db
       .update(company)
@@ -98,6 +141,10 @@ export async function deleteCompany(id: number) {
     return { success: true };
   } catch (e) {
     console.error(e);
-    return { error: 'Error al eliminar la empresa' };
+    return {
+      success: false,
+      error: 'Error al eliminar la empresa',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }

@@ -14,6 +14,7 @@ import {
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
 
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
@@ -26,6 +27,8 @@ import {
   SidebarHeader,
   SidebarRail,
 } from '@/components/ui/sidebar';
+import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface Company {
   id: number;
@@ -125,12 +128,44 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         // Keep sidebar stable instead of logging noisy runtime errors.
         if (!response.ok) {
           setCompanies([]);
+          const payload = await response.json().catch(() => null);
+          const errorType = classifyClientError(
+            null,
+            response.status,
+            payload?.errorType,
+          );
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              payload?.error || 'No se pudieron cargar las empresas',
+            ),
+          );
           return;
         }
-        const data = await response.json();
-        setCompanies(data);
+        const payload = await response.json();
+        if (payload?.success) {
+          setCompanies(payload.data ?? []);
+          return;
+        }
+
+        const errorType = classifyClientError(
+          null,
+          response.status,
+          payload?.errorType,
+        );
+        setCompanies([]);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            payload?.error || 'No se pudieron cargar las empresas',
+          ),
+        );
       } catch (error) {
         console.error('Error fetching companies:', error);
+        const errorType = classifyClientError(error);
+        toast.error(
+          getErrorMessageByType(errorType, 'No se pudieron cargar las empresas'),
+        );
       }
     };
 
@@ -179,13 +214,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isSystemCompany = session?.user?.company_is_system;
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+    <Sidebar collapsible="icon" {...props} className="border-r border-border/50">
+      <SidebarHeader className="bg-gradient-to-r from-primary/5 to-transparent">
         <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
-        {isSystemCompany && <NavProject items={systemItems} />}
+        <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
+          <NavMain items={navItems} />
+          {isSystemCompany && <NavProject items={systemItems} />}
+        </TripledMotionDiv>
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

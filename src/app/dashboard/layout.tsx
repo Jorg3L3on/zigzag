@@ -19,7 +19,9 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset className="bg-gradient-to-b from-background to-muted/20">
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

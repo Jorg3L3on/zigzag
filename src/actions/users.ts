@@ -3,6 +3,7 @@
 import { desc, eq, and, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -22,7 +23,12 @@ const createUserSchema = userSchema.extend({
 export type UserFormData = z.infer<typeof userSchema>;
 export type CreateUserFormData = z.infer<typeof createUserSchema>;
 
-export async function getUsers() {
+export async function getUsers(): Promise<{
+  success: boolean;
+  data?: (typeof user.$inferSelect)[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const users = await db.query.user.findMany({
       with: {
@@ -32,14 +38,23 @@ export async function getUsers() {
       orderBy: [desc(user.created_at)],
       where: isNull(user.deleted_at),
     });
-    return { users };
+    return { success: true, data: users };
   } catch (e) {
     console.error(e);
-    return { error: 'Error al obtener los usuarios' };
+    return {
+      success: false,
+      error: 'Error al obtener los usuarios',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function createUser(data: CreateUserFormData) {
+export async function createUser(data: CreateUserFormData): Promise<{
+  success: boolean;
+  data?: typeof user.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const validatedData = createUserSchema.parse(data);
 
@@ -58,17 +73,33 @@ export async function createUser(data: CreateUserFormData) {
       .returning();
 
     revalidatePath('/dashboard/users');
-    return { user: created };
+    return { success: true, data: created };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
+      return {
+        success: false,
+        error: e.issues[0]?.message ?? 'Datos inválidos',
+        errorType: 'validation',
+      };
     }
-    return { error: 'Error al crear el usuario' };
+    return {
+      success: false,
+      error: 'Error al crear el usuario',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function updateUser(id: bigint, data: UserFormData) {
+export async function updateUser(
+  id: bigint,
+  data: UserFormData,
+): Promise<{
+  success: boolean;
+  data?: typeof user.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const validatedData = userSchema.parse(data);
 
@@ -90,17 +121,30 @@ export async function updateUser(id: bigint, data: UserFormData) {
       .returning();
 
     revalidatePath('/dashboard/users');
-    return { user: updated };
+    return { success: true, data: updated };
   } catch (e) {
     console.error(e);
     if (e instanceof z.ZodError) {
-      return { error: e.issues[0]?.message ?? 'Datos inválidos' };
+      return {
+        success: false,
+        error: e.issues[0]?.message ?? 'Datos inválidos',
+        errorType: 'validation',
+      };
     }
-    return { error: 'Error al actualizar el usuario' };
+    return {
+      success: false,
+      error: 'Error al actualizar el usuario',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function deleteUser(id: bigint) {
+export async function deleteUser(id: bigint): Promise<{
+  success: boolean;
+  data?: typeof user.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const [updated] = await db
       .update(user)
@@ -112,9 +156,13 @@ export async function deleteUser(id: bigint) {
       .returning();
 
     revalidatePath('/dashboard/users');
-    return { user: updated };
+    return { success: true, data: updated };
   } catch (e) {
     console.error(e);
-    return { error: 'Error al eliminar el usuario' };
+    return {
+      success: false,
+      error: 'Error al eliminar el usuario',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }

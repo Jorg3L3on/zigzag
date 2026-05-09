@@ -18,6 +18,10 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createClient, updateClient, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
+import {
+  classifyClientError,
+  getErrorMessageByType,
+} from '@/lib/network-awareness';
 
 const clientSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -30,7 +34,7 @@ type ClientFormValues = z.infer<typeof clientSchema>;
 
 interface ClientFormProps {
   client?: Client;
-  onSuccess?: () => void;
+  onSuccess?: (savedClient?: Client) => void;
 }
 
 export function ClientForm({ client, onSuccess }: ClientFormProps) {
@@ -72,31 +76,46 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
 
         if (result.success) {
           toast.success('Cliente actualizado correctamente');
-          onSuccess?.();
+          onSuccess?.(result.data);
           if (!onSuccess) {
             router.push('/dashboard/clients');
             router.refresh();
           }
         } else {
-          toast.error(result.error || 'Error al actualizar el cliente');
+          const errorType = classifyClientError(null, undefined, result.errorType);
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              result.error || 'Error al actualizar el cliente',
+            ),
+          );
         }
       } else {
         const result = await createClient(formData);
 
         if (result.success) {
           toast.success('Cliente creado correctamente');
-          onSuccess?.();
+          onSuccess?.(result.data);
           if (!onSuccess) {
             router.push('/dashboard/clients');
             router.refresh();
           }
         } else {
-          toast.error(result.error || 'Error al crear el cliente');
+          const errorType = classifyClientError(null, undefined, result.errorType);
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              result.error || 'Error al crear el cliente',
+            ),
+          );
         }
       }
     } catch (error) {
       console.error(error);
-      toast.error('Error al procesar la solicitud');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Error al procesar la solicitud'),
+      );
     } finally {
       setIsSubmitting(false);
     }

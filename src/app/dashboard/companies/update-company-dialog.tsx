@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import type { Company } from '@/db/schema';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -71,8 +72,14 @@ export function UpdateCompanyDialog({
 
   async function onSubmit(data: FormData) {
     const result = await updateCompany(company.id, data);
-    if (result.error) {
-      toast.error(result.error);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo actualizar la empresa',
+        ),
+      );
       return;
     }
     onOpenChange(false);

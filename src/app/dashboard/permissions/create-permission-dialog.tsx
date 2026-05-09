@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/select';
 import { getCompanies } from '@/actions/companies';
 import type { Company } from '@/db/schema';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -60,25 +61,31 @@ export function CreatePermissionDialog() {
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const { companies } = await getCompanies();
-      if (companies) {
-        setCompanies(companies);
+      const result = await getCompanies();
+      if (result.success && result.data) {
+        setCompanies(result.data);
       }
     };
     fetchCompanies();
   }, []);
 
   async function onSubmit(data: FormData) {
-    try {
-      await createPermission(data);
-      toast.success('Permiso creado correctamente');
-      setOpen(false);
-      form.reset();
-      router.refresh();
-    } catch (error) {
-      toast.error('Error al crear el permiso');
-      console.error('Error al crear el permiso:', error);
+    const result = await createPermission(data);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'Error al crear el permiso',
+        ),
+      );
+      return;
     }
+
+    toast.success('Permiso creado correctamente');
+    setOpen(false);
+    form.reset();
+    router.refresh();
   }
 
   return (

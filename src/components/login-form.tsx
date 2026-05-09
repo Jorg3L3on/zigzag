@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 
 export function LoginForm({
   className,
@@ -52,27 +54,25 @@ export function LoginForm({
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <form onSubmit={onSubmit}>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col items-center gap-2">
-            <a
-              href="#"
-              className="flex flex-col items-center gap-2 font-medium"
-            >
-              <div className="flex h-20 w-20 items-center justify-center rounded-md">
-                <Image
-                  src="/favicon.ico"
-                  alt="zigzag logo"
-                  width={80}
-                  height={80}
-                  className="size-20"
-                />
-              </div>
-              <span className="sr-only">zigzag</span>
-            </a>
-            <h1 className="text-xl font-bold">Bienvenido a zigzag</h1>
-          </div>
-          <div className="flex flex-col gap-6">
+      <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
+        <Card className="border-border/60 shadow-md">
+        <CardHeader className="items-center text-center">
+          <a href="#" className="flex flex-col items-center gap-2 font-medium">
+            <div className="flex h-20 w-20 items-center justify-center rounded-md">
+              <Image
+                src="/favicon.ico"
+                alt="zigzag logo"
+                width={80}
+                height={80}
+                className="size-20"
+              />
+            </div>
+            <span className="sr-only">zigzag</span>
+          </a>
+          <CardTitle>Bienvenido a zigzag</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-5">
             <div className="grid gap-2">
               <Label htmlFor="email">Correo electrónico</Label>
               <Input
@@ -95,9 +95,10 @@ export function LoginForm({
             >
               {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Button>
-          </div>
-        </div>
-      </form>
+          </form>
+        </CardContent>
+        </Card>
+      </TripledMotionDiv>
     </div>
   );
 }

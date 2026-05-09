@@ -5,6 +5,7 @@ import { desc, eq, isNull } from 'drizzle-orm';
 import { service } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
 export interface CreateServiceData {
@@ -22,6 +23,7 @@ export async function getServices(companyId: number | null): Promise<{
   success: boolean;
   data?: Service[];
   error?: string;
+  errorType?: ActionErrorType;
 }> {
   try {
     const services = await db
@@ -37,13 +39,22 @@ export async function getServices(companyId: number | null): Promise<{
     return { success: true, data: services };
   } catch (error) {
     console.error('Error fetching services:', error);
-    return { success: false, error: 'Error al cargar los servicios' };
+    return {
+      success: false,
+      error: 'Error al cargar los servicios',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
 export async function createService(
   data: CreateServiceData,
-): Promise<{ success: boolean; data?: Service; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: Service;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const [created] = await db
       .insert(service)
@@ -59,13 +70,22 @@ export async function createService(
     return { success: true, data: created };
   } catch (error) {
     console.error('Error creating service:', error);
-    return { success: false, error: 'Error al crear el servicio' };
+    return {
+      success: false,
+      error: 'Error al crear el servicio',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
 export async function updateService(
   data: UpdateServiceData,
-): Promise<{ success: boolean; data?: Service; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: Service;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const { id, ...updateData } = data;
     const [updated] = await db
@@ -78,13 +98,17 @@ export async function updateService(
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error updating service:', error);
-    return { success: false, error: 'Error al actualizar el servicio' };
+    return {
+      success: false,
+      error: 'Error al actualizar el servicio',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
 export async function deleteService(
   id: number,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
     await db.delete(service).where(eq(service.id, id));
 
@@ -92,6 +116,10 @@ export async function deleteService(
     return { success: true };
   } catch (error) {
     console.error('Error deleting service:', error);
-    return { success: false, error: 'Error al eliminar el servicio' };
+    return {
+      success: false,
+      error: 'Error al eliminar el servicio',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }

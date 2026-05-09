@@ -13,6 +13,7 @@ import { deleteCompany } from '@/actions/companies';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/db/schema';
 import { toast } from 'sonner';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface DeleteCompanyDialogProps {
   company: Company;
@@ -29,8 +30,14 @@ export function DeleteCompanyDialog({
 
   async function onDelete() {
     const result = await deleteCompany(company.id);
-    if (result.error) {
-      toast.error(result.error);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo eliminar la empresa',
+        ),
+      );
       return;
     }
     toast.success('Empresa eliminada correctamente');

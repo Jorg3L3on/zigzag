@@ -1,8 +1,8 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { fail, ok, requireSession } from '@/lib/api-helpers';
 
 export async function GET(
   req: Request,
@@ -10,10 +10,9 @@ export async function GET(
 ) {
   try {
     const { clientId } = await context.params;
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const [row] = await db
@@ -29,13 +28,13 @@ export async function GET(
       .limit(1);
 
     if (!row) {
-      return new NextResponse('Client not found', { status: 404 });
+      return fail('Client not found', 404, 'validation');
     }
 
-    return NextResponse.json(row);
+    return ok(row);
   } catch (error) {
     console.error('[CLIENT_GET]', error);
-    return new NextResponse('Internal error', { status: 500 });
+    return fail('Internal error', 500, 'server');
   }
 }
 
@@ -45,17 +44,16 @@ export async function PATCH(
 ) {
   try {
     const { clientId } = await context.params;
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const body = await req.json();
     const { name, email, phone, document, address } = body;
 
     if (!name) {
-      return new NextResponse('Name is required', { status: 400 });
+      return fail('Name is required', 400, 'validation');
     }
 
     const [updated] = await db
@@ -76,10 +74,14 @@ export async function PATCH(
       )
       .returning();
 
-    return NextResponse.json(updated);
+    if (!updated) {
+      return fail('Client not found', 404, 'validation');
+    }
+
+    return ok(updated);
   } catch (error) {
     console.error('[CLIENT_PATCH]', error);
-    return new NextResponse('Internal error', { status: 500 });
+    return fail('Internal error', 500, 'server');
   }
 }
 
@@ -89,13 +91,12 @@ export async function DELETE(
 ) {
   try {
     const { clientId } = await context.params;
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { session, unauthorized } = await requireSession();
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
-    await db
+    const [deleted] = await db
       .update(client)
       .set({ deleted_at: new Date() })
       .where(
@@ -103,11 +104,15 @@ export async function DELETE(
           eq(client.id, parseInt(clientId, 10)),
           eq(client.company_id, session.user.company_id as number),
         ),
-      );
+      )
+      .returning();
+    if (!deleted) {
+      return fail('Client not found', 404, 'validation');
+    }
 
-    return new NextResponse(null, { status: 204 });
+    return ok({ deleted: true });
   } catch (error) {
     console.error('[CLIENT_DELETE]', error);
-    return new NextResponse('Internal error', { status: 500 });
+    return fail('Internal error', 500, 'server');
   }
 }

@@ -13,6 +13,7 @@ import { deletePermission } from '@/actions/permissions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Permission } from './columns';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface DeletePermissionDialogProps {
   permission: Permission;
@@ -28,15 +29,21 @@ export function DeletePermissionDialog({
   const router = useRouter();
 
   const handleDelete = async () => {
-    try {
-      await deletePermission(permission.id);
-      toast.success('Permiso eliminado correctamente');
-      onOpenChange(false);
-      router.refresh();
-    } catch (error) {
-      toast.error('Error al eliminar el permiso');
-      console.error('Error al eliminar el permiso:', error);
+    const result = await deletePermission(permission.id);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'Error al eliminar el permiso',
+        ),
+      );
+      return;
     }
+
+    toast.success('Permiso eliminado correctamente');
+    onOpenChange(false);
+    router.refresh();
   };
 
   return (

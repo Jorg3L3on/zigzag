@@ -3,6 +3,7 @@
 import { desc, eq, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
 export type Client = typeof client.$inferSelect;
@@ -23,6 +24,7 @@ export async function getClients(companyId: number | null): Promise<{
   success: boolean;
   data?: Client[];
   error?: string;
+  errorType?: ActionErrorType;
 }> {
   try {
     const clients = await db
@@ -38,7 +40,11 @@ export async function getClients(companyId: number | null): Promise<{
     return { success: true, data: clients };
   } catch (error) {
     console.error('Error al cargar los clientes:', error);
-    return { success: false, error: 'Error al cargar los clientes' };
+    return {
+      success: false,
+      error: 'Error al cargar los clientes',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
@@ -46,24 +52,38 @@ export async function getClient(id: number): Promise<{
   success: boolean;
   data?: Client;
   error?: string;
+  errorType?: ActionErrorType;
 }> {
   try {
     const [row] = await db.select().from(client).where(eq(client.id, id)).limit(1);
 
     if (!row) {
-      return { success: false, error: 'Cliente no encontrado' };
+      return {
+        success: false,
+        error: 'Cliente no encontrado',
+        errorType: 'validation',
+      };
     }
 
     return { success: true, data: row };
   } catch (error) {
     console.error('Error al cargar el cliente:', error);
-    return { success: false, error: 'Error al cargar el cliente' };
+    return {
+      success: false,
+      error: 'Error al cargar el cliente',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
 export async function createClient(
   data: CreateClientData,
-): Promise<{ success: boolean; data?: Client; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: Client;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const [created] = await db
       .insert(client)
@@ -80,13 +100,22 @@ export async function createClient(
     return { success: true, data: created };
   } catch (error) {
     console.error('Error al crear el cliente:', error);
-    return { success: false, error: 'Error al crear el cliente' };
+    return {
+      success: false,
+      error: 'Error al crear el cliente',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
 export async function updateClient(
   data: UpdateClientData,
-): Promise<{ success: boolean; data?: Client; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: Client;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const { id, ...updateData } = data;
     const [updated] = await db
@@ -99,13 +128,17 @@ export async function updateClient(
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error al actualizar el cliente:', error);
-    return { success: false, error: 'Error al actualizar el cliente' };
+    return {
+      success: false,
+      error: 'Error al actualizar el cliente',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
 export async function deleteClient(
   id: number,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
     await db.delete(client).where(eq(client.id, id));
 
@@ -113,6 +146,10 @@ export async function deleteClient(
     return { success: true };
   } catch (error) {
     console.error('Error al eliminar el cliente:', error);
-    return { success: false, error: 'Error al eliminar el cliente' };
+    return {
+      success: false,
+      error: 'Error al eliminar el cliente',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }

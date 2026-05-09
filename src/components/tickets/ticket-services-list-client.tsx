@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Service } from '@/db/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -35,20 +37,20 @@ import {
   deleteServiceTicket,
   getTicketServices,
 } from '@/actions/ticket-services';
-import { SidebarTrigger } from '../ui/sidebar';
-import { Separator } from '../ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '../ui/breadcrumb';
 import { useCompany } from '@/contexts/company-context';
 import { getServices } from '@/actions/services';
+import {
+  TripledNativeDelete,
+  TripledPageHeader,
+  TripledStepper,
+} from '@/components/tripled';
+import {
+  classifyClientError,
+  getErrorMessageByType,
+} from '@/lib/network-awareness';
 
 export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
   const { selectedCompany } = useCompany();
   const [services, setServices] = useState<Service[]>([]);
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
@@ -119,11 +121,20 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
         resetForm();
         setIsDialogOpen(false);
       } else {
-        toast.error(result.error || 'Error al agregar el servicio');
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'Error al agregar el servicio',
+          ),
+        );
       }
     } catch (error) {
       console.error('Error al agregar servicio:', error);
-      toast.error('Error al agregar el servicio');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Error al agregar el servicio'),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -148,11 +159,20 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
         );
         toast.success('Servicio actualizado exitosamente');
       } else {
-        toast.error(result.error || 'Error al actualizar el servicio');
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'Error al actualizar el servicio',
+          ),
+        );
       }
     } catch (error) {
       console.error('Error al actualizar servicio:', error);
-      toast.error('Error al actualizar el servicio');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Error al actualizar el servicio'),
+      );
     }
   };
 
@@ -166,11 +186,20 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
         );
         toast.success('Servicio eliminado exitosamente');
       } else {
-        toast.error(result.error || 'Error al eliminar el servicio');
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'Error al eliminar el servicio',
+          ),
+        );
       }
     } catch (error) {
       console.error('Error al eliminar servicio:', error);
-      toast.error('Error al eliminar el servicio');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Error al eliminar el servicio'),
+      );
     }
   };
 
@@ -192,34 +221,24 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard/tickets">
-                  Tickets
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href={`/dashboard/tickets/${ticketId}/edit`}>
-                  Ticket #{ticketId}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Servicios</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader
+        items={[
+          { label: 'Tickets', href: '/dashboard/tickets' },
+          { label: `Ticket #${ticketId}`, href: `/dashboard/tickets/${ticketId}/edit` },
+          { label: 'Servicios' },
+        ]}
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div className="mx-auto w-full">
+          <TripledStepper
+            steps={[
+              { id: 'create', title: 'Datos del ticket' },
+              { id: 'services', title: 'Servicios' },
+              { id: 'review', title: 'Revisión y PDF' },
+            ]}
+            currentStepId="services"
+          />
           <Card className="border-0 shadow-lg">
             <CardHeader className="space-y-4 pb-8">
               <div className="flex items-center justify-between">
@@ -249,6 +268,10 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                       <DialogTitle className="text-2xl font-bold text-gray-800">
                         Agregar Nuevo Servicio
                       </DialogTitle>
+                      <DialogDescription>
+                        Selecciona un servicio y define cantidad y precio para
+                        agregarlo al ticket.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-6 py-4">
                       <div className="space-y-3">
@@ -404,13 +427,12 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                       </p>
                     </div>
                     <div className="flex items-center">
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleDeleteService(serviceTicket.id)}
-                        className="bg-red-500 hover:bg-red-600 transition-colors duration-200 mt-5"
-                      >
-                        Eliminar
-                      </Button>
+                      <TripledNativeDelete
+                        onDelete={() => handleDeleteService(serviceTicket.id)}
+                        buttonText="Eliminar"
+                        confirmLabel="Sí, eliminar"
+                        className="mt-5"
+                      />
                     </div>
                   </div>
                 </div>
@@ -426,6 +448,23 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                 <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Total: {formatCurrency(calculateTotal())}
                 </p>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/tickets/${ticketId}/edit`)}
+                >
+                  Volver a datos del ticket
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  onClick={() => router.push(`/dashboard/tickets/${ticketId}/edit`)}
+                >
+                  Continuar a revisión
+                </Button>
               </div>
             </CardContent>
           </Card>

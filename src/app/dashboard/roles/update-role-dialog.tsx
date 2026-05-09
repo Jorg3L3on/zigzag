@@ -37,6 +37,7 @@ import type { Company, Permission } from '@/db/schema';
 import { Role } from './columns';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -78,9 +79,9 @@ export function UpdateRoleDialog({
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const { companies } = await getCompanies();
-      if (companies) {
-        setCompanies(companies);
+      const result = await getCompanies();
+      if (result.success && result.data) {
+        setCompanies(result.data);
       }
     };
     fetchCompanies();
@@ -95,17 +96,17 @@ export function UpdateRoleDialog({
         return;
       }
 
-      const { permissions } = await getPermissionsByCompany(companyId);
-      if (!permissions) {
+      const result = await getPermissionsByCompany(companyId);
+      if (!result.success || !result.data) {
         return;
       }
 
-      setPermissions(permissions);
+      setPermissions(result.data);
       const currentSelected = form.getValues('permissions');
       const validPermissionIds = currentSelected.filter((id) =>
-        permissions.some((permission) => permission.id === id),
+        result.data.some((permission) => permission.id === id),
       );
-      const validPermissions = permissions.filter((permission) =>
+      const validPermissions = result.data.filter((permission) =>
         validPermissionIds.includes(permission.id),
       );
       setSelectedPermissions(validPermissions);
@@ -124,15 +125,21 @@ export function UpdateRoleDialog({
   }, [role, form]);
 
   async function onSubmit(data: FormData) {
-    try {
-      await updateRole(role.id, data);
-      toast.success('Rol actualizado correctamente');
-      onOpenChange(false);
-      router.refresh();
-    } catch (error) {
-      toast.error('Error al actualizar el rol');
-      console.error('Error al actualizar el rol:', error);
+    const result = await updateRole(role.id, data);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'Error al actualizar el rol',
+        ),
+      );
+      return;
     }
+
+    toast.success('Rol actualizado correctamente');
+    onOpenChange(false);
+    router.refresh();
   }
 
   const handlePermissionSelect = (permissionId: string) => {

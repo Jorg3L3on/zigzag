@@ -32,16 +32,6 @@ import {
   Plus,
 } from 'lucide-react';
 import * as React from 'react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import {
   Card,
   CardContent,
@@ -69,6 +59,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/clients/client-form';
+import { TripledPageHeader, TripledStepper } from '@/components/tripled';
+import {
+  classifyClientError,
+  getErrorMessageByType,
+} from '@/lib/network-awareness';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -108,7 +103,7 @@ export default function CreateTicketPage() {
       client_tel: '',
       email: '',
       document: '',
-      ticket_date: undefined,
+      ticket_date: new Date(),
       services: [],
       company_id: selectedCompany?.id ?? 0,
     },
@@ -126,6 +121,18 @@ export default function CreateTicketPage() {
         const result = await getClients(selectedCompany.id);
         if (result.success && result.data) {
           setClients(result.data);
+        } else if (!result.success) {
+          const errorType = classifyClientError(
+            null,
+            undefined,
+            result.errorType,
+          );
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              result.error || 'No se pudieron cargar los clientes',
+            ),
+          );
         }
       }
       setLoading(false);
@@ -159,11 +166,20 @@ export default function CreateTicketPage() {
         toast.success('Ticket creado correctamente');
         router.push(`/dashboard/tickets/${result.data.id}/services`);
       } else {
-        toast.error(result.error || 'No se pudo crear el ticket');
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'No se pudo crear el ticket',
+          ),
+        );
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
-      toast.error('Ocurrió un error al crear el ticket');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Ocurrió un error al crear el ticket'),
+      );
     } finally {
       setLoading(false);
     }
@@ -171,28 +187,23 @@ export default function CreateTicketPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard/tickets">
-                  Tickets
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Crear Ticket</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader
+        items={[
+          { label: 'Tickets', href: '/dashboard/tickets' },
+          { label: 'Crear Ticket' },
+        ]}
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div className="mx-auto w-full max-w-2xl">
+          <TripledStepper
+            steps={[
+              { id: 'create', title: 'Datos del ticket' },
+              { id: 'services', title: 'Servicios' },
+              { id: 'review', title: 'Revisión y PDF' },
+            ]}
+            currentStepId="create"
+          />
           <Card className="border-0 shadow-lg">
             <CardHeader className="space-y-4 pb-8">
               <div className="flex items-center justify-between">
@@ -231,7 +242,7 @@ export default function CreateTicketPage() {
                             </FormLabel>
                             <Select
                               onValueChange={handleClientSelect}
-                              value={field.value?.toString()}
+                              value={field.value?.toString() ?? ''}
                             >
                               <FormControl>
                                 <SelectTrigger className="h-12 border-2 focus:border-primary transition-colors">
@@ -282,17 +293,32 @@ export default function CreateTicketPage() {
                             </DialogDescription>
                           </DialogHeader>
                           <ClientForm
-                            onSuccess={() => {
+                            onSuccess={(savedClient) => {
                               setIsNewClientDialogOpen(false);
-                              // Refresh clients list
+                              if (savedClient) {
+                                setClients((prevClients) => {
+                                  const alreadyExists = prevClients.some(
+                                    (clientItem) => clientItem.id === savedClient.id,
+                                  );
+                                  return alreadyExists
+                                    ? prevClients
+                                    : [savedClient, ...prevClients];
+                                });
+                                setSelectedClient(savedClient);
+                                form.setValue('client_id', savedClient.id);
+                                form.setValue('client_name', savedClient.name);
+                                form.setValue('client_tel', savedClient.phone || '');
+                                form.setValue('email', savedClient.email || '');
+                                form.setValue('document', savedClient.document || '');
+                                return;
+                              }
+
                               if (selectedCompany?.id) {
-                                getClients(selectedCompany.id).then(
-                                  (result) => {
-                                    if (result.success && result.data) {
-                                      setClients(result.data);
-                                    }
-                                  },
-                                );
+                                getClients(selectedCompany.id).then((result) => {
+                                  if (result.success && result.data) {
+                                    setClients(result.data);
+                                  }
+                                });
                               }
                             }}
                           />
@@ -372,6 +398,17 @@ export default function CreateTicketPage() {
                                 }
                                 initialFocus
                               />
+                              <div className="border-t p-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full justify-start"
+                                  onClick={() => field.onChange(new Date())}
+                                >
+                                  Hoy
+                                </Button>
+                              </div>
                             </PopoverContent>
                           </Popover>
                           <FormMessage />

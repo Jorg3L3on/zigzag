@@ -3,9 +3,15 @@
 import { eq } from 'drizzle-orm';
 import { role, rolePermission } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
-export async function getRoles() {
+export async function getRoles(): Promise<{
+  success: boolean;
+  data?: Awaited<ReturnType<typeof db.query.role.findMany>>;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const roles = await db.query.role.findMany({
       with: {
@@ -17,10 +23,14 @@ export async function getRoles() {
         },
       },
     });
-    return { roles };
+    return { success: true, data: roles };
   } catch (error) {
     console.error('Error al obtener roles:', error);
-    return { roles: [] };
+    return {
+      success: false,
+      error: 'Error al obtener roles',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
@@ -29,7 +39,12 @@ export async function createRole(data: {
   description?: string;
   company_id: number;
   permissions: number[];
-}) {
+}): Promise<{
+  success: boolean;
+  data?: Awaited<ReturnType<typeof db.query.role.findFirst>>;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     let newRoleId = 0;
     await db.transaction(async (tx) => {
@@ -67,10 +82,14 @@ export async function createRole(data: {
     });
 
     revalidatePath('/dashboard/roles');
-    return { role: full };
+    return { success: true, data: full };
   } catch (error) {
     console.error('Error al crear rol:', error);
-    throw new Error('Error al crear rol');
+    return {
+      success: false,
+      error: 'Error al crear rol',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
@@ -82,7 +101,12 @@ export async function updateRole(
     company_id: number;
     permissions: number[];
   },
-) {
+): Promise<{
+  success: boolean;
+  data?: Awaited<ReturnType<typeof db.query.role.findFirst>>;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
@@ -119,14 +143,22 @@ export async function updateRole(
     });
 
     revalidatePath('/dashboard/roles');
-    return { role: full };
+    return { success: true, data: full };
   } catch (error) {
     console.error('Error al actualizar rol:', error);
-    throw new Error('Error al actualizar rol');
+    return {
+      success: false,
+      error: 'Error al actualizar rol',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
-export async function deleteRole(id: number) {
+export async function deleteRole(id: number): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
@@ -137,6 +169,10 @@ export async function deleteRole(id: number) {
     return { success: true };
   } catch (error) {
     console.error('Error al eliminar rol:', error);
-    throw new Error('Error al eliminar rol');
+    return {
+      success: false,
+      error: 'Error al eliminar rol',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }

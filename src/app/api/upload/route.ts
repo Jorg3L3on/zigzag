@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { auth } from '@/lib/auth';
+import { fail, ok } from '@/lib/api-helpers';
 
 const ALLOWED_MIME_TYPES = new Set(['application/pdf']);
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -11,22 +12,22 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return fail('Unauthorized', 401, 'auth');
     }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+      return fail('No file uploaded', 400, 'validation');
     }
 
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
-      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 });
+      return fail('Only PDF files are allowed', 400, 'validation');
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'File too large' }, { status: 400 });
+      return fail('File too large', 400, 'validation');
     }
 
     const bytes = await file.arrayBuffer();
@@ -39,15 +40,11 @@ export async function POST(request: Request) {
 
     await writeFile(filePath, buffer);
 
-    return NextResponse.json({
-      success: true,
+    return ok({
       path: `/pdfs/${safeFileName}`,
     });
   } catch (error) {
     console.error('Error uploading file:', error);
-    return NextResponse.json(
-      { error: 'Error uploading file' },
-      { status: 500 },
-    );
+    return fail('Error uploading file', 500, 'server');
   }
 }

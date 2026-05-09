@@ -1,14 +1,6 @@
 import { getRoles } from '@/actions/roles';
 import { DataTable } from '@/components/ui/data-table';
 import { columns } from '@/app/dashboard/roles/columns';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
 import {
   Card,
   CardContent,
@@ -17,25 +9,22 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { CreateRoleDialog } from '@/app/dashboard/roles/create-role-dialog';
+import { TripledPageHeader } from '@/components/tripled';
 
 export default async function RolesPage() {
-  const { roles } = await getRoles();
+  const result = await getRoles();
+
+  if (!result.success) {
+    const errorMessage =
+      result.errorType === 'network'
+        ? 'No se pudieron cargar los roles por problemas de conexión.'
+        : result.error || 'Error al cargar los roles';
+    return <div>Error: {errorMessage}</div>;
+  }
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Roles</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader items={[{ label: 'Roles' }]} />
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div className="mx-auto w-full">
           <Card className="border-0 shadow-lg">
@@ -51,7 +40,7 @@ export default async function RolesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <DataTable columns={columns} data={roles ?? []} />
+              <DataTable columns={columns} data={result.data ?? []} />
             </CardContent>
           </Card>
         </div>

@@ -1,8 +1,9 @@
 'use server';
 
-import { desc, eq, and, isNull } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { z } from 'zod';
 
 const ticketSchema = z.object({
@@ -40,26 +41,63 @@ export type Ticket = {
   company_id: number | null;
 };
 
+type PgError = {
+  code?: string;
+  constraint?: string;
+};
+
+const isTicketPrimaryKeyConflict = (error: unknown): boolean => {
+  const dbError = (error as { cause?: PgError })?.cause;
+  return (
+    dbError?.code === '23505' &&
+    (dbError?.constraint === 'Ticket_pkey' || dbError?.constraint === 'ticket_pkey')
+  );
+};
+
+const syncTicketIdSequence = async (): Promise<void> => {
+  await db.execute(sql`
+    SELECT setval(
+      pg_get_serial_sequence('"Ticket"', 'id'),
+      COALESCE((SELECT MAX("id") FROM "Ticket"), 0) + 1,
+      false
+    );
+  `);
+};
+
 export async function createTicket(
   data: CreateTicketInput,
-): Promise<{ success: boolean; data?: Ticket; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: Ticket;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     console.log('Creating ticket with data:', data);
     const validatedData = ticketSchema.parse(data);
     console.log('Validated data:', validatedData);
 
-    const [created] = await db
-      .insert(ticket)
-      .values({
-        client_id: validatedData.client_id,
-        client_name: validatedData.client_name,
-        client_tel: validatedData.client_tel,
-        email: validatedData.email,
-        document: validatedData.document,
-        ticket_date: validatedData.ticket_date,
-        company_id: validatedData.company_id,
-      })
-      .returning();
+    const values = {
+      client_id: validatedData.client_id,
+      client_name: validatedData.client_name,
+      client_tel: validatedData.client_tel,
+      email: validatedData.email,
+      document: validatedData.document,
+      ticket_date: validatedData.ticket_date,
+      company_id: validatedData.company_id,
+    };
+
+    let created: unknown;
+    try {
+      [created] = await db.insert(ticket).values(values).returning();
+    } catch (error) {
+      if (!isTicketPrimaryKeyConflict(error)) {
+        throw error;
+      }
+
+      await syncTicketIdSequence();
+      [created] = await db.insert(ticket).values(values).returning();
+    }
 
     console.log('Created ticket:', created);
     return {
@@ -70,13 +108,28 @@ export async function createTicket(
     console.error('Error creating ticket:', error);
     if (error instanceof z.ZodError) {
       console.error('Validation errors:', error.issues);
-      return { success: false, error: 'Invalid ticket data' };
+      return {
+        success: false,
+        error: 'Invalid ticket data',
+        errorType: 'validation',
+      };
     }
-    return { success: false, error: 'Error creating ticket' };
+    return {
+      success: false,
+      error: 'Error creating ticket',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
-export async function getTickets(companyId: number | null) {
+export async function getTickets(
+  companyId: number | null,
+): Promise<{
+  success: boolean;
+  data?: unknown[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const tickets = await db.query.ticket.findMany({
       where: and(
@@ -98,11 +151,20 @@ export async function getTickets(companyId: number | null) {
     return { success: true, data: tickets };
   } catch (e) {
     console.error(e);
-    return { success: false, error: 'Error al obtener los tickets' };
+    return {
+      success: false,
+      error: 'Error al obtener los tickets',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function getTicketById(id: number) {
+export async function getTicketById(id: number): Promise<{
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const ticketRow = await db.query.ticket.findFirst({
       where: eq(ticket.id, BigInt(id)),
@@ -116,20 +178,29 @@ export async function getTicketById(id: number) {
     });
 
     if (!ticketRow) {
-      return { success: false, error: 'Ticket no encontrado' };
+      return { success: false, error: 'Ticket no encontrado', errorType: 'validation' };
     }
 
     return { success: true, data: ticketRow };
   } catch (e) {
     console.error(e);
-    return { success: false, error: 'Error al obtener el ticket' };
+    return {
+      success: false,
+      error: 'Error al obtener el ticket',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
 export async function updateTicket(
   id: number,
   data: Partial<CreateTicketInput>,
-) {
+): Promise<{
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const ticketId = BigInt(id);
 
@@ -202,11 +273,19 @@ export async function updateTicket(
     return { success: true, data: full ?? updated };
   } catch (e) {
     console.error(e);
-    return { success: false, error: 'Error al actualizar el ticket' };
+    return {
+      success: false,
+      error: 'Error al actualizar el ticket',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
-export async function deleteTicket(id: number) {
+export async function deleteTicket(id: number): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     await db
       .update(ticket)
@@ -216,21 +295,29 @@ export async function deleteTicket(id: number) {
     return { success: true };
   } catch (e) {
     console.error(e);
-    return { success: false, error: 'Error al eliminar el ticket' };
+    return {
+      success: false,
+      error: 'Error al eliminar el ticket',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }
 
 export async function finishTicket(
   id: number,
-  documentName: string,
   total: number,
-) {
+): Promise<{
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const [updated] = await db
       .update(ticket)
       .set({
         finished: true,
-        document: documentName,
+        document: null,
         total: total,
       })
       .where(eq(ticket.id, BigInt(id)))
@@ -239,6 +326,10 @@ export async function finishTicket(
     return { success: true, data: updated };
   } catch (e) {
     console.error(e);
-    return { success: false, error: 'Error al finalizar el ticket' };
+    return {
+      success: false,
+      error: 'Error al finalizar el ticket',
+      errorType: classifyServerErrorType(e),
+    };
   }
 }

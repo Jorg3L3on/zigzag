@@ -5,6 +5,7 @@ import { company, service, ticket, user } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { fail, ok } from '@/lib/api-helpers';
 
 const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
   if (!rows.length) {
@@ -64,7 +65,7 @@ export async function GET() {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return fail('Unauthorized', 401, 'auth');
     }
 
     // Use token/session claims for read access to avoid hard 404s
@@ -72,11 +73,11 @@ export async function GET() {
     if (session.user.company_is_system) {
       const companiesList = await db.select().from(company);
       const companies = await attachCounts(companiesList);
-      return NextResponse.json(companies);
+      return ok(companies);
     }
 
     if (!session.user.company_id) {
-      return NextResponse.json([]);
+      return ok([]);
     }
 
     const [companyRow] = await db
@@ -86,17 +87,14 @@ export async function GET() {
       .limit(1);
 
     if (!companyRow) {
-      return NextResponse.json([]);
+      return ok([]);
     }
 
     const [withCounts] = await attachCounts([companyRow]);
-    return NextResponse.json([withCounts]);
+    return ok([withCounts]);
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return fail('Internal server error', 500, 'server');
   }
 }
 
@@ -105,7 +103,7 @@ export async function POST(request: Request) {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return fail('Unauthorized', 401, 'auth');
     }
 
     const sessionUser = await db.query.user.findFirst({
@@ -114,10 +112,7 @@ export async function POST(request: Request) {
     });
 
     if (!sessionUser || !sessionUser.company?.is_system) {
-      return NextResponse.json(
-        { error: 'Only system company users can create new companies' },
-        { status: 403 },
-      );
+      return fail('Only system company users can create new companies', 403, 'auth');
     }
 
     const body = await request.json();
@@ -133,13 +128,10 @@ export async function POST(request: Request) {
       })
       .returning();
 
-    return NextResponse.json(created);
+    return ok(created, 201);
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return fail('Internal server error', 500, 'server');
   }
 }
 
@@ -148,7 +140,7 @@ export async function PUT(request: Request) {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return fail('Unauthorized', 401, 'auth');
     }
 
     const sessionUser = await db.query.user.findFirst({
@@ -157,16 +149,13 @@ export async function PUT(request: Request) {
     });
 
     if (!sessionUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return fail('User not found', 404, 'validation');
     }
 
     const body = await request.json();
 
     if (!sessionUser.company?.is_system && sessionUser.company_id !== body.id) {
-      return NextResponse.json(
-        { error: 'You can only update your own company' },
-        { status: 403 },
-      );
+      return fail('You can only update your own company', 403, 'auth');
     }
 
     const [updated] = await db
@@ -183,12 +172,13 @@ export async function PUT(request: Request) {
       .where(eq(company.id, body.id))
       .returning();
 
-    return NextResponse.json(updated);
+    if (!updated) {
+      return fail('Company not found', 404, 'validation');
+    }
+
+    return ok(updated);
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return fail('Internal server error', 500, 'server');
   }
 }

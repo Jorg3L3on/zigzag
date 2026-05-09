@@ -36,6 +36,7 @@ import {
 import type { Company, Role } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
 import { getRoles } from '@/actions/roles';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z
   .object({
@@ -74,9 +75,9 @@ export function CreateUserDialog() {
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const { companies } = await getCompanies();
-      if (companies) {
-        setCompanies(companies);
+      const result = await getCompanies();
+      if (result.success && result.data) {
+        setCompanies(result.data);
       }
     };
     fetchCompanies();
@@ -85,10 +86,10 @@ export function CreateUserDialog() {
   useEffect(() => {
     const fetchRoles = async () => {
       if (companyId) {
-        const { roles } = await getRoles();
-        if (roles) {
+        const rolesResult = await getRoles();
+        if (rolesResult.success && rolesResult.data) {
           // Filter roles by company_id
-          const companyRoles = roles.filter(
+          const companyRoles = rolesResult.data.filter(
             (role) => role.company_id === companyId,
           );
           setRoles(companyRoles);
@@ -103,8 +104,14 @@ export function CreateUserDialog() {
   async function onSubmit(data: FormData) {
     const { confirmPassword, ...userData } = data;
     const result = await createUser(userData);
-    if (result.error) {
-      toast.error(result.error);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo crear el usuario',
+        ),
+      );
       return;
     }
     setOpen(false);

@@ -5,11 +5,12 @@ import { db } from '@/lib/db';
 import { convertBigIntToString } from '@/lib/utils';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { fail, ok } from '@/lib/api-helpers';
 
 async function ensureTicketAccess(ticketId: bigint) {
   const session = await auth();
   if (!session?.user?.id) {
-    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    return { response: fail('Unauthorized', 401, 'auth') };
   }
 
   const ticketRow = await db.query.ticket.findFirst({
@@ -17,14 +18,14 @@ async function ensureTicketAccess(ticketId: bigint) {
   });
 
   if (!ticketRow) {
-    return { response: NextResponse.json({ error: 'Ticket not found' }, { status: 404 }) };
+    return { response: fail('Ticket not found', 404, 'validation') };
   }
 
   if (
     !session.user.company_is_system &&
     ticketRow.company_id !== session.user.company_id
   ) {
-    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+    return { response: fail('Forbidden', 403, 'auth') };
   }
 
   return { response: null };
@@ -39,7 +40,7 @@ export async function PUT(
     const ticketId = BigInt(params.id);
     const serviceTicketId = Number.parseInt(params.serviceId, 10);
     if (Number.isNaN(serviceTicketId)) {
-      return NextResponse.json({ error: 'Invalid service id' }, { status: 400 });
+      return fail('Invalid service id', 400, 'validation');
     }
 
     const access = await ensureTicketAccess(ticketId);
@@ -93,25 +94,20 @@ export async function PUT(
     });
 
     if (!full) {
-      return NextResponse.json(
-        { error: 'Ticket service not found' },
-        { status: 404 },
-      );
+      return fail('Ticket service not found', 404, 'validation');
     }
 
-    return NextResponse.json(convertBigIntToString(full));
+    return ok(convertBigIntToString(full));
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0]?.message ?? 'Invalid payload' },
-        { status: 400 },
+      return fail(
+        error.issues[0]?.message ?? 'Invalid payload',
+        400,
+        'validation',
       );
     }
     console.error('Error updating ticket service:', error);
-    return NextResponse.json(
-      { error: 'Failed to update ticket service' },
-      { status: 500 },
-    );
+    return fail('Failed to update ticket service', 500, 'server');
   }
 }
 
@@ -124,7 +120,7 @@ export async function DELETE(
     const ticketId = BigInt(params.id);
     const serviceTicketId = Number.parseInt(params.serviceId, 10);
     if (Number.isNaN(serviceTicketId)) {
-      return NextResponse.json({ error: 'Invalid service id' }, { status: 400 });
+      return fail('Invalid service id', 400, 'validation');
     }
 
     const access = await ensureTicketAccess(ticketId);
@@ -162,18 +158,12 @@ export async function DELETE(
     });
 
     if (!deleted) {
-      return NextResponse.json(
-        { error: 'Ticket service not found' },
-        { status: 404 },
-      );
+      return fail('Ticket service not found', 404, 'validation');
     }
 
-    return NextResponse.json({ success: true });
+    return ok({ deleted: true });
   } catch (error) {
     console.error('Error deleting ticket service:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete ticket service' },
-      { status: 500 },
-    );
+    return fail('Failed to delete ticket service', 500, 'server');
   }
 }

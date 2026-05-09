@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Providers } from '@/components/providers';
+import { NetworkStatusBanner } from '@/components/network-status-banner';
 import './globals.css';
 import { CompanyProvider } from '@/contexts/company-context';
 
@@ -31,6 +32,7 @@ export default function RootLayout({
       >
         <CompanyProvider>
           <Providers>
+            <NetworkStatusBanner />
             {children}
             <Toaster />
           </Providers>

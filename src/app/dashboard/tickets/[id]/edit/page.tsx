@@ -31,18 +31,9 @@ import {
   CheckCircle2,
   PlusCircle,
   FileText,
+  Download,
 } from 'lucide-react';
 import * as React from 'react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import {
   Card,
   CardContent,
@@ -54,9 +45,9 @@ import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useEffect, useState, useRef } from 'react';
 import InvoiceTemplate from '@/components/pdf/invoice-template';
-import html2pdf from 'html2pdf.js';
 import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
+import { TripledPageHeader, TripledStepper } from '@/components/tripled';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -98,6 +89,7 @@ export default function EditTicketPage({
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
   const [isFinished, setIsFinished] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -196,12 +188,15 @@ export default function EditTicketPage({
 
   const generatePDF = async () => {
     try {
+      setIsGeneratingPdf(true);
       const documentName = `${form.getValues('client_name')}_${format(
         new Date(),
         'yyyy-MM-dd',
       )}.pdf`;
 
       if (pdfRef.current) {
+        const html2pdfModule = await import('html2pdf.js');
+        const html2pdf = html2pdfModule.default;
         const element = pdfRef.current;
         const opt = {
           margin: 0.2,
@@ -218,41 +213,23 @@ export default function EditTicketPage({
           },
         };
 
-        // Generate PDF
         const pdf = await html2pdf().set(opt).from(element).output('blob');
-
-        // Create a URL for the PDF
         const pdfUrl = URL.createObjectURL(pdf);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pdfUrl;
+        downloadLink.download = documentName;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        URL.revokeObjectURL(pdfUrl);
 
-        // Open PDF in new tab
-        window.open(pdfUrl, '_blank');
-
-        // Create FormData and append the PDF
-        const formData = new FormData();
-        formData.append('file', pdf, documentName);
-
-        // Upload the PDF to the server
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload PDF');
-        }
-
-        const uploadResult = await uploadResponse.json();
-
-        // Update ticket with PDF information
-        const result = await finishTicket(
-          Number(resolvedParams.id),
-          uploadResult.path,
-          calculateTotal(),
-        );
+        const result = await finishTicket(Number(resolvedParams.id), calculateTotal());
 
         if (result.success) {
           toast.success('PDF generado correctamente');
-          router.push('/dashboard/tickets');
+          setIsFinished(true);
+          router.replace(`/dashboard/tickets/${resolvedParams.id}/edit`);
+          router.refresh();
         } else {
           toast.error('No se pudo generar el PDF');
         }
@@ -260,56 +237,113 @@ export default function EditTicketPage({
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Ocurrió un error al generar el PDF');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const downloadTicketPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const documentName = `${form.getValues('client_name')}_${format(
+        new Date(),
+        'yyyy-MM-dd',
+      )}.pdf`;
+
+      if (!pdfRef.current) return;
+
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default;
+      const pdf = await html2pdf()
+        .set({
+          margin: 0.2,
+          filename: documentName,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 1.5,
+            useCORS: true,
+          },
+          jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait',
+          },
+        })
+        .from(pdfRef.current)
+        .output('blob');
+
+      const pdfUrl = URL.createObjectURL(pdf);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = pdfUrl;
+      downloadLink.download = documentName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      URL.revokeObjectURL(pdfUrl);
+      toast.success('PDF descargado correctamente');
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error('No se pudo descargar el PDF');
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard/tickets">
-                  Tickets
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Editar Ticket</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader
+        items={[
+          { label: 'Tickets', href: '/dashboard/tickets' },
+          { label: 'Editar Ticket' },
+        ]}
+      />
 
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div className="mx-auto w-full max-w-2xl">
+          <TripledStepper
+            steps={[
+              { id: 'create', title: 'Datos del ticket' },
+              { id: 'services', title: 'Servicios' },
+              { id: 'review', title: 'Revisión y PDF' },
+            ]}
+            currentStepId="review"
+          />
           <Card className="border-0 shadow-lg mb-6">
             <CardHeader className="space-y-4 pb-8">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">
-                    Información del Cliente
-                  </CardTitle>
-                  <CardDescription>
-                    Información del cliente asociado al ticket
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!isFinished && (
-                    <Button
-                      onClick={generatePDF}
-                      className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Generar PDF
-                    </Button>
-                  )}
-                </div>
+              <div className="space-y-1">
+                <CardTitle className="text-xl">Información del Cliente</CardTitle>
+                <CardDescription>
+                  Información del cliente asociado al ticket
+                </CardDescription>
               </div>
+              {isFinished && (
+                <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-700">
+                      Ticket finalizado
+                    </p>
+                    <p className="text-xs text-emerald-600">
+                      Este ticket ya fue finalizado. Puedes descargar el PDF cuando
+                      lo necesites.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                    onClick={downloadTicketPdf}
+                    disabled={isGeneratingPdf}
+                    aria-label="Descargar PDF del ticket"
+                  >
+                    {isGeneratingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-8">
               {selectedClient && (
@@ -395,6 +429,17 @@ export default function EditTicketPage({
                                   }
                                   initialFocus
                                 />
+                                <div className="border-t p-2">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full justify-start"
+                                    onClick={() => field.onChange(new Date())}
+                                  >
+                                    Hoy
+                                  </Button>
+                                </div>
                               </PopoverContent>
                             )}
                           </Popover>
@@ -408,7 +453,8 @@ export default function EditTicketPage({
                     <div className="flex flex-col gap-4 pt-6">
                       <Button
                         type="submit"
-                        className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
+                        variant="ghost"
+                        className="h-12 w-full border border-border hover:bg-muted"
                         disabled={form.formState.isSubmitting}
                       >
                         {form.formState.isSubmitting ? (
@@ -419,13 +465,13 @@ export default function EditTicketPage({
                         ) : (
                           <>
                             <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Actualizar Ticket
+                            Guardar cambios
                           </>
                         )}
                       </Button>
 
                       <p className="text-center text-xs text-muted-foreground">
-                        Los cambios se guardarán automáticamente
+                        Guarda cambios si ajustaste la fecha antes de finalizar.
                       </p>
                     </div>
                   )}
@@ -445,12 +491,12 @@ export default function EditTicketPage({
                 </div>
                 {!isFinished && (
                   <Button
+                    variant="outline"
                     onClick={() =>
                       router.push(
                         `/dashboard/tickets/${resolvedParams.id}/services`,
                       )
                     }
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                   >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Gestionar Servicios
@@ -507,6 +553,44 @@ export default function EditTicketPage({
                     Total: {formatCurrency(calculateTotal())}
                   </p>
                 </div>
+
+                {!isFinished && (
+                  <div className="mt-6 rounded-lg border bg-muted/20 p-4">
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-foreground">
+                        Paso final
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Al finalizar, se genera el PDF y el ticket quedará en modo
+                        solo lectura.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={generatePDF}
+                        disabled={isGeneratingPdf || ticketServices.length === 0}
+                        className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200"
+                      >
+                        {isGeneratingPdf ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Finalizando...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Finalizar ticket y generar PDF
+                          </>
+                        )}
+                      </Button>
+                      {ticketServices.length === 0 && (
+                        <p className="text-xs text-amber-600">
+                          Agrega al menos un servicio para poder finalizar el
+                          ticket.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

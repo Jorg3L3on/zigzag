@@ -5,6 +5,7 @@ import { deleteTicket } from '@/actions/tickets';
 import { Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 interface DeleteTicketButtonProps {
   id: number;
@@ -25,13 +26,20 @@ export function DeleteTicketButton({ id, onDelete }: DeleteTicketButtonProps) {
       if (result.success) {
         toast.success('Ticket eliminado correctamente');
       } else {
-        toast.error('Error al eliminar el ticket');
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'Error al eliminar el ticket',
+          ),
+        );
         // If there's an error, refresh the page to restore the correct state
         router.refresh();
       }
     } catch (e) {
       console.error(e);
-      toast.error('Error al eliminar el ticket');
+      const errorType = classifyClientError(e);
+      toast.error(getErrorMessageByType(errorType, 'Error al eliminar el ticket'));
       // If there's an error, refresh the page to restore the correct state
       router.refresh();
     }

@@ -38,6 +38,7 @@ import { getPermissionsByCompany } from '@/actions/permissions';
 import type { Company, Permission } from '@/db/schema';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -70,9 +71,9 @@ export function CreateRoleDialog() {
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const { companies } = await getCompanies();
-      if (companies) {
-        setCompanies(companies);
+      const result = await getCompanies();
+      if (result.success && result.data) {
+        setCompanies(result.data);
       }
     };
     fetchCompanies();
@@ -81,9 +82,9 @@ export function CreateRoleDialog() {
   useEffect(() => {
     const fetchPermissions = async () => {
       if (companyId) {
-        const { permissions } = await getPermissionsByCompany(companyId);
-        if (permissions) {
-          setPermissions(permissions);
+        const result = await getPermissionsByCompany(companyId);
+        if (result.success && result.data) {
+          setPermissions(result.data);
           // Clear selected permissions when company changes
           setSelectedPermissions([]);
           form.setValue('permissions', []);
@@ -98,16 +99,22 @@ export function CreateRoleDialog() {
   }, [companyId, form]);
 
   async function onSubmit(data: FormData) {
-    try {
-      await createRole(data);
-      toast.success('Rol creado correctamente');
-      setOpen(false);
-      form.reset();
-      router.refresh();
-    } catch (error) {
-      toast.error('Error al crear el rol');
-      console.error('Error al crear el rol:', error);
+    const result = await createRole(data);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'Error al crear el rol',
+        ),
+      );
+      return;
     }
+
+    toast.success('Rol creado correctamente');
+    setOpen(false);
+    form.reset();
+    router.refresh();
   }
 
   const handlePermissionSelect = (permissionId: string) => {

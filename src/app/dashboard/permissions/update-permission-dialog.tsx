@@ -34,6 +34,7 @@ import {
 import { getCompanies } from '@/actions/companies';
 import type { Company } from '@/db/schema';
 import { Permission } from './columns';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -68,9 +69,9 @@ export function UpdatePermissionDialog({
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const { companies } = await getCompanies();
-      if (companies) {
-        setCompanies(companies);
+      const result = await getCompanies();
+      if (result.success && result.data) {
+        setCompanies(result.data);
       }
     };
     fetchCompanies();
@@ -85,15 +86,21 @@ export function UpdatePermissionDialog({
   }, [permission, form]);
 
   async function onSubmit(data: FormData) {
-    try {
-      await updatePermission(permission.id, data);
-      toast.success('Permiso actualizado correctamente');
-      onOpenChange(false);
-      router.refresh();
-    } catch (error) {
-      toast.error('Error al actualizar el permiso');
-      console.error('Error al actualizar el permiso:', error);
+    const result = await updatePermission(permission.id, data);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'Error al actualizar el permiso',
+        ),
+      );
+      return;
     }
+
+    toast.success('Permiso actualizado correctamente');
+    onOpenChange(false);
+    router.refresh();
   }
 
   return (

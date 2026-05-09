@@ -1,14 +1,6 @@
 import { getCompanies } from '@/actions/companies';
 import { DataTable } from '@/components/ui/data-table';
 import { columns } from '@/app/dashboard/companies/columns';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
 import {
   Card,
   CardContent,
@@ -17,29 +9,22 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { CreateCompanyDialog } from '@/app/dashboard/companies/create-company-dialog';
+import { TripledPageHeader } from '@/components/tripled';
 
 export default async function CompaniesPage() {
-  const { companies, error } = await getCompanies();
+  const result = await getCompanies();
 
-  if (error) {
-    return <div>Error: {error}</div>;
+  if (!result.success) {
+    const errorMessage =
+      result.errorType === 'network'
+        ? 'No se pudieron cargar las empresas por problemas de conexión.'
+        : result.error || 'Error al cargar las empresas';
+    return <div>Error: {errorMessage}</div>;
   }
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Empresas</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
+      <TripledPageHeader items={[{ label: 'Empresas' }]} />
       <div className="flex flex-1 flex-col gap-6 p-6">
         <div className="mx-auto w-full">
           <Card className="border-0 shadow-lg">
@@ -55,7 +40,7 @@ export default async function CompaniesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <DataTable columns={columns} data={companies ?? []} />
+              <DataTable columns={columns} data={result.data ?? []} />
             </CardContent>
           </Card>
         </div>

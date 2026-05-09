@@ -25,6 +25,7 @@ import { Plus } from 'lucide-react';
 import { createCompany } from '@/actions/companies';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -53,8 +54,14 @@ export function CreateCompanyDialog() {
 
   async function onSubmit(data: FormData) {
     const result = await createCompany(data);
-    if (result.error) {
-      toast.error(result.error);
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo crear la empresa',
+        ),
+      );
       return;
     }
     toast.success('Empresa creada correctamente');

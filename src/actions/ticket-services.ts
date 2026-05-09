@@ -1,9 +1,10 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { servicesTickets } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
+import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import { revalidatePath } from 'next/cache';
 
 export interface ServiceTicket {
@@ -27,9 +28,62 @@ export interface UpdateServiceTicketData {
 
 const ticketIdBigInt = (ticketId: string) => BigInt(ticketId);
 
+type PgError = {
+  code?: string;
+  constraint?: string;
+};
+
+type NetworkError = {
+  code?: string;
+  cause?: {
+    code?: string;
+  };
+};
+
+const isServicesTicketsPrimaryKeyConflict = (error: unknown): boolean => {
+  const dbError = (error as { cause?: PgError })?.cause;
+  return (
+    dbError?.code === '23505' &&
+    (dbError?.constraint === 'ServicesTickets_pkey' ||
+      dbError?.constraint === 'servicestickets_pkey')
+  );
+};
+
+const syncServicesTicketsIdSequence = async (): Promise<void> => {
+  await db.execute(sql`
+    SELECT setval(
+      pg_get_serial_sequence('"ServicesTickets"', 'id'),
+      COALESCE((SELECT MAX("id") FROM "ServicesTickets"), 0) + 1,
+      false
+    );
+  `);
+};
+
+const isTransientNetworkError = (error: unknown): boolean => {
+  const candidate = error as NetworkError;
+  const errorCode = candidate?.code ?? candidate?.cause?.code;
+  return (
+    errorCode === 'ENOTFOUND' ||
+    errorCode === 'EAI_AGAIN' ||
+    errorCode === 'EHOSTUNREACH' ||
+    errorCode === 'ECONNRESET' ||
+    errorCode === 'ETIMEDOUT'
+  );
+};
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 export async function getTicketServices(
   ticketId: string,
-): Promise<{ success: boolean; data?: ServiceTicket[]; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: ServiceTicket[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
     const ticketServicesRows = await db.query.servicesTickets.findMany({
       where: eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
@@ -44,6 +98,7 @@ export async function getTicketServices(
     return {
       success: false,
       error: 'Error al cargar los servicios del ticket',
+      errorType: classifyServerErrorType(error),
     };
   }
 }
@@ -51,17 +106,45 @@ export async function getTicketServices(
 export async function createServiceTicket(
   ticketId: string,
   data: CreateServiceTicketData,
-): Promise<{ success: boolean; data?: ServiceTicket; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: ServiceTicket;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
-    const [serviceTicket] = await db
-      .insert(servicesTickets)
-      .values({
-        ticket_id: ticketIdBigInt(ticketId),
-        service_id: data.service_id,
-        quantity: data.quantity,
-        price: data.price,
-      })
-      .returning();
+    const values = {
+      ticket_id: ticketIdBigInt(ticketId),
+      service_id: data.service_id,
+      quantity: data.quantity,
+      price: data.price,
+    };
+
+    let serviceTicket: (typeof servicesTickets.$inferSelect) | undefined;
+    try {
+      [serviceTicket] = await db
+        .insert(servicesTickets)
+        .values(values)
+        .returning();
+    } catch (error) {
+      if (!isServicesTicketsPrimaryKeyConflict(error)) {
+        throw error;
+      }
+
+      await syncServicesTicketsIdSequence();
+      [serviceTicket] = await db
+        .insert(servicesTickets)
+        .values(values)
+        .returning();
+    }
+
+    if (!serviceTicket) {
+      return {
+        success: false,
+        error: 'No se pudo crear el servicio del ticket',
+        errorType: 'server',
+      };
+    }
 
     const full = await db.query.servicesTickets.findFirst({
       where: eq(servicesTickets.id, serviceTicket.id),
@@ -72,7 +155,11 @@ export async function createServiceTicket(
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
     console.error('Error creating service ticket:', error);
-    return { success: false, error: 'Error al agregar el servicio al ticket' };
+    return {
+      success: false,
+      error: 'Error al agregar el servicio al ticket',
+      errorType: classifyServerErrorType(error),
+    };
   }
 }
 
@@ -80,21 +167,47 @@ export async function updateServiceTicket(
   ticketId: string,
   serviceTicketId: number,
   data: UpdateServiceTicketData,
-): Promise<{ success: boolean; data?: ServiceTicket; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: ServiceTicket;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
   try {
-    const [updated] = await db
-      .update(servicesTickets)
-      .set({
-        quantity: data.quantity,
-        price: data.price,
-      })
-      .where(
-        and(
-          eq(servicesTickets.id, serviceTicketId),
-          eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
-        ),
-      )
-      .returning();
+    const runUpdate = async () =>
+      db
+        .update(servicesTickets)
+        .set({
+          quantity: data.quantity,
+          price: data.price,
+        })
+        .where(
+          and(
+            eq(servicesTickets.id, serviceTicketId),
+            eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+          ),
+        )
+        .returning();
+
+    let updated: (typeof servicesTickets.$inferSelect) | undefined;
+    try {
+      [updated] = await runUpdate();
+    } catch (error) {
+      if (!isTransientNetworkError(error)) {
+        throw error;
+      }
+
+      await sleep(200);
+      [updated] = await runUpdate();
+    }
+
+    if (!updated) {
+      return {
+        success: false,
+        error: 'No se pudo actualizar el servicio del ticket',
+        errorType: 'server',
+      };
+    }
 
     const full = await db.query.servicesTickets.findFirst({
       where: eq(servicesTickets.id, updated.id),
@@ -105,9 +218,13 @@ export async function updateServiceTicket(
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
     console.error('Error updating service ticket:', error);
+    const errorType = isTransientNetworkError(error)
+      ? 'network'
+      : classifyServerErrorType(error);
     return {
       success: false,
       error: 'Error al actualizar el servicio del ticket',
+      errorType,
     };
   }
 }
@@ -115,7 +232,7 @@ export async function updateServiceTicket(
 export async function deleteServiceTicket(
   ticketId: string,
   serviceTicketId: number,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
     await db
       .delete(servicesTickets)
@@ -133,6 +250,7 @@ export async function deleteServiceTicket(
     return {
       success: false,
       error: 'Error al eliminar el servicio del ticket',
+      errorType: classifyServerErrorType(error),
     };
   }
 }
