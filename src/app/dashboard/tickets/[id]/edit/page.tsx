@@ -48,6 +48,7 @@ import InvoiceTemplate from '@/components/pdf/invoice-template';
 import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 import { TripledPageHeader, TripledStepper } from '@/components/tripled';
+import { createInvoicePdfExportOptions } from '@/lib/invoice-html2pdf-options';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -104,6 +105,8 @@ export default function EditTicketPage({
   });
 
   const pdfRef = useRef<HTMLDivElement>(null);
+
+  const { isDirty } = form.formState;
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -186,32 +189,19 @@ export default function EditTicketPage({
     }
   }
 
+  const buildTicketPdfFileName = () =>
+    `${form.getValues('client_name')}_${format(new Date(), 'yyyy-MM-dd')}_${resolvedParams.id}.pdf`;
+
   const generatePDF = async () => {
     try {
       setIsGeneratingPdf(true);
-      const documentName = `${form.getValues('client_name')}_${format(
-        new Date(),
-        'yyyy-MM-dd',
-      )}.pdf`;
+      const documentName = buildTicketPdfFileName();
 
       if (pdfRef.current) {
         const html2pdfModule = await import('html2pdf.js');
         const html2pdf = html2pdfModule.default;
         const element = pdfRef.current;
-        const opt = {
-          margin: 0.2,
-          filename: documentName,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 1.5,
-            useCORS: true,
-          },
-          jsPDF: {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait',
-          },
-        };
+        const opt = createInvoicePdfExportOptions(documentName);
 
         const pdf = await html2pdf().set(opt).from(element).output('blob');
         const pdfUrl = URL.createObjectURL(pdf);
@@ -228,7 +218,7 @@ export default function EditTicketPage({
         if (result.success) {
           toast.success('PDF generado correctamente');
           setIsFinished(true);
-          router.replace(`/dashboard/tickets/${resolvedParams.id}/edit`);
+          router.replace('/dashboard/tickets');
           router.refresh();
         } else {
           toast.error('No se pudo generar el PDF');
@@ -245,30 +235,14 @@ export default function EditTicketPage({
   const downloadTicketPdf = async () => {
     try {
       setIsGeneratingPdf(true);
-      const documentName = `${form.getValues('client_name')}_${format(
-        new Date(),
-        'yyyy-MM-dd',
-      )}.pdf`;
+      const documentName = buildTicketPdfFileName();
 
       if (!pdfRef.current) return;
 
       const html2pdfModule = await import('html2pdf.js');
       const html2pdf = html2pdfModule.default;
       const pdf = await html2pdf()
-        .set({
-          margin: 0.2,
-          filename: documentName,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 1.5,
-            useCORS: true,
-          },
-          jsPDF: {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait',
-          },
-        })
+        .set(createInvoicePdfExportOptions(documentName))
         .from(pdfRef.current)
         .output('blob');
 
@@ -449,7 +423,7 @@ export default function EditTicketPage({
                     />
                   </div>
 
-                  {!isFinished && (
+                  {!isFinished && isDirty && (
                     <div className="flex flex-col gap-4 pt-6">
                       <Button
                         type="submit"
@@ -597,8 +571,11 @@ export default function EditTicketPage({
         </div>
       </div>
 
-      <div style={{ display: 'none' }}>
-        <div ref={pdfRef}>
+      <div
+        className="pointer-events-none absolute top-0 left-[-12000px] z-[-1] overflow-visible bg-white"
+        aria-hidden
+      >
+        <div ref={pdfRef} className="bg-white">
           <InvoiceTemplate
             data={{
               clientName: form.getValues('client_name'),

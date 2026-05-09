@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { PlusCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { PlusCircle, Plus, CheckCircle2, Loader2 } from 'lucide-react';
 import {
   ServiceTicket,
   createServiceTicket,
@@ -48,6 +48,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { ServiceForm } from '@/components/services/service-form';
 
 export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
   const router = useRouter();
@@ -60,6 +61,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreatingNewService, setIsCreatingNewService] = useState(false);
 
   const filteredServices = services.filter(
     (service) =>
@@ -89,6 +91,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
     setQuantity('1');
     setPrice('');
     setSearchTerm('');
+    setIsCreatingNewService(false);
   };
 
   const handleServiceSelect = (serviceId: string) => {
@@ -263,109 +266,150 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                       Agregar Servicio
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
+                  <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle className="text-2xl font-bold text-gray-800">
-                        Agregar Nuevo Servicio
+                        {isCreatingNewService
+                          ? 'Crear nuevo servicio'
+                          : 'Agregar servicio al ticket'}
                       </DialogTitle>
                       <DialogDescription>
-                        Selecciona un servicio y define cantidad y precio para
-                        agregarlo al ticket.
+                        {isCreatingNewService
+                          ? 'El servicio quedará guardado en el catálogo de tu empresa y podrás agregarlo a este ticket.'
+                          : 'Selecciona un servicio existente o crea uno nuevo. Define cantidad y precio para agregarlo al ticket.'}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-6 py-4">
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground">
-                          Servicio
-                        </Label>
-                        <Select
-                          value={selectedService}
-                          onValueChange={handleServiceSelect}
+                    {isCreatingNewService ? (
+                      <div className="py-2">
+                        <ServiceForm
+                          onCancel={() => setIsCreatingNewService(false)}
+                          onSuccess={(savedService) => {
+                            setServices((prev) => {
+                              const exists = prev.some(
+                                (s) => s.id === savedService.id,
+                              );
+                              if (exists) {
+                                return prev;
+                              }
+                              return [savedService, ...prev];
+                            });
+                            setSelectedService(savedService.id.toString());
+                            setPrice(savedService.price.toString());
+                            setIsCreatingNewService(false);
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid gap-6 py-4">
+                        <div className="space-y-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                            <div className="min-w-0 flex-1 space-y-3">
+                              <Label className="text-sm font-medium text-foreground">
+                                Servicio
+                              </Label>
+                              <Select
+                                value={selectedService}
+                                onValueChange={handleServiceSelect}
+                              >
+                                <SelectTrigger className="w-full h-12 border-2 focus:border-primary transition-colors">
+                                  <SelectValue placeholder="Seleccione un servicio" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <div className="flex items-center px-3 pb-2">
+                                    <Input
+                                      placeholder="Buscar servicio..."
+                                      value={searchTerm}
+                                      onChange={(e) =>
+                                        setSearchTerm(e.target.value)
+                                      }
+                                      className="h-9"
+                                    />
+                                  </div>
+                                  <div className="max-h-[200px] overflow-y-auto">
+                                    {filteredServices.length === 0 ? (
+                                      <div className="px-3 py-2 text-sm text-gray-500">
+                                        No se encontraron servicios
+                                      </div>
+                                    ) : (
+                                      filteredServices.map((service) => (
+                                        <SelectItem
+                                          key={service.id}
+                                          value={service.id.toString()}
+                                        >
+                                          <div className="flex flex-col">
+                                            <span>{service.name}</span>
+                                            <span className="text-xs text-gray-500">
+                                              {service.description}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      ))
+                                    )}
+                                  </div>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-12 shrink-0 sm:mt-0"
+                              onClick={() => setIsCreatingNewService(true)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Nuevo servicio
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground">
+                              Cantidad
+                            </Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={quantity}
+                              onChange={(e) => setQuantity(e.target.value)}
+                              className="h-12 border-2 focus:border-primary transition-colors"
+                            />
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground">
+                              Precio
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={price}
+                              onChange={(e) => setPrice(e.target.value)}
+                              className="h-12 border-2 focus:border-primary transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          onClick={handleAddService}
+                          className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
+                          disabled={isSubmitting}
                         >
-                          <SelectTrigger className="w-full h-12 border-2 focus:border-primary transition-colors">
-                            <SelectValue placeholder="Seleccione un servicio" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <div className="flex items-center px-3 pb-2">
-                              <Input
-                                placeholder="Buscar servicio..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="h-9"
-                              />
-                            </div>
-                            <div className="max-h-[200px] overflow-y-auto">
-                              {filteredServices.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-gray-500">
-                                  No se encontraron servicios
-                                </div>
-                              ) : (
-                                filteredServices.map((service) => (
-                                  <SelectItem
-                                    key={service.id}
-                                    value={service.id.toString()}
-                                  >
-                                    <div className="flex flex-col">
-                                      <span>{service.name}</span>
-                                      <span className="text-xs text-gray-500">
-                                        {service.description}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))
-                              )}
-                            </div>
-                          </SelectContent>
-                        </Select>
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Agregando servicio...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                              Agregar al ticket
+                            </>
+                          )}
+                        </Button>
                       </div>
-
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground">
-                            Cantidad
-                          </Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            className="h-12 border-2 focus:border-primary transition-colors"
-                          />
-                        </div>
-
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground">
-                            Precio
-                          </Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={price}
-                            onChange={(e) => setPrice(e.target.value)}
-                            className="h-12 border-2 focus:border-primary transition-colors"
-                          />
-                        </div>
-                      </div>
-
-                      <Button
-                        onClick={handleAddService}
-                        className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Agregando servicio...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Agregar Servicio
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                    )}
                   </DialogContent>
                 </Dialog>
               </div>
