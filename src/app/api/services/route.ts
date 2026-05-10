@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { service } from '@/db/schema';
 import { fail, ok, requireSession } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
@@ -12,7 +12,10 @@ export async function GET(request: Request) {
     }
 
     const companyIdParam = new URL(request.url).searchParams.get('company_id');
+    const statusParam = new URL(request.url).searchParams.get('status');
     const parsedCompanyId = companyIdParam ? Number.parseInt(companyIdParam, 10) : null;
+    const status =
+      statusParam === 'deleted' || statusParam === 'all' ? statusParam : 'active';
     const companyId = session.user.company_is_system
       ? parsedCompanyId ?? session.user.company_id
       : session.user.company_id;
@@ -21,10 +24,21 @@ export async function GET(request: Request) {
       return fail('Invalid company context', 400);
     }
 
+    const companyCondition = eq(service.company_id, companyId);
+    const statusCondition =
+      status === 'active'
+        ? isNull(service.deleted_at)
+        : status === 'deleted'
+          ? isNotNull(service.deleted_at)
+          : undefined;
+    const whereCondition = statusCondition
+      ? and(companyCondition, statusCondition)
+      : companyCondition;
+
     const services = await db
       .select()
       .from(service)
-      .where(eq(service.company_id, companyId))
+      .where(whereCondition)
       .orderBy(asc(service.name));
 
     return ok(services);

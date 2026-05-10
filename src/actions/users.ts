@@ -4,6 +4,11 @@ import { desc, eq, and, isNull } from 'drizzle-orm';
 import { user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireSystemUser,
+} from '@/lib/security';
 import { hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -35,6 +40,7 @@ export async function getUsers(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('users.read');
     const users = await db.query.user.findMany({
       with: {
         company: true,
@@ -61,6 +67,10 @@ export async function createUser(data: CreateUserFormData): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('users.write', data.company_id);
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const validatedData = createUserSchema.parse(data);
 
     const hashedPassword = await hash(validatedData.password, 10);
@@ -106,6 +116,10 @@ export async function updateUser(
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('users.write', data.company_id);
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const validatedData = userSchema.parse(data);
 
     const hashedPassword = validatedData.password
@@ -151,6 +165,10 @@ export async function deleteUser(id: bigint): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('users.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const [updated] = await db
       .update(user)
       .set({

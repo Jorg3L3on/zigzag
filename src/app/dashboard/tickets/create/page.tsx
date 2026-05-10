@@ -118,9 +118,13 @@ export default function CreateTicketPage() {
   React.useEffect(() => {
     const fetchClients = async () => {
       if (selectedCompany?.id) {
-        const result = await getClients(selectedCompany.id);
+        const result = await getClients({
+          companyId: selectedCompany.id,
+          page: 1,
+          pageSize: 200,
+        });
         if (result.success && result.data) {
-          setClients(result.data);
+          setClients(result.data.items);
         } else if (!result.success) {
           const errorType = classifyClientError(
             null,
@@ -314,9 +318,13 @@ export default function CreateTicketPage() {
                               }
 
                               if (selectedCompany?.id) {
-                                getClients(selectedCompany.id).then((result) => {
+                                getClients({
+                                  companyId: selectedCompany.id,
+                                  page: 1,
+                                  pageSize: 200,
+                                }).then((result) => {
                                   if (result.success && result.data) {
-                                    setClients(result.data);
+                                    setClients(result.data.items);
                                   }
                                 });
                               }

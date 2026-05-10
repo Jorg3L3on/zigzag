@@ -4,6 +4,11 @@ import { desc, eq, isNull } from 'drizzle-orm';
 import { company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireSystemUser,
+} from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -24,6 +29,7 @@ export async function getCompanies(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('companies.read');
     const companies = await db.query.company.findMany({
       where: isNull(company.deleted_at),
       with: {
@@ -49,6 +55,10 @@ export async function createCompany(data: CompanyFormData): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('companies.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const validatedData = companySchema.parse(data);
 
     const [created] = await db
@@ -92,6 +102,10 @@ export async function updateCompany(
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('companies.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const validatedData = companySchema.parse(data);
 
     const [updated] = await db
@@ -132,6 +146,10 @@ export async function deleteCompany(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('companies.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     await db
       .update(company)
       .set({ deleted_at: new Date() })

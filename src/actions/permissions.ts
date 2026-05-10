@@ -4,6 +4,11 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import { permission, rolePermission, type Company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireSystemUser,
+} from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
 type PermissionWithCompany = typeof permission.$inferSelect & {
@@ -17,6 +22,7 @@ export async function getPermissions(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.read');
     const permissions = await db.query.permission.findMany({
       where: isNull(permission.deleted_at),
       with: {
@@ -41,6 +47,7 @@ export async function getPermissionsByCompany(companyId: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.read', companyId);
     const permissions = await db
       .select()
       .from(permission)
@@ -70,6 +77,10 @@ export async function createPermission(data: {
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.write', data.company_id);
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const [created] = await db
       .insert(permission)
       .values({
@@ -106,6 +117,10 @@ export async function updatePermission(
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.write', data.company_id);
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const [updated] = await db
       .update(permission)
       .set({
@@ -134,6 +149,10 @@ export async function deletePermission(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     await db.delete(rolePermission).where(eq(rolePermission.permission_id, id));
 
     await db
@@ -163,6 +182,10 @@ export async function assignPermissionToRole(
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     const [rolePermissionRow] = await db
       .insert(rolePermission)
       .values({
@@ -194,6 +217,10 @@ export async function removePermissionFromRole(
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('permissions.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     await db
       .delete(rolePermission)
       .where(

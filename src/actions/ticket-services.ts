@@ -1,10 +1,16 @@
 'use server';
 
 import { and, eq, sql } from 'drizzle-orm';
-import { servicesTickets } from '@/db/schema';
+import { servicesTickets, ticket } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  AuthorizationError,
+  classifyServerErrorType,
+  type ActionErrorType,
+} from '@/lib/errors';
+import { requireActionPermission } from '@/lib/security';
+import { syncTicketTotal } from '@/lib/ticket-financials';
 import { revalidatePath } from 'next/cache';
 
 export interface ServiceTicket {
@@ -76,6 +82,26 @@ const sleep = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
+const assertTicketAccess = async (
+  ticketId: bigint,
+  permissionKey: string,
+): Promise<void> => {
+  const { companyId: effectiveCompanyId } =
+    await requireActionPermission(permissionKey);
+
+  const ticketRow = await db.query.ticket.findFirst({
+    where: eq(ticket.id, ticketId),
+  });
+
+  if (!ticketRow) {
+    throw new AuthorizationError('Ticket not found');
+  }
+
+  if (ticketRow.company_id !== effectiveCompanyId) {
+    throw new AuthorizationError('Access denied to this ticket');
+  }
+};
+
 export async function getTicketServices(
   ticketId: string,
 ): Promise<{
@@ -85,6 +111,7 @@ export async function getTicketServices(
   errorType?: ActionErrorType;
 }> {
   try {
+    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.read');
     const ticketServicesRows = await db.query.servicesTickets.findMany({
       where: eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
       with: {
@@ -113,6 +140,7 @@ export async function createServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
+    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
     const values = {
       ticket_id: ticketIdBigInt(ticketId),
       service_id: data.service_id,
@@ -120,23 +148,26 @@ export async function createServiceTicket(
       price: data.price,
     };
 
-    let serviceTicket: (typeof servicesTickets.$inferSelect) | undefined;
-    try {
-      [serviceTicket] = await db
-        .insert(servicesTickets)
-        .values(values)
-        .returning();
-    } catch (error) {
-      if (!isServicesTicketsPrimaryKeyConflict(error)) {
-        throw error;
+    const serviceTicket = await db.transaction(async (tx) => {
+      let createdRow: (typeof servicesTickets.$inferSelect) | undefined;
+      try {
+        [createdRow] = await tx.insert(servicesTickets).values(values).returning();
+      } catch (error) {
+        if (!isServicesTicketsPrimaryKeyConflict(error)) {
+          throw error;
+        }
+
+        await syncServicesTicketsIdSequence();
+        [createdRow] = await tx.insert(servicesTickets).values(values).returning();
       }
 
-      await syncServicesTicketsIdSequence();
-      [serviceTicket] = await db
-        .insert(servicesTickets)
-        .values(values)
-        .returning();
-    }
+      if (!createdRow) {
+        return undefined;
+      }
+
+      await syncTicketTotal(tx, ticketIdBigInt(ticketId));
+      return createdRow;
+    });
 
     if (!serviceTicket) {
       return {
@@ -174,20 +205,31 @@ export async function updateServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
+    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
+    const ticketIdValue = ticketIdBigInt(ticketId);
     const runUpdate = async () =>
-      db
-        .update(servicesTickets)
-        .set({
-          quantity: data.quantity,
-          price: data.price,
-        })
-        .where(
-          and(
-            eq(servicesTickets.id, serviceTicketId),
-            eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
-          ),
-        )
-        .returning();
+      db.transaction(async (tx) => {
+        const [updatedRow] = await tx
+          .update(servicesTickets)
+          .set({
+            quantity: data.quantity,
+            price: data.price,
+          })
+          .where(
+            and(
+              eq(servicesTickets.id, serviceTicketId),
+              eq(servicesTickets.ticket_id, ticketIdValue),
+            ),
+          )
+          .returning();
+
+        if (!updatedRow) {
+          return undefined;
+        }
+
+        await syncTicketTotal(tx, ticketIdValue);
+        return updatedRow;
+      });
 
     let updated: (typeof servicesTickets.$inferSelect) | undefined;
     try {
@@ -234,14 +276,18 @@ export async function deleteServiceTicket(
   serviceTicketId: number,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
-    await db
-      .delete(servicesTickets)
-      .where(
-        and(
-          eq(servicesTickets.id, serviceTicketId),
-          eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
-        ),
-      );
+    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(servicesTickets)
+        .where(
+          and(
+            eq(servicesTickets.id, serviceTicketId),
+            eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+          ),
+        );
+      await syncTicketTotal(tx, ticketIdBigInt(ticketId));
+    });
 
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
     return { success: true };

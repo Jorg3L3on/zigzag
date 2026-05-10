@@ -9,7 +9,13 @@ import {
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  AuthorizationError,
+  classifyServerErrorType,
+  type ActionErrorType,
+} from '@/lib/errors';
+import { calculateTicketTotal } from '@/lib/ticket-financials';
+import { requireActionPermission } from '@/lib/security';
 import { z } from 'zod';
 
 const ticketSchema = z.object({
@@ -84,6 +90,23 @@ const syncTicketIdSequence = async (): Promise<void> => {
   `);
 };
 
+const assertTicketWritable = async (
+  ticketId: bigint,
+  companyId: number,
+): Promise<void> => {
+  const ticketRow = await db.query.ticket.findFirst({
+    where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
+  });
+
+  if (!ticketRow) {
+    throw new AuthorizationError('Ticket not found');
+  }
+
+  if (ticketRow.company_id !== companyId) {
+    throw new AuthorizationError('Access denied to this ticket');
+  }
+};
+
 export async function createTicket(
   data: CreateTicketInput,
 ): Promise<{
@@ -95,6 +118,10 @@ export async function createTicket(
   try {
     console.log('Creating ticket with data:', data);
     const validatedData = ticketSchema.parse(data);
+    const { companyId: effectiveCompanyId } = await requireActionPermission(
+      'tickets.write',
+      validatedData.company_id,
+    );
     console.log('Validated data:', validatedData);
 
     const values = {
@@ -104,7 +131,7 @@ export async function createTicket(
       email: validatedData.email,
       document: validatedData.document,
       ticket_date: validatedData.ticket_date,
-      company_id: validatedData.company_id,
+      company_id: effectiveCompanyId,
     };
 
     let created: unknown;
@@ -151,11 +178,13 @@ export async function getTickets(
   errorType?: ActionErrorType;
 }> {
   try {
+    const { companyId: effectiveCompanyId } = await requireActionPermission(
+      'tickets.read',
+      companyId ?? undefined,
+    );
     const tickets = await db.query.ticket.findMany({
       where: and(
-        companyId === null
-          ? isNull(ticket.company_id)
-          : eq(ticket.company_id, companyId),
+        eq(ticket.company_id, effectiveCompanyId),
         isNull(ticket.deleted_at),
       ),
       with: {
@@ -181,8 +210,9 @@ export async function getTickets(
 
 export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
   try {
+    const { companyId } = await requireActionPermission('tickets.read');
     const ticketRow = await db.query.ticket.findFirst({
-      where: eq(ticket.id, BigInt(id)),
+      where: and(eq(ticket.id, BigInt(id)), eq(ticket.company_id, companyId)),
       with: {
         services_tickets: {
           with: {
@@ -217,15 +247,17 @@ export async function updateTicket(
   errorType?: ActionErrorType;
 }> {
   try {
+    const { companyId: effectiveCompanyId } = await requireActionPermission(
+      'tickets.write',
+      data.company_id ?? undefined,
+    );
     const ticketId = BigInt(id);
+    await assertTicketWritable(ticketId, effectiveCompanyId);
 
     const servicesToSync = Array.isArray(data.services) ? data.services : null;
     const hasServicesUpdate = servicesToSync !== null;
     const totalFromServices = hasServicesUpdate
-      ? servicesToSync.reduce(
-          (acc: number, service) => acc + service.price * service.quantity,
-          0,
-        )
+      ? calculateTicketTotal(servicesToSync)
       : undefined;
 
     const updated = await db.transaction(async (tx) => {
@@ -302,6 +334,9 @@ export async function deleteTicket(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    const { companyId: effectiveCompanyId } =
+      await requireActionPermission('tickets.write');
+    await assertTicketWritable(BigInt(id), effectiveCompanyId);
     await db
       .update(ticket)
       .set({ deleted_at: new Date() })
@@ -329,6 +364,9 @@ export async function finishTicket(
   errorType?: ActionErrorType;
 }> {
   try {
+    const { companyId: effectiveCompanyId } =
+      await requireActionPermission('tickets.write');
+    await assertTicketWritable(BigInt(id), effectiveCompanyId);
     const [updated] = await db
       .update(ticket)
       .set({

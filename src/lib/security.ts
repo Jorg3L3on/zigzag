@@ -1,6 +1,19 @@
 import { z } from 'zod';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { permission, rolePermission, user } from '@/db/schema';
+import { db } from './db';
 import { AuthorizationError } from './errors';
 import { auth } from './auth';
+import {
+  resolveWritableCompanyId,
+  requireSystemUser,
+  type ActionAuthContext,
+} from './authz-context';
+export {
+  resolveWritableCompanyId,
+  requireSystemUser,
+  type ActionAuthContext,
+} from './authz-context';
 
 // Input sanitization
 export function sanitizeInput(input: string): string {
@@ -52,26 +65,68 @@ export class RateLimiter {
 export async function checkPermission(
   userId: string,
   companyId: number,
+  permissionName?: string,
 ): Promise<boolean> {
   try {
-    const user = await auth();
-    if (!user?.user) {
+    const session = await auth();
+    if (!session?.user) {
       throw new AuthorizationError('User not authenticated');
     }
 
     // For system company users, allow all permissions
-    if (user.user.company_is_system) {
+    if (session.user.company_is_system) {
       return true;
     }
 
     // Check if user belongs to the company
-    if (user.user.company_id !== companyId) {
+    if (session.user.company_id !== companyId) {
       return false;
     }
 
-    // TODO: Implement role-based permission checking
-    // This would involve checking the user's role and its associated permissions
-    return true;
+    const userIdAsBigInt = BigInt(userId);
+    const userRow = await db.query.user.findFirst({
+      where: and(eq(user.id, userIdAsBigInt), isNull(user.deleted_at)),
+    });
+
+    if (!userRow?.role_id) {
+      return false;
+    }
+
+    if (!permissionName) {
+      return true;
+    }
+
+    const permissionRows = await db
+      .select({ id: permission.id })
+      .from(permission)
+      .where(
+        and(
+          eq(permission.name, permissionName),
+          isNull(permission.deleted_at),
+          or(eq(permission.company_id, companyId), isNull(permission.company_id)),
+        ),
+      );
+
+    // Backward compatibility while permissions are being seeded/migrated.
+    if (permissionRows.length === 0) {
+      return true;
+    }
+
+    const permitted = await db
+      .select({ role_id: rolePermission.role_id })
+      .from(rolePermission)
+      .where(
+        and(
+          eq(rolePermission.role_id, userRow.role_id),
+          inArray(
+            rolePermission.permission_id,
+            permissionRows.map((row) => row.id),
+          ),
+        ),
+      )
+      .limit(1);
+
+    return permitted.length > 0;
   } catch (error) {
     console.error('Permission check failed:', error);
     return false;
@@ -95,6 +150,34 @@ export async function validateCompanyAccess(companyId: number): Promise<void> {
   if (session.user.company_id !== companyId) {
     throw new AuthorizationError('Access denied to this company');
   }
+}
+
+export async function requireActionAuth(): Promise<ActionAuthContext> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new AuthorizationError('Authentication required');
+  }
+
+  return {
+    userId: session.user.id,
+    companyId: session.user.company_id ?? null,
+    companyIsSystem: Boolean(session.user.company_is_system),
+  };
+}
+
+export async function requireActionPermission(
+  permissionName: string,
+  requestedCompanyId?: number | null,
+): Promise<{ context: ActionAuthContext; companyId: number }> {
+  const context = await requireActionAuth();
+  const companyId = resolveWritableCompanyId(context, requestedCompanyId);
+  const allowed = await checkPermission(context.userId, companyId, permissionName);
+
+  if (!allowed) {
+    throw new AuthorizationError(`Missing permission: ${permissionName}`);
+  }
+
+  return { context, companyId };
 }
 
 // Input validation schemas

@@ -2,8 +2,8 @@ import { and, eq } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { syncTicketTotal } from '@/lib/ticket-financials';
 import { convertBigIntToString } from '@/lib/utils';
-import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { fail, ok } from '@/lib/api-helpers';
 
@@ -95,17 +95,7 @@ export async function POST(
         })
         .returning();
 
-      const allForTicket = await tx
-        .select()
-        .from(servicesTickets)
-        .where(eq(servicesTickets.ticket_id, ticketId));
-
-      const total = allForTicket.reduce(
-        (sum, row) => sum + row.quantity * row.price,
-        0,
-      );
-
-      await tx.update(ticket).set({ total }).where(eq(ticket.id, ticketId));
+      await syncTicketTotal(tx, ticketId);
 
       return tx.query.servicesTickets.findFirst({
         where: eq(servicesTickets.id, ticketService.id),

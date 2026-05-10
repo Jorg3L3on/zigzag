@@ -10,6 +10,11 @@ import {
 } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireSystemUser,
+} from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
 /** Matches `role.findMany({ with: { company, permissions.permission } })`. */
@@ -25,6 +30,7 @@ export async function getRoles(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('roles.read');
     const roles = await db.query.role.findMany({
       with: {
         company: true,
@@ -58,6 +64,10 @@ export async function createRole(data: {
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('roles.write', data.company_id);
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     let newRoleId = 0;
     await db.transaction(async (tx) => {
       const [newRole] = await tx
@@ -120,6 +130,10 @@ export async function updateRole(
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('roles.write', data.company_id);
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
 
@@ -172,6 +186,10 @@ export async function deleteRole(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
+    await requireActionPermission('roles.write');
+    const authContext = await requireActionAuth();
+    requireSystemUser(authContext);
+
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
       await tx.delete(role).where(eq(role.id, id));

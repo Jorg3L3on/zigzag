@@ -154,9 +154,13 @@ export default function EditTicketPage({
 
           // If there's a client_id, fetch the client details
           if (data.data.client_id) {
-            const clientsResult = await getClients(selectedCompany?.id ?? null);
+            const clientsResult = await getClients({
+              companyId: selectedCompany?.id ?? null,
+              page: 1,
+              pageSize: 200,
+            });
             if (clientsResult.success && clientsResult.data) {
-              const client = clientsResult.data.find(
+              const client = clientsResult.data.items.find(
                 (c) => c.id === data.data.client_id,
               );
               if (client) {

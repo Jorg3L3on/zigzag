@@ -1,16 +1,30 @@
 'use server';
 
-import { and, eq, isNull } from 'drizzle-orm';
-import { client, company, service, ticket } from '@/db/schema';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
+import { client, company, service, servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  aggregateFinishedRevenueByMonthKey,
+  buildMonthBuckets,
+  parseDashboardMonthCount,
+  toRevenueByMonthPoints,
+  type DashboardMonthCount,
+  type RevenueByMonthPoint,
+} from '@/lib/dashboard-metrics';
+
+export type { RevenueByMonthPoint };
 
 export interface DashboardMetrics {
   totalTickets: number;
   totalRevenue: number;
+  totalRevenueRecognized: number;
+  totalCashCollected: number;
   totalClients: number;
   totalServices: number;
   totalServicesSold: number;
+  revenueByMonth: RevenueByMonthPoint[];
   clientMetrics: {
     id: number;
     name: string;
@@ -26,14 +40,23 @@ export interface DashboardMetricsResponse {
   errorType?: ActionErrorType;
 }
 
-export async function getDashboardMetrics(
+export type FetchDashboardMetricsInput = {
+  /** When the user is a system admin, load metrics for this company. Ignored for normal users. */
+  companyId?: number;
+  monthCount?: DashboardMonthCount;
+};
+
+async function loadDashboardMetricsForCompany(
   companyId: number,
+  monthCount: DashboardMonthCount,
 ): Promise<DashboardMetricsResponse> {
   try {
     const [companyRow] = await db
       .select()
       .from(company)
-      .where(eq(company.id, companyId))
+      .where(
+        and(eq(company.id, companyId), isNull(company.deleted_at)),
+      )
       .limit(1);
 
     if (!companyRow) {
@@ -44,61 +67,98 @@ export async function getDashboardMetrics(
       };
     }
 
-    const tickets = await db.query.ticket.findMany({
-      where: and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at)),
-      with: {
-        services_tickets: true,
-      },
-    });
+    const ticketScope = and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at));
 
-    const totalTickets = tickets.length;
-    const totalRevenue = tickets
-      .filter((t) => t.finished)
-      .reduce((sum, t) => sum + (t.total ?? 0), 0);
-    const totalServicesSold = tickets.reduce(
-      (sum, t) =>
-        sum +
-        t.services_tickets.reduce(
-          (ticketSum, st) => ticketSum + st.quantity,
-          0,
-        ),
-      0,
+    const [ticketTotals] = await db
+      .select({
+        totalTickets: sql<number>`count(*)`,
+        totalRevenueRecognized: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+        totalCashCollected: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.paid} ELSE 0 END), 0)`,
+      })
+      .from(ticket)
+      .where(ticketScope);
+
+    const monthBuckets = buildMonthBuckets(monthCount);
+    const ticketRowsForRevenue = await db
+      .select({
+        ticket_date: ticket.ticket_date,
+        created_at: ticket.created_at,
+        finished: ticket.finished,
+        total: ticket.total,
+      })
+      .from(ticket)
+      .where(ticketScope);
+
+    const revenueByMonthMap = aggregateFinishedRevenueByMonthKey(
+      ticketRowsForRevenue,
+      monthBuckets,
     );
+    const revenueByMonth = toRevenueByMonthPoints(monthBuckets, revenueByMonthMap);
 
-    const clients = await db.query.client.findMany({
-      where: and(eq(client.company_id, companyId), isNull(client.deleted_at)),
-      with: {
-        tickets: {
-          where: isNull(ticket.deleted_at),
-        },
-      },
-    });
+    const [clientsAgg] = await db
+      .select({ totalClients: sql<number>`count(*)` })
+      .from(client)
+      .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)));
 
-    const totalClients = clients.length;
-
-    const services = await db
-      .select()
+    const [servicesAgg] = await db
+      .select({ totalServices: sql<number>`count(*)` })
       .from(service)
       .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)));
 
-    const totalServices = services.length;
+    const [servicesSoldAgg] = await db
+      .select({
+        totalServicesSold: sql<number>`COALESCE(SUM(${servicesTickets.quantity}), 0)`,
+      })
+      .from(servicesTickets)
+      .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+      .where(
+        and(
+          eq(ticket.company_id, companyId),
+          isNull(ticket.deleted_at),
+          isNull(servicesTickets.deleted_at),
+        ),
+      );
 
-    const clientMetrics = clients.map((c) => ({
-      id: c.id,
-      name: c.name,
-      ticketCount: c.tickets.length,
-      totalSpent: c.tickets.reduce((sum, t) => sum + (t.total ?? 0), 0),
-    }));
+    const clientMetrics = await db
+      .select({
+        id: client.id,
+        name: client.name,
+        ticketCount: sql<number>`COUNT(${ticket.id})`,
+        totalSpent: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+      })
+      .from(client)
+      .leftJoin(
+        ticket,
+        and(
+          eq(ticket.client_id, client.id),
+          eq(ticket.company_id, companyId),
+          isNull(ticket.deleted_at),
+        ),
+      )
+      .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)))
+      .groupBy(client.id, client.name)
+      .orderBy(
+        desc(
+          sql`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+        ),
+      );
 
     return {
       success: true,
       data: {
-        totalTickets,
-        totalRevenue,
-        totalClients,
-        totalServices,
-        totalServicesSold,
-        clientMetrics,
+        totalTickets: Number(ticketTotals?.totalTickets ?? 0),
+        totalRevenue: Number(ticketTotals?.totalRevenueRecognized ?? 0),
+        totalRevenueRecognized: Number(ticketTotals?.totalRevenueRecognized ?? 0),
+        totalCashCollected: Number(ticketTotals?.totalCashCollected ?? 0),
+        totalClients: Number(clientsAgg?.totalClients ?? 0),
+        totalServices: Number(servicesAgg?.totalServices ?? 0),
+        totalServicesSold: Number(servicesSoldAgg?.totalServicesSold ?? 0),
+        revenueByMonth,
+        clientMetrics: clientMetrics.map((row) => ({
+          ...row,
+          ticketCount: Number(row.ticketCount ?? 0),
+          totalSpent: Number(row.totalSpent ?? 0),
+        })),
       },
     };
   } catch (error) {
@@ -109,4 +169,31 @@ export async function getDashboardMetrics(
       errorType: classifyServerErrorType(error),
     };
   }
+}
+
+/**
+ * Loads dashboard metrics for the authenticated user.
+ * Non-system users are always scoped to `session.user.company_id`.
+ * System users may pass `companyId` to view another company.
+ */
+export async function fetchDashboardMetrics(
+  input: FetchDashboardMetricsInput = {},
+): Promise<DashboardMetricsResponse> {
+  const session = await auth();
+  if (!session?.user?.company_id) {
+    return {
+      success: false,
+      error: 'No autorizado',
+      errorType: 'auth',
+    };
+  }
+
+  const monthCount = parseDashboardMonthCount(input.monthCount);
+
+  let effectiveCompanyId = session.user.company_id;
+  if (session.user.company_is_system && input.companyId != null) {
+    effectiveCompanyId = input.companyId;
+  }
+
+  return loadDashboardMetricsForCompany(effectiveCompanyId, monthCount);
 }
