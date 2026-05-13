@@ -49,7 +49,11 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export function CreateRoleDialog() {
+type CreateRoleDialogProps = {
+  onCreated?: () => void;
+};
+
+export function CreateRoleDialog({ onCreated }: CreateRoleDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -114,6 +118,7 @@ export function CreateRoleDialog() {
     toast.success('Rol creado correctamente');
     setOpen(false);
     form.reset();
+    onCreated?.();
     router.refresh();
   }
 

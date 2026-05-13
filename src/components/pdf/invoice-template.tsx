@@ -1,7 +1,6 @@
 import type { InvoiceData } from '@/components/pdf/invoice-types';
 import {
   INVOICE_ACCENT,
-  INVOICE_COMPANY,
   INVOICE_TABLE_HEAD_BG,
 } from '@/components/pdf/invoice-company';
 
@@ -13,7 +12,7 @@ const parseMoney = (value: string): number => {
 };
 
 const formatMoney = (amount: number): string =>
-  amount.toLocaleString('en-US', {
+  amount.toLocaleString('es-MX', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -30,33 +29,6 @@ const splitServiceLabel = (value: string) => {
     description,
   };
 };
-
-/** ZigZag logo block for PDF header (uses app favicon asset). */
-const HeaderZigzagLogo = () => (
-  <div
-    className="flex items-center justify-center rounded-[10px] border border-[#DBEAFE]"
-    style={{
-      width: '58px',
-      height: '58px',
-      backgroundImage: 'linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%)',
-    }}
-  >
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img
-      src="/favicon.ico"
-      alt=""
-      aria-hidden
-      width={36}
-      height={36}
-      style={{
-        width: '36px',
-        height: '36px',
-        display: 'block',
-        objectFit: 'contain',
-      }}
-    />
-  </div>
-);
 
 const FooterIconPhone = () => (
   <svg
@@ -137,29 +109,28 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
       <header className="flex flex-row items-start justify-between gap-[4mm]">
         <div className="flex min-w-0 flex-row items-start gap-[3mm]">
           <div className="min-w-0">
-            {INVOICE_COMPANY.nameLines.map((line) => (
+            {data.issuer.nameLines.map((line, index) => (
               <p
-                key={line}
+                key={`${index}-${line}`}
                 className="text-[15px] font-bold uppercase leading-[1.1] tracking-[0.02em] text-neutral-950"
               >
                 {line}
               </p>
             ))}
             <div className="mt-[2mm] space-y-[0.75mm] text-[10px] leading-relaxed text-neutral-600">
-              {INVOICE_COMPANY.detailLines.map((line) => (
-                <p key={line}>{line}</p>
+              {data.issuer.detailLines.map((line, index) => (
+                <p key={`${index}-${line}`}>{line}</p>
               ))}
             </div>
           </div>
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-[1.5mm] text-right">
-          <HeaderZigzagLogo />
           <div className="space-y-[1mm] text-[10px] leading-snug text-neutral-700">
             <p>
-              <span className="font-bold text-neutral-950">Factura No.: </span>
+              <span className="font-bold text-neutral-950">Ticket No.: </span>
               <span className="font-bold tabular-nums text-neutral-950">
-                {data.invoiceNumber}
+                {data.ticketNumber}
               </span>
             </p>
             <p>
@@ -174,7 +145,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
       <section className="mt-[6mm]">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">
-            Facturar a:
+            Cliente:
           </p>
           <div className="mt-[5mm] space-y-[2mm]">
             <p className="text-[13px] font-bold uppercase leading-snug tracking-wide text-neutral-950">
@@ -239,10 +210,12 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
                     {item.quantity}
                   </td>
                   <td className="py-[5mm] px-[2mm] align-middle text-right tabular-nums text-neutral-800">
-                    ${formatMoney(parseMoney(item.unitPrice))}
+                    {data.issuer.currencyCode}{' '}
+                    {formatMoney(parseMoney(item.unitPrice))}
                   </td>
                   <td className="py-[5mm] pr-[2mm] pl-[2mm] align-middle text-right font-semibold tabular-nums text-neutral-950">
-                    ${formatMoney(parseMoney(item.total))}
+                    {data.issuer.currencyCode}{' '}
+                    {formatMoney(parseMoney(item.total))}
                   </td>
                 </tr>
               );
@@ -259,17 +232,21 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
           <dl className="w-full min-w-[220px] space-y-[3.5mm] text-[12px]">
             <div className="flex flex-row justify-between gap-[6mm] border-b border-transparent pb-[1mm]">
               <dt className="text-neutral-600">Subtotal</dt>
-              <dd className="tabular-nums text-neutral-950">${formatMoney(subtotal)}</dd>
+              <dd className="tabular-nums text-neutral-950">
+                {data.issuer.currencyCode} {formatMoney(subtotal)}
+              </dd>
             </div>
             <div className="flex flex-row justify-between gap-[6mm] pt-[2mm]">
               <dt className="font-bold text-neutral-950">Total</dt>
               <dd className="font-bold tabular-nums text-neutral-950">
-                ${formatMoney(totalAmount)}
+                {data.issuer.currencyCode} {formatMoney(totalAmount)}
               </dd>
             </div>
             <div className="flex flex-row justify-between gap-[6mm]">
               <dt className="text-neutral-600">Pagado</dt>
-              <dd className="tabular-nums text-neutral-950">${formatMoney(amountPaid)}</dd>
+              <dd className="tabular-nums text-neutral-950">
+                {data.issuer.currencyCode} {formatMoney(amountPaid)}
+              </dd>
             </div>
           </dl>
         </div>
@@ -286,7 +263,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
           Saldo pendiente
         </span>
         <span className="text-[18px] font-bold tabular-nums tracking-tight text-white">
-          ${formatMoney(balanceDue)}
+          {data.issuer.currencyCode} {formatMoney(balanceDue)}
         </span>
       </div>
 
@@ -300,7 +277,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
             <p className="text-[9px] font-bold uppercase tracking-wide text-neutral-800">
               Teléfono
             </p>
-            <p className="text-[9px] text-neutral-600">{INVOICE_COMPANY.footerPhone}</p>
+            <p className="text-[9px] text-neutral-600">{data.issuer.footerPhone}</p>
           </div>
           <div className="flex flex-col items-center gap-[1.25mm]">
             <FooterIconMail />
@@ -308,7 +285,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
               Correo
             </p>
             <p className="text-[9px] break-all text-neutral-600">
-              {INVOICE_COMPANY.footerEmail}
+              {data.issuer.footerEmail}
             </p>
           </div>
           <div className="flex flex-col items-center gap-[1.25mm]">
@@ -317,14 +294,22 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
               Dirección
             </p>
             <p className="text-[9px] leading-snug text-neutral-600">
-              {INVOICE_COMPANY.footerAddress}
+              {data.issuer.footerAddress}
             </p>
           </div>
         </div>
       </footer>
 
       <p className="pb-[1mm] pt-[3mm] text-center text-[9px] text-neutral-400">
-        {INVOICE_COMPANY.nameLines.join(' ')}
+        Powered by{' '}
+        <a
+          href="https://zigzag-hazel.vercel.app"
+          target="_blank"
+          rel="noreferrer"
+          className="pointer-events-auto font-medium text-neutral-500 underline"
+        >
+          zigzag
+        </a>
       </p>
     </div>
   );

@@ -115,6 +115,14 @@ const data = {
   ],
 };
 
+const getLongestMatchingHref = (pathname: string, hrefs: string[]): string | null => {
+  const matching = hrefs.filter((h) => pathname === h || pathname.startsWith(`${h}/`));
+  if (matching.length === 0) {
+    return null;
+  }
+  return matching.reduce((a, b) => (a.length >= b.length ? a : b));
+};
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -197,19 +205,51 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return mappedTeams;
   }, [companies]);
 
+  const allSidebarHrefs = React.useMemo(
+    () => [
+      ...data.navMain.flatMap((item) => [
+        item.url,
+        ...(item.items?.map((s) => s.url) ?? []),
+      ]),
+      ...data.system.map((s) => s.url),
+    ],
+    [],
+  );
+
+  const globalLongest = React.useMemo(
+    () => getLongestMatchingHref(pathname, allSidebarHrefs),
+    [pathname, allSidebarHrefs],
+  );
+
   const navItems = React.useMemo(() => {
-    return data.navMain.map((item) => ({
-      ...item,
-      isActive: pathname.startsWith(item.url),
-    }));
-  }, [pathname]);
+    return data.navMain.map((item) => {
+      if (item.items) {
+        const groupLongest = getLongestMatchingHref(
+          pathname,
+          item.items.map((s) => s.url),
+        );
+        return {
+          ...item,
+          isActive: groupLongest !== null,
+          items: item.items.map((sub) => ({
+            ...sub,
+            isActive: groupLongest === sub.url,
+          })),
+        };
+      }
+      return {
+        ...item,
+        isActive: globalLongest === item.url,
+      };
+    });
+  }, [pathname, globalLongest]);
 
   const systemItems = React.useMemo(() => {
     return data.system.map((item) => ({
       ...item,
-      isActive: pathname.startsWith(item.url),
+      isActive: globalLongest === item.url,
     }));
-  }, [pathname]);
+  }, [globalLongest]);
 
   const isSystemCompany = session?.user?.company_is_system;
 

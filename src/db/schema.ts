@@ -6,6 +6,8 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
+  pgEnum,
   pgTable,
   primaryKey,
   serial,
@@ -15,16 +17,33 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+export const companyStatusEnum = pgEnum('CompanyStatus', ['ACTIVE', 'INACTIVE']);
+
+export type CompanySettingsJson = {
+  rfc?: string;
+  invoice_footer_note?: string;
+  default_currency?: string;
+};
+
 export const company = pgTable(
   'Company',
   {
     id: serial('id').primaryKey(),
     name: text('name').notNull(),
-    address: text('address').notNull(),
     phone: text('phone').notNull(),
     email: text('email').notNull(),
     logo: text('logo'),
     is_system: boolean('is_system').notNull().default(false),
+    street: text('street').notNull(),
+    interior_number: text('interior_number'),
+    exterior_number: text('exterior_number').notNull(),
+    neighborhood: text('neighborhood').notNull(),
+    city: text('city').notNull(),
+    state: text('state').notNull(),
+    country: text('country').notNull(),
+    postal_code: text('postal_code').notNull(),
+    status: companyStatusEnum('status').notNull().default('ACTIVE'),
+    settings: jsonb('settings').$type<CompanySettingsJson | null>(),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -182,6 +201,24 @@ export const servicesTickets = pgTable(
   ],
 );
 
+/** Registro de cada abono o cobro aplicado al ticket (historial). */
+export const ticketPayment = pgTable(
+  'TicketPayment',
+  {
+    id: serial('id').primaryKey(),
+    ticket_id: bigint('ticket_id', { mode: 'bigint' }).notNull(),
+    amount: doublePrecision('amount').notNull(),
+    company_id: integer('company_id'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('TicketPayment_ticket_id_idx').on(t.ticket_id),
+    index('TicketPayment_company_id_idx').on(t.company_id),
+  ],
+);
+
 export const rolePermission = pgTable(
   'RolePermission',
   {
@@ -250,6 +287,14 @@ export const ticketRelations = relations(ticket, ({ one, many }) => ({
   client: one(client, { fields: [ticket.client_id], references: [client.id] }),
   User: one(user, { fields: [ticket.userId], references: [user.id] }),
   services_tickets: many(servicesTickets),
+  ticket_payments: many(ticketPayment),
+}));
+
+export const ticketPaymentRelations = relations(ticketPayment, ({ one }) => ({
+  ticket: one(ticket, {
+    fields: [ticketPayment.ticket_id],
+    references: [ticket.id],
+  }),
 }));
 
 export const servicesTicketsRelations = relations(servicesTickets, ({ one }) => ({
@@ -274,5 +319,6 @@ export type ClientRow = typeof client.$inferSelect;
 export type Service = typeof service.$inferSelect;
 export type ServiceRow = typeof service.$inferSelect;
 export type TicketRow = typeof ticket.$inferSelect;
+export type TicketPaymentRow = typeof ticketPayment.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;

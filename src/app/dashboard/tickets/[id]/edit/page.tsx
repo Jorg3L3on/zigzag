@@ -49,6 +49,8 @@ import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useEffect, useState, useRef } from 'react';
 import InvoiceTemplate from '@/components/pdf/invoice-template';
+import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
+import type { Company } from '@/db/schema';
 import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 import { TripledPageHeader, TripledStepper } from '@/components/tripled';
@@ -85,15 +87,19 @@ interface ServiceTicket {
 
 export default function EditTicketPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ step?: string }>;
 }) {
   const resolvedParams = React.use(params);
+  const resolvedSearchParams = React.use(searchParams);
   const router = useRouter();
   const { selectedCompany } = useCompany();
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
   const [isFinished, setIsFinished] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [ticketCompany, setTicketCompany] = useState<Company | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isFullyPaid, setIsFullyPaid] = useState(true);
   const [paidAmountInput, setPaidAmountInput] = useState('');
@@ -121,6 +127,7 @@ export default function EditTicketPage({
         const data = await response.json();
 
         if (data.success) {
+          setTicketCompany(data.data.company ?? null);
           const totalFromTicket =
             typeof data.data.total === 'number' ? data.data.total : 0;
           const paidFromTicket =
@@ -190,9 +197,12 @@ export default function EditTicketPage({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    const currency =
+      ticketCompany?.settings?.default_currency?.trim() || 'MXN';
+
+    return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'USD',
+      currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
@@ -265,7 +275,7 @@ export default function EditTicketPage({
         if (result.success) {
           toast.success('PDF generado correctamente');
           setIsFinished(true);
-          router.replace('/dashboard/tickets');
+          router.replace(`/dashboard/tickets/${resolvedParams.id}`);
           router.refresh();
         } else {
           toast.error('No se pudo generar el PDF');
@@ -322,7 +332,13 @@ export default function EditTicketPage({
               { id: 'services', title: 'Servicios' },
               { id: 'review', title: 'Revisión y PDF' },
             ]}
-            currentStepId="review"
+            currentStepId={
+              resolvedSearchParams.step === 'create'
+                ? 'create'
+                : resolvedSearchParams.step === 'services'
+                  ? 'services'
+                  : 'review'
+            }
           />
           <Card className="border-0 shadow-lg mb-6">
             <CardHeader className="space-y-4 pb-8">
@@ -731,11 +747,12 @@ export default function EditTicketPage({
         <div ref={pdfRef} className="bg-white">
           <InvoiceTemplate
             data={{
+              issuer: invoiceIssuerFromCompany(ticketCompany),
               clientName: form.getValues('client_name'),
               clientAddress: form.getValues('client_tel'),
               clientCity: '',
               clientCountry: 'México',
-              invoiceNumber: resolvedParams.id.toString().padStart(6, '0'),
+              ticketNumber: resolvedParams.id.toString().padStart(6, '0'),
               issueDate: form.getValues('ticket_date')
                 ? format(form.getValues('ticket_date'), 'dd/MM/yyyy')
                 : format(new Date(), 'dd/MM/yyyy'),

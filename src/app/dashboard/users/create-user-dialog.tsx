@@ -54,7 +54,13 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>;
 
-export function CreateUserDialog() {
+export type CreateUserDialogProps = {
+  onCreated?: () => void;
+};
+
+export function CreateUserDialog({
+  onCreated,
+}: CreateUserDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -116,6 +122,7 @@ export function CreateUserDialog() {
     }
     setOpen(false);
     form.reset();
+    onCreated?.();
     router.refresh();
     toast.success('Usuario creado correctamente');
   }

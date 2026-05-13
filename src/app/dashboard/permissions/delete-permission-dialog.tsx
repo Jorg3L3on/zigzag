@@ -19,12 +19,14 @@ interface DeletePermissionDialogProps {
   permission: Permission;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function DeletePermissionDialog({
   permission,
   open,
   onOpenChange,
+  onSuccess,
 }: DeletePermissionDialogProps) {
   const router = useRouter();
 
@@ -43,6 +45,7 @@ export function DeletePermissionDialog({
 
     toast.success('Permiso eliminado correctamente');
     onOpenChange(false);
+    onSuccess?.();
     router.refresh();
   };
 

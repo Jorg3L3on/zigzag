@@ -3,7 +3,16 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import * as schema from '../src/db/schema';
-import { company, service, servicesTickets, ticket, user } from '../src/db/schema';
+import {
+  company,
+  permission,
+  role,
+  rolePermission,
+  service,
+  servicesTickets,
+  ticket,
+  user,
+} from '../src/db/schema';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -19,6 +28,8 @@ const TABLES_NEED_SEQUENCE_SYNC = [
   'Ticket',
   'ServicesTickets',
   'User',
+  'Role',
+  'Permission',
 ] as const;
 
 async function syncPostgresIdSequences() {
@@ -34,37 +45,236 @@ async function syncPostgresIdSequences() {
 async function main() {
   // Reset to keep local seed deterministic.
   await db.execute(
-    sql`TRUNCATE TABLE "ServicesTickets", "Ticket", "Client", "User", "Service", "Company" RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE TABLE "RolePermission", "Role", "Permission", "ServicesTickets", "Ticket", "Client", "User", "Service", "Company" RESTART IDENTITY CASCADE`,
   );
 
   await db.insert(company).values([
     {
       id: 1,
       name: 'SOLUCIONES CHANO',
-      address: 'C. Camarote #121',
+      street: 'C. Camarote',
+      exterior_number: '121',
+      neighborhood: '',
+      city: '',
+      state: '',
+      country: 'México',
+      postal_code: '',
       phone: '(939) 165-46-35',
       email: 'chano@test.com',
       logo: null,
       is_system: false,
+      status: 'ACTIVE',
+      settings: null,
     },
     {
       id: 2,
       name: 'zigzag',
-      address: 'C. Camarote #121',
+      street: 'C. Camarote',
+      exterior_number: '121',
+      neighborhood: '',
+      city: '',
+      state: '',
+      country: 'México',
+      postal_code: '',
       phone: '(939) 165-46-35',
       email: 'zigzag@test.com',
       logo: '/favicon.ico',
       is_system: true,
+      status: 'ACTIVE',
+      settings: null,
     },
     {
       id: 3,
       name: 'Empresa de prueba',
-      address: 'direccion',
+      street: 'direccion',
+      exterior_number: 'S/N',
+      neighborhood: '',
+      city: '',
+      state: '',
+      country: 'México',
+      postal_code: '',
       phone: '999',
       email: 'empresa@test.com',
-      logo: '',
+      logo: null,
       is_system: false,
+      status: 'ACTIVE',
+      settings: null,
     },
+  ]);
+
+  // Seed base permissions used in code (global, company_id = null)
+  await db.insert(permission).values([
+    // Tickets
+    {
+      id: 1,
+      name: 'tickets.read',
+      description: 'Puede ver tickets',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 2,
+      name: 'tickets.write',
+      description: 'Puede crear y editar tickets',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    // Services
+    {
+      id: 3,
+      name: 'services.read',
+      description: 'Puede ver servicios',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 4,
+      name: 'services.write',
+      description: 'Puede crear y editar servicios',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    // Clients
+    {
+      id: 5,
+      name: 'clients.read',
+      description: 'Puede ver clientes',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 6,
+      name: 'clients.write',
+      description: 'Puede crear y editar clientes',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    // Users
+    {
+      id: 7,
+      name: 'users.read',
+      description: 'Puede ver usuarios',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 8,
+      name: 'users.write',
+      description: 'Puede crear y editar usuarios',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    // Roles
+    {
+      id: 9,
+      name: 'roles.read',
+      description: 'Puede ver roles',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 10,
+      name: 'roles.write',
+      description: 'Puede crear y editar roles',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    // Permissions
+    {
+      id: 11,
+      name: 'permissions.read',
+      description: 'Puede ver permisos',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 12,
+      name: 'permissions.write',
+      description: 'Puede crear y editar permisos',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    // Companies
+    {
+      id: 13,
+      name: 'companies.read',
+      description: 'Puede ver empresas',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 14,
+      name: 'companies.write',
+      description: 'Puede crear y editar empresas',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  ]);
+
+  // Seed roles (global, company-agnostic)
+  await db.insert(role).values([
+    {
+      id: 1,
+      name: 'Admin',
+      description: 'Rol administrador con acceso completo',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 2,
+      name: 'Operator',
+      description:
+        'Puede gestionar tickets, clientes y servicios pero no administración global',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    {
+      id: 3,
+      name: 'Viewer',
+      description: 'Solo lectura de tickets, clientes y servicios',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  ]);
+
+  // Assign permissions to roles
+  await db.insert(rolePermission).values([
+    // Admin: all permissions (1–14)
+    ...Array.from({ length: 14 }, (_, idx) => ({
+      role_id: 1,
+      permission_id: idx + 1,
+      created_at: new Date(),
+    })),
+    // Operator: read/write tickets, services, clients; read users; read companies
+    { role_id: 2, permission_id: 1, created_at: new Date() }, // tickets.read
+    { role_id: 2, permission_id: 2, created_at: new Date() }, // tickets.write
+    { role_id: 2, permission_id: 3, created_at: new Date() }, // services.read
+    { role_id: 2, permission_id: 4, created_at: new Date() }, // services.write
+    { role_id: 2, permission_id: 5, created_at: new Date() }, // clients.read
+    { role_id: 2, permission_id: 6, created_at: new Date() }, // clients.write
+    { role_id: 2, permission_id: 7, created_at: new Date() }, // users.read
+    { role_id: 2, permission_id: 13, created_at: new Date() }, // companies.read
+    // Viewer: read tickets, services, clients
+    { role_id: 3, permission_id: 1, created_at: new Date() }, // tickets.read
+    { role_id: 3, permission_id: 3, created_at: new Date() }, // services.read
+    { role_id: 3, permission_id: 5, created_at: new Date() }, // clients.read
   ]);
 
   await db.insert(user).values([
@@ -73,6 +283,7 @@ async function main() {
       name: 'jorge',
       email: 'jorgeleon983@outlook.com',
       company_id: 1,
+      role_id: 1,
       password:
         '$2b$12$6SjcCwTOEYxnZwWPprPg9OrS5QIJ.g8axo3OpmE7CGfJUhx9fwlHK',
     },
@@ -81,6 +292,7 @@ async function main() {
       name: 'jorg',
       email: 'jorge@jorge.com',
       company_id: 2,
+      role_id: 1,
       password:
         '$2b$12$6SjcCwTOEYxnZwWPprPg9OrS5QIJ.g8axo3OpmE7CGfJUhx9fwlHK',
     },
@@ -89,6 +301,7 @@ async function main() {
       name: 'carmen',
       email: 'carmen@solorzano.com',
       company_id: 3,
+      role_id: 2,
       password:
         '$2b$10$/LQ52AQ6cG.uC9AleMV72OdDLVrcNpvcNp6.w5V6O2grk9Dd7ZCPO',
     },

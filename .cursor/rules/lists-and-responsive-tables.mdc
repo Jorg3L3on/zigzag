@@ -1,0 +1,83 @@
+---
+description: >-
+  Mandatory list pages: TripledPageHeader, Card, TripledDataPanel, debounced search +
+  button filters, @tanstack/react-table DataTable with sorting, and md:hidden mobile cards.
+globs: src/app/dashboard/**/page.tsx
+alwaysApply: false
+---
+
+# List & table UX pattern (Ver Tickets baseline)
+
+When creating or updating **list pages** under `src/app/dashboard/**` (e.g. tickets, clients, services, companies), follow this pattern.
+
+## Mandatory (every list page)
+
+These three requirements apply to **all** resource lists:
+
+1. **Filters** — **Debounced search** (`searchValue` + `debouncedSearch`) **and** **button-based filters** for key dimensions (status/state/etc.). Place them in **`TripledDataPanel`** above the data. Filter on the right fields per resource (e.g. tickets: id, client name, phone, email; companies: name, email, phone).
+
+2. **Ordering** — **Column sorting** via **`@tanstack/react-table`** (`SortingState`, `DEFAULT_*_SORTING`, sortable headers like **`TicketSortableHeader`**, and **`encodeSortingState` / `decodeSortingState`** when using URL state). Mobile cards use the **same sorted order** as desktop.
+
+3. **DataTable** — Desktop MUST use a **DataTable** built with **`@tanstack/react-table`** (e.g. `*-columns.tsx`, `useReactTable`, sorted/filtered row models). Do not use a plain hand-built `<Table>` map without TanStack. See **`TicketsList`** / **`tickets-columns.tsx`**.
+
+## Layout & shell
+
+- Use a **page-level header**:
+  - `TripledPageHeader` at the top with the resource label (e.g. "Tickets", "Clientes", "Empresas").
+  - A central `Card` with:
+    - `CardHeader` containing title, description, and a primary CTA button (e.g. "Nuevo Ticket", "Nueva empresa").
+    - `CardContent` wrapping the list component.
+- Prefer **`TripledDataPanel`** inside the list component (see `ClientList`, `ServicesListClient`, `CompaniesList`) for:
+  - Title + description.
+  - Search input (debounced).
+  - Primary CTA button.
+
+## Data fetching & error handling
+
+- Fetch data in a **client list component**, not directly in the page:
+  - Tickets: `TicketsList`
+  - Clients: `ClientList`
+  - Services: `ServicesListClient`
+  - Companies: `CompaniesList`
+- Show three distinct states:
+  - **Loading**: centered `Loader2` spinner.
+  - **Error**: `TripledEmptyState` with an explicit error message and optional “Reintentar” button.
+  - **Empty**: `TripledEmptyState` with "Sin resultados" and a short explanation.
+
+## Filters & search
+
+- **Search**:
+  - Maintain `searchValue` and a debounced value (`debouncedSearch`).
+  - Filter on key fields (e.g. tickets: id, client name, phone, email; companies: name, email, phone).
+- **Filters**:
+  - Simple **button-based filters** for status / state:
+    - Tickets: payment status, finished / PDF presence (see `TicketsList`).
+    - Services: statusFilter (`active`, `deleted`, `all`) with small toggle buttons.
+    - Companies: status filter (`all`, `active`, `inactive`).
+  - Place filters inside the `TripledDataPanel` above the list.
+
+## DataTable + mobile cards
+
+- **Mobile (`md:hidden`)**:
+  - Cards driven by the **same filtered + sorted** row model as the DataTable.
+  - Each row: `<article>` / `<div>`; click → edit (`router.push`); `tabIndex={0}`, `role="button"`, `onKeyDown` for `Enter` / `Space`.
+  - Core information: name/title, badges, 2–3 fields in a `<dl>` where appropriate.
+  - Edit/Delete buttons call `event.stopPropagation()`.
+
+- **Desktop (`hidden md:block`)**:
+  - **`@tanstack/react-table`** DataTable; `Table` / `TableRow` / `TableCell` from the table API.
+  - Row: clickable + keyboard accessible; actions stop propagation.
+  - Long text: `line-clamp-*`, `max-w-*`.
+
+## When adding a new list
+
+When you add a new resource list (e.g. invoices, products, etc.):
+
+- Create **`*-columns.tsx`** and a `*List` client component under `src/components/<resource>/`.
+- Mirror **`TicketsList`** (mandatory filters, DataTable, sorting, mobile cards):
+  - `TripledPageHeader` in the page.
+  - `TripledDataPanel` in the list component.
+  - Loading / error / empty via `TripledEmptyState`.
+  - **Desktop**: TanStack DataTable (`hidden md:block`).
+  - **Mobile**: cards (`md:hidden`).
+- Re-use `FormattedDate`, `FormattedCurrency`, badges, shared filter buttons.

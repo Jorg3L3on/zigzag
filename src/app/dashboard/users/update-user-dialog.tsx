@@ -73,12 +73,14 @@ interface UpdateUserDialogProps {
   user: User;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function UpdateUserDialog({
   user,
   open,
   onOpenChange,
+  onSuccess,
 }: UpdateUserDialogProps) {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -169,6 +171,7 @@ export function UpdateUserDialog({
       return;
     }
     onOpenChange(false);
+    onSuccess?.();
     router.refresh();
     toast.success('Usuario actualizado correctamente');
   }

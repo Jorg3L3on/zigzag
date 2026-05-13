@@ -45,7 +45,13 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export function CreatePermissionDialog() {
+type CreatePermissionDialogProps = {
+  onCreated?: () => void;
+};
+
+export function CreatePermissionDialog({
+  onCreated,
+}: CreatePermissionDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const router = useRouter();
@@ -85,6 +91,7 @@ export function CreatePermissionDialog() {
     toast.success('Permiso creado correctamente');
     setOpen(false);
     form.reset();
+    onCreated?.();
     router.refresh();
   }
 

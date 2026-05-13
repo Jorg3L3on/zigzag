@@ -1,11 +1,15 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql } from 'drizzle-orm';
 import {
   servicesTickets,
   ticket,
+  ticketPayment,
+  type Company,
   type Service,
   type ServicesTicketsRow,
+  type TicketPaymentRow,
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -15,6 +19,10 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { calculateTicketTotal } from '@/lib/ticket-financials';
+import {
+  AMOUNT_TOLERANCE,
+  getTicketBalanceDue,
+} from '@/lib/ticket-payment-status';
 import { requireActionPermission } from '@/lib/security';
 import { z } from 'zod';
 
@@ -22,7 +30,11 @@ const ticketSchema = z.object({
   client_id: z.number().optional(),
   client_name: z.string().min(1, 'Client name is required'),
   client_tel: z.string().min(1, 'Client phone is required'),
-  email: z.string().email('Invalid email address').optional(),
+  email: z
+    .string()
+    .email('Invalid email address')
+    .optional()
+    .or(z.literal('')),
   document: z.string().optional(),
   ticket_date: z.date(),
   services: z.array(
@@ -56,11 +68,14 @@ export type Ticket = {
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
 export type TicketDetailData = TicketRow & {
+  company: Company | null;
   services_tickets: Array<
     ServicesTicketsRow & {
       service: Service | null;
     }
   >;
+  /** Present when loaded with `with`; lista suele omitirla. */
+  ticket_payments?: TicketPaymentRow[];
 };
 
 export type GetTicketByIdResult =
@@ -116,13 +131,11 @@ export async function createTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    console.log('Creating ticket with data:', data);
     const validatedData = ticketSchema.parse(data);
     const { companyId: effectiveCompanyId } = await requireActionPermission(
       'tickets.write',
       validatedData.company_id,
     );
-    console.log('Validated data:', validatedData);
 
     const values = {
       client_id: validatedData.client_id,
@@ -146,7 +159,6 @@ export async function createTicket(
       [created] = await db.insert(ticket).values(values).returning();
     }
 
-    console.log('Created ticket:', created);
     return {
       success: true,
       data: created as unknown as Ticket,
@@ -208,16 +220,53 @@ export async function getTickets(
   }
 }
 
+/** Lista ligera sin relaciones (uso en tabla / dashboard). */
+export async function getTicketsList(
+  companyId: number | null,
+): Promise<{
+  success: boolean;
+  data?: Ticket[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireActionPermission(
+      'tickets.read',
+      companyId ?? undefined,
+    );
+    const tickets = await db.query.ticket.findMany({
+      where: and(
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
+      orderBy: [desc(ticket.created_at)],
+    });
+
+    return { success: true, data: tickets as Ticket[] };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+      error: 'Error al obtener los tickets',
+      errorType: classifyServerErrorType(e),
+    };
+  }
+}
+
 export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
   try {
     const { companyId } = await requireActionPermission('tickets.read');
     const ticketRow = await db.query.ticket.findFirst({
       where: and(eq(ticket.id, BigInt(id)), eq(ticket.company_id, companyId)),
       with: {
+        company: true,
         services_tickets: {
           with: {
             service: true,
           },
+        },
+        ticket_payments: {
+          orderBy: (tp, { asc }) => [asc(tp.created_at)],
         },
       },
     });
@@ -366,17 +415,41 @@ export async function finishTicket(
   try {
     const { companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
-    await assertTicketWritable(BigInt(id), effectiveCompanyId);
-    const [updated] = await db
-      .update(ticket)
-      .set({
-        finished: true,
-        document: null,
-        total: total,
-        paid: paid,
-      })
-      .where(eq(ticket.id, BigInt(id)))
-      .returning();
+    const ticketId = BigInt(id);
+    await assertTicketWritable(ticketId, effectiveCompanyId);
+
+    const prior = await db.query.ticket.findFirst({
+      where: eq(ticket.id, ticketId),
+    });
+    if (prior?.finished) {
+      return {
+        success: false,
+        error: 'Este ticket ya está finalizado',
+        errorType: 'validation',
+      };
+    }
+
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(ticket)
+        .set({
+          finished: true,
+          total: total,
+          paid: paid,
+        })
+        .where(eq(ticket.id, ticketId))
+        .returning();
+
+      if (row && paid > AMOUNT_TOLERANCE) {
+        await tx.insert(ticketPayment).values({
+          ticket_id: ticketId,
+          amount: paid,
+          company_id: row.company_id,
+        });
+      }
+
+      return row;
+    });
 
     return { success: true, data: updated };
   } catch (e) {
@@ -384,6 +457,104 @@ export async function finishTicket(
     return {
       success: false,
       error: 'Error al finalizar el ticket',
+      errorType: classifyServerErrorType(e),
+    };
+  }
+}
+
+export async function applyTicketPayment(
+  id: number,
+  additionalPaid: number,
+): Promise<{
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } =
+      await requireActionPermission('tickets.write');
+    const ticketId = BigInt(id);
+    await assertTicketWritable(ticketId, effectiveCompanyId);
+
+    if (!Number.isFinite(additionalPaid) || additionalPaid <= 0) {
+      return {
+        success: false,
+        error: 'El monto debe ser mayor a cero',
+        errorType: 'validation',
+      };
+    }
+
+    const ticketRow = await db.query.ticket.findFirst({
+      where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
+    });
+
+    if (!ticketRow) {
+      return {
+        success: false,
+        error: 'Ticket no encontrado',
+        errorType: 'validation',
+      };
+    }
+
+    if (!ticketRow.finished) {
+      return {
+        success: false,
+        error:
+          'Solo se pueden registrar cobros adicionales en tickets finalizados',
+        errorType: 'validation',
+      };
+    }
+
+    const totalAmount = ticketRow.total ?? 0;
+    const currentPaid = ticketRow.paid ?? 0;
+    const balanceDue = getTicketBalanceDue(ticketRow.total, ticketRow.paid);
+
+    if (balanceDue <= 0) {
+      return {
+        success: false,
+        error: 'Este ticket ya no tiene saldo pendiente',
+        errorType: 'validation',
+      };
+    }
+
+    const newPaid = Math.min(totalAmount, currentPaid + additionalPaid);
+    const appliedAmount = newPaid - currentPaid;
+
+    if (appliedAmount <= AMOUNT_TOLERANCE) {
+      return {
+        success: false,
+        error: 'No hay saldo aplicable con ese monto',
+        errorType: 'validation',
+      };
+    }
+
+    const updated = await db.transaction(async (tx) => {
+      await tx.insert(ticketPayment).values({
+        ticket_id: ticketId,
+        amount: appliedAmount,
+        company_id: ticketRow.company_id,
+      });
+
+      const [row] = await tx
+        .update(ticket)
+        .set({ paid: newPaid })
+        .where(eq(ticket.id, ticketId))
+        .returning();
+
+      return row;
+    });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/tickets');
+    revalidatePath(`/dashboard/tickets/${id}`);
+
+    return { success: true, data: updated };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+      error: 'Error al registrar el cobro',
       errorType: classifyServerErrorType(e),
     };
   }

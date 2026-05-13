@@ -52,12 +52,14 @@ interface UpdateRoleDialogProps {
   role: Role;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function UpdateRoleDialog({
   role,
   open,
   onOpenChange,
+  onSuccess,
 }: UpdateRoleDialogProps) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -144,6 +146,7 @@ export function UpdateRoleDialog({
 
     toast.success('Rol actualizado correctamente');
     onOpenChange(false);
+    onSuccess?.();
     router.refresh();
   }
 

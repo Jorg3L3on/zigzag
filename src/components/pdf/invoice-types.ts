@@ -1,3 +1,5 @@
+import type { InvoiceIssuerData } from '@/components/pdf/invoice-company';
+
 export interface InvoiceItem {
   description: string;
   quantity: string;
@@ -6,11 +8,13 @@ export interface InvoiceItem {
 }
 
 export interface InvoiceData {
+  /** Company issuing the ticket (from DB). */
+  issuer: InvoiceIssuerData;
   clientName: string;
   clientAddress: string;
   clientCity: string;
   clientCountry: string;
-  invoiceNumber: string;
+  ticketNumber: string;
   issueDate: string;
   dueDate: string;
   items: InvoiceItem[];

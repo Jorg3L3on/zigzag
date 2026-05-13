@@ -233,14 +233,14 @@ export async function updateServiceTicket(
 
     let updated: (typeof servicesTickets.$inferSelect) | undefined;
     try {
-      [updated] = await runUpdate();
+      updated = await runUpdate();
     } catch (error) {
       if (!isTransientNetworkError(error)) {
         throw error;
       }
 
       await sleep(200);
-      [updated] = await runUpdate();
+      updated = await runUpdate();
     }
 
     if (!updated) {

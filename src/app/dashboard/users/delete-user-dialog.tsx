@@ -19,12 +19,14 @@ interface DeleteUserDialogProps {
   user: User;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function DeleteUserDialog({
   user,
   open,
   onOpenChange,
+  onSuccess,
 }: DeleteUserDialogProps) {
   const router = useRouter();
 
@@ -41,6 +43,7 @@ export function DeleteUserDialog({
       return;
     }
     onOpenChange(false);
+    onSuccess?.();
     router.refresh();
     toast.success('Usuario eliminado correctamente');
   }

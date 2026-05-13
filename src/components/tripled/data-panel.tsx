@@ -11,8 +11,10 @@ type TripledDataPanelProps = {
   description: string;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  ctaLabel: string;
-  onCtaClick: () => void;
+  /** Use instead of `ctaLabel` + `onCtaClick` when the CTA is not a simple navigation button (e.g. dialog trigger). */
+  ctaSlot?: ReactNode;
+  ctaLabel?: string;
+  onCtaClick?: () => void;
   children: ReactNode;
 };
 
@@ -21,10 +23,23 @@ export const TripledDataPanel = ({
   description,
   searchValue,
   onSearchChange,
+  ctaSlot,
   ctaLabel,
   onCtaClick,
   children,
 }: TripledDataPanelProps) => {
+  const cta =
+    ctaSlot ??
+    (ctaLabel && onCtaClick ? (
+      <Button
+        type="button"
+        onClick={onCtaClick}
+        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+      >
+        {ctaLabel}
+      </Button>
+    ) : null);
+
   return (
     <Card className="border-border/60 shadow-sm">
       <CardHeader className="space-y-4">
@@ -33,12 +48,7 @@ export const TripledDataPanel = ({
             <CardTitle>{title}</CardTitle>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>
-          <Button
-            onClick={onCtaClick}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-          >
-            {ctaLabel}
-          </Button>
+          {cta}
         </div>
         <div className="relative max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

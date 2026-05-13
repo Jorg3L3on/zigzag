@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { PlusCircle, Plus, CheckCircle2, Loader2, Minus } from 'lucide-react';
+import { PlusCircle, Plus, CheckCircle2, Loader2, Minus, Receipt } from 'lucide-react';
 import {
   ServiceTicket,
   createServiceTicket,
@@ -273,8 +273,8 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
         ]}
       />
 
-      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-        <div className="mx-auto w-full">
+      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
+        <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
           <TripledStepper
             steps={[
               { id: 'create', title: 'Datos del ticket' },
@@ -283,12 +283,14 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
             ]}
             currentStepId="services"
           />
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-4 pb-8">
+          <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
+            <CardHeader className="border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-6 sm:px-8 sm:py-7">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">Servicios Asignados</CardTitle>
-                  <CardDescription>
+                <div className="space-y-1.5">
+                  <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
+                    Servicios Asignados
+                  </CardTitle>
+                  <CardDescription className="text-base">
                     Lista de servicios asignados a este ticket
                   </CardDescription>
                 </div>
@@ -302,14 +304,14 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                   }}
                 >
                   <DialogTrigger asChild>
-                    <Button className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                    <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transition-all duration-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg sm:w-auto">
                       <PlusCircle className="mr-2 h-5 w-5" />
                       Agregar Servicio
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-x-hidden sm:max-w-lg">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl font-bold text-gray-800">
+                      <DialogTitle className="text-2xl font-semibold text-foreground">
                         {isCreatingNewService
                           ? 'Crear nuevo servicio'
                           : 'Agregar servicio al ticket'}
@@ -368,7 +370,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                                   </div>
                                   <div className="max-h-[200px] overflow-y-auto">
                                     {filteredServices.length === 0 ? (
-                                      <div className="px-3 py-2 text-sm text-gray-500">
+                                      <div className="px-3 py-2 text-sm text-muted-foreground">
                                         No se encontraron servicios
                                       </div>
                                     ) : (
@@ -524,22 +526,22 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                 </Dialog>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6 px-5 pb-8 pt-6 sm:px-8">
               {ticketServices.map((serviceTicket) => (
                 <div
                   key={serviceTicket.id}
-                  className="rounded-lg border bg-white p-4 transition-shadow duration-200 hover:shadow-md"
+                  className="rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-shadow duration-200 hover:border-border hover:shadow-md"
                 >
                   <div className="space-y-4">
-                    <h3 className="font-medium text-gray-800">
+                    <h3 className="font-medium text-foreground">
                       {serviceTicket.service.name}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {serviceTicket.service.description}
                     </p>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_auto_1fr_auto] lg:items-end">
+                    <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
                       <div>
-                        <Label className="text-gray-700">Cantidad</Label>
+                        <Label className="text-sm font-medium text-foreground">Cantidad</Label>
                         <div className="flex items-center gap-2">
                           <Button
                             type="button"
@@ -591,7 +593,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                         </div>
                       </div>
                       <div>
-                        <Label className="text-gray-700">Precio</Label>
+                        <Label className="text-sm font-medium text-foreground">Precio</Label>
                         <div className="flex items-center gap-2">
                           <Button
                             type="button"
@@ -612,7 +614,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
-                          <div className="relative w-full sm:w-36">
+                          <div className="relative w-full sm:w-40">
                             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                               $
                             </span>
@@ -650,20 +652,23 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                           </Button>
                         </div>
                       </div>
-                      <div className="rounded-md border bg-gray-50 p-3 lg:ml-2">
-                        <Label className="text-gray-700">Subtotal</Label>
-                        <p className="text-lg font-medium">
-                          {formatCurrency(
-                            serviceTicket.quantity * serviceTicket.price,
-                          )}
-                        </p>
-                      </div>
-                      <div className="flex items-end lg:justify-end">
+                      <div className="flex min-w-0 items-end justify-end gap-3 sm:col-span-2">
+                        <div className="min-w-0 flex-1 rounded-md border border-border/60 bg-muted/30 p-3 text-right">
+                          <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Subtotal
+                          </Label>
+                          <p className="whitespace-nowrap text-xs font-semibold tabular-nums leading-tight text-foreground sm:text-base">
+                            {formatCurrency(
+                              serviceTicket.quantity * serviceTicket.price,
+                            )}
+                          </p>
+                        </div>
                         <TripledNativeDelete
                           onDelete={() => handleDeleteService(serviceTicket.id)}
-                          buttonText="Eliminar"
+                          iconOnly
+                          buttonText="Eliminar servicio"
                           confirmLabel="Sí, eliminar"
-                          className="w-full lg:mt-5"
+                          className="mt-0 self-end"
                         />
                       </div>
                     </div>
@@ -672,29 +677,48 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
               ))}
 
               {ticketServices.length === 0 && (
-                <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
-                  No hay servicios asignados a este ticket
+                <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/25 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <Receipt className="h-5 w-5 text-muted-foreground" aria-hidden />
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">
+                      No hay servicios asignados a este ticket
+                    </p>
+                    <p>
+                      Usa <span className="font-semibold">Agregar Servicio</span> para añadir el primero.
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <div className="mt-8 border-t pt-4 text-right">
-                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Total: {formatCurrency(calculateTotal())}
-                </p>
+              <div className="mt-8 border-t border-border/60 pt-4">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Total
+                  </span>
+                  <span className="text-xl font-semibold tabular-nums text-foreground">
+                    {formatCurrency(calculateTotal())}
+                  </span>
+                </div>
               </div>
 
-              <div className="mt-6 flex flex-col gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+              <div className="mt-6 flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push(`/dashboard/tickets/${ticketId}/edit`)}
+                  className="h-10 w-full sm:w-auto"
+                  onClick={() =>
+                    router.push(`/dashboard/tickets/${ticketId}/edit?step=create`)
+                  }
                 >
                   Volver a datos del ticket
                 </Button>
                 <Button
                   type="button"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  onClick={() => router.push(`/dashboard/tickets/${ticketId}/edit`)}
+                  className="h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-md transition-colors hover:from-blue-700 hover:to-purple-700 sm:w-auto"
+                  disabled={ticketServices.length === 0}
+                  onClick={() =>
+                    router.push(`/dashboard/tickets/${ticketId}/edit?step=review`)
+                  }
                 >
                   Continuar a revisión
                 </Button>

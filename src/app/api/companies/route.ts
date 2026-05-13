@@ -3,8 +3,12 @@
 import { count, eq, isNull } from 'drizzle-orm';
 import { company, service, ticket, user } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import {
+  companyApiCreateSchema,
+  companyApiUpdateSchema,
+  normalizeCompanySettingsForDb,
+} from '@/lib/company-schema';
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
 import { fail, ok } from '@/lib/api-helpers';
 
 const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
@@ -115,15 +119,37 @@ export async function POST(request: Request) {
       return fail('Only system company users can create new companies', 403, 'auth');
     }
 
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = companyApiCreateSchema.safeParse(raw);
+    if (!parsed.success) {
+      return fail(
+        parsed.error.issues[0]?.message ?? 'Datos inválidos',
+        400,
+        'validation',
+      );
+    }
+    const body = parsed.data;
+    const settings = normalizeCompanySettingsForDb(body.settings);
+
     const [created] = await db
       .insert(company)
       .values({
         name: body.name,
-        address: body.address,
         phone: body.phone,
         email: body.email,
-        logo: body.logo ?? null,
+        logo: body.logo || null,
+        street: body.street,
+        interior_number: body.interior_number?.trim()
+          ? body.interior_number.trim()
+          : null,
+        exterior_number: body.exterior_number,
+        neighborhood: body.neighborhood,
+        city: body.city,
+        state: body.state,
+        country: body.country,
+        postal_code: body.postal_code,
+        status: body.status,
+        settings,
         is_system: false,
       })
       .returning();
@@ -152,21 +178,45 @@ export async function PUT(request: Request) {
       return fail('User not found', 404, 'validation');
     }
 
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = companyApiUpdateSchema.safeParse(raw);
+    if (!parsed.success) {
+      return fail(
+        parsed.error.issues[0]?.message ?? 'Datos inválidos',
+        400,
+        'validation',
+      );
+    }
+    const body = parsed.data;
 
     if (!sessionUser.company?.is_system && sessionUser.company_id !== body.id) {
       return fail('You can only update your own company', 403, 'auth');
     }
 
+    const settings = normalizeCompanySettingsForDb(body.settings);
+
     const [updated] = await db
       .update(company)
       .set({
         name: body.name,
-        address: body.address,
         phone: body.phone,
         email: body.email,
-        logo: body.logo,
-        is_system: sessionUser.company?.is_system ? Boolean(body.is_system) : false,
+        logo: body.logo || null,
+        street: body.street,
+        interior_number: body.interior_number?.trim()
+          ? body.interior_number.trim()
+          : null,
+        exterior_number: body.exterior_number,
+        neighborhood: body.neighborhood,
+        city: body.city,
+        state: body.state,
+        country: body.country,
+        postal_code: body.postal_code,
+        status: body.status,
+        settings,
+        is_system: sessionUser.company?.is_system
+          ? Boolean((raw as { is_system?: unknown }).is_system)
+          : false,
         updated_at: new Date(),
       })
       .where(eq(company.id, body.id))

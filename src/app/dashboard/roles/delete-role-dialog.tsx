@@ -19,12 +19,14 @@ interface DeleteRoleDialogProps {
   role: Role;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function DeleteRoleDialog({
   role,
   open,
   onOpenChange,
+  onSuccess,
 }: DeleteRoleDialogProps) {
   const router = useRouter();
 
@@ -43,6 +45,7 @@ export function DeleteRoleDialog({
 
     toast.success('Rol eliminado correctamente');
     onOpenChange(false);
+    onSuccess?.();
     router.refresh();
   };
 

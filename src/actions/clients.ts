@@ -99,6 +99,41 @@ export async function getClients(params: GetClientsParams): Promise<{
   }
 }
 
+/** Full client roster for the company (list UI). Prefer over paginated `getClients` when sorting/filtering in the browser. */
+export async function getClientsList(params: {
+  companyId: number | null;
+}): Promise<{
+  success: boolean;
+  data?: Client[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    await requireActionPermission('clients.read', params.companyId ?? undefined);
+    const companyCondition =
+      params.companyId === null
+        ? isNull(client.company_id)
+        : eq(client.company_id, params.companyId);
+
+    const whereCondition = and(companyCondition, isNull(client.deleted_at));
+
+    const items = await db
+      .select()
+      .from(client)
+      .where(whereCondition)
+      .orderBy(desc(client.created_at));
+
+    return { success: true, data: items };
+  } catch (error) {
+    console.error('Error al cargar los clientes:', error);
+    return {
+      success: false,
+      error: 'Error al cargar los clientes',
+      errorType: classifyServerErrorType(error),
+    };
+  }
+}
+
 export async function getClient(id: number): Promise<{
   success: boolean;
   data?: Client;

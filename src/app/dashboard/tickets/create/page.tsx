@@ -69,7 +69,11 @@ const formSchema = z.object({
   client_id: z.number().optional(),
   client_name: z.string().min(1, 'El nombre es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono es obligatorio'),
-  email: z.string().email('Correo inválido').optional(),
+  email: z
+    .string()
+    .email('Correo inválido')
+    .optional()
+    .or(z.literal('')),
   document: z.string().optional(),
   ticket_date: z.date(),
   services: z.array(
@@ -88,7 +92,8 @@ export default function CreateTicketPage() {
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const [clients, setClients] = React.useState<Client[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [isClientsLoading, setIsClientsLoading] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] =
     React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(
@@ -116,37 +121,57 @@ export default function CreateTicketPage() {
   }, [selectedCompany?.id, selectedCompany?.name, form]);
 
   React.useEffect(() => {
+    let cancelled = false;
+
     const fetchClients = async () => {
-      if (selectedCompany?.id) {
-        const result = await getClients({
-          companyId: selectedCompany.id,
-          page: 1,
-          pageSize: 200,
-        });
-        if (result.success && result.data) {
-          setClients(result.data.items);
-        } else if (!result.success) {
-          const errorType = classifyClientError(
-            null,
-            undefined,
-            result.errorType,
-          );
-          toast.error(
-            getErrorMessageByType(
-              errorType,
-              result.error || 'No se pudieron cargar los clientes',
-            ),
-          );
+      if (!selectedCompany?.id) {
+        if (!cancelled) {
+          setIsClientsLoading(false);
         }
+        return;
       }
-      setLoading(false);
+
+      if (!cancelled) {
+        setIsClientsLoading(true);
+      }
+
+      const result = await getClients({
+        companyId: selectedCompany.id,
+        page: 1,
+        pageSize: 200,
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (result.success && result.data) {
+        setClients(result.data.items);
+      } else if (!result.success) {
+        const errorType = classifyClientError(
+          null,
+          undefined,
+          result.errorType,
+        );
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'No se pudieron cargar los clientes',
+          ),
+        );
+      }
+      setIsClientsLoading(false);
     };
 
-    fetchClients();
+    void fetchClients();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCompany?.id]);
 
   const handleClientSelect = (clientId: string) => {
-    const client = clients.find((c) => c.id === parseInt(clientId));
+    const client = clients.find((c) => c.id === parseInt(clientId, 10));
     if (client) {
       setSelectedClient(client);
       form.setValue('client_id', client.id);
@@ -157,15 +182,13 @@ export default function CreateTicketPage() {
     }
   };
 
-  async function onSubmit(values: FormValues) {
+  const onSubmit = async (values: FormValues) => {
     try {
-      setLoading(true);
-      console.log('Submitting form with values:', values);
+      setIsSubmitting(true);
       const result = await createTicket({
         ...values,
         company_id: selectedCompany?.id ?? 0,
       });
-      console.log('Create ticket result:', result);
       if (result.success && result.data) {
         toast.success('Ticket creado correctamente');
         router.push(`/dashboard/tickets/${result.data.id}/services`);
@@ -185,9 +208,11 @@ export default function CreateTicketPage() {
         getErrorMessageByType(errorType, 'Ocurrió un error al crear el ticket'),
       );
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const isClientListEmpty = !isClientsLoading && clients.length === 0;
 
   return (
     <>
@@ -198,9 +223,10 @@ export default function CreateTicketPage() {
         ]}
       />
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full max-w-2xl">
+      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
+        <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
           <TripledStepper
+            navigationLabel="Progreso de creación del ticket"
             steps={[
               { id: 'create', title: 'Datos del ticket' },
               { id: 'services', title: 'Servicios' },
@@ -208,157 +234,206 @@ export default function CreateTicketPage() {
             ]}
             currentStepId="create"
           />
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-4 pb-8">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">
-                    Información del Cliente
-                  </CardTitle>
-                  <CardDescription>
-                    Selecciona un cliente existente o crea uno nuevo
-                  </CardDescription>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
-                  <User className="h-6 w-6 text-white" />
-                </div>
+          <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
+            <CardHeader className="border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-6 sm:px-8 sm:py-7">
+              <div className="space-y-1.5">
+                <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
+                  Información del Cliente
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Selecciona un cliente existente o crea uno nuevo
+                </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="space-y-8">
+            <CardContent className="space-y-8 px-5 pb-8 pt-6 sm:px-8">
               <Form {...form}>
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    console.log('Form submitted');
-                    form.handleSubmit(onSubmit)(e);
-                  }}
+                  onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-8"
                 >
                   <div className="grid gap-6">
-                    <div className="flex items-center gap-4">
-                      <FormField
-                        control={form.control}
-                        name="client_id"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormLabel className="text-sm font-medium text-foreground">
-                              Seleccionar Cliente
-                            </FormLabel>
-                            <Select
-                              onValueChange={handleClientSelect}
-                              value={field.value?.toString() ?? ''}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="h-12 border-2 focus:border-primary transition-colors">
-                                  <SelectValue placeholder="Selecciona un cliente" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {loading ? (
-                                  <SelectItem value="loading" disabled>
-                                    Cargando...
-                                  </SelectItem>
-                                ) : (
-                                  clients.map((client) => (
+                    <FormField
+                      control={form.control}
+                      name="client_id"
+                      render={({ field }) => (
+                        <FormItem className="min-w-0 space-y-3">
+                          <FormLabel className="text-sm font-medium text-foreground">
+                            Seleccionar Cliente
+                          </FormLabel>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <div className="min-w-0 flex-1">
+                              <Select
+                                disabled={isClientsLoading}
+                                onValueChange={handleClientSelect}
+                                value={
+                                  field.value != null
+                                    ? String(field.value)
+                                    : undefined
+                                }
+                              >
+                                <FormControl>
+                                  <SelectTrigger
+                                    className="h-10 w-full border border-input bg-background shadow-sm transition-colors focus:border-primary focus:ring-1 focus:ring-ring"
+                                    aria-busy={isClientsLoading}
+                                  >
+                                    {isClientsLoading ? (
+                                      <span className="flex w-full items-center gap-2 text-muted-foreground">
+                                        <Loader2
+                                          className="h-4 w-4 shrink-0 animate-spin"
+                                          aria-hidden
+                                        />
+                                        <span>Cargando clientes…</span>
+                                      </span>
+                                    ) : (
+                                      <SelectValue placeholder="Selecciona un cliente" />
+                                    )}
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {clients.map((client) => (
                                     <SelectItem
                                       key={client.id}
                                       value={client.id.toString()}
                                     >
                                       {client.name}
                                     </SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                      <Dialog
-                        open={isNewClientDialogOpen}
-                        onOpenChange={setIsNewClientDialogOpen}
+                            <Dialog
+                              open={isNewClientDialogOpen}
+                              onOpenChange={setIsNewClientDialogOpen}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-10 w-full shrink-0 gap-2 border-input bg-background px-4 shadow-sm transition-colors hover:bg-accent sm:w-auto"
+                                >
+                                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                                  Nuevo Cliente
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+                                  <DialogDescription>
+                                    Completa los datos del nuevo cliente
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <ClientForm
+                                  onSuccess={(savedClient) => {
+                                    setIsNewClientDialogOpen(false);
+                                    if (savedClient) {
+                                      setClients((prevClients) => {
+                                        const alreadyExists = prevClients.some(
+                                          (clientItem) =>
+                                            clientItem.id === savedClient.id,
+                                        );
+                                        return alreadyExists
+                                          ? prevClients
+                                          : [savedClient, ...prevClients];
+                                      });
+                                      setSelectedClient(savedClient);
+                                      form.setValue('client_id', savedClient.id);
+                                      form.setValue(
+                                        'client_name',
+                                        savedClient.name,
+                                      );
+                                      form.setValue(
+                                        'client_tel',
+                                        savedClient.phone || '',
+                                      );
+                                      form.setValue(
+                                        'email',
+                                        savedClient.email || '',
+                                      );
+                                      form.setValue(
+                                        'document',
+                                        savedClient.document || '',
+                                      );
+                                      return;
+                                    }
+
+                                    if (selectedCompany?.id) {
+                                      getClients({
+                                        companyId: selectedCompany.id,
+                                        page: 1,
+                                        pageSize: 200,
+                                      }).then((result) => {
+                                        if (result.success && result.data) {
+                                          setClients(result.data.items);
+                                        }
+                                      });
+                                    }
+                                  }}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {isClientListEmpty && (
+                      <p
+                        className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground"
+                        role="status"
                       >
-                        <DialogTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-12 mt-6"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Nuevo Cliente
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Crear Nuevo Cliente</DialogTitle>
-                            <DialogDescription>
-                              Completa los datos del nuevo cliente
-                            </DialogDescription>
-                          </DialogHeader>
-                          <ClientForm
-                            onSuccess={(savedClient) => {
-                              setIsNewClientDialogOpen(false);
-                              if (savedClient) {
-                                setClients((prevClients) => {
-                                  const alreadyExists = prevClients.some(
-                                    (clientItem) => clientItem.id === savedClient.id,
-                                  );
-                                  return alreadyExists
-                                    ? prevClients
-                                    : [savedClient, ...prevClients];
-                                });
-                                setSelectedClient(savedClient);
-                                form.setValue('client_id', savedClient.id);
-                                form.setValue('client_name', savedClient.name);
-                                form.setValue('client_tel', savedClient.phone || '');
-                                form.setValue('email', savedClient.email || '');
-                                form.setValue('document', savedClient.document || '');
-                                return;
-                              }
-
-                              if (selectedCompany?.id) {
-                                getClients({
-                                  companyId: selectedCompany.id,
-                                  page: 1,
-                                  pageSize: 200,
-                                }).then((result) => {
-                                  if (result.success && result.data) {
-                                    setClients(result.data.items);
-                                  }
-                                });
-                              }
-                            }}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    </div>
+                        No hay clientes registrados. Usa{' '}
+                        <span className="font-medium text-foreground">
+                          Nuevo Cliente
+                        </span>{' '}
+                        para crear el primero.
+                      </p>
+                    )}
 
                     {selectedClient && (
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">
+                      <div className="rounded-xl border border-border/60 bg-muted/25 p-4 shadow-inner sm:p-5">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Cliente seleccionado
+                        </p>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <User
+                              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                              aria-hidden
+                            />
+                            <span className="font-semibold leading-snug">
                               {selectedClient.name}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span>{selectedClient.phone}</span>
+                          <div className="flex items-center gap-2.5">
+                            <Phone
+                              className="h-4 w-4 shrink-0 text-muted-foreground"
+                              aria-hidden
+                            />
+                            <span className="tabular-nums leading-snug">
+                              {selectedClient.phone}
+                            </span>
                           </div>
                           {selectedClient.email && (
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-muted-foreground" />
-                              <span>{selectedClient.email}</span>
+                            <div className="flex min-w-0 items-start gap-2.5">
+                              <Mail
+                                className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                                aria-hidden
+                              />
+                              <span className="break-all leading-snug">
+                                {selectedClient.email}
+                              </span>
                             </div>
                           )}
                           {selectedClient.document && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">
-                                Doc:
+                            <div className="flex flex-wrap gap-x-2 gap-y-1 border-t border-border/50 pt-3 text-muted-foreground">
+                              <span className="text-xs font-medium uppercase tracking-wide">
+                                Documento
                               </span>
-                              <span>{selectedClient.document}</span>
+                              <span className="font-medium text-foreground">
+                                {selectedClient.document}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -377,13 +452,17 @@ export default function CreateTicketPage() {
                             <PopoverTrigger asChild>
                               <FormControl>
                                 <Button
+                                  type="button"
                                   variant="outline"
                                   className={cn(
-                                    'w-full h-12 pl-10 text-left font-normal hover:border-primary transition-colors relative',
+                                    'relative h-10 w-full pl-10 text-left font-normal shadow-sm transition-colors hover:border-primary',
                                     !field.value && 'text-muted-foreground',
                                   )}
                                 >
-                                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                  <CalendarIcon
+                                    className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                                    aria-hidden
+                                  />
                                   {field.value ? (
                                     format(field.value, 'PPP', { locale: es })
                                   ) : (
@@ -425,27 +504,29 @@ export default function CreateTicketPage() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-4 pt-6">
+                  <div className="flex flex-col gap-4 border-t border-border/40 pt-8">
                     <Button
                       type="submit"
-                      className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-                      disabled={loading || !selectedClient}
-                      onClick={() => console.log('Button clicked')}
+                      className="h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-md transition-colors duration-200 hover:from-blue-700 hover:to-purple-700 motion-safe:hover:brightness-105"
+                      disabled={isSubmitting || !selectedClient}
                     >
-                      {loading ? (
+                      {isSubmitting ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2
+                            className="mr-2 h-4 w-4 animate-spin"
+                            aria-hidden
+                          />
                           Creando ticket...
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden />
                           Crear Ticket
                         </>
                       )}
                     </Button>
 
-                    <p className="text-center text-xs text-muted-foreground">
+                    <p className="mx-auto max-w-md text-center text-xs leading-relaxed text-muted-foreground">
                       Al crear el ticket, se generará automáticamente un número
                       de seguimiento
                     </p>

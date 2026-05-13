@@ -3,6 +3,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import type { Company } from '@/db/schema';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, Pencil, Trash } from 'lucide-react';
 import {
   DropdownMenu,
@@ -10,12 +11,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UpdateCompanyDialog } from '@/app/dashboard/companies/update-company-dialog';
 import { DeleteCompanyDialog } from '@/app/dashboard/companies/delete-company-dialog';
 import { useState } from 'react';
+import Link from 'next/link';
+import { formatCompanyAddressOneLine } from '@/lib/company-address';
+
+const statusLabel = (status: Company['status']) =>
+  status === 'ACTIVE' ? 'Activa' : 'Inactiva';
 
 function CellActions({ company }: { company: Company }) {
-  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   return (
@@ -28,9 +32,14 @@ function CellActions({ company }: { company: Company }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
+          <DropdownMenuItem asChild>
+            <Link
+              href={`/dashboard/companies/${company.id}/edit`}
+              className="flex cursor-pointer items-center"
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-red-500 hover:text-red-500"
@@ -42,11 +51,6 @@ function CellActions({ company }: { company: Company }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <UpdateCompanyDialog
-        company={company}
-        open={showUpdateDialog}
-        onOpenChange={setShowUpdateDialog}
-      />
       <DeleteCompanyDialog
         company={company}
         open={showDeleteDialog}
@@ -63,15 +67,32 @@ export const columns: ColumnDef<Company>[] = [
   },
   {
     accessorKey: 'email',
-    header: 'Correo Electrónico',
+    header: 'Correo electrónico',
   },
   {
     accessorKey: 'phone',
     header: 'Teléfono',
   },
   {
-    accessorKey: 'address',
+    id: 'address',
     header: 'Dirección',
+    cell: ({ row }) => (
+      <span className="line-clamp-2 max-w-[280px] text-sm">
+        {formatCompanyAddressOneLine(row.original)}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Estado',
+    cell: ({ row }) => {
+      const active = row.original.status === 'ACTIVE';
+      return (
+        <Badge variant={active ? 'default' : 'secondary'}>
+          {statusLabel(row.original.status)}
+        </Badge>
+      );
+    },
   },
   {
     id: 'actions',

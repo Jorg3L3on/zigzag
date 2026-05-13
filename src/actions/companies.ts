@@ -1,8 +1,12 @@
 'use server';
 
-import { desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { company } from '@/db/schema';
 import { db } from '@/lib/db';
+import {
+  companyFormSchema,
+  normalizeCompanySettingsForDb,
+} from '@/lib/company-schema';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
 import {
   requireActionAuth,
@@ -12,15 +16,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-const companySchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
-  address: z.string().min(1, 'La dirección es requerida'),
-  phone: z.string().min(1, 'El teléfono es requerido'),
-  email: z.string().email('El correo electrónico no es válido'),
-  logo: z.string().optional(),
-});
-
-export type CompanyFormData = z.infer<typeof companySchema>;
+export type CompanyFormData = z.infer<typeof companyFormSchema>;
 
 export async function getCompanies(): Promise<{
   success: boolean;
@@ -48,6 +44,51 @@ export async function getCompanies(): Promise<{
   }
 }
 
+/** Readable by users with `companies.read`; non-system users only their own company row. */
+export async function getCompany(id: number): Promise<{
+  success: boolean;
+  data?: typeof company.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    await requireActionPermission('companies.read');
+    const authContext = await requireActionAuth();
+
+    const row = await db.query.company.findFirst({
+      where: and(eq(company.id, id), isNull(company.deleted_at)),
+    });
+
+    if (!row) {
+      return {
+        success: false,
+        error: 'Empresa no encontrada',
+        errorType: 'validation',
+      };
+    }
+
+    if (
+      !authContext.companyIsSystem &&
+      row.id !== authContext.companyId
+    ) {
+      return {
+        success: false,
+        error: 'Acceso denegado',
+        errorType: 'auth',
+      };
+    }
+
+    return { success: true, data: row };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+      error: 'Error al obtener la empresa',
+      errorType: classifyServerErrorType(e),
+    };
+  }
+}
+
 export async function createCompany(data: CompanyFormData): Promise<{
   success: boolean;
   data?: typeof company.$inferSelect;
@@ -59,21 +100,34 @@ export async function createCompany(data: CompanyFormData): Promise<{
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
-    const validatedData = companySchema.parse(data);
+    const validatedData = companyFormSchema.parse(data);
+    const settings = normalizeCompanySettingsForDb(validatedData.settings);
 
     const [created] = await db
       .insert(company)
       .values({
         name: validatedData.name,
-        address: validatedData.address,
         phone: validatedData.phone,
         email: validatedData.email,
-        logo: validatedData.logo,
+        logo: validatedData.logo || null,
+        street: validatedData.street,
+        interior_number: validatedData.interior_number?.trim()
+          ? validatedData.interior_number.trim()
+          : null,
+        exterior_number: validatedData.exterior_number,
+        neighborhood: validatedData.neighborhood,
+        city: validatedData.city,
+        state: validatedData.state,
+        country: validatedData.country,
+        postal_code: validatedData.postal_code,
+        status: validatedData.status,
+        settings,
         updated_at: new Date(),
       })
       .returning();
 
     revalidatePath('/dashboard/companies');
+    revalidatePath('/dashboard/companies/new');
     return { success: true, data: created };
   } catch (e) {
     console.error(e);
@@ -106,22 +160,35 @@ export async function updateCompany(
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
-    const validatedData = companySchema.parse(data);
+    const validatedData = companyFormSchema.parse(data);
+    const settings = normalizeCompanySettingsForDb(validatedData.settings);
 
     const [updated] = await db
       .update(company)
       .set({
         name: validatedData.name,
-        address: validatedData.address,
         phone: validatedData.phone,
         email: validatedData.email,
-        logo: validatedData.logo,
+        logo: validatedData.logo || null,
+        street: validatedData.street,
+        interior_number: validatedData.interior_number?.trim()
+          ? validatedData.interior_number.trim()
+          : null,
+        exterior_number: validatedData.exterior_number,
+        neighborhood: validatedData.neighborhood,
+        city: validatedData.city,
+        state: validatedData.state,
+        country: validatedData.country,
+        postal_code: validatedData.postal_code,
+        status: validatedData.status,
+        settings,
         updated_at: new Date(),
       })
       .where(eq(company.id, id))
       .returning();
 
     revalidatePath('/dashboard/companies');
+    revalidatePath(`/dashboard/companies/${id}/edit`);
     return { success: true, data: updated };
   } catch (e) {
     console.error(e);

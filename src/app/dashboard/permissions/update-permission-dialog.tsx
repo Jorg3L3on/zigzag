@@ -48,12 +48,14 @@ interface UpdatePermissionDialogProps {
   permission: Permission;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function UpdatePermissionDialog({
   permission,
   open,
   onOpenChange,
+  onSuccess,
 }: UpdatePermissionDialogProps) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const router = useRouter();
@@ -100,6 +102,7 @@ export function UpdatePermissionDialog({
 
     toast.success('Permiso actualizado correctamente');
     onOpenChange(false);
+    onSuccess?.();
     router.refresh();
   }
 

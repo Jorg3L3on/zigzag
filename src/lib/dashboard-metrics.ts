@@ -82,7 +82,7 @@ export const toRevenueByMonthPoints = (
   monthBuckets: Date[],
   revenueByMonthMap: Map<string, number>,
   locale: Locale = es,
-): RevenueByMonthPoint[] =>
+): Array<RevenueByMonthPoint> =>
   monthBuckets.map((m) => {
     const monthKey = format(m, 'yyyy-MM');
     return {

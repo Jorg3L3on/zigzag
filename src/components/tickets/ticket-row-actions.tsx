@@ -7,13 +7,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Pencil, FileDown, FileX } from 'lucide-react';
+import { MoreVertical, Eye, Pencil, FileDown, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import { DeleteTicketButton } from '@/components/delete-ticket-button';
+import {
+  getTicketPaymentStatus,
+} from '@/lib/ticket-payment-status';
 
 interface Ticket {
   id: bigint;
   document: string | null;
+  finished: boolean;
+  total: number | null;
+  paid: number | null;
 }
 
 interface TicketRowActionsProps {
@@ -21,33 +27,11 @@ interface TicketRowActionsProps {
   onDelete?: (id: number) => void;
 }
 
-export function TicketDownloadButton({
-  document,
-}: {
-  document: string | null;
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-8 w-8"
-      onClick={() => {
-        if (document) {
-          window.open(document, '_blank');
-        }
-      }}
-      disabled={!document}
-    >
-      {document ? (
-        <FileDown className="h-4 w-4" />
-      ) : (
-        <FileX className="h-4 w-4 text-muted-foreground" />
-      )}
-    </Button>
-  );
-}
-
 export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
+  const showCollectLink =
+    ticket.finished &&
+    getTicketPaymentStatus(ticket.total, ticket.paid) === 'partial';
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -62,12 +46,40 @@ export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
             Ver detalles
           </DropdownMenuItem>
         </Link>
-        <Link href={`/dashboard/tickets/${ticket.id}/edit`}>
-          <DropdownMenuItem>
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
+        {showCollectLink && (
+          <Link href={`/dashboard/tickets/${ticket.id}#cobranza`}>
+            <DropdownMenuItem>
+              <Banknote className="mr-2 h-4 w-4" />
+              Cobrar saldo
+            </DropdownMenuItem>
+          </Link>
+        )}
+        {!ticket.finished && (
+          <Link href={`/dashboard/tickets/${ticket.id}/edit`}>
+            <DropdownMenuItem>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          </Link>
+        )}
+        {ticket.document ? (
+          <DropdownMenuItem asChild>
+            <a
+              href={ticket.document}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cursor-pointer"
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Ver PDF
+            </a>
           </DropdownMenuItem>
-        </Link>
+        ) : (
+          <DropdownMenuItem disabled>
+            <FileDown className="mr-2 h-4 w-4" />
+            Ver PDF
+          </DropdownMenuItem>
+        )}
         <DeleteTicketButton id={Number(ticket.id)} onDelete={onDelete} />
       </DropdownMenuContent>
     </DropdownMenu>

@@ -14,8 +14,6 @@ import {
   type RevenueByMonthPoint,
 } from '@/lib/dashboard-metrics';
 
-export type { RevenueByMonthPoint };
-
 export interface DashboardMetrics {
   totalTickets: number;
   totalRevenue: number;

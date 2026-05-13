@@ -14,6 +14,7 @@ type TripledNativeDeleteProps = {
   confirmLabel?: string;
   size?: 'sm' | 'md' | 'lg';
   showIcon?: boolean;
+  iconOnly?: boolean;
   className?: string;
 };
 
@@ -49,6 +50,7 @@ export const TripledNativeDelete = ({
   confirmLabel = 'Confirmar',
   size = 'md',
   showIcon = true,
+  iconOnly = false,
   className,
 }: TripledNativeDeleteProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -83,9 +85,9 @@ export const TripledNativeDelete = ({
           <Button
             type="button"
             variant="destructive"
-            size="default"
+            size={iconOnly ? 'icon' : 'default'}
             className={cn(
-              sizeVariants[size],
+              iconOnly ? cancelButtonSizes[size] : sizeVariants[size],
               'cursor-pointer transition-shadow text-white',
               disabled && 'opacity-50 cursor-not-allowed',
             )}
@@ -101,7 +103,7 @@ export const TripledNativeDelete = ({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.15 }}
-                  className="mr-2 flex items-center"
+                  className={cn('flex items-center', !iconOnly && 'mr-2')}
                 >
                   {isExpanded ? (
                     <Check className={iconSizeVariants[size]} />
@@ -111,17 +113,19 @@ export const TripledNativeDelete = ({
                 </motion.span>
               )}
             </AnimatePresence>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={isExpanded ? 'confirm' : 'delete'}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.15 }}
-              >
-                {isExpanded ? confirmLabel : buttonText}
-              </motion.span>
-            </AnimatePresence>
+            {!iconOnly && (
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={isExpanded ? 'confirm' : 'delete'}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {isExpanded ? confirmLabel : buttonText}
+                </motion.span>
+              </AnimatePresence>
+            )}
           </Button>
         </motion.div>
 
