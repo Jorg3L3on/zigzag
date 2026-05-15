@@ -114,3 +114,15 @@ Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-r
 ### Deployment (Vercel)
 
 **`main` = production.** Slice PRs merge to **`feat/<feature-slug>`** (previews). One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+ZigZag is a multi-tenant ticket management / invoicing app. The only required service is **PostgreSQL 16** (local) and the **Next.js dev server** (`npm run dev`, port 3069).
+
+### Non-obvious gotchas
+
+- **PostgreSQL must be started manually**: Run `sudo pg_ctlcluster 16 main start` before any DB commands. The database name is `zigzag`.
+- **Seed user passwords**: The seed script uses pre-existing bcrypt hashes whose plaintext is unknown. To log in locally, update a user's password hash in the DB after seeding: `node -e "require('bcryptjs').hash('YOUR_PASSWORD', 10).then(h => console.log(h))"` then `UPDATE "User" SET password = '<hash>' WHERE email = '<email>';`.
+- **DB setup sequence**: After starting PostgreSQL, run `npm run db:migrate` then `npm run seed`. Use `npx drizzle-kit push --force` only if migrations fail to apply cleanly.
