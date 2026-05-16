@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import {
   role,
   rolePermission,
@@ -30,8 +30,15 @@ export async function getRoles(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('roles.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('roles.read', authContext.companyId);
     const roles = await db.query.role.findMany({
+      where: authContext.companyIsSystem
+        ? isNull(role.deleted_at)
+        : and(
+            isNull(role.deleted_at),
+            eq(role.company_id, authContext.companyId as number),
+          ),
       with: {
         company: true,
         permissions: {
@@ -143,8 +150,9 @@ export async function updateRole(
           name: data.name,
           description: data.description,
           company_id: data.company_id,
+          updated_at: new Date(),
         })
-        .where(eq(role.id, id));
+        .where(and(eq(role.id, id), isNull(role.deleted_at)));
 
       if (data.permissions.length > 0) {
         await tx.insert(rolePermission).values(
@@ -192,7 +200,7 @@ export async function deleteRole(id: number): Promise<{
 
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
-      await tx.delete(role).where(eq(role.id, id));
+      await tx.delete(role).where(and(eq(role.id, id), isNull(role.deleted_at)));
     });
 
     revalidatePath('/dashboard/roles');

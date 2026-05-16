@@ -25,9 +25,15 @@ export async function getCompanies(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('companies.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('companies.read', authContext.companyId);
     const companies = await db.query.company.findMany({
-      where: isNull(company.deleted_at),
+      where: authContext.companyIsSystem
+        ? isNull(company.deleted_at)
+        : and(
+            isNull(company.deleted_at),
+            eq(company.id, authContext.companyId as number),
+          ),
       with: {
         users: true,
       },
@@ -184,7 +190,7 @@ export async function updateCompany(
         settings,
         updated_at: new Date(),
       })
-      .where(eq(company.id, id))
+      .where(and(eq(company.id, id), isNull(company.deleted_at)))
       .returning();
 
     revalidatePath('/dashboard/companies');
@@ -220,7 +226,7 @@ export async function deleteCompany(id: number): Promise<{
     await db
       .update(company)
       .set({ deleted_at: new Date() })
-      .where(eq(company.id, id));
+      .where(and(eq(company.id, id), isNull(company.deleted_at)));
 
     revalidatePath('/dashboard/companies');
     return { success: true };

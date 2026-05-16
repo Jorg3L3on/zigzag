@@ -1,7 +1,7 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
-import { servicesTickets, ticket } from '@/db/schema';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { service, servicesTickets, ticket } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
@@ -85,12 +85,12 @@ const sleep = (ms: number) =>
 const assertTicketAccess = async (
   ticketId: bigint,
   permissionKey: string,
-): Promise<void> => {
+): Promise<number> => {
   const { companyId: effectiveCompanyId } =
     await requireActionPermission(permissionKey);
 
   const ticketRow = await db.query.ticket.findFirst({
-    where: eq(ticket.id, ticketId),
+    where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
 
   if (!ticketRow) {
@@ -99,6 +99,22 @@ const assertTicketAccess = async (
 
   if (ticketRow.company_id !== effectiveCompanyId) {
     throw new AuthorizationError('Access denied to this ticket');
+  }
+
+  return effectiveCompanyId;
+};
+
+const assertServiceAvailable = async (serviceId: number, companyId: number) => {
+  const serviceRow = await db.query.service.findFirst({
+    where: and(
+      eq(service.id, serviceId),
+      eq(service.company_id, companyId),
+      isNull(service.deleted_at),
+    ),
+  });
+
+  if (!serviceRow) {
+    throw new AuthorizationError('Service not found for this company');
   }
 };
 
@@ -113,7 +129,10 @@ export async function getTicketServices(
   try {
     await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.read');
     const ticketServicesRows = await db.query.servicesTickets.findMany({
-      where: eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+      where: and(
+        eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+        isNull(servicesTickets.deleted_at),
+      ),
       with: {
         service: true,
       },
@@ -140,7 +159,11 @@ export async function createServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
+    const companyId = await assertTicketAccess(
+      ticketIdBigInt(ticketId),
+      'tickets.write',
+    );
+    await assertServiceAvailable(data.service_id, companyId);
     const values = {
       ticket_id: ticketIdBigInt(ticketId),
       service_id: data.service_id,
@@ -178,7 +201,10 @@ export async function createServiceTicket(
     }
 
     const full = await db.query.servicesTickets.findFirst({
-      where: eq(servicesTickets.id, serviceTicket.id),
+      where: and(
+        eq(servicesTickets.id, serviceTicket.id),
+        isNull(servicesTickets.deleted_at),
+      ),
       with: { service: true },
     });
 
@@ -219,6 +245,7 @@ export async function updateServiceTicket(
             and(
               eq(servicesTickets.id, serviceTicketId),
               eq(servicesTickets.ticket_id, ticketIdValue),
+              isNull(servicesTickets.deleted_at),
             ),
           )
           .returning();
@@ -252,7 +279,10 @@ export async function updateServiceTicket(
     }
 
     const full = await db.query.servicesTickets.findFirst({
-      where: eq(servicesTickets.id, updated.id),
+      where: and(
+        eq(servicesTickets.id, updated.id),
+        isNull(servicesTickets.deleted_at),
+      ),
       with: { service: true },
     });
 
@@ -284,6 +314,7 @@ export async function deleteServiceTicket(
           and(
             eq(servicesTickets.id, serviceTicketId),
             eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+            isNull(servicesTickets.deleted_at),
           ),
         );
       await syncTicketTotal(tx, ticketIdBigInt(ticketId));

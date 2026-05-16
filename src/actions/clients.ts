@@ -145,7 +145,13 @@ export async function getClient(id: number): Promise<{
     const [row] = await db
       .select()
       .from(client)
-      .where(and(eq(client.id, id), eq(client.company_id, companyId)))
+      .where(
+        and(
+          eq(client.id, id),
+          eq(client.company_id, companyId),
+          isNull(client.deleted_at),
+        ),
+      )
       .limit(1);
 
     if (!row) {

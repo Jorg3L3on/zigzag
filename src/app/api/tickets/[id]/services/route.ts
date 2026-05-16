@@ -1,5 +1,5 @@
-import { and, eq } from 'drizzle-orm';
-import { servicesTickets, ticket } from '@/db/schema';
+import { and, eq, isNull } from 'drizzle-orm';
+import { service, servicesTickets, ticket } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
@@ -17,7 +17,7 @@ async function ensureTicketAccess(ticketId: bigint) {
   }
 
   const ticketRow = await db.query.ticket.findFirst({
-    where: eq(ticket.id, ticketId),
+    where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
 
   if (!ticketRow) {
@@ -34,7 +34,7 @@ async function ensureTicketAccess(ticketId: bigint) {
     return { session, response: fail('Forbidden', 403, 'auth') };
   }
 
-  return { session, response: null };
+  return { session, ticket: ticketRow, response: null };
 }
 
 export async function GET(
@@ -50,7 +50,10 @@ export async function GET(
     }
 
     const ticketServicesRows = await db.query.servicesTickets.findMany({
-      where: eq(servicesTickets.ticket_id, ticketId),
+      where: and(
+        eq(servicesTickets.ticket_id, ticketId),
+        isNull(servicesTickets.deleted_at),
+      ),
       with: {
         service: true,
       },
@@ -83,6 +86,18 @@ export async function POST(
         price: z.number().nonnegative(),
       })
       .parse(body);
+
+    const serviceRow = await db.query.service.findFirst({
+      where: and(
+        eq(service.id, parsed.service_id),
+        eq(service.company_id, access.ticket.company_id as number),
+        isNull(service.deleted_at),
+      ),
+    });
+
+    if (!serviceRow) {
+      return fail('Service not found for this ticket company', 404, 'validation');
+    }
 
     const createdWithDetails = await db.transaction(async (tx) => {
       const [ticketService] = await tx

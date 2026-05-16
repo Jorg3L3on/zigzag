@@ -106,10 +106,11 @@ export async function PUT(
       })
       .where(
         session.user.company_is_system
-          ? eq(service.id, serviceId)
+          ? and(eq(service.id, serviceId), isNull(service.deleted_at))
           : and(
               eq(service.id, serviceId),
               eq(service.company_id, session.user.company_id as number),
+              isNull(service.deleted_at),
             ),
       )
       .returning();
@@ -163,13 +164,15 @@ export async function DELETE(
     }
 
     const [deleted] = await db
-      .delete(service)
+      .update(service)
+      .set({ deleted_at: new Date(), updated_at: new Date() })
       .where(
         session.user.company_is_system
-          ? eq(service.id, serviceId)
+          ? and(eq(service.id, serviceId), isNull(service.deleted_at))
           : and(
               eq(service.id, serviceId),
               eq(service.company_id, session.user.company_id as number),
+              isNull(service.deleted_at),
             ),
       )
       .returning();

@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { fail, ok, requireSession } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
+import { checkPermission } from '@/lib/security';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
@@ -84,6 +85,16 @@ export async function POST(request: NextRequest) {
 
     if (!targetCompanyId) {
       return fail('User company context is required', 400);
+    }
+
+    const canWriteUsers = await checkPermission(
+      session.user.id,
+      targetCompanyId,
+      'users.write',
+    );
+
+    if (!canWriteUsers) {
+      return fail('Forbidden', 403, 'auth');
     }
 
     const hashedPassword = await hash(parsed.password, 10);

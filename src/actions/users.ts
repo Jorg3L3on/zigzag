@@ -40,14 +40,20 @@ export async function getUsers(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('users.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('users.read', authContext.companyId);
     const users = await db.query.user.findMany({
       with: {
         company: true,
         role: true,
       },
       orderBy: [desc(user.created_at)],
-      where: isNull(user.deleted_at),
+      where: authContext.companyIsSystem
+        ? isNull(user.deleted_at)
+        : and(
+            isNull(user.deleted_at),
+            eq(user.company_id, authContext.companyId as number),
+          ),
     });
     return { success: true, data: users as UserWithRelations[] };
   } catch (e) {

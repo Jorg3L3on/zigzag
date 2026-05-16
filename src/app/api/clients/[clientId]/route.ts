@@ -70,6 +70,7 @@ export async function PATCH(
         and(
           eq(client.id, parseInt(clientId, 10)),
           eq(client.company_id, session.user.company_id as number),
+          isNull(client.deleted_at),
         ),
       )
       .returning();
@@ -103,6 +104,7 @@ export async function DELETE(
         and(
           eq(client.id, parseInt(clientId, 10)),
           eq(client.company_id, session.user.company_id as number),
+          isNull(client.deleted_at),
         ),
       )
       .returning();

@@ -1,10 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import {
+  service,
   servicesTickets,
   ticket,
+  ticketAuditEvent,
   ticketPayment,
   type Company,
   type Service,
@@ -24,6 +26,7 @@ import {
   getTicketBalanceDue,
 } from '@/lib/ticket-payment-status';
 import { requireActionPermission } from '@/lib/security';
+import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
 
 const ticketSchema = z.object({
@@ -122,6 +125,72 @@ const assertTicketWritable = async (
   }
 };
 
+const toAuditJson = (value: unknown): unknown => {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(toAuditJson);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, toAuditJson(entry)]),
+    );
+  }
+
+  return value;
+};
+
+type TicketAuditWriter = Pick<typeof db, 'insert'>;
+
+const recordTicketAudit = async (
+  tx: TicketAuditWriter,
+  context: ActionAuthContext,
+  ticketId: bigint,
+  companyId: number | null,
+  eventType: string,
+  payload: Record<string, unknown>,
+) => {
+  await tx.insert(ticketAuditEvent).values({
+    ticket_id: ticketId,
+    company_id: companyId,
+    actor_user_id: BigInt(context.userId),
+    event_type: eventType,
+    payload: toAuditJson(payload) as Record<string, unknown>,
+  });
+};
+
+const assertServicesBelongToCompany = async (
+  serviceIds: number[],
+  companyId: number,
+) => {
+  const uniqueServiceIds = Array.from(new Set(serviceIds));
+  if (uniqueServiceIds.length === 0) {
+    return;
+  }
+
+  const rows = await db
+    .select({ id: service.id })
+    .from(service)
+    .where(
+      and(
+        inArray(service.id, uniqueServiceIds),
+        eq(service.company_id, companyId),
+        isNull(service.deleted_at),
+      ),
+    );
+
+  if (rows.length !== uniqueServiceIds.length) {
+    throw new AuthorizationError('One or more services are unavailable');
+  }
+};
+
 export async function createTicket(
   data: CreateTicketInput,
 ): Promise<{
@@ -132,7 +201,7 @@ export async function createTicket(
 }> {
   try {
     const validatedData = ticketSchema.parse(data);
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'tickets.write',
       validatedData.company_id,
     );
@@ -145,18 +214,31 @@ export async function createTicket(
       document: validatedData.document,
       ticket_date: validatedData.ticket_date,
       company_id: effectiveCompanyId,
+      userId: BigInt(context.userId),
     };
 
-    let created: unknown;
+    let created: TicketRow | undefined;
     try {
-      [created] = await db.insert(ticket).values(values).returning();
+      created = await db.transaction(async (tx) => {
+        const [row] = await tx.insert(ticket).values(values).returning();
+        await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
+          ticket: row,
+        });
+        return row;
+      });
     } catch (error) {
       if (!isTicketPrimaryKeyConflict(error)) {
         throw error;
       }
 
       await syncTicketIdSequence();
-      [created] = await db.insert(ticket).values(values).returning();
+      created = await db.transaction(async (tx) => {
+        const [row] = await tx.insert(ticket).values(values).returning();
+        await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
+          ticket: row,
+        });
+        return row;
+      });
     }
 
     return {
@@ -257,7 +339,11 @@ export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
   try {
     const { companyId } = await requireActionPermission('tickets.read');
     const ticketRow = await db.query.ticket.findFirst({
-      where: and(eq(ticket.id, BigInt(id)), eq(ticket.company_id, companyId)),
+      where: and(
+        eq(ticket.id, BigInt(id)),
+        eq(ticket.company_id, companyId),
+        isNull(ticket.deleted_at),
+      ),
       with: {
         company: true,
         services_tickets: {
@@ -296,7 +382,7 @@ export async function updateTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'tickets.write',
       data.company_id ?? undefined,
     );
@@ -308,6 +394,26 @@ export async function updateTicket(
     const totalFromServices = hasServicesUpdate
       ? calculateTicketTotal(servicesToSync)
       : undefined;
+
+    if (hasServicesUpdate) {
+      await assertServicesBelongToCompany(
+        servicesToSync.map((row) => row.service_id),
+        effectiveCompanyId,
+      );
+    }
+
+    const prior = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+        },
+      },
+    });
 
     const updated = await db.transaction(async (tx) => {
       if (hasServicesUpdate) {
@@ -349,14 +455,40 @@ export async function updateTicket(
       const [row] = await tx
         .update(ticket)
         .set(ticketUpdateData)
-        .where(eq(ticket.id, ticketId))
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
         .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'updated',
+          {
+            before: prior,
+            after: row,
+            servicesChanged: hasServicesUpdate,
+            services: servicesToSync ?? undefined,
+          },
+        );
+      }
 
       return row;
     });
 
     const full = await db.query.ticket.findFirst({
-      where: eq(ticket.id, ticketId),
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
       with: {
         services_tickets: {
           with: {
@@ -383,13 +515,41 @@ export async function deleteTicket(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
-    await assertTicketWritable(BigInt(id), effectiveCompanyId);
-    await db
-      .update(ticket)
-      .set({ deleted_at: new Date() })
-      .where(eq(ticket.id, BigInt(id)));
+    const ticketId = BigInt(id);
+    await assertTicketWritable(ticketId, effectiveCompanyId);
+    const prior = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
+    });
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(ticket)
+        .set({ deleted_at: new Date() })
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
+        .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'deleted',
+          { before: prior, after: row },
+        );
+      }
+    });
 
     return { success: true };
   } catch (e) {
@@ -413,13 +573,17 @@ export async function finishTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
     const prior = await db.query.ticket.findFirst({
-      where: eq(ticket.id, ticketId),
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
     });
     if (prior?.finished) {
       return {
@@ -437,7 +601,13 @@ export async function finishTicket(
           total: total,
           paid: paid,
         })
-        .where(eq(ticket.id, ticketId))
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
         .returning();
 
       if (row && paid > AMOUNT_TOLERANCE) {
@@ -446,6 +616,21 @@ export async function finishTicket(
           amount: paid,
           company_id: row.company_id,
         });
+      }
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'finished',
+          {
+            before: prior,
+            after: row,
+            initialPayment: paid > AMOUNT_TOLERANCE ? paid : 0,
+          },
+        );
       }
 
       return row;
@@ -472,7 +657,7 @@ export async function applyTicketPayment(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
@@ -539,8 +724,32 @@ export async function applyTicketPayment(
       const [row] = await tx
         .update(ticket)
         .set({ paid: newPaid })
-        .where(eq(ticket.id, ticketId))
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
         .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'payment_collected',
+          {
+            before: ticketRow,
+            after: row,
+            payment: {
+              requestedAmount: additionalPaid,
+              appliedAmount,
+            },
+          },
+        );
+      }
 
       return row;
     });

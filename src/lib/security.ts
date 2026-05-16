@@ -107,9 +107,9 @@ export async function checkPermission(
         ),
       );
 
-    // Backward compatibility while permissions are being seeded/migrated.
+    // Local migration escape hatch only; production RBAC must fail closed.
     if (permissionRows.length === 0) {
-      return true;
+      return process.env.ALLOW_MISSING_PERMISSIONS === 'true';
     }
 
     const permitted = await db

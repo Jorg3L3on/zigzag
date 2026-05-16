@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -14,7 +14,7 @@ async function ensureTicketAccess(ticketId: bigint) {
   }
 
   const ticketRow = await db.query.ticket.findFirst({
-    where: eq(ticket.id, ticketId),
+    where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
 
   if (!ticketRow) {
@@ -67,6 +67,7 @@ export async function PUT(
           and(
             eq(servicesTickets.id, serviceTicketId),
             eq(servicesTickets.ticket_id, ticketId),
+            isNull(servicesTickets.deleted_at),
           ),
         )
         .returning();
@@ -78,7 +79,10 @@ export async function PUT(
       await syncTicketTotal(tx, ticketId);
 
       return tx.query.servicesTickets.findFirst({
-        where: eq(servicesTickets.id, serviceTicketId),
+        where: and(
+          eq(servicesTickets.id, serviceTicketId),
+          isNull(servicesTickets.deleted_at),
+        ),
         with: { service: true },
       });
     });
@@ -125,6 +129,7 @@ export async function DELETE(
           and(
             eq(servicesTickets.id, serviceTicketId),
             eq(servicesTickets.ticket_id, ticketId),
+            isNull(servicesTickets.deleted_at),
           ),
         )
         .returning();

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { permission, rolePermission, type Company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
@@ -22,9 +22,18 @@ export async function getPermissions(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('permissions.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('permissions.read', authContext.companyId);
     const permissions = await db.query.permission.findMany({
-      where: isNull(permission.deleted_at),
+      where: authContext.companyIsSystem
+        ? isNull(permission.deleted_at)
+        : and(
+            isNull(permission.deleted_at),
+            or(
+              eq(permission.company_id, authContext.companyId as number),
+              isNull(permission.company_id),
+            ),
+          ),
       with: {
         company: true,
       },
@@ -129,7 +138,13 @@ export async function updatePermission(
         company_id: data.company_id,
         updated_at: new Date(),
       })
-      .where(eq(permission.id, id))
+      .where(
+        and(
+          eq(permission.id, id),
+          eq(permission.company_id, data.company_id),
+          isNull(permission.deleted_at),
+        ),
+      )
       .returning();
     revalidatePath('/dashboard/permissions');
     return { success: true, data: updated };
@@ -158,7 +173,7 @@ export async function deletePermission(id: number): Promise<{
     await db
       .update(permission)
       .set({ deleted_at: new Date() })
-      .where(eq(permission.id, id));
+      .where(and(eq(permission.id, id), isNull(permission.deleted_at)));
 
     revalidatePath('/dashboard/permissions');
     return { success: true };
