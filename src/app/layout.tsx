@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Providers } from '@/components/providers';
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'ZigZag',
@@ -50,7 +56,13 @@ export default function RootLayout({
           <Providers>
             <NetworkStatusBanner />
             {children}
-            <Toaster />
+            <Toaster
+              position="bottom-center"
+              offset={16}
+              mobileOffset={{
+                bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+              }}
+            />
           </Providers>
         </CompanyProvider>
       </body>
