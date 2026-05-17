@@ -145,7 +145,12 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
             <FormItem>
               <FormLabel>Teléfono</FormLabel>
               <FormControl>
-                <Input placeholder="Teléfono del cliente" {...field} />
+                <Input
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="Teléfono del cliente"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
