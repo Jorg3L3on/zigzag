@@ -260,10 +260,11 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
         }}
       >
         <span className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
-          Saldo pendiente
+          {balanceDue > 0 ? 'Saldo pendiente' : 'Total del ticket'}
         </span>
         <span className="text-[18px] font-bold tabular-nums tracking-tight text-white">
-          {data.issuer.currencyCode} {formatMoney(balanceDue)}
+          {data.issuer.currencyCode}{' '}
+          {formatMoney(balanceDue > 0 ? balanceDue : totalAmount)}
         </span>
       </div>
 

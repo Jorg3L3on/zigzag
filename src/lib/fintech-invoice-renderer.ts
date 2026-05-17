@@ -428,12 +428,32 @@ export function renderFintechInvoicePdf(
     text(payload.paymentProgressLabel, margin + progressW - 20, summaryY + 78, 9, COLORS.blue, 'bold', 'right');
     progressBar(margin + 20, summaryY + 52, progressW - 40, 10, payload.paymentProgress);
     text(`${money(currencyCode, payload.paid)} pagado`, margin + 20, summaryY + 28, 8.8, COLORS.muted);
-    text(`${money(currencyCode, payload.balanceDue)} pendiente`, margin + progressW - 20, summaryY + 28, 8.8, COLORS.muted, 'normal', 'right');
+    text(
+      payload.balanceDue > 0
+        ? `${money(currencyCode, payload.balanceDue)} pendiente`
+        : 'Sin saldo pendiente',
+      margin + progressW - 20,
+      summaryY + 28,
+      8.8,
+      COLORS.muted,
+      'normal',
+      'right',
+    );
 
     const bannerY = summaryY - 78;
     gradientRect(margin, bannerY, contentW, 58, 20);
     text(payload.balanceLabel, margin + 24, bannerY + 34, 9.2, '#E0E7FF', 'bold');
-    text(money(currencyCode, payload.balanceDue), margin + 24, bannerY + 13, 18.5, COLORS.white, 'bold');
+    text(
+      money(
+        currencyCode,
+        payload.balanceDue > 0 ? payload.balanceDue : payload.total,
+      ),
+      margin + 24,
+      bannerY + 13,
+      18.5,
+      COLORS.white,
+      'bold',
+    );
     text(payload.dueText, margin + contentW - 24, bannerY + 20, 8.2, '#E0E7FF', 'normal', 'right');
 
     drawFooter();

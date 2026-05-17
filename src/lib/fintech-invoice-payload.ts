@@ -123,7 +123,7 @@ export const buildFintechInvoicePayload = (
       ? format(new Date(ticket.ticket_date), 'dd/MM/yyyy')
       : format(new Date(), 'dd/MM/yyyy'),
     statusLabel: paymentStatus === 'paid' ? 'SALDADO' : 'PENDIENTE',
-    balanceLabel: balanceDue > 0 ? 'SALDO PENDIENTE' : 'SALDO CUBIERTO',
+    balanceLabel: balanceDue > 0 ? 'SALDO PENDIENTE' : 'TOTAL DEL TICKET',
     serviceCountLabel:
       items.length === 1
         ? '1 concepto facturado'

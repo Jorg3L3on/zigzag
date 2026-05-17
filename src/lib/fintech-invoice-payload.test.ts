@@ -95,7 +95,7 @@ describe('fintech invoice payload', () => {
     );
 
     expect(payload.statusLabel).toBe('SALDADO');
-    expect(payload.balanceLabel).toBe('SALDO CUBIERTO');
+    expect(payload.balanceLabel).toBe('TOTAL DEL TICKET');
     expect(payload.paymentProgress).toBe(1);
     expect(payload.balanceDue).toBe(0);
   });
