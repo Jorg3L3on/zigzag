@@ -12,6 +12,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[HEALTH_CHECK]', error);
-    return fail('Health check failed', 503, 'server');
+    return fail('No se pudo verificar el estado del sistema', 503, 'server');
   }
 }

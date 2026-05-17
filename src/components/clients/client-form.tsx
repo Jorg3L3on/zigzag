@@ -54,7 +54,7 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
 
   const onSubmit = async (data: ClientFormValues) => {
     if (!selectedCompany?.id) {
-      toast.error('No hay una empresa seleccionada');
+      toast.error('Selecciona una empresa para continuar. Código: CO006');
       return;
     }
 

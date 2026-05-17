@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useEffect } from 'react';
 import { Resolver } from 'react-hook-form';
 import { useSession } from 'next-auth/react';
+import { getErrorMessageByType } from '@/lib/network-awareness';
 
 const formSchema = z
   .object({
@@ -98,7 +99,12 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
     });
 
     if (result.error) {
-      toast.error(result.error);
+      toast.error(
+        getErrorMessageByType(
+          result.errorType ?? 'server',
+          result.error,
+        ),
+      );
       return;
     }
 

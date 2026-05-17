@@ -1,9 +1,13 @@
 import { ERROR_CATALOG } from '@/lib/error-catalog';
 import {
   AppError,
+  AuthenticationError,
   AuthorizationError,
   buildActionError,
   buildPublicError,
+  handleApiError,
+  handleServerActionError,
+  ValidationError,
 } from '@/lib/errors';
 
 describe('error catalog', () => {
@@ -55,6 +59,37 @@ describe('coded error builders', () => {
       success: false,
       errorCode: 'TC001',
       errorType: 'server',
+    });
+  });
+
+  it('does not expose raw uncoded server-action errors', () => {
+    expect(handleServerActionError(new Error('boom'))).toMatchObject({
+      success: false,
+      errorCode: 'GN001',
+      error: 'Intenta de nuevo en unos momentos. Código: GN001',
+      errorType: 'server',
+    });
+  });
+
+  it('does not expose raw uncoded API errors', () => {
+    expect(handleApiError(new Error('boom'))).toMatchObject({
+      errorCode: 'GN001',
+      error: 'Intenta de nuevo en unos momentos. Código: GN001',
+      errorType: 'server',
+      statusCode: 500,
+    });
+  });
+
+  it('uses generic coded Spanish fallbacks by error class', () => {
+    expect(handleServerActionError(new ValidationError('bad'))).toMatchObject({
+      success: false,
+      errorCode: 'GN003',
+      errorType: 'validation',
+    });
+    expect(handleApiError(new AuthenticationError())).toMatchObject({
+      errorCode: 'AU001',
+      errorType: 'auth',
+      statusCode: 401,
     });
   });
 });

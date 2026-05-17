@@ -129,6 +129,25 @@ function resolvePublicErrorType(
   return classifiedType;
 }
 
+function fallbackCodeForServerError(
+  errorType: ActionErrorType,
+  cause?: unknown,
+): ErrorCode {
+  if (errorType === 'network') {
+    return 'GN002';
+  }
+
+  if (errorType === 'validation') {
+    return 'GN003';
+  }
+
+  if (errorType === 'auth') {
+    return cause instanceof AuthenticationError ? 'AU001' : 'AU002';
+  }
+
+  return 'GN001';
+}
+
 export function buildPublicError(
   code: ErrorCode,
   cause?: unknown,
@@ -185,20 +204,29 @@ export function handleApiError(error: unknown) {
     }
 
     return {
-      error: error.message,
+      ...buildPublicError(
+        fallbackCodeForServerError(classifyServerErrorType(error), error),
+        error,
+      ),
       statusCode: error.statusCode,
     };
   }
 
   if (error instanceof Error) {
     return {
-      error: error.message,
+      ...buildPublicError(
+        fallbackCodeForServerError(classifyServerErrorType(error), error),
+        error,
+      ),
       statusCode: 500,
     };
   }
 
   return {
-    error: 'An unexpected error occurred',
+    ...buildPublicError(
+      fallbackCodeForServerError(classifyServerErrorType(error), error),
+      error,
+    ),
     statusCode: 500,
   };
 }
@@ -213,26 +241,26 @@ export function handleServerActionError(error: unknown) {
       return buildActionError(error.errorCode, error);
     }
 
-    return {
-      success: false,
-      error: error.message,
+    return buildActionError(
+      fallbackCodeForServerError(errorType, error),
+      error,
       errorType,
-    };
+    );
   }
 
   if (error instanceof Error) {
-    return {
-      success: false,
-      error: error.message,
+    return buildActionError(
+      fallbackCodeForServerError(errorType, error),
+      error,
       errorType,
-    };
+    );
   }
 
-  return {
-    success: false,
-    error: 'An unexpected error occurred',
+  return buildActionError(
+    fallbackCodeForServerError(errorType, error),
+    error,
     errorType,
-  };
+  );
 }
 
 export function coerceErrorCode(value: unknown, fallback: ErrorCode): ErrorCode {

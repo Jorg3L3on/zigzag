@@ -32,11 +32,11 @@ import { z } from 'zod';
 
 const ticketSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'Client name is required'),
-  client_tel: z.string().min(1, 'Client phone is required'),
+  client_name: z.string().min(1, 'El nombre del cliente es obligatorio'),
+  client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio'),
   email: z
     .string()
-    .email('Invalid email address')
+    .email('El correo electrónico no es válido')
     .optional()
     .or(z.literal('')),
   document: z.string().optional(),

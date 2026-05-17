@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FormattedDate } from '@/components/formatted-date';
+import { getErrorMessageByType } from '@/lib/network-awareness';
 
 type TicketPaymentHistoryRow = {
   id: number;
@@ -61,11 +62,11 @@ export const TicketPaymentCollectSection = ({
   const handleApplyPayment = () => {
     const additional = parseAmount(amountInput);
     if (additional <= 0) {
-      toast.error('Ingresa un monto mayor a cero');
+      toast.error('Ingresa un monto mayor a cero. Código: TC009');
       return;
     }
     if (additional > balanceDue + 1e-9) {
-      toast.error('El monto no puede superar el saldo pendiente');
+      toast.error('El monto no puede superar el saldo pendiente. Código: TC009');
       return;
     }
 
@@ -77,7 +78,12 @@ export const TicketPaymentCollectSection = ({
         router.refresh();
         return;
       }
-      toast.error(result.error ?? 'No se pudo registrar el cobro');
+      toast.error(
+        getErrorMessageByType(
+          result.errorType ?? 'server',
+          result.error ?? 'No se pudo registrar el cobro',
+        ),
+      );
     });
   };
 
@@ -92,7 +98,12 @@ export const TicketPaymentCollectSection = ({
         router.refresh();
         return;
       }
-      toast.error(result.error ?? 'No se pudo saldar el ticket');
+      toast.error(
+        getErrorMessageByType(
+          result.errorType ?? 'server',
+          result.error ?? 'No se pudo saldar el ticket',
+        ),
+      );
     });
   };
 

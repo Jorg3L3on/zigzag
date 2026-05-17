@@ -32,8 +32,9 @@ export function fail(
     );
   }
 
+  const payload = buildPublicError('GN001', undefined, errorType);
   return NextResponse.json(
-    { success: false, error, ...(errorType ? { errorType } : {}) },
+    { success: false, ...payload, ...(errorType ? { errorType } : {}) },
     { status },
   );
 }

@@ -59,7 +59,7 @@ export function ServiceForm({ onSuccess, onCancel }: ServiceFormProps) {
 
   const handleSubmit = async (data: ServiceFormValues) => {
     if (!selectedCompany?.id) {
-      toast.error('No hay una empresa seleccionada');
+      toast.error('Selecciona una empresa para continuar. Código: CO006');
       return;
     }
 

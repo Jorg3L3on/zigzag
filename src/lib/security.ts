@@ -182,13 +182,13 @@ export async function requireActionPermission(
 
 // Input validation schemas
 export const commonSchemas = {
-  id: z.number().positive('ID must be a positive number'),
-  email: z.string().email('Invalid email format'),
-  phone: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Invalid phone number'),
-  name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
-  description: z.string().max(500, 'Description too long').optional(),
-  price: z.number().min(0, 'Price must be non-negative'),
-  quantity: z.number().int().min(1, 'Quantity must be at least 1'),
+  id: z.number().positive('El ID debe ser un número positivo'),
+  email: z.string().email('El correo electrónico no es válido'),
+  phone: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'El teléfono no es válido'),
+  name: z.string().min(1, 'El nombre es obligatorio').max(100, 'El nombre es demasiado largo'),
+  description: z.string().max(500, 'La descripción es demasiado larga').optional(),
+  price: z.number().min(0, 'El precio no puede ser negativo'),
+  quantity: z.number().int().min(1, 'La cantidad debe ser al menos 1'),
 } as const;
 
 // CSRF protection helper

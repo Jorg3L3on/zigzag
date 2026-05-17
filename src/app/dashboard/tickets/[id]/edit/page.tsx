@@ -55,6 +55,11 @@ import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 import { TripledPageHeader, TripledStepper } from '@/components/tripled';
 import { renderElementToPdfBlob } from '@/lib/pdf-export';
+import {
+  buildToastErrorContent,
+  classifyClientError,
+  getErrorMessageByType,
+} from '@/lib/network-awareness';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -176,12 +181,22 @@ export default function EditTicketPage({
             }
           }
         } else {
-          toast.error('No se pudo cargar el ticket');
+          const errorContent = buildToastErrorContent(
+            data,
+            'No se pudo cargar el ticket',
+            classifyClientError(null, response.status, data.errorType),
+          );
+          toast.error(errorContent.title, {
+            description: errorContent.description,
+          });
           router.push('/dashboard/tickets');
         }
       } catch (error: unknown) {
         console.error('Error fetching ticket:', error);
-        toast.error('Ocurrió un error al cargar el ticket');
+        const errorType = classifyClientError(error);
+        toast.error(
+          getErrorMessageByType(errorType, 'Ocurrió un error al cargar el ticket'),
+        );
         router.push('/dashboard/tickets');
       }
     };
@@ -231,10 +246,17 @@ export default function EditTicketPage({
         toast.success('Ticket actualizado correctamente');
         router.push('/dashboard/tickets');
       } else {
-        toast.error('No se pudo actualizar el ticket');
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'No se pudo actualizar el ticket',
+          ),
+        );
       }
-    } catch {
-      toast.error('Ocurrió un error');
+    } catch (error) {
+      const errorType = classifyClientError(error);
+      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
     }
   }
 
@@ -262,7 +284,7 @@ export default function EditTicketPage({
         const total = calculateTotal();
 
         if (!isFullyPaid && finalPaidAmount > total) {
-          toast.error('El monto pagado no puede ser mayor al total');
+          toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
           return;
         }
 
@@ -278,12 +300,21 @@ export default function EditTicketPage({
           router.replace(`/dashboard/tickets/${resolvedParams.id}`);
           router.refresh();
         } else {
-          toast.error('No se pudo generar el PDF');
+          const errorType = classifyClientError(null, undefined, result.errorType);
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              result.error || 'No se pudo generar el PDF',
+            ),
+          );
         }
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Ocurrió un error al generar el PDF');
+      const errorType = classifyClientError(error);
+      toast.error(
+        getErrorMessageByType(errorType, 'Ocurrió un error al generar el PDF'),
+      );
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -309,7 +340,7 @@ export default function EditTicketPage({
       toast.success('PDF descargado correctamente');
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      toast.error('No se pudo descargar el PDF');
+      toast.error('No se pudo descargar el PDF. Código: PDF002');
     } finally {
       setIsGeneratingPdf(false);
     }

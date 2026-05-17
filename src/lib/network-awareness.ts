@@ -115,11 +115,15 @@ export function getErrorMessageByType(
     return 'Ocurrió un error del servidor. Intenta de nuevo en unos momentos. Código: GN001';
   }
 
+  if (errorType === 'validation') {
+    return 'Revisa los campos marcados e intenta de nuevo. Código: GN003';
+  }
+
   if (errorType === 'unknown') {
     return 'No se pudo completar la operación. Intenta de nuevo. Código: GN001';
   }
 
-  return `${fallbackMessage} Código: GN001`;
+  return `${fallbackMessage} Código: GN003`;
 }
 
 function fallbackCodeForType(errorType: ActionErrorType): ErrorCode {
@@ -129,6 +133,10 @@ function fallbackCodeForType(errorType: ActionErrorType): ErrorCode {
 
   if (errorType === 'auth') {
     return 'AU002';
+  }
+
+  if (errorType === 'validation') {
+    return 'GN003';
   }
 
   return 'GN001';

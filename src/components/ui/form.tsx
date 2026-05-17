@@ -142,6 +142,18 @@ const FormDescription = React.forwardRef<
 })
 FormDescription.displayName = "FormDescription"
 
+function withValidationCode(message: React.ReactNode) {
+  if (typeof message !== "string") {
+    return message
+  }
+
+  if (message.includes("Código:")) {
+    return message
+  }
+
+  return `${message} Código: GN003`
+}
+
 const FormMessage = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
@@ -160,7 +172,7 @@ const FormMessage = React.forwardRef<
       className={cn("text-[0.8rem] font-medium text-destructive", className)}
       {...props}
     >
-      {body}
+      {withValidationCode(body)}
     </p>
   )
 })

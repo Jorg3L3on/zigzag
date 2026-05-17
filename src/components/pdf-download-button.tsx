@@ -25,7 +25,7 @@ export function PDFDownloadButton({
 
   const handleDownload = async () => {
     if (!pdfRef.current) {
-      toast.error('No se pudo preparar el PDF');
+      toast.error('No se pudo preparar el PDF. Código: PDF001');
       return;
     }
 
@@ -43,7 +43,7 @@ export function PDFDownloadButton({
       toast.success('PDF descargado correctamente');
     } catch (error) {
       console.error('Error generating ticket PDF:', error);
-      toast.error('No se pudo generar el PDF');
+      toast.error('No se pudo generar el PDF. Código: PDF001');
     } finally {
       setIsGenerating(false);
     }

@@ -34,6 +34,7 @@ import {
   type DashboardMetrics,
 } from '@/actions/dashboard';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
+import { getErrorDisplayMessage } from '@/lib/network-awareness';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 3, label: '3 meses' },
@@ -101,7 +102,13 @@ export const DashboardMetricsClient = () => {
       }
       setLoading(false);
       if (!res.success || !res.data) {
-        setError(res.error ?? 'No se pudieron cargar las métricas.');
+        setError(
+          getErrorDisplayMessage(
+            res,
+            'No se pudieron cargar las métricas',
+            res.errorType,
+          ),
+        );
         return;
       }
       setError(null);

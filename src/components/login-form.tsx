@@ -38,7 +38,7 @@ export function LoginForm({
       });
 
       if (result?.error) {
-        setError('Email o contraseña incorrectos');
+        setError('Correo o contraseña incorrectos. Código: AU001');
         return;
       }
 
@@ -46,7 +46,7 @@ export function LoginForm({
       router.refresh();
     } catch (e) {
       console.error(e);
-      setError('Algo salió mal. Por favor, inténtalo de nuevo.');
+      setError('No se pudo iniciar sesión. Intenta de nuevo. Código: GN001');
     } finally {
       setIsLoading(false);
     }
@@ -60,8 +60,8 @@ export function LoginForm({
           <a href="#" className="flex flex-col items-center gap-2 font-medium">
             <div className="flex h-20 w-20 items-center justify-center rounded-md">
               <Image
-                src="/favicon.ico"
-                alt="zigzag logo"
+                src="/logo.png"
+                alt="Logo de ZigZag"
                 width={80}
                 height={80}
                 className="size-20"

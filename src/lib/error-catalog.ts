@@ -156,6 +156,13 @@ export const ERROR_CATALOG = {
     message: 'Verifica tu conexión a internet e intenta de nuevo.',
     type: 'network',
   },
+  GN003: {
+    code: 'GN003',
+    module: 'generic',
+    title: 'Datos inválidos',
+    message: 'Revisa los campos marcados e intenta de nuevo.',
+    type: 'validation',
+  },
   PDF001: {
     code: 'PDF001',
     module: 'pdf',

@@ -126,7 +126,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
 
   const handleAddService = async () => {
     if (!selectedService || !quantity || !price) {
-      toast.error('Por favor complete todos los campos');
+      toast.error('Completa todos los campos para continuar. Código: TS002');
       return;
     }
 
