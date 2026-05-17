@@ -29,6 +29,13 @@
       "when": 1778947200000,
       "tag": "0003_company_status_ticket_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778976000000,
+      "tag": "0004_rbac_foreign_keys",
+      "breakpoints": true
     }
   ]
 }

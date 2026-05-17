@@ -29,6 +29,7 @@ import {
   buildTicketPdfFileName,
 } from '@/lib/ticket-pdf-data';
 import { TicketPaymentCollectSection } from '@/components/tickets/ticket-payment-collect-section';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -38,6 +39,7 @@ export default async function TicketDetailsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePagePermission('tickets.read');
   const { id } = await params;
   const result = await getTicketById(Number(id));
 

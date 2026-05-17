@@ -19,6 +19,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
   title: 'Editar Cliente',
@@ -32,6 +33,7 @@ interface EditClientPageProps {
 }
 
 export default async function EditClientPage({ params }: EditClientPageProps) {
+  await requirePagePermission('clients.write');
   const { id } = await params;
   const result = await getClient(parseInt(id));
 

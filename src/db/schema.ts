@@ -64,7 +64,7 @@ export const role = pgTable(
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
-    company_id: integer('company_id'),
+    company_id: integer('company_id').references(() => company.id),
   },
   (t) => [
     uniqueIndex('Role_name_key').on(t.name),
@@ -83,7 +83,7 @@ export const permission = pgTable(
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
-    company_id: integer('company_id'),
+    company_id: integer('company_id').references(() => company.id),
   },
   (t) => [
     uniqueIndex('Permission_name_key').on(t.name),
@@ -108,8 +108,8 @@ export const user = pgTable(
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
-    company_id: integer('company_id'),
-    role_id: integer('role_id'),
+    company_id: integer('company_id').references(() => company.id),
+    role_id: integer('role_id').references(() => role.id),
   },
   (t) => [
     uniqueIndex('User_email_key').on(t.email),
@@ -242,8 +242,12 @@ export const ticketAuditEvent = pgTable(
 export const rolePermission = pgTable(
   'RolePermission',
   {
-    role_id: integer('role_id').notNull(),
-    permission_id: integer('permission_id').notNull(),
+    role_id: integer('role_id')
+      .notNull()
+      .references(() => role.id),
+    permission_id: integer('permission_id')
+      .notNull()
+      .references(() => permission.id),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),

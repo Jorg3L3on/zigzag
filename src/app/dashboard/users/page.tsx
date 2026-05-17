@@ -1,10 +1,13 @@
 import { TripledPageHeader } from '@/components/tripled';
 import { UsersList } from '@/components/users/users-list';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  await requirePagePermission('users.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Usuarios' }]} />

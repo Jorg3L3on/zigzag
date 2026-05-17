@@ -17,13 +17,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
   title: 'Nueva empresa',
   description: 'Registrar una nueva empresa',
 };
 
-export default function NewCompanyPage() {
+export default async function NewCompanyPage() {
+  await requirePagePermission('companies.write');
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2">

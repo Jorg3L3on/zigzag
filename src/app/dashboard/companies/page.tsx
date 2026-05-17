@@ -1,10 +1,13 @@
 import { TripledPageHeader } from '@/components/tripled';
 import { CompaniesList } from '@/components/companies/companies-list';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default function CompaniesPage() {
+export default async function CompaniesPage() {
+  await requirePagePermission('companies.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Empresas' }]} />
