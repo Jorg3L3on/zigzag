@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Loader2, Pencil, Trash2, Factory, Globe2 } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
+import { DeleteCompanyDialog } from '@/app/dashboard/companies/delete-company-dialog';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -39,6 +40,10 @@ export function CompaniesList() {
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [companyToDelete, setCompanyToDelete] = React.useState<Company | null>(
+    null,
+  );
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
@@ -112,6 +117,11 @@ export function CompaniesList() {
   const handleCreateCompanyClick = () => {
     router.push('/dashboard/companies/new');
   };
+
+  const openDeleteDialog = React.useCallback((company: Company) => {
+    setCompanyToDelete(company);
+    setDeleteDialogOpen(true);
+  }, []);
 
   const systemCompanyId = React.useMemo(
     () => selectedCompany?.id ?? null,
@@ -236,7 +246,17 @@ export function CompaniesList() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      {/* Delete remains on row actions in table view; mobile just edits */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Eliminar ${companyRow.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDeleteDialog(companyRow);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
                   <dl className="mt-3 space-y-1.5 text-sm">
@@ -337,6 +357,22 @@ export function CompaniesList() {
           </>
         )}
       </TripledDataPanel>
+
+      {companyToDelete ? (
+        <DeleteCompanyDialog
+          company={companyToDelete}
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) {
+              setCompanyToDelete(null);
+            }
+          }}
+          onDeleted={() => {
+            void fetchCompanies();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

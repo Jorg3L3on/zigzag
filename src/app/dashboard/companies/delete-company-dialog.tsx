@@ -19,12 +19,14 @@ interface DeleteCompanyDialogProps {
   company: Company;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDeleted?: () => void;
 }
 
 export function DeleteCompanyDialog({
   company,
   open,
   onOpenChange,
+  onDeleted,
 }: DeleteCompanyDialogProps) {
   const router = useRouter();
 
@@ -42,6 +44,7 @@ export function DeleteCompanyDialog({
     }
     toast.success('Empresa eliminada correctamente');
     onOpenChange(false);
+    onDeleted?.();
     router.refresh();
   }
 
