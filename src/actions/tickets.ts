@@ -17,7 +17,8 @@ import {
 import { db } from '@/lib/db';
 import {
   AuthorizationError,
-  classifyServerErrorType,
+  buildActionError,
+  handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
 import { calculateTicketTotal } from '@/lib/ticket-financials';
@@ -83,7 +84,13 @@ export type TicketDetailData = TicketRow & {
 
 export type GetTicketByIdResult =
   | { success: true; data: TicketDetailData }
-  | { success: false; error: string; errorType?: ActionErrorType };
+  | {
+      success: false;
+      error: string;
+      errorCode?: string;
+      errorTitle?: string;
+      errorType?: ActionErrorType;
+    };
 
 type PgError = {
   code?: string;
@@ -246,20 +253,10 @@ export async function createTicket(
       data: created as unknown as Ticket,
     };
   } catch (error) {
-    console.error('Error creating ticket:', error);
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', error.issues);
-      return {
-        success: false,
-        error: 'Invalid ticket data',
-        errorType: 'validation',
-      };
+      return handleCodedServerActionError('tickets.create.validation', 'TC009', error);
     }
-    return {
-      success: false,
-      error: 'Error creating ticket',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('tickets.create', 'TC001', error);
   }
 }
 
@@ -293,12 +290,7 @@ export async function getTickets(
 
     return { success: true, data: tickets as TicketDetailData[] };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener los tickets',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.list.with-relations', 'TC002', e);
   }
 }
 
@@ -326,24 +318,28 @@ export async function getTicketsList(
 
     return { success: true, data: tickets as Ticket[] };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener los tickets',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.list', 'TC002', e);
   }
 }
 
-export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
+export async function getTicketById(
+  id: number,
+  requestedCompanyId?: number | null,
+): Promise<GetTicketByIdResult> {
   try {
-    const { companyId } = await requireActionPermission('tickets.read');
+    const { context, companyId } = await requireActionPermission(
+      'tickets.read',
+      requestedCompanyId,
+    );
     const ticketRow = await db.query.ticket.findFirst({
-      where: and(
-        eq(ticket.id, BigInt(id)),
-        eq(ticket.company_id, companyId),
-        isNull(ticket.deleted_at),
-      ),
+      where:
+        context.companyIsSystem && requestedCompanyId == null
+          ? and(eq(ticket.id, BigInt(id)), isNull(ticket.deleted_at))
+          : and(
+              eq(ticket.id, BigInt(id)),
+              eq(ticket.company_id, companyId),
+              isNull(ticket.deleted_at),
+            ),
       with: {
         company: true,
         services_tickets: {
@@ -358,17 +354,12 @@ export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
     });
 
     if (!ticketRow) {
-      return { success: false, error: 'Ticket no encontrado', errorType: 'validation' };
+      return buildActionError('TC008');
     }
 
     return { success: true, data: ticketRow as TicketDetailData };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.get', 'TC003', e);
   }
 }
 
@@ -500,12 +491,7 @@ export async function updateTicket(
 
     return { success: true, data: full ?? updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al actualizar el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.update', 'TC004', e);
   }
 }
 
@@ -553,12 +539,7 @@ export async function deleteTicket(id: number): Promise<{
 
     return { success: true };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al eliminar el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.delete', 'TC005', e);
   }
 }
 
@@ -586,11 +567,7 @@ export async function finishTicket(
       ),
     });
     if (prior?.finished) {
-      return {
-        success: false,
-        error: 'Este ticket ya está finalizado',
-        errorType: 'validation',
-      };
+      return buildActionError('TC006', undefined, 'validation');
     }
 
     const updated = await db.transaction(async (tx) => {
@@ -638,12 +615,7 @@ export async function finishTicket(
 
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al finalizar el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }
 }
 
@@ -663,11 +635,7 @@ export async function applyTicketPayment(
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
     if (!Number.isFinite(additionalPaid) || additionalPaid <= 0) {
-      return {
-        success: false,
-        error: 'El monto debe ser mayor a cero',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const ticketRow = await db.query.ticket.findFirst({
@@ -675,20 +643,11 @@ export async function applyTicketPayment(
     });
 
     if (!ticketRow) {
-      return {
-        success: false,
-        error: 'Ticket no encontrado',
-        errorType: 'validation',
-      };
+      return buildActionError('TC008');
     }
 
     if (!ticketRow.finished) {
-      return {
-        success: false,
-        error:
-          'Solo se pueden registrar cobros adicionales en tickets finalizados',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const totalAmount = ticketRow.total ?? 0;
@@ -696,22 +655,14 @@ export async function applyTicketPayment(
     const balanceDue = getTicketBalanceDue(ticketRow.total, ticketRow.paid);
 
     if (balanceDue <= 0) {
-      return {
-        success: false,
-        error: 'Este ticket ya no tiene saldo pendiente',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const newPaid = Math.min(totalAmount, currentPaid + additionalPaid);
     const appliedAmount = newPaid - currentPaid;
 
     if (appliedAmount <= AMOUNT_TOLERANCE) {
-      return {
-        success: false,
-        error: 'No hay saldo aplicable con ese monto',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const updated = await db.transaction(async (tx) => {
@@ -760,11 +711,6 @@ export async function applyTicketPayment(
 
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al registrar el cobro',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
   }
 }

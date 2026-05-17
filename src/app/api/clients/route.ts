@@ -1,12 +1,19 @@
 import { desc, eq, and, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
-import { fail, ok, requireSession } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
+    const companyIdParam = new URL(request.url).searchParams.get('company_id');
+    const requestedCompanyId = companyIdParam
+      ? Number.parseInt(companyIdParam, 10)
+      : undefined;
+    const { unauthorized, companyId } = await requireApiPermission(
+      'clients.read',
+      requestedCompanyId,
+    );
+    if (unauthorized) {
       return unauthorized;
     }
 
@@ -15,7 +22,7 @@ export async function GET() {
       .from(client)
       .where(
         and(
-          eq(client.company_id, session.user.company_id as number),
+          eq(client.company_id, companyId as number),
           isNull(client.deleted_at),
         ),
       )
@@ -24,22 +31,24 @@ export async function GET() {
     return ok(clients);
   } catch (error) {
     console.error('[CLIENTS_GET]', error);
-    return fail('Internal error', 500, 'server');
+    return fail('CL001', 500, 'server');
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
+    const body = await req.json();
+    const { name, email, phone, document, address, company_id } = body;
+    const { unauthorized, companyId } = await requireApiPermission(
+      'clients.write',
+      typeof company_id === 'number' ? company_id : undefined,
+    );
+    if (unauthorized) {
       return unauthorized;
     }
 
-    const body = await req.json();
-    const { name, email, phone, document, address } = body;
-
     if (!name) {
-      return fail('Name is required', 400, 'validation');
+      return fail('CL007', 400, 'validation');
     }
 
     const [created] = await db
@@ -50,13 +59,13 @@ export async function POST(req: Request) {
         phone,
         document,
         address,
-        company_id: session.user.company_id as number,
+        company_id: companyId as number,
       })
       .returning();
 
     return ok(created, 201);
   } catch (error) {
     console.error('[CLIENTS_POST]', error);
-    return fail('Internal error', 500, 'server');
+    return fail('CL003', 500, 'server');
   }
 }

@@ -1,31 +1,33 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { convertBigIntToString } from '@/lib/utils';
 import { z } from 'zod';
-import { fail, ok } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
-async function ensureTicketAccess(ticketId: bigint) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { response: fail('Unauthorized', 401, 'auth') };
-  }
-
+async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
   const ticketRow = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
 
   if (!ticketRow) {
-    return { response: fail('Ticket not found', 404, 'validation') };
+    return { response: fail('TC008', 404, 'validation') };
+  }
+
+  const { session, unauthorized } = await requireApiPermission(
+    permissionName,
+    ticketRow.company_id,
+  );
+  if (unauthorized || !session) {
+    return { response: unauthorized };
   }
 
   if (
     !session.user.company_is_system &&
     ticketRow.company_id !== session.user.company_id
   ) {
-    return { response: fail('Forbidden', 403, 'auth') };
+    return { response: fail('AU002', 403, 'auth') };
   }
 
   return { response: null };
@@ -40,10 +42,10 @@ export async function PUT(
     const ticketId = BigInt(params.id);
     const serviceTicketId = Number.parseInt(params.serviceId, 10);
     if (Number.isNaN(serviceTicketId)) {
-      return fail('Invalid service id', 400, 'validation');
+      return fail('TS003', 400, 'validation');
     }
 
-    const access = await ensureTicketAccess(ticketId);
+    const access = await ensureTicketAccess(ticketId, 'tickets.write');
     if (access.response) {
       return access.response;
     }
@@ -88,20 +90,16 @@ export async function PUT(
     });
 
     if (!full) {
-      return fail('Ticket service not found', 404, 'validation');
+      return fail('TS005', 404, 'validation');
     }
 
     return ok(convertBigIntToString(full));
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return fail(
-        error.issues[0]?.message ?? 'Invalid payload',
-        400,
-        'validation',
-      );
+      return fail('TS003', 400, 'validation');
     }
     console.error('Error updating ticket service:', error);
-    return fail('Failed to update ticket service', 500, 'server');
+    return fail('TS003', 500, 'server');
   }
 }
 
@@ -114,10 +112,10 @@ export async function DELETE(
     const ticketId = BigInt(params.id);
     const serviceTicketId = Number.parseInt(params.serviceId, 10);
     if (Number.isNaN(serviceTicketId)) {
-      return fail('Invalid service id', 400, 'validation');
+      return fail('TS004', 400, 'validation');
     }
 
-    const access = await ensureTicketAccess(ticketId);
+    const access = await ensureTicketAccess(ticketId, 'tickets.write');
     if (access.response) {
       return access.response;
     }
@@ -143,12 +141,12 @@ export async function DELETE(
     });
 
     if (!deleted) {
-      return fail('Ticket service not found', 404, 'validation');
+      return fail('TS005', 404, 'validation');
     }
 
     return ok({ deleted: true });
   } catch (error) {
     console.error('Error deleting ticket service:', error);
-    return fail('Failed to delete ticket service', 500, 'server');
+    return fail('TS004', 500, 'server');
   }
 }

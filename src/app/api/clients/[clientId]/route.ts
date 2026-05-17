@@ -1,8 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { fail, ok, requireSession } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
 export async function GET(
   req: Request,
@@ -10,8 +9,12 @@ export async function GET(
 ) {
   try {
     const { clientId } = await context.params;
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
+    const requestedCompanyId = new URL(req.url).searchParams.get('company_id');
+    const { unauthorized, companyId } = await requireApiPermission(
+      'clients.read',
+      requestedCompanyId ? Number.parseInt(requestedCompanyId, 10) : undefined,
+    );
+    if (unauthorized) {
       return unauthorized;
     }
 
@@ -21,20 +24,20 @@ export async function GET(
       .where(
         and(
           eq(client.id, parseInt(clientId, 10)),
-          eq(client.company_id, session.user.company_id as number),
+          eq(client.company_id, companyId as number),
           isNull(client.deleted_at),
         ),
       )
       .limit(1);
 
     if (!row) {
-      return fail('Client not found', 404, 'validation');
+      return fail('CL006', 404, 'validation');
     }
 
     return ok(row);
   } catch (error) {
     console.error('[CLIENT_GET]', error);
-    return fail('Internal error', 500, 'server');
+    return fail('CL002', 500, 'server');
   }
 }
 
@@ -44,16 +47,22 @@ export async function PATCH(
 ) {
   try {
     const { clientId } = await context.params;
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
+    const body = await req.json();
+    const { name, email, phone, document, address, company_id } = body;
+    const requestedCompanyId =
+      typeof company_id === 'number'
+        ? company_id
+        : Number.parseInt(new URL(req.url).searchParams.get('company_id') ?? '', 10);
+    const { unauthorized, companyId } = await requireApiPermission(
+      'clients.write',
+      Number.isNaN(requestedCompanyId) ? undefined : requestedCompanyId,
+    );
+    if (unauthorized) {
       return unauthorized;
     }
 
-    const body = await req.json();
-    const { name, email, phone, document, address } = body;
-
     if (!name) {
-      return fail('Name is required', 400, 'validation');
+      return fail('CL007', 400, 'validation');
     }
 
     const [updated] = await db
@@ -69,20 +78,20 @@ export async function PATCH(
       .where(
         and(
           eq(client.id, parseInt(clientId, 10)),
-          eq(client.company_id, session.user.company_id as number),
+          eq(client.company_id, companyId as number),
           isNull(client.deleted_at),
         ),
       )
       .returning();
 
     if (!updated) {
-      return fail('Client not found', 404, 'validation');
+      return fail('CL006', 404, 'validation');
     }
 
     return ok(updated);
   } catch (error) {
     console.error('[CLIENT_PATCH]', error);
-    return fail('Internal error', 500, 'server');
+    return fail('CL004', 500, 'server');
   }
 }
 
@@ -92,8 +101,12 @@ export async function DELETE(
 ) {
   try {
     const { clientId } = await context.params;
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
+    const requestedCompanyId = new URL(req.url).searchParams.get('company_id');
+    const { unauthorized, companyId } = await requireApiPermission(
+      'clients.write',
+      requestedCompanyId ? Number.parseInt(requestedCompanyId, 10) : undefined,
+    );
+    if (unauthorized) {
       return unauthorized;
     }
 
@@ -103,18 +116,18 @@ export async function DELETE(
       .where(
         and(
           eq(client.id, parseInt(clientId, 10)),
-          eq(client.company_id, session.user.company_id as number),
+          eq(client.company_id, companyId as number),
           isNull(client.deleted_at),
         ),
       )
       .returning();
     if (!deleted) {
-      return fail('Client not found', 404, 'validation');
+      return fail('CL006', 404, 'validation');
     }
 
     return ok({ deleted: true });
   } catch (error) {
     console.error('[CLIENT_DELETE]', error);
-    return fail('Internal error', 500, 'server');
+    return fail('CL005', 500, 'server');
   }
 }

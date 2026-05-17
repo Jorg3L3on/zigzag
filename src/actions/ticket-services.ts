@@ -6,7 +6,8 @@ import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   AuthorizationError,
-  classifyServerErrorType,
+  buildActionError,
+  handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
 import { requireActionPermission } from '@/lib/security';
@@ -140,12 +141,7 @@ export async function getTicketServices(
 
     return { success: true, data: ticketServicesRows as ServiceTicket[] };
   } catch (error) {
-    console.error('Error fetching ticket services:', error);
-    return {
-      success: false,
-      error: 'Error al cargar los servicios del ticket',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('ticket-services.list', 'TS001', error);
   }
 }
 
@@ -193,11 +189,7 @@ export async function createServiceTicket(
     });
 
     if (!serviceTicket) {
-      return {
-        success: false,
-        error: 'No se pudo crear el servicio del ticket',
-        errorType: 'server',
-      };
+      return buildActionError('TS002');
     }
 
     const full = await db.query.servicesTickets.findFirst({
@@ -211,12 +203,7 @@ export async function createServiceTicket(
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
-    console.error('Error creating service ticket:', error);
-    return {
-      success: false,
-      error: 'Error al agregar el servicio al ticket',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('ticket-services.create', 'TS002', error);
   }
 }
 
@@ -271,11 +258,7 @@ export async function updateServiceTicket(
     }
 
     if (!updated) {
-      return {
-        success: false,
-        error: 'No se pudo actualizar el servicio del ticket',
-        errorType: 'server',
-      };
+      return buildActionError('TS003');
     }
 
     const full = await db.query.servicesTickets.findFirst({
@@ -289,15 +272,7 @@ export async function updateServiceTicket(
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
-    console.error('Error updating service ticket:', error);
-    const errorType = isTransientNetworkError(error)
-      ? 'network'
-      : classifyServerErrorType(error);
-    return {
-      success: false,
-      error: 'Error al actualizar el servicio del ticket',
-      errorType,
-    };
+    return handleCodedServerActionError('ticket-services.update', 'TS003', error);
   }
 }
 
@@ -323,11 +298,6 @@ export async function deleteServiceTicket(
     revalidatePath(`/dashboard/tickets/${ticketId}/services`);
     return { success: true };
   } catch (error) {
-    console.error('Error deleting service ticket:', error);
-    return {
-      success: false,
-      error: 'Error al eliminar el servicio del ticket',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('ticket-services.delete', 'TS004', error);
   }
 }

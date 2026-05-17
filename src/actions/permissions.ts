@@ -1,9 +1,13 @@
 'use server';
 
 import { and, asc, eq, isNull, or } from 'drizzle-orm';
-import { permission, rolePermission, type Company } from '@/db/schema';
+import { permission, role, rolePermission, type Company } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  AuthorizationError,
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import {
   requireActionAuth,
   requireActionPermission,
@@ -13,6 +17,33 @@ import { revalidatePath } from 'next/cache';
 
 type PermissionWithCompany = typeof permission.$inferSelect & {
   company: Company | null;
+};
+
+const assertRolePermissionSameScope = async (
+  roleId: number,
+  permissionId: number,
+) => {
+  const [roleRow, permissionRow] = await Promise.all([
+    db.query.role.findFirst({
+      where: and(eq(role.id, roleId), isNull(role.deleted_at)),
+    }),
+    db.query.permission.findFirst({
+      where: and(eq(permission.id, permissionId), isNull(permission.deleted_at)),
+    }),
+  ]);
+
+  if (!roleRow || !permissionRow) {
+    throw new AuthorizationError('Role or permission not found');
+  }
+
+  if (
+    permissionRow.company_id !== null &&
+    permissionRow.company_id !== roleRow.company_id
+  ) {
+    throw new AuthorizationError(
+      'Permission cannot be assigned to a role from another company',
+    );
+  }
 };
 
 export async function getPermissions(): Promise<{
@@ -40,12 +71,7 @@ export async function getPermissions(): Promise<{
     });
     return { success: true, data: permissions };
   } catch (error) {
-    console.error('Error al obtener los permisos:', error);
-    return {
-      success: false,
-      error: 'Error al obtener los permisos',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.list', 'PM001', error);
   }
 }
 
@@ -66,12 +92,7 @@ export async function getPermissionsByCompany(companyId: number): Promise<{
       .orderBy(asc(permission.name));
     return { success: true, data: permissions };
   } catch (error) {
-    console.error('Error al obtener permisos por empresa:', error);
-    return {
-      success: false,
-      error: 'Error al obtener permisos por empresa',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.list-by-company', 'PM001', error);
   }
 }
 
@@ -103,12 +124,7 @@ export async function createPermission(data: {
     revalidatePath('/dashboard/permissions');
     return { success: true, data: created };
   } catch (error) {
-    console.error('Error al crear permiso:', error);
-    return {
-      success: false,
-      error: 'Error al crear permiso',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.create', 'PM002', error);
   }
 }
 
@@ -149,12 +165,7 @@ export async function updatePermission(
     revalidatePath('/dashboard/permissions');
     return { success: true, data: updated };
   } catch (error) {
-    console.error('Error al actualizar permiso:', error);
-    return {
-      success: false,
-      error: 'Error al actualizar permiso',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.update', 'PM003', error);
   }
 }
 
@@ -178,12 +189,7 @@ export async function deletePermission(id: number): Promise<{
     revalidatePath('/dashboard/permissions');
     return { success: true };
   } catch (error) {
-    console.error('Error al eliminar permiso:', error);
-    return {
-      success: false,
-      error: 'Error al eliminar permiso',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.delete', 'PM004', error);
   }
 }
 
@@ -200,6 +206,7 @@ export async function assignPermissionToRole(
     await requireActionPermission('permissions.write');
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
+    await assertRolePermissionSameScope(roleId, permissionId);
 
     const [rolePermissionRow] = await db
       .insert(rolePermission)
@@ -213,12 +220,7 @@ export async function assignPermissionToRole(
     revalidatePath('/dashboard/roles');
     return { success: true, data: rolePermissionRow };
   } catch (error) {
-    console.error('Error al asignar el permiso al rol:', error);
-    return {
-      success: false,
-      error: 'Error al asignar el permiso al rol',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.assign-to-role', 'PM005', error);
   }
 }
 
@@ -248,11 +250,6 @@ export async function removePermissionFromRole(
     revalidatePath('/dashboard/roles');
     return { success: true, data: null };
   } catch (error) {
-    console.error('Error al remover el permiso del rol:', error);
-    return {
-      success: false,
-      error: 'Error al remover el permiso del rol',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('permissions.remove-from-role', 'PM006', error);
   }
 }

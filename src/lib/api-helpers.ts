@@ -1,15 +1,37 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import type { ActionErrorType } from '@/lib/errors';
+import {
+  buildPublicError,
+  type ActionErrorType,
+} from '@/lib/errors';
+import { isErrorCode, type ErrorCode } from '@/lib/error-catalog';
 import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { db } from '@/lib/db';
+import { checkPermission } from '@/lib/security';
+import { resolveWritableCompanyId } from '@/lib/authz-context';
 
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }
 
-export function fail(error: string, status = 400, errorType?: ActionErrorType) {
+export function fail(
+  error: string | ErrorCode,
+  status = 400,
+  errorType?: ActionErrorType,
+) {
+  if (isErrorCode(error)) {
+    const payload = buildPublicError(error);
+    return NextResponse.json(
+      {
+        success: false,
+        ...payload,
+        ...(errorType ? { errorType } : {}),
+      },
+      { status },
+    );
+  }
+
   return NextResponse.json(
     { success: false, error, ...(errorType ? { errorType } : {}) },
     { status },
@@ -19,7 +41,7 @@ export function fail(error: string, status = 400, errorType?: ActionErrorType) {
 export async function requireSession() {
   const session = await auth();
   if (!session?.user?.id) {
-    return { session: null, unauthorized: fail('Unauthorized', 401) };
+    return { session: null, unauthorized: fail('AU001', 401) };
   }
 
   const activeUser = await db.query.user.findFirst({
@@ -34,8 +56,52 @@ export async function requireSession() {
     activeUser.company.deleted_at ||
     activeUser.company.status !== 'ACTIVE'
   ) {
-    return { session: null, unauthorized: fail('Unauthorized', 401) };
+    return { session: null, unauthorized: fail('AU001', 401) };
   }
 
   return { session, unauthorized: null };
+}
+
+export async function requireApiPermission(
+  permissionName: string,
+  requestedCompanyId?: number | null,
+) {
+  const { session, unauthorized } = await requireSession();
+  if (unauthorized || !session) {
+    return { session: null, companyId: null, unauthorized };
+  }
+
+  let companyId: number;
+  try {
+    companyId = resolveWritableCompanyId(
+      {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      requestedCompanyId,
+    );
+  } catch {
+    return {
+      session: null,
+      companyId: null,
+      unauthorized: fail('AU002', 403, 'auth'),
+    };
+  }
+
+  const allowed = await checkPermission(
+    session.user.id,
+    companyId,
+    permissionName,
+  );
+
+  if (!allowed) {
+    return {
+      session: null,
+      companyId: null,
+      unauthorized: fail('AU002', 403, 'auth'),
+    };
+  }
+
+  return { session, companyId, unauthorized: null };
 }

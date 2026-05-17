@@ -1,37 +1,36 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { service, servicesTickets, ticket } from '@/db/schema';
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { convertBigIntToString } from '@/lib/utils';
 import { z } from 'zod';
-import { fail, ok } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
-async function ensureTicketAccess(ticketId: bigint) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return {
-      session: null,
-      response: fail('Unauthorized', 401, 'auth'),
-    };
-  }
-
+async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
   const ticketRow = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
 
   if (!ticketRow) {
     return {
-      session,
-      response: fail('Ticket not found', 404, 'validation'),
+      session: null,
+      response: fail('TC008', 404, 'validation'),
     };
+  }
+
+  const { session, unauthorized } = await requireApiPermission(
+    permissionName,
+    ticketRow.company_id,
+  );
+  if (unauthorized || !session) {
+    return { session, response: unauthorized };
   }
 
   if (
     !session.user.company_is_system &&
     ticketRow.company_id !== session.user.company_id
   ) {
-    return { session, response: fail('Forbidden', 403, 'auth') };
+    return { session, response: fail('AU002', 403, 'auth') };
   }
 
   return { session, ticket: ticketRow, response: null };
@@ -44,7 +43,7 @@ export async function GET(
   try {
     const { id } = await context.params;
     const ticketId = BigInt(id);
-    const access = await ensureTicketAccess(ticketId);
+    const access = await ensureTicketAccess(ticketId, 'tickets.read');
     if (access.response) {
       return access.response;
     }
@@ -62,7 +61,7 @@ export async function GET(
     return ok(convertBigIntToString(ticketServicesRows));
   } catch (error) {
     console.error('Error fetching ticket services:', error);
-    return fail('Failed to fetch ticket services', 500, 'server');
+    return fail('TS001', 500, 'server');
   }
 }
 
@@ -73,7 +72,7 @@ export async function POST(
   try {
     const { id } = await context.params;
     const ticketId = BigInt(id);
-    const access = await ensureTicketAccess(ticketId);
+    const access = await ensureTicketAccess(ticketId, 'tickets.write');
     if (access.response) {
       return access.response;
     }
@@ -96,7 +95,7 @@ export async function POST(
     });
 
     if (!serviceRow) {
-      return fail('Service not found for this ticket company', 404, 'validation');
+      return fail('TS002', 404, 'validation');
     }
 
     const createdWithDetails = await db.transaction(async (tx) => {
@@ -121,13 +120,9 @@ export async function POST(
     return ok(convertBigIntToString(createdWithDetails), 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return fail(
-        error.issues[0]?.message ?? 'Invalid payload',
-        400,
-        'validation',
-      );
+      return fail('TS002', 400, 'validation');
     }
     console.error('Error adding service to ticket:', error);
-    return fail('Failed to add service to ticket', 500, 'server');
+    return fail('TS002', 500, 'server');
   }
 }

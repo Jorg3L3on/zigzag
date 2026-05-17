@@ -61,6 +61,7 @@ import {
 import { ClientForm } from '@/components/clients/client-form';
 import { TripledPageHeader, TripledStepper } from '@/components/tripled';
 import {
+  buildToastErrorContent,
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
@@ -148,17 +149,13 @@ export default function CreateTicketPage() {
       if (result.success && result.data) {
         setClients(result.data.items);
       } else if (!result.success) {
-        const errorType = classifyClientError(
-          null,
-          undefined,
-          result.errorType,
+        const errorContent = buildToastErrorContent(
+          result,
+          'No se pudieron cargar los clientes',
         );
-        toast.error(
-          getErrorMessageByType(
-            errorType,
-            result.error || 'No se pudieron cargar los clientes',
-          ),
-        );
+        toast.error(errorContent.title, {
+          description: errorContent.description,
+        });
       }
       setIsClientsLoading(false);
     };
@@ -193,13 +190,13 @@ export default function CreateTicketPage() {
         toast.success('Ticket creado correctamente');
         router.push(`/dashboard/tickets/${result.data.id}/services`);
       } else {
-        const errorType = classifyClientError(null, undefined, result.errorType);
-        toast.error(
-          getErrorMessageByType(
-            errorType,
-            result.error || 'No se pudo crear el ticket',
-          ),
+        const errorContent = buildToastErrorContent(
+          result,
+          'No se pudo crear el ticket',
         );
+        toast.error(errorContent.title, {
+          description: errorContent.description,
+        });
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
