@@ -49,8 +49,8 @@ export const TicketPaymentCollectSection = ({
   const [isPending, startTransition] = React.useTransition();
 
   const balanceDue = getTicketBalanceDue(total, paid);
-  const showCollectUi =
-    finished && getTicketPaymentStatus(total, paid) === 'partial';
+  const paymentStatus = getTicketPaymentStatus(total, paid);
+  const showCollectUi = finished && paymentStatus === 'partial';
 
   const parseAmount = (value: string): number => {
     if (!value.trim()) return 0;
@@ -114,26 +114,59 @@ export const TicketPaymentCollectSection = ({
   return (
     <div className="space-y-3" id="cobranza">
       <label className="text-sm font-medium text-foreground">Cobranza</label>
-      <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-3">
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Total</p>
-          <p className="font-medium">
-            <FormattedCurrency amount={total} />
-          </p>
+      {paymentStatus === 'paid' ? (
+        <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Total cobrado</p>
+            <p className="font-medium">
+              <FormattedCurrency amount={paid} />
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Estado</p>
+            <p className="font-medium text-emerald-700 dark:text-emerald-300">
+              Pago completado
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Sin saldo pendiente
+            </p>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Pagado</p>
-          <p className="font-medium">
-            <FormattedCurrency amount={paid} />
-          </p>
+      ) : paymentStatus === 'partial' ? (
+        <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Pagado</p>
+            <p className="font-medium">
+              <FormattedCurrency amount={paid} />
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Saldo pendiente</p>
+            <p className="font-medium">
+              <FormattedCurrency amount={balanceDue} />
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="font-medium">
+              <FormattedCurrency amount={total} />
+            </p>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Saldo pendiente</p>
-          <p className="font-medium">
-            <FormattedCurrency amount={balanceDue} />
-          </p>
+      ) : (
+        <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Total a cobrar</p>
+            <p className="font-medium">
+              <FormattedCurrency amount={total} />
+            </p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Estado</p>
+            <p className="font-medium">Sin pagos registrados</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">
