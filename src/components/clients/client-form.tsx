@@ -36,7 +36,15 @@ const clientSchema = z.object({
     .regex(/^\d+$/, 'El teléfono solo puede contener números')
     .min(PHONE_MIN_DIGITS, `El teléfono debe tener al menos ${PHONE_MIN_DIGITS} dígitos`)
     .max(PHONE_MAX_DIGITS, `El teléfono no puede exceder ${PHONE_MAX_DIGITS} dígitos`),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  email: z
+    .string()
+    .trim()
+    .pipe(
+      z.union([
+        z.literal(''),
+        z.string().email('El correo electrónico no es válido'),
+      ]),
+    ),
   address: z.string().optional().or(z.literal('')),
 });
 
