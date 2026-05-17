@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Agent workflow docs (`docs/agents/`), Cursor skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `validate-issues`), and GitHub label bootstrap script
 
+### Changed
+
+- Mobile UI: form inputs use larger text on small screens to avoid iOS zoom on focus
+- Mobile UI: offline banner and toasts respect safe areas on notched devices
+- Mobile UI: dashboard client metrics and ticket payment history use card/stacked layouts below tablet width
+- Mobile UI: toasts appear at the top on phones so they do not cover primary buttons on ticket create and detail
+
 ## [1.0.0] - 2026-05-16
 
 First public open-source release.
