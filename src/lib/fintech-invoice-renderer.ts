@@ -354,7 +354,17 @@ export function renderFintechInvoicePdf(
     const balanceY = headerY + 34;
     rr(balanceX, balanceY, balanceW, balanceH, 20, COLORS.white, COLORS.white);
     label(payload.balanceLabel, balanceX + 18, balanceY + 70);
-    text(money(currencyCode, payload.balanceDue), balanceX + 18, balanceY + 42, 25, COLORS.ink, 'bold');
+    text(
+      money(
+        currencyCode,
+        payload.balanceDue > 0 ? payload.balanceDue : payload.total,
+      ),
+      balanceX + 18,
+      balanceY + 42,
+      25,
+      COLORS.ink,
+      'bold',
+    );
     text(
       `Pagado ${money(currencyCode, payload.paid)} de ${money(currencyCode, payload.total)}`,
       balanceX + 18,
