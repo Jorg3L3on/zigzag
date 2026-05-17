@@ -16,7 +16,6 @@ const customJestConfig = {
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
-    '!src/generated/**',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
   ],
   testPathIgnorePatterns: [
@@ -24,6 +23,7 @@ const customJestConfig = {
     '<rootDir>/node_modules/',
     '<rootDir>/coverage/',
     '<rootDir>/dist/',
+    '<rootDir>/e2e/',
   ],
 };
 

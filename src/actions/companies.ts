@@ -7,7 +7,11 @@ import {
   companyFormSchema,
   normalizeCompanySettingsForDb,
 } from '@/lib/company-schema';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  buildActionError,
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import {
   requireActionAuth,
   requireActionPermission,
@@ -25,9 +29,15 @@ export async function getCompanies(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('companies.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('companies.read', authContext.companyId);
     const companies = await db.query.company.findMany({
-      where: isNull(company.deleted_at),
+      where: authContext.companyIsSystem
+        ? isNull(company.deleted_at)
+        : and(
+            isNull(company.deleted_at),
+            eq(company.id, authContext.companyId as number),
+          ),
       with: {
         users: true,
       },
@@ -35,12 +45,7 @@ export async function getCompanies(): Promise<{
     });
     return { success: true, data: companies };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener las empresas',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('companies.list', 'CO001', e);
   }
 }
 
@@ -60,32 +65,19 @@ export async function getCompany(id: number): Promise<{
     });
 
     if (!row) {
-      return {
-        success: false,
-        error: 'Empresa no encontrada',
-        errorType: 'validation',
-      };
+      return buildActionError('CO006');
     }
 
     if (
       !authContext.companyIsSystem &&
       row.id !== authContext.companyId
     ) {
-      return {
-        success: false,
-        error: 'Acceso denegado',
-        errorType: 'auth',
-      };
+      return buildActionError('AU002');
     }
 
     return { success: true, data: row };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener la empresa',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('companies.get', 'CO002', e);
   }
 }
 
@@ -130,19 +122,10 @@ export async function createCompany(data: CompanyFormData): Promise<{
     revalidatePath('/dashboard/companies/new');
     return { success: true, data: created };
   } catch (e) {
-    console.error(e);
     if (e instanceof z.ZodError) {
-      return {
-        success: false,
-        error: e.issues[0]?.message ?? 'Datos inválidos',
-        errorType: 'validation',
-      };
+      return handleCodedServerActionError('companies.create.validation', 'CO007', e);
     }
-    return {
-      success: false,
-      error: 'Error al crear la empresa',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('companies.create', 'CO003', e);
   }
 }
 
@@ -184,26 +167,17 @@ export async function updateCompany(
         settings,
         updated_at: new Date(),
       })
-      .where(eq(company.id, id))
+      .where(and(eq(company.id, id), isNull(company.deleted_at)))
       .returning();
 
     revalidatePath('/dashboard/companies');
     revalidatePath(`/dashboard/companies/${id}/edit`);
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
     if (e instanceof z.ZodError) {
-      return {
-        success: false,
-        error: e.issues[0]?.message ?? 'Datos inválidos',
-        errorType: 'validation',
-      };
+      return handleCodedServerActionError('companies.update.validation', 'CO007', e);
     }
-    return {
-      success: false,
-      error: 'Error al actualizar la empresa',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('companies.update', 'CO004', e);
   }
 }
 
@@ -220,16 +194,11 @@ export async function deleteCompany(id: number): Promise<{
     await db
       .update(company)
       .set({ deleted_at: new Date() })
-      .where(eq(company.id, id));
+      .where(and(eq(company.id, id), isNull(company.deleted_at)));
 
     revalidatePath('/dashboard/companies');
     return { success: true };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al eliminar la empresa',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('companies.delete', 'CO005', e);
   }
 }

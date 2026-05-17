@@ -4,7 +4,11 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { client, company, service, servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  buildActionError,
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import {
   aggregateFinishedRevenueByMonthKey,
   buildMonthBuckets,
@@ -13,6 +17,7 @@ import {
   type DashboardMonthCount,
   type RevenueByMonthPoint,
 } from '@/lib/dashboard-metrics';
+import { checkPermission } from '@/lib/security';
 
 export interface DashboardMetrics {
   totalTickets: number;
@@ -58,11 +63,7 @@ async function loadDashboardMetricsForCompany(
       .limit(1);
 
     if (!companyRow) {
-      return {
-        success: false,
-        error: 'Empresa no encontrada',
-        errorType: 'validation',
-      };
+      return buildActionError('CO006');
     }
 
     const ticketScope = and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at));
@@ -160,12 +161,7 @@ async function loadDashboardMetricsForCompany(
       },
     };
   } catch (error) {
-    console.error('Error obteniendo metricas del dashboard:', error);
-    return {
-      success: false,
-      error: 'Error al obtener metricas del dashboard',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('dashboard.metrics', 'DB001', error);
   }
 }
 
@@ -179,11 +175,7 @@ export async function fetchDashboardMetrics(
 ): Promise<DashboardMetricsResponse> {
   const session = await auth();
   if (!session?.user?.company_id) {
-    return {
-      success: false,
-      error: 'No autorizado',
-      errorType: 'auth',
-    };
+    return buildActionError('AU001');
   }
 
   const monthCount = parseDashboardMonthCount(input.monthCount);
@@ -191,6 +183,16 @@ export async function fetchDashboardMetrics(
   let effectiveCompanyId = session.user.company_id;
   if (session.user.company_is_system && input.companyId != null) {
     effectiveCompanyId = input.companyId;
+  }
+
+  const allowed = await checkPermission(
+    session.user.id,
+    effectiveCompanyId,
+    'tickets.read',
+  );
+
+  if (!allowed) {
+    return buildActionError('AU002');
   }
 
   return loadDashboardMetricsForCompany(effectiveCompanyId, monthCount);

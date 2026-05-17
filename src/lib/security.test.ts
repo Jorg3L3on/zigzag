@@ -3,6 +3,48 @@ import {
   requireSystemUser,
   type ActionAuthContext,
 } from '@/lib/authz-context';
+import { checkPermission } from '@/lib/security';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
+
+jest.mock('@/lib/auth', () => ({
+  auth: jest.fn(),
+}));
+
+jest.mock('@/lib/db', () => ({
+  db: {
+    query: {
+      user: {
+        findFirst: jest.fn(),
+      },
+    },
+    select: jest.fn(),
+  },
+}));
+
+const mockAuth = auth as jest.MockedFunction<typeof auth>;
+const mockDb = db as unknown as {
+  query: {
+    user: {
+      findFirst: jest.Mock;
+    };
+  };
+  select: jest.Mock;
+};
+
+const mockSelectRows = (rows: unknown[]) => ({
+  from: jest.fn(() => ({
+    where: jest.fn(async () => rows),
+  })),
+});
+
+const mockSelectLimitRows = (rows: unknown[]) => ({
+  from: jest.fn(() => ({
+    where: jest.fn(() => ({
+      limit: jest.fn(async () => rows),
+    })),
+  })),
+});
 
 describe('security helpers', () => {
   const regularContext: ActionAuthContext = {
@@ -31,5 +73,98 @@ describe('security helpers', () => {
     expect(() => requireSystemUser(regularContext)).toThrow(
       'System-level access required',
     );
+  });
+
+  describe('checkPermission', () => {
+    const originalAllowMissingPermissions =
+      process.env.ALLOW_MISSING_PERMISSIONS;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      process.env.ALLOW_MISSING_PERMISSIONS = originalAllowMissingPermissions;
+    });
+
+    afterAll(() => {
+      process.env.ALLOW_MISSING_PERMISSIONS = originalAllowMissingPermissions;
+    });
+
+    it('allows root-company users without role lookups', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '1',
+          company_id: 1,
+          company_is_system: true,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+
+      await expect(checkPermission('1', 99, 'users.write')).resolves.toBe(true);
+      expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+      expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
+    it('denies regular users without a role', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '2',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({ id: 2n, role_id: null });
+
+      await expect(checkPermission('2', 10, 'clients.read')).resolves.toBe(
+        false,
+      );
+    });
+
+    it('allows regular users with a matching company permission', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '3',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({ id: 3n, role_id: 7 });
+      mockDb.select
+        .mockReturnValueOnce(mockSelectRows([{ id: 11 }]))
+        .mockReturnValueOnce(mockSelectLimitRows([{ role_id: 7 }]));
+
+      await expect(checkPermission('3', 10, 'tickets.read')).resolves.toBe(
+        true,
+      );
+    });
+
+    it('denies regular users outside their company', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '4',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+
+      await expect(checkPermission('4', 99, 'tickets.read')).resolves.toBe(
+        false,
+      );
+      expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when the permission row is missing', async () => {
+      process.env.ALLOW_MISSING_PERMISSIONS = 'false';
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '5',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({ id: 5n, role_id: 8 });
+      mockDb.select.mockReturnValueOnce(mockSelectRows([]));
+
+      await expect(checkPermission('5', 10, 'missing.permission')).resolves.toBe(
+        false,
+      );
+    });
   });
 });

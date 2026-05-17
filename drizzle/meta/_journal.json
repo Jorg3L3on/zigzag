@@ -8,6 +8,34 @@
       "when": 1778003353415,
       "tag": "0000_lush_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778617800000,
+      "tag": "0001_add_ticket_paid",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778623200000,
+      "tag": "0002_ticket_payment",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778947200000,
+      "tag": "0003_company_status_ticket_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778976000000,
+      "tag": "0004_rbac_foreign_keys",
+      "breakpoints": true
     }
   ]
 }

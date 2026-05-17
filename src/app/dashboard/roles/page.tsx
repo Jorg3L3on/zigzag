@@ -1,7 +1,10 @@
 import { TripledPageHeader } from '@/components/tripled';
 import { RolesList } from '@/components/roles/roles-list';
+import { requirePagePermission } from '@/lib/page-authz';
 
-export default function RolesPage() {
+export default async function RolesPage() {
+  await requirePagePermission('roles.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Roles' }]} />

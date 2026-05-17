@@ -1,26 +1,58 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import {
   role,
   rolePermission,
+  permission,
   type Company,
   type Permission,
   type RolePermissionRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import {
   requireActionAuth,
   requireActionPermission,
   requireSystemUser,
 } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
+import { AuthorizationError } from '@/lib/errors';
 
 /** Matches `role.findMany({ with: { company, permissions.permission } })`. */
 type RoleWithRelations = typeof role.$inferSelect & {
   company: Company | null;
   permissions: Array<RolePermissionRow & { permission: Permission | null }>;
+};
+
+const assertPermissionsAssignableToCompany = async (
+  permissionIds: number[],
+  companyId: number,
+) => {
+  const uniquePermissionIds = Array.from(new Set(permissionIds));
+  if (uniquePermissionIds.length === 0) {
+    return;
+  }
+
+  const rows = await db
+    .select({ id: permission.id })
+    .from(permission)
+    .where(
+      and(
+        inArray(permission.id, uniquePermissionIds),
+        isNull(permission.deleted_at),
+        or(eq(permission.company_id, companyId), isNull(permission.company_id)),
+      ),
+    );
+
+  if (rows.length !== uniquePermissionIds.length) {
+    throw new AuthorizationError(
+      'One or more permissions cannot be assigned to this role',
+    );
+  }
 };
 
 export async function getRoles(): Promise<{
@@ -30,8 +62,15 @@ export async function getRoles(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('roles.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('roles.read', authContext.companyId);
     const roles = await db.query.role.findMany({
+      where: authContext.companyIsSystem
+        ? isNull(role.deleted_at)
+        : and(
+            isNull(role.deleted_at),
+            eq(role.company_id, authContext.companyId as number),
+          ),
       with: {
         company: true,
         permissions: {
@@ -43,12 +82,7 @@ export async function getRoles(): Promise<{
     });
     return { success: true, data: roles as RoleWithRelations[] };
   } catch (error) {
-    console.error('Error al obtener roles:', error);
-    return {
-      success: false,
-      error: 'Error al obtener roles',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('roles.list', 'RL001', error);
   }
 }
 
@@ -67,6 +101,7 @@ export async function createRole(data: {
     await requireActionPermission('roles.write', data.company_id);
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
+    await assertPermissionsAssignableToCompany(data.permissions, data.company_id);
 
     let newRoleId = 0;
     await db.transaction(async (tx) => {
@@ -106,12 +141,7 @@ export async function createRole(data: {
     revalidatePath('/dashboard/roles');
     return { success: true, data: full };
   } catch (error) {
-    console.error('Error al crear rol:', error);
-    return {
-      success: false,
-      error: 'Error al crear rol',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('roles.create', 'RL002', error);
   }
 }
 
@@ -133,6 +163,7 @@ export async function updateRole(
     await requireActionPermission('roles.write', data.company_id);
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
+    await assertPermissionsAssignableToCompany(data.permissions, data.company_id);
 
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
@@ -143,8 +174,9 @@ export async function updateRole(
           name: data.name,
           description: data.description,
           company_id: data.company_id,
+          updated_at: new Date(),
         })
-        .where(eq(role.id, id));
+        .where(and(eq(role.id, id), isNull(role.deleted_at)));
 
       if (data.permissions.length > 0) {
         await tx.insert(rolePermission).values(
@@ -171,12 +203,7 @@ export async function updateRole(
     revalidatePath('/dashboard/roles');
     return { success: true, data: full };
   } catch (error) {
-    console.error('Error al actualizar rol:', error);
-    return {
-      success: false,
-      error: 'Error al actualizar rol',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('roles.update', 'RL003', error);
   }
 }
 
@@ -192,17 +219,12 @@ export async function deleteRole(id: number): Promise<{
 
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
-      await tx.delete(role).where(eq(role.id, id));
+      await tx.delete(role).where(and(eq(role.id, id), isNull(role.deleted_at)));
     });
 
     revalidatePath('/dashboard/roles');
     return { success: true };
   } catch (error) {
-    console.error('Error al eliminar rol:', error);
-    return {
-      success: false,
-      error: 'Error al eliminar rol',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('roles.delete', 'RL004', error);
   }
 }

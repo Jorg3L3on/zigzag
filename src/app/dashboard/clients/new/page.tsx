@@ -17,13 +17,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
   title: 'Nuevo Cliente',
   description: 'Crea un nuevo cliente',
 };
 
-export default function NewClientPage() {
+export default async function NewClientPage() {
+  await requirePagePermission('clients.write');
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2">

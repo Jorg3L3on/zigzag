@@ -1,7 +1,10 @@
 import { TripledPageHeader } from '@/components/tripled';
 import { PermissionsList } from '@/components/permissions/permissions-list';
+import { requirePagePermission } from '@/lib/page-authz';
 
-export default function PermissionsPage() {
+export default async function PermissionsPage() {
+  await requirePagePermission('permissions.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Permisos' }]} />

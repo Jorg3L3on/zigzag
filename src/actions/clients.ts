@@ -3,7 +3,11 @@
 import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  buildActionError,
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -90,12 +94,7 @@ export async function getClients(params: GetClientsParams): Promise<{
       },
     };
   } catch (error) {
-    console.error('Error al cargar los clientes:', error);
-    return {
-      success: false,
-      error: 'Error al cargar los clientes',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('clients.paginated-list', 'CL001', error);
   }
 }
 
@@ -125,12 +124,7 @@ export async function getClientsList(params: {
 
     return { success: true, data: items };
   } catch (error) {
-    console.error('Error al cargar los clientes:', error);
-    return {
-      success: false,
-      error: 'Error al cargar los clientes',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('clients.list', 'CL001', error);
   }
 }
 
@@ -145,25 +139,22 @@ export async function getClient(id: number): Promise<{
     const [row] = await db
       .select()
       .from(client)
-      .where(and(eq(client.id, id), eq(client.company_id, companyId)))
+      .where(
+        and(
+          eq(client.id, id),
+          eq(client.company_id, companyId),
+          isNull(client.deleted_at),
+        ),
+      )
       .limit(1);
 
     if (!row) {
-      return {
-        success: false,
-        error: 'Cliente no encontrado',
-        errorType: 'validation',
-      };
+      return buildActionError('CL006');
     }
 
     return { success: true, data: row };
   } catch (error) {
-    console.error('Error al cargar el cliente:', error);
-    return {
-      success: false,
-      error: 'Error al cargar el cliente',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('clients.get', 'CL002', error);
   }
 }
 
@@ -195,12 +186,7 @@ export async function createClient(
     revalidatePath('/dashboard/clients');
     return { success: true, data: created };
   } catch (error) {
-    console.error('Error al crear el cliente:', error);
-    return {
-      success: false,
-      error: 'Error al crear el cliente',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('clients.create', 'CL003', error);
   }
 }
 
@@ -234,12 +220,7 @@ export async function updateClient(
     revalidatePath('/dashboard/clients');
     return { success: true, data: updated };
   } catch (error) {
-    console.error('Error al actualizar el cliente:', error);
-    return {
-      success: false,
-      error: 'Error al actualizar el cliente',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('clients.update', 'CL004', error);
   }
 }
 
@@ -266,11 +247,6 @@ export async function deleteClient(
     revalidatePath('/dashboard/clients');
     return { success: true };
   } catch (error) {
-    console.error('Error al eliminar el cliente:', error);
-    return {
-      success: false,
-      error: 'Error al eliminar el cliente',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('clients.delete', 'CL005', error);
   }
 }

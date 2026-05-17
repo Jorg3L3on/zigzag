@@ -11,6 +11,7 @@ import {
 import { ClientList } from '@/components/clients/client-list';
 import { TripledPageHeader } from '@/components/tripled';
 import { Plus } from 'lucide-react';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
   title: 'Clientes',
@@ -20,7 +21,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default function ClientsPage() {
+export default async function ClientsPage() {
+  await requirePagePermission('clients.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Clientes' }]} />

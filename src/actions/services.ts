@@ -5,7 +5,10 @@ import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { service } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -55,12 +58,7 @@ export async function getServices(
 
     return { success: true, data: services };
   } catch (error) {
-    console.error('Error fetching services:', error);
-    return {
-      success: false,
-      error: 'Error al cargar los servicios',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('services.list', 'SV001', error);
   }
 }
 
@@ -91,12 +89,7 @@ export async function createService(
     revalidatePath('/dashboard/services');
     return { success: true, data: created };
   } catch (error) {
-    console.error('Error creating service:', error);
-    return {
-      success: false,
-      error: 'Error al crear el servicio',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('services.create', 'SV002', error);
   }
 }
 
@@ -126,12 +119,7 @@ export async function updateService(
     revalidatePath('/dashboard/services');
     return { success: true, data: updated };
   } catch (error) {
-    console.error('Error updating service:', error);
-    return {
-      success: false,
-      error: 'Error al actualizar el servicio',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('services.update', 'SV003', error);
   }
 }
 
@@ -152,11 +140,6 @@ export async function deleteService(
     revalidatePath('/dashboard/services');
     return { success: true };
   } catch (error) {
-    console.error('Error deleting service:', error);
-    return {
-      success: false,
-      error: 'Error al eliminar el servicio',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('services.delete', 'SV004', error);
   }
 }

@@ -10,11 +10,14 @@ import {
 import Link from 'next/link';
 import TicketsList from '@/components/tickets/tickets-list';
 import { TripledPageHeader } from '@/components/tripled';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default function TicketsPage() {
+export default async function TicketsPage() {
+  await requirePagePermission('tickets.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Tickets' }]} />

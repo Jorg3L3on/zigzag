@@ -1,7 +1,7 @@
 import { hash } from 'bcryptjs';
 import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
-import { fail, ok, requireSession } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -32,7 +32,7 @@ function transformBigInt<T>(data: T): T {
 
 export async function GET() {
   try {
-    const { session, unauthorized } = await requireSession();
+    const { session, unauthorized } = await requireApiPermission('users.read');
     if (unauthorized || !session) {
       return unauthorized;
     }
@@ -53,17 +53,12 @@ export async function GET() {
     return ok(transformBigInt(users));
   } catch (error) {
     console.error(error);
-    return fail('Internal server error', 500);
+    return fail('US001', 500, 'server');
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
-      return unauthorized;
-    }
-
     const body = await request.json();
     const parsed = z
       .object({
@@ -77,20 +72,24 @@ export async function POST(request: NextRequest) {
       })
       .parse(body);
 
-    const isSystemUser = session.user.company_is_system;
-    const targetCompanyId = isSystemUser
-      ? (parsed.company_id ?? session.user.company_id)
-      : session.user.company_id;
+    const { session, unauthorized } = await requireApiPermission(
+      'users.write',
+      parsed.company_id,
+    );
+    if (unauthorized || !session) {
+      return unauthorized;
+    }
 
+    if (!session.user.company_is_system) {
+      return fail('AU002', 403, 'auth');
+    }
+
+    const targetCompanyId = parsed.company_id ?? session.user.company_id;
     if (!targetCompanyId) {
-      return fail('User company context is required', 400);
+      return fail('AU002', 400, 'auth');
     }
 
     const hashedPassword = await hash(parsed.password, 10);
-
-    if (!isSystemUser && parsed.company_id && parsed.company_id !== targetCompanyId) {
-      return fail('Cannot create users for another company', 403);
-    }
 
     const [created] = await db
       .insert(user)
@@ -108,9 +107,9 @@ export async function POST(request: NextRequest) {
     return ok(transformBigInt(created), 201);
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return fail(e.issues[0]?.message ?? 'Invalid payload', 400);
+      return fail('US005', 400, 'validation');
     }
     console.error(e);
-    return fail('Internal server error', 500);
+    return fail('US002', 500, 'server');
   }
 }

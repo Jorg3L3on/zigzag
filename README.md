@@ -15,7 +15,7 @@ A modern, multi-tenant ticket management system (**ZigZag**) built with Next.js,
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 15 with App Router
+- **Framework**: Next.js 16 with App Router
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: NextAuth.js
 - **UI Components**: Shadcn/ui + Tailwind CSS
@@ -108,10 +108,9 @@ src/
 ├── app/             # Next.js app router pages
 ├── components/      # Reusable UI components
 ├── contexts/        # React contexts for state management
-├── generated/       # Prisma generated types
 ├── hooks/           # Custom React hooks
 ├── lib/             # Utility libraries and configurations
-├── middleware.ts    # Next.js middleware
+├── proxy.ts         # Next.js proxy route protection
 └── types/           # TypeScript type definitions
 ```
 
@@ -218,10 +217,12 @@ Recommended deploy sequence:
 
 After deploy:
 
-1. Visit `/` and `/dashboard`
+1. Visit `/api/health`, `/`, and `/dashboard`
 2. Verify login works
 3. Execute at least one CRUD flow for clients/services/tickets
 4. Check Vercel logs for `500` errors
+
+See [docs/production-runbook.md](docs/production-runbook.md) for the deployment, rollback, and incident checklist.
 
 ### 6) Troubleshooting production
 
@@ -307,7 +308,7 @@ Then set `DATABASE_URL` to use `/zigzag` as the database name.
 ## 🔒 Security Features
 
 - **Input Validation**: Zod schemas for all user inputs
-- **SQL Injection Prevention**: Prisma ORM protection
+- **SQL Injection Prevention**: Drizzle parameterized queries
 - **XSS Protection**: Input sanitization utilities
 - **CSRF Protection**: Built-in NextAuth.js protection
 - **Rate Limiting**: API endpoint protection

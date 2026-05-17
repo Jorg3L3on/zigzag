@@ -64,7 +64,7 @@ export const role = pgTable(
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
-    company_id: integer('company_id'),
+    company_id: integer('company_id').references(() => company.id),
   },
   (t) => [
     uniqueIndex('Role_name_key').on(t.name),
@@ -83,7 +83,7 @@ export const permission = pgTable(
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
-    company_id: integer('company_id'),
+    company_id: integer('company_id').references(() => company.id),
   },
   (t) => [
     uniqueIndex('Permission_name_key').on(t.name),
@@ -108,8 +108,8 @@ export const user = pgTable(
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
-    company_id: integer('company_id'),
-    role_id: integer('role_id'),
+    company_id: integer('company_id').references(() => company.id),
+    role_id: integer('role_id').references(() => role.id),
   },
   (t) => [
     uniqueIndex('User_email_key').on(t.email),
@@ -219,11 +219,35 @@ export const ticketPayment = pgTable(
   ],
 );
 
+export const ticketAuditEvent = pgTable(
+  'TicketAuditEvent',
+  {
+    id: serial('id').primaryKey(),
+    ticket_id: bigint('ticket_id', { mode: 'bigint' }).notNull(),
+    company_id: integer('company_id'),
+    actor_user_id: bigint('actor_user_id', { mode: 'bigint' }),
+    event_type: text('event_type').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown> | null>(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('TicketAuditEvent_ticket_id_idx').on(t.ticket_id),
+    index('TicketAuditEvent_company_id_idx').on(t.company_id),
+    index('TicketAuditEvent_actor_user_id_idx').on(t.actor_user_id),
+  ],
+);
+
 export const rolePermission = pgTable(
   'RolePermission',
   {
-    role_id: integer('role_id').notNull(),
-    permission_id: integer('permission_id').notNull(),
+    role_id: integer('role_id')
+      .notNull()
+      .references(() => role.id),
+    permission_id: integer('permission_id')
+      .notNull()
+      .references(() => permission.id),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -288,12 +312,24 @@ export const ticketRelations = relations(ticket, ({ one, many }) => ({
   User: one(user, { fields: [ticket.userId], references: [user.id] }),
   services_tickets: many(servicesTickets),
   ticket_payments: many(ticketPayment),
+  audit_events: many(ticketAuditEvent),
 }));
 
 export const ticketPaymentRelations = relations(ticketPayment, ({ one }) => ({
   ticket: one(ticket, {
     fields: [ticketPayment.ticket_id],
     references: [ticket.id],
+  }),
+}));
+
+export const ticketAuditEventRelations = relations(ticketAuditEvent, ({ one }) => ({
+  ticket: one(ticket, {
+    fields: [ticketAuditEvent.ticket_id],
+    references: [ticket.id],
+  }),
+  actor: one(user, {
+    fields: [ticketAuditEvent.actor_user_id],
+    references: [user.id],
   }),
 }));
 
@@ -320,5 +356,6 @@ export type Service = typeof service.$inferSelect;
 export type ServiceRow = typeof service.$inferSelect;
 export type TicketRow = typeof ticket.$inferSelect;
 export type TicketPaymentRow = typeof ticketPayment.$inferSelect;
+export type TicketAuditEventRow = typeof ticketAuditEvent.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;

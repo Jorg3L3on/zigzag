@@ -19,6 +19,8 @@ const TABLES_WITH_EXPLICIT_IDS_IN_SEED = [
   'Ticket',
   'ServicesTickets',
   'User',
+  'Role',
+  'Permission',
 ] as const;
 
 const pool = new Pool({ connectionString });

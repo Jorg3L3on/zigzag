@@ -3,7 +3,10 @@
 import { desc, eq, and, isNull } from 'drizzle-orm';
 import { user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
-import { classifyServerErrorType, type ActionErrorType } from '@/lib/errors';
+import {
+  handleCodedServerActionError,
+  type ActionErrorType,
+} from '@/lib/errors';
 import {
   requireActionAuth,
   requireActionPermission,
@@ -40,23 +43,24 @@ export async function getUsers(): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('users.read');
+    const authContext = await requireActionAuth();
+    await requireActionPermission('users.read', authContext.companyId);
     const users = await db.query.user.findMany({
       with: {
         company: true,
         role: true,
       },
       orderBy: [desc(user.created_at)],
-      where: isNull(user.deleted_at),
+      where: authContext.companyIsSystem
+        ? isNull(user.deleted_at)
+        : and(
+            isNull(user.deleted_at),
+            eq(user.company_id, authContext.companyId as number),
+          ),
     });
     return { success: true, data: users as UserWithRelations[] };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener los usuarios',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('users.list', 'US001', e);
   }
 }
 
@@ -90,19 +94,10 @@ export async function createUser(data: CreateUserFormData): Promise<{
     revalidatePath('/dashboard/users');
     return { success: true, data: created };
   } catch (e) {
-    console.error(e);
     if (e instanceof z.ZodError) {
-      return {
-        success: false,
-        error: e.issues[0]?.message ?? 'Datos inválidos',
-        errorType: 'validation',
-      };
+      return handleCodedServerActionError('users.create.validation', 'US005', e);
     }
-    return {
-      success: false,
-      error: 'Error al crear el usuario',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('users.create', 'US002', e);
   }
 }
 
@@ -142,19 +137,10 @@ export async function updateUser(
     revalidatePath('/dashboard/users');
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
     if (e instanceof z.ZodError) {
-      return {
-        success: false,
-        error: e.issues[0]?.message ?? 'Datos inválidos',
-        errorType: 'validation',
-      };
+      return handleCodedServerActionError('users.update.validation', 'US005', e);
     }
-    return {
-      success: false,
-      error: 'Error al actualizar el usuario',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('users.update', 'US003', e);
   }
 }
 
@@ -181,11 +167,6 @@ export async function deleteUser(id: bigint): Promise<{
     revalidatePath('/dashboard/users');
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al eliminar el usuario',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('users.delete', 'US004', e);
   }
 }

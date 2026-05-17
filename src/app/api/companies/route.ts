@@ -2,14 +2,13 @@
 
 import { count, eq, isNull } from 'drizzle-orm';
 import { company, service, ticket, user } from '@/db/schema';
-import { auth } from '@/lib/auth';
 import {
   companyApiCreateSchema,
   companyApiUpdateSchema,
   normalizeCompanySettingsForDb,
 } from '@/lib/company-schema';
 import { db } from '@/lib/db';
-import { fail, ok } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
 const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
   if (!rows.length) {
@@ -66,10 +65,10 @@ const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
 
 export async function GET() {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return fail('Unauthorized', 401, 'auth');
+    const { session, unauthorized } =
+      await requireApiPermission('companies.read');
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     // Use token/session claims for read access to avoid hard 404s
@@ -98,16 +97,16 @@ export async function GET() {
     return ok([withCounts]);
   } catch (error) {
     console.error(error);
-    return fail('Internal server error', 500, 'server');
+    return fail('CO001', 500, 'server');
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      return fail('Unauthorized', 401, 'auth');
+    const { session, unauthorized } =
+      await requireApiPermission('companies.write');
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const sessionUser = await db.query.user.findFirst({
@@ -116,17 +115,13 @@ export async function POST(request: Request) {
     });
 
     if (!sessionUser || !sessionUser.company?.is_system) {
-      return fail('Only system company users can create new companies', 403, 'auth');
+      return fail('AU002', 403, 'auth');
     }
 
     const raw = await request.json();
     const parsed = companyApiCreateSchema.safeParse(raw);
     if (!parsed.success) {
-      return fail(
-        parsed.error.issues[0]?.message ?? 'Datos inválidos',
-        400,
-        'validation',
-      );
+      return fail('CO007', 400, 'validation');
     }
     const body = parsed.data;
     const settings = normalizeCompanySettingsForDb(body.settings);
@@ -157,16 +152,25 @@ export async function POST(request: Request) {
     return ok(created, 201);
   } catch (error) {
     console.error(error);
-    return fail('Internal server error', 500, 'server');
+    return fail('CO003', 500, 'server');
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    const session = await auth();
+    const raw = await request.json();
+    const parsed = companyApiUpdateSchema.safeParse(raw);
+    if (!parsed.success) {
+      return fail('CO007', 400, 'validation');
+    }
+    const body = parsed.data;
 
-    if (!session?.user?.id) {
-      return fail('Unauthorized', 401, 'auth');
+    const { session, unauthorized } = await requireApiPermission(
+      'companies.write',
+      body.id,
+    );
+    if (unauthorized || !session) {
+      return unauthorized;
     }
 
     const sessionUser = await db.query.user.findFirst({
@@ -175,22 +179,11 @@ export async function PUT(request: Request) {
     });
 
     if (!sessionUser) {
-      return fail('User not found', 404, 'validation');
+      return fail('US001', 404, 'validation');
     }
-
-    const raw = await request.json();
-    const parsed = companyApiUpdateSchema.safeParse(raw);
-    if (!parsed.success) {
-      return fail(
-        parsed.error.issues[0]?.message ?? 'Datos inválidos',
-        400,
-        'validation',
-      );
-    }
-    const body = parsed.data;
 
     if (!sessionUser.company?.is_system && sessionUser.company_id !== body.id) {
-      return fail('You can only update your own company', 403, 'auth');
+      return fail('AU002', 403, 'auth');
     }
 
     const settings = normalizeCompanySettingsForDb(body.settings);
@@ -223,12 +216,12 @@ export async function PUT(request: Request) {
       .returning();
 
     if (!updated) {
-      return fail('Company not found', 404, 'validation');
+      return fail('CO006', 404, 'validation');
     }
 
     return ok(updated);
   } catch (error) {
     console.error(error);
-    return fail('Internal server error', 500, 'server');
+    return fail('CO004', 500, 'server');
   }
 }

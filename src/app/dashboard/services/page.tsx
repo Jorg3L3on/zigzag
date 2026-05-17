@@ -10,11 +10,14 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { ServicesListClient } from '@/components/services/services-list-client';
 import { TripledPageHeader } from '@/components/tripled';
+import { requirePagePermission } from '@/lib/page-authz';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  await requirePagePermission('services.read');
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Servicios' }]} />

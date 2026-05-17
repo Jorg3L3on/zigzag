@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import { getSessionPermissionMap } from '@/actions/authz';
 
 interface Company {
   id: number;
@@ -49,14 +50,17 @@ const data = {
       title: 'Tickets',
       url: '/dashboard/tickets',
       icon: Ticket,
+      requiredPermission: 'tickets.read',
       items: [
         {
           title: 'Ver tickets',
           url: '/dashboard/tickets',
+          requiredPermission: 'tickets.read',
         },
         {
           title: 'Crear ticket',
           url: '/dashboard/tickets/create',
+          requiredPermission: 'tickets.write',
         },
       ],
     },
@@ -64,14 +68,17 @@ const data = {
       title: 'Servicios',
       url: '/dashboard/services',
       icon: Package,
+      requiredPermission: 'services.read',
       items: [
         {
           title: 'Ver servicios',
           url: '/dashboard/services',
+          requiredPermission: 'services.read',
         },
         {
           title: 'Crear servicio',
           url: '/dashboard/services/new',
+          requiredPermission: 'services.write',
         },
       ],
     },
@@ -79,14 +86,17 @@ const data = {
       title: 'Clientes',
       url: '/dashboard/clients',
       icon: User,
+      requiredPermission: 'clients.read',
       items: [
         {
           title: 'Ver clientes',
           url: '/dashboard/clients',
+          requiredPermission: 'clients.read',
         },
         {
           title: 'Crear cliente',
           url: '/dashboard/clients/new',
+          requiredPermission: 'clients.write',
         },
       ],
     },
@@ -96,21 +106,25 @@ const data = {
       title: 'Usuarios',
       url: '/dashboard/users',
       icon: User,
+      requiredPermission: 'users.read',
     },
     {
       title: 'Empresas',
       url: '/dashboard/companies',
       icon: Building,
+      requiredPermission: 'companies.read',
     },
     {
       title: 'Roles',
       url: '/dashboard/roles',
       icon: Shield,
+      requiredPermission: 'roles.read',
     },
     {
       title: 'Permisos',
       url: '/dashboard/permissions',
       icon: Key,
+      requiredPermission: 'permissions.read',
     },
   ],
 };
@@ -127,6 +141,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [permissionMap, setPermissionMap] = React.useState<{
+    isSystem: boolean;
+    permissions: string[];
+  }>({ isSystem: false, permissions: [] });
 
   React.useEffect(() => {
     const fetchCompanies = async () => {
@@ -177,8 +195,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
     };
 
+    const fetchPermissions = async () => {
+      try {
+        setPermissionMap(await getSessionPermissionMap());
+      } catch (error) {
+        console.error('Error fetching permissions:', error);
+        setPermissionMap({ isSystem: false, permissions: [] });
+      }
+    };
+
     fetchCompanies();
+    fetchPermissions();
   }, []);
+
+  const canAccess = React.useCallback(
+    (requiredPermission?: string) =>
+      permissionMap.isSystem ||
+      !requiredPermission ||
+      permissionMap.permissions.includes(requiredPermission),
+    [permissionMap],
+  );
+
+  const visibleNavMain = React.useMemo(
+    () =>
+      data.navMain
+        .map((item) => ({
+          ...item,
+          items: item.items?.filter((sub) => canAccess(sub.requiredPermission)),
+        }))
+        .filter(
+          (item) =>
+            canAccess(item.requiredPermission) || Boolean(item.items?.length),
+        ),
+    [canAccess],
+  );
+
+  const visibleSystem = React.useMemo(
+    () => data.system.filter((item) => canAccess(item.requiredPermission)),
+    [canAccess],
+  );
 
   const teams = React.useMemo(() => {
     const mappedTeams = companies.map((company) => {
@@ -222,7 +277,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 
   const navItems = React.useMemo(() => {
-    return data.navMain.map((item) => {
+    return visibleNavMain.map((item) => {
       if (item.items) {
         const groupLongest = getLongestMatchingHref(
           pathname,
@@ -242,14 +297,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isActive: globalLongest === item.url,
       };
     });
-  }, [pathname, globalLongest]);
+  }, [pathname, globalLongest, visibleNavMain]);
 
   const systemItems = React.useMemo(() => {
-    return data.system.map((item) => ({
+    return visibleSystem.map((item) => ({
       ...item,
       isActive: globalLongest === item.url,
     }));
-  }, [globalLongest]);
+  }, [globalLongest, visibleSystem]);
 
   const isSystemCompany = session?.user?.company_is_system;
 
@@ -261,7 +316,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
           <NavMain items={navItems} />
-          {isSystemCompany && <NavProject items={systemItems} />}
+          {(isSystemCompany || systemItems.length > 0) && (
+            <NavProject items={systemItems} />
+          )}
         </TripledMotionDiv>
       </SidebarContent>
       <SidebarFooter>

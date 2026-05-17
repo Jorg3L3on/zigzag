@@ -1,15 +1,25 @@
+import {
+  getErrorCatalogEntry,
+  isErrorCode,
+  type ErrorCode,
+  type PublicErrorPayload,
+} from '@/lib/error-catalog';
+
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly errorCode?: ErrorCode;
 
   constructor(
     message: string,
     statusCode: number = 500,
     isOperational: boolean = true,
+    errorCode?: ErrorCode,
   ) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.errorCode = errorCode;
 
     Error.captureStackTrace(this, this.constructor);
   }
@@ -51,6 +61,10 @@ export type ActionErrorType =
   | 'validation'
   | 'server'
   | 'unknown';
+
+export type CodedActionError = {
+  success: false;
+} & PublicErrorPayload;
 
 type NetworkErrorCandidate = {
   code?: string;
@@ -98,11 +112,78 @@ export function classifyServerErrorType(error: unknown): ActionErrorType {
   return 'unknown';
 }
 
+function resolvePublicErrorType(
+  code: ErrorCode,
+  cause?: unknown,
+): ActionErrorType {
+  const catalogType = getErrorCatalogEntry(code).type;
+  if (cause === undefined || cause === null) {
+    return catalogType;
+  }
+
+  const classifiedType = classifyServerErrorType(cause);
+  if (classifiedType === 'unknown') {
+    return catalogType;
+  }
+
+  return classifiedType;
+}
+
+export function buildPublicError(
+  code: ErrorCode,
+  cause?: unknown,
+  errorType?: ActionErrorType,
+): PublicErrorPayload {
+  const entry = getErrorCatalogEntry(code);
+
+  return {
+    error: `${entry.message} Código: ${entry.code}`,
+    errorCode: entry.code as ErrorCode,
+    errorTitle: entry.title,
+    errorType: errorType ?? resolvePublicErrorType(code, cause),
+  };
+}
+
+export function buildActionError(
+  code: ErrorCode,
+  cause?: unknown,
+  errorType?: ActionErrorType,
+): CodedActionError {
+  return {
+    success: false,
+    ...buildPublicError(code, cause, errorType),
+  };
+}
+
+export function logServerError(
+  operation: string,
+  code: ErrorCode,
+  cause: unknown,
+) {
+  console.error(`[${code}] ${operation}`, cause);
+}
+
+export function handleCodedServerActionError(
+  operation: string,
+  code: ErrorCode,
+  cause: unknown,
+): CodedActionError {
+  logServerError(operation, code, cause);
+  return buildActionError(code, cause);
+}
+
 // Error handler for API routes
 export function handleApiError(error: unknown) {
   console.error('API Error:', error);
 
   if (error instanceof AppError) {
+    if (error.errorCode) {
+      return {
+        ...buildPublicError(error.errorCode, error),
+        statusCode: error.statusCode,
+      };
+    }
+
     return {
       error: error.message,
       statusCode: error.statusCode,
@@ -128,6 +209,10 @@ export function handleServerActionError(error: unknown) {
   const errorType = classifyServerErrorType(error);
 
   if (error instanceof AppError) {
+    if (error.errorCode) {
+      return buildActionError(error.errorCode, error);
+    }
+
     return {
       success: false,
       error: error.message,
@@ -148,4 +233,8 @@ export function handleServerActionError(error: unknown) {
     error: 'An unexpected error occurred',
     errorType,
   };
+}
+
+export function coerceErrorCode(value: unknown, fallback: ErrorCode): ErrorCode {
+  return isErrorCode(value) ? value : fallback;
 }

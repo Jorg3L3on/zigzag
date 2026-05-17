@@ -5,6 +5,41 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { db } from '@/lib/db';
 
+class LoginRateLimiter {
+  private requests = new Map<string, { count: number; resetTime: number }>();
+
+  constructor(
+    private readonly limit: number,
+    private readonly windowMs: number,
+  ) {}
+
+  isAllowed(identifier: string): boolean {
+    const now = Date.now();
+    const record = this.requests.get(identifier);
+
+    if (!record || now > record.resetTime) {
+      this.requests.set(identifier, {
+        count: 1,
+        resetTime: now + this.windowMs,
+      });
+      return true;
+    }
+
+    if (record.count >= this.limit) {
+      return false;
+    }
+
+    record.count++;
+    return true;
+  }
+
+  reset(identifier: string): void {
+    this.requests.delete(identifier);
+  }
+}
+
+const loginRateLimiter = new LoginRateLimiter(5, 15 * 60 * 1000);
+
 export const {
   handlers: { GET, POST },
   auth,
@@ -45,6 +80,11 @@ export const {
           const email = String(credentials.email).trim().toLowerCase();
           const password = String(credentials.password);
 
+          if (!loginRateLimiter.isAllowed(email)) {
+            console.warn('[auth][authorize] login throttled', { email });
+            return null;
+          }
+
           const row = await db.query.user.findFirst({
             where: and(eq(user.email, email), isNull(user.deleted_at)),
             with: {
@@ -60,6 +100,8 @@ export const {
           if (!isPasswordValid) {
             return null;
           }
+
+          loginRateLimiter.reset(email);
 
           return {
             id: String(row.id),

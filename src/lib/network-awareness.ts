@@ -1,6 +1,7 @@
 'use client';
 
 import type { ActionErrorType } from '@/lib/errors';
+import { ERROR_CATALOG, isErrorCode, type ErrorCode } from '@/lib/error-catalog';
 
 type NetworkErrorCandidate = {
   code?: string;
@@ -8,6 +9,19 @@ type NetworkErrorCandidate = {
     code?: string;
   };
   message?: string;
+};
+
+export type PublicErrorResponse = {
+  error?: string;
+  errorCode?: string;
+  errorTitle?: string;
+  errorType?: ActionErrorType;
+};
+
+export type ToastErrorContent = {
+  title: string;
+  description: string;
+  errorType: ActionErrorType;
 };
 
 const NETWORK_ERROR_CODES = new Set([
@@ -85,21 +99,73 @@ export function getErrorMessageByType(
   errorType: ActionErrorType,
   fallbackMessage: string,
 ): string {
+  if (fallbackMessage.includes('Código:')) {
+    return fallbackMessage;
+  }
+
   if (errorType === 'network') {
-    return 'No se pudo completar por problemas de conexión. Verifica tu internet e intenta de nuevo.';
+    return 'No se pudo completar por problemas de conexión. Verifica tu internet e intenta de nuevo. Código: GN002';
   }
 
   if (errorType === 'auth') {
-    return 'Tu sesión expiró o no tienes permisos para realizar esta acción.';
+    return 'Tu sesión expiró o no tienes permisos para realizar esta acción. Código: AU002';
   }
 
   if (errorType === 'server') {
-    return 'Ocurrió un error del servidor. Intenta de nuevo en unos momentos.';
+    return 'Ocurrió un error del servidor. Intenta de nuevo en unos momentos. Código: GN001';
   }
 
   if (errorType === 'unknown') {
-    return 'No se pudo completar la operación. Intenta de nuevo.';
+    return 'No se pudo completar la operación. Intenta de nuevo. Código: GN001';
   }
 
-  return fallbackMessage;
+  return `${fallbackMessage} Código: GN001`;
+}
+
+function fallbackCodeForType(errorType: ActionErrorType): ErrorCode {
+  if (errorType === 'network') {
+    return 'GN002';
+  }
+
+  if (errorType === 'auth') {
+    return 'AU002';
+  }
+
+  return 'GN001';
+}
+
+export function buildToastErrorContent(
+  payload: PublicErrorResponse | null | undefined,
+  fallbackMessage: string,
+  fallbackType?: ActionErrorType,
+): ToastErrorContent {
+  const errorType = classifyClientError(
+    null,
+    undefined,
+    payload?.errorType ?? fallbackType,
+  );
+  const code = isErrorCode(payload?.errorCode)
+    ? payload.errorCode
+    : fallbackCodeForType(errorType);
+  const catalogEntry = ERROR_CATALOG[code];
+  const title = payload?.errorTitle || catalogEntry.title;
+  const message = (payload?.error || fallbackMessage).replace(
+    /\s*Código:\s*[A-Z]{2}\d{3}\.?$/,
+    '',
+  );
+
+  return {
+    title,
+    description: `${message} Código: ${code}`,
+    errorType,
+  };
+}
+
+export function getErrorDisplayMessage(
+  payload: PublicErrorResponse | null | undefined,
+  fallbackMessage: string,
+  fallbackType?: ActionErrorType,
+): string {
+  const content = buildToastErrorContent(payload, fallbackMessage, fallbackType);
+  return `${content.title}. ${content.description}`;
 }

@@ -1,27 +1,26 @@
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { service } from '@/db/schema';
-import { fail, ok, requireSession } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 
 export async function GET(request: Request) {
   try {
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
-      return unauthorized;
-    }
-
     const companyIdParam = new URL(request.url).searchParams.get('company_id');
     const statusParam = new URL(request.url).searchParams.get('status');
     const parsedCompanyId = companyIdParam ? Number.parseInt(companyIdParam, 10) : null;
     const status =
       statusParam === 'deleted' || statusParam === 'all' ? statusParam : 'active';
-    const companyId = session.user.company_is_system
-      ? parsedCompanyId ?? session.user.company_id
-      : session.user.company_id;
+    const { unauthorized, companyId } = await requireApiPermission(
+      'services.read',
+      parsedCompanyId,
+    );
+    if (unauthorized) {
+      return unauthorized;
+    }
 
     if (!companyId || Number.isNaN(companyId)) {
-      return fail('Invalid company context', 400);
+      return fail('AU002', 400, 'auth');
     }
 
     const companyCondition = eq(service.company_id, companyId);
@@ -44,29 +43,28 @@ export async function GET(request: Request) {
     return ok(services);
   } catch (error) {
     console.error('Error fetching services:', error);
-    return fail('Failed to fetch services', 500);
+    return fail('SV001', 500, 'server');
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { session, unauthorized } = await requireSession();
-    if (unauthorized || !session) {
-      return unauthorized;
-    }
-
     const body = await request.json();
     const parsed = z
       .object({
         name: z.string().min(1),
         description: z.string().min(1),
         price: z.number().nonnegative(),
+        company_id: z.number().int().positive().optional(),
       })
       .parse(body);
 
-    const companyId = session.user.company_id;
-    if (!companyId) {
-      return fail('Invalid company context', 400);
+    const { unauthorized, companyId } = await requireApiPermission(
+      'services.write',
+      parsed.company_id,
+    );
+    if (unauthorized) {
+      return unauthorized;
     }
 
     const [created] = await db
@@ -82,9 +80,9 @@ export async function POST(request: Request) {
     return ok(created, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return fail(error.issues[0]?.message ?? 'Invalid payload', 400);
+      return fail('SV002', 400, 'validation');
     }
     console.error('Error creating service:', error);
-    return fail('Error al crear el servicio', 500);
+    return fail('SV002', 500, 'server');
   }
 }

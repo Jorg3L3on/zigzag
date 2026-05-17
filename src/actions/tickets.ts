@@ -1,10 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import {
+  service,
   servicesTickets,
   ticket,
+  ticketAuditEvent,
   ticketPayment,
   type Company,
   type Service,
@@ -15,7 +17,8 @@ import {
 import { db } from '@/lib/db';
 import {
   AuthorizationError,
-  classifyServerErrorType,
+  buildActionError,
+  handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
 import { calculateTicketTotal } from '@/lib/ticket-financials';
@@ -24,6 +27,7 @@ import {
   getTicketBalanceDue,
 } from '@/lib/ticket-payment-status';
 import { requireActionPermission } from '@/lib/security';
+import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
 
 const ticketSchema = z.object({
@@ -80,7 +84,13 @@ export type TicketDetailData = TicketRow & {
 
 export type GetTicketByIdResult =
   | { success: true; data: TicketDetailData }
-  | { success: false; error: string; errorType?: ActionErrorType };
+  | {
+      success: false;
+      error: string;
+      errorCode?: string;
+      errorTitle?: string;
+      errorType?: ActionErrorType;
+    };
 
 type PgError = {
   code?: string;
@@ -122,6 +132,72 @@ const assertTicketWritable = async (
   }
 };
 
+const toAuditJson = (value: unknown): unknown => {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(toAuditJson);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, toAuditJson(entry)]),
+    );
+  }
+
+  return value;
+};
+
+type TicketAuditWriter = Pick<typeof db, 'insert'>;
+
+const recordTicketAudit = async (
+  tx: TicketAuditWriter,
+  context: ActionAuthContext,
+  ticketId: bigint,
+  companyId: number | null,
+  eventType: string,
+  payload: Record<string, unknown>,
+) => {
+  await tx.insert(ticketAuditEvent).values({
+    ticket_id: ticketId,
+    company_id: companyId,
+    actor_user_id: BigInt(context.userId),
+    event_type: eventType,
+    payload: toAuditJson(payload) as Record<string, unknown>,
+  });
+};
+
+const assertServicesBelongToCompany = async (
+  serviceIds: number[],
+  companyId: number,
+) => {
+  const uniqueServiceIds = Array.from(new Set(serviceIds));
+  if (uniqueServiceIds.length === 0) {
+    return;
+  }
+
+  const rows = await db
+    .select({ id: service.id })
+    .from(service)
+    .where(
+      and(
+        inArray(service.id, uniqueServiceIds),
+        eq(service.company_id, companyId),
+        isNull(service.deleted_at),
+      ),
+    );
+
+  if (rows.length !== uniqueServiceIds.length) {
+    throw new AuthorizationError('One or more services are unavailable');
+  }
+};
+
 export async function createTicket(
   data: CreateTicketInput,
 ): Promise<{
@@ -132,7 +208,7 @@ export async function createTicket(
 }> {
   try {
     const validatedData = ticketSchema.parse(data);
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'tickets.write',
       validatedData.company_id,
     );
@@ -145,18 +221,31 @@ export async function createTicket(
       document: validatedData.document,
       ticket_date: validatedData.ticket_date,
       company_id: effectiveCompanyId,
+      userId: BigInt(context.userId),
     };
 
-    let created: unknown;
+    let created: TicketRow | undefined;
     try {
-      [created] = await db.insert(ticket).values(values).returning();
+      created = await db.transaction(async (tx) => {
+        const [row] = await tx.insert(ticket).values(values).returning();
+        await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
+          ticket: row,
+        });
+        return row;
+      });
     } catch (error) {
       if (!isTicketPrimaryKeyConflict(error)) {
         throw error;
       }
 
       await syncTicketIdSequence();
-      [created] = await db.insert(ticket).values(values).returning();
+      created = await db.transaction(async (tx) => {
+        const [row] = await tx.insert(ticket).values(values).returning();
+        await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
+          ticket: row,
+        });
+        return row;
+      });
     }
 
     return {
@@ -164,20 +253,10 @@ export async function createTicket(
       data: created as unknown as Ticket,
     };
   } catch (error) {
-    console.error('Error creating ticket:', error);
     if (error instanceof z.ZodError) {
-      console.error('Validation errors:', error.issues);
-      return {
-        success: false,
-        error: 'Invalid ticket data',
-        errorType: 'validation',
-      };
+      return handleCodedServerActionError('tickets.create.validation', 'TC009', error);
     }
-    return {
-      success: false,
-      error: 'Error creating ticket',
-      errorType: classifyServerErrorType(error),
-    };
+    return handleCodedServerActionError('tickets.create', 'TC001', error);
   }
 }
 
@@ -211,12 +290,7 @@ export async function getTickets(
 
     return { success: true, data: tickets as TicketDetailData[] };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener los tickets',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.list.with-relations', 'TC002', e);
   }
 }
 
@@ -244,20 +318,28 @@ export async function getTicketsList(
 
     return { success: true, data: tickets as Ticket[] };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener los tickets',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.list', 'TC002', e);
   }
 }
 
-export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
+export async function getTicketById(
+  id: number,
+  requestedCompanyId?: number | null,
+): Promise<GetTicketByIdResult> {
   try {
-    const { companyId } = await requireActionPermission('tickets.read');
+    const { context, companyId } = await requireActionPermission(
+      'tickets.read',
+      requestedCompanyId,
+    );
     const ticketRow = await db.query.ticket.findFirst({
-      where: and(eq(ticket.id, BigInt(id)), eq(ticket.company_id, companyId)),
+      where:
+        context.companyIsSystem && requestedCompanyId == null
+          ? and(eq(ticket.id, BigInt(id)), isNull(ticket.deleted_at))
+          : and(
+              eq(ticket.id, BigInt(id)),
+              eq(ticket.company_id, companyId),
+              isNull(ticket.deleted_at),
+            ),
       with: {
         company: true,
         services_tickets: {
@@ -272,17 +354,12 @@ export async function getTicketById(id: number): Promise<GetTicketByIdResult> {
     });
 
     if (!ticketRow) {
-      return { success: false, error: 'Ticket no encontrado', errorType: 'validation' };
+      return buildActionError('TC008');
     }
 
     return { success: true, data: ticketRow as TicketDetailData };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al obtener el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.get', 'TC003', e);
   }
 }
 
@@ -296,7 +373,7 @@ export async function updateTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'tickets.write',
       data.company_id ?? undefined,
     );
@@ -308,6 +385,26 @@ export async function updateTicket(
     const totalFromServices = hasServicesUpdate
       ? calculateTicketTotal(servicesToSync)
       : undefined;
+
+    if (hasServicesUpdate) {
+      await assertServicesBelongToCompany(
+        servicesToSync.map((row) => row.service_id),
+        effectiveCompanyId,
+      );
+    }
+
+    const prior = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+        },
+      },
+    });
 
     const updated = await db.transaction(async (tx) => {
       if (hasServicesUpdate) {
@@ -349,14 +446,40 @@ export async function updateTicket(
       const [row] = await tx
         .update(ticket)
         .set(ticketUpdateData)
-        .where(eq(ticket.id, ticketId))
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
         .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'updated',
+          {
+            before: prior,
+            after: row,
+            servicesChanged: hasServicesUpdate,
+            services: servicesToSync ?? undefined,
+          },
+        );
+      }
 
       return row;
     });
 
     const full = await db.query.ticket.findFirst({
-      where: eq(ticket.id, ticketId),
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
       with: {
         services_tickets: {
           with: {
@@ -368,12 +491,7 @@ export async function updateTicket(
 
     return { success: true, data: full ?? updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al actualizar el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.update', 'TC004', e);
   }
 }
 
@@ -383,22 +501,45 @@ export async function deleteTicket(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
-    await assertTicketWritable(BigInt(id), effectiveCompanyId);
-    await db
-      .update(ticket)
-      .set({ deleted_at: new Date() })
-      .where(eq(ticket.id, BigInt(id)));
+    const ticketId = BigInt(id);
+    await assertTicketWritable(ticketId, effectiveCompanyId);
+    const prior = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
+    });
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(ticket)
+        .set({ deleted_at: new Date() })
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
+        .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'deleted',
+          { before: prior, after: row },
+        );
+      }
+    });
 
     return { success: true };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al eliminar el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.delete', 'TC005', e);
   }
 }
 
@@ -413,20 +554,20 @@ export async function finishTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
     const prior = await db.query.ticket.findFirst({
-      where: eq(ticket.id, ticketId),
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
     });
     if (prior?.finished) {
-      return {
-        success: false,
-        error: 'Este ticket ya está finalizado',
-        errorType: 'validation',
-      };
+      return buildActionError('TC006', undefined, 'validation');
     }
 
     const updated = await db.transaction(async (tx) => {
@@ -437,7 +578,13 @@ export async function finishTicket(
           total: total,
           paid: paid,
         })
-        .where(eq(ticket.id, ticketId))
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
         .returning();
 
       if (row && paid > AMOUNT_TOLERANCE) {
@@ -448,17 +595,27 @@ export async function finishTicket(
         });
       }
 
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'finished',
+          {
+            before: prior,
+            after: row,
+            initialPayment: paid > AMOUNT_TOLERANCE ? paid : 0,
+          },
+        );
+      }
+
       return row;
     });
 
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al finalizar el ticket',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }
 }
 
@@ -472,17 +629,13 @@ export async function applyTicketPayment(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('tickets.write');
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
     if (!Number.isFinite(additionalPaid) || additionalPaid <= 0) {
-      return {
-        success: false,
-        error: 'El monto debe ser mayor a cero',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const ticketRow = await db.query.ticket.findFirst({
@@ -490,20 +643,11 @@ export async function applyTicketPayment(
     });
 
     if (!ticketRow) {
-      return {
-        success: false,
-        error: 'Ticket no encontrado',
-        errorType: 'validation',
-      };
+      return buildActionError('TC008');
     }
 
     if (!ticketRow.finished) {
-      return {
-        success: false,
-        error:
-          'Solo se pueden registrar cobros adicionales en tickets finalizados',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const totalAmount = ticketRow.total ?? 0;
@@ -511,22 +655,14 @@ export async function applyTicketPayment(
     const balanceDue = getTicketBalanceDue(ticketRow.total, ticketRow.paid);
 
     if (balanceDue <= 0) {
-      return {
-        success: false,
-        error: 'Este ticket ya no tiene saldo pendiente',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const newPaid = Math.min(totalAmount, currentPaid + additionalPaid);
     const appliedAmount = newPaid - currentPaid;
 
     if (appliedAmount <= AMOUNT_TOLERANCE) {
-      return {
-        success: false,
-        error: 'No hay saldo aplicable con ese monto',
-        errorType: 'validation',
-      };
+      return buildActionError('TC007', undefined, 'validation');
     }
 
     const updated = await db.transaction(async (tx) => {
@@ -539,8 +675,32 @@ export async function applyTicketPayment(
       const [row] = await tx
         .update(ticket)
         .set({ paid: newPaid })
-        .where(eq(ticket.id, ticketId))
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
         .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'payment_collected',
+          {
+            before: ticketRow,
+            after: row,
+            payment: {
+              requestedAmount: additionalPaid,
+              appliedAmount,
+            },
+          },
+        );
+      }
 
       return row;
     });
@@ -551,11 +711,6 @@ export async function applyTicketPayment(
 
     return { success: true, data: updated };
   } catch (e) {
-    console.error(e);
-    return {
-      success: false,
-      error: 'Error al registrar el cobro',
-      errorType: classifyServerErrorType(e),
-    };
+    return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
   }
 }
