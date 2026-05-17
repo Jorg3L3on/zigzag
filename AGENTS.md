@@ -79,3 +79,19 @@ Several resources have logic in both layers. When editing, be careful not to fix
 | `src/proxy.ts` | Route protection |
 | `src/contexts/company-context.tsx` | Selected company state + localStorage |
 | `scripts/seed.ts` | Initial Drizzle seed data |
+
+## Agent skills
+
+Configuration for PRD/issue skills (`prd`, `to-prd`, `to-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md).
+
+### Issue tracker
+
+GitHub Issues on **Jorg3L3on/zigzag** via the `gh` CLI. See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Canonical roles map 1:1 to GitHub labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) plus optional `type:*` labels. See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context: **AGENTS.md** (this file) is the primary domain/architecture reference; optional `CONTEXT.md` and `docs/adr/` later. See [docs/agents/domain.md](docs/agents/domain.md).

@@ -47,3 +47,6 @@ next-env.d.ts
 .DS_Store
 /src/generated/prisma
 /public/pdfs
+
+# Local PRD drafts from the `prd` skill (commit intentionally if you want them in-repo)
+/tasks/prd-*.md

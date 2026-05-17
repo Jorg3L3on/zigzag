@@ -1,0 +1,8 @@
+blank_issues: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/Jorg3L3on/zigzag/blob/main/CONTRIBUTING.md
+    about: Setup, PR checks, and AI workflow
+  - name: Agent workflow (PRD → issues → PR)
+    url: https://github.com/Jorg3L3on/zigzag/blob/main/docs/agents/workflow.md
+    about: How to use Cursor skills with GitHub

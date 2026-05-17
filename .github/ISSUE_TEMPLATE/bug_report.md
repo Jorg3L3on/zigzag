@@ -2,7 +2,9 @@
 name: Bug report
 about: Report a bug in ZigZag
 title: "[Bug] "
-labels: bug
+labels:
+  - type:bug
+  - needs-triage
 ---
 
 ## Description
