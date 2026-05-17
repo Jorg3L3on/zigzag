@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { Toaster } from 'sonner';
+import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import './globals.css';
@@ -56,13 +56,7 @@ export default function RootLayout({
           <Providers>
             <NetworkStatusBanner />
             {children}
-            <Toaster
-              position="bottom-center"
-              offset={16}
-              mobileOffset={{
-                bottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
-              }}
-            />
+            <AppToaster />
           </Providers>
         </CompanyProvider>
       </body>
