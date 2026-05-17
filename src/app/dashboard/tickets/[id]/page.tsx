@@ -24,10 +24,7 @@ import { FormattedDate } from '@/components/formatted-date';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { notFound } from 'next/navigation';
 import { PDFDownloadButton } from '@/components/pdf-download-button';
-import {
-  buildInvoiceDataFromTicketDetail,
-  buildTicketPdfFileName,
-} from '@/lib/ticket-pdf-data';
+import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { TicketPaymentCollectSection } from '@/components/tickets/ticket-payment-collect-section';
 import { requirePagePermission } from '@/lib/page-authz';
 
@@ -98,7 +95,7 @@ export default async function TicketDetailsPage({
                       Finalizado
                     </Badge>
                     <PDFDownloadButton
-                      invoiceData={buildInvoiceDataFromTicketDetail(ticket)}
+                      ticketId={ticket.id}
                       downloadFileName={buildTicketPdfFileName(ticket)}
                     />
                   </div>

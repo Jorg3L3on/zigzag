@@ -47,14 +47,12 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { useEffect, useState, useRef } from 'react';
-import InvoiceTemplate from '@/components/pdf/invoice-template';
-import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
+import { useEffect, useState } from 'react';
 import type { Company } from '@/db/schema';
 import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 import { TripledPageHeader, TripledStepper } from '@/components/tripled';
-import { renderElementToPdfBlob } from '@/lib/pdf-export';
+import { buildTicketInvoiceDownloadUrl } from '@/lib/ticket-invoice-url';
 import {
   buildToastErrorContent,
   classifyClientError,
@@ -120,8 +118,6 @@ export default function EditTicketPage({
       services: [],
     },
   });
-
-  const pdfRef = useRef<HTMLDivElement>(null);
 
   const { isDirty } = form.formState;
 
@@ -263,51 +259,59 @@ export default function EditTicketPage({
   const buildTicketPdfFileName = () =>
     `${form.getValues('client_name')}_${format(new Date(), 'yyyy-MM-dd')}_${resolvedParams.id}.pdf`;
 
+  const downloadServerTicketPdf = async () => {
+    const response = await fetch(
+      buildTicketInvoiceDownloadUrl(resolvedParams.id, selectedCompany?.id),
+      { cache: 'no-store' },
+    );
+
+    if (!response.ok) {
+      throw new Error(`PDF request failed with status ${response.status}`);
+    }
+
+    const pdf = await response.blob();
+    const pdfUrl = URL.createObjectURL(pdf);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = pdfUrl;
+    downloadLink.download = buildTicketPdfFileName();
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    URL.revokeObjectURL(pdfUrl);
+  };
+
   const generatePDF = async () => {
     try {
       setIsGeneratingPdf(true);
-      const documentName = buildTicketPdfFileName();
 
-      if (pdfRef.current) {
-        const element = pdfRef.current;
-        const pdf = await renderElementToPdfBlob(element);
-        const pdfUrl = URL.createObjectURL(pdf);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = pdfUrl;
-        downloadLink.download = documentName;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
-        URL.revokeObjectURL(pdfUrl);
+      const finalPaidAmount = getFinalPaidAmount();
+      const total = calculateTotal();
 
-        const finalPaidAmount = getFinalPaidAmount();
-        const total = calculateTotal();
+      if (!isFullyPaid && finalPaidAmount > total) {
+        toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
+        return;
+      }
 
-        if (!isFullyPaid && finalPaidAmount > total) {
-          toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
-          return;
-        }
+      const result = await finishTicket(
+        Number(resolvedParams.id),
+        total,
+        finalPaidAmount,
+      );
 
-        const result = await finishTicket(
-          Number(resolvedParams.id),
-          total,
-          finalPaidAmount,
+      if (result.success) {
+        await downloadServerTicketPdf();
+        toast.success('PDF generado correctamente');
+        setIsFinished(true);
+        router.replace(`/dashboard/tickets/${resolvedParams.id}`);
+        router.refresh();
+      } else {
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        toast.error(
+          getErrorMessageByType(
+            errorType,
+            result.error || 'No se pudo generar el PDF',
+          ),
         );
-
-        if (result.success) {
-          toast.success('PDF generado correctamente');
-          setIsFinished(true);
-          router.replace(`/dashboard/tickets/${resolvedParams.id}`);
-          router.refresh();
-        } else {
-          const errorType = classifyClientError(null, undefined, result.errorType);
-          toast.error(
-            getErrorMessageByType(
-              errorType,
-              result.error || 'No se pudo generar el PDF',
-            ),
-          );
-        }
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -323,20 +327,7 @@ export default function EditTicketPage({
   const downloadTicketPdf = async () => {
     try {
       setIsGeneratingPdf(true);
-      const documentName = buildTicketPdfFileName();
-
-      if (!pdfRef.current) return;
-
-      const pdf = await renderElementToPdfBlob(pdfRef.current);
-
-      const pdfUrl = URL.createObjectURL(pdf);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = pdfUrl;
-      downloadLink.download = documentName;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-      URL.revokeObjectURL(pdfUrl);
+      await downloadServerTicketPdf();
       toast.success('PDF descargado correctamente');
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -771,35 +762,6 @@ export default function EditTicketPage({
         </div>
       </div>
 
-      <div
-        className="pointer-events-none absolute left-0 -top-[12000px] z-[-1] overflow-visible bg-white"
-        aria-hidden
-      >
-        <div ref={pdfRef} className="bg-white">
-          <InvoiceTemplate
-            data={{
-              issuer: invoiceIssuerFromCompany(ticketCompany),
-              clientName: form.getValues('client_name'),
-              clientAddress: form.getValues('client_tel'),
-              clientCity: '',
-              clientCountry: 'México',
-              ticketNumber: resolvedParams.id.toString().padStart(6, '0'),
-              issueDate: form.getValues('ticket_date')
-                ? format(form.getValues('ticket_date'), 'dd/MM/yyyy')
-                : format(new Date(), 'dd/MM/yyyy'),
-              dueDate: format(new Date(), 'dd/MM/yyyy'),
-              items: ticketServices.map((st) => ({
-                description: `${st.service.name}|||${st.service.description ?? ''}`,
-                quantity: st.quantity.toString(),
-                unitPrice: st.price.toFixed(2),
-                total: (st.quantity * st.price).toFixed(2),
-              })),
-              total: calculateTotal().toFixed(2),
-              paidAmount: getFinalPaidAmount().toFixed(2),
-            }}
-          />
-        </div>
-      </div>
     </>
   );
 }
