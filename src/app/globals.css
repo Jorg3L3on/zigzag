@@ -76,6 +76,8 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    /* Set by NetworkStatusBanner when offline/recovered banner is visible */
+    padding-top: var(--network-status-banner-offset, 0px);
   }
 }
 
