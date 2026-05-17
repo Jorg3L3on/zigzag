@@ -16,7 +16,8 @@ Issues and PRDs for this repo live as **GitHub Issues** on [Jorg3L3on/zigzag](ht
 ## Linking issues
 
 - **Parent PRD issue**: reference in child issues under `## Parent` (see `to-issues` skill).
-- **Implementation PR**: include `Closes #<number>` for the slice issue; add `Part of #<parent>` when there is a parent PRD issue.
+- **Slice PR**: base branch **`feat/<feature-slug>`**, not `main` ([deployment.md](./deployment.md)). Include `Closes #<number>`; `Part of #<parent>` when applicable.
+- **Feature PR**: `feat/<slug>` → `main` when the PRD is complete (one production deploy).
 - **Local PRD drafts**: skills may also write `tasks/prd-<feature>.md` before publishing to GitHub (`prd` skill).
 
 ## When a skill says "publish to the issue tracker"

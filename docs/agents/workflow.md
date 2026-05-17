@@ -5,17 +5,22 @@ Standard path for features, fixes, and releases on Zigzag using Cursor skills an
 ## Overview
 
 ```text
-Idea → PRD → Issues → Branch → PR → CHANGELOG → Release
+Idea → PRD → Issues → feat/<slug> slices → one PR feat/<slug> → main (prod) → CHANGELOG
 ```
 
 | Step | Output | Tool |
 | ---- | ------ | ---- |
-| 1. Plan | PRD | Skill **`prd`** or **`to-prd`** |
-| 2. Decompose | GitHub issues (vertical slices) | Skill **`to-issues`** |
-| 3. Implement | Code on a branch | You / agent |
-| 4. Review | Pull request | `gh pr create` |
-| 5. Ship | Merge to `main` | GitHub |
-| 6. Document | Version history | **CHANGELOG.md** + Git tag |
+| 1. Plan | PRD | **`prd`** or **`to-prd`** |
+| 2. Decompose | GitHub slice issues | **`to-issues`** (auto by default) |
+| 3. Validate | Fixed labels/links | **`validate-issues`** |
+| 4. Implement + PR | Merge-ready PR into `feat/<slug>` | **`implement-issue`** (+ babysit) |
+| 5. **Merge slice PR → `feat/<slug>`** | Integration branch | **Manual** (Vercel **preview**) |
+| 6. **Ship feature → `main`** | Production deploy | **Manual** (**once per PRD**) |
+| 7. Document | Version history | **CHANGELOG.md** + Git tag |
+
+**One command for steps 1–5:** **`ship-feature`** on a PRD path.
+
+**Vercel:** **`main` = production.** Slice merges go to **`feat/<feature-slug>`** only — see [deployment.md](./deployment.md).
 
 One-time setup: run **`setup-matt-pocock-skills`** (or use the committed `docs/agents/` files) and create GitHub labels via [scripts/create-github-labels.sh](../../scripts/create-github-labels.sh).
 
@@ -41,32 +46,33 @@ Use when you already discussed the feature in chat and want a parent issue on Gi
 
 Do not run both paths for the same feature unless you intentionally want a local draft and a tracker copy.
 
-## Break down work (`to-issues`)
+## Automated path (`ship-feature`)
 
-1. Provide a PRD path (`tasks/prd-….md`) or parent issue `#N` / URL
-2. Agent proposes **tracer-bullet** slices (HITL vs AFK, dependencies)
-3. You approve granularity and dependencies
-4. Agent creates child issues on GitHub (blockers first), labeled **`ready-for-agent`** when AFK-ready
+```text
+/ship-feature tasks/prd-my-feature.md
+```
 
-Each child issue should be demoable end-to-end (schema → API/actions → UI → tests), not "only backend."
+1. **Always** publishes parent PRD issue on GitHub (`#P`) from the PRD file
+2. **`to-issues`** auto — child issues linked to `#P`
+3. **`validate-issues`**
+4. **`feat/<slug>`** + **`implement-issue`** per slice → PR into feature branch
+5. **You merge** each slice PR into `feat/<slug>`; reply `continue`
+6. Agent **opens** final PR **`feat/<slug>` → `main`** (required)
+7. **You merge** that PR once (production) — [deployment.md](./deployment.md)
 
-## Implement
+Add `interactive` to quiz slices; `stop-after-issues` to stop after parent + children are created. Parent PRD issue is **not** optional when starting from a PRD file.
 
-1. Pick one issue; add **`status:in-progress`** (optional) and assign yourself
-2. Branch from `main`:
-   - `feat/<issue>-short-slug`
-   - `fix/<issue>-short-slug`
-3. Implement against the issue **acceptance criteria**
-4. Run CI checks locally (see [CONTRIBUTING.md](../../CONTRIBUTING.md))
+## Break down work (`to-issues` only)
 
-## Open a pull request
+1. Provide `tasks/prd-….md` or parent `#N`
+2. **Auto (default):** publish slices without approval
+3. **`interactive`:** quiz before publish
 
-- Title: `feat(scope): short description (#issue)`
-- Body: use [.github/pull_request_template.md](../../.github/pull_request_template.md)
-- Link issues:
-  - `Closes #57` — slice issue
-  - `Part of #40` — parent PRD issue (if any)
-- One logical change per PR when possible
+## Implement one slice (`implement-issue`)
+
+For a single issue `#N`: branch → code → lint/test/build → `gh pr create` → babysit → **stop before merge**.
+
+Never run `gh pr merge` unless the user explicitly requests it in that message.
 
 ## Release and changelog
 
@@ -84,7 +90,10 @@ Patch = bug fixes; minor = features; major = breaking changes.
 | `setup-matt-pocock-skills` | `.cursor/skills/setup-matt-pocock-skills/` | Reconfigure tracker / labels / domain docs |
 | `prd` | `.cursor/skills/prd/` | Interview → `tasks/prd-*.md` |
 | `to-prd` | `.cursor/skills/to-prd/` | Conversation → GitHub PRD issue |
-| `to-issues` | `.cursor/skills/to-issues/` | PRD/plan → GitHub slice issues |
+| `to-issues` | `.cursor/skills/to-issues/` | PRD/plan → GitHub slice issues (auto default) |
+| `validate-issues` | `.cursor/skills/validate-issues/` | Audit/fix issue metadata |
+| `implement-issue` | `.cursor/skills/implement-issue/` | Issue → merge-ready PR (no merge) |
+| `ship-feature` | `.cursor/skills/ship-feature/` | Full pipeline; manual merge only |
 | `list-and-responsive-tables` | `.cursor/skills/list-and-responsive-tables/` | Dashboard list UI pattern |
 
 ## Agent configuration files
@@ -94,4 +103,5 @@ Patch = bug fixes; minor = features; major = breaking changes.
 | [issue-tracker.md](./issue-tracker.md) | `gh` commands and repo |
 | [triage-labels.md](./triage-labels.md) | Label strings |
 | [domain.md](./domain.md) | Glossary and doc layout |
+| [deployment.md](./deployment.md) | Vercel: `main` = prod; slices on `feat/<slug>` |
 | [AGENTS.md](../../AGENTS.md) | Code architecture (canonical) |

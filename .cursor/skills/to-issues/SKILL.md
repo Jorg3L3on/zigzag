@@ -2,8 +2,8 @@
 name: to-issues
 description: >-
   Break a plan, spec, or PRD into independently-grabbable issues on the project issue
-  tracker using tracer-bullet vertical slices. Use when user wants to convert a plan
-  into issues, create implementation tickets, or break down work into issues.
+  tracker using tracer-bullet vertical slices. Default is auto mode (no quiz). Use
+  interactive when user wants to approve slices. Use when converting a plan into issues.
 ---
 
 # To Issues
@@ -11,6 +11,15 @@ description: >-
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
 Read **`docs/agents/issue-tracker.md`**, **`docs/agents/triage-labels.md`**, and **`docs/agents/domain.md`** before publishing issues. If those files are missing, run `/setup-matt-pocock-skills`.
+
+## Mode
+
+| Mode | When | Behavior |
+| ---- | ---- | -------- |
+| **auto** (default) | User does not say `interactive` | Derive slices from PRD user stories; publish without quiz |
+| **interactive** | User says `interactive` or scope is highly ambiguous | Quiz user before publishing (step 4 below) |
+
+`ship-feature` always uses **auto** unless the user passed `interactive`.
 
 ## Process
 
@@ -34,7 +43,16 @@ Slices may be 'HITL' or 'AFK'. HITL slices require human interaction, such as an
 - Prefer many thin slices over few thick ones
 </vertical-slice-rules>
 
-### 4. Quiz the user
+### 4. Approve breakdown
+
+**Auto mode (default):**
+
+- Map each `US-###` user story to one AFK slice unless the story is explicitly HITL (design sign-off, product decision).
+- Infer **Blocked by** from PRD order and cross-story dependencies (e.g. safe-area before toast placement).
+- Briefly list the breakdown in chat (title, type, blocked by, stories) — no wait for approval.
+- If the PRD has no user stories, derive thin vertical slices from functional requirements.
+
+**Interactive mode:**
 
 Present the proposed breakdown as a numbered list. For each slice, show:
 
@@ -84,3 +102,7 @@ Or "None - can start immediately" if no blockers.
 </issue-template>
 
 Do NOT close or modify any parent issue.
+
+### 6. After publishing (auto pipeline)
+
+When invoked from **`ship-feature`** or user asks to validate, run **`validate-issues`** on the new issue numbers.

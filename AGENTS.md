@@ -82,7 +82,7 @@ Several resources have logic in both layers. When editing, be careful not to fix
 
 ## Agent skills
 
-Configuration for PRD/issue skills (`prd`, `to-prd`, `to-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md).
+Configuration for PRD/issue skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Vercel:** [docs/agents/deployment.md](docs/agents/deployment.md) — slice PRs merge to `feat/<slug>`; **`main` stays production** (one merge when PRD is done).
 
 ### Issue tracker
 
@@ -95,3 +95,7 @@ Canonical roles map 1:1 to GitHub labels (`needs-triage`, `needs-info`, `ready-f
 ### Domain docs
 
 Single-context: **AGENTS.md** (this file) is the primary domain/architecture reference; optional `CONTEXT.md` and `docs/adr/` later. See [docs/agents/domain.md](docs/agents/domain.md).
+
+### Deployment (Vercel)
+
+**`main` = production.** Slice PRs merge to **`feat/<feature-slug>`** (previews). One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).

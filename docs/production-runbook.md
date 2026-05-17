@@ -14,12 +14,23 @@ ZigZag deploys to Vercel with Neon PostgreSQL. Drizzle is the only supported sch
 
 Do not enable `ALLOW_MISSING_PERMISSIONS=true` in production.
 
-## Deploy Sequence
+## Git branches and Vercel
 
-1. Confirm `npm run lint`, `npm test -- --runInBand`, `npm run test:e2e`, and `npm run build` pass.
-2. Apply migrations with `npm run migrate:deploy`.
-3. Deploy the Vercel project from `main`.
-4. Visit `/api/health`, `/login`, and `/dashboard`.
+**Production Branch = `main`** (default). Merging to `main` deploys production.
+
+Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so incomplete PRDs do not hit prod. See [agents/deployment.md](agents/deployment.md).
+
+| Branch | Role |
+| ------ | ---- |
+| `feat/<feature-slug>` | Slice PRs merge here (Vercel previews) |
+| `main` | Production; merge the feature branch when the PRD is complete |
+
+## Deploy Sequence (production)
+
+1. Confirm `npm run lint`, `npm test -- --runInBand`, `npm run test:e2e`, and `npm run build` pass on the feature branch (or `main` after merge).
+2. Apply migrations with `npm run migrate:deploy` against the **production** database if schema changed.
+3. Merge **`feat/<feature-slug>` → `main`** (one production deploy for the whole feature).
+4. Visit production `/api/health`, `/login`, and `/dashboard`.
 5. Run one CRUD smoke test for clients, services, and tickets.
 
 ## Rollback

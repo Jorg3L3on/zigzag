@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Agent workflow docs (`docs/agents/`), Cursor skills (`prd`, `to-prd`, `to-issues`), and GitHub label bootstrap script
+- Agent workflow docs (`docs/agents/`), Cursor skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `validate-issues`), and GitHub label bootstrap script
 
 ## [1.0.0] - 2026-05-16
 

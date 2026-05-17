@@ -17,7 +17,9 @@ Read **`docs/agents/issue-tracker.md`**, **`docs/agents/triage-labels.md`**, and
 
 A deep module (as opposed to a shallow module) is one which encapsulates a lot of functionality in a simple, testable interface which rarely changes.
 
-Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
+When run **standalone**, check with the user that these modules match their expectations and which modules should have tests.
+
+When invoked from **`ship-feature`** with a complete `tasks/prd-*.md` file, **skip module confirmation** — use the file as source of truth.
 
 3. Write the PRD using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 

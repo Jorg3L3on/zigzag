@@ -25,7 +25,9 @@ We use a standard path so humans and Cursor agents stay aligned. Details: [docs/
 
 **One-time setup:** run `bash scripts/create-github-labels.sh` after `gh auth login`. Agent config lives in [docs/agents/](docs/agents/).
 
-Skills live under `.cursor/skills/` (`prd`, `to-prd`, `to-issues`, `setup-matt-pocock-skills`).
+Skills live under `.cursor/skills/` (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `setup-matt-pocock-skills`).
+
+**Automated delivery:** `/ship-feature tasks/prd-….md` publishes a **parent PRD issue**, slice issues, **`feat/<slug>`** work, and opens a final PR **`feat/…` → `main`**. You only **merge** PRs (slices + one release to `main`). See [docs/agents/deployment.md](docs/agents/deployment.md).
 
 ## Before you open a PR
 
