@@ -144,8 +144,32 @@ export const TicketPaymentCollectSection = ({
             No hay abonos registrados en el historial.
           </p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
+          <>
+            <ul className="divide-y divide-border rounded-md border md:hidden">
+              {payments.map((row) => {
+                const paymentDate =
+                  typeof row.created_at === 'string'
+                    ? new Date(row.created_at)
+                    : row.created_at;
+
+                return (
+                  <li
+                    key={row.id}
+                    className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                  >
+                    <span className="min-w-0 text-muted-foreground">
+                      <FormattedDate withTime date={paymentDate} />
+                    </span>
+                    <span className="shrink-0 font-medium tabular-nums">
+                      <FormattedCurrency amount={row.amount} />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="hidden rounded-md border md:block">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
@@ -171,8 +195,9 @@ export const TicketPaymentCollectSection = ({
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          </div>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 

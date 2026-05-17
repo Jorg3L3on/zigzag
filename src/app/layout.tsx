@@ -1,6 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { Toaster } from 'sonner';
+import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import './globals.css';
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'ZigZag',
@@ -50,7 +56,7 @@ export default function RootLayout({
           <Providers>
             <NetworkStatusBanner />
             {children}
-            <Toaster />
+            <AppToaster />
           </Providers>
         </CompanyProvider>
       </body>
