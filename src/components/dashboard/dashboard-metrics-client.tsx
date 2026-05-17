@@ -228,28 +228,59 @@ export const DashboardMetricsClient = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre del Cliente</TableHead>
-                <TableHead className="text-right">Tickets</TableHead>
-                <TableHead className="text-right">Total Gastado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {metrics.clientMetrics.map((clientRow) => (
-                <TableRow key={clientRow.id}>
-                  <TableCell className="font-medium">{clientRow.name}</TableCell>
-                  <TableCell className="text-right">
-                    {clientRow.ticketCount}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <FormattedCurrency amount={clientRow.totalSpent} />
-                  </TableCell>
+          <div className="space-y-3 md:hidden">
+            {metrics.clientMetrics.map((clientRow) => (
+              <article
+                key={clientRow.id}
+                className="rounded-lg border border-border bg-card p-4"
+              >
+                <h3 className="truncate text-sm font-semibold text-foreground">
+                  {clientRow.name}
+                </h3>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <dt className="text-muted-foreground">Tickets</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {clientRow.ticketCount}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <dt className="text-muted-foreground">Total gastado</dt>
+                    <dd className="tabular-nums text-foreground">
+                      <FormattedCurrency amount={clientRow.totalSpent} />
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre del Cliente</TableHead>
+                  <TableHead className="text-right">Tickets</TableHead>
+                  <TableHead className="text-right">Total Gastado</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {metrics.clientMetrics.map((clientRow) => (
+                  <TableRow key={clientRow.id}>
+                    <TableCell className="font-medium">
+                      {clientRow.name}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {clientRow.ticketCount}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <FormattedCurrency amount={clientRow.totalSpent} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </>
