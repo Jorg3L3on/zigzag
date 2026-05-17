@@ -1,5 +1,7 @@
 # Mini RAG — ZigZag Knowledge Base
 
+> **Note:** Files under `rag/docs/` may be outdated (some still mention Prisma). For canonical architecture and database workflow, see [AGENTS.md](../AGENTS.md) at the repo root.
+
 A lightweight Retrieval-Augmented Generation system for the **ZigZag** project.
 No external vector database. No embedding API. Runs fully offline.
 

@@ -1,335 +1,125 @@
 # ZigZag — Ticket Management System
 
-A modern, multi-tenant ticket management system (**ZigZag**) built with Next.js, Drizzle ORM, and PostgreSQL.
+Multi-tenant ticket management built with **Next.js 16**, **Drizzle ORM**, and **PostgreSQL**.
 
-## 🚀 Features
+## Features
 
-- **Multi-tenant Architecture**: Company-based data isolation
-- **Role-based Access Control**: Granular permissions system
-- **Ticket Management**: Create, edit, and track service tickets
-- **Client Management**: Customer database with contact information
-- **Service Catalog**: Manage service offerings and pricing
-- **Dashboard Analytics**: Real-time metrics and reporting
-- **PDF Generation**: Invoice and ticket export functionality
-- **Modern UI**: Built with Shadcn/ui and Tailwind CSS
+- Multi-tenant data isolation by company
+- Role-based permissions
+- Tickets, clients, and service catalog
+- Dashboard metrics and on-demand PDF export
+- UI with shadcn/ui and Tailwind CSS
 
-## 🛠️ Tech Stack
+## Tech stack
 
-- **Framework**: Next.js 16 with App Router
-- **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: NextAuth.js
-- **UI Components**: Shadcn/ui + Tailwind CSS
-- **Form Handling**: React Hook Form + Zod validation
-- **State Management**: React Context + Server Actions
-- **Testing**: Jest + React Testing Library + Playwright
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 16 (App Router, Turbopack dev on port **3069**) |
+| Database | PostgreSQL + Drizzle ORM |
+| Auth | NextAuth v5 (Credentials, JWT sessions) |
+| Forms | React Hook Form + Zod |
+| Tests | Jest, React Testing Library, Playwright (`e2e/`) |
 
-## 📋 Prerequisites
+## Prerequisites
 
-- Node.js 18+
-- PostgreSQL 14+ (local, Docker, or hosted)
-- npm or yarn
+- **Node.js 20.9+**
+- **PostgreSQL 14+** (local, Docker, or hosted)
+- npm
 
-## 🚀 Getting Started
-
-### 1. Clone the repository
+## Getting started
 
 ```bash
 git clone https://github.com/Jorg3L3on/zigzag.git
 cd zigzag
-```
-
-### 2. Install dependencies
-
-```bash
 npm install
 ```
 
-### 3. Environment Setup
+Copy [`.env.example`](.env.example) to `.env` (or `.env.local`) and set at least:
 
-Copy [`.env.example`](.env.example) to `.env` (or create `.env.local`) in the project root:
-
-```env
-# Database (create the database first, e.g. createdb zigzag)
-DATABASE_URL="postgresql://username:password@localhost:5432/zigzag"
-
-# Optional for production migration commands
-DIRECT_URL="postgresql://username:password@localhost:5432/zigzag"
-
-# NextAuth
-NEXTAUTH_SECRET="your-secret-key"
-NEXTAUTH_URL="http://localhost:3069"
-
-# Optional: For production
-NODE_ENV="development"
-```
-
-### 4. Database Setup (Drizzle canonical workflow)
+- `DATABASE_URL` — PostgreSQL URL (database name **`zigzag`** in examples)
+- `DIRECT_URL` — optional locally; use Neon direct URL in production for migrations
+- `NEXTAUTH_URL` — `http://localhost:3069` for local dev
+- `NEXTAUTH_SECRET` or `AUTH_SECRET` — random secret (`openssl rand -base64 32`)
 
 ```bash
-# Generate SQL migrations from schema changes
-npm run db:generate
-
-# Apply migrations
-npm run db:migrate
-
-# Seed the database
-npm run seed
+npm run db:generate   # after schema changes in src/db/schema.ts
+npm run db:migrate    # apply migrations
+npm run seed          # optional seed data
+npm run dev           # http://localhost:3069
 ```
 
-### 5. Start Development Server
+## Scripts
 
-```bash
-npm run dev
-```
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Dev server (Turbopack, port 3069) |
+| `npm run build` | Production build |
+| `npm start` | Production server (port 3069) |
+| `npm run lint` | ESLint |
+| `npm run db:generate` | Generate SQL migrations |
+| `npm run db:migrate` | Apply migrations locally |
+| `npm run migrate:deploy` | Apply migrations in production (`DIRECT_URL` when set) |
+| `npm run db:studio` | Drizzle Studio |
+| `npm run seed` | Seed via `scripts/seed.ts` |
+| `npm run db:prod:setup` | `migrate:deploy` + seed (first-time prod only) |
+| `npm test` | Jest unit/integration tests |
+| `npm run test:watch` | Jest watch mode |
+| `npm run test:coverage` | Coverage report |
+| `npm run test:e2e` | Playwright E2E tests |
 
-Visit [http://localhost:3069](http://localhost:3069) to see the application (default dev port in `package.json`).
-
-## 🧪 Testing
-
-```bash
-# Run unit tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run end-to-end tests
-npm run test:e2e
-```
-
-## 📁 Project Structure
+## Project layout
 
 ```
 src/
-├── actions/          # Server actions for data operations
-├── app/             # Next.js app router pages
-├── components/      # Reusable UI components
-├── contexts/        # React contexts for state management
-├── hooks/           # Custom React hooks
-├── lib/             # Utility libraries and configurations
-├── proxy.ts         # Next.js proxy route protection
-└── types/           # TypeScript type definitions
+├── actions/       # Server Actions (primary mutations)
+├── app/           # App Router pages and API routes
+├── components/    # UI components
+├── contexts/      # React context (e.g. company selection)
+├── db/            # Drizzle schema
+├── lib/           # Auth, DB client, errors, security
+├── proxy.ts       # Route protection for / and /dashboard/**
+└── types/
+drizzle/           # SQL migrations
+scripts/seed.ts    # Seed script
+docs/              # Production runbook and ops notes
 ```
 
-## 🔐 Authentication & Authorization
+Contributor and architecture details: **[AGENTS.md](AGENTS.md)**.
 
-The application uses NextAuth.js with a role-based permission system:
+Optional RAG tooling over internal docs: **[rag/README.md](rag/README.md)** (`npm run rag:index`, `rag:search`, `rag:ask`).
 
-- **System Company**: Super admin access to all companies
-- **Regular Companies**: Isolated access to their own data
-- **Roles & Permissions**: Granular access control per feature
-
-## 🗄️ Database Schema
-
-### Core Entities
-
-- **Companies**: Multi-tenant isolation
-- **Users**: Authentication and role assignment
-- **Clients**: Customer information
-- **Services**: Service catalog with pricing
-- **Tickets**: Service requests and tracking
-- **Roles & Permissions**: Access control system
-
-## 🚀 Deployment (Vercel + Neon)
-
-### 1) Prepare production env vars
-
-Use [`.env.production.example`](.env.production.example) as the canonical template.
-
-Required variables:
-
-- `DATABASE_URL`: Neon pooled connection string for app runtime
-- `DIRECT_URL`: Neon direct connection string for migrations
-- `NEXTAUTH_URL`: your deployed app URL (example: `https://<project>.vercel.app`)
-- `NEXTAUTH_SECRET`: secure random secret
-- `NODE_ENV=production`
-
-Generate a secure `NEXTAUTH_SECRET`:
+## Testing
 
 ```bash
-openssl rand -base64 32
-```
-
-### 2) Create Neon project and database
-
-1. Create a Neon project (for example, `zigzag`)
-2. Create/open the `zigzag` database
-3. Copy both connection strings:
-   - **Pooled** URL for `DATABASE_URL`
-   - **Direct** URL for `DIRECT_URL`
-
-### 3) Apply migrations to Neon
-
-Before first production deployment, run:
-
-```bash
-# Set DATABASE_URL and DIRECT_URL in your shell or .env
-npm run migrate:deploy
-```
-
-Optional first-time seed (only if you need starter/demo data):
-
-```bash
-npm run db:prod:setup
-```
-
-`migrate:deploy` uses `DIRECT_URL` when present, falling back to `DATABASE_URL`.
-
-### 4) Configure Vercel project
-
-1. Import the GitHub repository in Vercel
-2. Keep framework preset as **Next.js**
-3. Keep default domain (`*.vercel.app`)
-4. Add all required env vars in **Project Settings → Environment Variables**
-5. Deploy from `main` branch
-
-Vercel deployments do **not** use your local `.env` file. Keep secrets in Vercel env settings.
-
-This repository includes `vercel.json` with a build command:
-
-```json
-{
-  "buildCommand": "npm run vercel-build"
-}
-```
-
-`vercel-build` runs `next build`.
-
-### 5) Verification checklist
-
-Before deploy:
-
-```bash
-npm run lint
 npm test
-npm run build
+npm run test:e2e
 ```
 
-Recommended deploy sequence:
+CI-style Jest: `npm test -- --runInBand`.
 
-1. Configure env vars in Vercel (Production and Preview as needed)
-2. Apply migrations to the target Neon DB: `npm run migrate:deploy`
-3. (Optional) Seed once with demo data: `npm run db:prod:setup`
-4. Redeploy
+## Deployment (Vercel + Neon)
 
-After deploy:
+Use [`.env.production.example`](.env.production.example) for production variables. Full checklist, rollback, and incidents: **[docs/production-runbook.md](docs/production-runbook.md)**.
 
-1. Visit `/api/health`, `/`, and `/dashboard`
-2. Verify login works
-3. Execute at least one CRUD flow for clients/services/tickets
-4. Check Vercel logs for `500` errors
+Summary:
 
-See [docs/production-runbook.md](docs/production-runbook.md) for the deployment, rollback, and incident checklist.
+1. Set `DATABASE_URL` (pooled), `DIRECT_URL` (direct), `NEXTAUTH_URL`, and `NEXTAUTH_SECRET` / `AUTH_SECRET` in Vercel.
+2. Run `npm run migrate:deploy` against the target database before or as part of first deploy.
+3. Optionally run `npm run db:prod:setup` once for seed data.
+4. Deploy; `vercel.json` uses `npm run vercel-build` (`next build`).
+5. Smoke-test `/api/health`, login, and a clients/services/tickets flow.
 
-### 6) Troubleshooting production
+Pre-deploy locally: `npm run lint`, `npm test`, `npm run build`.
 
-- **Database connection errors**: verify `DATABASE_URL`/`DIRECT_URL` and Neon SSL params (`sslmode=verify-full` in this repo templates)
-- **Migration failures**: run `npm run migrate:deploy` locally against Neon to inspect output
-- **Auth redirect/session issues**: verify `NEXTAUTH_URL` exactly matches deployed URL
-- **Build failures**: ensure `npm run vercel-build` is used and all required env vars are set in Vercel
+## Troubleshooting
 
-### Manual Deployment
+| Issue | Check |
+|-------|--------|
+| DB connection | `DATABASE_URL`, Postgres running, database `zigzag` exists |
+| Auth / redirects | `NEXTAUTH_URL` matches deployed URL; secret is set |
+| Build | `rm -rf .next` and reinstall `node_modules` if needed |
+| Migrations | Run `npm run migrate:deploy` with `DIRECT_URL` set |
 
-```bash
-# Build the application
-npm run build
+## License
 
-# Start production server
-npm start
-```
-
-## 🔧 Development
-
-### Code Style
-
-- ESLint configuration included
-- Prettier formatting
-- TypeScript strict mode enabled
-
-### Database Migrations (Drizzle)
-
-```bash
-# Generate migration SQL after schema changes
-npm run db:generate
-
-# Apply pending migrations
-npm run db:migrate
-
-# Open Drizzle Studio
-npm run db:studio
-```
-
-### Adding New Features
-
-1. Create database migration if needed
-2. Add server actions in `src/actions/`
-3. Create UI components in `src/components/`
-4. Add pages in `src/app/`
-5. Update types and validation schemas
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Database Connection**
-
-- Verify DATABASE_URL in `.env` or `.env.local`
-- Ensure PostgreSQL is running and the database exists (default name in docs: **`zigzag`**)
-- Check database permissions
-
-If you previously used a database named `tickets2` locally, you can rename it in PostgreSQL (no active connections to that DB):
-
-```sql
-ALTER DATABASE tickets2 RENAME TO zigzag;
-```
-
-Then set `DATABASE_URL` to use `/zigzag` as the database name.
-
-**Authentication Issues**
-
-- Verify NEXTAUTH_SECRET is set
-- Check NEXTAUTH_URL matches your environment
-
-**Build Errors**
-
-- Clear `.next` folder: `rm -rf .next`
-- Reinstall dependencies: `rm -rf node_modules && npm install`
-
-## 📈 Performance Optimization
-
-- **Caching**: Implemented with Next.js cache utilities
-- **Database Indexing**: Optimized queries with proper indexes
-- **Code Splitting**: Automatic with Next.js App Router
-- **Image Optimization**: Built-in Next.js Image component
-
-## 🔒 Security Features
-
-- **Input Validation**: Zod schemas for all user inputs
-- **SQL Injection Prevention**: Drizzle parameterized queries
-- **XSS Protection**: Input sanitization utilities
-- **CSRF Protection**: Built-in NextAuth.js protection
-- **Rate Limiting**: API endpoint protection
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make your changes and add tests
-4. Commit your changes: `git commit -m 'Add feature'`
-5. Push to the branch: `git push origin feature-name`
-6. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-
-- Create an issue in the GitHub repository
-- Check the documentation in `/docs`
-- Review the troubleshooting section above
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Jorge León.

@@ -9,6 +9,10 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/zigzag
+      NEXTAUTH_SECRET: ci-test-secret
+      NEXTAUTH_URL: http://127.0.0.1:3069
 
     steps:
       - name: Checkout

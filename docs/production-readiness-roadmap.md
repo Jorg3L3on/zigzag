@@ -1,5 +1,7 @@
 # Production Readiness Audit and Roadmap
 
+> **Maintainer notes:** Internal roadmap for project owners, not end-user documentation. See [README.md](../README.md) and [production-runbook.md](production-runbook.md) for deployment guidance.
+
 Date: 2026-05-16
 
 This audit turns the current state of ZigZag into an execution roadmap. The app already has a solid base: Next.js App Router, Drizzle + PostgreSQL, NextAuth credentials auth, tenant-scoped resources, server actions, API routes, unit tests for some pure business logic, CI, and a Vercel/Neon deployment path. It is not production ready yet because several controls are incomplete or inconsistent across the stack.
