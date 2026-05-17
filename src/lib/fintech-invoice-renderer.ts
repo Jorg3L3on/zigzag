@@ -264,20 +264,46 @@ export function renderFintechInvoicePdf(
     doc.setLineWidth(0.8);
     doc.line(margin, textY(footerY + 54), margin + contentW, textY(footerY + 54));
 
-    const contacts: Array<[string, string, string]> = [
-      ['TEL', 'TELÉFONO', payload.issuer.phone || 'Sin teléfono'],
-      ['@', 'CORREO', payload.issuer.email || 'Sin correo'],
-      ['DIR', 'DIRECCIÓN', payload.issuer.footerAddress || payload.issuer.address],
+    const drawFooterIcon = (
+      kind: 'phone' | 'email' | 'address',
+      x: number,
+      y: number,
+    ) => {
+      setStroke(COLORS.blue);
+      doc.setLineWidth(1.4);
+      if (kind === 'phone') {
+        doc.roundedRect(x - 5, textY(y + 8), 10, 16, 2, 2, 'S');
+        doc.line(x - 2, textY(y - 5), x + 2, textY(y - 5));
+        return;
+      }
+
+      if (kind === 'email') {
+        doc.roundedRect(x - 8, textY(y + 6), 16, 11, 2, 2, 'S');
+        doc.line(x - 8, textY(y + 6), x, textY(y - 1));
+        doc.line(x + 8, textY(y + 6), x, textY(y - 1));
+        return;
+      }
+
+      doc.circle(x, textY(y + 1), 7, 'S');
+      doc.circle(x, textY(y + 1), 2, 'S');
+      doc.line(x - 5, textY(y - 4), x, textY(y - 10));
+      doc.line(x + 5, textY(y - 4), x, textY(y - 10));
+    };
+
+    const contacts: Array<['phone' | 'email' | 'address', string, string]> = [
+      ['phone', 'TELÉFONO', payload.issuer.phone || 'Sin teléfono'],
+      ['email', 'CORREO', payload.issuer.email || 'Sin correo'],
+      ['address', 'DIRECCIÓN', payload.issuer.footerAddress || payload.issuer.address],
     ];
     const colXs = [
       margin + contentW * 0.17,
       margin + contentW * 0.5,
       margin + contentW * 0.83,
     ];
-    contacts.forEach(([mark, title, value], index) => {
+    contacts.forEach(([kind, title, value], index) => {
       const x = colXs[index];
       rr(x - 13, footerY + 20, 26, 26, 13, COLORS.surfaceBlue, '#DBEAFE');
-      text(mark, x, footerY + 28, mark === 'DIR' ? 5.9 : 6.7, COLORS.blue, 'bold', 'center');
+      drawFooterIcon(kind, x, footerY + 28);
       text(title, x, footerY + 4, 7.2, COLORS.ink2, 'bold', 'center');
       text(value, x, footerY - 12, 7.2, COLORS.muted, 'normal', 'center', 144);
     });
@@ -341,7 +367,6 @@ export function renderFintechInvoicePdf(
     text(payload.issuer.address, logoX + 46, logoY + 6, 8.1, '#CBD5E1', 'normal', 'left', 210);
     text(`Tel. ${payload.issuer.phone || 'Sin teléfono'}`, logoX + 46, logoY - 8, 8.1, '#CBD5E1', 'normal', 'left', 210);
 
-    text('Factura', margin + 26, headerY + 62, 34, COLORS.white, 'bold');
     text(`Ticket No. ${payload.ticketNumber}`, margin + 28, headerY + 38, 9.5, '#CBD5E1', 'bold');
     text(`Fecha: ${payload.issueDate}`, margin + 28, headerY + 22, 9.5, '#CBD5E1');
 
@@ -392,9 +417,8 @@ export function renderFintechInvoicePdf(
     label('Emisor', margin + clientW + 36, bodyTop - 28);
     text(payload.issuer.name, margin + clientW + 36, bodyTop - 52, 17, COLORS.ink, 'bold', 'left', 130);
     text(payload.issuer.email || 'Sin correo', margin + clientW + 36, bodyTop - 70, 9.2, COLORS.muted, 'normal', 'left', 138);
-    rr(margin + contentW - 110, bodyTop - 67, 78, 34, 12, COLORS.surfaceBlue, null);
-    text('FACTURA', margin + contentW - 71, bodyTop - 47, 6.4, COLORS.blue, 'bold', 'center');
-    text(`#${payload.ticketNumber}`, margin + contentW - 71, bodyTop - 61, 9.4, COLORS.ink, 'bold', 'center');
+    rr(margin + contentW - 110, bodyTop - 62, 78, 24, 12, COLORS.surfaceBlue, null);
+    text(`#${payload.ticketNumber}`, margin + contentW - 71, bodyTop - 51, 9.4, COLORS.ink, 'bold', 'center');
 
     const itemsY = bodyTop - 278;
     const itemsH = 160;
