@@ -181,7 +181,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { state, openMobile, setOpenMobile } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -198,9 +198,10 @@ const Sidebar = React.forwardRef<
       )
     }
 
-    if (isMobile) {
-      return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+    return (
+      <>
+        <div className="md:hidden">
+          <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
@@ -219,11 +220,9 @@ const Sidebar = React.forwardRef<
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
-      )
-    }
+        </div>
 
-    return (
-      <div
+        <div
         ref={ref}
         className="group peer hidden text-sidebar-foreground md:block"
         data-state={state}
@@ -264,6 +263,7 @@ const Sidebar = React.forwardRef<
           </div>
         </div>
       </div>
+      </>
     )
   }
 )
