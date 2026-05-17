@@ -79,13 +79,19 @@ export function LoginForm({
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 placeholder="m@ejemplo.com"
                 required
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Contraseña</Label>
-              <PasswordInput id="password" name="password" required />
+              <PasswordInput
+                id="password"
+                name="password"
+                autoComplete="current-password"
+                required
+              />
             </div>
             {error && <div className="text-sm text-red-500">{error}</div>}
             <Button
