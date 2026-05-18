@@ -11,11 +11,11 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
 | ✅ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
 | ❌ | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
-| ❌ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
+| ✅ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
 | ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic |
 | ❌ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
 | ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
-| ❌ | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic |
+| 🔶 | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic (README/AGENTS updated 2026-05-18) |
 | ✅ | [prd-invoice-fintech-pdf.md](./prd-invoice-fintech-pdf.md) | Invoice PDF feature |
 
 **Suggested implementation order** (from program decisions): UI/UX → Functionality → Architecture → Performance → PWA install → Testing → Accessibility → Documentation.
@@ -96,13 +96,25 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## ❌ prd-mobile-pwa-install.md
+## ✅ prd-mobile-pwa-install.md
 
-**Status:** Not applied
+**Status:** Applied (shipped to `main` via PR #61)
 
-**TL;DR:** PWA install metadata only (no service worker): `start_url` → `/dashboard`, relax `orientation` from `portrait` to `any`, verify icons/metadata on iOS + Android, align with bilingual README (documentation PRD).
+**GitHub:** Parent [#54](https://github.com/Jorg3L3on/zigzag/issues/54) closed; slices [#55](https://github.com/Jorg3L3on/zigzag/issues/55)–[#57](https://github.com/Jorg3L3on/zigzag/issues/57) closed on merge.
 
-**Evidence:** `src/app/manifest.ts` still has `start_url: '/login'`, `orientation: 'portrait'`.
+**TL;DR:** PWA install metadata only (no service worker): `start_url` → `/dashboard`, `orientation` → `any`, verified icons/metadata in layout + `public/icons/`, bilingual README **Mobile & PWA** install section (Dashboard cold start, internet required / no offline).
+
+**Slice PRs (into `feat/mobile-pwa-install`):** #58 (#55 manifest), #59 (#56 icons), #60 (#57 README). **Production:** [#61](https://github.com/Jorg3L3on/zigzag/pull/61) → `main`.
+
+| Item | Status |
+|------|--------|
+| US-001 manifest tuning | ✅ `manifest.ts` `start_url: '/dashboard'`, `orientation: 'any'`; `manifest.test.ts`, `proxy.test.ts` |
+| US-002 icons & metadata | ✅ layout maskable 512; `pwa-icons.test.ts`; icon assets under `public/icons/` + App Router icons |
+| US-003 README install copy | ✅ README **Mobile & PWA** (ES + EN), Dashboard, no offline/SW |
+
+**Evidence:** `src/app/manifest.ts`, `src/app/layout.tsx`, `src/app/manifest.test.ts`, `src/app/pwa-icons.test.ts`, `src/proxy.test.ts`, `README.md` (Mobile & PWA).
+
+**Out of scope (unchanged):** service worker, offline shell, `beforeinstallprompt` banner → `prd-mobile-pwa-offline.md`.
 
 ---
 
@@ -110,7 +122,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 **Status:** Deferred (explicitly out of v1)
 
-**TL;DR:** Future epic: service worker, offline app shell, “requires network” messaging, optional Android `beforeinstallprompt` banner. Depends on PWA install + docs PRDs. Stub only—refine before implementation.
+**TL;DR:** Future epic: service worker, offline app shell, “requires network” messaging, optional Android `beforeinstallprompt` banner. Depends on PWA install (✅) + remaining docs PRD work. Stub only—refine before implementation.
 
 ---
 
@@ -148,13 +160,20 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## ❌ prd-mobile-documentation.md
+## 🔶 prd-mobile-documentation.md
 
-**Status:** Not applied
+**Status:** Partial
 
 **TL;DR:** Bilingual (ES/EN) README **Mobile & PWA** section: install steps, `start_url` = dashboard, internet required / no offline, supported browsers, link to release checklist, AGENTS.md pointer to list rules and mobile PRDs, E2E mobile project docs.
 
-**Evidence:** No “Mobile & PWA” section in `README.md`; `AGENTS.md` has no mobile initiative links.
+| Item | Status |
+|------|--------|
+| US-001 README Mobile & PWA (bilingual install) | ✅ Shipped via `prd-mobile-pwa-install` (PR #61) |
+| US-002 AGENTS.md mobile note | ✅ Mobile/PWA, PDF, list rule, `tasks/INDEX.md` |
+| US-003 Supported browsers (ES + EN) | ✅ README browsers table + ES/EN PDF note |
+| US-004 E2E mobile testing docs | 🔶 README documents `E2E_EMAIL`/`E2E_PASSWORD`; mobile Playwright project pending |
+
+**Evidence:** `README.md` (Mobile & PWA, browsers, Testing/E2E); `AGENTS.md` (mobile, PDF, error catalog); `CHANGELOG.md` unreleased; `rag/docs/00-stale-notice.md`.
 
 ---
 
@@ -174,4 +193,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-05-18 (architecture PRD #45/#46–#50, PR #53; functionality PR #30).
+- **Last audited:** 2026-05-18 (docs README/AGENTS/CHANGELOG/rag; PWA PR #61; architecture PR #53).

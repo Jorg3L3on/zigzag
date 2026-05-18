@@ -1,5 +1,7 @@
 # Business Rules & Known Issues
 
+> **Stale risk:** Prefer [AGENTS.md](../../AGENTS.md). Sections below were partially updated 2026-05-18.
+
 ## Ticket Lifecycle
 
 1. **Create** — technician creates a ticket, optionally linking it to an existing `Client` or entering client details inline (`client_name`, `client_tel`)
@@ -8,24 +10,13 @@
 4. **Finish** — `Ticket.finished = true` marks the job as done
 5. **Delete** — soft delete: sets `deleted_at = now()`
 
-## Known Active Bug
-
-**`src/actions/tickets.ts:146`** — The `updateTicket` server action attempts to write a `sub_total` field to `ServicesTickets` records:
-
-```typescript
-// ❌ Bug: sub_total does not exist in the Prisma schema / DB
-await prisma.servicesTickets.create({
-  data: { service_id, ticket_id, quantity, price, sub_total },  // crashes
-});
-```
-
-Any call to `updateTicket()` with services will fail at runtime with a Prisma validation error.
-
-**Fix**: Remove `sub_total` from the `data` object. The total should be computed as `quantity * price` at the application layer and stored in `Ticket.total`.
-
 ## Permission System
 
-Roles and permissions exist in the DB (`Role`, `Permission`, `RolePermission`), but `checkPermission()` in `src/lib/security.ts` **always returns `true`**. The permission check is not yet enforced. Any UI showing/hiding based on permissions is informational only.
+Roles and permissions live in the DB (`Role`, `Permission`, `RolePermission`). `checkPermission()` in `src/lib/security.ts` enforces grants via `RolePermission`; system-company users bypass checks.
+
+**Dev escape hatch:** if a permission name has no DB row, access is allowed only when `ALLOW_MISSING_PERMISSIONS=true` (must be **off** in production).
+
+API routes should use `requireApiPermission()` from `src/lib/api-helpers.ts` where applicable. Some read routes (e.g. `GET /api/tickets/[id]`) still rely on session + `company_id` only.
 
 ## Company Access Rules
 

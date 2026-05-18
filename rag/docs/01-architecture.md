@@ -1,12 +1,14 @@
 # Project Architecture
 
+> **Canonical reference:** [AGENTS.md](../../AGENTS.md). This file may be stale for RAG only.
+
 ## Overview
 
 **ZigZag** is a multi-tenant ticket management system built with:
 
-- **Framework**: Next.js 15 (App Router, Turbopack)
+- **Framework**: Next.js 16 (App Router, Turbopack on port 3069)
 - **Language**: TypeScript
-- **Database**: PostgreSQL via Prisma ORM (client generated to `src/generated/prisma`)
+- **Database**: PostgreSQL via **Drizzle ORM** (`src/db/schema.ts`, migrations in `drizzle/`)
 - **Auth**: NextAuth v5 (beta) with JWT strategy
 - **UI**: Tailwind CSS + Radix UI + shadcn/ui components
 - **Validation**: Zod + React Hook Form

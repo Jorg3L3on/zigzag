@@ -1,8 +1,10 @@
 # Developer Onboarding
 
+> **Canonical reference:** [README.md](../../README.md) and [AGENTS.md](../../AGENTS.md). Commands below use **Drizzle**, not Prisma.
+
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20.9+
 - PostgreSQL 14+ (local or Docker)
 - npm
 
@@ -20,13 +22,11 @@ cp .env.example .env
 #    NEXTAUTH_SECRET="any-random-string"
 #    NEXTAUTH_URL="http://localhost:3069"
 
-# 4. Run database migrations
-npx prisma migrate dev
+# 4. Generate migrations (after schema changes) and apply
+npm run db:generate   # only when src/db/schema.ts changed
+npm run db:migrate
 
-# 5. Generate the Prisma client (output: src/generated/prisma)
-npx prisma generate
-
-# 6. Seed initial data
+# 5. Seed initial data
 npm run seed
 
 # 7. Start the dev server
@@ -57,16 +57,16 @@ npm run test:coverage # Coverage report
 ## Database Changes
 
 ```bash
-# Make changes to prisma/schema.prisma, then:
-npx prisma migrate dev --name describe-your-change
-npx prisma generate   # regenerates src/generated/prisma
+# Edit src/db/schema.ts, then:
+npm run db:generate   # writes SQL under drizzle/
+npm run db:migrate    # apply locally
 ```
 
-Always regenerate after schema changes — the app imports from `src/generated/prisma`, not `node_modules`.
+Production: `npm run migrate:deploy` (uses `DIRECT_URL` when set).
 
 ## Adding a New Feature
 
-1. Add/update the Prisma model if needed → migrate → generate
+1. Add/update the Drizzle schema in `src/db/schema.ts` → generate → migrate
 2. Add a **server action** in `src/actions/` for UI mutations
 3. Add an **API route** in `src/app/api/` if external access is needed
 4. Always scope queries by `company_id`

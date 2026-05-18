@@ -7,7 +7,9 @@ Multi-tenant ticket management built with **Next.js 16**, **Drizzle ORM**, and *
 - Multi-tenant data isolation by company
 - Role-based permissions
 - Tickets, clients, and service catalog
-- Dashboard metrics and on-demand PDF export
+- Dashboard metrics and **server-generated** ticket invoices (PDF)
+- Mobile-friendly UI (responsive lists, touch targets, accessibility)
+- Installable PWA (`start_url` → `/dashboard`; internet required, no offline mode in v1)
 - UI with shadcn/ui and Tailwind CSS
 
 ## Tech stack
@@ -97,6 +99,16 @@ npm run test:e2e
 
 CI-style Jest: `npm test -- --runInBand`.
 
+Playwright runs against **Desktop Chrome** (`e2e/`). The smoke suite includes an unauthenticated redirect test; the dashboard test runs only when credentials are set:
+
+```bash
+export E2E_EMAIL="your-user@example.com"
+export E2E_PASSWORD="your-password"
+npm run test:e2e
+```
+
+A dedicated mobile device project (iPhone / Pixel) is planned — see `tasks/prd-mobile-testing.md`.
+
 ## Mobile & PWA
 
 Install ZigZag on a phone or tablet for quick access from the home screen. After install, the app opens on the **Dashboard** (`/dashboard`). If your session expired, sign in again.
@@ -138,6 +150,18 @@ Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró
 After install, the app opens on the **Dashboard** (`/dashboard`). Sign in again if your session expired.
 
 **Test on your LAN (optional):** with `npm run dev` on port **3069**, open `http://<your-ip>:3069` from your phone on the same Wi‑Fi.
+
+### Supported browsers / Navegadores compatibles
+
+| Platform | Supported |
+|----------|-----------|
+| iOS | Safari (last 2 major versions) |
+| Android | Chrome (last 2 major versions) |
+| Desktop | Chrome, Edge (current versions) |
+
+**English:** Ticket PDFs are generated on the server in v1. If download fails on iOS, retry on Wi‑Fi or contact your administrator.
+
+**Español:** Las facturas PDF se generan en el servidor en v1. Si la descarga falla en iOS, reintenta con Wi‑Fi o contacta al administrador.
 
 ## Deployment (Vercel + Neon)
 

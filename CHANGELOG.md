@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Agent workflow docs (`docs/agents/`), Cursor skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `validate-issues`), and GitHub label bootstrap script
+- Server-generated fintech invoice PDF (`GET /api/tickets/[id]/invoice`)
+- PWA install metadata (`start_url` `/dashboard`, manifest icons, bilingual README install section)
+- Mobile accessibility: touch targets, chart labels, sheet/dialog focus trap, form error associations
+- Companies list TanStack migration, mobile sort presets, shared list Cursor rule
 
 ### Changed
 
@@ -17,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mobile UI: offline banner and toasts respect safe areas on notched devices
 - Mobile UI: dashboard client metrics and ticket payment history use card/stacked layouts below tablet width
 - Mobile UI: toasts appear at the top on phones so they do not cover primary buttons on ticket create and detail
+- Mobile functionality: `tel` inputs, login autocomplete, company delete on mobile cards, sidebar first-paint fix
+- README and AGENTS.md: mobile/PWA, supported browsers, server PDF, E2E env vars
 
 ## [1.0.0] - 2026-05-16
 

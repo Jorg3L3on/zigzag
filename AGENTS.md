@@ -47,6 +47,18 @@ Several resources have logic in both layers. When editing, be careful not to fix
 ### Company selection
 `src/contexts/company-context.tsx` stores the selected company in React state and localStorage. This is separate from the session's `company_id`; system users can switch context between companies.
 
+### Mobile & responsive UI
+- Dashboard lists use **TanStack Table** on desktop and **card layout** below `md` (768px). See [.cursor/rules/lists-and-responsive-tables.mdc](.cursor/rules/lists-and-responsive-tables.mdc).
+- Breakpoint constant: `MOBILE_BREAKPOINT_PX` in `src/lib/breakpoints.ts`; hook: `src/hooks/use-mobile.tsx`.
+- Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
+- **PWA (v1):** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. No service worker or offline sync in v1.
+- Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md).
+
+### PDF invoices
+- Generated on demand on the server: `GET /api/tickets/[id]/invoice`.
+- Payload: `src/lib/fintech-invoice-payload.ts`; renderer: `src/lib/fintech-invoice-renderer.ts`.
+- UI download: `src/components/pdf-download-button.tsx` (must not accept uploaded PDFs in production).
+
 ### BigInt IDs
 `Ticket.id` and `User.id` are BigInt in Drizzle. Convert them before JSON responses with `convertBigIntToString()` from `src/lib/utils.ts`, or a route-local transform helper.
 
@@ -56,8 +68,9 @@ Several resources have logic in both layers. When editing, be careful not to fix
 - Always filter soft-deleted resources with `deleted_at: null` / `isNull(model.deleted_at)`.
 
 ### Error handling
-- API routes should use `ok()`, `fail()`, and `requireSession()` from `src/lib/api-helpers.ts`.
+- API routes should use `ok()`, `fail()`, `requireSession()`, and `requireApiPermission()` from `src/lib/api-helpers.ts` where RBAC applies.
 - Server actions should use `handleServerActionError()` or the established `{ success, data?, error?, errorType? }` shape.
+- User-facing codes: `src/lib/error-catalog.ts` (55 codes).
 
 ### Production constraints
 - Drizzle is the only schema, migration, and seed workflow.

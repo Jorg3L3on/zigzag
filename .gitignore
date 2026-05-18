@@ -48,5 +48,8 @@ next-env.d.ts
 /src/generated/prisma
 /public/pdfs
 
-# Local PRD drafts from the `prd` skill (commit intentionally if you want them in-repo)
-/tasks/prd-*.mdtmp/
+# Local PRD drafts from the `prd` skill (uncomment to keep out of git)
+# /tasks/prd-*.md
+
+# Local PDF previews and scratch files
+tmp/

@@ -81,8 +81,8 @@ rag/
 - [ ] Deployment (env vars, Docker, CI/CD)
 - [ ] Testing strategy and test file conventions
 - [ ] Component design patterns (how to add a new CRUD page)
-- [ ] PDF generation with `html2pdf.js`
-- [ ] Ticket → PDF export flow
+- [ ] Server PDF invoice flow (`/api/tickets/[id]/invoice`, fintech renderer)
+- [ ] Mobile/PWA patterns (`tasks/INDEX.md`, manifest, list rules)
 - [ ] Role/permission assignment UI flow
 - [ ] Common debugging tips
 
