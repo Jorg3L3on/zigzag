@@ -311,7 +311,11 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
                   </DialogTrigger>
                   <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-x-hidden sm:max-w-lg">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl font-semibold text-foreground">
+                      <DialogTitle
+                        data-initial-focus
+                        tabIndex={-1}
+                        className="text-2xl font-semibold text-foreground outline-none focus:outline-none"
+                      >
                         {isCreatingNewService
                           ? 'Crear nuevo servicio'
                           : 'Agregar servicio al ticket'}

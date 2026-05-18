@@ -386,6 +386,7 @@ export default function TicketsList() {
               </SheetTrigger>
               <SheetContent
                 side="bottom"
+                showCloseButton={false}
                 className="flex max-h-[min(90vh,680px)] flex-col rounded-t-2xl border-t p-0"
               >
                 <div
@@ -393,7 +394,13 @@ export default function TicketsList() {
                   aria-hidden
                 />
                 <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-left">
-                  <SheetTitle>Filtros</SheetTitle>
+                  <SheetTitle
+                    data-initial-focus
+                    tabIndex={-1}
+                    className="outline-none focus:outline-none"
+                  >
+                    Filtros
+                  </SheetTitle>
                   <SheetDescription>
                     Estado de cobro, PDF, finalización, fechas y orden de la
                     lista.
