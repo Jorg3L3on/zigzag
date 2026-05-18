@@ -5,7 +5,7 @@ import { Wifi, WifiOff } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 
 /** Visible banner row height (py-2 + text-sm line); used with safe-area for layout offset. */
-const BANNER_ROW_HEIGHT = '2.5rem';
+export const NETWORK_STATUS_BANNER_ROW_HEIGHT = '2.5rem';
 
 const bannerShellClassName =
   'fixed left-0 right-0 top-0 z-50 border-b px-4 py-2 text-sm pt-[env(safe-area-inset-top,0px)]';
@@ -40,14 +40,17 @@ export function NetworkStatusBanner() {
   useEffect(() => {
     const root = document.documentElement;
     if (isVisible) {
+      root.dataset.networkStatusBanner = 'visible';
       root.style.setProperty(
         '--network-status-banner-offset',
-        `calc(${BANNER_ROW_HEIGHT} + env(safe-area-inset-top, 0px))`,
+        `calc(${NETWORK_STATUS_BANNER_ROW_HEIGHT} + env(safe-area-inset-top, 0px))`,
       );
     } else {
+      delete root.dataset.networkStatusBanner;
       root.style.removeProperty('--network-status-banner-offset');
     }
     return () => {
+      delete root.dataset.networkStatusBanner;
       root.style.removeProperty('--network-status-banner-offset');
     };
   }, [isVisible]);
@@ -57,6 +60,7 @@ export function NetworkStatusBanner() {
       <div
         role="status"
         aria-live="assertive"
+        aria-atomic="true"
         className={`${bannerShellClassName} border-amber-300 bg-amber-100 text-amber-900`}
       >
         <div className="mx-auto flex max-w-7xl items-center gap-2">
@@ -72,6 +76,7 @@ export function NetworkStatusBanner() {
       <div
         role="status"
         aria-live="polite"
+        aria-atomic="true"
         className={`${bannerShellClassName} border-emerald-300 bg-emerald-100 text-emerald-900`}
       >
         <div className="mx-auto flex max-w-7xl items-center gap-2">
