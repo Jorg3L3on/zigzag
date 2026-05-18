@@ -10,6 +10,7 @@ import {
   Ticket,
   User,
   Key,
+  type LucideIcon,
 } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -38,8 +39,19 @@ interface Company {
   is_system: boolean;
 }
 
-// This is sample data.
-const data = {
+type SidebarItem = {
+  title: string;
+  url: string;
+  icon?: LucideIcon;
+  requiredPermission?: string;
+  items?: {
+    title: string;
+    url: string;
+    requiredPermission?: string;
+  }[];
+};
+
+const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
   navMain: [
     {
       title: 'Inicio',
@@ -51,54 +63,18 @@ const data = {
       url: '/dashboard/tickets',
       icon: Ticket,
       requiredPermission: 'tickets.read',
-      items: [
-        {
-          title: 'Ver tickets',
-          url: '/dashboard/tickets',
-          requiredPermission: 'tickets.read',
-        },
-        {
-          title: 'Crear ticket',
-          url: '/dashboard/tickets/create',
-          requiredPermission: 'tickets.write',
-        },
-      ],
     },
     {
       title: 'Servicios',
       url: '/dashboard/services',
       icon: Package,
       requiredPermission: 'services.read',
-      items: [
-        {
-          title: 'Ver servicios',
-          url: '/dashboard/services',
-          requiredPermission: 'services.read',
-        },
-        {
-          title: 'Crear servicio',
-          url: '/dashboard/services/new',
-          requiredPermission: 'services.write',
-        },
-      ],
     },
     {
       title: 'Clientes',
       url: '/dashboard/clients',
       icon: User,
       requiredPermission: 'clients.read',
-      items: [
-        {
-          title: 'Ver clientes',
-          url: '/dashboard/clients',
-          requiredPermission: 'clients.read',
-        },
-        {
-          title: 'Crear cliente',
-          url: '/dashboard/clients/new',
-          requiredPermission: 'clients.write',
-        },
-      ],
     },
   ],
   system: [

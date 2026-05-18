@@ -3,9 +3,15 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { FileText, Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildTicketInvoiceDownloadUrl } from '@/lib/ticket-invoice-url';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PDFDownloadButtonProps {
   ticketId: string | number | bigint;
@@ -52,21 +58,31 @@ export function PDFDownloadButton({
   };
 
   return (
-    <Button
-      type="button"
-      onClick={handleDownload}
-      disabled={isGenerating}
-      className={cn(
-        'w-full min-w-0 max-w-full justify-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 sm:w-auto',
-        className,
-      )}
-    >
-      {isGenerating ? (
-        <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
-      ) : (
-        <FileText className="mr-2 h-4 w-4 shrink-0" aria-hidden />
-      )}
-      Descargar PDF
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={handleDownload}
+            disabled={isGenerating}
+            aria-label="Descargar PDF"
+            className={cn(
+              'h-9 w-9 shrink-0 border-blue-200 bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:bg-background',
+              className,
+            )}
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4 shrink-0" aria-hidden />
+            )}
+            <span className="sr-only">Descargar PDF</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Descargar PDF</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

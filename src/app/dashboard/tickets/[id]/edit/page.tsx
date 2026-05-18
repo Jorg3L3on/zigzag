@@ -58,6 +58,12 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -381,21 +387,29 @@ export default function EditTicketPage({
                       lo necesites.
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
-                    onClick={downloadTicketPdf}
-                    disabled={isGeneratingPdf}
-                    aria-label="Descargar PDF del ticket"
-                  >
-                    {isGeneratingPdf ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                          onClick={downloadTicketPdf}
+                          disabled={isGeneratingPdf}
+                          aria-label="Descargar PDF del ticket"
+                        >
+                          {isGeneratingPdf ? (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                          ) : (
+                            <Download className="h-4 w-4" aria-hidden />
+                          )}
+                          <span className="sr-only">Descargar PDF</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Descargar PDF</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
             </CardHeader>
@@ -616,8 +630,8 @@ export default function EditTicketPage({
                         Paso final
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Al finalizar, se genera el PDF y el ticket quedará en modo
-                        solo lectura.
+                        Al guardar, se genera el PDF y el ticket quedará en modo
+                        solo lectura con el estado de pago seleccionado.
                       </p>
                       <div className="space-y-3 rounded-md border bg-white p-3">
                         <p className="text-sm font-medium text-foreground">
@@ -738,18 +752,18 @@ export default function EditTicketPage({
                         {isGeneratingPdf ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Finalizando...
+                            Guardando...
                           </>
                         ) : (
                           <>
                             <FileText className="mr-2 h-4 w-4" />
-                            Finalizar ticket y generar PDF
+                            Guardar y generar PDF
                           </>
                         )}
                       </Button>
                       {ticketServices.length === 0 && (
                         <p className="text-xs text-amber-600">
-                          Agrega al menos un servicio para poder finalizar el
+                          Agrega al menos un servicio para poder guardar el
                           ticket.
                         </p>
                       )}
