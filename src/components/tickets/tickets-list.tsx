@@ -352,7 +352,7 @@ export default function TicketsList() {
             <div className="relative min-w-0 flex-1 lg:min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="h-10 pl-9"
+                className="h-11 pl-9"
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
                 placeholder="Buscar por ID, cliente, teléfono o correo..."
@@ -366,7 +366,7 @@ export default function TicketsList() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="relative h-10 w-10 shrink-0 lg:hidden"
+                  className="relative shrink-0 lg:hidden"
                   aria-label={
                     activeFilterCount > 0
                       ? `Abrir filtros (${activeFilterCount} activos)`
@@ -416,7 +416,7 @@ export default function TicketsList() {
                     >
                       <SelectTrigger
                         id="ticket-filter-status-sheet"
-                        className="w-full"
+                        className="h-11 w-full"
                         aria-label="Filtrar por estado de cobro"
                       >
                         <SelectValue placeholder="Estado de cobro" />
@@ -453,7 +453,7 @@ export default function TicketsList() {
                     >
                       <SelectTrigger
                         id="ticket-filter-pdf-sheet"
-                        className="w-full"
+                        className="h-11 w-full"
                         aria-label="Filtrar por PDF"
                       >
                         <SelectValue placeholder="PDF" />
@@ -481,7 +481,7 @@ export default function TicketsList() {
                     >
                       <SelectTrigger
                         id="ticket-filter-finished-sheet"
-                        className="w-full"
+                        className="h-11 w-full"
                         aria-label="Filtrar por ticket finalizado"
                       >
                         <SelectValue placeholder="Finalización" />
@@ -506,7 +506,7 @@ export default function TicketsList() {
                           type="button"
                           variant="outline"
                           className={cn(
-                            'h-10 w-full justify-start text-left font-normal',
+                            'h-11 w-full justify-start text-left font-normal',
                             !dateRange?.from && 'text-muted-foreground',
                           )}
                           aria-label="Filtrar por rango de fechas del ticket"
@@ -529,9 +529,9 @@ export default function TicketsList() {
                           <Button
                             type="button"
                             variant="ghost"
-                            size="sm"
-                            className="w-full"
+                            className="min-h-11 w-full"
                             onClick={() => setDateRange(undefined)}
+                            aria-label="Limpiar rango de fechas"
                           >
                             Limpiar fechas
                           </Button>
@@ -555,6 +555,7 @@ export default function TicketsList() {
                     >
                       <SelectTrigger
                         id="ticket-sort-sheet"
+                        className="h-11 w-full"
                         aria-label="Ordenar lista de tickets"
                       >
                         <SelectValue placeholder="Ordenar por" />
@@ -573,8 +574,9 @@ export default function TicketsList() {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
                       onClick={handleClearFilters}
+                      aria-label="Limpiar todos los filtros activos"
                     >
                       <X className="mr-2 h-4 w-4 shrink-0" aria-hidden />
                       Limpiar todos los filtros
@@ -584,7 +586,7 @@ export default function TicketsList() {
 
                 <SheetFooter className="border-t bg-muted/30 px-4 py-3">
                   <SheetClose asChild>
-                    <Button type="button" className="w-full">
+                    <Button type="button" size="lg" className="min-h-11 w-full">
                       Listo
                     </Button>
                   </SheetClose>

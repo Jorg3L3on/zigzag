@@ -35,8 +35,12 @@ export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <MoreVertical className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Más acciones del ticket ${ticket.id.toString()}`}
+        >
+          <MoreVertical className="h-4 w-4" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
