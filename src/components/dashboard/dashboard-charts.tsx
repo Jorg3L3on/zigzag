@@ -33,6 +33,54 @@ const formatMxCurrency = (value: number) =>
     maximumFractionDigits: 2,
   })}`;
 
+const RevenueChartDataTable = ({
+  rows,
+}: {
+  rows: RevenueByMonthPoint[];
+}) => (
+  <table className="sr-only">
+    <caption>Ingresos por mes (datos numéricos)</caption>
+    <thead>
+      <tr>
+        <th scope="col">Mes</th>
+        <th scope="col">Ingresos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr key={row.monthKey}>
+          <td>{row.label}</td>
+          <td>{formatMxCurrency(row.revenue)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
+const ClientSpendChartDataTable = ({
+  rows,
+}: {
+  rows: Array<{ name: string; totalSpent: number }>;
+}) => (
+  <table className="sr-only">
+    <caption>Clientes con mayor gasto (datos numéricos)</caption>
+    <thead>
+      <tr>
+        <th scope="col">Cliente</th>
+        <th scope="col">Total gastado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr key={row.name}>
+          <td>{row.name}</td>
+          <td>{formatMxCurrency(row.totalSpent)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
 const revenueChartConfig = {
   revenue: {
     label: 'Ingresos',
@@ -85,20 +133,34 @@ export const DashboardCharts = ({
         className="flex flex-col"
       >
         <CardHeader>
-          <CardTitle>Ingresos por mes</CardTitle>
+          <CardTitle id="dashboard-revenue-chart-title">
+            Ingresos por mes
+          </CardTitle>
           <CardDescription>
             Tickets finalizados, últimos {revenueMonthCount} meses (fecha de
             ticket o creación)
           </CardDescription>
+          <p className="sr-only">
+            Los tooltips del gráfico son complementarios. Los montos por mes
+            están en la tabla de datos de esta tarjeta y en Ingresos totales.
+          </p>
         </CardHeader>
         <CardContent className="flex-1">
           {!hasRevenueData ? (
-            <p className="text-sm text-muted-foreground">
+            <p
+              role="status"
+              aria-labelledby="dashboard-revenue-chart-title"
+              data-testid="dashboard-revenue-chart-empty"
+              className="text-sm text-muted-foreground"
+            >
               No hay ingresos registrados en este periodo.
             </p>
           ) : (
+            <>
             <ChartContainer
               config={revenueChartConfig}
+              role="img"
+              aria-label={`Gráfica de ingresos por mes, últimos ${revenueMonthCount} meses`}
               className="aspect-auto h-[280px] w-full"
             >
               <AreaChart
@@ -169,6 +231,8 @@ export const DashboardCharts = ({
                 />
               </AreaChart>
             </ChartContainer>
+            <RevenueChartDataTable rows={revenueByMonth} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -178,19 +242,34 @@ export const DashboardCharts = ({
         className="flex flex-col"
       >
         <CardHeader>
-          <CardTitle>Clientes con mayor gasto</CardTitle>
+          <CardTitle id="dashboard-clients-chart-title">
+            Clientes con mayor gasto
+          </CardTitle>
           <CardDescription>
             Top 8 clientes por total gastado en tickets
           </CardDescription>
+          <p className="sr-only">
+            Los tooltips del gráfico son complementarios. El detalle por cliente
+            está en la sección Métricas de clientes.
+          </p>
         </CardHeader>
         <CardContent>
           {!hasClientSpendData ? (
-            <p className="text-sm text-muted-foreground">
+            <p
+              role="status"
+              aria-labelledby="dashboard-clients-chart-title"
+              data-testid="dashboard-clients-chart-empty"
+              className="text-sm text-muted-foreground"
+            >
               No hay clientes para mostrar.
             </p>
           ) : (
+            <>
             <ChartContainer
               config={clientSpendChartConfig}
+              role="img"
+              aria-label="Gráfica de barras: clientes con mayor gasto, top 8"
+              aria-describedby="dashboard-client-metrics"
               className="aspect-auto h-[min(360px,70vh)] w-full"
             >
               <BarChart
@@ -237,6 +316,13 @@ export const DashboardCharts = ({
                 />
               </BarChart>
             </ChartContainer>
+            <ClientSpendChartDataTable
+              rows={topClientsBySpend.map((c) => ({
+                name: c.name,
+                totalSpent: c.totalSpent,
+              }))}
+            />
+            </>
           )}
         </CardContent>
       </Card>
