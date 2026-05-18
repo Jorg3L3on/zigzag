@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { focusInitialOverlayTarget } from "@/lib/overlay-focus"
 
 const Sheet = SheetPrimitive.Root
 
@@ -51,27 +52,69 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  showCloseButton?: boolean
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
-    >
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
-      {children}
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
+>(
+  (
+    {
+      side = "right",
+      className,
+      children,
+      showCloseButton = true,
+      onOpenAutoFocus,
+      ...props
+    },
+    ref,
+  ) => {
+    const contentRef = React.useRef<React.ElementRef<typeof SheetPrimitive.Content>>(null)
+    const setRefs = React.useCallback(
+      (node: React.ElementRef<typeof SheetPrimitive.Content> | null) => {
+        contentRef.current = node
+        if (typeof ref === "function") {
+          ref(node)
+        } else if (ref) {
+          ref.current = node
+        }
+      },
+      [ref],
+    )
+
+    const handleOpenAutoFocus = (event: Event) => {
+      onOpenAutoFocus?.(event)
+      if (!event.defaultPrevented) {
+        focusInitialOverlayTarget(event, contentRef.current)
+      }
+    }
+
+    return (
+      <SheetPortal>
+        <SheetOverlay />
+        <SheetPrimitive.Content
+          ref={setRefs}
+          className={cn(sheetVariants({ side }), className)}
+          onOpenAutoFocus={handleOpenAutoFocus}
+          {...props}
+        >
+          {showCloseButton ? (
+            <SheetPrimitive.Close
+              data-overlay-close
+              className="absolute right-4 top-4 min-h-11 min-w-11 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary"
+              aria-label="Cerrar panel"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </SheetPrimitive.Close>
+          ) : null}
+          {children}
+        </SheetPrimitive.Content>
+      </SheetPortal>
+    )
+  },
+)
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({
