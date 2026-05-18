@@ -26,15 +26,26 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2, Pencil, Trash2, Factory, Globe2 } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
 import { DeleteCompanyDialog } from '@/app/dashboard/companies/delete-company-dialog';
 import { createCompaniesColumns } from '@/components/companies/companies-columns';
+import {
+  COMPANIES_MOBILE_SORT_OPTIONS,
+  DEFAULT_COMPANY_SORTING,
+  decodeSortingState,
+  encodeSortingState,
+} from '@/components/companies/companies-sort-presets';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
-
-const DEFAULT_COMPANY_SORTING: SortingState = [{ id: 'name', desc: false }];
 
 const statusLabel = (status: Company['status']) =>
   status === 'ACTIVE' ? 'Activa' : 'Inactiva';
@@ -215,6 +226,7 @@ export function CompaniesList() {
   ];
 
   const rowCount = table.getRowModel().rows.length;
+  const mobileSortValue = encodeSortingState(sorting);
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -226,19 +238,41 @@ export function CompaniesList() {
         ctaLabel="Nueva empresa"
         onCtaClick={handleCreateCompanyClick}
       >
-        <div className="mb-4 flex flex-wrap gap-2">
-          {statusFilterOptions.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={statusFilter === option.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setStatusFilter(option.value)}
-              aria-label={`Filtrar por estado: ${option.label.toLowerCase()}`}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="flex flex-wrap gap-2">
+            {statusFilterOptions.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                variant={statusFilter === option.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter(option.value)}
+                aria-label={`Filtrar por estado: ${option.label.toLowerCase()}`}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+          <div className="w-full sm:w-auto md:hidden">
+            <Select
+              value={mobileSortValue}
+              onValueChange={(value) => setSorting(decodeSortingState(value))}
             >
-              {option.label}
-            </Button>
-          ))}
+              <SelectTrigger
+                className="h-10 w-full sm:w-[min(100%,18rem)]"
+                aria-label="Ordenar lista de empresas"
+              >
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                {COMPANIES_MOBILE_SORT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {loading ? (

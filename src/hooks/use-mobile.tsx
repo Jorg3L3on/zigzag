@@ -1,7 +1,8 @@
 import * as React from "react"
+import { MOBILE_BREAKPOINT_PX } from "@/lib/breakpoints"
 
-const MOBILE_BREAKPOINT = 768
-const MOBILE_MEDIA_QUERY = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
+// Tailwind `md` breakpoint (768px)
+const MOBILE_MEDIA_QUERY = `(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`
 
 function subscribeToMobileQuery(onStoreChange: () => void) {
   const mediaQueryList = window.matchMedia(MOBILE_MEDIA_QUERY)

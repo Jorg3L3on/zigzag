@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Generic table-only helper — **not** for dashboard resource lists.
+ * Dashboard lists must use the `*List` + `*-columns.tsx` pattern with TanStack
+ * desktop tables and `md:hidden` mobile cards from `table.getRowModel().rows`.
+ * See `.cursor/rules/lists-and-responsive-tables.mdc`.
+ */
+
 import * as React from 'react';
 import {
   ColumnDef,
@@ -21,6 +28,9 @@ import { Input } from '@/components/ui/input';
 import { Search, TableProperties } from 'lucide-react';
 import { TripledEmptyState } from '@/components/tripled/empty-state';
 
+/**
+ * Do not use for dashboard lists — use resource `*List` pattern with mobile cards.
+ */
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
