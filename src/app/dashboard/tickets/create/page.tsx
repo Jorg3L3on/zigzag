@@ -66,7 +66,8 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 
-const formSchema = z.object({
+const formSchema = z
+  .object({
   client_id: z.number().optional(),
   client_name: z.string().min(1, 'El nombre es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono es obligatorio'),
@@ -85,7 +86,11 @@ const formSchema = z.object({
     }),
   ),
   company_id: z.number(),
-});
+})
+  .refine((data) => data.client_id != null && data.client_id > 0, {
+    message: 'Selecciona un cliente',
+    path: ['client_id'],
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -505,7 +510,7 @@ export default function CreateTicketPage() {
                     <Button
                       type="submit"
                       className="h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-md transition-colors duration-200 hover:from-blue-700 hover:to-purple-700 motion-safe:hover:brightness-105"
-                      disabled={isSubmitting || !selectedClient}
+                      disabled={isSubmitting}
                     >
                       {isSubmitting ? (
                         <>
