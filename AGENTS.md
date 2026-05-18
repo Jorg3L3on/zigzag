@@ -96,6 +96,8 @@ Canonical roles map 1:1 to GitHub labels (`needs-triage`, `needs-info`, `ready-f
 
 Single-context: **AGENTS.md** (this file) is the primary domain/architecture reference; optional `CONTEXT.md` and `docs/adr/` later. See [docs/agents/domain.md](docs/agents/domain.md).
 
+Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-responsive-tables.mdc](.cursor/rules/lists-and-responsive-tables.mdc).
+
 ### Deployment (Vercel)
 
 **`main` = production.** Slice PRs merge to **`feat/<feature-slug>`** (previews). One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).
