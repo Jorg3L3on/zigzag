@@ -97,6 +97,48 @@ npm run test:e2e
 
 CI-style Jest: `npm test -- --runInBand`.
 
+## Mobile & PWA
+
+Install ZigZag on a phone or tablet for quick access from the home screen. After install, the app opens on the **Dashboard** (`/dashboard`). If your session expired, sign in again.
+
+**Internet required:** There is no offline mode in the current version. You need a network connection to load and save data (no service worker or offline sync).
+
+### Español
+
+**Instalar en iPhone (Safari)**
+
+1. Abre ZigZag en Safari.
+2. Toca **Compartir** → **Añadir a pantalla de inicio**.
+3. Confirma el nombre **ZigZag** y toca **Añadir**.
+
+**Instalar en Android (Chrome)**
+
+1. Abre ZigZag en Chrome.
+2. Toca el menú → **Instalar app** o **Añadir a pantalla de inicio** (según el dispositivo).
+3. Confirma la instalación.
+
+Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró, inicia sesión de nuevo.
+
+**Probar en la red local (opcional):** con `npm run dev` en el puerto **3069**, abre `http://<tu-ip>:3069` desde el teléfono en la misma Wi‑Fi.
+
+### English
+
+**Install on iPhone (Safari)**
+
+1. Open ZigZag in Safari.
+2. Tap **Share** → **Add to Home Screen**.
+3. Confirm the name **ZigZag** and tap **Add**.
+
+**Install on Android (Chrome)**
+
+1. Open ZigZag in Chrome.
+2. Tap the menu → **Install app** or **Add to home screen** (wording varies by device).
+3. Confirm the install.
+
+After install, the app opens on the **Dashboard** (`/dashboard`). Sign in again if your session expired.
+
+**Test on your LAN (optional):** with `npm run dev` on port **3069**, open `http://<your-ip>:3069` from your phone on the same Wi‑Fi.
+
 ## Deployment (Vercel + Neon)
 
 Use [`.env.production.example`](.env.production.example) for production variables. Full checklist, rollback, and incidents: **[docs/production-runbook.md](docs/production-runbook.md)**.
