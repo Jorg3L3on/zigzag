@@ -40,8 +40,7 @@ export default async function TicketsPage() {
                   className="shrink-0 self-end sm:self-start"
                 >
                   <Button
-                    size="sm"
-                    className="h-9 gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 px-3 text-sm font-semibold shadow-md hover:from-blue-700 hover:to-purple-700 sm:h-10 sm:px-4"
+                    className="min-h-11 gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 px-4 text-sm font-semibold shadow-md hover:from-blue-700 hover:to-purple-700"
                   >
                     <Plus className="h-4 w-4 shrink-0" aria-hidden />
                     Nuevo Ticket
