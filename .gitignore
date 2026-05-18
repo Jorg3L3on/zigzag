@@ -49,4 +49,4 @@ next-env.d.ts
 /public/pdfs
 
 # Local PRD drafts from the `prd` skill (commit intentionally if you want them in-repo)
-/tasks/prd-*.md
+/tasks/prd-*.mdtmp/
