@@ -1,6 +1,6 @@
 # Tasks folder — PRD index
 
-Local product requirements for the **mobile initiative** and related work. Status reflects a **codebase audit** (not GitHub issue closure). Update this file when a PRD ships or scope changes.
+Local product requirements for the **mobile initiative** and related work. Status reflects **shipped code** and GitHub issue closure where noted. Update this file when a PRD ships or scope changes.
 
 **Legend:** ✅ Applied · 🔶 Partial · ❌ Not applied · ⏸️ Deferred · 📋 Reference
 
@@ -8,13 +8,13 @@ Local product requirements for the **mobile initiative** and related work. Statu
 |--------|------|------|
 | 📋 | [prd-mobile-program-decisions.md](./prd-mobile-program-decisions.md) | Locked Q&A for all mobile PRDs |
 | ✅ | [prd-mobile-ui-ux.md](./prd-mobile-ui-ux.md) | v1 epic |
-| 🔶 | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
-| ❌ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
+| ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
+| ✅ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
 | ❌ | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
 | ❌ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
 | ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic |
 | ❌ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
-| 🔶 | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
+| ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
 | ❌ | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic |
 | ✅ | [prd-invoice-fintech-pdf.md](./prd-invoice-fintech-pdf.md) | Invoice PDF feature |
 
@@ -42,31 +42,47 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## 🔶 prd-mobile-functionality.md
+## ✅ prd-mobile-functionality.md
 
-**Status:** Partial
+**Status:** Applied (shipped to `main` via PR #30)
 
-**TL;DR:** Functional parity on mobile: `type="tel"` + autocomplete on client/ticket phone fields, login autocomplete for password managers, delete company from mobile list cards, fix `useIsMobile` first-paint sidebar flash, verify PDF on mobile after server PDF exists.
+**GitHub:** Parent [#20](https://github.com/Jorg3L3on/zigzag/issues/20) closed; slices [#21](https://github.com/Jorg3L3on/zigzag/issues/21)–[#24](https://github.com/Jorg3L3on/zigzag/issues/24) closed on merge. [#25](https://github.com/Jorg3L3on/zigzag/issues/25) (mobile PDF verify) closed as deferred — unblock when `prd-mobile-performance` ships.
 
-**Done / not done:**
+**TL;DR:** Functional parity on mobile: `type="tel"` + autocomplete on client/ticket phone fields (via `ClientForm`), login autocomplete for password managers, delete company from mobile list cards, fix `useIsMobile` first-paint sidebar flash. Mobile PDF verification waits on server PDF (`prd-mobile-performance`).
+
+**Slice PRs (into `feat/mobile-functionality`):** #26 (tel), #27 (login), #28 (company delete), #29 (sidebar flash). **Production:** [#30](https://github.com/Jorg3L3on/zigzag/pull/30) → `main`.
 
 | Item | Status |
 |------|--------|
-| US-001 tel on client + ticket forms | ❌ Only `company-form` has `type="tel"` |
-| US-002 login autocomplete | ❌ `login-form` has no `autoComplete` |
-| US-003 delete company on mobile cards | ❌ Comment in `companies-list.tsx`: delete desktop-only |
-| US-004 `useIsMobile` flash | 🔶 Initial state `undefined` but hook returns `!!isMobile` (still `false` until measured) |
-| US-005 mobile PDF verify | ❌ Blocked on performance PRD (still client-side PDF) |
+| US-001 tel on client + ticket forms | ✅ `client-form.tsx` `type="tel"` / `autoComplete="tel"`; ticket create/edit use `ClientForm` |
+| US-002 login autocomplete | ✅ `login-form.tsx` `autoComplete="email"` / `current-password` |
+| US-003 delete company on mobile cards | ✅ `companies-list.tsx` `DeleteCompanyDialog` on cards with `stopPropagation` |
+| US-004 `useIsMobile` flash | ✅ `use-mobile.tsx` `useSyncExternalStore`; `sidebar.tsx` CSS `md:` split (mobile sheet vs desktop chrome) |
+| US-005 mobile PDF verify | ⏸️ Deferred until server PDF (`prd-mobile-performance` US-002/US-003) |
+
+**Evidence:** `src/components/clients/client-form.tsx`, `src/app/dashboard/tickets/create/page.tsx`, `src/components/login-form.tsx`, `src/components/companies/companies-list.tsx`, `src/hooks/use-mobile.tsx`, `src/components/ui/sidebar.tsx`.
 
 ---
 
-## ❌ prd-mobile-architecture-consistency.md
+## ✅ prd-mobile-architecture-consistency.md
 
-**Status:** Not applied
+**Status:** Applied (shipped to `main` via PR #53)
 
-**TL;DR:** Align **Companies** with the TanStack Table + mobile-cards-from-row-model pattern used by Tickets/Clients; deprecate or document `ui/data-table.tsx`; update `.cursor/rules/lists-and-responsive-tables.mdc`; optional shared `MOBILE_BREAKPOINT_PX` constant.
+**GitHub:** Parent [#45](https://github.com/Jorg3L3on/zigzag/issues/45); slices [#46](https://github.com/Jorg3L3on/zigzag/issues/46)–[#50](https://github.com/Jorg3L3on/zigzag/issues/50) closed on merge.
 
-**Evidence:** `CompaniesList` still uses local state + `.map` on `filteredCompanies` (not `useReactTable`); no `companies-columns.tsx`; `MOBILE_BREAKPOINT` only inside `use-mobile.tsx`, not `src/lib/breakpoints.ts`.
+**TL;DR:** Companies list aligned with TanStack + mobile cards from row model; mobile sort presets; `DataTable` documented as not for dashboard lists; list Cursor rule + AGENTS.md link; shared `MOBILE_BREAKPOINT_PX` (768px).
+
+**Slice PRs (into `feat/mobile-architecture-consistency`):** #51 (#46 TanStack), #52 (#47–#50 sort/docs/rules/breakpoint). **Production:** [#53](https://github.com/Jorg3L3on/zigzag/pull/53) → `main`.
+
+| Item | Status |
+|------|--------|
+| US-001 Companies TanStack migration | ✅ `companies-columns.tsx`, `CompaniesList` + `useReactTable` |
+| US-002 Mobile sort | ✅ `companies-sort-presets.ts`, mobile `Select` |
+| US-003 DataTable policy | ✅ JSDoc on `ui/data-table.tsx`; no dashboard imports |
+| US-004 List rule + AGENTS | ✅ `lists-and-responsive-tables.mdc`, AGENTS.md link |
+| US-005 Breakpoint constant | ✅ `src/lib/breakpoints.ts`, `use-mobile.tsx` |
+
+**Evidence:** `src/components/companies/companies-list.tsx`, `companies-columns.tsx`, `companies-sort-presets.ts`, `src/components/ui/data-table.tsx`, `src/lib/breakpoints.ts`, `src/hooks/use-mobile.tsx`, `.cursor/rules/lists-and-responsive-tables.mdc`.
 
 ---
 
@@ -108,21 +124,27 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## 🔶 prd-mobile-accessibility.md
+## ✅ prd-mobile-accessibility.md
 
-**Status:** Partial (baseline only)
+**Status:** Applied (shipped to `main` via PR #44)
 
-**TL;DR:** Mobile a11y: offline banner must not block focus, ~44px touch targets on primary flows, chart accessibility, sheet/dialog focus trap on mobile Safari, form error `aria-describedby`. Target WCAG 2.1 AA where practical; VoiceOver + TalkBack on key paths.
+**GitHub:** Parent [#33](https://github.com/Jorg3L3on/zigzag/issues/33) closed; slices [#34](https://github.com/Jorg3L3on/zigzag/issues/34)–[#38](https://github.com/Jorg3L3on/zigzag/issues/38) closed on merge.
 
-**Done / not done:**
+**TL;DR:** Mobile a11y: offline banner does not block focus, ~44px touch targets on primary flows, chart accessible names + sr-only data tables, sheet/dialog focus trap, form validation errors linked via `aria-describedby` and announced as alerts. Target WCAG 2.1 AA where practical.
+
+**Slice PRs (into `feat/mobile-accessibility`):** #39 (banner), #40 (touch targets), #41 (charts), #42 (focus trap), #43 (forms). **Production:** #44 → `main`.
 
 | Item | Status |
 |------|--------|
-| US-001 banner focus / aria | 🔶 `role="status"` + `aria-live` present; layout coordinated with UI/UX PRD |
-| US-002 touch target audit | ❌ No documented audit |
-| US-003 chart a11y | 🔶 `accessibilityLayer` may exist; PRD extras not verified |
-| US-004 sheet/dialog focus | ❌ Not systematically verified |
-| US-005 form errors | ❌ Not verified per PRD |
+| US-001 banner focus / aria | ✅ `NetworkStatusBanner` live regions, document offset, mobile sidebar below banner |
+| US-002 touch target audit | ✅ `Button` icon `h-11`, sidebar trigger, login, tickets list/filter, ticket detail PDF |
+| US-003 chart a11y | ✅ `accessibilityLayer`, `role="img"` + `aria-label`, sr-only tables, empty-state `role="status"` |
+| US-004 sheet/dialog focus | ✅ `overlay-focus`, filter sheet `showCloseButton={false}`, Escape returns focus to trigger |
+| US-005 form errors | ✅ `FormControl` `aria-describedby`, `FormMessage` `role="alert"`, ticket create client validation |
+
+**Evidence:** `src/components/network-status-banner.tsx`, `src/components/ui/button.tsx`, `src/components/ui/sidebar.tsx`, `src/components/dashboard/dashboard-charts.tsx`, `src/lib/overlay-focus.ts`, `src/components/ui/form.tsx`, `src/components/tickets/tickets-list.tsx`, `src/components/tickets/ticket-services-list-client.tsx`, `src/app/dashboard/tickets/create/page.tsx`.
+
+**Out of scope (unchanged):** full admin WCAG audit, high-contrast theme, axe-core CI.
 
 ---
 
@@ -152,4 +174,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-05-16 (workspace codebase).
+- **Last audited:** 2026-05-18 (architecture PRD #45/#46–#50, PR #53; functionality PR #30).
