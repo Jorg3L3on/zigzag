@@ -220,7 +220,7 @@ export const DashboardMetricsClient = () => {
           </div>
         </CardContent>
       </Card>
-      <Card>
+      <Card id="dashboard-client-metrics">
         <CardHeader>
           <CardTitle>Métricas de Clientes</CardTitle>
           <CardDescription>

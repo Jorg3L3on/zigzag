@@ -69,7 +69,7 @@ export function PDFDownloadButton({
             disabled={isGenerating}
             aria-label="Descargar PDF"
             className={cn(
-              'h-9 w-9 shrink-0 border-blue-200 bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:bg-background',
+              'shrink-0 border-blue-200 bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:bg-background',
               className,
             )}
           >
@@ -78,7 +78,6 @@ export function PDFDownloadButton({
             ) : (
               <Download className="h-4 w-4 shrink-0" aria-hidden />
             )}
-            <span className="sr-only">Descargar PDF</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent>Descargar PDF</TooltipContent>

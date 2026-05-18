@@ -81,6 +81,7 @@ export function LoginForm({
                 type="email"
                 autoComplete="email"
                 placeholder="m@ejemplo.com"
+                className="h-11"
                 required
               />
             </div>
@@ -90,12 +91,14 @@ export function LoginForm({
                 id="password"
                 name="password"
                 autoComplete="current-password"
+                className="h-11"
                 required
               />
             </div>
             {error && <div className="text-sm text-red-500">{error}</div>}
             <Button
               type="submit"
+              size="lg"
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               disabled={isLoading}
             >
