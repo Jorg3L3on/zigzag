@@ -38,7 +38,7 @@ These three requirements apply to **all** resource lists:
   - Tickets: `TicketsList`
   - Clients: `ClientList`
   - Services: `ServicesListClient`
-  - Companies: `CompaniesList`
+  - Companies: `CompaniesList` + `companies-columns.tsx` + `companies-sort-presets.ts`
 - Show three distinct states:
   - **Loading**: centered `Loader2` spinner.
   - **Error**: `TripledEmptyState` with an explicit error message and optional “Reintentar” button.
@@ -59,7 +59,7 @@ These three requirements apply to **all** resource lists:
 ## DataTable + mobile cards
 
 - **Mobile (`md:hidden`)**:
-  - Cards driven by the **same filtered + sorted** row model as the DataTable.
+  - Cards driven by **`table.getRowModel().rows`** from the same TanStack instance as desktop — **not** a separate `.map` on a manually filtered array.
   - Each row: `<article>` / `<div>`; click → edit (`router.push`); `tabIndex={0}`, `role="button"`, `onKeyDown` for `Enter` / `Space`.
   - Core information: name/title, badges, 2–3 fields in a `<dl>` where appropriate.
   - Edit/Delete buttons call `event.stopPropagation()`.
@@ -81,3 +81,17 @@ When you add a new resource list (e.g. invoices, products, etc.):
   - **Desktop**: TanStack DataTable (`hidden md:block`).
   - **Mobile**: cards (`md:hidden`).
 - Re-use `FormattedDate`, `FormattedCurrency`, badges, shared filter buttons.
+
+## Anti-patterns
+
+- **Do not** render mobile cards with `.map(filteredRows)` while desktop uses TanStack — use one `useReactTable` and `table.getRowModel().rows` for both.
+- **Do not** use `src/components/ui/data-table.tsx` for dashboard resource lists (table-only, no mobile cards). Use `ClientList`, `TicketsList`, `CompaniesList`, etc.
+
+## Reference implementations
+
+| Resource | List | Columns | Sort presets |
+| -------- | ---- | ------- | ------------ |
+| Tickets | `TicketsList` | `tickets-columns.tsx` | `tickets-sort-presets.ts` |
+| Clients | `ClientList` | `clients-columns.tsx` | `clients-sort-presets.ts` |
+| Companies | `CompaniesList` | `companies-columns.tsx` | `companies-sort-presets.ts` |
+| Services | `ServicesListClient` | `services-columns.tsx` | `services-sort-presets.ts` |
