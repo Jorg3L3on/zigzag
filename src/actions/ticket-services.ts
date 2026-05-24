@@ -227,6 +227,7 @@ export async function updateServiceTicket(
           .set({
             quantity: data.quantity,
             price: data.price,
+            updated_at: new Date(),
           })
           .where(
             and(
@@ -284,7 +285,8 @@ export async function deleteServiceTicket(
     await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
     await db.transaction(async (tx) => {
       await tx
-        .delete(servicesTickets)
+        .update(servicesTickets)
+        .set({ deleted_at: new Date(), updated_at: new Date() })
         .where(
           and(
             eq(servicesTickets.id, serviceTicketId),

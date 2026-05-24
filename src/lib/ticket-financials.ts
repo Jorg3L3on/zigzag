@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 
@@ -22,7 +22,12 @@ export async function syncTicketTotal(
   const allForTicket = await executor
     .select()
     .from(servicesTickets)
-    .where(eq(servicesTickets.ticket_id, ticketId));
+    .where(
+      and(
+        eq(servicesTickets.ticket_id, ticketId),
+        isNull(servicesTickets.deleted_at),
+      ),
+    );
 
   const total = calculateTicketTotal(allForTicket);
   await executor.update(ticket).set({ total }).where(eq(ticket.id, ticketId));

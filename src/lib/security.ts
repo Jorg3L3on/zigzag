@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
-import { permission, rolePermission, user } from '@/db/schema';
+import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from './db';
 import { AuthorizationError } from './errors';
 import { auth } from './auth';
@@ -89,6 +89,14 @@ export async function checkPermission(
     });
 
     if (!userRow?.role_id) {
+      return false;
+    }
+
+    const roleRow = await db.query.role.findFirst({
+      where: and(eq(role.id, userRow.role_id), isNull(role.deleted_at)),
+    });
+
+    if (!roleRow) {
       return false;
     }
 

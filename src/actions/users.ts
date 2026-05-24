@@ -58,7 +58,13 @@ export async function getUsers(): Promise<{
             eq(user.company_id, authContext.companyId as number),
           ),
     });
-    return { success: true, data: users as UserWithRelations[] };
+    const visibleUsers = users.map((userRow) => ({
+      ...userRow,
+      company: userRow.company?.deleted_at ? null : userRow.company,
+      role: userRow.role?.deleted_at ? null : userRow.role,
+    }));
+
+    return { success: true, data: visibleUsers as UserWithRelations[] };
   } catch (e) {
     return handleCodedServerActionError('users.list', 'US001', e);
   }

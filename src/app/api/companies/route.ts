@@ -1,6 +1,6 @@
 // /api/companies
 
-import { count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import { company, service, ticket, user } from '@/db/schema';
 import {
   companyApiCreateSchema,
@@ -74,7 +74,10 @@ export async function GET() {
     // Use token/session claims for read access to avoid hard 404s
     // when a stale session points to a missing user record.
     if (session.user.company_is_system) {
-      const companiesList = await db.select().from(company);
+      const companiesList = await db
+        .select()
+        .from(company)
+        .where(isNull(company.deleted_at));
       const companies = await attachCounts(companiesList);
       return ok(companies);
     }
@@ -86,7 +89,12 @@ export async function GET() {
     const [companyRow] = await db
       .select()
       .from(company)
-      .where(eq(company.id, session.user.company_id))
+      .where(
+        and(
+          eq(company.id, session.user.company_id),
+          isNull(company.deleted_at),
+        ),
+      )
       .limit(1);
 
     if (!companyRow) {
@@ -110,11 +118,15 @@ export async function POST(request: Request) {
     }
 
     const sessionUser = await db.query.user.findFirst({
-      where: eq(user.id, BigInt(session.user.id)),
+      where: and(eq(user.id, BigInt(session.user.id)), isNull(user.deleted_at)),
       with: { company: true },
     });
 
-    if (!sessionUser || !sessionUser.company?.is_system) {
+    if (
+      !sessionUser ||
+      sessionUser.company?.deleted_at ||
+      !sessionUser.company?.is_system
+    ) {
       return fail('AU002', 403, 'auth');
     }
 
@@ -174,12 +186,16 @@ export async function PUT(request: Request) {
     }
 
     const sessionUser = await db.query.user.findFirst({
-      where: eq(user.id, BigInt(session.user.id)),
+      where: and(eq(user.id, BigInt(session.user.id)), isNull(user.deleted_at)),
       with: { company: true },
     });
 
     if (!sessionUser) {
       return fail('US001', 404, 'validation');
+    }
+
+    if (sessionUser.company?.deleted_at) {
+      return fail('AU002', 403, 'auth');
     }
 
     if (!sessionUser.company?.is_system && sessionUser.company_id !== body.id) {
@@ -212,7 +228,7 @@ export async function PUT(request: Request) {
           : false,
         updated_at: new Date(),
       })
-      .where(eq(company.id, body.id))
+      .where(and(eq(company.id, body.id), isNull(company.deleted_at)))
       .returning();
 
     if (!updated) {

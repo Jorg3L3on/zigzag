@@ -63,6 +63,7 @@ export async function PUT(
         .set({
           quantity: parsed.quantity,
           price: parsed.price,
+          updated_at: new Date(),
         })
         .where(
           and(
@@ -121,7 +122,8 @@ export async function DELETE(
 
     const deleted = await db.transaction(async (tx) => {
       const [deletedRow] = await tx
-        .delete(servicesTickets)
+        .update(servicesTickets)
+        .set({ deleted_at: new Date(), updated_at: new Date() })
         .where(
           and(
             eq(servicesTickets.id, serviceTicketId),

@@ -80,7 +80,20 @@ export async function getRoles(): Promise<{
         },
       },
     });
-    return { success: true, data: roles as RoleWithRelations[] };
+    const visibleRoles = roles.map((roleRow) => ({
+      ...roleRow,
+      company: roleRow.company?.deleted_at ? null : roleRow.company,
+      permissions: roleRow.permissions
+        .map((assignment) => ({
+          ...assignment,
+          permission: assignment.permission?.deleted_at
+            ? null
+            : assignment.permission,
+        }))
+        .filter((assignment) => assignment.permission !== null),
+    }));
+
+    return { success: true, data: visibleRoles as RoleWithRelations[] };
   } catch (error) {
     return handleCodedServerActionError('roles.list', 'RL001', error);
   }
@@ -217,10 +230,10 @@ export async function deleteRole(id: number): Promise<{
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
-    await db.transaction(async (tx) => {
-      await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
-      await tx.delete(role).where(and(eq(role.id, id), isNull(role.deleted_at)));
-    });
+    await db
+      .update(role)
+      .set({ deleted_at: new Date(), updated_at: new Date() })
+      .where(and(eq(role.id, id), isNull(role.deleted_at)));
 
     revalidatePath('/dashboard/roles');
     return { success: true };
