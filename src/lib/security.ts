@@ -107,9 +107,8 @@ export async function checkPermission(
         ),
       );
 
-    // Local migration escape hatch only; production RBAC must fail closed.
     if (permissionRows.length === 0) {
-      return process.env.ALLOW_MISSING_PERMISSIONS === 'true';
+      return false;
     }
 
     const permitted = await db

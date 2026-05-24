@@ -43,7 +43,7 @@ Completed in this pass:
 - Added Drizzle migration metadata for existing migrations and a new migration for company structured fields plus `TicketAuditEvent`.
 - Added ticket audit writes for creation, updates/service changes, finalization, payments, and deletion.
 - Patched high-risk tenant filters in user, role, permission, company, client, ticket, ticket-service, and service API paths.
-- Made missing permission definitions fail closed unless `ALLOW_MISSING_PERMISSIONS=true` is explicitly set.
+- Made missing permission definitions fail closed.
 - Added basic credential login throttling.
 - Added production security headers.
 - Added `/api/health` and a production runbook.
@@ -109,14 +109,13 @@ Evidence:
 - Tenant scope is enforced in many server actions through `requireActionPermission`.
 - Some read actions still return cross-company data after only a permission check, for example `getUsers()` and `getRoles()` list all records.
 - API routes and server actions do not share one authorization helper, so behavior can drift.
-- `checkPermission()` returns `true` if a permission row is missing, which is useful during migration but unsafe as a final RBAC policy.
+- Missing permission definitions now fail closed; seed data must include every permission name used in code.
 
 Work:
 
 - Create a tenant authorization checklist for every action and API route.
 - Make system-user cross-company access explicit and audited.
 - Ensure non-system users can only read/write their own company data.
-- Remove or feature-flag the "permission missing means allow" fallback.
 - Add tests for system user, regular user, wrong company, deleted company/resource, and missing permission.
 
 Acceptance criteria:

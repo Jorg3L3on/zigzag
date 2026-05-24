@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTicketById } from '@/actions/tickets';
-import { auth } from '@/lib/auth';
-import { fail } from '@/lib/api-helpers';
+import { fail, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
 import { buildFintechInvoicePayload } from '@/lib/fintech-invoice-payload';
 import { renderFintechInvoicePdf } from '@/lib/fintech-invoice-renderer';
@@ -15,11 +14,6 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return fail('AU001', 401, 'auth');
-    }
-
     const { id } = await context.params;
     const ticketId = Number(id);
     if (!Number.isInteger(ticketId) || ticketId <= 0) {
@@ -27,9 +21,21 @@ export async function GET(
     }
 
     const requestedCompanyId = new URL(request.url).searchParams.get('company_id');
+    const parsedCompanyId = requestedCompanyId
+      ? Number.parseInt(requestedCompanyId, 10)
+      : undefined;
+
+    const { session, unauthorized } = await requireApiPermission(
+      'tickets.read',
+      parsedCompanyId,
+    );
+    if (unauthorized || !session) {
+      return unauthorized;
+    }
+
     const result = await getTicketById(
       ticketId,
-      requestedCompanyId ? Number.parseInt(requestedCompanyId, 10) : undefined,
+      parsedCompanyId,
     );
 
     if (!result.success) {

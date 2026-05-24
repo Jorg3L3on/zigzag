@@ -76,16 +76,8 @@ describe('security helpers', () => {
   });
 
   describe('checkPermission', () => {
-    const originalAllowMissingPermissions =
-      process.env.ALLOW_MISSING_PERMISSIONS;
-
     beforeEach(() => {
       jest.clearAllMocks();
-      process.env.ALLOW_MISSING_PERMISSIONS = originalAllowMissingPermissions;
-    });
-
-    afterAll(() => {
-      process.env.ALLOW_MISSING_PERMISSIONS = originalAllowMissingPermissions;
     });
 
     it('allows root-company users without role lookups', async () => {
@@ -151,7 +143,6 @@ describe('security helpers', () => {
     });
 
     it('fails closed when the permission row is missing', async () => {
-      process.env.ALLOW_MISSING_PERMISSIONS = 'false';
       mockAuth.mockResolvedValue({
         user: {
           id: '5',

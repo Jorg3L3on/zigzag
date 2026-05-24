@@ -1,7 +1,6 @@
 import { getTicketById } from '@/actions/tickets';
-import { auth } from '@/lib/auth';
 import { convertBigIntToString } from '@/lib/utils';
-import { fail, ok } from '@/lib/api-helpers';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
 
 export async function GET(
@@ -9,16 +8,23 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return fail('AU001', 401, 'auth');
-    }
-
     const { id } = await context.params;
     const requestedCompanyId = new URL(request.url).searchParams.get('company_id');
+    const parsedCompanyId = requestedCompanyId
+      ? Number.parseInt(requestedCompanyId, 10)
+      : undefined;
+
+    const { session, unauthorized } = await requireApiPermission(
+      'tickets.read',
+      parsedCompanyId,
+    );
+    if (unauthorized || !session) {
+      return unauthorized;
+    }
+
     const result = await getTicketById(
       Number(id),
-      requestedCompanyId ? Number.parseInt(requestedCompanyId, 10) : undefined,
+      parsedCompanyId,
     );
 
     if (!result.success) {
