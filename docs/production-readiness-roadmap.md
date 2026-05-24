@@ -103,17 +103,17 @@ Acceptance criteria:
 
 Evidence:
 
-- Tenant scope is enforced in many server actions through `requireActionPermission`.
-- Some read actions still return cross-company data after only a permission check, for example `getUsers()` and `getRoles()` list all records.
-- API routes and server actions do not share one authorization helper, so behavior can drift.
+- Fixed on 2026-05-24: domain server actions are covered by authorization helpers, non-public API routes are covered by API authorization helpers, and restricted dashboard routes are covered by page/layout RBAC guards.
+- Fixed on 2026-05-24: stale sessions for deleted users or inactive/deleted companies fail active-session validation in `requireActionAuth()`.
+- Fixed on 2026-05-24: static RBAC coverage tests guard server actions, API routes, dashboard routes, and documented public/auth-only exceptions.
 - Missing permission definitions now fail closed; seed data must include every permission name used in code.
 
 Work:
 
-- Create a tenant authorization checklist for every action and API route.
-- Make system-user cross-company access explicit and audited.
-- Ensure non-system users can only read/write their own company data.
-- Add tests for system user, regular user, wrong company, deleted company/resource, and missing permission.
+- Completed: tenant authorization checklist is encoded in `src/lib/rbac-coverage.test.ts`.
+- Completed: system-user cross-company access remains explicit through `company.is_system`.
+- Completed: non-system users are restricted by `resolveWritableCompanyId()` plus route/action company filters.
+- Completed: helper tests cover system user, regular user, wrong company, deleted role, inactive company, and missing permission.
 
 Acceptance criteria:
 

@@ -165,10 +165,25 @@ export async function requireActionAuth(): Promise<ActionAuthContext> {
     throw new AuthorizationError('Authentication required');
   }
 
+  const activeUser = await db.query.user.findFirst({
+    where: and(eq(user.id, BigInt(session.user.id)), isNull(user.deleted_at)),
+    with: {
+      company: true,
+    },
+  });
+
+  if (
+    !activeUser?.company ||
+    activeUser.company.deleted_at ||
+    activeUser.company.status !== 'ACTIVE'
+  ) {
+    throw new AuthorizationError('Authentication required');
+  }
+
   return {
     userId: session.user.id,
-    companyId: session.user.company_id ?? null,
-    companyIsSystem: Boolean(session.user.company_is_system),
+    companyId: activeUser.company_id ?? null,
+    companyIsSystem: Boolean(activeUser.company.is_system),
   };
 }
 

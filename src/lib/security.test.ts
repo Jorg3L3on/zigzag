@@ -3,7 +3,7 @@ import {
   requireSystemUser,
   type ActionAuthContext,
 } from '@/lib/authz-context';
-import { checkPermission } from '@/lib/security';
+import { checkPermission, requireActionAuth } from '@/lib/security';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 
@@ -17,6 +17,9 @@ jest.mock('@/lib/db', () => ({
       user: {
         findFirst: jest.fn(),
       },
+      role: {
+        findFirst: jest.fn(),
+      },
     },
     select: jest.fn(),
   },
@@ -26,6 +29,9 @@ const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockDb = db as unknown as {
   query: {
     user: {
+      findFirst: jest.Mock;
+    };
+    role: {
       findFirst: jest.Mock;
     };
   };
@@ -118,6 +124,7 @@ describe('security helpers', () => {
         },
       } as Awaited<ReturnType<typeof auth>>);
       mockDb.query.user.findFirst.mockResolvedValue({ id: 3n, role_id: 7 });
+      mockDb.query.role.findFirst.mockResolvedValue({ id: 7 });
       mockDb.select
         .mockReturnValueOnce(mockSelectRows([{ id: 11 }]))
         .mockReturnValueOnce(mockSelectLimitRows([{ role_id: 7 }]));
@@ -151,10 +158,73 @@ describe('security helpers', () => {
         },
       } as Awaited<ReturnType<typeof auth>>);
       mockDb.query.user.findFirst.mockResolvedValue({ id: 5n, role_id: 8 });
+      mockDb.query.role.findFirst.mockResolvedValue({ id: 8 });
       mockDb.select.mockReturnValueOnce(mockSelectRows([]));
 
       await expect(checkPermission('5', 10, 'missing.permission')).resolves.toBe(
         false,
+      );
+    });
+
+    it('denies permissions granted through a deleted role', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '6',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({ id: 6n, role_id: 9 });
+      mockDb.query.role.findFirst.mockResolvedValue(null);
+
+      await expect(checkPermission('6', 10, 'tickets.read')).resolves.toBe(
+        false,
+      );
+      expect(mockDb.select).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requireActionAuth', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('returns auth context for active users in active companies', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '7',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 7n,
+        company_id: 10,
+        company: { id: 10, deleted_at: null, status: 'ACTIVE' },
+      });
+
+      await expect(requireActionAuth()).resolves.toEqual({
+        userId: '7',
+        companyId: 10,
+        companyIsSystem: false,
+      });
+    });
+
+    it('rejects stale sessions for deleted users or inactive companies', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '8',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 8n,
+        company: { id: 10, deleted_at: null, status: 'INACTIVE' },
+      });
+
+      await expect(requireActionAuth()).rejects.toThrow(
+        'Authentication required',
       );
     });
   });
