@@ -1,6 +1,6 @@
 # Business Rules & Known Issues
 
-> **Stale risk:** Prefer [AGENTS.md](../../AGENTS.md). Sections below were partially updated 2026-05-18.
+> **Secondary context:** Prefer [AGENTS.md](../../AGENTS.md). Sections below were updated 2026-05-24.
 
 ## Ticket Lifecycle
 
@@ -14,9 +14,9 @@
 
 Roles and permissions live in the DB (`Role`, `Permission`, `RolePermission`). `checkPermission()` in `src/lib/security.ts` enforces grants via `RolePermission`; system-company users bypass checks.
 
-**Dev escape hatch:** if a permission name has no DB row, access is allowed only when `ALLOW_MISSING_PERMISSIONS=true` (must be **off** in production).
+Missing permission definitions fail closed. Seed data must include every permission name used in code.
 
-API routes should use `requireApiPermission()` from `src/lib/api-helpers.ts` where applicable. Some read routes (e.g. `GET /api/tickets/[id]`) still rely on session + `company_id` only.
+API routes should use `requireApiPermission()` from `src/lib/api-helpers.ts` where applicable.
 
 ## Company Access Rules
 
@@ -34,14 +34,11 @@ Not all code paths filter by `deleted_at: null`. When querying for a resource th
 
 ## BigInt JSON Serialisation
 
-`Ticket.id` and `User.id` are `BigInt`. Always convert before returning from API routes:
+`Ticket.id` and `User.id` are `BigInt`. API success responses should go through `ok()` from `src/lib/api-helpers.ts`:
 
 ```typescript
-import { convertBigIntToString } from '@/lib/utils';
-return NextResponse.json(convertBigIntToString(data));
+return ok(data);
 ```
-
-Or use the `transformBigInt()` helper in `src/app/api/users/route.ts`.
 
 ## Cache Utilities
 

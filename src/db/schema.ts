@@ -344,7 +344,7 @@ export const servicesTicketsRelations = relations(servicesTickets, ({ one }) => 
   }),
 }));
 
-/** UI / API row types (replaces `@/generated/prisma/client` imports) */
+/** UI / API row types derived from the Drizzle schema. */
 export type Company = typeof company.$inferSelect;
 export type User = typeof user.$inferSelect;
 export type Role = typeof role.$inferSelect;

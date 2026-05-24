@@ -11,16 +11,19 @@ All models that carry `company_id`:
 
 ## Querying Rules
 
-**Always** add `company_id` to every Prisma `where` clause. There is no global filter — if you forget, users see other tenants' data.
+**Always** add `company_id` to every Drizzle query over tenant data. There is no global filter — if you forget, users see other tenants' data.
 
 ```typescript
 // ✅ Correct
-const tickets = await prisma.ticket.findMany({
-  where: { company_id: session.user.company_id, deleted_at: null },
+const tickets = await db.query.ticket.findMany({
+  where: and(
+    eq(ticket.company_id, session.user.company_id),
+    isNull(ticket.deleted_at),
+  ),
 });
 
 // ❌ Wrong — leaks cross-tenant data
-const tickets = await prisma.ticket.findMany();
+const tickets = await db.query.ticket.findMany();
 ```
 
 ## System Users (Super-admins)
@@ -49,12 +52,10 @@ The `selectedCompany` is used in component-level queries and forms, while `sessi
 
 When creating any resource, always assign `company_id`:
 ```typescript
-await prisma.client.create({
-  data: {
-    name,
-    email,
-    company_id: session.user.company_id,
-  },
+await db.insert(client).values({
+  name,
+  email,
+  company_id: session.user.company_id,
 });
 ```
 

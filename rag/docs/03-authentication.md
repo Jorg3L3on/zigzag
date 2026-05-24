@@ -2,7 +2,7 @@
 
 ## Stack
 
-- **Library**: NextAuth v5 (`next-auth@5.0.0-beta.28`)
+- **Library**: NextAuth v5 (`next-auth@5.0.0-beta.31`)
 - **Strategy**: JWT (no database sessions)
 - **Provider**: `CredentialsProvider` (email + password)
 - **Config file**: `src/lib/auth.ts`
@@ -52,11 +52,11 @@ const { data: session } = useSession();
 
 ## Route Protection
 
-`src/middleware.ts` protects:
+`src/proxy.ts` protects:
 - `/` → redirects to `/dashboard`
 - `/dashboard/**` → requires valid session
 
-**API routes (`/api/**`) are NOT protected by middleware.** Each API route handler must call `auth()` and check the session manually.
+**API routes (`/api/**`) are NOT protected by proxy.** Each API route handler must call `requireSession()` or `requireApiPermission()`.
 
 ## Super-Admin Access
 

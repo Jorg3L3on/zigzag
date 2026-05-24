@@ -82,19 +82,16 @@ Evidence:
 - Runtime code uses Drizzle in `src/lib/db.ts` and `src/db/schema.ts`.
 - Fixed on 2026-05-16: Prisma workflow files were removed and README/AGENTS/CLAUDE guidance now points to Drizzle.
 - Drizzle migration history now includes the existing ticket payment migrations plus a company/audit migration.
+- Fixed on 2026-05-24: stale RAG docs and scripts now point to Drizzle, not Prisma.
 
 Risk:
 
-- Developers may create schema changes in the wrong place.
-- Production migrations can drift from runtime schema.
-- Seeds and generated clients may disagree with deployed code.
+- Historical database backups may still contain `_prisma_migrations` rows from the pre-Drizzle era. Those are archival data only and are not part of the active workflow.
 
 Work:
 
-- Remove Prisma from the production workflow.
-- Archive or remove Prisma workflow docs, schema, migrations, config, seed scripts, and generated-client expectations.
-- Ensure Drizzle owns schema changes, migration generation, production migration deploys, and seeds.
-- Ensure migration scripts, README, AGENTS.md, CI, and seed scripts all agree.
+- Completed: Drizzle owns schema changes, migration generation, production migration deploys, and seeds.
+- Completed: README, AGENTS.md, CLAUDE.md, RAG docs, migration scripts, and seed scripts agree on the Drizzle workflow.
 
 Acceptance criteria:
 
@@ -298,9 +295,8 @@ Acceptance criteria:
 
 Evidence:
 
-- `README.md` says Next.js 15, while `package.json` uses Next.js 16.
-- `README.md` project structure mentions `src/middleware.ts`, but the project currently has `src/proxy.ts`.
-- `AGENTS.md` still emphasizes Prisma.
+- README.md, AGENTS.md, and CLAUDE.md now describe Next.js 16, `src/proxy.ts`, and Drizzle.
+- Optional RAG docs are synchronized for Drizzle and still carry a stale-doc notice because they are secondary context.
 
 Work:
 
@@ -344,7 +340,7 @@ Acceptance criteria:
 ## Recommended Execution Order
 
 1. Fix Jest/Playwright split so CI becomes meaningful.
-2. Remove Prisma workflow and make Drizzle the only database path.
+2. Keep the Drizzle-only database path verified as schema changes land.
 3. Audit and patch tenant/RBAC gaps in actions and API routes.
 4. Remove PDF uploads and verify on-demand PDF generation.
 5. Add immutable ticket audit trails.
@@ -361,7 +357,7 @@ Acceptance criteria:
 - Fix test configuration.
 - Make CI green.
 - Confirm production build in CI.
-- Update README/AGENTS.md around the Drizzle-only DB workflow.
+- Keep README/AGENTS.md aligned around the Drizzle-only DB workflow.
 
 ### Milestone 2: Trust Tenant Boundaries
 

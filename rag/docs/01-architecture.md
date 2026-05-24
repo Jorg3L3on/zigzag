@@ -51,12 +51,11 @@ src/
 │   ├── tickets/      # Ticket CRUD UI
 │   └── ui/           # Base Radix UI / shadcn components
 ├── contexts/         # React contexts (company-context)
-├── generated/prisma/ # Auto-generated Prisma client (DO NOT EDIT)
 ├── hooks/            # Custom React hooks
 ├── lib/              # Core utilities
 │   ├── auth.ts       # NextAuth config
 │   ├── cache.ts      # Cache utilities (defined, not yet used in actions)
-│   ├── db.ts         # Prisma singleton
+│   ├── db.ts         # Drizzle database client singleton
 │   ├── errors.ts     # Error classes and handlers
 │   ├── security.ts   # Rate limiter, input sanitization, checkPermission
 │   └── utils.ts      # General utilities incl. convertBigIntToString
@@ -65,11 +64,11 @@ src/
 
 ## Middleware
 
-`src/middleware.ts` protects `/` and `/dashboard/**` routes. API routes (`/api/**`) are excluded and must protect themselves by calling `auth()`.
+`src/proxy.ts` protects `/` and `/dashboard/**` routes. API routes (`/api/**`) are excluded and must protect themselves with `requireSession()` or `requireApiPermission()`.
 
 ## Key Conventions
 
 - All IDs use `company_id` for tenant scoping
-- `Ticket.id` and `User.id` are `BigInt` — must call `convertBigIntToString()` before JSON serialisation
-- Prisma client lives at `src/generated/prisma`, not `node_modules/@prisma/client`
-- Run `npx prisma generate` after any schema change
+- `Ticket.id` and `User.id` are `BigInt`; API success responses should go through `ok()` from `src/lib/api-helpers.ts`.
+- Drizzle schema lives in `src/db/schema.ts`; SQL migrations live in `drizzle/`.
+- Run `npm run db:generate` after schema changes, then `npm run db:migrate` locally or `npm run migrate:deploy` for production.
