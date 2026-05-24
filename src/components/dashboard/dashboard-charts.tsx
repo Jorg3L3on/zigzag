@@ -26,6 +26,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useReducedMotion } from 'framer-motion';
 
 const formatMxCurrency = (value: number) =>
   `$${value.toLocaleString('es-MX', {
@@ -113,6 +114,7 @@ export const DashboardCharts = ({
   clientMetrics,
   revenueMonthCount = 12,
 }: DashboardChartsProps) => {
+  const shouldReduceMotion = useReducedMotion();
   const hasRevenueData = revenueByMonth.some((m) => m.revenue > 0);
 
   const topClientsBySpend = [...clientMetrics]
@@ -227,7 +229,7 @@ export const DashboardCharts = ({
                   fill="url(#fillRevenue)"
                   stroke="var(--color-revenue)"
                   strokeWidth={2}
-                  isAnimationActive
+                  isAnimationActive={!shouldReduceMotion}
                 />
               </AreaChart>
             </ChartContainer>
@@ -312,7 +314,7 @@ export const DashboardCharts = ({
                   dataKey="totalSpent"
                   fill="var(--color-totalSpent)"
                   radius={[0, 4, 4, 0]}
-                  isAnimationActive
+                  isAnimationActive={!shouldReduceMotion}
                 />
               </BarChart>
             </ChartContainer>

@@ -13,6 +13,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+const PDF_DOWNLOAD_TIMEOUT_MS = 60_000;
+
 interface PDFDownloadButtonProps {
   ticketId: string | number | bigint;
   downloadFileName: string;
@@ -29,10 +31,17 @@ export function PDFDownloadButton({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleDownload = async () => {
+    const abortController = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => abortController.abort(),
+      PDF_DOWNLOAD_TIMEOUT_MS,
+    );
+
     try {
       setIsGenerating(true);
       const response = await fetch(buildTicketInvoiceDownloadUrl(ticketId, companyId), {
         cache: 'no-store',
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -53,6 +62,7 @@ export function PDFDownloadButton({
       console.error('Error generating ticket PDF:', error);
       toast.error('No se pudo generar el PDF. Código: PDF001');
     } finally {
+      window.clearTimeout(timeoutId);
       setIsGenerating(false);
     }
   };

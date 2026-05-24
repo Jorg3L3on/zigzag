@@ -10,7 +10,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-mobile-ui-ux.md](./prd-mobile-ui-ux.md) | v1 epic |
 | ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
 | ✅ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
-| ❌ | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
+| 🔶 | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
 | ✅ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
 | ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic |
 | ❌ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
@@ -86,13 +86,20 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## ❌ prd-mobile-performance.md
+## 🔶 prd-mobile-performance.md
 
-**Status:** Not applied
+**Status:** Partial
 
-**TL;DR:** Mobile performance: Lighthouse mobile baseline doc, **server-generated ticket PDF** (primary path), wire `PDFDownloadButton` to server, honor `prefers-reduced-motion` on charts/`TripledMotionDiv`. Targets mid-range Android shop devices and iOS Safari PDF reliability.
+**TL;DR:** Mobile performance: **server-generated ticket PDF** is now the primary path, `PDFDownloadButton` has a 60s timeout, and dashboard charts/`TripledMotionDiv` honor `prefers-reduced-motion`. Lighthouse baseline procedure exists; numeric authenticated runs and real-device PDF checks remain.
 
-**Evidence:** `PDFDownloadButton` still uses `renderElementToPdfBlob`; no `tasks/mobile-lighthouse-baseline.md`; charts still use `isAnimationActive` without reduced-motion check.
+| Item | Status |
+|------|--------|
+| US-001 Lighthouse baseline | 🔶 `tasks/mobile-lighthouse-baseline.md` created; numeric `/login`, `/dashboard`, `/dashboard/tickets` runs pending staging/auth setup |
+| US-002 Server PDF endpoint | ✅ `src/app/api/tickets/[id]/invoice/route.ts` generates authenticated, tenant-scoped PDFs |
+| US-003 PDFDownloadButton server path | ✅ `src/components/pdf-download-button.tsx` fetches `/api/tickets/[id]/invoice` as primary path with timeout/error handling |
+| US-004 Reduced motion | ✅ `src/components/dashboard/dashboard-charts.tsx` disables chart animation under reduced motion; `src/components/tripled/motion.tsx` renders static motion divs |
+
+**Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/components/pdf-download-button.tsx`, `src/components/dashboard/dashboard-charts.tsx`, `src/components/tripled/motion.tsx`, `tasks/mobile-lighthouse-baseline.md`.
 
 ---
 

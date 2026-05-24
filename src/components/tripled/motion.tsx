@@ -1,6 +1,11 @@
 'use client';
 
-import { motion, type Variants } from 'framer-motion';
+import {
+  motion,
+  useReducedMotion,
+  type HTMLMotionProps,
+  type Variants,
+} from 'framer-motion';
 
 export const tripledFadeInUp: Variants = {
   hidden: { opacity: 0, y: 14 },
@@ -18,4 +23,34 @@ export const tripledStagger: Variants = {
   },
 };
 
-export const TripledMotionDiv = motion.div;
+export const TripledMotionDiv = ({
+  animate,
+  initial,
+  transition,
+  variants,
+  ...props
+}: HTMLMotionProps<'div'>) => {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return (
+      <motion.div
+        {...props}
+        initial={false}
+        animate={undefined}
+        variants={undefined}
+        transition={{ ...transition, duration: 0 }}
+      />
+    );
+  }
+
+  return (
+    <motion.div
+      {...props}
+      animate={animate}
+      initial={initial}
+      transition={transition}
+      variants={variants}
+    />
+  );
+};
