@@ -1,5 +1,4 @@
 import { getTicketById } from '@/actions/tickets';
-import { convertBigIntToString } from '@/lib/utils';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
 
@@ -44,7 +43,7 @@ export async function GET(
       return fail('AU002', 403, 'auth');
     }
 
-    return ok(convertBigIntToString(ticketPayload));
+    return ok(ticketPayload);
   } catch (error: unknown) {
     console.error('Error fetching ticket:', error);
     return fail('TC003', 500, 'server');

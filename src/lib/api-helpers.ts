@@ -10,9 +10,13 @@ import { user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { checkPermission } from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
+import { convertBigIntToString } from '@/lib/utils';
 
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json({ success: true, data }, { status });
+  return NextResponse.json(
+    { success: true, data: convertBigIntToString(data) },
+    { status },
+  );
 }
 
 export function fail(
