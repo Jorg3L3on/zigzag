@@ -53,9 +53,10 @@ type ClientFormValues = z.infer<typeof clientSchema>;
 interface ClientFormProps {
   client?: Client;
   onSuccess?: (savedClient?: Client) => void;
+  onCancel?: () => void;
 }
 
-export function ClientForm({ client, onSuccess }: ClientFormProps) {
+export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   const router = useRouter();
   const { selectedCompany } = useCompany();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -219,7 +220,14 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push('/dashboard/clients')}
+            onClick={() => {
+              if (onCancel) {
+                onCancel();
+                return;
+              }
+
+              router.push('/dashboard/clients');
+            }}
           >
             Cancelar
           </Button>

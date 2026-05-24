@@ -326,6 +326,9 @@ export default function CreateTicketPage() {
                                   </DialogDescription>
                                 </DialogHeader>
                                 <ClientForm
+                                  onCancel={() => {
+                                    setIsNewClientDialogOpen(false);
+                                  }}
                                   onSuccess={(savedClient) => {
                                     setIsNewClientDialogOpen(false);
                                     if (savedClient) {
