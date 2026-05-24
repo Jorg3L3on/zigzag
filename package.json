@@ -19,6 +19,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
+    "icons:generate": "node scripts/generate-pwa-icons.mjs",
     "rag:index": "ts-node -P rag/tsconfig.json rag/scripts/index-docs.ts",
     "rag:search": "ts-node -P rag/tsconfig.json rag/scripts/search.ts",
     "rag:ask": "ts-node -P rag/tsconfig.json rag/scripts/ask.ts"
@@ -73,7 +74,9 @@
     "jest-environment-jsdom": "^30.3.0",
     "msw": "^2.2.3",
     "postcss": "^8",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.2.4",
+    "to-ico": "^1.1.5",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
   }
