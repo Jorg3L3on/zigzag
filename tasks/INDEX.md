@@ -15,6 +15,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic |
 | ❌ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
 | ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
+| ❌ | [prd-mobile-first-dashboard-redesign.md](./prd-mobile-first-dashboard-redesign.md) | v2 visual consistency epic — GitHub [#63](https://github.com/Jorg3L3on/zigzag/issues/63), slices [#64](https://github.com/Jorg3L3on/zigzag/issues/64)–[#70](https://github.com/Jorg3L3on/zigzag/issues/70) |
 | 🔶 | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic (README/AGENTS updated 2026-05-18) |
 | ✅ | [prd-invoice-fintech-pdf.md](./prd-invoice-fintech-pdf.md) | Invoice PDF feature |
 | ✅ | [prd-rbac-enforcement-and-system-admin.md](./prd-rbac-enforcement-and-system-admin.md) | RBAC/system-admin hardening |
