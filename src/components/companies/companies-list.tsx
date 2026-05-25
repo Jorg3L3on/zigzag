@@ -13,8 +13,9 @@ import type { Company } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
 import {
-  TripledDataPanel,
   TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
 } from '@/components/tripled';
 import {
   Table,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -33,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Pencil, Trash2, Factory, Globe2 } from 'lucide-react';
+import { Loader2, Pencil, Trash2, Factory, Globe2, Search, X } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
 import { DeleteCompanyDialog } from '@/app/dashboard/companies/delete-company-dialog';
@@ -221,12 +223,6 @@ export function CompaniesList() {
     setSearchValue(value);
   };
 
-  const handleCreateCompanyClick = () => {
-    if (canWriteCompanies) {
-      router.push('/dashboard/companies/new');
-    }
-  };
-
   const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
     { value: 'all', label: 'Todas' },
     { value: 'active', label: 'Activas' },
@@ -235,25 +231,66 @@ export function CompaniesList() {
 
   const rowCount = table.getRowModel().rows.length;
   const mobileSortValue = encodeSortingState(sorting);
+  const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'all';
+  const activeStatusLabel =
+    statusFilterOptions.find((option) => option.value === statusFilter)?.label ??
+    'Todas';
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setStatusFilter('all');
+    setSorting(DEFAULT_COMPANY_SORTING);
+  };
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${rowCount} de ${companies.length} empresas`,
+      variant: 'secondary' as const,
+    },
+    ...(statusFilter !== 'all'
+      ? [
+          {
+            key: 'status',
+            label: activeStatusLabel,
+          },
+        ]
+      : []),
+    ...(debouncedSearch
+      ? [
+          {
+            key: 'search',
+            label: `Busqueda: ${debouncedSearch}`,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <TripledDataPanel
-        title="Empresas"
-        description="Administra las empresas disponibles en el sistema."
-        searchValue={searchValue}
-        onSearchChange={handleSearchChange}
-        ctaLabel={canWriteCompanies ? 'Nueva empresa' : undefined}
-        onCtaClick={canWriteCompanies ? handleCreateCompanyClick : undefined}
-      >
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+    <div className="space-y-4">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={searchValue}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder="Buscar por nombre, correo o telefono..."
+            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
+            aria-label="Buscar empresas"
+          />
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
             {statusFilterOptions.map((option) => (
               <Button
                 key={option.value}
                 type="button"
                 variant={statusFilter === option.value ? 'default' : 'outline'}
-                size="sm"
+                className="min-h-11 rounded-xl"
                 onClick={() => setStatusFilter(option.value)}
                 aria-label={`Filtrar por estado: ${option.label.toLowerCase()}`}
               >
@@ -267,7 +304,7 @@ export function CompaniesList() {
               onValueChange={(value) => setSorting(decodeSortingState(value))}
             >
               <SelectTrigger
-                className="h-10 w-full sm:w-[min(100%,18rem)]"
+                className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
                 aria-label="Ordenar lista de empresas"
               >
                 <SelectValue placeholder="Ordenar por" />
@@ -281,6 +318,22 @@ export function CompaniesList() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TripledFilterChips chips={filterChips} />
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
+              onClick={handleClearFilters}
+              aria-label="Limpiar filtros de empresas"
+            >
+              <X className="mr-2 h-4 w-4" aria-hidden />
+              Limpiar filtros
+            </Button>
+          ) : null}
         </div>
 
         {loading ? (
@@ -322,13 +375,14 @@ export function CompaniesList() {
               {table.getRowModel().rows.map((row) => {
                 const companyRow = row.original;
                 return (
-                  <article
+                  <TripledMobileRecordCard
                     key={row.id}
-                    className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
+                    interactive={canWriteCompanies}
+                    className={
                       canWriteCompanies
-                        ? 'cursor-pointer hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                        : ''
-                    }`}
+                        ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                        : undefined
+                    }
                     tabIndex={canWriteCompanies ? 0 : -1}
                     role="button"
                     aria-label={
@@ -418,7 +472,7 @@ export function CompaniesList() {
                         </dd>
                       </div>
                     </dl>
-                  </article>
+                  </TripledMobileRecordCard>
                 );
               })}
             </div>
@@ -501,7 +555,6 @@ export function CompaniesList() {
             </div>
           </>
         )}
-      </TripledDataPanel>
 
       {companyToDelete ? (
         <DeleteCompanyDialog
