@@ -194,11 +194,7 @@ export async function PUT(request: Request) {
       return fail('US001', 404, 'validation');
     }
 
-    if (sessionUser.company?.deleted_at) {
-      return fail('AU002', 403, 'auth');
-    }
-
-    if (!sessionUser.company?.is_system && sessionUser.company_id !== body.id) {
+    if (sessionUser.company?.deleted_at || !sessionUser.company?.is_system) {
       return fail('AU002', 403, 'auth');
     }
 
@@ -223,9 +219,7 @@ export async function PUT(request: Request) {
         postal_code: body.postal_code,
         status: body.status,
         settings,
-        is_system: sessionUser.company?.is_system
-          ? Boolean((raw as { is_system?: unknown }).is_system)
-          : false,
+        is_system: Boolean((raw as { is_system?: unknown }).is_system),
         updated_at: new Date(),
       })
       .where(and(eq(company.id, body.id), isNull(company.deleted_at)))

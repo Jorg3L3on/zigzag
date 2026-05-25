@@ -28,8 +28,15 @@ const createUserSchema = userSchema.extend({
   password: z.string().min(1, 'La contraseña es requerida'),
 });
 
+const accountSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido'),
+  email: z.string().email('El correo electrónico no es válido'),
+  password: z.string().optional(),
+});
+
 export type UserFormData = z.infer<typeof userSchema>;
 export type CreateUserFormData = z.infer<typeof createUserSchema>;
+export type AccountFormData = z.infer<typeof accountSchema>;
 
 type UserWithRelations = typeof user.$inferSelect & {
   company: Company | null;
@@ -147,6 +154,42 @@ export async function updateUser(
       return handleCodedServerActionError('users.update.validation', 'US005', e);
     }
     return handleCodedServerActionError('users.update', 'US003', e);
+  }
+}
+
+export async function updateOwnAccount(
+  data: AccountFormData,
+): Promise<{
+  success: boolean;
+  data?: typeof user.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth();
+    const validatedData = accountSchema.parse(data);
+    const hashedPassword = validatedData.password
+      ? await hash(validatedData.password, 10)
+      : undefined;
+
+    const [updated] = await db
+      .update(user)
+      .set({
+        name: validatedData.name,
+        email: validatedData.email,
+        ...(validatedData.password && { password: hashedPassword }),
+        updated_at: new Date(),
+      })
+      .where(and(eq(user.id, BigInt(authContext.userId)), isNull(user.deleted_at)))
+      .returning();
+
+    revalidatePath('/dashboard/account');
+    return { success: true, data: updated };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return handleCodedServerActionError('users.account.validation', 'US005', e);
+    }
+    return handleCodedServerActionError('users.account', 'US003', e);
   }
 }
 

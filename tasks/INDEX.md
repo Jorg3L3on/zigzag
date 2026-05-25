@@ -17,6 +17,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
 | 🔶 | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic (README/AGENTS updated 2026-05-18) |
 | ✅ | [prd-invoice-fintech-pdf.md](./prd-invoice-fintech-pdf.md) | Invoice PDF feature |
+| ✅ | [prd-rbac-enforcement-and-system-admin.md](./prd-rbac-enforcement-and-system-admin.md) | RBAC/system-admin hardening |
 
 **Suggested implementation order** (from program decisions): UI/UX → Functionality → Architecture → Performance → PWA install → Testing → Accessibility → Documentation.
 
@@ -193,6 +194,16 @@ Local product requirements for the **mobile initiative** and related work. Statu
 **Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/lib/fintech-invoice-payload.ts`, `src/lib/fintech-invoice-renderer.ts`, `src/components/pdf-download-button.tsx`, ticket detail/edit download flows.
 
 **Notes:** GitHub issue publishing is blocked until `gh auth login -h github.com` refreshes the invalid local GitHub token.
+
+---
+
+## ✅ prd-rbac-enforcement-and-system-admin.md
+
+**Status:** Applied
+
+**TL;DR:** Central permission contract, reusable client permission hook, write-control visibility for read-only users, System-only administration controls, self-service account update path, persisted System-company checks, API session claim refresh, and RBAC audit coverage.
+
+**Evidence:** `src/lib/permissions.ts`, `src/hooks/use-permissions.ts`, `src/lib/security.ts`, `src/lib/api-helpers.ts`, `src/lib/rbac-coverage.test.ts`, `src/lib/api-helpers.test.ts`, `src/lib/security.test.ts`, `docs/rbac-audit-matrix.md`.
 
 ---
 

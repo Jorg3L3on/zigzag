@@ -71,6 +71,8 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import { Badge } from '@/components/ui/badge';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 import {
   Sheet,
   SheetClose,
@@ -172,6 +174,8 @@ const TicketsTableSkeleton = () => (
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteTickets = permissions.can(PERMISSIONS.tickets.write);
   const router = useRouter();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -229,8 +233,8 @@ export default function TicketsList() {
   }, []);
 
   const columns = React.useMemo(
-    () => createTicketsColumns({ onDelete: handleDelete }),
-    [handleDelete],
+    () => createTicketsColumns({ onDelete: handleDelete, canWrite: canWriteTickets }),
+    [handleDelete, canWriteTickets],
   );
 
   const filteredTickets = React.useMemo(() => {
@@ -778,15 +782,17 @@ export default function TicketsList() {
                   aria-label={
                     ticket.finished
                       ? `Ver ticket ${ticket.id.toString()}`
-                      : `Editar ticket ${ticket.id.toString()}`
+                      : canWriteTickets
+                        ? `Editar ticket ${ticket.id.toString()}`
+                        : `Ver ticket ${ticket.id.toString()}`
                   }
                   onClick={() =>
-                    router.push(hrefForTicketListRow(ticket))
+                    router.push(hrefForTicketListRow(ticket, canWriteTickets))
                   }
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      router.push(hrefForTicketListRow(ticket));
+                      router.push(hrefForTicketListRow(ticket, canWriteTickets));
                     }
                   }}
                 >
@@ -809,6 +815,7 @@ export default function TicketsList() {
                       <TicketRowActions
                         ticket={ticket}
                         onDelete={handleDelete}
+                        canWrite={canWriteTickets}
                       />
                     </div>
                   </div>
@@ -881,12 +888,14 @@ export default function TicketsList() {
                     className="cursor-pointer"
                     tabIndex={0}
                     onClick={() =>
-                      router.push(hrefForTicketListRow(row.original))
+                      router.push(hrefForTicketListRow(row.original, canWriteTickets))
                     }
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        router.push(hrefForTicketListRow(row.original));
+                        router.push(
+                          hrefForTicketListRow(row.original, canWriteTickets),
+                        );
                       }
                     }}
                   >

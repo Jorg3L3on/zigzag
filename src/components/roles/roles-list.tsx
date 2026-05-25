@@ -41,6 +41,8 @@ import {
   decodeSortingState,
   encodeSortingState,
 } from '@/components/roles/roles-sort-presets';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 type CompanyScopeFilter = 'all' | 'global' | 'company';
 type PermissionAssignmentFilter = 'all' | 'with' | 'without';
@@ -49,6 +51,9 @@ const countAssignedPermissions = (role: Role) =>
   role.permissions.filter((p) => p.permission != null).length;
 
 export function RolesList() {
+  const permissions = usePermissions();
+  const canWriteRoles =
+    permissions.isSystem && permissions.can(PERMISSIONS.roles.write);
   const [roles, setRoles] = React.useState<Role[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -147,14 +152,15 @@ export function RolesList() {
   const columns = React.useMemo(
     () =>
       createRolesColumns({
-        renderActions: (roleRow) => (
+        renderActions: (roleRow) =>
+          canWriteRoles ? (
           <RoleActionsMenu
             onEditRequest={() => openEdit(roleRow)}
             onDeleteRequest={() => setDeleteRole(roleRow)}
           />
-        ),
+          ) : null,
       }),
-    [openEdit],
+    [openEdit, canWriteRoles],
   );
 
   const table = useReactTable({
@@ -192,7 +198,7 @@ export function RolesList() {
         description="Lista de todos los roles registrados."
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        ctaSlot={<CreateRoleDialog onCreated={fetchRoles} />}
+        ctaSlot={canWriteRoles ? <CreateRoleDialog onCreated={fetchRoles} /> : null}
       >
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
@@ -304,13 +310,24 @@ export function RolesList() {
                 return (
                   <article
                     key={row.id}
-                    className="cursor-pointer rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent/30"
-                    tabIndex={0}
+                    className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
+                      canWriteRoles ? 'cursor-pointer hover:bg-accent/30' : ''
+                    }`}
+                    tabIndex={canWriteRoles ? 0 : -1}
                     role="button"
-                    aria-label={`Editar rol ${roleRow.name}`}
-                    onClick={() => openEdit(roleRow)}
+                    aria-label={
+                      canWriteRoles ? `Editar rol ${roleRow.name}` : `Rol ${roleRow.name}`
+                    }
+                    onClick={() => {
+                      if (canWriteRoles) {
+                        openEdit(roleRow);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWriteRoles &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         openEdit(roleRow);
                       }
@@ -325,12 +342,14 @@ export function RolesList() {
                           {roleRow.description || '—'}
                         </p>
                       </div>
-                      <div onClick={(event) => event.stopPropagation()}>
+                      {canWriteRoles ? (
+                        <div onClick={(event) => event.stopPropagation()}>
                         <RoleActionsMenu
                           onEditRequest={() => openEdit(roleRow)}
                           onDeleteRequest={() => setDeleteRole(roleRow)}
                         />
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                     <dl className="mt-3 space-y-2 text-sm">
                       <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -394,12 +413,23 @@ export function RolesList() {
                     {table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}
-                        className="cursor-pointer"
-                        tabIndex={0}
-                        aria-label={`Editar rol ${row.original.name}`}
-                        onClick={() => openEdit(row.original)}
+                        className={canWriteRoles ? 'cursor-pointer' : undefined}
+                        tabIndex={canWriteRoles ? 0 : -1}
+                        aria-label={
+                          canWriteRoles
+                            ? `Editar rol ${row.original.name}`
+                            : `Rol ${row.original.name}`
+                        }
+                        onClick={() => {
+                          if (canWriteRoles) {
+                            openEdit(row.original);
+                          }
+                        }}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
+                          if (
+                            canWriteRoles &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
                             event.preventDefault();
                             openEdit(row.original);
                           }

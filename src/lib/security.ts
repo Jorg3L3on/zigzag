@@ -73,20 +73,31 @@ export async function checkPermission(
       throw new AuthorizationError('User not authenticated');
     }
 
-    // For system company users, allow all permissions
-    if (session.user.company_is_system) {
-      return true;
-    }
-
-    // Check if user belongs to the company
-    if (session.user.company_id !== companyId) {
-      return false;
-    }
-
     const userIdAsBigInt = BigInt(userId);
     const userRow = await db.query.user.findFirst({
       where: and(eq(user.id, userIdAsBigInt), isNull(user.deleted_at)),
+      with: {
+        company: true,
+      },
     });
+
+    if (
+      !userRow?.company ||
+      userRow.company.deleted_at ||
+      userRow.company.status !== 'ACTIVE'
+    ) {
+      return false;
+    }
+
+    // Persisted System company users are the root exception.
+    if (userRow.company.is_system) {
+      return true;
+    }
+
+    // Regular users can only receive permissions inside their own company.
+    if (userRow.company_id !== companyId) {
+      return false;
+    }
 
     if (!userRow?.role_id) {
       return false;
@@ -142,19 +153,13 @@ export async function checkPermission(
 
 // Company access validation
 export async function validateCompanyAccess(companyId: number): Promise<void> {
-  const session = await auth();
+  const context = await requireActionAuth();
 
-  if (!session?.user) {
-    throw new AuthorizationError('Authentication required');
-  }
-
-  // System company users can access all companies
-  if (session.user.company_is_system) {
+  if (context.companyIsSystem) {
     return;
   }
 
-  // Regular users can only access their own company
-  if (session.user.company_id !== companyId) {
+  if (context.companyId !== companyId) {
     throw new AuthorizationError('Access denied to this company');
   }
 }

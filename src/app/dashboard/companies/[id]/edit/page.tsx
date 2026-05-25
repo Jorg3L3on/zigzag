@@ -19,7 +19,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { requirePagePermission } from '@/lib/page-authz';
+import { requirePagePermission, requireSystemPage } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
   title: 'Editar empresa',
@@ -36,6 +36,7 @@ export default async function EditCompanyPage({
   params,
 }: EditCompanyPageProps) {
   await requirePagePermission('companies.write');
+  await requireSystemPage();
   const { id } = await params;
   const numericId = Number.parseInt(id, 10);
   if (Number.isNaN(numericId)) {

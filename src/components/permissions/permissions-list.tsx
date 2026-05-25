@@ -43,10 +43,16 @@ import {
   decodeSortingState,
   encodeSortingState,
 } from '@/components/permissions/permissions-sort-presets';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS as RBAC_PERMISSIONS } from '@/lib/permissions';
 
 type CompanyScopeFilter = 'all' | 'global' | 'company';
 
 export function PermissionsList() {
+  const sessionPermissions = usePermissions();
+  const canWritePermissions =
+    sessionPermissions.isSystem &&
+    sessionPermissions.can(RBAC_PERMISSIONS.permissions.write);
   const [permissions, setPermissions] = React.useState<Permission[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -137,14 +143,15 @@ export function PermissionsList() {
   const columns = React.useMemo(
     () =>
       createPermissionsColumns({
-        renderActions: (row) => (
+        renderActions: (row) =>
+          canWritePermissions ? (
           <PermissionActionsMenu
             onEditRequest={() => openEdit(row)}
             onDeleteRequest={() => setDeletePermission(row)}
           />
-        ),
+          ) : null,
       }),
-    [openEdit],
+    [openEdit, canWritePermissions],
   );
 
   const table = useReactTable({
@@ -173,7 +180,11 @@ export function PermissionsList() {
         description="Lista de todos los permisos registrados."
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        ctaSlot={<CreatePermissionDialog onCreated={fetchPermissions} />}
+        ctaSlot={
+          canWritePermissions ? (
+            <CreatePermissionDialog onCreated={fetchPermissions} />
+          ) : null
+        }
       >
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
@@ -271,13 +282,26 @@ export function PermissionsList() {
                 return (
                   <article
                     key={row.id}
-                    className="cursor-pointer rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent/30"
-                    tabIndex={0}
+                    className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
+                      canWritePermissions ? 'cursor-pointer hover:bg-accent/30' : ''
+                    }`}
+                    tabIndex={canWritePermissions ? 0 : -1}
                     role="button"
-                    aria-label={`Editar permiso ${permRow.name}`}
-                    onClick={() => openEdit(permRow)}
+                    aria-label={
+                      canWritePermissions
+                        ? `Editar permiso ${permRow.name}`
+                        : `Permiso ${permRow.name}`
+                    }
+                    onClick={() => {
+                      if (canWritePermissions) {
+                        openEdit(permRow);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWritePermissions &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         openEdit(permRow);
                       }
@@ -292,12 +316,14 @@ export function PermissionsList() {
                           {permRow.description || '—'}
                         </p>
                       </div>
-                      <div onClick={(event) => event.stopPropagation()}>
+                      {canWritePermissions ? (
+                        <div onClick={(event) => event.stopPropagation()}>
                         <PermissionActionsMenu
                           onEditRequest={() => openEdit(permRow)}
                           onDeleteRequest={() => setDeletePermission(permRow)}
                         />
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                     <dl className="mt-3 space-y-2 text-sm">
                       <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -352,12 +378,25 @@ export function PermissionsList() {
                     {table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}
-                        className="cursor-pointer"
-                        tabIndex={0}
-                        aria-label={`Editar permiso ${row.original.name}`}
-                        onClick={() => openEdit(row.original)}
+                        className={
+                          canWritePermissions ? 'cursor-pointer' : undefined
+                        }
+                        tabIndex={canWritePermissions ? 0 : -1}
+                        aria-label={
+                          canWritePermissions
+                            ? `Editar permiso ${row.original.name}`
+                            : `Permiso ${row.original.name}`
+                        }
+                        onClick={() => {
+                          if (canWritePermissions) {
+                            openEdit(row.original);
+                          }
+                        }}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
+                          if (
+                            canWritePermissions &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
                             event.preventDefault();
                             openEdit(row.original);
                           }

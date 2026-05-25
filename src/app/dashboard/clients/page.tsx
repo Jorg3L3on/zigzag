@@ -12,6 +12,8 @@ import { ClientList } from '@/components/clients/client-list';
 import { TripledPageHeader } from '@/components/tripled';
 import { Plus } from 'lucide-react';
 import { requirePagePermission } from '@/lib/page-authz';
+import { getSessionPermissionMap } from '@/actions/authz';
+import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
 
 export const metadata: Metadata = {
   title: 'Clientes',
@@ -23,6 +25,11 @@ export const revalidate = 0;
 
 export default async function ClientsPage() {
   await requirePagePermission('clients.read');
+  const permissionMap = await getSessionPermissionMap();
+  const canWriteClients = canAccessPermission(
+    permissionMap,
+    PERMISSIONS.clients.write,
+  );
 
   return (
     <>
@@ -41,18 +48,20 @@ export default async function ClientsPage() {
                     Catálogo de clientes y datos de contacto
                   </CardDescription>
                 </div>
-                <Link
-                  href="/dashboard/clients/new"
-                  className="shrink-0 self-end sm:self-start"
-                >
-                  <Button
-                    size="sm"
-                    className="h-9 gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 px-3 text-sm font-semibold shadow-md hover:from-blue-700 hover:to-purple-700 sm:h-10 sm:px-4"
+                {canWriteClients ? (
+                  <Link
+                    href="/dashboard/clients/new"
+                    className="shrink-0 self-end sm:self-start"
                   >
-                    <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                    Nuevo Cliente
-                  </Button>
-                </Link>
+                    <Button
+                      size="sm"
+                      className="h-9 gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 px-3 text-sm font-semibold shadow-md hover:from-blue-700 hover:to-purple-700 sm:h-10 sm:px-4"
+                    >
+                      <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                      Nuevo Cliente
+                    </Button>
+                  </Link>
+                ) : null}
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-5 sm:p-6 sm:pt-6">

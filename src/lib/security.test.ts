@@ -86,7 +86,7 @@ describe('security helpers', () => {
       jest.clearAllMocks();
     });
 
-    it('allows root-company users without role lookups', async () => {
+    it('allows persisted root-company users without role permission lookups', async () => {
       mockAuth.mockResolvedValue({
         user: {
           id: '1',
@@ -94,9 +94,46 @@ describe('security helpers', () => {
           company_is_system: true,
         },
       } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 1n,
+        company_id: 1,
+        role_id: null,
+        company: {
+          id: 1,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: true,
+        },
+      });
 
       await expect(checkPermission('1', 99, 'users.write')).resolves.toBe(true);
-      expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+      expect(mockDb.query.user.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockDb.query.role.findFirst).not.toHaveBeenCalled();
+      expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
+    it('does not grant root access from stale session claims alone', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '9',
+          company_id: 1,
+          company_is_system: true,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 9n,
+        company_id: 1,
+        role_id: null,
+        company: {
+          id: 1,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+
+      await expect(checkPermission('9', 99, 'users.write')).resolves.toBe(false);
+      expect(mockDb.query.role.findFirst).not.toHaveBeenCalled();
       expect(mockDb.select).not.toHaveBeenCalled();
     });
 
@@ -108,7 +145,17 @@ describe('security helpers', () => {
           company_is_system: false,
         },
       } as Awaited<ReturnType<typeof auth>>);
-      mockDb.query.user.findFirst.mockResolvedValue({ id: 2n, role_id: null });
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 2n,
+        company_id: 10,
+        role_id: null,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
 
       await expect(checkPermission('2', 10, 'clients.read')).resolves.toBe(
         false,
@@ -123,7 +170,17 @@ describe('security helpers', () => {
           company_is_system: false,
         },
       } as Awaited<ReturnType<typeof auth>>);
-      mockDb.query.user.findFirst.mockResolvedValue({ id: 3n, role_id: 7 });
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 3n,
+        company_id: 10,
+        role_id: 7,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
       mockDb.query.role.findFirst.mockResolvedValue({ id: 7 });
       mockDb.select
         .mockReturnValueOnce(mockSelectRows([{ id: 11 }]))
@@ -146,7 +203,8 @@ describe('security helpers', () => {
       await expect(checkPermission('4', 99, 'tickets.read')).resolves.toBe(
         false,
       );
-      expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+      expect(mockDb.query.user.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockDb.query.role.findFirst).not.toHaveBeenCalled();
     });
 
     it('fails closed when the permission row is missing', async () => {
@@ -157,7 +215,17 @@ describe('security helpers', () => {
           company_is_system: false,
         },
       } as Awaited<ReturnType<typeof auth>>);
-      mockDb.query.user.findFirst.mockResolvedValue({ id: 5n, role_id: 8 });
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 5n,
+        company_id: 10,
+        role_id: 8,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
       mockDb.query.role.findFirst.mockResolvedValue({ id: 8 });
       mockDb.select.mockReturnValueOnce(mockSelectRows([]));
 
@@ -174,7 +242,17 @@ describe('security helpers', () => {
           company_is_system: false,
         },
       } as Awaited<ReturnType<typeof auth>>);
-      mockDb.query.user.findFirst.mockResolvedValue({ id: 6n, role_id: 9 });
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 6n,
+        company_id: 10,
+        role_id: 9,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
       mockDb.query.role.findFirst.mockResolvedValue(null);
 
       await expect(checkPermission('6', 10, 'tickets.read')).resolves.toBe(

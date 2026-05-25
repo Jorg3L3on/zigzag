@@ -56,11 +56,16 @@ import {
 } from '@/components/users/users-sort-presets';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 type VerificationFilter = 'all' | 'verified' | 'unverified';
 type CompanyAssignmentFilter = 'all' | 'assigned' | 'unassigned';
 
 export function UsersList() {
+  const permissions = usePermissions();
+  const canWriteUsers =
+    permissions.isSystem && permissions.can(PERMISSIONS.users.write);
   const [users, setUsers] = React.useState<UserWithRelations[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -171,7 +176,8 @@ export function UsersList() {
   const columns = React.useMemo(
     () =>
       createUsersColumns({
-        renderActions: (userRow) => (
+        renderActions: (userRow) =>
+          canWriteUsers ? (
           <div
             className="flex justify-end"
             onClick={(event) => event.stopPropagation()}
@@ -182,9 +188,9 @@ export function UsersList() {
               onDeleteRequest={() => setDeleteUser(userRow)}
             />
           </div>
-        ),
+          ) : null,
       }),
-    [],
+    [canWriteUsers],
   );
 
   const table = useReactTable({
@@ -229,9 +235,11 @@ export function UsersList() {
                 Lista de todos los usuarios registrados en el sistema.
               </CardDescription>
             </div>
-            <div className="shrink-0 self-end sm:self-start">
+            {canWriteUsers ? (
+              <div className="shrink-0 self-end sm:self-start">
               <CreateUserDialog onCreated={fetchUsers} />
-            </div>
+              </div>
+            ) : null}
           </div>
         </CardHeader>
 
@@ -367,13 +375,24 @@ export function UsersList() {
                   return (
                     <article
                       key={row.id}
-                      className="cursor-pointer rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent/30"
-                      tabIndex={0}
+                      className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
+                        canWriteUsers ? 'cursor-pointer hover:bg-accent/30' : ''
+                      }`}
+                      tabIndex={canWriteUsers ? 0 : -1}
                       role="button"
-                      aria-label={`Editar usuario ${u.name}`}
-                      onClick={() => setEditUser(u)}
+                      aria-label={
+                        canWriteUsers ? `Editar usuario ${u.name}` : `Usuario ${u.name}`
+                      }
+                      onClick={() => {
+                        if (canWriteUsers) {
+                          setEditUser(u);
+                        }
+                      }}
                       onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
+                        if (
+                          canWriteUsers &&
+                          (event.key === 'Enter' || event.key === ' ')
+                        ) {
                           event.preventDefault();
                           setEditUser(u);
                         }
@@ -402,12 +421,14 @@ export function UsersList() {
                             )}
                           </div>
                         </div>
-                        <div onClick={(event) => event.stopPropagation()}>
+                        {canWriteUsers ? (
+                          <div onClick={(event) => event.stopPropagation()}>
                           <UserActionsMenu
                             onEditRequest={() => setEditUser(u)}
                             onDeleteRequest={() => setDeleteUser(u)}
                           />
-                        </div>
+                          </div>
+                        ) : null}
                       </div>
                       <dl className="mt-3 space-y-2 text-sm">
                         <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -469,12 +490,23 @@ export function UsersList() {
                     {table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}
-                        className="cursor-pointer"
-                        tabIndex={0}
-                        aria-label={`Editar usuario ${row.original.name}`}
-                        onClick={() => setEditUser(row.original)}
+                        className={canWriteUsers ? 'cursor-pointer' : undefined}
+                        tabIndex={canWriteUsers ? 0 : -1}
+                        aria-label={
+                          canWriteUsers
+                            ? `Editar usuario ${row.original.name}`
+                            : `Usuario ${row.original.name}`
+                        }
+                        onClick={() => {
+                          if (canWriteUsers) {
+                            setEditUser(row.original);
+                          }
+                        }}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
+                          if (
+                            canWriteUsers &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
                             event.preventDefault();
                             setEditUser(row.original);
                           }

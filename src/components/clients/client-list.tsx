@@ -55,6 +55,8 @@ import {
   decodeSortingState,
   encodeSortingState,
 } from '@/components/clients/clients-sort-presets';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 type ContactFilter = 'all' | 'with' | 'without';
 
@@ -63,6 +65,8 @@ const hasMeaningfulText = (value: string | null | undefined): boolean =>
 
 export function ClientList() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteClients = permissions.can(PERMISSIONS.clients.write);
   const router = useRouter();
   const [clients, setClients] = React.useState<Client[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -158,8 +162,9 @@ export function ClientList() {
   const columns = React.useMemo(
     () =>
       createClientsColumns({
-        renderActions: (clientRow) => (
-          <>
+        renderActions: (clientRow) =>
+          canWriteClients ? (
+            <>
             <Button
               variant="ghost"
               size="icon"
@@ -182,10 +187,10 @@ export function ClientList() {
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
-          </>
-        ),
+            </>
+          ) : null,
       }),
-    [router, openDeleteDialog],
+    [router, openDeleteDialog, canWriteClients],
   );
 
   const table = useReactTable({
@@ -389,14 +394,27 @@ export function ClientList() {
                 <article
                   key={row.id}
                   role="button"
-                  tabIndex={0}
-                  aria-label={`Editar cliente ${clientRow.name}`}
-                  className="cursor-pointer rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() =>
-                    router.push(`/dashboard/clients/${clientRow.id}/edit`)
+                  tabIndex={canWriteClients ? 0 : -1}
+                  aria-label={
+                    canWriteClients
+                      ? `Editar cliente ${clientRow.name}`
+                      : `Cliente ${clientRow.name}`
                   }
+                  className={`rounded-lg border border-border bg-card p-4 transition-colors ${
+                    canWriteClients
+                      ? 'cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    if (canWriteClients) {
+                      router.push(`/dashboard/clients/${clientRow.id}/edit`);
+                    }
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
+                    if (
+                      canWriteClients &&
+                      (event.key === 'Enter' || event.key === ' ')
+                    ) {
                       event.preventDefault();
                       router.push(`/dashboard/clients/${clientRow.id}/edit`);
                     }
@@ -406,7 +424,8 @@ export function ClientList() {
                     <h3 className="text-sm font-semibold text-foreground">
                       {clientRow.name}
                     </h3>
-                    <div className="flex shrink-0 gap-1">
+                    {canWriteClients ? (
+                      <div className="flex shrink-0 gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -429,7 +448,8 @@ export function ClientList() {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <dl className="mt-3 space-y-2 text-sm">
@@ -484,13 +504,18 @@ export function ClientList() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer"
-                    tabIndex={0}
-                    onClick={() =>
-                      router.push(`/dashboard/clients/${row.original.id}/edit`)
-                    }
+                    className={canWriteClients ? 'cursor-pointer' : undefined}
+                    tabIndex={canWriteClients ? 0 : -1}
+                    onClick={() => {
+                      if (canWriteClients) {
+                        router.push(`/dashboard/clients/${row.original.id}/edit`);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWriteClients &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         router.push(`/dashboard/clients/${row.original.id}/edit`);
                       }

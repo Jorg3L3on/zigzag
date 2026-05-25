@@ -25,10 +25,16 @@ interface Ticket {
 interface TicketRowActionsProps {
   ticket: Ticket;
   onDelete?: (id: number) => void;
+  canWrite?: boolean;
 }
 
-export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
+export function TicketRowActions({
+  ticket,
+  onDelete,
+  canWrite = true,
+}: TicketRowActionsProps) {
   const showCollectLink =
+    canWrite &&
     ticket.finished &&
     getTicketPaymentStatus(ticket.total, ticket.paid) === 'partial';
 
@@ -58,7 +64,7 @@ export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
             </DropdownMenuItem>
           </Link>
         )}
-        {!ticket.finished && (
+        {canWrite && !ticket.finished && (
           <Link href={`/dashboard/tickets/${ticket.id}/edit`}>
             <DropdownMenuItem>
               <Pencil className="mr-2 h-4 w-4" />
@@ -84,7 +90,9 @@ export function TicketRowActions({ ticket, onDelete }: TicketRowActionsProps) {
             Ver PDF
           </DropdownMenuItem>
         )}
-        <DeleteTicketButton id={Number(ticket.id)} onDelete={onDelete} />
+        {canWrite ? (
+          <DeleteTicketButton id={Number(ticket.id)} onDelete={onDelete} />
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

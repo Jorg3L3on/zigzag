@@ -55,9 +55,13 @@ import {
   encodeSortingState,
 } from '@/components/services/services-sort-presets';
 import { FormattedCurrency } from '@/components/formatted-currency';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export function ServicesListClient() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteServices = permissions.can(PERMISSIONS.services.write);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -153,8 +157,9 @@ export function ServicesListClient() {
   const columns = useMemo(
     () =>
       createServicesColumns({
-        renderActions: (service) => (
-          <>
+        renderActions: (service) =>
+          canWriteServices ? (
+            <>
             <Button
               variant="ghost"
               size="icon"
@@ -177,10 +182,10 @@ export function ServicesListClient() {
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
-          </>
-        ),
+            </>
+          ) : null,
       }),
-    [router, openDeleteDialog],
+    [router, openDeleteDialog, canWriteServices],
   );
 
   const table = useReactTable({
@@ -299,12 +304,27 @@ export function ServicesListClient() {
                 <article
                   key={row.id}
                   role="button"
-                  tabIndex={0}
-                  aria-label={`Editar servicio ${service.name}`}
-                  className="cursor-pointer rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => router.push(`/dashboard/services/${service.id}/edit`)}
+                  tabIndex={canWriteServices ? 0 : -1}
+                  aria-label={
+                    canWriteServices
+                      ? `Editar servicio ${service.name}`
+                      : `Servicio ${service.name}`
+                  }
+                  className={`rounded-lg border border-border bg-card p-4 transition-colors ${
+                    canWriteServices
+                      ? 'cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    if (canWriteServices) {
+                      router.push(`/dashboard/services/${service.id}/edit`);
+                    }
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
+                    if (
+                      canWriteServices &&
+                      (event.key === 'Enter' || event.key === ' ')
+                    ) {
                       event.preventDefault();
                       router.push(`/dashboard/services/${service.id}/edit`);
                     }
@@ -346,7 +366,8 @@ export function ServicesListClient() {
                     </span>
                   </div>
 
-                  <div className="mt-4 flex justify-end gap-2">
+                  {canWriteServices ? (
+                    <div className="mt-4 flex justify-end gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -369,7 +390,8 @@ export function ServicesListClient() {
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
-                  </div>
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -401,11 +423,18 @@ export function ServicesListClient() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer"
-                    tabIndex={0}
-                    onClick={() => router.push(`/dashboard/services/${row.original.id}/edit`)}
+                    className={canWriteServices ? 'cursor-pointer' : undefined}
+                    tabIndex={canWriteServices ? 0 : -1}
+                    onClick={() => {
+                      if (canWriteServices) {
+                        router.push(`/dashboard/services/${row.original.id}/edit`);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWriteServices &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         router.push(`/dashboard/services/${row.original.id}/edit`);
                       }

@@ -44,6 +44,8 @@ import {
   decodeSortingState,
   encodeSortingState,
 } from '@/components/companies/companies-sort-presets';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -54,6 +56,9 @@ const isActive = (status: Company['status']) => status === 'ACTIVE';
 
 export function CompaniesList() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteCompanies =
+    permissions.isSystem && permissions.can(PERMISSIONS.companies.write);
   const router = useRouter();
   const [companies, setCompanies] = React.useState<Company[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -172,8 +177,9 @@ export function CompaniesList() {
     () =>
       createCompaniesColumns({
         renderContextBadge,
-        renderActions: (companyRow) => (
-          <>
+        renderActions: (companyRow) =>
+          canWriteCompanies ? (
+            <>
             <Button
               variant="ghost"
               size="icon"
@@ -196,10 +202,10 @@ export function CompaniesList() {
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
-          </>
-        ),
+            </>
+          ) : null,
       }),
-    [router, openDeleteDialog, renderContextBadge],
+    [router, openDeleteDialog, renderContextBadge, canWriteCompanies],
   );
 
   const table = useReactTable({
@@ -216,7 +222,9 @@ export function CompaniesList() {
   };
 
   const handleCreateCompanyClick = () => {
-    router.push('/dashboard/companies/new');
+    if (canWriteCompanies) {
+      router.push('/dashboard/companies/new');
+    }
   };
 
   const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
@@ -235,8 +243,8 @@ export function CompaniesList() {
         description="Administra las empresas disponibles en el sistema."
         searchValue={searchValue}
         onSearchChange={handleSearchChange}
-        ctaLabel="Nueva empresa"
-        onCtaClick={handleCreateCompanyClick}
+        ctaLabel={canWriteCompanies ? 'Nueva empresa' : undefined}
+        onCtaClick={canWriteCompanies ? handleCreateCompanyClick : undefined}
       >
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <div className="flex flex-wrap gap-2">
@@ -316,15 +324,28 @@ export function CompaniesList() {
                 return (
                   <article
                     key={row.id}
-                    className="cursor-pointer rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    tabIndex={0}
+                    className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
+                      canWriteCompanies
+                        ? 'cursor-pointer hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                        : ''
+                    }`}
+                    tabIndex={canWriteCompanies ? 0 : -1}
                     role="button"
-                    aria-label={`Editar empresa ${companyRow.name}`}
-                    onClick={() =>
-                      router.push(`/dashboard/companies/${companyRow.id}/edit`)
+                    aria-label={
+                      canWriteCompanies
+                        ? `Editar empresa ${companyRow.name}`
+                        : `Empresa ${companyRow.name}`
                     }
+                    onClick={() => {
+                      if (canWriteCompanies) {
+                        router.push(`/dashboard/companies/${companyRow.id}/edit`);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWriteCompanies &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         router.push(
                           `/dashboard/companies/${companyRow.id}/edit`,
@@ -350,7 +371,8 @@ export function CompaniesList() {
                           {renderContextBadge(companyRow)}
                         </div>
                       </div>
-                      <div className="flex shrink-0 gap-1">
+                      {canWriteCompanies ? (
+                        <div className="flex shrink-0 gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -375,7 +397,8 @@ export function CompaniesList() {
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                     <dl className="mt-3 space-y-1.5 text-sm">
                       <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -434,15 +457,20 @@ export function CompaniesList() {
                   {table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      className="cursor-pointer"
-                      tabIndex={0}
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/companies/${row.original.id}/edit`,
-                        )
-                      }
+                      className={canWriteCompanies ? 'cursor-pointer' : undefined}
+                      tabIndex={canWriteCompanies ? 0 : -1}
+                      onClick={() => {
+                        if (canWriteCompanies) {
+                          router.push(
+                            `/dashboard/companies/${row.original.id}/edit`,
+                          );
+                        }
+                      }}
                       onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
+                        if (
+                          canWriteCompanies &&
+                          (event.key === 'Enter' || event.key === ' ')
+                        ) {
                           event.preventDefault();
                           router.push(
                             `/dashboard/companies/${row.original.id}/edit`,

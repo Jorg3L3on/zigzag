@@ -17,7 +17,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { requirePagePermission } from '@/lib/page-authz';
+import { requirePagePermission, requireSystemPage } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
   title: 'Nueva empresa',
@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 
 export default async function NewCompanyPage() {
   await requirePagePermission('companies.write');
+  await requireSystemPage();
 
   return (
     <>
