@@ -43,3 +43,4 @@ Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so inco
 2. Check Neon availability, connection limits, and recent migration history.
 3. Disable affected credentials or users if auth abuse is suspected.
 4. Preserve ticket/payment audit data; do not edit or delete `TicketAuditEvent` rows during triage.
+5. For **Company tenant** onboarding, lifecycle, entitlements, export, or offboarding incidents, follow [company-tenant-runbook.md](company-tenant-runbook.md). First-client launch gates: [company-go-live-checklist.md](company-go-live-checklist.md).
