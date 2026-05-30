@@ -1,8 +1,9 @@
 import {
   buildDashboardKpis,
+  buildPaymentStatusBreakdown,
   computeDeltaPercent,
   countActiveTicketsSnapshot,
-  getTicketBalanceDue,
+  getTicketOutstanding,
   sumFinishedRevenueInMonth,
   sumOutstandingSnapshot,
 } from '@/lib/dashboard-kpi';
@@ -22,10 +23,10 @@ describe('computeDeltaPercent', () => {
   });
 });
 
-describe('getTicketBalanceDue', () => {
+describe('getTicketOutstanding', () => {
   it('returns 0 for paid tickets', () => {
     expect(
-      getTicketBalanceDue({
+      getTicketOutstanding({
         finished: true,
         total: 100,
         paid: 100,
@@ -37,7 +38,7 @@ describe('getTicketBalanceDue', () => {
 
   it('returns remaining balance for partial payment', () => {
     expect(
-      getTicketBalanceDue({
+      getTicketOutstanding({
         finished: true,
         total: 100,
         paid: 40,
@@ -76,6 +77,30 @@ describe('sumFinishedRevenueInMonth', () => {
       },
     ];
     expect(sumFinishedRevenueInMonth(tickets, month)).toBe(200);
+  });
+});
+
+describe('buildPaymentStatusBreakdown', () => {
+  it('groups tickets by payment status', () => {
+    const rows = buildPaymentStatusBreakdown([
+      {
+        finished: true,
+        total: 100,
+        paid: 100,
+        ticket_date: null,
+        created_at: new Date(),
+      },
+      {
+        finished: true,
+        total: 80,
+        paid: 20,
+        ticket_date: null,
+        created_at: new Date(),
+      },
+    ]);
+    expect(rows.find((r) => r.status === 'paid')?.count).toBe(1);
+    expect(rows.find((r) => r.status === 'partial')?.count).toBe(1);
+    expect(rows.find((r) => r.status === 'partial')?.amount).toBe(60);
   });
 });
 

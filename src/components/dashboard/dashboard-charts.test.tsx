@@ -11,6 +11,12 @@ beforeAll(() => {
   global.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
 });
 
+const paymentBreakdown = [
+  { status: 'paid' as const, label: 'Saldado', count: 2, amount: 0 },
+  { status: 'partial' as const, label: 'Pago parcial', count: 1, amount: 50 },
+  { status: 'pending' as const, label: 'Pendiente', count: 1, amount: 100 },
+];
+
 describe('DashboardCharts', () => {
   it('shows accessible empty state for revenue chart', () => {
     render(
@@ -18,7 +24,7 @@ describe('DashboardCharts', () => {
         revenueByMonth={[
           { monthKey: '2026-01', label: 'ene 2026', revenue: 0 },
         ]}
-        clientMetrics={[]}
+        paymentStatusBreakdown={paymentBreakdown}
         revenueMonthCount={12}
       />,
     );
@@ -28,29 +34,26 @@ describe('DashboardCharts', () => {
     expect(empty).toHaveTextContent(/No hay ingresos/i);
   });
 
-  it('renders revenue chart with accessibility layer and data table', () => {
+  it('renders revenue bar chart and payment status section', () => {
     const { container } = render(
       <DashboardCharts
         revenueByMonth={[
           { monthKey: '2026-01', label: 'ene 2026', revenue: 100 },
         ]}
-        clientMetrics={[
-          { id: 1, name: 'Cliente A', ticketCount: 2, totalSpent: 500 },
-        ]}
+        paymentStatusBreakdown={paymentBreakdown}
         revenueMonthCount={3}
       />,
     );
 
     expect(
       screen.getByRole('img', {
-        name: /Gráfica de ingresos por mes, últimos 3 meses/i,
+        name: /Gráfica de barras de ingresos por mes, últimos 3 meses/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('img', {
-        name: /Gráfica de barras: clientes con mayor gasto/i,
-      }),
-    ).toHaveAttribute('aria-describedby', 'dashboard-client-metrics');
+      document.getElementById('dashboard-payment-status-title'),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/Saldado/i).length).toBeGreaterThan(0);
 
     expect(container.querySelector('[data-chart]')).toBeTruthy();
 
@@ -58,22 +61,26 @@ describe('DashboardCharts', () => {
       screen.getByRole('table', { name: /Ingresos por mes/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('table', { name: /Clientes con mayor gasto/i }),
+      screen.getByRole('table', { name: /Estado de cobro de tickets/i }),
     ).toBeInTheDocument();
   });
 
-  it('shows accessible empty state for client spend chart', () => {
+  it('shows accessible empty state for payment status when no tickets', () => {
     render(
       <DashboardCharts
         revenueByMonth={[
           { monthKey: '2026-01', label: 'ene 2026', revenue: 100 },
         ]}
-        clientMetrics={[]}
+        paymentStatusBreakdown={[
+          { status: 'paid', label: 'Saldado', count: 0, amount: 0 },
+          { status: 'partial', label: 'Pago parcial', count: 0, amount: 0 },
+          { status: 'pending', label: 'Pendiente', count: 0, amount: 0 },
+        ]}
       />,
     );
 
-    const empty = screen.getByTestId('dashboard-clients-chart-empty');
+    const empty = screen.getByTestId('dashboard-payment-status-empty');
     expect(empty).toHaveAttribute('role', 'status');
-    expect(empty).toHaveTextContent(/No hay clientes/i);
+    expect(empty).toHaveTextContent(/No hay tickets/i);
   });
 });
