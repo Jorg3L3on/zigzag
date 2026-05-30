@@ -19,6 +19,11 @@ import {
 import { useCompany } from '@/contexts/company-context';
 import { FormattedDate } from '@/components/formatted-date';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
+import { usePermissions } from '@/hooks/use-permissions';
+import {
+  canReadServiceSchedules,
+  needsSelectedCompanyForSchedules,
+} from '@/lib/service-schedules-rbac';
 
 const mergeUrgent = (
   proximos: ClientServiceScheduleListItem[],
@@ -44,6 +49,12 @@ const mergeUrgent = (
 
 export const DashboardServiceSchedulesWidget = () => {
   const { selectedCompany } = useCompany();
+  const { can, isSystem, loading: permissionsLoading } = usePermissions();
+  const canRead = canReadServiceSchedules(can);
+  const missingCompany = needsSelectedCompanyForSchedules(
+    isSystem,
+    selectedCompany?.id,
+  );
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [proximos, setProximos] = React.useState<ClientServiceScheduleListItem[]>(
@@ -54,6 +65,26 @@ export const DashboardServiceSchedulesWidget = () => {
   );
 
   React.useEffect(() => {
+    if (permissionsLoading) {
+      return;
+    }
+
+    if (!canRead) {
+      setLoading(false);
+      setError(null);
+      setProximos([]);
+      setAtrasados([]);
+      return;
+    }
+
+    if (missingCompany) {
+      setLoading(false);
+      setError(null);
+      setProximos([]);
+      setAtrasados([]);
+      return;
+    }
+
     let cancelled = false;
 
     const load = async () => {
@@ -91,7 +122,20 @@ export const DashboardServiceSchedulesWidget = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedCompany?.id]);
+  }, [
+    canRead,
+    missingCompany,
+    permissionsLoading,
+    selectedCompany?.id,
+  ]);
+
+  if (permissionsLoading) {
+    return null;
+  }
+
+  if (!canRead) {
+    return null;
+  }
 
   const urgentRows = mergeUrgent(proximos, atrasados);
 
@@ -109,7 +153,11 @@ export const DashboardServiceSchedulesWidget = () => {
         </Button>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {missingCompany ? (
+          <p className="text-sm text-muted-foreground" role="status">
+            Selecciona una empresa para ver recordatorios.
+          </p>
+        ) : loading ? (
           <div className="flex justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
@@ -150,7 +198,7 @@ export const DashboardServiceSchedulesWidget = () => {
             ))}
           </ul>
         )}
-        {!loading && !error ? (
+        {!missingCompany && !loading && !error ? (
           <p className="mt-3 text-xs text-muted-foreground">
             {atrasados.length} atrasados · {proximos.length} próximos
           </p>
