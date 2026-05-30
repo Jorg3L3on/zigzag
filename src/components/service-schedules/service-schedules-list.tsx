@@ -51,7 +51,7 @@ import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { canWriteServiceSchedules } from '@/lib/service-schedules-rbac';
+import { canCreateTicketFromSchedule, canReadServiceSchedules, canWriteServiceSchedules, needsSelectedCompanyForSchedules } from '@/lib/service-schedules-rbac';
 
 const FILTER_OPTIONS: Array<{ value: ScheduleFilterBucket; label: string }> = [
   { value: 'todos', label: 'Todos' },
@@ -66,7 +66,13 @@ const DEFAULT_SORTING: SortingState = [{ id: 'nextDueAt', desc: false }];
 export const ServiceSchedulesList = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
+  const canRead = canReadServiceSchedules(permissions.can);
   const canWrite = canWriteServiceSchedules(permissions.can);
+  const canCreateTicket = canCreateTicketFromSchedule(permissions.can);
+  const missingCompany = needsSelectedCompanyForSchedules(
+    permissions.isSystem,
+    selectedCompany?.id,
+  );
 
   const [items, setItems] = React.useState<ClientServiceScheduleListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -91,6 +97,17 @@ export const ServiceSchedulesList = () => {
   }, [searchValue]);
 
   const loadSchedules = React.useCallback(async () => {
+    if (!canRead || missingCompany) {
+      setLoading(false);
+      setItems([]);
+      setLoadError(
+        missingCompany
+          ? 'Selecciona una empresa para ver recordatorios.'
+          : null,
+      );
+      return;
+    }
+
     setLoading(true);
     setLoadError(null);
     const result = await listClientServiceSchedules({
@@ -110,7 +127,7 @@ export const ServiceSchedulesList = () => {
       return;
     }
     setItems(result.data);
-  }, [filter, selectedCompany?.id]);
+  }, [canRead, filter, missingCompany, selectedCompany?.id]);
 
   React.useEffect(() => {
     void loadSchedules();
@@ -197,12 +214,13 @@ export const ServiceSchedulesList = () => {
     () =>
       createServiceSchedulesColumns({
         canWrite,
+        canCreateTicket,
         onEdit: handleEdit,
         onPause: (schedule) => void handlePause(schedule),
         onResume: (schedule) => void handleResume(schedule),
         onDelete: setDeleteTarget,
       }),
-    [canWrite, handleEdit, handlePause, handleResume],
+    [canCreateTicket, canWrite, handleEdit, handlePause, handleResume],
   );
 
   const table = useReactTable({
@@ -314,13 +332,15 @@ export const ServiceSchedulesList = () => {
                       </div>
                     </dl>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <Button variant="outline" size="sm" className="rounded-lg" asChild>
-                        <Link
-                          href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
-                        >
-                          Crear ticket
-                        </Link>
-                      </Button>
+                      {canCreateTicket ? (
+                        <Button variant="outline" size="sm" className="rounded-lg" asChild>
+                          <Link
+                            href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
+                          >
+                            Crear ticket
+                          </Link>
+                        </Button>
+                      ) : null}
                       {canWrite ? (
                         <Button
                           type="button"

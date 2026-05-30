@@ -6,10 +6,10 @@ import {
   clientServiceSchedule,
   service,
   type ClientServiceScheduleRow,
+  type Service,
 } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
-  AuthorizationError,
   buildActionError,
   handleCodedServerActionError,
   type ActionErrorType,
@@ -27,10 +27,9 @@ import {
   type ScheduleIntervalUnit,
 } from '@/lib/schedule-date';
 import {
-  SERVICE_SCHEDULES_READ_PERMISSION,
-  SERVICE_SCHEDULES_WRITE_PERMISSIONS,
-} from '@/lib/service-schedules-rbac';
-import { requireActionPermission } from '@/lib/security';
+  requireScheduleRead,
+  requireScheduleWrite,
+} from '@/lib/service-schedules-rbac-server';
 import { revalidatePath } from 'next/cache';
 
 export type ClientServiceScheduleListItem = {
@@ -57,6 +56,16 @@ export type UpsertClientServiceScheduleInput = {
   companyId?: number | null;
 };
 
+export type ServiceScheduleFormCatalogClient = {
+  id: number;
+  name: string;
+};
+
+export type ServiceScheduleFormCatalog = {
+  clients: ServiceScheduleFormCatalogClient[];
+  services: Service[];
+};
+
 const SCHEDULE_PATHS = [
   '/dashboard/service-schedules',
   '/dashboard',
@@ -65,28 +74,6 @@ const SCHEDULE_PATHS = [
 const revalidateSchedulePaths = () => {
   for (const path of SCHEDULE_PATHS) {
     revalidatePath(path);
-  }
-};
-
-const requireScheduleWrite = async (
-  companyId?: number | null,
-): Promise<{ companyId: number }> => {
-  const [primaryWritePermission, fallbackWritePermission] =
-    SERVICE_SCHEDULES_WRITE_PERMISSIONS;
-
-  try {
-    return await requireActionPermission(
-      primaryWritePermission,
-      companyId ?? undefined,
-    );
-  } catch (error) {
-    if (!(error instanceof AuthorizationError)) {
-      throw error;
-    }
-    return await requireActionPermission(
-      fallbackWritePermission,
-      companyId ?? undefined,
-    );
   }
 };
 
@@ -158,10 +145,7 @@ export async function listClientServiceSchedulesForClient(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
-      SERVICE_SCHEDULES_READ_PERMISSION,
-      companyId ?? undefined,
-    );
+    const { companyId: effectiveCompanyId } = await requireScheduleRead(companyId);
 
     const rows = await db.query.clientServiceSchedule.findMany({
       where: and(
@@ -202,9 +186,8 @@ export async function listClientServiceSchedules(params: {
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
-      SERVICE_SCHEDULES_READ_PERMISSION,
-      params.companyId ?? undefined,
+    const { companyId: effectiveCompanyId } = await requireScheduleRead(
+      params.companyId,
     );
 
     const filter: ScheduleFilterBucket =
@@ -241,6 +224,56 @@ export async function listClientServiceSchedules(params: {
   } catch (error) {
     return handleCodedServerActionError(
       'clientServiceSchedules.list',
+      'CL001',
+      error,
+    );
+  }
+}
+
+export async function listServiceScheduleFormCatalog(
+  companyId?: number | null,
+): Promise<{
+  success: boolean;
+  data?: ServiceScheduleFormCatalog;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireScheduleWrite(
+      companyId,
+    );
+
+    const [clientRows, serviceRows] = await Promise.all([
+      db.query.client.findMany({
+        where: and(
+          eq(client.company_id, effectiveCompanyId),
+          isNull(client.deleted_at),
+        ),
+        columns: {
+          id: true,
+          name: true,
+        },
+        orderBy: [asc(client.name)],
+      }),
+      db.query.service.findMany({
+        where: and(
+          eq(service.company_id, effectiveCompanyId),
+          isNull(service.deleted_at),
+        ),
+        orderBy: [asc(service.name)],
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        clients: clientRows,
+        services: serviceRows,
+      },
+    };
+  } catch (error) {
+    return handleCodedServerActionError(
+      'clientServiceSchedules.formCatalog',
       'CL001',
       error,
     );
