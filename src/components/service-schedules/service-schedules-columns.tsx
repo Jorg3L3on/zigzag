@@ -41,6 +41,7 @@ const BUCKET_BADGE_CLASS: Partial<Record<ScheduleRowBucket, string>> = {
 
 export type ServiceSchedulesColumnsOptions = {
   canWrite: boolean;
+  canCreateTicket: boolean;
   onEdit: (schedule: ClientServiceScheduleListItem) => void;
   onPause: (schedule: ClientServiceScheduleListItem) => void;
   onResume: (schedule: ClientServiceScheduleListItem) => void;
@@ -49,6 +50,7 @@ export type ServiceSchedulesColumnsOptions = {
 
 export const createServiceSchedulesColumns = ({
   canWrite,
+  canCreateTicket,
   onEdit,
   onPause,
   onResume,
@@ -120,13 +122,15 @@ export const createServiceSchedulesColumns = ({
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
         >
-          <Button variant="outline" size="sm" className="rounded-lg" asChild>
-            <Link
-              href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
-            >
-              Crear ticket
-            </Link>
-          </Button>
+          {canCreateTicket ? (
+            <Button variant="outline" size="sm" className="rounded-lg" asChild>
+              <Link
+                href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
+              >
+                Crear ticket
+              </Link>
+            </Button>
+          ) : null}
           {canWrite ? (
             <>
               <Button

@@ -46,12 +46,12 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/lib/permissions';
 import type { ScheduleFilterBucket } from '@/lib/schedule-buckets';
 import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { canCreateTicketFromSchedule, canReadServiceSchedules, canWriteServiceSchedules, needsSelectedCompanyForSchedules } from '@/lib/service-schedules-rbac';
 
 const FILTER_OPTIONS: Array<{ value: ScheduleFilterBucket; label: string }> = [
   { value: 'todos', label: 'Todos' },
@@ -66,9 +66,13 @@ const DEFAULT_SORTING: SortingState = [{ id: 'nextDueAt', desc: false }];
 export const ServiceSchedulesList = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
-  const canWrite =
-    permissions.can(PERMISSIONS.tickets.write) ||
-    permissions.can(PERMISSIONS.clients.write);
+  const canRead = canReadServiceSchedules(permissions.can);
+  const canWrite = canWriteServiceSchedules(permissions.can);
+  const canCreateTicket = canCreateTicketFromSchedule(permissions.can);
+  const missingCompany = needsSelectedCompanyForSchedules(
+    permissions.isSystem,
+    selectedCompany?.id,
+  );
 
   const [items, setItems] = React.useState<ClientServiceScheduleListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -93,6 +97,17 @@ export const ServiceSchedulesList = () => {
   }, [searchValue]);
 
   const loadSchedules = React.useCallback(async () => {
+    if (!canRead || missingCompany) {
+      setLoading(false);
+      setItems([]);
+      setLoadError(
+        missingCompany
+          ? 'Selecciona una empresa para ver recordatorios.'
+          : null,
+      );
+      return;
+    }
+
     setLoading(true);
     setLoadError(null);
     const result = await listClientServiceSchedules({
@@ -112,7 +127,7 @@ export const ServiceSchedulesList = () => {
       return;
     }
     setItems(result.data);
-  }, [filter, selectedCompany?.id]);
+  }, [canRead, filter, missingCompany, selectedCompany?.id]);
 
   React.useEffect(() => {
     void loadSchedules();
@@ -129,46 +144,52 @@ export const ServiceSchedulesList = () => {
     });
   }, [items, debouncedSearch]);
 
-  const handleEdit = (schedule: ClientServiceScheduleListItem) => {
+  const handleEdit = React.useCallback((schedule: ClientServiceScheduleListItem) => {
     setEditing(schedule);
     setFormOpen(true);
-  };
+  }, []);
 
   const handleAdd = () => {
     setEditing(null);
     setFormOpen(true);
   };
 
-  const handlePause = async (schedule: ClientServiceScheduleListItem) => {
-    setActionLoading(true);
-    const result = await pauseClientServiceSchedule(
-      schedule.id,
-      null,
-      selectedCompany?.id ?? null,
-    );
-    setActionLoading(false);
-    if (result.success) {
-      toast.success('Recordatorio pausado');
-      void loadSchedules();
-    } else {
-      toast.error(result.error || 'No se pudo pausar');
-    }
-  };
+  const handlePause = React.useCallback(
+    async (schedule: ClientServiceScheduleListItem) => {
+      setActionLoading(true);
+      const result = await pauseClientServiceSchedule(
+        schedule.id,
+        null,
+        selectedCompany?.id ?? null,
+      );
+      setActionLoading(false);
+      if (result.success) {
+        toast.success('Recordatorio pausado');
+        void loadSchedules();
+      } else {
+        toast.error(result.error || 'No se pudo pausar');
+      }
+    },
+    [loadSchedules, selectedCompany?.id],
+  );
 
-  const handleResume = async (schedule: ClientServiceScheduleListItem) => {
-    setActionLoading(true);
-    const result = await resumeClientServiceSchedule(
-      schedule.id,
-      selectedCompany?.id ?? null,
-    );
-    setActionLoading(false);
-    if (result.success) {
-      toast.success('Recordatorio reanudado');
-      void loadSchedules();
-    } else {
-      toast.error(result.error || 'No se pudo reanudar');
-    }
-  };
+  const handleResume = React.useCallback(
+    async (schedule: ClientServiceScheduleListItem) => {
+      setActionLoading(true);
+      const result = await resumeClientServiceSchedule(
+        schedule.id,
+        selectedCompany?.id ?? null,
+      );
+      setActionLoading(false);
+      if (result.success) {
+        toast.success('Recordatorio reanudado');
+        void loadSchedules();
+      } else {
+        toast.error(result.error || 'No se pudo reanudar');
+      }
+    },
+    [loadSchedules, selectedCompany?.id],
+  );
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) {
@@ -193,12 +214,13 @@ export const ServiceSchedulesList = () => {
     () =>
       createServiceSchedulesColumns({
         canWrite,
+        canCreateTicket,
         onEdit: handleEdit,
         onPause: (schedule) => void handlePause(schedule),
         onResume: (schedule) => void handleResume(schedule),
         onDelete: setDeleteTarget,
       }),
-    [canWrite],
+    [canCreateTicket, canWrite, handleEdit, handlePause, handleResume],
   );
 
   const table = useReactTable({
@@ -310,13 +332,15 @@ export const ServiceSchedulesList = () => {
                       </div>
                     </dl>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <Button variant="outline" size="sm" className="rounded-lg" asChild>
-                        <Link
-                          href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
-                        >
-                          Crear ticket
-                        </Link>
-                      </Button>
+                      {canCreateTicket ? (
+                        <Button variant="outline" size="sm" className="rounded-lg" asChild>
+                          <Link
+                            href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
+                          >
+                            Crear ticket
+                          </Link>
+                        </Button>
+                      ) : null}
                       {canWrite ? (
                         <Button
                           type="button"

@@ -32,6 +32,7 @@ import {
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { PERMISSIONS } from '@/lib/permissions';
+import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 import { usePermissions } from '@/hooks/use-permissions';
 
 interface Company {
@@ -70,7 +71,7 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       title: 'Recordatorios de servicio',
       url: '/dashboard/service-schedules',
       icon: CalendarClock,
-      requiredPermission: PERMISSIONS.tickets.read,
+      requiredPermission: SERVICE_SCHEDULES_READ_PERMISSION,
     },
     {
       title: 'Servicios',

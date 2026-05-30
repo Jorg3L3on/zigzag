@@ -29,12 +29,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  listServiceScheduleFormCatalog,
   upsertClientServiceSchedule,
   type ClientServiceScheduleListItem,
+  type ServiceScheduleFormCatalogClient,
 } from '@/actions/client-service-schedules';
-import { getClients } from '@/actions/clients';
-import { getServices } from '@/actions/services';
-import type { Client } from '@/actions/clients';
 import type { Service } from '@/db/schema';
 import { useCompany } from '@/contexts/company-context';
 import { ScheduleIntervalPicker } from '@/components/service-schedules/schedule-interval-picker';
@@ -65,7 +64,7 @@ export const ScheduleFormDialog = ({
   const { selectedCompany } = useCompany();
   const isEdit = Boolean(schedule);
   const [saving, setSaving] = React.useState(false);
-  const [clients, setClients] = React.useState<Client[]>([]);
+  const [clients, setClients] = React.useState<ServiceScheduleFormCatalogClient[]>([]);
   const [services, setServices] = React.useState<Service[]>([]);
   const [clientId, setClientId] = React.useState<number | null>(null);
   const [serviceId, setServiceId] = React.useState<number | null>(null);
@@ -81,17 +80,22 @@ export const ScheduleFormDialog = ({
     }
 
     const loadCatalog = async () => {
-      const companyId = selectedCompany?.id ?? null;
-      const [clientsRes, servicesRes] = await Promise.all([
-        getClients({ companyId, pageSize: 500 }),
-        getServices(companyId, 'active'),
-      ]);
-      if (clientsRes.success && clientsRes.data) {
-        setClients(clientsRes.data.items);
+      const result = await listServiceScheduleFormCatalog(
+        selectedCompany?.id ?? null,
+      );
+      if (result.success && result.data) {
+        setClients(result.data.clients);
+        setServices(result.data.services);
+        return;
       }
-      if (servicesRes.success && servicesRes.data) {
-        setServices(servicesRes.data);
-      }
+
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo cargar el catálogo',
+        ),
+      );
     };
 
     void loadCatalog();
