@@ -208,9 +208,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <Image
                 src={logoUrl}
                 alt={company.name}
-                width={16}
-                height={16}
-                className="size-4 rounded-sm object-cover"
+                width={24}
+                height={24}
+                className="size-6 rounded-sm object-contain"
               />
             )
           : GalleryVerticalEnd,

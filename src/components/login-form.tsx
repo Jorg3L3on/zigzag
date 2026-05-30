@@ -60,11 +60,12 @@ export function LoginForm({
           <a href="#" className="flex flex-col items-center gap-2 font-medium">
             <div className="flex h-20 w-20 items-center justify-center rounded-md">
               <Image
-                src="/logo.png"
+                src="/logo.png?v=provided-icon"
                 alt="Logo de ZigZag"
                 width={80}
                 height={80}
-                className="size-20"
+                className="size-20 object-contain"
+                unoptimized
               />
             </div>
             <span className="sr-only">zigzag</span>

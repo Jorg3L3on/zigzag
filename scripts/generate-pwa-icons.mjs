@@ -3,11 +3,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import sharp from 'sharp';
-import toIco from 'to-ico';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-const sourceSvg = path.join(root, 'assets/icon-z.svg');
+const sourcePng = path.join(root, 'assets/icon.png');
+const sourceIco = path.join(root, 'assets/favicon.ico');
 
 const OUTPUTS = [
   { file: 'src/app/icon.png', size: 32 },
@@ -18,21 +18,21 @@ const OUTPUTS = [
   { file: 'public/icons/icon-512-maskable.png', size: 512, maskable: true },
 ];
 
-const ICO_SIZES = [16, 24, 32, 48];
+const renderIcon = async (size, { maskable = false } = {}) => {
+  const contentSize = Math.round(size * (maskable ? 0.68 : 0.84));
 
-const renderIcon = async (size, maskable = false) => {
-  const contentSize = maskable ? Math.round(size * 0.72) : size;
-
-  const letter = await sharp(sourceSvg)
-    .resize(contentSize, contentSize)
+  const mark = await sharp(sourcePng)
+    .resize({
+      width: contentSize,
+      height: contentSize,
+      fit: 'inside',
+      withoutEnlargement: false,
+    })
     .png()
     .toBuffer();
 
-  if (!maskable) {
-    return letter;
-  }
+  const markMetadata = await sharp(mark).metadata();
 
-  const pad = Math.round((size - contentSize) / 2);
   return sharp({
     create: {
       width: size,
@@ -41,23 +41,30 @@ const renderIcon = async (size, maskable = false) => {
       background: { r: 0, g: 0, b: 0, alpha: 1 },
     },
   })
-    .composite([{ input: letter, left: pad, top: pad }])
+    .composite([
+      {
+        input: mark,
+        left: Math.round((size - markMetadata.width) / 2),
+        top: Math.round((size - markMetadata.height) / 2),
+      },
+    ])
     .png()
     .toBuffer();
 };
 
 const main = async () => {
+  fs.copyFileSync(sourcePng, path.join(root, 'public/logo.png'));
+  console.log('wrote public/logo.png');
+
   for (const output of OUTPUTS) {
-    const buffer = await renderIcon(output.size, output.maskable);
+    const buffer = await renderIcon(output.size, output);
     const destination = path.join(root, output.file);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.writeFileSync(destination, buffer);
     console.log(`wrote ${output.file}`);
   }
 
-  const pngBuffers = await Promise.all(ICO_SIZES.map((size) => renderIcon(size)));
-  const ico = await toIco(pngBuffers);
-  fs.writeFileSync(path.join(root, 'src/app/favicon.ico'), ico);
+  fs.copyFileSync(sourceIco, path.join(root, 'src/app/favicon.ico'));
   console.log('wrote src/app/favicon.ico');
 };
 

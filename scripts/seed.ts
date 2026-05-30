@@ -78,7 +78,7 @@ async function main() {
       postal_code: '',
       phone: '(939) 165-46-35',
       email: 'zigzag@test.com',
-      logo: '/favicon.ico',
+      logo: '/icons/icon-192.png',
       is_system: true,
       status: 'ACTIVE',
       settings: null,
