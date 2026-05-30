@@ -102,7 +102,7 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function CreateTicketPage() {
+const CreateTicketPageContent = () => {
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -621,5 +621,20 @@ export default function CreateTicketPage() {
         </Button>
       </TripledMobileStickyActionBar>
     </>
+  );
+};
+
+const CreateTicketPageFallback = () => (
+  <div className="flex min-h-[40vh] items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+    <span className="sr-only">Cargando formulario de ticket</span>
+  </div>
+);
+
+export default function CreateTicketPage() {
+  return (
+    <React.Suspense fallback={<CreateTicketPageFallback />}>
+      <CreateTicketPageContent />
+    </React.Suspense>
   );
 }
