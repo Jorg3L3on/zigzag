@@ -67,7 +67,7 @@ export type FetchDashboardMetricsInput = {
   monthCount?: DashboardMonthCount;
 };
 
-async function loadDashboardMetricsForCompany(
+export async function loadDashboardMetricsForCompany(
   companyId: number,
   monthCount: DashboardMonthCount,
 ): Promise<DashboardMetricsResponse> {
