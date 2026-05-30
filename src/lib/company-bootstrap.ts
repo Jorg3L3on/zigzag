@@ -93,7 +93,7 @@ export const bootstrapCompanyTenant = async (
         name: input.company.name,
         phone: input.company.phone,
         email: input.company.email,
-        logo: input.company.logo || null,
+        logo: null,
         street: input.company.street,
         interior_number: input.company.interior_number?.trim()
           ? input.company.interior_number.trim()

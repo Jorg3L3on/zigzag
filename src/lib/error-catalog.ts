@@ -150,6 +150,14 @@ export const ERROR_CATALOG = {
     message: 'El estado solicitado no es válido para esta empresa.',
     type: 'validation',
   },
+  CO010: {
+    code: 'CO010',
+    module: 'companies',
+    title: 'Logo no válido',
+    message:
+      'El archivo de logo no cumple el formato, tamaño o dimensiones permitidas.',
+    type: 'validation',
+  },
   DB001: {
     code: 'DB001',
     module: 'dashboard',

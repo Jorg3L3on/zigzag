@@ -37,6 +37,7 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
+import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 
 const defaultSettings = {
   rfc: '',
@@ -48,7 +49,6 @@ const emptyDefaults: CompanyBootstrapFormValues = {
   name: '',
   email: '',
   phone: '',
-  logo: '',
   street: '',
   interior_number: '',
   exterior_number: '',
@@ -84,7 +84,6 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
           name: company.name,
           email: company.email,
           phone: company.phone,
-          logo: company.logo ?? '',
           street: company.street,
           interior_number: company.interior_number ?? '',
           exterior_number: company.exterior_number,
@@ -232,21 +231,18 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="logo"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>URL del logo</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="url" placeholder="https://" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
         </div>
+
+        {company ? (
+          <>
+            <Separator />
+            <CompanyLogoUpload
+              companyId={company.id}
+              logoUrl={company.logo}
+            />
+          </>
+        ) : null}
 
         <Separator />
 

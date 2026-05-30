@@ -12,7 +12,6 @@ export const companyFormSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   email: z.string().email('El correo electrónico no es válido'),
   phone: z.string().min(1, 'El teléfono es requerido'),
-  logo: z.string().optional().or(z.literal('')),
   street: z.string().min(1, 'La calle es requerida'),
   interior_number: z.string().optional().or(z.literal('')),
   exterior_number: z.string().min(1, 'El número exterior es requerido'),
