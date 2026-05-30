@@ -59,6 +59,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/clients/client-form';
+import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
@@ -266,6 +267,8 @@ const CreateTicketPageContent = () => {
             backHref="/dashboard/tickets"
             backLabel="Volver a tickets"
           />
+
+          <CompanyEntitlementNotice metric="tickets_month" />
 
           <div className="md:hidden">
             <TripledStepper

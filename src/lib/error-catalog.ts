@@ -158,6 +158,14 @@ export const ERROR_CATALOG = {
       'El archivo de logo no cumple el formato, tamaño o dimensiones permitidas.',
     type: 'validation',
   },
+  CO011: {
+    code: 'CO011',
+    module: 'companies',
+    title: 'Límite del plan alcanzado',
+    message:
+      'Tu plan no permite crear más recursos de este tipo. Actualiza el plan o libera espacio.',
+    type: 'validation',
+  },
   DB001: {
     code: 'DB001',
     module: 'dashboard',

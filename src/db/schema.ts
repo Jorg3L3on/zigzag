@@ -35,6 +35,7 @@ export type CompanySettingsJson = {
   rfc?: string;
   invoice_footer_note?: string;
   default_currency?: string;
+  plan?: 'starter' | 'standard' | 'enterprise';
 };
 
 export const company = pgTable(

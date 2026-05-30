@@ -1,6 +1,10 @@
 import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { service } from '@/db/schema';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import {
+  assertCompanyEntitlementAllows,
+  CompanyEntitlementExceededError,
+} from '@/lib/company-entitlement-guard';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 
@@ -67,6 +71,8 @@ export async function POST(request: Request) {
       return unauthorized;
     }
 
+    await assertCompanyEntitlementAllows(companyId, 'services');
+
     const [created] = await db
       .insert(service)
       .values({
@@ -81,6 +87,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return fail('SV002', 400, 'validation');
+    }
+    if (error instanceof CompanyEntitlementExceededError) {
+      return fail('CO011', 403, 'validation');
     }
     console.error('Error creating service:', error);
     return fail('SV002', 500, 'server');

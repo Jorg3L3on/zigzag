@@ -37,12 +37,18 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
+import {
+  COMPANY_PLAN_IDS,
+  COMPANY_PLAN_LABELS,
+  getCompanyPlanId,
+} from '@/lib/company-entitlements';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 
 const defaultSettings = {
   rfc: '',
   invoice_footer_note: '',
   default_currency: 'MXN',
+  plan: 'standard' as const,
 };
 
 const emptyDefaults: CompanyBootstrapFormValues = {
@@ -99,6 +105,7 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
               company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
+            plan: getCompanyPlanId(company.settings),
           },
           owner: { name: '', email: '', password: '' },
         }
@@ -429,6 +436,30 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
             Configuración
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="settings.plan"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Plan comercial</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger aria-label="Plan comercial">
+                        <SelectValue placeholder="Selecciona un plan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {COMPANY_PLAN_IDS.map((planId) => (
+                        <SelectItem key={planId} value={planId}>
+                          {COMPANY_PLAN_LABELS[planId]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="settings.rfc"
