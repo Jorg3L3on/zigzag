@@ -89,7 +89,7 @@ export default async function EditCompanyPage({
         >
           <div className="space-y-6">
             <CompanyReadinessPanel assessment={readiness} />
-            <CompanyForm company={companyRow} />
+            <CompanyForm company={companyRow} key={companyRow.logo ?? 'no-logo'} />
           </div>
         </TripledResourceCard>
       </TripledDashboardShell>

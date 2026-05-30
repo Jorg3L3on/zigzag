@@ -197,13 +197,21 @@ export async function PUT(request: Request) {
 
     const settings = normalizeCompanySettingsForDb(body.settings);
 
+    const existing = await db.query.company.findFirst({
+      where: and(eq(company.id, body.id), isNull(company.deleted_at)),
+    });
+
+    if (!existing) {
+      return fail('CO006', 404, 'validation');
+    }
+
     const [updated] = await db
       .update(company)
       .set({
         name: body.name,
         phone: body.phone,
         email: body.email,
-        logo: body.logo || null,
+        logo: existing.logo,
         street: body.street,
         interior_number: body.interior_number?.trim()
           ? body.interior_number.trim()

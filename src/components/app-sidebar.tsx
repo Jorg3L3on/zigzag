@@ -17,6 +17,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
+import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
@@ -206,7 +207,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const teams = React.useMemo(() => {
     const mappedTeams = companies.map((company) => {
-      const logoUrl = company.logo;
+      const logoUrl = resolveCompanyLogoUrl(company.logo);
 
       return {
         id: company.id,
