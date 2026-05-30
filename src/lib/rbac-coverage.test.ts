@@ -46,7 +46,12 @@ describe('RBAC coverage', () => {
       .filter((filePath) => !allowedExceptions.has(relative(filePath)))
       .filter((filePath) => {
         const content = read(filePath);
-        return !hasAny(content, ['requireActionPermission(', 'checkPermission(']);
+        return !hasAny(content, [
+          'requireActionPermission(',
+          'checkPermission(',
+          'requireScheduleRead(',
+          'requireScheduleWrite(',
+        ]);
       })
       .map(relative);
 
