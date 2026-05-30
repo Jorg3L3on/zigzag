@@ -1,9 +1,20 @@
 'use client';
 
+import { format, startOfMonth } from 'date-fns';
+import { useReducedMotion } from 'framer-motion';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type {
   DashboardMonthCount,
   RevenueByMonthPoint,
 } from '@/lib/dashboard-metrics';
+import type { PaymentStatusBreakdownItem } from '@/lib/dashboard-kpi';
 import {
   Card,
   CardContent,
@@ -17,16 +28,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { useReducedMotion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 const formatMxCurrency = (value: number) =>
   `$${value.toLocaleString('es-MX', {
@@ -58,24 +60,26 @@ const RevenueChartDataTable = ({
   </table>
 );
 
-const ClientSpendChartDataTable = ({
+const PaymentStatusDataTable = ({
   rows,
 }: {
-  rows: Array<{ name: string; totalSpent: number }>;
+  rows: PaymentStatusBreakdownItem[];
 }) => (
   <table className="sr-only">
-    <caption>Clientes con mayor gasto (datos numéricos)</caption>
+    <caption>Estado de cobro de tickets</caption>
     <thead>
       <tr>
-        <th scope="col">Cliente</th>
-        <th scope="col">Total gastado</th>
+        <th scope="col">Estado</th>
+        <th scope="col">Tickets</th>
+        <th scope="col">Saldo</th>
       </tr>
     </thead>
     <tbody>
       {rows.map((row) => (
-        <tr key={row.name}>
-          <td>{row.name}</td>
-          <td>{formatMxCurrency(row.totalSpent)}</td>
+        <tr key={row.status}>
+          <td>{row.label}</td>
+          <td>{row.count}</td>
+          <td>{formatMxCurrency(row.amount)}</td>
         </tr>
       ))}
     </tbody>
@@ -89,50 +93,48 @@ const revenueChartConfig = {
   },
 } satisfies ChartConfig;
 
-const clientSpendChartConfig = {
-  totalSpent: {
-    label: 'Total gastado',
-    color: 'hsl(var(--chart-2))',
-  },
-} satisfies ChartConfig;
-
-export type ClientMetricRow = {
-  id: number;
-  name: string;
-  ticketCount: number;
-  totalSpent: number;
+const PAYMENT_CHART_COLORS: Record<
+  PaymentStatusBreakdownItem['status'],
+  string
+> = {
+  paid: 'hsl(var(--chart-2))',
+  partial: 'hsl(var(--chart-4))',
+  pending: 'hsl(var(--chart-3))',
 };
 
 export type DashboardChartsProps = {
   revenueByMonth: RevenueByMonthPoint[];
-  clientMetrics: ClientMetricRow[];
+  paymentStatusBreakdown: PaymentStatusBreakdownItem[];
   revenueMonthCount?: DashboardMonthCount;
 };
 
 export const DashboardCharts = ({
   revenueByMonth,
-  clientMetrics,
+  paymentStatusBreakdown,
   revenueMonthCount = 12,
 }: DashboardChartsProps) => {
   const shouldReduceMotion = useReducedMotion();
   const hasRevenueData = revenueByMonth.some((m) => m.revenue > 0);
+  const currentMonthKey = format(startOfMonth(new Date()), 'yyyy-MM');
 
-  const topClientsBySpend = [...clientMetrics]
-    .sort((a, b) => b.totalSpent - a.totalSpent)
-    .slice(0, 8)
-    .map((c) => ({
-      ...c,
-      displayName:
-        c.name.length > 28 ? `${c.name.slice(0, 26).trimEnd()}…` : c.name,
-    }));
+  const revenueChartData = revenueByMonth.map((row) => ({
+    ...row,
+    isCurrentMonth: row.monthKey === currentMonthKey,
+  }));
 
-  const hasClientSpendData = topClientsBySpend.length > 0;
+  const hasPaymentData = paymentStatusBreakdown.some(
+    (row) => row.count > 0,
+  );
+  const paymentTotal = paymentStatusBreakdown.reduce(
+    (sum, row) => sum + row.count,
+    0,
+  );
 
   return (
-    <div className="grid gap-5 sm:gap-4 lg:grid-cols-2">
+    <div className="grid gap-5 sm:gap-4 lg:grid-cols-3">
       <Card
         data-testid={hasRevenueData ? 'dashboard-revenue-chart' : undefined}
-        className="flex flex-col"
+        className="flex flex-col lg:col-span-2"
       >
         <CardHeader>
           <CardTitle id="dashboard-revenue-chart-title">
@@ -144,7 +146,7 @@ export const DashboardCharts = ({
           </CardDescription>
           <p className="sr-only">
             Los tooltips del gráfico son complementarios. Los montos por mes
-            están en la tabla de datos de esta tarjeta y en Ingresos totales.
+            están en la tabla de datos de esta tarjeta.
           </p>
         </CardHeader>
         <CardContent className="flex-1">
@@ -159,171 +161,161 @@ export const DashboardCharts = ({
             </p>
           ) : (
             <>
-            <ChartContainer
-              config={revenueChartConfig}
-              role="img"
-              aria-label={`Gráfica de ingresos por mes, últimos ${revenueMonthCount} meses`}
-              className="aspect-auto h-[280px] w-full"
-            >
-              <AreaChart
-                accessibilityLayer
-                data={revenueByMonth}
-                margin={{ left: 8, right: 8, top: 8, bottom: 12 }}
+              <ChartContainer
+                config={revenueChartConfig}
+                role="img"
+                aria-label={`Gráfica de barras de ingresos por mes, últimos ${revenueMonthCount} meses`}
+                className="aspect-auto h-[300px] w-full"
               >
-                <defs>
-                  <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-revenue)"
-                      stopOpacity={0.85}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-revenue)"
-                      stopOpacity={0.08}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={10}
-                  interval={0}
-                  angle={-35}
-                  textAnchor="end"
-                  height={68}
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(v) =>
-                    typeof v === 'number'
-                      ? v >= 1_000_000
-                        ? `${(v / 1_000_000).toFixed(1)}M`
-                        : v >= 1000
-                          ? `${(v / 1000).toFixed(1)}k`
-                          : `${v}`
-                      : `${v}`
-                  }
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) => (
-                        <span className="font-medium tabular-nums">
-                          {typeof value === 'number'
-                            ? formatMxCurrency(value)
-                            : value}
-                        </span>
-                      )}
-                    />
-                  }
-                />
-                <Area
-                  dataKey="revenue"
-                  type="monotone"
-                  fill="url(#fillRevenue)"
-                  stroke="var(--color-revenue)"
-                  strokeWidth={2}
-                  isAnimationActive={!shouldReduceMotion}
-                />
-              </AreaChart>
-            </ChartContainer>
-            <RevenueChartDataTable rows={revenueByMonth} />
+                <BarChart
+                  accessibilityLayer
+                  data={revenueChartData}
+                  margin={{ left: 8, right: 8, top: 8, bottom: 12 }}
+                >
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={10}
+                    interval={0}
+                    angle={-35}
+                    textAnchor="end"
+                    height={68}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={(v) =>
+                      typeof v === 'number'
+                        ? v >= 1_000_000
+                          ? `${(v / 1_000_000).toFixed(1)}M`
+                          : v >= 1000
+                            ? `${(v / 1000).toFixed(1)}k`
+                            : `${v}`
+                        : `${v}`
+                    }
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value) => (
+                          <span className="font-medium tabular-nums">
+                            {typeof value === 'number'
+                              ? formatMxCurrency(value)
+                              : value}
+                          </span>
+                        )}
+                      />
+                    }
+                  />
+                  <Bar
+                    dataKey="revenue"
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={!shouldReduceMotion}
+                  >
+                    {revenueChartData.map((entry) => (
+                      <Cell
+                        key={entry.monthKey}
+                        fill={
+                          entry.isCurrentMonth
+                            ? 'hsl(var(--chart-1))'
+                            : 'hsl(var(--chart-1) / 0.25)'
+                        }
+                        stroke={
+                          entry.isCurrentMonth
+                            ? 'hsl(var(--chart-1))'
+                            : 'hsl(var(--chart-1) / 0.5)'
+                        }
+                        strokeWidth={entry.isCurrentMonth ? 0 : 1}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+              <RevenueChartDataTable rows={revenueByMonth} />
             </>
           )}
         </CardContent>
       </Card>
 
       <Card
-        data-testid={hasClientSpendData ? 'dashboard-clients-chart' : undefined}
+        data-testid={
+          hasPaymentData ? 'dashboard-payment-status-chart' : undefined
+        }
         className="flex flex-col"
       >
         <CardHeader>
-          <CardTitle id="dashboard-clients-chart-title">
-            Clientes con mayor gasto
+          <CardTitle id="dashboard-payment-status-title">
+            Estado de cobro
           </CardTitle>
           <CardDescription>
-            Top 8 clientes por total gastado en tickets
+            Tickets por saldo: saldado, pago parcial y pendiente
           </CardDescription>
-          <p className="sr-only">
-            Los tooltips del gráfico son complementarios. El detalle por cliente
-            está en la sección Métricas de clientes.
-          </p>
         </CardHeader>
-        <CardContent>
-          {!hasClientSpendData ? (
+        <CardContent className="flex flex-1 flex-col gap-4">
+          {!hasPaymentData ? (
             <p
               role="status"
-              aria-labelledby="dashboard-clients-chart-title"
-              data-testid="dashboard-clients-chart-empty"
+              aria-labelledby="dashboard-payment-status-title"
+              data-testid="dashboard-payment-status-empty"
               className="text-sm text-muted-foreground"
             >
-              No hay clientes para mostrar.
+              No hay tickets para mostrar.
             </p>
           ) : (
             <>
-            <ChartContainer
-              config={clientSpendChartConfig}
-              role="img"
-              aria-label="Gráfica de barras: clientes con mayor gasto, top 8"
-              aria-describedby="dashboard-client-metrics"
-              className="aspect-auto h-[min(360px,70vh)] w-full"
-            >
-              <BarChart
-                accessibilityLayer
-                data={topClientsBySpend}
-                layout="vertical"
-                margin={{ left: 4, right: 16, top: 8, bottom: 8 }}
+              <div
+                className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+                role="img"
+                aria-label="Distribución de tickets por estado de cobro"
               >
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                <XAxis
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) =>
-                    typeof v === 'number' ? formatMxCurrency(v) : `${v}`
+                {paymentStatusBreakdown.map((row) => {
+                  if (row.count === 0) {
+                    return null;
                   }
-                />
-                <YAxis
-                  type="category"
-                  dataKey="displayName"
-                  width={120}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11 }}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) => (
-                        <span className="font-medium tabular-nums">
-                          {typeof value === 'number'
-                            ? formatMxCurrency(value)
-                            : value}
-                        </span>
-                      )}
+                  const width = (row.count / paymentTotal) * 100;
+                  return (
+                    <div
+                      key={row.status}
+                      className="h-full"
+                      style={{
+                        width: `${width}%`,
+                        backgroundColor: PAYMENT_CHART_COLORS[row.status],
+                      }}
+                      title={`${row.label}: ${row.count}`}
                     />
-                  }
-                />
-                <Bar
-                  dataKey="totalSpent"
-                  fill="var(--color-totalSpent)"
-                  radius={[0, 4, 4, 0]}
-                  isAnimationActive={!shouldReduceMotion}
-                />
-              </BarChart>
-            </ChartContainer>
-            <ClientSpendChartDataTable
-              rows={topClientsBySpend.map((c) => ({
-                name: c.name,
-                totalSpent: c.totalSpent,
-              }))}
-            />
+                  );
+                })}
+              </div>
+              <ul className="space-y-3 text-sm">
+                {paymentStatusBreakdown.map((row) => (
+                  <li
+                    key={row.status}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={cn('h-2.5 w-2.5 shrink-0 rounded-full')}
+                        style={{
+                          backgroundColor: PAYMENT_CHART_COLORS[row.status],
+                        }}
+                        aria-hidden
+                      />
+                      <span className="truncate">{row.label}</span>
+                    </div>
+                    <div className="shrink-0 text-right tabular-nums">
+                      <span className="font-medium">{row.count}</span>
+                      <span className="ml-2 text-muted-foreground">
+                        {formatMxCurrency(row.amount)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <PaymentStatusDataTable rows={paymentStatusBreakdown} />
             </>
           )}
         </CardContent>

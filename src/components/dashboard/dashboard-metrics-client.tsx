@@ -3,31 +3,20 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { FormattedCurrency } from '@/components/formatted-currency';
-import { Ticket, Users, DollarSign, Wrench, ShoppingCart } from 'lucide-react';
-import {
-  TripledMetricCard,
-  TripledMotionDiv,
-  tripledStagger,
-} from '@/components/tripled';
+  Ticket,
+  DollarSign,
+  Wallet,
+  ClipboardList,
+  FileDown,
+} from 'lucide-react';
+import { TripledMotionDiv, tripledStagger } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
+import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
+import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
   fetchDashboardMetrics,
@@ -42,6 +31,13 @@ const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 12, label: '12 meses' },
 ];
 
+const KPI_ICONS: Record<DashboardKpiKey, React.ReactNode> = {
+  revenue: <DollarSign className="h-4 w-4 text-muted-foreground" />,
+  cashCollected: <Wallet className="h-4 w-4 text-muted-foreground" />,
+  outstandingBalance: <ClipboardList className="h-4 w-4 text-muted-foreground" />,
+  activeTickets: <Ticket className="h-4 w-4 text-muted-foreground" />,
+};
+
 const DashboardLoadingSkeleton = () => (
   <div className="flex flex-col gap-6">
     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -49,16 +45,15 @@ const DashboardLoadingSkeleton = () => (
       <Skeleton className="h-9 w-28" />
       <Skeleton className="h-9 w-28" />
     </div>
-    <div className="grid gap-5 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-5 sm:gap-4 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-28 rounded-xl" />
+        <Skeleton key={i} className="h-36 rounded-xl" />
       ))}
     </div>
-    <div className="grid gap-5 sm:gap-4 lg:grid-cols-2">
-      <Skeleton className="h-[380px] rounded-xl" />
+    <div className="grid gap-5 sm:gap-4 lg:grid-cols-3">
+      <Skeleton className="h-[380px] rounded-xl lg:col-span-2" />
       <Skeleton className="h-[380px] rounded-xl" />
     </div>
-    <Skeleton className="h-32 rounded-xl" />
     <Skeleton className="h-64 rounded-xl" />
   </div>
 );
@@ -138,6 +133,16 @@ export const DashboardMetricsClient = () => {
     return null;
   }
 
+  const handleExportPdf = () => {
+    const params = new URLSearchParams();
+    params.set('monthCount', String(monthCount));
+    if (session?.user.company_is_system && selectedCompany?.id != null) {
+      params.set('company_id', String(selectedCompany.id));
+    }
+    const url = `/api/dashboard/report?${params.toString()}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       {error && metrics ? (
@@ -152,6 +157,16 @@ export const DashboardMetricsClient = () => {
         <span className="mr-auto text-sm text-muted-foreground md:mr-0">
           Periodo de ingresos
         </span>
+        <Button
+          type="button"
+          variant="default"
+          className="min-h-11 gap-2 rounded-xl sm:min-h-9"
+          onClick={handleExportPdf}
+          aria-label="Exportar resumen del dashboard en PDF"
+        >
+          <FileDown className="h-4 w-4" aria-hidden />
+          Exportar PDF
+        </Button>
         {MONTH_PRESETS.map((p) => (
           <Button
             key={p.value}
@@ -168,120 +183,29 @@ export const DashboardMetricsClient = () => {
       </div>
 
       <TripledMotionDiv
-        className="grid gap-5 sm:gap-4 md:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-5 sm:gap-4 lg:grid-cols-4"
         variants={tripledStagger}
         initial="hidden"
         animate="visible"
       >
-        <TripledMetricCard
-          title="Total de Tickets"
-          icon={<Ticket className="h-4 w-4 text-muted-foreground" />}
-          value={metrics.totalTickets}
-        />
-        <TripledMetricCard
-          title="Ingresos Totales"
-          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-          value={<FormattedCurrency amount={metrics.totalRevenue} />}
-        />
-        <TripledMetricCard
-          title="Total de Clientes"
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          value={metrics.totalClients}
-        />
-        <TripledMetricCard
-          title="Total de Servicios"
-          icon={<Wrench className="h-4 w-4 text-muted-foreground" />}
-          value={metrics.totalServices}
-        />
+        {metrics.kpis.map((kpi) => (
+          <DashboardKpiCard
+            key={kpi.key}
+            kpi={kpi}
+            icon={KPI_ICONS[kpi.key]}
+          />
+        ))}
       </TripledMotionDiv>
 
       <div className={loading ? 'pointer-events-none opacity-60' : ''}>
         <DashboardCharts
           revenueByMonth={metrics.revenueByMonth}
-          clientMetrics={metrics.clientMetrics}
+          paymentStatusBreakdown={metrics.paymentStatusBreakdown}
           revenueMonthCount={monthCount}
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Servicios Vendidos</CardTitle>
-          <CardDescription>
-            Número total de servicios vendidos en todos los tickets
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-            <span className="text-2xl font-bold">
-              {metrics.totalServicesSold}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-      <Card id="dashboard-client-metrics">
-        <CardHeader>
-          <CardTitle>Métricas de Clientes</CardTitle>
-          <CardDescription>
-            Resumen de actividad y gastos de clientes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-5 md:hidden">
-            {metrics.clientMetrics.map((clientRow) => (
-              <article
-                key={clientRow.id}
-                className="rounded-lg border border-border bg-card p-4"
-              >
-                <h3 className="truncate text-sm font-semibold text-foreground">
-                  {clientRow.name}
-                </h3>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                    <dt className="text-muted-foreground">Tickets</dt>
-                    <dd className="tabular-nums text-foreground">
-                      {clientRow.ticketCount}
-                    </dd>
-                  </div>
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                    <dt className="text-muted-foreground">Total gastado</dt>
-                    <dd className="tabular-nums text-foreground">
-                      <FormattedCurrency amount={clientRow.totalSpent} />
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
-          </div>
-
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre del Cliente</TableHead>
-                  <TableHead className="text-right">Tickets</TableHead>
-                  <TableHead className="text-right">Total Gastado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {metrics.clientMetrics.map((clientRow) => (
-                  <TableRow key={clientRow.id}>
-                    <TableCell className="font-medium">
-                      {clientRow.name}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {clientRow.ticketCount}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <FormattedCurrency amount={clientRow.totalSpent} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardRecentTickets tickets={metrics.recentTickets} />
     </div>
   );
 };
