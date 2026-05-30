@@ -196,7 +196,7 @@ export const DashboardMetricsClient = () => {
       <div className={loading ? 'pointer-events-none opacity-60' : ''}>
         <DashboardCharts
           revenueByMonth={metrics.revenueByMonth}
-          clientMetrics={metrics.clientMetrics}
+          paymentStatusBreakdown={metrics.paymentStatusBreakdown}
           revenueMonthCount={monthCount}
         />
       </div>

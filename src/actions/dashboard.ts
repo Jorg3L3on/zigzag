@@ -11,7 +11,9 @@ import {
 } from '@/lib/errors';
 import {
   buildDashboardKpis,
+  buildPaymentStatusBreakdown,
   type DashboardKpi,
+  type PaymentStatusBreakdownItem,
 } from '@/lib/dashboard-kpi';
 import {
   aggregateFinishedRevenueByMonthKey,
@@ -33,6 +35,7 @@ export interface DashboardMetrics {
   totalServices: number;
   totalServicesSold: number;
   revenueByMonth: RevenueByMonthPoint[];
+  paymentStatusBreakdown: PaymentStatusBreakdownItem[];
   clientMetrics: {
     id: number;
     name: string;
@@ -95,6 +98,9 @@ async function loadDashboardMetricsForCompany(
       .where(ticketScope);
 
     const kpis = buildDashboardKpis(ticketRowsForRevenue);
+    const paymentStatusBreakdown = buildPaymentStatusBreakdown(
+      ticketRowsForRevenue,
+    );
 
     const revenueByMonthMap = aggregateFinishedRevenueByMonthKey(
       ticketRowsForRevenue,
@@ -162,6 +168,7 @@ async function loadDashboardMetricsForCompany(
         totalServices: Number(servicesAgg?.totalServices ?? 0),
         totalServicesSold: Number(servicesSoldAgg?.totalServicesSold ?? 0),
         revenueByMonth,
+        paymentStatusBreakdown,
         clientMetrics: clientMetrics.map((row) => ({
           ...row,
           ticketCount: Number(row.ticketCount ?? 0),

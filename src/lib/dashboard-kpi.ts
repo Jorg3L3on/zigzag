@@ -6,7 +6,12 @@ import {
 } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { getTicketPaymentStatus } from '@/lib/ticket-payment-status';
+import {
+  getTicketBalanceDue,
+  getTicketPaymentStatus,
+  TICKET_PAYMENT_STATUS_LABEL,
+  type TicketPaymentStatus,
+} from '@/lib/ticket-payment-status';
 
 export type DashboardKpiKey =
   | 'revenue'
@@ -64,14 +69,46 @@ export const isDateInCalendarMonth = (
   return date >= start && date <= end;
 };
 
-export const getTicketBalanceDue = (ticket: TicketForKpiAggregate): number => {
-  const status = getTicketPaymentStatus(ticket.total, ticket.paid);
-  if (status === 'paid') {
-    return 0;
+export const getTicketOutstanding = (ticket: TicketForKpiAggregate): number =>
+  getTicketBalanceDue(ticket.total, ticket.paid);
+
+export type PaymentStatusBreakdownItem = {
+  status: TicketPaymentStatus;
+  label: string;
+  count: number;
+  amount: number;
+};
+
+const PAYMENT_STATUS_ORDER: TicketPaymentStatus[] = [
+  'paid',
+  'partial',
+  'pending',
+];
+
+export const buildPaymentStatusBreakdown = (
+  tickets: TicketForKpiAggregate[],
+): PaymentStatusBreakdownItem[] => {
+  const buckets: Record<
+    TicketPaymentStatus,
+    { count: number; amount: number }
+  > = {
+    paid: { count: 0, amount: 0 },
+    partial: { count: 0, amount: 0 },
+    pending: { count: 0, amount: 0 },
+  };
+
+  for (const ticket of tickets) {
+    const status = getTicketPaymentStatus(ticket.total, ticket.paid);
+    buckets[status].count += 1;
+    buckets[status].amount += getTicketOutstanding(ticket);
   }
-  const total = ticket.total ?? 0;
-  const paid = ticket.paid ?? 0;
-  return Math.max(0, total - paid);
+
+  return PAYMENT_STATUS_ORDER.map((status) => ({
+    status,
+    label: TICKET_PAYMENT_STATUS_LABEL[status],
+    count: buckets[status].count,
+    amount: buckets[status].amount,
+  }));
 };
 
 export const sumFinishedRevenueInMonth = (
@@ -114,14 +151,14 @@ export const sumOutstandingInMonth = (
     if (!isDateInCalendarMonth(ref, monthStart)) {
       return sum;
     }
-    return sum + getTicketBalanceDue(ticket);
+    return sum + getTicketOutstanding(ticket);
   }, 0);
 
 /** Total outstanding across all Tickets (snapshot). */
 export const sumOutstandingSnapshot = (
   tickets: TicketForKpiAggregate[],
 ): number =>
-  tickets.reduce((sum, ticket) => sum + getTicketBalanceDue(ticket), 0);
+  tickets.reduce((sum, ticket) => sum + getTicketOutstanding(ticket), 0);
 
 export const countActiveTicketsSnapshot = (
   tickets: TicketForKpiAggregate[],
