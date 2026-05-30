@@ -135,6 +135,21 @@ export const ERROR_CATALOG = {
     message: 'Revisa los campos marcados e intenta de nuevo.',
     type: 'validation',
   },
+  CO008: {
+    code: 'CO008',
+    module: 'companies',
+    title: 'Empresa no lista para operar',
+    message:
+      'Completa la configuración de la empresa o activa el estado operativo antes de continuar.',
+    type: 'validation',
+  },
+  CO009: {
+    code: 'CO009',
+    module: 'companies',
+    title: 'Cambio de estado no permitido',
+    message: 'El estado solicitado no es válido para esta empresa.',
+    type: 'validation',
+  },
   DB001: {
     code: 'DB001',
     module: 'dashboard',

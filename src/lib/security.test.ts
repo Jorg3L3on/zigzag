@@ -298,7 +298,7 @@ describe('security helpers', () => {
       } as Awaited<ReturnType<typeof auth>>);
       mockDb.query.user.findFirst.mockResolvedValue({
         id: 8n,
-        company: { id: 10, deleted_at: null, status: 'INACTIVE' },
+        company: { id: 10, deleted_at: null, status: 'SUSPENDED' },
       });
 
       await expect(requireActionAuth()).rejects.toThrow(

@@ -104,7 +104,7 @@ export const bootstrapCompanyTenant = async (
         state: input.company.state,
         country: input.company.country,
         postal_code: input.company.postal_code,
-        status: input.company.status,
+        status: 'SETUP',
         settings,
         is_system: false,
         updated_at: new Date(),

@@ -8,6 +8,7 @@ import { isErrorCode, type ErrorCode } from '@/lib/error-catalog';
 import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { db } from '@/lib/db';
+import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
 import { checkPermission } from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
 import { convertBigIntToString } from '@/lib/utils';
@@ -59,7 +60,7 @@ export async function requireSession() {
   if (
     !activeUser?.company ||
     activeUser.company.deleted_at ||
-    activeUser.company.status !== 'ACTIVE'
+    !companyAllowsAuthentication(activeUser.company.status)
   ) {
     return { session: null, unauthorized: fail('AU001', 401) };
   }

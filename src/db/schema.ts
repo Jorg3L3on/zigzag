@@ -17,7 +17,19 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-export const companyStatusEnum = pgEnum('CompanyStatus', ['ACTIVE', 'INACTIVE']);
+export const companyStatusEnum = pgEnum('CompanyStatus', [
+  'SETUP',
+  'ACTIVE',
+  'SUSPENDED',
+  'ARCHIVED',
+  'INACTIVE',
+]);
+
+export type CompanyLifecycleStatus =
+  | 'SETUP'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'ARCHIVED';
 
 export type CompanySettingsJson = {
   rfc?: string;

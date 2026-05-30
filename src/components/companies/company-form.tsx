@@ -36,6 +36,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
 
 const defaultSettings = {
   rfc: '',
@@ -56,7 +57,7 @@ const emptyDefaults: CompanyBootstrapFormValues = {
   state: '',
   country: 'México',
   postal_code: '',
-  status: 'ACTIVE',
+  status: 'SETUP',
   settings: { ...defaultSettings },
   owner: {
     name: '',
@@ -92,7 +93,7 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
           state: company.state,
           country: company.country,
           postal_code: company.postal_code,
-          status: company.status,
+          status: normalizeCompanyLifecycleStatus(company.status),
           settings: {
             rfc: company.settings?.rfc ?? '',
             invoice_footer_note:
@@ -195,8 +196,10 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="SETUP">En configuración</SelectItem>
                       <SelectItem value="ACTIVE">Activa</SelectItem>
-                      <SelectItem value="INACTIVE">Inactiva</SelectItem>
+                      <SelectItem value="SUSPENDED">Suspendida</SelectItem>
+                      <SelectItem value="ARCHIVED">Archivada</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

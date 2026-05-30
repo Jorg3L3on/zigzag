@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
 import { CompanyForm } from '@/components/companies/company-form';
+import { CompanyReadinessPanel } from '@/components/companies/company-readiness-panel';
+import { assessCompanyReadiness } from '@/lib/company-readiness';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
@@ -49,6 +51,7 @@ export default async function EditCompanyPage({
   }
 
   const companyRow = result.data;
+  const readiness = assessCompanyReadiness(companyRow);
 
   return (
     <>
@@ -84,7 +87,10 @@ export default async function EditCompanyPage({
           description="Actualiza datos generales, dirección y configuración."
           icon={<Building2 className="size-5" aria-hidden />}
         >
-          <CompanyForm company={companyRow} />
+          <div className="space-y-6">
+            <CompanyReadinessPanel assessment={readiness} />
+            <CompanyForm company={companyRow} />
+          </div>
         </TripledResourceCard>
       </TripledDashboardShell>
     </>
