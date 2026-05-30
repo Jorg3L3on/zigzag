@@ -50,7 +50,21 @@ export function normalizeCompanySettingsForDb(
   return Object.keys(out).length > 0 ? out : null;
 }
 
-export const companyApiCreateSchema = companyFormSchema;
+export const companyOwnerBootstrapSchema = z.object({
+  name: z.string().min(1, 'El nombre del propietario es requerido'),
+  email: z.string().email('El correo del propietario no es válido'),
+  password: z
+    .string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres'),
+});
+
+export const companyBootstrapSchema = companyFormSchema.extend({
+  owner: companyOwnerBootstrapSchema,
+});
+
+export type CompanyBootstrapFormValues = z.infer<typeof companyBootstrapSchema>;
+
+export const companyApiCreateSchema = companyBootstrapSchema;
 
 export const companyApiUpdateSchema = companyFormSchema.extend({
   id: z.number().int().positive(),

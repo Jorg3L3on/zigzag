@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -27,7 +27,9 @@ import { toast } from 'sonner';
 import { createCompany, updateCompany } from '@/actions/companies';
 import type { Company } from '@/db/schema';
 import {
+  companyBootstrapSchema,
   companyFormSchema,
+  type CompanyBootstrapFormValues,
   type CompanyFormValues,
 } from '@/lib/company-schema';
 import {
@@ -41,7 +43,7 @@ const defaultSettings = {
   default_currency: 'MXN',
 };
 
-const emptyDefaults: CompanyFormValues = {
+const emptyDefaults: CompanyBootstrapFormValues = {
   name: '',
   email: '',
   phone: '',
@@ -56,6 +58,11 @@ const emptyDefaults: CompanyFormValues = {
   postal_code: '',
   status: 'ACTIVE',
   settings: { ...defaultSettings },
+  owner: {
+    name: '',
+    email: '',
+    password: '',
+  },
 };
 
 interface CompanyFormProps {
@@ -67,8 +74,10 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEdit = Boolean(company);
 
-  const form = useForm<CompanyFormValues>({
-    resolver: zodResolver(companyFormSchema),
+  const form = useForm<CompanyBootstrapFormValues>({
+    resolver: (isEdit
+      ? zodResolver(companyFormSchema)
+      : zodResolver(companyBootstrapSchema)) as Resolver<CompanyBootstrapFormValues>,
     defaultValues: company
       ? {
           name: company.name,
@@ -91,15 +100,17 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
             default_currency:
               company.settings?.default_currency ?? 'MXN',
           },
+          owner: { name: '', email: '', password: '' },
         }
       : emptyDefaults,
   });
 
-  const handleSubmit = async (data: CompanyFormValues) => {
+  const handleSubmit = async (data: CompanyBootstrapFormValues) => {
     try {
       setIsSubmitting(true);
       if (company) {
-        const result = await updateCompany(company.id, data);
+        const { owner: _owner, ...companyData } = data;
+        const result = await updateCompany(company.id, companyData);
         if (!result.success) {
           const errorType = classifyClientError(
             null,
@@ -347,6 +358,70 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
             />
           </div>
         </div>
+
+        {!isEdit ? (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-foreground">
+                Propietario del tenant
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Se crea el usuario administrador, el rol por defecto y la
+                empresa en una sola operación.
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="owner.name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre del propietario</FormLabel>
+                      <FormControl>
+                        <Input {...field} autoComplete="name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="owner.email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Correo del propietario</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="email"
+                          autoComplete="email"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="owner.password"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Contraseña inicial</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="new-password"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
 
         <Separator />
 

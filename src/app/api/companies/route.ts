@@ -7,6 +7,7 @@ import {
   companyApiUpdateSchema,
   normalizeCompanySettingsForDb,
 } from '@/lib/company-schema';
+import { bootstrapCompanyTenant } from '@/lib/company-bootstrap';
 import { db } from '@/lib/db';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
@@ -136,33 +137,29 @@ export async function POST(request: Request) {
       return fail('CO007', 400, 'validation');
     }
     const body = parsed.data;
-    const settings = normalizeCompanySettingsForDb(body.settings);
 
-    const [created] = await db
-      .insert(company)
-      .values({
-        name: body.name,
-        phone: body.phone,
-        email: body.email,
-        logo: body.logo || null,
-        street: body.street,
-        interior_number: body.interior_number?.trim()
-          ? body.interior_number.trim()
-          : null,
-        exterior_number: body.exterior_number,
-        neighborhood: body.neighborhood,
-        city: body.city,
-        state: body.state,
-        country: body.country,
-        postal_code: body.postal_code,
-        status: body.status,
-        settings,
-        is_system: false,
-      })
-      .returning();
+    const result = await bootstrapCompanyTenant({
+      company: body,
+      owner: body.owner,
+    });
 
-    return ok(created, 201);
+    return ok(
+      {
+        ...result.company,
+        owner_user_id: result.owner.id.toString(),
+        owner_role_id: result.ownerRole.id,
+      },
+      201,
+    );
   } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    ) {
+      return fail('US004', 409, 'validation');
+    }
     console.error(error);
     return fail('CO003', 500, 'server');
   }
