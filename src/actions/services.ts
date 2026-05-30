@@ -9,6 +9,7 @@ import {
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
+import { pauseSchedulesForService } from '@/lib/client-service-schedule-lifecycle';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -137,7 +138,10 @@ export async function deleteService(
       })
       .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)));
 
+    await pauseSchedulesForService(id, effectiveCompanyId);
+
     revalidatePath('/dashboard/services');
+    revalidatePath('/dashboard/service-schedules');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('services.delete', 'SV004', error);
