@@ -21,13 +21,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { Ticket, Users, DollarSign, Wrench, ShoppingCart } from 'lucide-react';
 import {
-  TripledMetricCard,
-  TripledMotionDiv,
-  tripledStagger,
-} from '@/components/tripled';
+  Ticket,
+  DollarSign,
+  Wallet,
+  ClipboardList,
+  ShoppingCart,
+} from 'lucide-react';
+import { TripledMotionDiv, tripledStagger } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
+import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
   fetchDashboardMetrics,
@@ -41,6 +45,13 @@ const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 6, label: '6 meses' },
   { value: 12, label: '12 meses' },
 ];
+
+const KPI_ICONS: Record<DashboardKpiKey, React.ReactNode> = {
+  revenue: <DollarSign className="h-4 w-4 text-muted-foreground" />,
+  cashCollected: <Wallet className="h-4 w-4 text-muted-foreground" />,
+  outstandingBalance: <ClipboardList className="h-4 w-4 text-muted-foreground" />,
+  activeTickets: <Ticket className="h-4 w-4 text-muted-foreground" />,
+};
 
 const DashboardLoadingSkeleton = () => (
   <div className="flex flex-col gap-6">
@@ -168,31 +179,18 @@ export const DashboardMetricsClient = () => {
       </div>
 
       <TripledMotionDiv
-        className="grid gap-5 sm:gap-4 md:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-5 sm:gap-4 lg:grid-cols-4"
         variants={tripledStagger}
         initial="hidden"
         animate="visible"
       >
-        <TripledMetricCard
-          title="Total de Tickets"
-          icon={<Ticket className="h-4 w-4 text-muted-foreground" />}
-          value={metrics.totalTickets}
-        />
-        <TripledMetricCard
-          title="Ingresos Totales"
-          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-          value={<FormattedCurrency amount={metrics.totalRevenue} />}
-        />
-        <TripledMetricCard
-          title="Total de Clientes"
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          value={metrics.totalClients}
-        />
-        <TripledMetricCard
-          title="Total de Servicios"
-          icon={<Wrench className="h-4 w-4 text-muted-foreground" />}
-          value={metrics.totalServices}
-        />
+        {metrics.kpis.map((kpi) => (
+          <DashboardKpiCard
+            key={kpi.key}
+            kpi={kpi}
+            icon={KPI_ICONS[kpi.key]}
+          />
+        ))}
       </TripledMotionDiv>
 
       <div className={loading ? 'pointer-events-none opacity-60' : ''}>

@@ -10,6 +10,10 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import {
+  buildDashboardKpis,
+  type DashboardKpi,
+} from '@/lib/dashboard-kpi';
+import {
   aggregateFinishedRevenueByMonthKey,
   buildMonthBuckets,
   parseDashboardMonthCount,
@@ -20,6 +24,7 @@ import {
 import { checkPermission } from '@/lib/security';
 
 export interface DashboardMetrics {
+  kpis: DashboardKpi[];
   totalTickets: number;
   totalRevenue: number;
   totalRevenueRecognized: number;
@@ -84,9 +89,12 @@ async function loadDashboardMetricsForCompany(
         created_at: ticket.created_at,
         finished: ticket.finished,
         total: ticket.total,
+        paid: ticket.paid,
       })
       .from(ticket)
       .where(ticketScope);
+
+    const kpis = buildDashboardKpis(ticketRowsForRevenue);
 
     const revenueByMonthMap = aggregateFinishedRevenueByMonthKey(
       ticketRowsForRevenue,
@@ -145,6 +153,7 @@ async function loadDashboardMetricsForCompany(
     return {
       success: true,
       data: {
+        kpis,
         totalTickets: Number(ticketTotals?.totalTickets ?? 0),
         totalRevenue: Number(ticketTotals?.totalRevenueRecognized ?? 0),
         totalRevenueRecognized: Number(ticketTotals?.totalRevenueRecognized ?? 0),
