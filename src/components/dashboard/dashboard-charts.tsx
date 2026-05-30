@@ -28,6 +28,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import { formatCompactCurrency, formatCompactNumber } from '@/lib/format-compact';
 import { cn } from '@/lib/utils';
 
 const formatMxCurrency = (value: number) =>
@@ -71,7 +72,7 @@ const PaymentStatusDataTable = ({
       <tr>
         <th scope="col">Estado</th>
         <th scope="col">Tickets</th>
-        <th scope="col">Saldo</th>
+        <th scope="col">Monto</th>
       </tr>
     </thead>
     <tbody>
@@ -89,7 +90,7 @@ const PaymentStatusDataTable = ({
 const revenueChartConfig = {
   revenue: {
     label: 'Ingresos',
-    color: 'hsl(var(--chart-1))',
+    color: 'hsl(var(--primary))',
   },
 } satisfies ChartConfig;
 
@@ -97,9 +98,9 @@ const PAYMENT_CHART_COLORS: Record<
   PaymentStatusBreakdownItem['status'],
   string
 > = {
-  paid: 'hsl(var(--chart-2))',
-  partial: 'hsl(var(--chart-4))',
-  pending: 'hsl(var(--chart-3))',
+  paid: 'hsl(var(--primary))',
+  partial: 'hsl(var(--primary) / 0.8)',
+  pending: 'hsl(var(--primary) / 0.6)',
 };
 
 export type DashboardChartsProps = {
@@ -127,6 +128,10 @@ export const DashboardCharts = ({
   );
   const paymentTotal = paymentStatusBreakdown.reduce(
     (sum, row) => sum + row.count,
+    0,
+  );
+  const paymentAmountTotal = paymentStatusBreakdown.reduce(
+    (sum, row) => sum + row.amount,
     0,
   );
 
@@ -189,13 +194,7 @@ export const DashboardCharts = ({
                     axisLine={false}
                     tickMargin={8}
                     tickFormatter={(v) =>
-                      typeof v === 'number'
-                        ? v >= 1_000_000
-                          ? `${(v / 1_000_000).toFixed(1)}M`
-                          : v >= 1000
-                            ? `${(v / 1000).toFixed(1)}k`
-                            : `${v}`
-                        : `${v}`
+                      typeof v === 'number' ? formatCompactNumber(v) : `${v}`
                     }
                   />
                   <ChartTooltip
@@ -221,13 +220,13 @@ export const DashboardCharts = ({
                         key={entry.monthKey}
                         fill={
                           entry.isCurrentMonth
-                            ? 'hsl(var(--chart-1))'
-                            : 'hsl(var(--chart-1) / 0.25)'
+                            ? 'hsl(var(--primary))'
+                            : 'hsl(var(--primary) / 0.45)'
                         }
                         stroke={
                           entry.isCurrentMonth
-                            ? 'hsl(var(--chart-1))'
-                            : 'hsl(var(--chart-1) / 0.5)'
+                            ? 'hsl(var(--primary))'
+                            : 'hsl(var(--primary) / 0.7)'
                         }
                         strokeWidth={entry.isCurrentMonth ? 0 : 1}
                       />
@@ -252,7 +251,7 @@ export const DashboardCharts = ({
             Estado de cobro
           </CardTitle>
           <CardDescription>
-            Tickets por saldo: saldado, pago parcial y pendiente
+            Tickets y monto por estado de pago
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4">
@@ -267,6 +266,24 @@ export const DashboardCharts = ({
             </p>
           ) : (
             <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border bg-muted/40 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Total tickets
+                  </p>
+                  <p className="text-base font-semibold tabular-nums">
+                    {paymentTotal.toLocaleString('es-MX')}
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-muted/40 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Monto total
+                  </p>
+                  <p className="text-base font-semibold tabular-nums">
+                    {formatCompactCurrency(paymentAmountTotal)}
+                  </p>
+                </div>
+              </div>
               <div
                 className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
                 role="img"
@@ -308,8 +325,11 @@ export const DashboardCharts = ({
                     </div>
                     <div className="shrink-0 text-right tabular-nums">
                       <span className="font-medium">{row.count}</span>
-                      <span className="ml-2 text-muted-foreground">
-                        {formatMxCurrency(row.amount)}
+                      <span
+                        className="ml-2 text-muted-foreground"
+                        title={formatMxCurrency(row.amount)}
+                      >
+                        {formatCompactCurrency(row.amount)}
                       </span>
                     </div>
                   </li>

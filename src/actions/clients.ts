@@ -8,6 +8,7 @@ import {
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
+import { pauseSchedulesForClient } from '@/lib/client-service-schedule-lifecycle';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -268,7 +269,10 @@ export async function deleteClient(
         ),
       );
 
+    await pauseSchedulesForClient(id, effectiveCompanyId);
+
     revalidatePath('/dashboard/clients');
+    revalidatePath('/dashboard/service-schedules');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('clients.delete', 'CL005', error);

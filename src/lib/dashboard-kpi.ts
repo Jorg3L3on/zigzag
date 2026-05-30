@@ -52,7 +52,7 @@ export const computeDeltaPercent = (
     if (current === 0) {
       return 0;
     }
-    return null;
+    return 100;
   }
   return ((current - prior) / prior) * 100;
 };
@@ -100,7 +100,7 @@ export const buildPaymentStatusBreakdown = (
   for (const ticket of tickets) {
     const status = getTicketPaymentStatus(ticket.total, ticket.paid);
     buckets[status].count += 1;
-    buckets[status].amount += getTicketOutstanding(ticket);
+    buckets[status].amount += ticket.total ?? 0;
   }
 
   return PAYMENT_STATUS_ORDER.map((status) => ({

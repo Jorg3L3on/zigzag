@@ -6,16 +6,16 @@ import {
 } from '@/lib/dashboard-metrics';
 
 describe('parseDashboardMonthCount', () => {
-  it('accepts 3, 6, 12', () => {
+  it('accepts 1, 3, 6, 12', () => {
+    expect(parseDashboardMonthCount(1)).toBe(1);
     expect(parseDashboardMonthCount(3)).toBe(3);
     expect(parseDashboardMonthCount(6)).toBe(6);
     expect(parseDashboardMonthCount(12)).toBe(12);
   });
 
-  it('defaults invalid values to 12', () => {
-    expect(parseDashboardMonthCount(1)).toBe(12);
-    expect(parseDashboardMonthCount('x')).toBe(12);
-    expect(parseDashboardMonthCount(undefined)).toBe(12);
+  it('defaults invalid values to 1', () => {
+    expect(parseDashboardMonthCount('x')).toBe(1);
+    expect(parseDashboardMonthCount(undefined)).toBe(1);
   });
 });
 

@@ -13,6 +13,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { updateTicket, finishTicket } from '@/actions/tickets';
+import {
+  listClientServiceSchedulesForClient,
+  upsertClientServiceSchedule,
+} from '@/actions/client-service-schedules';
+import {
+  TicketFinishSchedulesDialog,
+  type TicketFinishScheduleLine,
+} from '@/components/service-schedules/ticket-finish-schedules-dialog';
+import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -117,6 +126,10 @@ export default function EditTicketPage({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isFullyPaid, setIsFullyPaid] = useState(true);
   const [paidAmountInput, setPaidAmountInput] = useState('');
+  const [schedulesDialogOpen, setSchedulesDialogOpen] = useState(false);
+  const [existingSchedules, setExistingSchedules] = useState<
+    ClientServiceScheduleListItem[]
+  >([]);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -291,45 +304,126 @@ export default function EditTicketPage({
     URL.revokeObjectURL(pdfUrl);
   };
 
-  const generatePDF = async () => {
+  const distinctServiceLines = React.useMemo(() => {
+    const byService = new Map<number, string>();
+    for (const line of ticketServices) {
+      byService.set(line.service_id, line.service.name);
+    }
+    return Array.from(byService.entries()).map(([serviceId, serviceName]) => ({
+      serviceId,
+      serviceName,
+    }));
+  }, [ticketServices]);
+
+  const executeFinishAndDownload = async (): Promise<boolean> => {
+    const finalPaidAmount = getFinalPaidAmount();
+    const total = calculateTotal();
+
+    if (!isFullyPaid && finalPaidAmount > total) {
+      toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
+      return false;
+    }
+
+    const result = await finishTicket(
+      Number(resolvedParams.id),
+      total,
+      finalPaidAmount,
+    );
+
+    if (!result.success) {
+      const errorType = classifyClientError(null, undefined, result.errorType);
+      toast.error(
+        getErrorMessageByType(
+          errorType,
+          result.error || 'No se pudo generar el PDF',
+        ),
+      );
+      return false;
+    }
+
+    await downloadServerTicketPdf();
+    toast.success('PDF generado correctamente');
+    setIsFinished(true);
+    router.replace(`/dashboard/tickets/${resolvedParams.id}`);
+    router.refresh();
+    return true;
+  };
+
+  const handleFinishClick = async () => {
     try {
       setIsGeneratingPdf(true);
 
-      const finalPaidAmount = getFinalPaidAmount();
-      const total = calculateTotal();
-
-      if (!isFullyPaid && finalPaidAmount > total) {
-        toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
+      const clientId = form.getValues('client_id');
+      if (!clientId || distinctServiceLines.length === 0) {
+        await executeFinishAndDownload();
         return;
       }
 
-      const result = await finishTicket(
-        Number(resolvedParams.id),
-        total,
-        finalPaidAmount,
+      const schedulesResult = await listClientServiceSchedulesForClient(
+        clientId,
+        selectedCompany?.id ?? null,
       );
-
-      if (result.success) {
-        await downloadServerTicketPdf();
-        toast.success('PDF generado correctamente');
-        setIsFinished(true);
-        router.replace(`/dashboard/tickets/${resolvedParams.id}`);
-        router.refresh();
-      } else {
-        const errorType = classifyClientError(null, undefined, result.errorType);
-        toast.error(
-          getErrorMessageByType(
-            errorType,
-            result.error || 'No se pudo generar el PDF',
-          ),
-        );
-      }
+      setExistingSchedules(schedulesResult.data ?? []);
+      setSchedulesDialogOpen(true);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error preparing finish:', error);
       const errorType = classifyClientError(error);
       toast.error(
         getErrorMessageByType(errorType, 'Ocurrió un error al generar el PDF'),
       );
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleSchedulesSkip = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await executeFinishAndDownload();
+      setSchedulesDialogOpen(false);
+    } catch (error) {
+      const errorType = classifyClientError(error);
+      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleSchedulesConfirm = async (lines: TicketFinishScheduleLine[]) => {
+    try {
+      setIsGeneratingPdf(true);
+      const finished = await executeFinishAndDownload();
+      if (!finished) {
+        return;
+      }
+
+      const clientId = form.getValues('client_id');
+      if (!clientId) {
+        return;
+      }
+
+      for (const line of lines.filter((item) => item.checked)) {
+        const upsertResult = await upsertClientServiceSchedule({
+          clientId,
+          serviceId: line.serviceId,
+          intervalValue: line.intervalValue,
+          intervalUnit: line.intervalUnit,
+          lastServiceAt: line.lastServiceAt,
+          companyId: selectedCompany?.id ?? null,
+        });
+        if (!upsertResult.success) {
+          toast.error(
+            upsertResult.error ||
+              'El ticket se finalizó pero no se pudo guardar un recordatorio',
+          );
+        }
+      }
+
+      setSchedulesDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving schedules:', error);
+      const errorType = classifyClientError(error);
+      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -751,7 +845,7 @@ export default function EditTicketPage({
                       </div>
                       <Button
                         type="button"
-                        onClick={generatePDF}
+                        onClick={() => void handleFinishClick()}
                         disabled={
                           isGeneratingPdf ||
                           ticketServices.length === 0 ||
@@ -786,6 +880,16 @@ export default function EditTicketPage({
           </Card>
       </TripledDashboardShell>
 
+      <TicketFinishSchedulesDialog
+        open={schedulesDialogOpen}
+        onOpenChange={setSchedulesDialogOpen}
+        ticketDate={form.watch('ticket_date') ?? new Date()}
+        serviceLines={distinctServiceLines}
+        existingSchedules={existingSchedules}
+        saving={isGeneratingPdf}
+        onConfirm={(lines) => void handleSchedulesConfirm(lines)}
+        onSkip={() => void handleSchedulesSkip()}
+      />
     </>
   );
 }

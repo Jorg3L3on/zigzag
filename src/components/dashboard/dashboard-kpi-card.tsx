@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled/motion';
 import type { DashboardKpi } from '@/lib/dashboard-kpi';
+import { formatCompactCurrency, formatCompactNumber } from '@/lib/format-compact';
 import { cn } from '@/lib/utils';
 
 type DashboardKpiCardProps = {
@@ -34,6 +35,10 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
     label: point.label,
     value: point.value,
   }));
+  const compactValue =
+    kpi.format === 'currency'
+      ? formatCompactCurrency(kpi.value)
+      : formatCompactNumber(kpi.value);
 
   return (
     <TripledMotionDiv variants={tripledFadeInUp}>
@@ -47,11 +52,7 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
         <CardContent className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div className="text-2xl font-semibold tabular-nums">
-              {kpi.format === 'currency' ? (
-                <FormattedCurrency amount={kpi.value} />
-              ) : (
-                kpi.value.toLocaleString('es-MX')
-              )}
+              {compactValue}
             </div>
             <div
               className={cn(
@@ -75,6 +76,11 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
               <span>{formatDelta(delta)}</span>
             </div>
           </div>
+          {kpi.format === 'currency' ? (
+            <p className="text-xs text-muted-foreground tabular-nums">
+              <FormattedCurrency amount={kpi.value} />
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">vs mes anterior</p>
           <div
             className="h-10 w-full"
@@ -96,12 +102,12 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
                   >
                     <stop
                       offset="5%"
-                      stopColor="hsl(var(--chart-1))"
-                      stopOpacity={0.35}
+                      stopColor="hsl(var(--primary))"
+                      stopOpacity={0.5}
                     />
                     <stop
                       offset="95%"
-                      stopColor="hsl(var(--chart-1))"
+                      stopColor="hsl(var(--primary))"
                       stopOpacity={0}
                     />
                   </linearGradient>
@@ -109,8 +115,8 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="hsl(var(--chart-1))"
-                  strokeWidth={1.5}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={1.8}
                   fill={`url(#spark-${kpi.key})`}
                   isAnimationActive={!shouldReduceMotion}
                   dot={false}
