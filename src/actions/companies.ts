@@ -34,6 +34,11 @@ import {
 } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import {
+  actionAuthToGovernanceActor,
+  recordGovernanceAudit,
+  sanitizeCompanyForAudit,
+} from '@/lib/governance-audit';
 
 export type CompanyFormData = z.infer<typeof companyFormSchema>;
 export type CompanyBootstrapData = CompanyBootstrapFormValues;
@@ -112,6 +117,7 @@ export async function createCompany(data: CompanyBootstrapData): Promise<{
     const result = await bootstrapCompanyTenant({
       company: validatedData,
       owner: validatedData.owner,
+      actor: actionAuthToGovernanceActor(authContext),
     });
 
     revalidatePath('/dashboard/companies');
@@ -218,6 +224,16 @@ export async function updateCompany(
       .where(and(eq(company.id, id), isNull(company.deleted_at)))
       .returning();
 
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'company',
+      resourceId: id,
+      targetCompanyId: id,
+      eventType: 'updated',
+      before: sanitizeCompanyForAudit(existing),
+      after: sanitizeCompanyForAudit(updated),
+    });
+
     revalidatePath('/dashboard/companies');
     revalidatePath(`/dashboard/companies/${id}/edit`);
     return { success: true, data: updated };
@@ -242,7 +258,7 @@ const loadWritableCompany = async (id: number) => {
     return null;
   }
 
-  return row;
+  return { row, authContext };
 };
 
 export async function uploadCompanyLogo(
@@ -255,10 +271,11 @@ export async function uploadCompanyLogo(
   errorType?: ActionErrorType;
 }> {
   try {
-    const existing = await loadWritableCompany(companyId);
-    if (!existing) {
+    const loaded = await loadWritableCompany(companyId);
+    if (!loaded) {
       return buildActionError('CO006');
     }
+    const { row: existing, authContext } = loaded;
 
     const file = formData.get('file');
     if (!(file instanceof File)) {
@@ -282,6 +299,16 @@ export async function uploadCompanyLogo(
       .where(and(eq(company.id, companyId), isNull(company.deleted_at)))
       .returning();
 
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'company',
+      resourceId: companyId,
+      targetCompanyId: companyId,
+      eventType: 'logo_uploaded',
+      before: { logo: existing.logo },
+      after: { logo: updated.logo },
+    });
+
     revalidatePath('/dashboard/companies');
     revalidatePath(`/dashboard/companies/${companyId}/edit`);
     return { success: true, data: updated };
@@ -300,10 +327,11 @@ export async function removeCompanyLogo(companyId: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    const existing = await loadWritableCompany(companyId);
-    if (!existing) {
+    const loaded = await loadWritableCompany(companyId);
+    if (!loaded) {
       return buildActionError('CO006');
     }
+    const { row: existing, authContext } = loaded;
 
     if (existing.logo) {
       await deleteCompanyLogoBlob(existing.logo);
@@ -314,6 +342,16 @@ export async function removeCompanyLogo(companyId: number): Promise<{
       .set({ logo: null, updated_at: new Date() })
       .where(and(eq(company.id, companyId), isNull(company.deleted_at)))
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'company',
+      resourceId: companyId,
+      targetCompanyId: companyId,
+      eventType: 'logo_removed',
+      before: { logo: existing.logo },
+      after: { logo: null },
+    });
 
     revalidatePath('/dashboard/companies');
     revalidatePath(`/dashboard/companies/${companyId}/edit`);
@@ -333,10 +371,31 @@ export async function deleteCompany(id: number): Promise<{
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
-    await db
+    const existing = await db.query.company.findFirst({
+      where: and(eq(company.id, id), isNull(company.deleted_at)),
+    });
+    if (!existing || existing.is_system) {
+      return buildActionError('CO006');
+    }
+
+    const deletedAt = new Date();
+    const [updated] = await db
       .update(company)
-      .set({ deleted_at: new Date() })
-      .where(and(eq(company.id, id), isNull(company.deleted_at)));
+      .set({ deleted_at: deletedAt })
+      .where(and(eq(company.id, id), isNull(company.deleted_at)))
+      .returning();
+
+    if (updated) {
+      await recordGovernanceAudit(db, {
+        actor: actionAuthToGovernanceActor(authContext),
+        resourceType: 'company',
+        resourceId: id,
+        targetCompanyId: id,
+        eventType: 'deleted',
+        before: sanitizeCompanyForAudit(existing),
+        after: sanitizeCompanyForAudit(updated),
+      });
+    }
 
     revalidatePath('/dashboard/companies');
     return { success: true };

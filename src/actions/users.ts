@@ -19,6 +19,11 @@ import {
 import { hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import {
+  actionAuthToGovernanceActor,
+  recordGovernanceAudit,
+  sanitizeUserForAudit,
+} from '@/lib/governance-audit';
 
 const userSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -110,6 +115,15 @@ export async function createUser(data: CreateUserFormData): Promise<{
       })
       .returning();
 
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'user',
+      resourceId: created.id,
+      targetCompanyId: validatedData.company_id,
+      eventType: 'created',
+      after: sanitizeUserForAudit(created),
+    });
+
     revalidatePath('/dashboard/users');
     return { success: true, data: created };
   } catch (e) {
@@ -139,6 +153,17 @@ export async function updateUser(
 
     const validatedData = userSchema.parse(data);
 
+    const existing = await db.query.user.findFirst({
+      where: and(eq(user.id, id), isNull(user.deleted_at)),
+    });
+    if (!existing) {
+      return handleCodedServerActionError(
+        'users.update',
+        'US003',
+        new Error('User not found'),
+      );
+    }
+
     const hashedPassword = validatedData.password
       ? await hash(validatedData.password, 10)
       : undefined;
@@ -155,6 +180,16 @@ export async function updateUser(
       })
       .where(and(eq(user.id, id), isNull(user.deleted_at)))
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'user',
+      resourceId: id,
+      targetCompanyId: validatedData.company_id,
+      eventType: 'updated',
+      before: sanitizeUserForAudit(existing),
+      after: sanitizeUserForAudit(updated),
+    });
 
     revalidatePath('/dashboard/users');
     return { success: true, data: updated };
@@ -213,6 +248,17 @@ export async function deleteUser(id: bigint): Promise<{
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
+    const existing = await db.query.user.findFirst({
+      where: and(eq(user.id, id), isNull(user.deleted_at)),
+    });
+    if (!existing) {
+      return handleCodedServerActionError(
+        'users.delete',
+        'US004',
+        new Error('User not found'),
+      );
+    }
+
     const [updated] = await db
       .update(user)
       .set({
@@ -221,6 +267,16 @@ export async function deleteUser(id: bigint): Promise<{
       })
       .where(and(eq(user.id, id), isNull(user.deleted_at)))
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'user',
+      resourceId: id,
+      targetCompanyId: existing.company_id,
+      eventType: 'deleted',
+      before: sanitizeUserForAudit(existing),
+      after: sanitizeUserForAudit(updated),
+    });
 
     revalidatePath('/dashboard/users');
     return { success: true, data: updated };

@@ -21,6 +21,13 @@ import {
 } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 import { AuthorizationError } from '@/lib/errors';
+import {
+  actionAuthToGovernanceActor,
+  fetchRolePermissionIds,
+  recordGovernanceAudit,
+  sanitizePermissionForAudit,
+  sanitizeRoleForAudit,
+} from '@/lib/governance-audit';
 
 /** Matches `role.findMany({ with: { company, permissions.permission } })`. */
 type RoleWithRelations = typeof role.$inferSelect & {
@@ -137,6 +144,15 @@ export async function createRole(data: {
           })),
         );
       }
+
+      await recordGovernanceAudit(tx, {
+        actor: actionAuthToGovernanceActor(authContext),
+        resourceType: 'role',
+        resourceId: newRole.id,
+        targetCompanyId: data.company_id,
+        eventType: 'created',
+        after: sanitizeRoleForAudit(newRole, data.permissions),
+      });
     });
 
     const full = await db.query.role.findFirst({
@@ -178,10 +194,18 @@ export async function updateRole(
     requireSystemUser(authContext);
     await assertPermissionsAssignableToCompany(data.permissions, data.company_id);
 
+    const existingRole = await db.query.role.findFirst({
+      where: and(eq(role.id, id), isNull(role.deleted_at)),
+    });
+    if (!existingRole) {
+      throw new AuthorizationError('Role not found');
+    }
+    const beforePermissionIds = await fetchRolePermissionIds(id);
+
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
 
-      await tx
+      const [updatedRole] = await tx
         .update(role)
         .set({
           name: data.name,
@@ -189,7 +213,8 @@ export async function updateRole(
           company_id: data.company_id,
           updated_at: new Date(),
         })
-        .where(and(eq(role.id, id), isNull(role.deleted_at)));
+        .where(and(eq(role.id, id), isNull(role.deleted_at)))
+        .returning();
 
       if (data.permissions.length > 0) {
         await tx.insert(rolePermission).values(
@@ -199,6 +224,16 @@ export async function updateRole(
           })),
         );
       }
+
+      await recordGovernanceAudit(tx, {
+        actor: actionAuthToGovernanceActor(authContext),
+        resourceType: 'role',
+        resourceId: id,
+        targetCompanyId: data.company_id,
+        eventType: 'updated',
+        before: sanitizeRoleForAudit(existingRole, beforePermissionIds),
+        after: sanitizeRoleForAudit(updatedRole, data.permissions),
+      });
     });
 
     const full = await db.query.role.findFirst({
@@ -230,10 +265,29 @@ export async function deleteRole(id: number): Promise<{
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
-    await db
+    const existingRole = await db.query.role.findFirst({
+      where: and(eq(role.id, id), isNull(role.deleted_at)),
+    });
+    if (!existingRole) {
+      throw new AuthorizationError('Role not found');
+    }
+    const beforePermissionIds = await fetchRolePermissionIds(id);
+
+    const [updatedRole] = await db
       .update(role)
       .set({ deleted_at: new Date(), updated_at: new Date() })
-      .where(and(eq(role.id, id), isNull(role.deleted_at)));
+      .where(and(eq(role.id, id), isNull(role.deleted_at)))
+      .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'role',
+      resourceId: id,
+      targetCompanyId: existingRole.company_id,
+      eventType: 'deleted',
+      before: sanitizeRoleForAudit(existingRole, beforePermissionIds),
+      after: sanitizeRoleForAudit(updatedRole, beforePermissionIds),
+    });
 
     revalidatePath('/dashboard/roles');
     return { success: true };

@@ -15,6 +15,14 @@ import {
   normalizeCompanySettingsForDb,
   type CompanyFormValues,
 } from '@/lib/company-schema';
+import {
+  fetchRolePermissionIds,
+  recordGovernanceAudit,
+  sanitizeCompanyForAudit,
+  sanitizeRoleForAudit,
+  sanitizeUserForAudit,
+  type GovernanceAuditActor,
+} from '@/lib/governance-audit';
 import { PERMISSIONS, type PermissionName } from '@/lib/permissions';
 import * as schema from '@/db/schema';
 
@@ -36,6 +44,7 @@ export type CompanyBootstrapOwnerInput = {
 export type CompanyBootstrapInput = {
   company: CompanyFormValues;
   owner: CompanyBootstrapOwnerInput;
+  actor: GovernanceAuditActor;
 };
 
 export type CompanyBootstrapResult = {
@@ -149,6 +158,37 @@ export const bootstrapCompanyTenant = async (
         updated_at: new Date(),
       })
       .returning();
+
+    const ownerPermissionIds = await fetchRolePermissionIds(ownerRole.id, tx);
+    const actor = input.actor;
+    const targetCompanyId = createdCompany.id;
+
+    await recordGovernanceAudit(tx, {
+      actor,
+      resourceType: 'company',
+      resourceId: createdCompany.id,
+      targetCompanyId,
+      eventType: 'created',
+      after: sanitizeCompanyForAudit(createdCompany),
+    });
+
+    await recordGovernanceAudit(tx, {
+      actor,
+      resourceType: 'role',
+      resourceId: ownerRole.id,
+      targetCompanyId,
+      eventType: 'created',
+      after: sanitizeRoleForAudit(ownerRole, ownerPermissionIds),
+    });
+
+    await recordGovernanceAudit(tx, {
+      actor,
+      resourceType: 'user',
+      resourceId: owner.id,
+      targetCompanyId,
+      eventType: 'created',
+      after: sanitizeUserForAudit(owner),
+    });
 
     return {
       company: createdCompany,

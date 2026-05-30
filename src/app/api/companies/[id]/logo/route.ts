@@ -8,6 +8,10 @@ import {
 } from '@/lib/company-logo-blob';
 import { db } from '@/lib/db';
 import { ValidationError } from '@/lib/errors';
+import {
+  recordGovernanceAudit,
+  sessionUserToGovernanceActor,
+} from '@/lib/governance-audit';
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -85,6 +89,16 @@ export async function POST(request: Request, { params }: RouteParams) {
       .where(and(eq(company.id, companyId), isNull(company.deleted_at)))
       .returning();
 
+    await recordGovernanceAudit(db, {
+      actor: sessionUserToGovernanceActor(session.user),
+      resourceType: 'company',
+      resourceId: companyId,
+      targetCompanyId: companyId,
+      eventType: 'logo_uploaded',
+      before: { logo: access.row!.logo },
+      after: { logo: updated.logo },
+    });
+
     return ok(updated);
   } catch (error) {
     if (error instanceof ValidationError) {
@@ -125,6 +139,16 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
       .set({ logo: null, updated_at: new Date() })
       .where(and(eq(company.id, companyId), isNull(company.deleted_at)))
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: sessionUserToGovernanceActor(session.user),
+      resourceType: 'company',
+      resourceId: companyId,
+      targetCompanyId: companyId,
+      eventType: 'logo_removed',
+      before: { logo: access.row!.logo },
+      after: { logo: null },
+    });
 
     return ok(updated);
   } catch (error) {
