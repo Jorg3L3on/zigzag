@@ -10,6 +10,7 @@ import {
   DollarSign,
   Wallet,
   ClipboardList,
+  FileDown,
 } from 'lucide-react';
 import { TripledMotionDiv, tripledStagger } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
@@ -132,6 +133,16 @@ export const DashboardMetricsClient = () => {
     return null;
   }
 
+  const handleExportPdf = () => {
+    const params = new URLSearchParams();
+    params.set('monthCount', String(monthCount));
+    if (session?.user.company_is_system && selectedCompany?.id != null) {
+      params.set('company_id', String(selectedCompany.id));
+    }
+    const url = `/api/dashboard/report?${params.toString()}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       {error && metrics ? (
@@ -146,6 +157,16 @@ export const DashboardMetricsClient = () => {
         <span className="mr-auto text-sm text-muted-foreground md:mr-0">
           Periodo de ingresos
         </span>
+        <Button
+          type="button"
+          variant="default"
+          className="min-h-11 gap-2 rounded-xl sm:min-h-9"
+          onClick={handleExportPdf}
+          aria-label="Exportar resumen del dashboard en PDF"
+        >
+          <FileDown className="h-4 w-4" aria-hidden />
+          Exportar PDF
+        </Button>
         {MONTH_PRESETS.map((p) => (
           <Button
             key={p.value}
