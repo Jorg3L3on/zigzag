@@ -54,11 +54,11 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 const FILTER_OPTIONS: Array<{ value: ScheduleFilterBucket; label: string }> = [
+  { value: 'todos', label: 'Todos' },
   { value: 'proximos', label: 'Próximos' },
   { value: 'atrasados', label: 'Atrasados' },
   { value: 'programados', label: 'Programados' },
   { value: 'pausados', label: 'Pausados' },
-  { value: 'todos', label: 'Todos' },
 ];
 
 const DEFAULT_SORTING: SortingState = [{ id: 'nextDueAt', desc: false }];
@@ -73,7 +73,7 @@ export const ServiceSchedulesList = () => {
   const [items, setItems] = React.useState<ClientServiceScheduleListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [filter, setFilter] = React.useState<ScheduleFilterBucket>('proximos');
+  const [filter, setFilter] = React.useState<ScheduleFilterBucket>('todos');
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [sorting, setSorting] = React.useState<SortingState>(DEFAULT_SORTING);

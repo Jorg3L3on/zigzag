@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
+import { cn } from '@/lib/utils';
 
 type ScheduleRowBucket = Exclude<
   ClientServiceScheduleListItem['bucket'],
@@ -26,8 +27,16 @@ const BUCKET_VARIANT: Record<
 > = {
   proximos: 'default',
   atrasados: 'destructive',
-  programados: 'secondary',
+  programados: 'outline',
   pausados: 'outline',
+};
+
+/** Active (on-track) schedules — green, aligned with ticket payment / service badges */
+const BUCKET_BADGE_CLASS: Partial<Record<ScheduleRowBucket, string>> = {
+  proximos:
+    'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100',
+  programados:
+    'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100',
 };
 
 export type ServiceSchedulesColumnsOptions = {
@@ -86,16 +95,17 @@ export const createServiceSchedulesColumns = ({
   {
     id: 'status',
     header: 'Estado',
-    cell: ({ row }) => (
-      <Badge
-        variant={
-          BUCKET_VARIANT[row.original.bucket as ScheduleRowBucket] ?? 'outline'
-        }
-      >
-        {BUCKET_LABELS[row.original.bucket as ScheduleRowBucket] ??
-          row.original.bucket}
-      </Badge>
-    ),
+    cell: ({ row }) => {
+      const bucket = row.original.bucket as ScheduleRowBucket;
+      return (
+        <Badge
+          variant={BUCKET_VARIANT[bucket] ?? 'outline'}
+          className={cn(BUCKET_BADGE_CLASS[bucket])}
+        >
+          {BUCKET_LABELS[bucket] ?? row.original.bucket}
+        </Badge>
+      );
+    },
   },
   {
     id: 'actions',
