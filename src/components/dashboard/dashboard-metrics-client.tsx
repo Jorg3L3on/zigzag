@@ -49,12 +49,12 @@ const DashboardLoadingSkeleton = () => (
       <Skeleton className="h-9 w-28" />
       <Skeleton className="h-9 w-28" />
     </div>
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-5 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
         <Skeleton key={i} className="h-28 rounded-xl" />
       ))}
     </div>
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-5 sm:gap-4 lg:grid-cols-2">
       <Skeleton className="h-[380px] rounded-xl" />
       <Skeleton className="h-[380px] rounded-xl" />
     </div>
@@ -139,7 +139,7 @@ export const DashboardMetricsClient = () => {
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-5 sm:gap-6">
       {error && metrics ? (
         <p
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -168,7 +168,7 @@ export const DashboardMetricsClient = () => {
       </div>
 
       <TripledMotionDiv
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-5 sm:gap-4 md:grid-cols-2 lg:grid-cols-4"
         variants={tripledStagger}
         initial="hidden"
         animate="visible"
@@ -227,7 +227,7 @@ export const DashboardMetricsClient = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-5 md:hidden">
             {metrics.clientMetrics.map((clientRow) => (
               <article
                 key={clientRow.id}
@@ -282,6 +282,6 @@ export const DashboardMetricsClient = () => {
           </div>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 };

@@ -129,7 +129,7 @@ export const DashboardCharts = ({
   const hasClientSpendData = topClientsBySpend.length > 0;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-5 sm:gap-4 lg:grid-cols-2">
       <Card
         data-testid={hasRevenueData ? 'dashboard-revenue-chart' : undefined}
         className="flex flex-col"
