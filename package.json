@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev --turbopack -p 3069",
     "build": "next build",
-    "vercel-build": "next build",
+    "vercel-build": "node scripts/vercel-build.mjs",
     "start": "next start -p 3069",
     "lint": "eslint .",
     "seed": "tsx scripts/seed.ts",

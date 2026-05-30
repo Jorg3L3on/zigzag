@@ -26,10 +26,11 @@ Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so inco
 ## Deploy Sequence (production)
 
 1. Confirm `npm run lint`, `npm test -- --runInBand`, `npm run test:e2e`, and `npm run build` pass on the feature branch (or `main` after merge).
-2. Apply migrations with `npm run migrate:deploy` against the **production** database if schema changed.
-3. Merge **`feat/<feature-slug>` → `main`** (one production deploy for the whole feature).
-4. Visit production `/api/health`, `/login`, and `/dashboard`.
-5. Run one CRUD smoke test for clients, services, and tickets.
+2. Merge **`feat/<feature-slug>` → `main`** when the PRD is complete (migration SQL must be in `drizzle/`).
+3. Vercel production build runs **`migrate:deploy` automatically** (`scripts/vercel-build.mjs`) before `next build`. Ensure `DATABASE_URL` and `DIRECT_URL` are set in Vercel Production env.
+4. Optional: trigger **Actions → Production migrations** if you need to apply migrations without redeploying (requires GitHub secrets).
+5. Visit production `/api/health`, `/login`, and `/dashboard`.
+6. Run one CRUD smoke test for clients, services, and tickets.
 
 ## Rollback
 

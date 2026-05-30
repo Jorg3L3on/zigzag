@@ -42,8 +42,17 @@ Example: mobile UI/UX, 5 slices → 5 preview deploys on the feature branch, **1
 
 ## Migrations
 
-- **Slices:** usually no production migration until schema changes; test against dev/preview DB.
-- **Before merging `feat/…` → `main`:** run `npm run migrate:deploy` against the **production** database if the feature includes schema changes.
+Production schema changes are applied automatically during **Vercel production builds** (`scripts/vercel-build.mjs` runs `npm run migrate:deploy` when `VERCEL_ENV=production`). Requires `DATABASE_URL` and preferably `DIRECT_URL` in Vercel **Production** environment variables.
+
+| Context | Behavior |
+| ------- | -------- |
+| Vercel **production** (`main` deploy) | `migrate:deploy` → `next build` |
+| Vercel **preview** | Build only (set `MIGRATE_ON_PREVIEW=true` on a preview env to migrate there too) |
+| Local / CI | `npm run db:migrate` (dev DB) |
+
+**Manual fallback:** [`.github/workflows/migrate-production.yml`](../.github/workflows/migrate-production.yml) (`workflow_dispatch`). Add GitHub repository secrets `DATABASE_URL` and `DIRECT_URL` matching production Neon.
+
+**Before merging `feat/…` → `main`:** confirm migration SQL is committed under `drizzle/` and journal updated. Production apply happens on the next Vercel production deploy after merge.
 
 ## Optional: team-wide `develop` branch
 
