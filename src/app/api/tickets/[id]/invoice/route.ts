@@ -3,6 +3,7 @@ import { getTicketById } from '@/actions/tickets';
 import { fail, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
 import { buildFintechInvoicePayload } from '@/lib/fintech-invoice-payload';
+import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
 import { renderFintechInvoicePdf } from '@/lib/fintech-invoice-renderer';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 
@@ -54,7 +55,10 @@ export async function GET(
     }
 
     const payload = buildFintechInvoicePayload(result.data);
-    const pdf = renderFintechInvoicePdf(payload);
+    const issuerLogoDataUrl = await loadCompanyLogoImageDataUrl(
+      payload.issuer.logoUrl,
+    );
+    const pdf = renderFintechInvoicePdf(payload, { issuerLogoDataUrl });
     const filename = buildTicketPdfFileName(result.data);
 
     return new NextResponse(pdf, {

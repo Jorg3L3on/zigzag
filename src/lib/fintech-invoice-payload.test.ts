@@ -129,6 +129,7 @@ describe('fintech invoice payload', () => {
     expect(payload.client.phone).toBe('Sin teléfono');
     expect(payload.client.statusLabel).toBe('Cliente nuevo');
     expect(payload.issuer.name).toBe('SOLUCIONES CHANO');
+    expect(payload.issuer.logoUrl).toBeNull();
     expect(payload.total).toBe(100);
     expect(payload.items[0]).toMatchObject({
       name: 'Servicio',
@@ -144,7 +145,7 @@ describe('fintech invoice payload', () => {
       '@/lib/fintech-invoice-renderer'
     );
     const payload = buildFintechInvoicePayload(baseTicket());
-    const pdf = renderFintechInvoicePdf(payload);
+    const pdf = renderFintechInvoicePdf(payload, { issuerLogoDataUrl: null });
     const header = Buffer.from(pdf).subarray(0, 5).toString('ascii');
 
     expect(header).toBe('%PDF-');
