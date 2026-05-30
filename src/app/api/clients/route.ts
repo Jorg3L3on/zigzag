@@ -2,6 +2,10 @@ import { desc, eq, and, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import {
+  assertCompanyEntitlementAllows,
+  CompanyEntitlementExceededError,
+} from '@/lib/company-entitlement-guard';
 
 export async function GET(request: Request) {
   try {
@@ -66,6 +70,8 @@ export async function POST(req: Request) {
       return fail('CL007', 400, 'validation');
     }
 
+    await assertCompanyEntitlementAllows(companyId as number, 'clients');
+
     const [created] = await db
       .insert(client)
       .values({
@@ -88,6 +94,9 @@ export async function POST(req: Request) {
 
     return ok(created, 201);
   } catch (error) {
+    if (error instanceof CompanyEntitlementExceededError) {
+      return fail('CO011', 403, 'validation');
+    }
     console.error('[CLIENTS_POST]', error);
     return fail('CL003', 500, 'server');
   }

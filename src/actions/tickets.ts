@@ -26,6 +26,10 @@ import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
 } from '@/lib/ticket-payment-status';
+import {
+  assertCompanyEntitlementAllows,
+  CompanyEntitlementExceededError,
+} from '@/lib/company-entitlement-guard';
 import { assertCompanyProductionReady } from '@/lib/company-production-guard';
 import { requireActionPermission } from '@/lib/security';
 import type { ActionAuthContext } from '@/lib/authz-context';
@@ -215,6 +219,7 @@ export async function createTicket(
     );
 
     await assertCompanyProductionReady(effectiveCompanyId);
+    await assertCompanyEntitlementAllows(effectiveCompanyId, 'tickets_month');
 
     const values = {
       client_id: validatedData.client_id,
@@ -256,6 +261,9 @@ export async function createTicket(
       data: created as unknown as Ticket,
     };
   } catch (error) {
+    if (error instanceof CompanyEntitlementExceededError) {
+      return handleCodedServerActionError('tickets.create.entitlement', 'CO011', error);
+    }
     if (error instanceof z.ZodError) {
       return handleCodedServerActionError('tickets.create.validation', 'TC009', error);
     }

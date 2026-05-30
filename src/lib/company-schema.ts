@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
+import { COMPANY_PLAN_IDS } from '@/lib/company-entitlements';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
   invoice_footer_note: z.string().optional(),
   default_currency: z.string().optional(),
+  plan: z.enum(COMPANY_PLAN_IDS).optional(),
 });
 
 export const companyFormSchema = z.object({
@@ -45,6 +47,9 @@ export function normalizeCompanySettingsForDb(
   }
   if (cur) {
     out.default_currency = cur;
+  }
+  if (input.plan) {
+    out.plan = input.plan;
   }
   return Object.keys(out).length > 0 ? out : null;
 }

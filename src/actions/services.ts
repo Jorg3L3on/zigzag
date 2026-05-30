@@ -10,6 +10,10 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { pauseSchedulesForService } from '@/lib/client-service-schedule-lifecycle';
+import {
+  assertCompanyEntitlementAllows,
+  CompanyEntitlementExceededError,
+} from '@/lib/company-entitlement-guard';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -77,6 +81,8 @@ export async function createService(
       data.company_id,
     );
 
+    await assertCompanyEntitlementAllows(effectiveCompanyId, 'services');
+
     const [created] = await db
       .insert(service)
       .values({
@@ -90,6 +96,9 @@ export async function createService(
     revalidatePath('/dashboard/services');
     return { success: true, data: created };
   } catch (error) {
+    if (error instanceof CompanyEntitlementExceededError) {
+      return handleCodedServerActionError('services.create.entitlement', 'CO011', error);
+    }
     return handleCodedServerActionError('services.create', 'SV002', error);
   }
 }

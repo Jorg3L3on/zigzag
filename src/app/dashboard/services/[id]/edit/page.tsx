@@ -39,6 +39,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
@@ -196,6 +197,7 @@ export default function EditServicePage({
           backHref="/dashboard/services"
           className="mb-3"
         />
+        {isNew ? <CompanyEntitlementNotice metric="services" /> : null}
         <TripledResourceCard
           title={isNew ? 'Nuevo servicio' : 'Editar servicio'}
           description={

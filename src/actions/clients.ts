@@ -9,6 +9,10 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { pauseSchedulesForClient } from '@/lib/client-service-schedule-lifecycle';
+import {
+  assertCompanyEntitlementAllows,
+  CompanyEntitlementExceededError,
+} from '@/lib/company-entitlement-guard';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -189,6 +193,8 @@ export async function createClient(
       data.company_id,
     );
 
+    await assertCompanyEntitlementAllows(effectiveCompanyId, 'clients');
+
     const [created] = await db
       .insert(client)
       .values({
@@ -211,6 +217,9 @@ export async function createClient(
     revalidatePath('/dashboard/clients');
     return { success: true, data: created };
   } catch (error) {
+    if (error instanceof CompanyEntitlementExceededError) {
+      return handleCodedServerActionError('clients.create.entitlement', 'CO011', error);
+    }
     return handleCodedServerActionError('clients.create', 'CL003', error);
   }
 }
