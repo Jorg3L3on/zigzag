@@ -6,6 +6,7 @@ import {
 } from '@/components/tripled';
 import { ServiceSchedulesList } from '@/components/service-schedules/service-schedules-list';
 import { requirePagePermission } from '@/lib/page-authz';
+import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 import { CalendarClock } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ServiceSchedulesPage() {
-  await requirePagePermission('tickets.read');
+  await requirePagePermission(SERVICE_SCHEDULES_READ_PERMISSION);
 
   return (
     <>

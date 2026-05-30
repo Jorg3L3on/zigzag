@@ -14,7 +14,6 @@ import {
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
-import { PERMISSIONS } from '@/lib/permissions';
 import {
   classifyScheduleBucket,
   isScheduleFilterBucket,
@@ -27,6 +26,10 @@ import {
   isScheduleIntervalUnit,
   type ScheduleIntervalUnit,
 } from '@/lib/schedule-date';
+import {
+  SERVICE_SCHEDULES_READ_PERMISSION,
+  SERVICE_SCHEDULES_WRITE_PERMISSIONS,
+} from '@/lib/service-schedules-rbac';
 import { requireActionPermission } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
 
@@ -68,9 +71,12 @@ const revalidateSchedulePaths = () => {
 const requireScheduleWrite = async (
   companyId?: number | null,
 ): Promise<{ companyId: number }> => {
+  const [primaryWritePermission, fallbackWritePermission] =
+    SERVICE_SCHEDULES_WRITE_PERMISSIONS;
+
   try {
     return await requireActionPermission(
-      PERMISSIONS.tickets.write,
+      primaryWritePermission,
       companyId ?? undefined,
     );
   } catch (error) {
@@ -78,7 +84,7 @@ const requireScheduleWrite = async (
       throw error;
     }
     return await requireActionPermission(
-      PERMISSIONS.clients.write,
+      fallbackWritePermission,
       companyId ?? undefined,
     );
   }
@@ -153,7 +159,7 @@ export async function listClientServiceSchedulesForClient(
 }> {
   try {
     const { companyId: effectiveCompanyId } = await requireActionPermission(
-      PERMISSIONS.tickets.read,
+      SERVICE_SCHEDULES_READ_PERMISSION,
       companyId ?? undefined,
     );
 
@@ -197,7 +203,7 @@ export async function listClientServiceSchedules(params: {
 }> {
   try {
     const { companyId: effectiveCompanyId } = await requireActionPermission(
-      PERMISSIONS.tickets.read,
+      SERVICE_SCHEDULES_READ_PERMISSION,
       params.companyId ?? undefined,
     );
 
