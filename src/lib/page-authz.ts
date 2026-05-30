@@ -1,5 +1,9 @@
 import { redirect } from 'next/navigation';
-import { checkPermission, requireActionAuth } from '@/lib/security';
+import {
+  checkPermission,
+  requireActionAuth,
+  requireSystemUser,
+} from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
 
 export async function requirePagePermission(
@@ -26,4 +30,13 @@ export async function requirePagePermission(
   }
 
   return companyId;
+}
+
+export async function requireSystemPage(): Promise<void> {
+  try {
+    const context = await requireActionAuth();
+    requireSystemUser(context);
+  } catch {
+    redirect('/dashboard/forbidden');
+  }
 }

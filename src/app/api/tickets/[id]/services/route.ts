@@ -2,7 +2,6 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { service, servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
-import { convertBigIntToString } from '@/lib/utils';
 import { z } from 'zod';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
@@ -58,7 +57,7 @@ export async function GET(
       },
     });
 
-    return ok(convertBigIntToString(ticketServicesRows));
+    return ok(ticketServicesRows);
   } catch (error) {
     console.error('Error fetching ticket services:', error);
     return fail('TS001', 500, 'server');
@@ -117,7 +116,7 @@ export async function POST(
       });
     });
 
-    return ok(convertBigIntToString(createdWithDetails), 201);
+    return ok(createdWithDetails, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return fail('TS002', 400, 'validation');

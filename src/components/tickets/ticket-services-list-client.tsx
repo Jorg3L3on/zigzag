@@ -40,6 +40,8 @@ import {
 import { useCompany } from '@/contexts/company-context';
 import { getServices } from '@/actions/services';
 import {
+  TripledDashboardShell,
+  TripledMobileAppBar,
   TripledNativeDelete,
   TripledPageHeader,
   TripledStepper,
@@ -266,6 +268,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
   return (
     <>
       <TripledPageHeader
+        className="hidden md:flex"
         items={[
           { label: 'Tickets', href: '/dashboard/tickets' },
           { label: `Ticket #${ticketId}`, href: `/dashboard/tickets/${ticketId}/edit` },
@@ -273,8 +276,14 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
         ]}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+        <TripledMobileAppBar
+          title={`Ticket #${ticketId}`}
+          subtitle="Servicios"
+          backHref={`/dashboard/tickets/${ticketId}/edit`}
+          className="mb-3"
+        />
+        <div className="space-y-4">
           <TripledStepper
             steps={[
               { id: 'create', title: 'Datos del ticket' },
@@ -730,7 +739,7 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </TripledDashboardShell>
     </>
   );
 }

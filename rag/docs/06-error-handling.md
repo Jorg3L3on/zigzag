@@ -61,16 +61,19 @@ const cleanName = sanitizeInput(rawName);  // strips dangerous chars
 ### Permission Check
 ```typescript
 import { checkPermission } from '@/lib/security';
-// ⚠️ KNOWN ISSUE: always returns true — not yet implemented
-const allowed = checkPermission(session.user, 'tickets:write');
+const allowed = await checkPermission(session.user.id, companyId, 'tickets.write');
 ```
 
 ## Common Patterns
 
 ### Soft-delete guard
 ```typescript
-const item = await prisma.ticket.findFirst({
-  where: { id, company_id, deleted_at: null },
+const item = await db.query.ticket.findFirst({
+  where: and(
+    eq(ticket.id, id),
+    eq(ticket.company_id, companyId),
+    isNull(ticket.deleted_at),
+  ),
 });
 if (!item) throw new NotFoundError('Ticket not found');
 ```

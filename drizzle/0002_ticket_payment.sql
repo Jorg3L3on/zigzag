@@ -1,4 +1,4 @@
--- mirrored from prisma/migrations/20260513140000_add_ticket_payment/migration.sql
+-- Historical migration imported into the Drizzle migration chain.
 CREATE TABLE "TicketPayment" (
     "id" SERIAL NOT NULL,
     "ticket_id" BIGINT NOT NULL,

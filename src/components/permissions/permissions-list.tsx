@@ -9,8 +9,12 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { getPermissions } from '@/actions/permissions';
-import { TripledDataPanel, TripledEmptyState } from '@/components/tripled';
-import { KeyRound, Loader2 } from 'lucide-react';
+import {
+  TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
+import { KeyRound, Loader2, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -37,16 +41,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FormattedDate } from '@/components/formatted-date';
+import { Input } from '@/components/ui/input';
 import {
   DEFAULT_PERMISSION_SORTING,
   PERMISSIONS_MOBILE_SORT_OPTIONS,
   decodeSortingState,
   encodeSortingState,
 } from '@/components/permissions/permissions-sort-presets';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS as RBAC_PERMISSIONS } from '@/lib/permissions';
 
 type CompanyScopeFilter = 'all' | 'global' | 'company';
 
 export function PermissionsList() {
+  const sessionPermissions = usePermissions();
+  const canWritePermissions =
+    sessionPermissions.isSystem &&
+    sessionPermissions.can(RBAC_PERMISSIONS.permissions.write);
   const [permissions, setPermissions] = React.useState<Permission[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -137,14 +148,15 @@ export function PermissionsList() {
   const columns = React.useMemo(
     () =>
       createPermissionsColumns({
-        renderActions: (row) => (
+        renderActions: (row) =>
+          canWritePermissions ? (
           <PermissionActionsMenu
             onEditRequest={() => openEdit(row)}
             onDeleteRequest={() => setDeletePermission(row)}
           />
-        ),
+          ) : null,
       }),
-    [openEdit],
+    [openEdit, canWritePermissions],
   );
 
   const table = useReactTable({
@@ -158,6 +170,7 @@ export function PermissionsList() {
   });
 
   const mobileSortValue = encodeSortingState(sorting);
+  const hasActiveFilters = debouncedSearch !== '' || companyScopeFilter !== 'all';
 
   const companyScopeOptions: Array<{ value: CompanyScopeFilter; label: string }> =
     [
@@ -166,16 +179,59 @@ export function PermissionsList() {
       { value: 'company', label: 'Por empresa' },
     ];
 
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setCompanyScopeFilter('all');
+    setSorting(DEFAULT_PERMISSION_SORTING);
+  };
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredPermissions.length} de ${permissions.length} permisos`,
+      variant: 'secondary' as const,
+    },
+    ...(debouncedSearch
+      ? [{ key: 'search', label: `Busqueda: ${debouncedSearch}` }]
+      : []),
+    ...(companyScopeFilter !== 'all'
+      ? [
+          {
+            key: 'scope',
+            label:
+              companyScopeOptions.find(
+                (option) => option.value === companyScopeFilter,
+              )?.label ?? 'Alcance',
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <TripledDataPanel
-        title="Permisos"
-        description="Lista de todos los permisos registrados."
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        ctaSlot={<CreatePermissionDialog onCreated={fetchPermissions} />}
-      >
-        <div className="mb-4 flex flex-col gap-3">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        {canWritePermissions ? (
+          <CreatePermissionDialog onCreated={fetchPermissions} />
+        ) : null}
+      </div>
+
+      <div className="space-y-4">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Buscar por permiso, descripcion o empresa..."
+            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
+            aria-label="Buscar permisos"
+          />
+        </div>
+
+        <div className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
             {companyScopeOptions.map((option) => (
               <Button
@@ -184,7 +240,7 @@ export function PermissionsList() {
                 variant={
                   companyScopeFilter === option.value ? 'default' : 'outline'
                 }
-                size="sm"
+                className="min-h-11 rounded-xl"
                 onClick={() => setCompanyScopeFilter(option.value)}
                 aria-label={`Filtrar por alcance: ${option.label.toLowerCase()}`}
               >
@@ -193,29 +249,26 @@ export function PermissionsList() {
             ))}
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              Mostrando{' '}
-              <span className="font-medium text-foreground">
-                {filteredPermissions.length}
-              </span>
-              {permissions.length !== filteredPermissions.length ? (
-                <>
-                  {' '}
-                  de{' '}
-                  <span className="font-medium text-foreground">
-                    {permissions.length}
-                  </span>
-                </>
-              ) : null}{' '}
-              permisos
-            </p>
+            <TripledFilterChips chips={filterChips} />
+            {hasActiveFilters ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
+                onClick={handleClearFilters}
+                aria-label="Limpiar filtros de permisos"
+              >
+                <X className="mr-2 h-4 w-4" aria-hidden />
+                Limpiar filtros
+              </Button>
+            ) : null}
             <div className="w-full sm:w-auto md:hidden">
               <Select
                 value={mobileSortValue}
                 onValueChange={(value) => setSorting(decodeSortingState(value))}
               >
                 <SelectTrigger
-                  className="h-10 w-full sm:w-[min(100%,18rem)]"
+                  className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
                   aria-label="Ordenar lista de permisos"
                 >
                   <SelectValue placeholder="Ordenar por" />
@@ -231,6 +284,7 @@ export function PermissionsList() {
             </div>
           </div>
         </div>
+      </div>
 
         {loading ? (
           <div className="flex h-32 items-center justify-center">
@@ -269,15 +323,26 @@ export function PermissionsList() {
               {table.getRowModel().rows.map((row) => {
                 const permRow = row.original;
                 return (
-                  <article
+                  <TripledMobileRecordCard
                     key={row.id}
-                    className="cursor-pointer rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-accent/30"
-                    tabIndex={0}
+                    interactive={canWritePermissions}
+                    tabIndex={canWritePermissions ? 0 : -1}
                     role="button"
-                    aria-label={`Editar permiso ${permRow.name}`}
-                    onClick={() => openEdit(permRow)}
+                    aria-label={
+                      canWritePermissions
+                        ? `Editar permiso ${permRow.name}`
+                        : `Permiso ${permRow.name}`
+                    }
+                    onClick={() => {
+                      if (canWritePermissions) {
+                        openEdit(permRow);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWritePermissions &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         openEdit(permRow);
                       }
@@ -292,12 +357,14 @@ export function PermissionsList() {
                           {permRow.description || '—'}
                         </p>
                       </div>
-                      <div onClick={(event) => event.stopPropagation()}>
+                      {canWritePermissions ? (
+                        <div onClick={(event) => event.stopPropagation()}>
                         <PermissionActionsMenu
                           onEditRequest={() => openEdit(permRow)}
                           onDeleteRequest={() => setDeletePermission(permRow)}
                         />
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                     <dl className="mt-3 space-y-2 text-sm">
                       <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -313,7 +380,7 @@ export function PermissionsList() {
                         </dd>
                       </div>
                     </dl>
-                  </article>
+                  </TripledMobileRecordCard>
                 );
               })}
             </div>
@@ -352,12 +419,25 @@ export function PermissionsList() {
                     {table.getRowModel().rows.map((row) => (
                       <TableRow
                         key={row.id}
-                        className="cursor-pointer"
-                        tabIndex={0}
-                        aria-label={`Editar permiso ${row.original.name}`}
-                        onClick={() => openEdit(row.original)}
+                        className={
+                          canWritePermissions ? 'cursor-pointer' : undefined
+                        }
+                        tabIndex={canWritePermissions ? 0 : -1}
+                        aria-label={
+                          canWritePermissions
+                            ? `Editar permiso ${row.original.name}`
+                            : `Permiso ${row.original.name}`
+                        }
+                        onClick={() => {
+                          if (canWritePermissions) {
+                            openEdit(row.original);
+                          }
+                        }}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
+                          if (
+                            canWritePermissions &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
                             event.preventDefault();
                             openEdit(row.original);
                           }
@@ -386,8 +466,6 @@ export function PermissionsList() {
             </div>
           </>
         )}
-      </TripledDataPanel>
-
       {editPermission ? (
         <UpdatePermissionDialog
           permission={editPermission}

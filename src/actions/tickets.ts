@@ -409,8 +409,14 @@ export async function updateTicket(
     const updated = await db.transaction(async (tx) => {
       if (hasServicesUpdate) {
         await tx
-          .delete(servicesTickets)
-          .where(eq(servicesTickets.ticket_id, ticketId));
+          .update(servicesTickets)
+          .set({ deleted_at: new Date(), updated_at: new Date() })
+          .where(
+            and(
+              eq(servicesTickets.ticket_id, ticketId),
+              isNull(servicesTickets.deleted_at),
+            ),
+          );
 
         if (servicesToSync.length) {
           await tx.insert(servicesTickets).values(

@@ -18,6 +18,14 @@ export interface CreateClientData {
   phone: string;
   email: string | null;
   address: string | null;
+  street: string | null;
+  exterior_number: string | null;
+  interior_number: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
   company_id: number;
 }
 
@@ -64,6 +72,14 @@ export async function getClients(params: GetClientsParams): Promise<{
             ilike(client.name, `%${search}%`),
             ilike(client.email, `%${search}%`),
             ilike(client.phone, `%${search}%`),
+            ilike(client.street, `%${search}%`),
+            ilike(client.exterior_number, `%${search}%`),
+            ilike(client.interior_number, `%${search}%`),
+            ilike(client.neighborhood, `%${search}%`),
+            ilike(client.city, `%${search}%`),
+            ilike(client.state, `%${search}%`),
+            ilike(client.postal_code, `%${search}%`),
+            ilike(client.country, `%${search}%`),
           )
         : undefined,
     );
@@ -179,6 +195,14 @@ export async function createClient(
         phone: data.phone,
         email: data.email,
         address: data.address,
+        street: data.street,
+        exterior_number: data.exterior_number,
+        interior_number: data.interior_number,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
+        postal_code: data.postal_code,
+        country: data.country,
         company_id: effectiveCompanyId,
       })
       .returning();

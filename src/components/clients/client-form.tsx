@@ -45,17 +45,30 @@ const clientSchema = z.object({
         z.string().email('El correo electrónico no es válido'),
       ]),
     ),
-  address: z.string().optional().or(z.literal('')),
+  street: z.string().optional().or(z.literal('')),
+  exterior_number: z.string().optional().or(z.literal('')),
+  interior_number: z.string().optional().or(z.literal('')),
+  neighborhood: z.string().optional().or(z.literal('')),
+  city: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
+  postal_code: z.string().optional().or(z.literal('')),
+  country: z.string().optional().or(z.literal('')),
 });
 
 type ClientFormValues = z.infer<typeof clientSchema>;
 
+const emptyToNull = (value: string | null | undefined) => {
+  const nextValue = value?.trim();
+  return nextValue ? nextValue : null;
+};
+
 interface ClientFormProps {
   client?: Client;
   onSuccess?: (savedClient?: Client) => void;
+  onCancel?: () => void;
 }
 
-export function ClientForm({ client, onSuccess }: ClientFormProps) {
+export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   const router = useRouter();
   const { selectedCompany } = useCompany();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -66,7 +79,14 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
       name: client?.name ?? '',
       phone: client?.phone ? sanitizePhoneDigits(client.phone) : '',
       email: client?.email ?? '',
-      address: client?.address ?? '',
+      street: client?.street ?? client?.address ?? '',
+      exterior_number: client?.exterior_number ?? '',
+      interior_number: client?.interior_number ?? '',
+      neighborhood: client?.neighborhood ?? '',
+      city: client?.city ?? '',
+      state: client?.state ?? '',
+      postal_code: client?.postal_code ?? '',
+      country: client?.country ?? 'México',
     },
   });
 
@@ -81,8 +101,16 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
 
       const formData = {
         ...data,
-        email: data.email || null,
-        address: data.address || null,
+        email: emptyToNull(data.email),
+        address: null,
+        street: emptyToNull(data.street),
+        exterior_number: emptyToNull(data.exterior_number),
+        interior_number: emptyToNull(data.interior_number),
+        neighborhood: emptyToNull(data.neighborhood),
+        city: emptyToNull(data.city),
+        state: emptyToNull(data.state),
+        postal_code: emptyToNull(data.postal_code),
+        country: emptyToNull(data.country),
         company_id: selectedCompany.id,
       };
 
@@ -198,35 +226,158 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dirección</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Dirección del cliente (opcional)"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Dirección</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Todos los campos de dirección son opcionales.
+            </p>
+          </div>
 
-        <div className="flex justify-end gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="street"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Calle</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Nombre de la calle"
+                      autoComplete="street-address"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="exterior_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Número exterior</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej. 123" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="interior_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Número interior</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Opcional" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="neighborhood"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Colonia</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Colonia o barrio" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ciudad o municipio</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="address-level2" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="address-level1" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postal_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Código postal</FormLabel>
+                  <FormControl>
+                    <Input
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      placeholder="CP"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>País</FormLabel>
+                  <FormControl>
+                    <Input autoComplete="country-name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push('/dashboard/clients')}
+            className="min-h-11 sm:min-h-10"
+            onClick={() => {
+              if (onCancel) {
+                onCancel();
+                return;
+              }
+
+              router.push('/dashboard/clients');
+            }}
           >
             Cancelar
           </Button>
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="min-h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 sm:min-h-10"
           >
             {isSubmitting ? 'Guardando...' : client ? 'Actualizar' : 'Crear'}
           </Button>

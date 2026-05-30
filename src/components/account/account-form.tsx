@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { toast } from 'sonner';
-import { updateUser } from '@/actions/users';
+import { updateOwnAccount } from '@/actions/users';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useEffect } from 'react';
 import { Resolver } from 'react-hook-form';
@@ -92,10 +92,9 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
       delete userData.password;
     }
 
-    const result = await updateUser(BigInt(session.user.id), {
+    const result = await updateOwnAccount({
       ...userData,
-      password: userData.password || '',
-      company_id: session.user.company_id,
+      password: userData.password || undefined,
     });
 
     if (result.error) {

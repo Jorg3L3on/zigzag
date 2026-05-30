@@ -48,7 +48,22 @@ export async function PATCH(
   try {
     const { clientId } = await context.params;
     const body = await req.json();
-    const { name, email, phone, document, address, company_id } = body;
+    const {
+      name,
+      email,
+      phone,
+      document,
+      address,
+      street,
+      exterior_number,
+      interior_number,
+      neighborhood,
+      city,
+      state,
+      postal_code,
+      country,
+      company_id,
+    } = body;
     const requestedCompanyId =
       typeof company_id === 'number'
         ? company_id
@@ -73,6 +88,14 @@ export async function PATCH(
         phone,
         document,
         address,
+        street,
+        exterior_number,
+        interior_number,
+        neighborhood,
+        city,
+        state,
+        postal_code,
+        country,
         updated_at: new Date(),
       })
       .where(

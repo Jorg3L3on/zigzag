@@ -1,12 +1,10 @@
 import { Metadata } from 'next';
 import { ClientForm } from '@/components/clients/client-form';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { getClient } from '@/actions/clients';
 import { notFound } from 'next/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -20,6 +18,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { requirePagePermission } from '@/lib/page-authz';
+import { UserRoundCog } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Editar Cliente',
@@ -43,7 +42,7 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
+      <header className="hidden h-16 shrink-0 items-center gap-2 md:flex">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -63,27 +62,21 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full max-w-2xl">
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-4 pb-8">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">
-                    Información del Cliente
-                  </CardTitle>
-                  <CardDescription>
-                    Modifica la información del cliente
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ClientForm client={result.data} />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+        <TripledMobileAppBar
+          title="Editar cliente"
+          subtitle={result.data.name}
+          backHref="/dashboard/clients"
+          className="mb-3"
+        />
+        <TripledResourceCard
+          title="Información del cliente"
+          description="Modifica la información del cliente."
+          icon={<UserRoundCog className="size-5" aria-hidden />}
+        >
+          <ClientForm client={result.data} />
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

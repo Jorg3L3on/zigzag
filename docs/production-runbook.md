@@ -12,8 +12,6 @@ ZigZag deploys to Vercel with Neon PostgreSQL. Drizzle is the only supported sch
 - `NEXTAUTH_SECRET` or `AUTH_SECRET`: secure random secret.
 - `NODE_ENV=production`.
 
-Do not enable `ALLOW_MISSING_PERMISSIONS=true` in production.
-
 ## Git branches and Vercel
 
 **Production Branch = `main`** (default). Merging to `main` deploys production.

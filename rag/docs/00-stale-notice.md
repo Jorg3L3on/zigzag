@@ -4,11 +4,11 @@
 >
 > **Use instead:** [AGENTS.md](../../AGENTS.md), [README.md](../../README.md), and [tasks/INDEX.md](../../tasks/INDEX.md).
 
-Common outdated topics in older chunks:
+Historical topics that should not be reintroduced:
 
 - Prisma commands and `src/generated/prisma` → **Drizzle** (`src/db/schema.ts`, `npm run db:migrate`)
 - `html2pdf` client PDF → **server** fintech invoice API
-- `checkPermission()` always `true` → enforced via DB; `ALLOW_MISSING_PERMISSIONS` escape hatch for dev only
+- `checkPermission()` always `true` → enforced via DB and fails closed when permission definitions are missing
 - `sub_total` on `ServicesTickets` → removed; totals via `ticket-financials`
 
 Re-run `npm run rag:index` after editing any file here.

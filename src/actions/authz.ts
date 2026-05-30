@@ -1,6 +1,6 @@
 'use server';
 
-import { permission, rolePermission, user } from '@/db/schema';
+import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { requireActionAuth } from '@/lib/security';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
@@ -26,6 +26,14 @@ export async function getSessionPermissionMap(): Promise<SessionPermissionMap> {
   });
 
   if (!userRow?.role_id) {
+    return { isSystem: false, permissions: [] };
+  }
+
+  const roleRow = await db.query.role.findFirst({
+    where: and(eq(role.id, userRow.role_id), isNull(role.deleted_at)),
+  });
+
+  if (!roleRow) {
     return { isSystem: false, permissions: [] };
   }
 

@@ -10,9 +10,13 @@ import { user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { checkPermission } from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
+import { convertBigIntToString } from '@/lib/utils';
 
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json({ success: true, data }, { status });
+  return NextResponse.json(
+    { success: true, data: convertBigIntToString(data) },
+    { status },
+  );
 }
 
 export function fail(
@@ -59,6 +63,10 @@ export async function requireSession() {
   ) {
     return { session: null, unauthorized: fail('AU001', 401) };
   }
+
+  session.user.company_id = activeUser.company_id ?? activeUser.company.id;
+  session.user.company_name = activeUser.company.name;
+  session.user.company_is_system = Boolean(activeUser.company.is_system);
 
   return { session, unauthorized: null };
 }

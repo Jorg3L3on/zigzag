@@ -1,60 +1,54 @@
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Plus } from 'lucide-react';
+import { Plus, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { ServicesListClient } from '@/components/services/services-list-client';
-import { TripledPageHeader } from '@/components/tripled';
+import {
+  TripledDashboardShell,
+  TripledPageHeader,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { requirePagePermission } from '@/lib/page-authz';
+import { getSessionPermissionMap } from '@/actions/authz';
+import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ServicesPage() {
   await requirePagePermission('services.read');
+  const permissionMap = await getSessionPermissionMap();
+  const canWriteServices = canAccessPermission(
+    permissionMap,
+    PERMISSIONS.services.write,
+  );
 
   return (
     <>
       <TripledPageHeader items={[{ label: 'Servicios' }]} />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto w-full min-w-0">
-          <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
-            <CardHeader className="space-y-0 border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-5 sm:px-8 sm:py-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-                <div className="min-w-0 space-y-1.5">
-                  <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
-                    Servicios
-                  </CardTitle>
-                  <CardDescription className="text-base">
-                    Administra el catálogo de servicios disponibles
-                  </CardDescription>
-                </div>
-                <Link
-                  href="/dashboard/services/new"
-                  className="shrink-0 self-end sm:self-start"
-                >
-                  <Button
-                    size="sm"
-                    className="h-9 gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 px-3 text-sm font-semibold shadow-md hover:from-blue-700 hover:to-purple-700 sm:h-10 sm:px-4"
-                  >
-                    <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                    Nuevo Servicio
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-5 sm:p-6 sm:pt-6">
-              <ServicesListClient />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <TripledDashboardShell>
+        <TripledResourceCard
+          title="Servicios"
+          description="Catálogo de servicios y precios."
+          desktopDescription="Administra el catálogo de servicios disponibles"
+          icon={<Wrench className="size-5" aria-hidden />}
+          action={
+            canWriteServices ? (
+              <Link
+                href="/dashboard/services/new"
+                className="w-full shrink-0 sm:w-auto sm:self-start"
+              >
+                <Button className="min-h-11 w-full gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold shadow-sm hover:bg-primary/90 sm:w-auto">
+                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                  Nuevo Servicio
+                </Button>
+              </Link>
+            ) : null
+          }
+        >
+          <ServicesListClient />
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

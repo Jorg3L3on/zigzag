@@ -43,7 +43,7 @@ Completed in this pass:
 - Added Drizzle migration metadata for existing migrations and a new migration for company structured fields plus `TicketAuditEvent`.
 - Added ticket audit writes for creation, updates/service changes, finalization, payments, and deletion.
 - Patched high-risk tenant filters in user, role, permission, company, client, ticket, ticket-service, and service API paths.
-- Made missing permission definitions fail closed unless `ALLOW_MISSING_PERMISSIONS=true` is explicitly set.
+- Made missing permission definitions fail closed.
 - Added basic credential login throttling.
 - Added production security headers.
 - Added `/api/health` and a production runbook.
@@ -82,19 +82,16 @@ Evidence:
 - Runtime code uses Drizzle in `src/lib/db.ts` and `src/db/schema.ts`.
 - Fixed on 2026-05-16: Prisma workflow files were removed and README/AGENTS/CLAUDE guidance now points to Drizzle.
 - Drizzle migration history now includes the existing ticket payment migrations plus a company/audit migration.
+- Fixed on 2026-05-24: stale RAG docs and scripts now point to Drizzle, not Prisma.
 
 Risk:
 
-- Developers may create schema changes in the wrong place.
-- Production migrations can drift from runtime schema.
-- Seeds and generated clients may disagree with deployed code.
+- Historical database backups may still contain `_prisma_migrations` rows from the pre-Drizzle era. Those are archival data only and are not part of the active workflow.
 
 Work:
 
-- Remove Prisma from the production workflow.
-- Archive or remove Prisma workflow docs, schema, migrations, config, seed scripts, and generated-client expectations.
-- Ensure Drizzle owns schema changes, migration generation, production migration deploys, and seeds.
-- Ensure migration scripts, README, AGENTS.md, CI, and seed scripts all agree.
+- Completed: Drizzle owns schema changes, migration generation, production migration deploys, and seeds.
+- Completed: README, AGENTS.md, CLAUDE.md, RAG docs, migration scripts, and seed scripts agree on the Drizzle workflow.
 
 Acceptance criteria:
 
@@ -106,18 +103,17 @@ Acceptance criteria:
 
 Evidence:
 
-- Tenant scope is enforced in many server actions through `requireActionPermission`.
-- Some read actions still return cross-company data after only a permission check, for example `getUsers()` and `getRoles()` list all records.
-- API routes and server actions do not share one authorization helper, so behavior can drift.
-- `checkPermission()` returns `true` if a permission row is missing, which is useful during migration but unsafe as a final RBAC policy.
+- Fixed on 2026-05-24: domain server actions are covered by authorization helpers, non-public API routes are covered by API authorization helpers, and restricted dashboard routes are covered by page/layout RBAC guards.
+- Fixed on 2026-05-24: stale sessions for deleted users or inactive/deleted companies fail active-session validation in `requireActionAuth()`.
+- Fixed on 2026-05-24: static RBAC coverage tests guard server actions, API routes, dashboard routes, and documented public/auth-only exceptions.
+- Missing permission definitions now fail closed; seed data must include every permission name used in code.
 
 Work:
 
-- Create a tenant authorization checklist for every action and API route.
-- Make system-user cross-company access explicit and audited.
-- Ensure non-system users can only read/write their own company data.
-- Remove or feature-flag the "permission missing means allow" fallback.
-- Add tests for system user, regular user, wrong company, deleted company/resource, and missing permission.
+- Completed: tenant authorization checklist is encoded in `src/lib/rbac-coverage.test.ts`.
+- Completed: system-user cross-company access remains explicit through `company.is_system`.
+- Completed: non-system users are restricted by `resolveWritableCompanyId()` plus route/action company filters.
+- Completed: helper tests cover system user, regular user, wrong company, deleted role, inactive company, and missing permission.
 
 Acceptance criteria:
 
@@ -299,9 +295,8 @@ Acceptance criteria:
 
 Evidence:
 
-- `README.md` says Next.js 15, while `package.json` uses Next.js 16.
-- `README.md` project structure mentions `src/middleware.ts`, but the project currently has `src/proxy.ts`.
-- `AGENTS.md` still emphasizes Prisma.
+- README.md, AGENTS.md, and CLAUDE.md now describe Next.js 16, `src/proxy.ts`, and Drizzle.
+- Optional RAG docs are synchronized for Drizzle and still carry a stale-doc notice because they are secondary context.
 
 Work:
 
@@ -345,7 +340,7 @@ Acceptance criteria:
 ## Recommended Execution Order
 
 1. Fix Jest/Playwright split so CI becomes meaningful.
-2. Remove Prisma workflow and make Drizzle the only database path.
+2. Keep the Drizzle-only database path verified as schema changes land.
 3. Audit and patch tenant/RBAC gaps in actions and API routes.
 4. Remove PDF uploads and verify on-demand PDF generation.
 5. Add immutable ticket audit trails.
@@ -362,7 +357,7 @@ Acceptance criteria:
 - Fix test configuration.
 - Make CI green.
 - Confirm production build in CI.
-- Update README/AGENTS.md around the Drizzle-only DB workflow.
+- Keep README/AGENTS.md aligned around the Drizzle-only DB workflow.
 
 ### Milestone 2: Trust Tenant Boundaries
 

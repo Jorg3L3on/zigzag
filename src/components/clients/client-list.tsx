@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Plus, Pencil, Trash2, Loader2, Search, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Search, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -46,7 +46,11 @@ import {
   getClientsList,
 } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
-import { TripledEmptyState } from '@/components/tripled';
+import {
+  TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { createClientsColumns } from '@/components/clients/clients-columns';
 import {
@@ -55,6 +59,9 @@ import {
   decodeSortingState,
   encodeSortingState,
 } from '@/components/clients/clients-sort-presets';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
+import { formatClientAddressOneLine } from '@/lib/client-address';
 
 type ContactFilter = 'all' | 'with' | 'without';
 
@@ -63,6 +70,8 @@ const hasMeaningfulText = (value: string | null | undefined): boolean =>
 
 export function ClientList() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteClients = permissions.can(PERMISSIONS.clients.write);
   const router = useRouter();
   const [clients, setClients] = React.useState<Client[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -115,6 +124,7 @@ export function ClientList() {
   const filteredClients = React.useMemo(() => {
     const q = debouncedSearch.toLowerCase();
     return clients.filter((clientRow) => {
+      const formattedAddress = formatClientAddressOneLine(clientRow);
       const matchesSearch =
         !q ||
         clientRow.id.toString().includes(q) ||
@@ -122,7 +132,7 @@ export function ClientList() {
         (clientRow.email ?? '').toLowerCase().includes(q) ||
         (clientRow.phone ?? '').toLowerCase().includes(q) ||
         (clientRow.document ?? '').toLowerCase().includes(q) ||
-        (clientRow.address ?? '').toLowerCase().includes(q);
+        formattedAddress.toLowerCase().includes(q);
 
       if (!matchesSearch) {
         return false;
@@ -158,8 +168,9 @@ export function ClientList() {
   const columns = React.useMemo(
     () =>
       createClientsColumns({
-        renderActions: (clientRow) => (
-          <>
+        renderActions: (clientRow) =>
+          canWriteClients ? (
+            <>
             <Button
               variant="ghost"
               size="icon"
@@ -182,10 +193,10 @@ export function ClientList() {
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
-          </>
-        ),
+            </>
+          ) : null,
       }),
-    [router, openDeleteDialog],
+    [router, openDeleteDialog, canWriteClients],
   );
 
   const table = useReactTable({
@@ -201,6 +212,8 @@ export function ClientList() {
 
   const mobileSortValue = encodeSortingState(sorting);
   const isBusy = loading || loadingClients;
+  const hasActiveFilters =
+    debouncedSearch !== '' || emailFilter !== 'all' || phoneFilter !== 'all';
 
   const emailFilterOptions: Array<{ value: ContactFilter; label: string }> = [
     { value: 'all', label: 'Todas' },
@@ -245,10 +258,50 @@ export function ClientList() {
     setSearchValue(value);
   };
 
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setEmailFilter('all');
+    setPhoneFilter('all');
+    setSorting(DEFAULT_CLIENT_SORTING);
+  };
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredClients.length} de ${clients.length} clientes`,
+      variant: 'secondary' as const,
+    },
+    ...(debouncedSearch
+      ? [
+          {
+            key: 'search',
+            label: `Busqueda: ${debouncedSearch}`,
+          },
+        ]
+      : []),
+    ...(emailFilter !== 'all'
+      ? [
+          {
+            key: 'email',
+            label: emailFilter === 'with' ? 'Con email' : 'Sin email',
+          },
+        ]
+      : []),
+    ...(phoneFilter !== 'all'
+      ? [
+          {
+            key: 'phone',
+            label: phoneFilter === 'with' ? 'Con telefono' : 'Sin telefono',
+          },
+        ]
+      : []),
+  ];
+
   return (
     <>
       <div className="space-y-4">
-        <div className="relative max-w-sm">
+        <div className="relative">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -257,7 +310,7 @@ export function ClientList() {
             value={searchValue}
             onChange={(event) => handleSearchChange(event.target.value)}
             placeholder="Buscar por nombre, teléfono, email, documento..."
-            className="pl-9"
+            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar clientes"
           />
         </div>
@@ -271,7 +324,7 @@ export function ClientList() {
                   key={option.value}
                   type="button"
                   variant={emailFilter === option.value ? 'default' : 'outline'}
-                  size="sm"
+                  className="min-h-11 rounded-xl"
                   onClick={() => setEmailFilter(option.value)}
                   aria-label={`Filtrar clientes por email: ${option.label}`}
                 >
@@ -288,7 +341,7 @@ export function ClientList() {
                   key={option.value}
                   type="button"
                   variant={phoneFilter === option.value ? 'default' : 'outline'}
-                  size="sm"
+                  className="min-h-11 rounded-xl"
                   onClick={() => setPhoneFilter(option.value)}
                   aria-label={`Filtrar clientes por teléfono: ${option.label}`}
                 >
@@ -303,7 +356,7 @@ export function ClientList() {
               onValueChange={(value) => setSorting(decodeSortingState(value))}
             >
               <SelectTrigger
-                className="h-10 w-full sm:w-[min(100%,18rem)]"
+                className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
                 aria-label="Ordenar lista de clientes"
               >
                 <SelectValue placeholder="Ordenar por" />
@@ -319,32 +372,21 @@ export function ClientList() {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground sm:text-sm">
-          Mostrando{' '}
-          <span className="font-medium text-foreground">
-            {filteredClients.length}
-          </span>{' '}
-          {clients.length !== filteredClients.length ? (
-            <>
-              de <span className="font-medium text-foreground">{clients.length}</span>{' '}
-            </>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TripledFilterChips chips={filterChips} />
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
+              onClick={handleClearFilters}
+              aria-label="Limpiar filtros de clientes"
+            >
+              <X className="mr-2 h-4 w-4" aria-hidden />
+              Limpiar filtros
+            </Button>
           ) : null}
-          clientes
-          {filteredClients.length > 0 ? (
-            <>
-              {' '}
-              (página{' '}
-              <span className="font-medium text-foreground">
-                {table.getState().pagination.pageIndex + 1}
-              </span>{' '}
-              de{' '}
-              <span className="font-medium text-foreground">
-                {table.getPageCount()}
-              </span>
-              )
-            </>
-          ) : null}
-        </p>
+        </div>
       </div>
 
       {isBusy ? (
@@ -385,18 +427,33 @@ export function ClientList() {
           <div className="space-y-3 md:hidden">
             {table.getRowModel().rows.map((row) => {
               const clientRow = row.original;
+              const formattedAddress = formatClientAddressOneLine(clientRow);
               return (
-                <article
+                <TripledMobileRecordCard
                   key={row.id}
                   role="button"
-                  tabIndex={0}
-                  aria-label={`Editar cliente ${clientRow.name}`}
-                  className="cursor-pointer rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() =>
-                    router.push(`/dashboard/clients/${clientRow.id}/edit`)
+                  tabIndex={canWriteClients ? 0 : -1}
+                  aria-label={
+                    canWriteClients
+                      ? `Editar cliente ${clientRow.name}`
+                      : `Cliente ${clientRow.name}`
                   }
+                  interactive={canWriteClients}
+                  className={
+                    canWriteClients
+                      ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                      : undefined
+                  }
+                  onClick={() => {
+                    if (canWriteClients) {
+                      router.push(`/dashboard/clients/${clientRow.id}/edit`);
+                    }
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
+                    if (
+                      canWriteClients &&
+                      (event.key === 'Enter' || event.key === ' ')
+                    ) {
                       event.preventDefault();
                       router.push(`/dashboard/clients/${clientRow.id}/edit`);
                     }
@@ -406,7 +463,8 @@ export function ClientList() {
                     <h3 className="text-sm font-semibold text-foreground">
                       {clientRow.name}
                     </h3>
-                    <div className="flex shrink-0 gap-1">
+                    {canWriteClients ? (
+                      <div className="flex shrink-0 gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -429,7 +487,8 @@ export function ClientList() {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <dl className="mt-3 space-y-2 text-sm">
@@ -445,10 +504,10 @@ export function ClientList() {
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">
                       <dt className="text-muted-foreground">Dirección</dt>
-                      <dd className="line-clamp-2">{clientRow.address || '—'}</dd>
+                      <dd className="line-clamp-2">{formattedAddress || '—'}</dd>
                     </div>
                   </dl>
-                </article>
+                </TripledMobileRecordCard>
               );
             })}
           </div>
@@ -484,13 +543,18 @@ export function ClientList() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer"
-                    tabIndex={0}
-                    onClick={() =>
-                      router.push(`/dashboard/clients/${row.original.id}/edit`)
-                    }
+                    className={canWriteClients ? 'cursor-pointer' : undefined}
+                    tabIndex={canWriteClients ? 0 : -1}
+                    onClick={() => {
+                      if (canWriteClients) {
+                        router.push(`/dashboard/clients/${row.original.id}/edit`);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWriteClients &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         router.push(`/dashboard/clients/${row.original.id}/edit`);
                       }

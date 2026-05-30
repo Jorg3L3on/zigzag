@@ -1,6 +1,7 @@
 # Database Schema
 
-Database: PostgreSQL. ORM: Prisma 6. Client output: `src/generated/prisma`.
+Database: PostgreSQL. ORM: Drizzle. Canonical schema: `src/db/schema.ts`.
+SQL migrations live in `drizzle/` and are generated with `npm run db:generate`.
 
 ## Models
 
@@ -25,7 +26,7 @@ Tenant root. Every other model has `company_id → Company.id`.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| id | **BigInt** (PK) | Requires `convertBigIntToString()` for JSON |
+| id | **BigInt** (PK) | API `ok()` responses serialize BigInt through `convertBigIntToString()` |
 | name | String | |
 | email | String (unique) | |
 | password | String | bcrypt hash |
@@ -37,7 +38,7 @@ Tenant root. Every other model has `company_id → Company.id`.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| id | **BigInt** (PK) | Requires `convertBigIntToString()` for JSON |
+| id | **BigInt** (PK) | API `ok()` responses serialize BigInt through `convertBigIntToString()` |
 | client_id | Int? | FK → Client |
 | client_name | String? | denormalised copy |
 | client_tel | String? | |
@@ -115,13 +116,14 @@ Composite PK `(role_id, permission_id)`. No soft delete.
 | Model | Strategy |
 |-------|----------|
 | Company, User, Ticket, Permission | Soft delete — filter `deleted_at: null` |
-| Role, Client, Service | Hard delete — use Prisma `.delete()` |
+| Role | Currently has `deleted_at`, but some flows still hard delete; normalize as a schema/model decision |
+| Client, Service | Soft delete in current primary flows; verify both actions and API routes when touching delete behavior |
 
 ## BigInt Serialisation
 
 `Ticket.id` and `User.id` are `BigInt`. JavaScript's `JSON.stringify` throws on BigInt.
-Always call `convertBigIntToString()` from `src/lib/utils.ts` before returning data from API routes.
+API success responses should go through `ok()` from `src/lib/api-helpers.ts`, which calls `convertBigIntToString()` from `src/lib/utils.ts`.
 
 ## Multi-tenancy Queries
 
-Always add `where: { company_id: session.company_id, deleted_at: null }` to every query. Prisma does NOT enforce this automatically.
+Always add `company_id` and `deleted_at` filters to Drizzle queries. Drizzle does NOT enforce tenant scope automatically.

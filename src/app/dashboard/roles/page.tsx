@@ -1,6 +1,11 @@
-import { TripledPageHeader } from '@/components/tripled';
+import {
+  TripledDashboardShell,
+  TripledPageHeader,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { RolesList } from '@/components/roles/roles-list';
 import { requirePagePermission } from '@/lib/page-authz';
+import { Shield } from 'lucide-react';
 
 export default async function RolesPage() {
   await requirePagePermission('roles.read');
@@ -9,11 +14,16 @@ export default async function RolesPage() {
     <>
       <TripledPageHeader items={[{ label: 'Roles' }]} />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto w-full min-w-0">
+      <TripledDashboardShell>
+        <TripledResourceCard
+          title="Roles"
+          description="Perfiles de acceso y permisos asignados."
+          desktopDescription="Lista de todos los roles registrados."
+          icon={<Shield className="size-5" aria-hidden />}
+        >
           <RolesList />
-        </div>
-      </div>
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

@@ -1,6 +1,6 @@
-import { auth } from '@/lib/auth';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { requireActionAuth } from '@/lib/security';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -11,8 +11,9 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  try {
+    await requireActionAuth();
+  } catch {
     redirect('/login');
   }
 

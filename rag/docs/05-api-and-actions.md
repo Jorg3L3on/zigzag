@@ -7,32 +7,36 @@ RESTful endpoints. Each is a standard Next.js Route Handler (`route.ts`).
 | Route | Methods | Purpose |
 |-------|---------|---------|
 | `/api/auth/[...nextauth]` | GET, POST | NextAuth handlers |
-| `/api/clients` | GET, POST, PUT, DELETE | Client CRUD |
-| `/api/companies` | GET, POST, PUT, DELETE | Company management (system only) |
-| `/api/services` | GET, POST, PUT, DELETE | Service CRUD |
-| `/api/tickets` | GET, POST, PUT, DELETE | Ticket CRUD |
-| `/api/users` | GET, POST, PUT, DELETE | User management |
-| `/api/upload` | POST | File/logo upload |
+| `/api/clients`, `/api/clients/[clientId]` | GET, POST, PUT, DELETE | Client CRUD |
+| `/api/companies` | GET, POST, PUT | Company management |
+| `/api/services`, `/api/services/[id]` | GET, POST, PUT, DELETE | Service CRUD |
+| `/api/tickets/[id]` | GET | Ticket detail |
+| `/api/tickets/[id]/invoice` | GET | Server-generated invoice PDF |
+| `/api/tickets/[id]/services` | GET, POST | Ticket service lines |
+| `/api/tickets/[id]/services/[serviceId]` | PUT, DELETE | Ticket service line updates |
+| `/api/users` | GET, POST | User management |
 
 ### API Route Pattern
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { handleApiError } from '@/lib/errors';
+import { NextRequest } from 'next/server';
+import { and, eq, isNull } from 'drizzle-orm';
+import { ticket } from '@/db/schema';
+import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import { db } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { unauthorized, companyId } = await requireApiPermission('tickets.read');
+    if (unauthorized || !companyId) return unauthorized;
 
-    const data = await prisma.model.findMany({
-      where: { company_id: session.user.company_id, deleted_at: null },
+    const data = await db.query.ticket.findMany({
+      where: and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at)),
     });
 
-    return NextResponse.json({ data: convertBigIntToString(data) });
+    return ok(data);
   } catch (err) {
-    return handleApiError(err);
+    return fail('GN001', 500, 'server');
   }
 }
 ```
@@ -54,19 +58,21 @@ Used by client components via `'use server'`. Preferred for mutations from UI.
 
 ```typescript
 'use server';
-import { auth } from '@/lib/auth';
 import { handleServerActionError } from '@/lib/errors';
+import { requireActionPermission } from '@/lib/security';
+import { db } from '@/lib/db';
+import { client } from '@/db/schema';
 
 export async function createClient(data: ClientInput) {
   try {
-    const session = await auth();
-    if (!session) throw new Error('Unauthorized');
+    const { companyId } = await requireActionPermission('clients.write');
 
-    const client = await prisma.client.create({
-      data: { ...data, company_id: session.user.company_id },
-    });
+    const [created] = await db.insert(client).values({
+      ...data,
+      company_id: companyId,
+    }).returning();
 
-    return { success: true, data: client };
+    return { success: true, data: created };
   } catch (err) {
     return handleServerActionError(err);
   }

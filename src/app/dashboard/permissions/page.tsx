@@ -1,6 +1,11 @@
-import { TripledPageHeader } from '@/components/tripled';
+import {
+  TripledDashboardShell,
+  TripledPageHeader,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { PermissionsList } from '@/components/permissions/permissions-list';
 import { requirePagePermission } from '@/lib/page-authz';
+import { KeyRound } from 'lucide-react';
 
 export default async function PermissionsPage() {
   await requirePagePermission('permissions.read');
@@ -9,11 +14,16 @@ export default async function PermissionsPage() {
     <>
       <TripledPageHeader items={[{ label: 'Permisos' }]} />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto w-full min-w-0">
+      <TripledDashboardShell>
+        <TripledResourceCard
+          title="Permisos"
+          description="Capacidades del sistema y alcance por empresa."
+          desktopDescription="Lista de todos los permisos registrados."
+          icon={<KeyRound className="size-5" aria-hidden />}
+        >
           <PermissionsList />
-        </div>
-      </div>
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

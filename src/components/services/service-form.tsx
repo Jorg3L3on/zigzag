@@ -170,7 +170,7 @@ export function ServiceForm({ onSuccess, onCancel }: ServiceFormProps) {
         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
           {onCancel ? (
             <Button type="button" variant="outline" onClick={onCancel}>
-              Volver
+              Cancelar
             </Button>
           ) : null}
           <Button

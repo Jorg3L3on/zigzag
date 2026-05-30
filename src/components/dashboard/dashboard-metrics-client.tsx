@@ -156,9 +156,8 @@ export const DashboardMetricsClient = () => {
           <Button
             key={p.value}
             type="button"
-            size="sm"
             variant={monthCount === p.value ? 'default' : 'outline'}
-            className="min-w-[5.5rem]"
+            className="min-h-11 min-w-[5.5rem] rounded-xl sm:min-h-9"
             onClick={() => setMonthCount(p.value)}
             aria-pressed={monthCount === p.value}
             aria-label={`Mostrar ingresos de ${p.label}`}

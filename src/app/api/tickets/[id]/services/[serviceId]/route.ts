@@ -2,7 +2,6 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
-import { convertBigIntToString } from '@/lib/utils';
 import { z } from 'zod';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
@@ -64,6 +63,7 @@ export async function PUT(
         .set({
           quantity: parsed.quantity,
           price: parsed.price,
+          updated_at: new Date(),
         })
         .where(
           and(
@@ -93,7 +93,7 @@ export async function PUT(
       return fail('TS005', 404, 'validation');
     }
 
-    return ok(convertBigIntToString(full));
+    return ok(full);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return fail('TS003', 400, 'validation');
@@ -122,7 +122,8 @@ export async function DELETE(
 
     const deleted = await db.transaction(async (tx) => {
       const [deletedRow] = await tx
-        .delete(servicesTickets)
+        .update(servicesTickets)
+        .set({ deleted_at: new Date(), updated_at: new Date() })
         .where(
           and(
             eq(servicesTickets.id, serviceTicketId),

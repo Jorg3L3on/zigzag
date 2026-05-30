@@ -398,7 +398,7 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
         </div>
 
         <Button
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="min-h-11 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 sm:w-auto"
           type="submit"
           disabled={isSubmitting}
         >

@@ -33,7 +33,11 @@ import {
 } from '@/components/tickets/tickets-sort-presets';
 import { useCompany } from '@/contexts/company-context';
 import { Input } from '@/components/ui/input';
-import { TripledEmptyState } from '@/components/tripled';
+import {
+  TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
 import {
   CalendarDays,
   ChevronLeft,
@@ -71,6 +75,8 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import { Badge } from '@/components/ui/badge';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 import {
   Sheet,
   SheetClose,
@@ -172,6 +178,8 @@ const TicketsTableSkeleton = () => (
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteTickets = permissions.can(PERMISSIONS.tickets.write);
   const router = useRouter();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -229,8 +237,8 @@ export default function TicketsList() {
   }, []);
 
   const columns = React.useMemo(
-    () => createTicketsColumns({ onDelete: handleDelete }),
-    [handleDelete],
+    () => createTicketsColumns({ onDelete: handleDelete, canWrite: canWriteTickets }),
+    [handleDelete, canWriteTickets],
   );
 
   const filteredTickets = React.useMemo(() => {
@@ -340,6 +348,46 @@ export default function TicketsList() {
   };
 
   const mobileSortValue = encodeSortingState(sorting);
+  const visibleRows = table.getRowModel().rows;
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredTickets.length} de ${tickets.length} tickets`,
+      variant: 'secondary' as const,
+    },
+    ...(statusFilter !== 'all'
+      ? [
+          {
+            key: 'status',
+            label: TICKET_PAYMENT_STATUS_LABEL[statusFilter],
+          },
+        ]
+      : []),
+    ...(finishedFilter !== 'all'
+      ? [
+          {
+            key: 'finished',
+            label: finishedFilter === 'yes' ? 'Finalizados' : 'En proceso',
+          },
+        ]
+      : []),
+    ...(pdfFilter !== 'all'
+      ? [
+          {
+            key: 'pdf',
+            label: pdfFilter === 'with' ? 'Con PDF' : 'Sin PDF',
+          },
+        ]
+      : []),
+    ...(dateRange?.from
+      ? [
+          {
+            key: 'date',
+            label: formatDateRangeLabel(dateRange),
+          },
+        ]
+      : []),
+  ];
 
   if (loading) {
     return <TicketsTableSkeleton />;
@@ -352,10 +400,10 @@ export default function TicketsList() {
             <div className="relative min-w-0 flex-1 lg:min-w-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="h-11 pl-9"
+                className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:bg-background"
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
-                placeholder="Buscar por ID, cliente, teléfono o correo..."
+                placeholder="Buscar tickets..."
                 aria-label="Buscar tickets por ID, cliente, teléfono o correo"
               />
             </div>
@@ -366,7 +414,7 @@ export default function TicketsList() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="relative shrink-0 lg:hidden"
+                  className="relative h-12 w-12 shrink-0 rounded-xl bg-background shadow-none lg:hidden"
                   aria-label={
                     activeFilterCount > 0
                       ? `Abrir filtros (${activeFilterCount} activos)`
@@ -717,28 +765,7 @@ export default function TicketsList() {
             ) : null}
           </div>
 
-          <p className="text-xs text-muted-foreground sm:text-sm">
-            Mostrando{' '}
-            <span className="font-medium text-foreground">
-              {filteredTickets.length}
-            </span>{' '}
-            de{' '}
-            <span className="font-medium text-foreground">{tickets.length}</span>{' '}
-            tickets
-            {table.getPageCount() > 1 ? (
-              <>
-                {' '}
-                · Página{' '}
-                <span className="font-medium text-foreground">
-                  {table.getState().pagination.pageIndex + 1}
-                </span>{' '}
-                de{' '}
-                <span className="font-medium text-foreground">
-                  {table.getPageCount()}
-                </span>
-              </>
-            ) : null}
-          </p>
+          <TripledFilterChips chips={filterChips} />
         </div>
 
       {loadError ? (
@@ -766,88 +793,84 @@ export default function TicketsList() {
         />
       ) : (
         <>
-          <div className="space-y-2.5 md:hidden">
-            {table.getRowModel().rows.map((row) => {
+          <div className="space-y-3 md:hidden">
+            {visibleRows.map((row) => {
               const ticket = row.original;
               return (
-                <div
+                <TripledMobileRecordCard
                   key={row.id}
-                  className="cursor-pointer rounded-xl border border-border/70 bg-card p-3.5 shadow-sm transition-colors hover:bg-muted/40 active:bg-muted/60"
+                  interactive
                   tabIndex={0}
                   role="button"
                   aria-label={
                     ticket.finished
                       ? `Ver ticket ${ticket.id.toString()}`
-                      : `Editar ticket ${ticket.id.toString()}`
+                      : canWriteTickets
+                        ? `Editar ticket ${ticket.id.toString()}`
+                        : `Ver ticket ${ticket.id.toString()}`
                   }
                   onClick={() =>
-                    router.push(hrefForTicketListRow(ticket))
+                    router.push(hrefForTicketListRow(ticket, canWriteTickets))
                   }
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      router.push(hrefForTicketListRow(ticket));
+                      router.push(hrefForTicketListRow(ticket, canWriteTickets));
                     }
                   }}
                 >
-                  <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-2">
-                      <div className="space-y-0.5">
-                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Ticket
-                        </p>
-                        <p className="font-mono text-base font-semibold tabular-nums">
-                          #{ticket.id.toString()}
-                        </p>
-                      </div>
+                      <p className="truncate text-lg font-semibold leading-tight">
+                        {ticket.client_name || 'Cliente sin nombre'}
+                      </p>
                       <TicketPaymentBadge
                         total={ticket.total}
                         paid={ticket.paid}
                       />
                     </div>
-                    <div onClick={(event) => event.stopPropagation()}>
+                    <div
+                      className="flex shrink-0 items-start gap-1"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold tabular-nums text-muted-foreground">
+                        #{ticket.id.toString()}
+                      </span>
                       <TicketRowActions
                         ticket={ticket}
                         onDelete={handleDelete}
+                        canWrite={canWriteTickets}
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Cliente
-                      </p>
-                      <p className="truncate font-medium leading-snug">
-                        {ticket.client_name || '—'}
-                      </p>
-                    </div>
-                    <div className="min-w-0 space-y-0.5">
+                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="min-w-0 rounded-xl bg-muted/35 p-3">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         Teléfono
                       </p>
-                      <p className="tabular-nums leading-snug">
+                      <dd className="mt-1 truncate font-medium tabular-nums leading-snug">
                         {ticket.client_tel || '—'}
-                      </p>
+                      </dd>
                     </div>
-                    <div className="min-w-0 space-y-0.5">
+                    <div className="min-w-0 rounded-xl bg-muted/35 p-3">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         Fecha
                       </p>
-                      <p className="leading-snug">
+                      <dd className="mt-1 font-medium leading-snug">
                         <FormattedDate date={ticket.ticket_date} />
-                      </p>
+                      </dd>
                     </div>
-                    <div className="space-y-0.5 text-right">
+                    <div className="col-span-2 rounded-xl bg-primary/5 p-3">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         Total
                       </p>
-                      <p className="font-semibold tabular-nums">
+                      <dd className="mt-1 text-xl font-semibold tabular-nums">
                         <FormattedCurrency amount={ticket.total} />
-                      </p>
+                      </dd>
                     </div>
-                  </div>
-                </div>
+                  </dl>
+                </TripledMobileRecordCard>
               );
             })}
           </div>
@@ -881,12 +904,14 @@ export default function TicketsList() {
                     className="cursor-pointer"
                     tabIndex={0}
                     onClick={() =>
-                      router.push(hrefForTicketListRow(row.original))
+                      router.push(hrefForTicketListRow(row.original, canWriteTickets))
                     }
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        router.push(hrefForTicketListRow(row.original));
+                        router.push(
+                          hrefForTicketListRow(row.original, canWriteTickets),
+                        );
                       }
                     }}
                   >
@@ -904,7 +929,7 @@ export default function TicketsList() {
             </Table>
           </div>
 
-          <div className="flex flex-col items-stretch justify-between gap-4 rounded-xl border border-border/60 bg-muted/20 px-3 py-4 sm:flex-row sm:items-center sm:px-4">
+          <div className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-border/60 bg-muted/20 px-3 py-4 sm:flex-row sm:items-center sm:px-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="whitespace-nowrap">Filas por página</span>
               <Select

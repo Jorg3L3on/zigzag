@@ -11,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled/motion';
+import { cn } from '@/lib/utils';
 
 type BreadcrumbItemType = {
   label: string;
@@ -19,15 +20,19 @@ type BreadcrumbItemType = {
 
 type TripledPageHeaderProps = {
   items: BreadcrumbItemType[];
+  className?: string;
 };
 
-export const TripledPageHeader = ({ items }: TripledPageHeaderProps) => {
+export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) => {
   return (
     <TripledMotionDiv
       variants={tripledFadeInUp}
       initial="hidden"
       animate="visible"
-      className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur"
+      className={cn(
+        'flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur',
+        className,
+      )}
     >
       <div className="flex items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />

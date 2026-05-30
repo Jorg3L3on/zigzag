@@ -1,12 +1,10 @@
 import { Metadata } from 'next';
 import { ClientForm } from '@/components/clients/client-form';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -18,6 +16,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { requirePagePermission } from '@/lib/page-authz';
+import { UserPlus } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Nuevo Cliente',
@@ -29,7 +28,7 @@ export default async function NewClientPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
+      <header className="hidden h-16 shrink-0 items-center gap-2 md:flex">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -49,27 +48,21 @@ export default async function NewClientPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full max-w-2xl">
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-4 pb-8">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">
-                    Información del Cliente
-                  </CardTitle>
-                  <CardDescription>
-                    Ingresa la información del nuevo cliente
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ClientForm />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+        <TripledMobileAppBar
+          title="Nuevo cliente"
+          subtitle="Datos de contacto"
+          backHref="/dashboard/clients"
+          className="mb-3"
+        />
+        <TripledResourceCard
+          title="Información del cliente"
+          description="Ingresa la información del nuevo cliente."
+          icon={<UserPlus className="size-5" aria-hidden />}
+        >
+          <ClientForm />
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

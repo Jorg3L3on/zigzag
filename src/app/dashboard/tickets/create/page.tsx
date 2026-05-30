@@ -59,12 +59,20 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/clients/client-form';
-import { TripledPageHeader, TripledStepper } from '@/components/tripled';
+import {
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledMobileStickyActionBar,
+  TripledPageHeader,
+  TripledStepper,
+} from '@/components/tripled';
 import {
   buildToastErrorContent,
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+
+const CREATE_TICKET_FORM_ID = 'create-ticket-form';
 
 const formSchema = z
   .object({
@@ -219,41 +227,68 @@ export default function CreateTicketPage() {
   return (
     <>
       <TripledPageHeader
+        className="hidden md:flex"
         items={[
           { label: 'Tickets', href: '/dashboard/tickets' },
           { label: 'Crear Ticket' },
         ]}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
-          <TripledStepper
-            navigationLabel="Progreso de creación del ticket"
-            steps={[
-              { id: 'create', title: 'Datos del ticket' },
-              { id: 'services', title: 'Servicios' },
-              { id: 'review', title: 'Revisión y PDF' },
-            ]}
-            currentStepId="create"
+      <TripledDashboardShell
+        maxWidthClassName="max-w-2xl"
+        contentClassName="space-y-4"
+        hasMobileStickyAction
+      >
+          <TripledMobileAppBar
+            title="Nuevo ticket"
+            subtitle="Paso 1 de 3"
+            backHref="/dashboard/tickets"
+            backLabel="Volver a tickets"
           />
-          <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
-            <CardHeader className="border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-6 sm:px-8 sm:py-7">
+
+          <div className="md:hidden">
+            <TripledStepper
+              navigationLabel="Progreso de creación del ticket"
+              steps={[
+                { id: 'create', title: 'Datos' },
+                { id: 'services', title: 'Servicios' },
+                { id: 'review', title: 'PDF' },
+              ]}
+              currentStepId="create"
+            />
+          </div>
+
+          <div className="hidden md:block">
+            <TripledStepper
+              navigationLabel="Progreso de creación del ticket"
+              steps={[
+                { id: 'create', title: 'Datos del ticket' },
+                { id: 'services', title: 'Servicios' },
+                { id: 'review', title: 'Revisión y PDF' },
+              ]}
+              currentStepId="create"
+            />
+          </div>
+
+          <Card className="overflow-hidden border-border/60 bg-card shadow-none sm:rounded-2xl sm:shadow-xl sm:ring-1 sm:ring-black/5 sm:dark:ring-white/10">
+            <CardHeader className="border-b border-border/50 bg-card px-4 py-5 sm:bg-gradient-to-br sm:from-muted/35 sm:via-background sm:to-background sm:px-8 sm:py-7">
               <div className="space-y-1.5">
-                <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
-                  Información del Cliente
+                <CardTitle className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">
+                  Información del cliente
                 </CardTitle>
-                <CardDescription className="text-base">
-                  Selecciona un cliente existente o crea uno nuevo
+                <CardDescription className="text-sm sm:text-base">
+                  Selecciona un cliente existente o crea uno nuevo.
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="space-y-8 px-5 pb-8 pt-6 sm:px-8">
+            <CardContent className="space-y-8 px-4 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-6">
               <Form {...form}>
                 <form
+                  id={CREATE_TICKET_FORM_ID}
                   onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-8"
+                  className="space-y-6 sm:space-y-8"
                 >
-                  <div className="grid gap-6">
+                  <div className="grid gap-5 sm:gap-6">
                     <FormField
                       control={form.control}
                       name="client_id"
@@ -275,7 +310,7 @@ export default function CreateTicketPage() {
                               >
                                 <FormControl>
                                   <SelectTrigger
-                                    className="h-10 w-full border border-input bg-background shadow-sm transition-colors focus:border-primary focus:ring-1 focus:ring-ring"
+                                    className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm transition-colors focus:border-primary focus:ring-1 focus:ring-ring md:h-10 md:text-sm"
                                     aria-busy={isClientsLoading}
                                   >
                                     {isClientsLoading ? (
@@ -312,7 +347,7 @@ export default function CreateTicketPage() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="h-10 w-full shrink-0 gap-2 border-input bg-background px-4 shadow-sm transition-colors hover:bg-accent sm:w-auto"
+                                  className="h-12 w-full shrink-0 gap-2 rounded-xl border-input bg-background px-4 text-base shadow-sm transition-colors hover:bg-accent sm:w-auto md:h-10 md:text-sm"
                                 >
                                   <Plus className="h-4 w-4 shrink-0" aria-hidden />
                                   Nuevo Cliente
@@ -326,6 +361,9 @@ export default function CreateTicketPage() {
                                   </DialogDescription>
                                 </DialogHeader>
                                 <ClientForm
+                                  onCancel={() => {
+                                    setIsNewClientDialogOpen(false);
+                                  }}
                                   onSuccess={(savedClient) => {
                                     setIsNewClientDialogOpen(false);
                                     if (savedClient) {
@@ -394,7 +432,7 @@ export default function CreateTicketPage() {
                     )}
 
                     {selectedClient && (
-                      <div className="rounded-xl border border-border/60 bg-muted/25 p-4 shadow-inner sm:p-5">
+                      <div className="rounded-2xl border border-border/60 bg-muted/25 p-4 shadow-inner sm:p-5">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           Cliente seleccionado
                         </p>
@@ -457,7 +495,7 @@ export default function CreateTicketPage() {
                                   type="button"
                                   variant="outline"
                                   className={cn(
-                                    'relative h-10 w-full pl-10 text-left font-normal shadow-sm transition-colors hover:border-primary',
+                                    'relative h-12 w-full rounded-xl pl-10 text-left text-base font-normal shadow-sm transition-colors hover:border-primary md:h-10 md:text-sm',
                                     !field.value && 'text-muted-foreground',
                                   )}
                                 >
@@ -506,10 +544,10 @@ export default function CreateTicketPage() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-4 border-t border-border/40 pt-8">
+                  <div className="hidden flex-col gap-4 border-t border-border/40 pt-8 md:flex">
                     <Button
                       type="submit"
-                      className="h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-md transition-colors duration-200 hover:from-blue-700 hover:to-purple-700 motion-safe:hover:brightness-105"
+                      className="h-11 w-full rounded-xl bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors duration-200 hover:bg-primary/90"
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? (
@@ -537,8 +575,30 @@ export default function CreateTicketPage() {
               </Form>
             </CardContent>
           </Card>
+      </TripledDashboardShell>
+
+      <TripledMobileStickyActionBar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {selectedClient?.name ?? 'Selecciona un cliente'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Luego agrega los servicios del ticket.
+          </p>
         </div>
-      </div>
+        <Button
+          type="submit"
+          form={CREATE_TICKET_FORM_ID}
+          className="h-12 shrink-0 rounded-xl bg-primary px-5 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            'Crear'
+          )}
+        </Button>
+      </TripledMobileStickyActionBar>
     </>
   );
 }

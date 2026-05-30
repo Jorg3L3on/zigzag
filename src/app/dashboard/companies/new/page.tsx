@@ -1,12 +1,10 @@
 import { Metadata } from 'next';
 import { CompanyForm } from '@/components/companies/company-form';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -17,7 +15,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { requirePagePermission } from '@/lib/page-authz';
+import { requirePagePermission, requireSystemPage } from '@/lib/page-authz';
+import { Building2 } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Nueva empresa',
@@ -26,10 +25,11 @@ export const metadata: Metadata = {
 
 export default async function NewCompanyPage() {
   await requirePagePermission('companies.write');
+  await requireSystemPage();
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
+      <header className="hidden h-16 shrink-0 items-center gap-2 md:flex">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -49,23 +49,21 @@ export default async function NewCompanyPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full max-w-3xl">
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-4 pb-8">
-              <div className="space-y-1">
-                <CardTitle className="text-xl">Nueva empresa</CardTitle>
-                <CardDescription>
-                  Datos generales, dirección y configuración fiscal
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CompanyForm />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <TripledDashboardShell maxWidthClassName="max-w-3xl">
+        <TripledMobileAppBar
+          title="Nueva empresa"
+          subtitle="Datos fiscales y contacto"
+          backHref="/dashboard/companies"
+          className="mb-3"
+        />
+        <TripledResourceCard
+          title="Nueva empresa"
+          description="Datos generales, dirección y configuración fiscal."
+          icon={<Building2 className="size-5" aria-hidden />}
+        >
+          <CompanyForm />
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

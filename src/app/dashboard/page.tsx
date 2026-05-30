@@ -1,6 +1,9 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { TripledPageHeader } from '@/components/tripled';
+import {
+  TripledDashboardShell,
+  TripledPageHeader,
+} from '@/components/tripled';
 import { DashboardMetricsClient } from '@/components/dashboard/dashboard-metrics-client';
 import { requirePagePermission } from '@/lib/page-authz';
 
@@ -18,9 +21,9 @@ export default async function DashboardPage() {
   return (
     <>
       <TripledPageHeader items={[{ label: 'Dashboard' }]} />
-      <div className="flex flex-1 flex-col gap-6 p-6">
+      <TripledDashboardShell>
         <DashboardMetricsClient />
-      </div>
+      </TripledDashboardShell>
     </>
   );
 }

@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Plus, Pencil, Trash2, Loader2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Search, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -45,7 +45,11 @@ import {
 } from '@/actions/services';
 import type { Service } from '@/db/schema';
 import { useCompany } from '@/contexts/company-context';
-import { TripledEmptyState } from '@/components/tripled';
+import {
+  TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { createServicesColumns } from '@/components/services/services-columns';
 import {
@@ -55,9 +59,13 @@ import {
   encodeSortingState,
 } from '@/components/services/services-sort-presets';
 import { FormattedCurrency } from '@/components/formatted-currency';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export function ServicesListClient() {
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
+  const canWriteServices = permissions.can(PERMISSIONS.services.write);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -153,8 +161,9 @@ export function ServicesListClient() {
   const columns = useMemo(
     () =>
       createServicesColumns({
-        renderActions: (service) => (
-          <>
+        renderActions: (service) =>
+          canWriteServices ? (
+            <>
             <Button
               variant="ghost"
               size="icon"
@@ -177,10 +186,10 @@ export function ServicesListClient() {
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
-          </>
-        ),
+            </>
+          ) : null,
       }),
-    [router, openDeleteDialog],
+    [router, openDeleteDialog, canWriteServices],
   );
 
   const table = useReactTable({
@@ -194,11 +203,46 @@ export function ServicesListClient() {
 
   const mobileSortValue = encodeSortingState(sorting);
   const isBusy = loading || loadingServices;
+  const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'active';
+  const activeStatusLabel =
+    filterOptions.find((option) => option.value === statusFilter)?.label ??
+    'Activos';
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setStatusFilter('active');
+    setSorting(DEFAULT_SERVICE_SORTING);
+  };
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredServices.length} de ${services.length} servicios`,
+      variant: 'secondary' as const,
+    },
+    ...(statusFilter !== 'active'
+      ? [
+          {
+            key: 'status',
+            label: activeStatusLabel,
+          },
+        ]
+      : []),
+    ...(debouncedSearch
+      ? [
+          {
+            key: 'search',
+            label: `Busqueda: ${debouncedSearch}`,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <>
       <div className="space-y-4">
-        <div className="relative max-w-sm">
+        <div className="relative">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -206,8 +250,8 @@ export function ServicesListClient() {
           <Input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar..."
-            className="pl-9"
+            placeholder="Buscar por nombre o descripcion..."
+            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar servicios"
           />
         </div>
@@ -219,7 +263,7 @@ export function ServicesListClient() {
                 key={option.value}
                 type="button"
                 variant={statusFilter === option.value ? 'default' : 'outline'}
-                size="sm"
+                className="min-h-11 rounded-xl"
                 onClick={() => setStatusFilter(option.value)}
                 aria-label={`Filtrar por ${option.label.toLowerCase()}`}
               >
@@ -233,7 +277,7 @@ export function ServicesListClient() {
               onValueChange={(value) => setSorting(decodeSortingState(value))}
             >
               <SelectTrigger
-                className="h-10 w-full sm:w-[min(100%,18rem)]"
+                className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
                 aria-label="Ordenar lista de servicios"
               >
                 <SelectValue placeholder="Ordenar por" />
@@ -249,18 +293,21 @@ export function ServicesListClient() {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground sm:text-sm">
-          Mostrando{' '}
-          <span className="font-medium text-foreground">{filteredServices.length}</span>
-          {services.length !== filteredServices.length ? (
-            <>
-              {' '}
-              de{' '}
-              <span className="font-medium text-foreground">{services.length}</span>
-            </>
-          ) : null}{' '}
-          servicios
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TripledFilterChips chips={filterChips} />
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
+              onClick={handleClearFilters}
+              aria-label="Limpiar filtros de servicios"
+            >
+              <X className="mr-2 h-4 w-4" aria-hidden />
+              Limpiar filtros
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {isBusy ? (
@@ -296,15 +343,31 @@ export function ServicesListClient() {
             {table.getRowModel().rows.map((row) => {
               const service = row.original;
               return (
-                <article
+                <TripledMobileRecordCard
                   key={row.id}
                   role="button"
-                  tabIndex={0}
-                  aria-label={`Editar servicio ${service.name}`}
-                  className="cursor-pointer rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => router.push(`/dashboard/services/${service.id}/edit`)}
+                  tabIndex={canWriteServices ? 0 : -1}
+                  aria-label={
+                    canWriteServices
+                      ? `Editar servicio ${service.name}`
+                      : `Servicio ${service.name}`
+                  }
+                  interactive={canWriteServices}
+                  className={
+                    canWriteServices
+                      ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                      : undefined
+                  }
+                  onClick={() => {
+                    if (canWriteServices) {
+                      router.push(`/dashboard/services/${service.id}/edit`);
+                    }
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
+                    if (
+                      canWriteServices &&
+                      (event.key === 'Enter' || event.key === ' ')
+                    ) {
                       event.preventDefault();
                       router.push(`/dashboard/services/${service.id}/edit`);
                     }
@@ -346,7 +409,8 @@ export function ServicesListClient() {
                     </span>
                   </div>
 
-                  <div className="mt-4 flex justify-end gap-2">
+                  {canWriteServices ? (
+                    <div className="mt-4 flex justify-end gap-2">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -369,8 +433,9 @@ export function ServicesListClient() {
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
-                  </div>
-                </article>
+                    </div>
+                  ) : null}
+                </TripledMobileRecordCard>
               );
             })}
           </div>
@@ -401,11 +466,18 @@ export function ServicesListClient() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer"
-                    tabIndex={0}
-                    onClick={() => router.push(`/dashboard/services/${row.original.id}/edit`)}
+                    className={canWriteServices ? 'cursor-pointer' : undefined}
+                    tabIndex={canWriteServices ? 0 : -1}
+                    onClick={() => {
+                      if (canWriteServices) {
+                        router.push(`/dashboard/services/${row.original.id}/edit`);
+                      }
+                    }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
+                      if (
+                        canWriteServices &&
+                        (event.key === 'Enter' || event.key === ' ')
+                      ) {
                         event.preventDefault();
                         router.push(`/dashboard/services/${row.original.id}/edit`);
                       }

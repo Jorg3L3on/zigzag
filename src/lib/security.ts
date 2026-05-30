@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
-import { permission, rolePermission, user } from '@/db/schema';
+import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from './db';
 import { AuthorizationError } from './errors';
 import { auth } from './auth';
@@ -73,22 +73,41 @@ export async function checkPermission(
       throw new AuthorizationError('User not authenticated');
     }
 
-    // For system company users, allow all permissions
-    if (session.user.company_is_system) {
-      return true;
-    }
-
-    // Check if user belongs to the company
-    if (session.user.company_id !== companyId) {
-      return false;
-    }
-
     const userIdAsBigInt = BigInt(userId);
     const userRow = await db.query.user.findFirst({
       where: and(eq(user.id, userIdAsBigInt), isNull(user.deleted_at)),
+      with: {
+        company: true,
+      },
     });
 
+    if (
+      !userRow?.company ||
+      userRow.company.deleted_at ||
+      userRow.company.status !== 'ACTIVE'
+    ) {
+      return false;
+    }
+
+    // Persisted System company users are the root exception.
+    if (userRow.company.is_system) {
+      return true;
+    }
+
+    // Regular users can only receive permissions inside their own company.
+    if (userRow.company_id !== companyId) {
+      return false;
+    }
+
     if (!userRow?.role_id) {
+      return false;
+    }
+
+    const roleRow = await db.query.role.findFirst({
+      where: and(eq(role.id, userRow.role_id), isNull(role.deleted_at)),
+    });
+
+    if (!roleRow) {
       return false;
     }
 
@@ -107,9 +126,8 @@ export async function checkPermission(
         ),
       );
 
-    // Local migration escape hatch only; production RBAC must fail closed.
     if (permissionRows.length === 0) {
-      return process.env.ALLOW_MISSING_PERMISSIONS === 'true';
+      return false;
     }
 
     const permitted = await db
@@ -135,19 +153,13 @@ export async function checkPermission(
 
 // Company access validation
 export async function validateCompanyAccess(companyId: number): Promise<void> {
-  const session = await auth();
+  const context = await requireActionAuth();
 
-  if (!session?.user) {
-    throw new AuthorizationError('Authentication required');
-  }
-
-  // System company users can access all companies
-  if (session.user.company_is_system) {
+  if (context.companyIsSystem) {
     return;
   }
 
-  // Regular users can only access their own company
-  if (session.user.company_id !== companyId) {
+  if (context.companyId !== companyId) {
     throw new AuthorizationError('Access denied to this company');
   }
 }
@@ -158,10 +170,25 @@ export async function requireActionAuth(): Promise<ActionAuthContext> {
     throw new AuthorizationError('Authentication required');
   }
 
+  const activeUser = await db.query.user.findFirst({
+    where: and(eq(user.id, BigInt(session.user.id)), isNull(user.deleted_at)),
+    with: {
+      company: true,
+    },
+  });
+
+  if (
+    !activeUser?.company ||
+    activeUser.company.deleted_at ||
+    activeUser.company.status !== 'ACTIVE'
+  ) {
+    throw new AuthorizationError('Authentication required');
+  }
+
   return {
     userId: session.user.id,
-    companyId: session.user.company_id ?? null,
-    companyIsSystem: Boolean(session.user.company_is_system),
+    companyId: activeUser.company_id ?? null,
+    companyIsSystem: Boolean(activeUser.company.is_system),
   };
 }
 

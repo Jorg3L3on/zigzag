@@ -30,7 +30,8 @@ import {
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import { getSessionPermissionMap } from '@/actions/authz';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermissions } from '@/hooks/use-permissions';
 
 interface Company {
   id: number;
@@ -62,19 +63,19 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       title: 'Tickets',
       url: '/dashboard/tickets',
       icon: Ticket,
-      requiredPermission: 'tickets.read',
+      requiredPermission: PERMISSIONS.tickets.read,
     },
     {
       title: 'Servicios',
       url: '/dashboard/services',
       icon: Package,
-      requiredPermission: 'services.read',
+      requiredPermission: PERMISSIONS.services.read,
     },
     {
       title: 'Clientes',
       url: '/dashboard/clients',
       icon: User,
-      requiredPermission: 'clients.read',
+      requiredPermission: PERMISSIONS.clients.read,
     },
   ],
   system: [
@@ -82,25 +83,25 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       title: 'Usuarios',
       url: '/dashboard/users',
       icon: User,
-      requiredPermission: 'users.read',
+      requiredPermission: PERMISSIONS.users.read,
     },
     {
       title: 'Empresas',
       url: '/dashboard/companies',
       icon: Building,
-      requiredPermission: 'companies.read',
+      requiredPermission: PERMISSIONS.companies.read,
     },
     {
       title: 'Roles',
       url: '/dashboard/roles',
       icon: Shield,
-      requiredPermission: 'roles.read',
+      requiredPermission: PERMISSIONS.roles.read,
     },
     {
       title: 'Permisos',
       url: '/dashboard/permissions',
       icon: Key,
-      requiredPermission: 'permissions.read',
+      requiredPermission: PERMISSIONS.permissions.read,
     },
   ],
 };
@@ -116,11 +117,8 @@ const getLongestMatchingHref = (pathname: string, hrefs: string[]): string | nul
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { can } = usePermissions();
   const [companies, setCompanies] = React.useState<Company[]>([]);
-  const [permissionMap, setPermissionMap] = React.useState<{
-    isSystem: boolean;
-    permissions: string[];
-  }>({ isSystem: false, permissions: [] });
 
   React.useEffect(() => {
     const fetchCompanies = async () => {
@@ -171,25 +169,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
     };
 
-    const fetchPermissions = async () => {
-      try {
-        setPermissionMap(await getSessionPermissionMap());
-      } catch (error) {
-        console.error('Error fetching permissions:', error);
-        setPermissionMap({ isSystem: false, permissions: [] });
-      }
-    };
-
     fetchCompanies();
-    fetchPermissions();
   }, []);
 
   const canAccess = React.useCallback(
-    (requiredPermission?: string) =>
-      permissionMap.isSystem ||
-      !requiredPermission ||
-      permissionMap.permissions.includes(requiredPermission),
-    [permissionMap],
+    (requiredPermission?: string) => can(requiredPermission),
+    [can],
   );
 
   const visibleNavMain = React.useMemo(

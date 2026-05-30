@@ -6,30 +6,6 @@ import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
-function transformBigInt<T>(data: T): T {
-  if (data === null || data === undefined) {
-    return data;
-  }
-
-  if (typeof data === 'bigint') {
-    return data.toString() as unknown as T;
-  }
-
-  if (Array.isArray(data)) {
-    return data.map(transformBigInt) as unknown as T;
-  }
-
-  if (typeof data === 'object') {
-    const transformed: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(data as object)) {
-      transformed[key] = transformBigInt(value);
-    }
-    return transformed as unknown as T;
-  }
-
-  return data;
-}
-
 export async function GET() {
   try {
     const { session, unauthorized } = await requireApiPermission('users.read');
@@ -50,7 +26,7 @@ export async function GET() {
             ),
           );
 
-    return ok(transformBigInt(users));
+    return ok(users);
   } catch (error) {
     console.error(error);
     return fail('US001', 500, 'server');
@@ -104,7 +80,7 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return ok(transformBigInt(created), 201);
+    return ok(created, 201);
   } catch (e) {
     if (e instanceof z.ZodError) {
       return fail('US005', 400, 'validation');
