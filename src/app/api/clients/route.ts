@@ -38,7 +38,22 @@ export async function GET(request: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, phone, document, address, company_id } = body;
+    const {
+      name,
+      email,
+      phone,
+      document,
+      address,
+      street,
+      exterior_number,
+      interior_number,
+      neighborhood,
+      city,
+      state,
+      postal_code,
+      country,
+      company_id,
+    } = body;
     const { unauthorized, companyId } = await requireApiPermission(
       'clients.write',
       typeof company_id === 'number' ? company_id : undefined,
@@ -59,6 +74,14 @@ export async function POST(req: Request) {
         phone,
         document,
         address,
+        street,
+        exterior_number,
+        interior_number,
+        neighborhood,
+        city,
+        state,
+        postal_code,
+        country,
         company_id: companyId as number,
       })
       .returning();

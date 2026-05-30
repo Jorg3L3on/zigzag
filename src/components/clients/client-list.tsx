@@ -61,6 +61,7 @@ import {
 } from '@/components/clients/clients-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+import { formatClientAddressOneLine } from '@/lib/client-address';
 
 type ContactFilter = 'all' | 'with' | 'without';
 
@@ -123,6 +124,7 @@ export function ClientList() {
   const filteredClients = React.useMemo(() => {
     const q = debouncedSearch.toLowerCase();
     return clients.filter((clientRow) => {
+      const formattedAddress = formatClientAddressOneLine(clientRow);
       const matchesSearch =
         !q ||
         clientRow.id.toString().includes(q) ||
@@ -130,7 +132,7 @@ export function ClientList() {
         (clientRow.email ?? '').toLowerCase().includes(q) ||
         (clientRow.phone ?? '').toLowerCase().includes(q) ||
         (clientRow.document ?? '').toLowerCase().includes(q) ||
-        (clientRow.address ?? '').toLowerCase().includes(q);
+        formattedAddress.toLowerCase().includes(q);
 
       if (!matchesSearch) {
         return false;
@@ -425,6 +427,7 @@ export function ClientList() {
           <div className="space-y-3 md:hidden">
             {table.getRowModel().rows.map((row) => {
               const clientRow = row.original;
+              const formattedAddress = formatClientAddressOneLine(clientRow);
               return (
                 <TripledMobileRecordCard
                   key={row.id}
@@ -501,7 +504,7 @@ export function ClientList() {
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">
                       <dt className="text-muted-foreground">Dirección</dt>
-                      <dd className="line-clamp-2">{clientRow.address || '—'}</dd>
+                      <dd className="line-clamp-2">{formattedAddress || '—'}</dd>
                     </div>
                   </dl>
                 </TripledMobileRecordCard>

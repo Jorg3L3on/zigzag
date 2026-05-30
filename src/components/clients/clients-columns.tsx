@@ -7,6 +7,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormattedDate } from '@/components/formatted-date';
 import { cn } from '@/lib/utils';
+import { formatClientAddressOneLine } from '@/lib/client-address';
 
 function ClientSortableHeader<TData>({
   column,
@@ -114,18 +115,18 @@ export const createClientsColumns = ({
   },
   {
     id: 'address',
-    accessorFn: (row) => row.address ?? '',
+    accessorFn: (row) => formatClientAddressOneLine(row),
     header: ({ column }) => (
       <ClientSortableHeader column={column} label="Dirección" />
     ),
     cell: ({ row }) => (
       <span className="line-clamp-2 max-w-[16rem] text-muted-foreground">
-        {row.original.address?.trim() ? row.original.address : '—'}
+        {formatClientAddressOneLine(row.original) || '—'}
       </span>
     ),
     sortingFn: (a, b) => {
-      const na = (a.original.address ?? '').toLocaleLowerCase();
-      const nb = (b.original.address ?? '').toLocaleLowerCase();
+      const na = formatClientAddressOneLine(a.original).toLocaleLowerCase();
+      const nb = formatClientAddressOneLine(b.original).toLocaleLowerCase();
       return na.localeCompare(nb, 'es');
     },
   },

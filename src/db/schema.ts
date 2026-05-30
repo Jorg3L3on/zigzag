@@ -127,6 +127,14 @@ export const client = pgTable(
     phone: varchar('phone', { length: 20 }),
     document: varchar('document', { length: 100 }),
     address: text('address'),
+    street: text('street'),
+    exterior_number: text('exterior_number'),
+    interior_number: text('interior_number'),
+    neighborhood: text('neighborhood'),
+    city: text('city'),
+    state: text('state'),
+    postal_code: text('postal_code'),
+    country: text('country'),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),

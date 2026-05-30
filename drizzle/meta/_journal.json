@@ -36,6 +36,13 @@
       "when": 1778976000000,
       "tag": "0004_rbac_foreign_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779993600000,
+      "tag": "0005_client_structured_address",
+      "breakpoints": true
     }
   ]
 }
