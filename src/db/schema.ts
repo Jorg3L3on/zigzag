@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   bigserial,
@@ -209,6 +209,35 @@ export const servicesTickets = pgTable(
   ],
 );
 
+export const clientServiceSchedule = pgTable(
+  'ClientServiceSchedule',
+  {
+    id: serial('id').primaryKey(),
+    company_id: integer('company_id').notNull(),
+    client_id: integer('client_id').notNull(),
+    service_id: integer('service_id').notNull(),
+    interval_value: integer('interval_value').notNull(),
+    interval_unit: varchar('interval_unit', { length: 10 }).notNull(),
+    last_service_at: timestamp('last_service_at', { precision: 3, mode: 'date' }),
+    next_due_at: timestamp('next_due_at', { precision: 3, mode: 'date' }).notNull(),
+    paused_at: timestamp('paused_at', { precision: 3, mode: 'date' }),
+    pause_reason: text('pause_reason'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
+    deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
+  },
+  (t) => [
+    index('ClientServiceSchedule_company_id_idx').on(t.company_id),
+    index('ClientServiceSchedule_next_due_at_idx').on(t.next_due_at),
+    index('ClientServiceSchedule_client_id_idx').on(t.client_id),
+    uniqueIndex('ClientServiceSchedule_company_client_service_uidx')
+      .on(t.company_id, t.client_id, t.service_id)
+      .where(sql`${t.deleted_at} is null`),
+  ],
+);
+
 /** Registro de cada abono o cobro aplicado al ticket (historial). */
 export const ticketPayment = pgTable(
   'TicketPayment',
@@ -307,12 +336,32 @@ export const rolePermissionRelations = relations(rolePermission, ({ one }) => ({
 export const clientRelations = relations(client, ({ one, many }) => ({
   company: one(company, { fields: [client.company_id], references: [company.id] }),
   tickets: many(ticket),
+  service_schedules: many(clientServiceSchedule),
 }));
 
 export const serviceRelations = relations(service, ({ one, many }) => ({
   company: one(company, { fields: [service.company_id], references: [company.id] }),
   services_tickets: many(servicesTickets),
+  client_schedules: many(clientServiceSchedule),
 }));
+
+export const clientServiceScheduleRelations = relations(
+  clientServiceSchedule,
+  ({ one }) => ({
+    company: one(company, {
+      fields: [clientServiceSchedule.company_id],
+      references: [company.id],
+    }),
+    client: one(client, {
+      fields: [clientServiceSchedule.client_id],
+      references: [client.id],
+    }),
+    service: one(service, {
+      fields: [clientServiceSchedule.service_id],
+      references: [service.id],
+    }),
+  }),
+);
 
 export const ticketRelations = relations(ticket, ({ one, many }) => ({
   company: one(company, { fields: [ticket.company_id], references: [company.id] }),
@@ -366,4 +415,5 @@ export type TicketRow = typeof ticket.$inferSelect;
 export type TicketPaymentRow = typeof ticketPayment.$inferSelect;
 export type TicketAuditEventRow = typeof ticketAuditEvent.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
+export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;

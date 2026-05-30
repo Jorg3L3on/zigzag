@@ -43,6 +43,13 @@
       "when": 1779993600000,
       "tag": "0005_client_structured_address",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780000000000,
+      "tag": "0006_client_service_schedule",
+      "breakpoints": true
     }
   ]
 }
