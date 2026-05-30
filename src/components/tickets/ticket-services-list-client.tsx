@@ -52,7 +52,13 @@ import {
 } from '@/lib/network-awareness';
 import { ServiceForm } from '@/components/services/service-form';
 
-export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
+export function TicketServicesListClient({
+  ticketId,
+  prefillServiceId,
+}: {
+  ticketId: string;
+  prefillServiceId?: string;
+}) {
   const router = useRouter();
   const { selectedCompany } = useCompany();
   const [services, setServices] = useState<Service[]>([]);
@@ -87,6 +93,51 @@ export function TicketServicesListClient({ ticketId }: { ticketId: string }) {
     fetchServices();
     fetchTicketServices();
   }, [selectedCompany, ticketId]);
+
+  const prefillHandledRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (
+      prefillHandledRef.current ||
+      !prefillServiceId ||
+      services.length === 0 ||
+      ticketServices.length > 0
+    ) {
+      return;
+    }
+
+    const serviceId = Number.parseInt(prefillServiceId, 10);
+    if (!Number.isFinite(serviceId)) {
+      return;
+    }
+
+    const catalogService = services.find((item) => item.id === serviceId);
+    if (!catalogService) {
+      return;
+    }
+
+    prefillHandledRef.current = true;
+
+    const runPrefill = async () => {
+      setIsSubmitting(true);
+      try {
+        const result = await createServiceTicket(ticketId, {
+          service_id: serviceId,
+          quantity: 1,
+          price: catalogService.price,
+        });
+        if (result.success && result.data) {
+          const added = result.data;
+          setTicketServices((current) => [...current, added]);
+          toast.success('Servicio agregado desde recordatorio');
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    void runPrefill();
+  }, [prefillServiceId, services, ticketId, ticketServices.length]);
 
   const resetForm = () => {
     setSelectedService('');

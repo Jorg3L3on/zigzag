@@ -13,7 +13,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { createTicket } from '@/actions/tickets';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Popover,
@@ -105,6 +105,10 @@ type FormValues = z.infer<typeof formSchema>;
 export default function CreateTicketPage() {
   const { selectedCompany } = useCompany();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillClientId = searchParams.get('clientId');
+  const prefillServiceId = searchParams.get('serviceId');
+  const prefillAppliedRef = React.useRef(false);
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -192,6 +196,20 @@ export default function CreateTicketPage() {
     }
   };
 
+  React.useEffect(() => {
+    if (prefillAppliedRef.current || !prefillClientId || clients.length === 0) {
+      return;
+    }
+    const match = clients.find(
+      (client) => client.id === Number.parseInt(prefillClientId, 10),
+    );
+    if (!match) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+    handleClientSelect(String(match.id));
+  }, [clients, prefillClientId]);
+
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
@@ -201,7 +219,10 @@ export default function CreateTicketPage() {
       });
       if (result.success && result.data) {
         toast.success('Ticket creado correctamente');
-        router.push(`/dashboard/tickets/${result.data.id}/services`);
+        const servicesPath = prefillServiceId
+          ? `/dashboard/tickets/${result.data.id}/services?serviceId=${prefillServiceId}`
+          : `/dashboard/tickets/${result.data.id}/services`;
+        router.push(servicesPath);
       } else {
         const errorContent = buildToastErrorContent(
           result,

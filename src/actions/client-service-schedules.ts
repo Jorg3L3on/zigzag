@@ -19,6 +19,7 @@ import {
   classifyScheduleBucket,
   isScheduleFilterBucket,
   matchesScheduleFilter,
+  type ScheduleDisplayBucket,
   type ScheduleFilterBucket,
 } from '@/lib/schedule-buckets';
 import {
@@ -41,7 +42,7 @@ export type ClientServiceScheduleListItem = {
   nextDueAt: string;
   pausedAt: string | null;
   pauseReason: string | null;
-  bucket: ScheduleFilterBucket;
+  bucket: ScheduleDisplayBucket;
 };
 
 export type UpsertClientServiceScheduleInput = {
@@ -140,6 +141,50 @@ const assertCatalogRefs = async (
 
   return { success: true };
 };
+
+export async function listClientServiceSchedulesForClient(
+  clientId: number,
+  companyId?: number | null,
+): Promise<{
+  success: boolean;
+  data?: ClientServiceScheduleListItem[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireActionPermission(
+      PERMISSIONS.tickets.read,
+      companyId ?? undefined,
+    );
+
+    const rows = await db.query.clientServiceSchedule.findMany({
+      where: and(
+        eq(clientServiceSchedule.company_id, effectiveCompanyId),
+        eq(clientServiceSchedule.client_id, clientId),
+        isNull(clientServiceSchedule.deleted_at),
+      ),
+      with: {
+        client: true,
+        service: true,
+      },
+      orderBy: [asc(clientServiceSchedule.next_due_at)],
+    });
+
+    const items = rows
+      .filter(
+        (row) => row.client.deleted_at === null && row.service.deleted_at === null,
+      )
+      .map(mapRowToListItem);
+
+    return { success: true, data: items };
+  } catch (error) {
+    return handleCodedServerActionError(
+      'clientServiceSchedules.listForClient',
+      'CL001',
+      error,
+    );
+  }
+}
 
 export async function listClientServiceSchedules(params: {
   companyId?: number | null;

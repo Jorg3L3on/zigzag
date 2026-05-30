@@ -23,6 +23,7 @@ import { TripledMotionDiv, tripledStagger } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
+import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
@@ -219,6 +220,8 @@ export const DashboardMetricsClient = () => {
           revenueMonthCount={monthCount}
         />
       </div>
+
+      <DashboardServiceSchedulesWidget />
 
       <DashboardRecentTickets tickets={metrics.recentTickets} />
     </div>

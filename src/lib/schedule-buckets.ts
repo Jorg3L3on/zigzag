@@ -17,6 +17,8 @@ export const SCHEDULE_FILTER_BUCKETS = [
 
 export type ScheduleFilterBucket = (typeof SCHEDULE_FILTER_BUCKETS)[number];
 
+export type ScheduleDisplayBucket = Exclude<ScheduleFilterBucket, 'todos'>;
+
 export const isScheduleFilterBucket = (
   value: string,
 ): value is ScheduleFilterBucket =>
@@ -26,7 +28,7 @@ export const classifyScheduleBucket = (
   nextDueAt: Date,
   pausedAt: Date | null,
   today: Date = new Date(),
-): ScheduleFilterBucket => {
+): ScheduleDisplayBucket => {
   if (pausedAt) {
     return 'pausados';
   }

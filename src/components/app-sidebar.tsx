@@ -10,6 +10,7 @@ import {
   Ticket,
   User,
   Key,
+  CalendarClock,
   type LucideIcon,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -63,6 +64,12 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       title: 'Tickets',
       url: '/dashboard/tickets',
       icon: Ticket,
+      requiredPermission: PERMISSIONS.tickets.read,
+    },
+    {
+      title: 'Recordatorios de servicio',
+      url: '/dashboard/service-schedules',
+      icon: CalendarClock,
       requiredPermission: PERMISSIONS.tickets.read,
     },
     {
