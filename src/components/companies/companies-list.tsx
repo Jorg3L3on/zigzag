@@ -48,13 +48,32 @@ import {
 } from '@/components/companies/companies-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+import {
+  companyLifecycleLabel,
+  normalizeCompanyLifecycleStatus,
+} from '@/lib/company-lifecycle';
 
-type StatusFilter = 'all' | 'active' | 'inactive';
+type StatusFilter = 'all' | 'setup' | 'active' | 'restricted';
 
 const statusLabel = (status: Company['status']) =>
-  status === 'ACTIVE' ? 'Activa' : 'Inactiva';
+  companyLifecycleLabel(status);
 
-const isActive = (status: Company['status']) => status === 'ACTIVE';
+const matchesStatusFilter = (
+  status: Company['status'],
+  filter: StatusFilter,
+): boolean => {
+  const lifecycle = normalizeCompanyLifecycleStatus(status);
+  if (filter === 'setup') {
+    return lifecycle === 'SETUP';
+  }
+  if (filter === 'active') {
+    return lifecycle === 'ACTIVE';
+  }
+  if (filter === 'restricted') {
+    return lifecycle === 'SUSPENDED' || lifecycle === 'ARCHIVED';
+  }
+  return true;
+};
 
 export function CompaniesList() {
   const { selectedCompany } = useCompany();
@@ -130,14 +149,7 @@ export function CompaniesList() {
         return false;
       }
 
-      if (statusFilter === 'active') {
-        return isActive(companyRow.status);
-      }
-      if (statusFilter === 'inactive') {
-        return !isActive(companyRow.status);
-      }
-
-      return true;
+      return matchesStatusFilter(companyRow.status, statusFilter);
     });
   }, [companies, debouncedSearch, statusFilter]);
 
@@ -225,8 +237,9 @@ export function CompaniesList() {
 
   const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
     { value: 'all', label: 'Todas' },
+    { value: 'setup', label: 'En configuración' },
     { value: 'active', label: 'Activas' },
-    { value: 'inactive', label: 'Inactivas' },
+    { value: 'restricted', label: 'Suspendidas / archivadas' },
   ];
 
   const rowCount = table.getRowModel().rows.length;
@@ -415,7 +428,7 @@ export function CompaniesList() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Badge
                             variant={
-                              isActive(companyRow.status)
+                              companyRow.status === 'ACTIVE'
                                 ? 'default'
                                 : 'secondary'
                             }

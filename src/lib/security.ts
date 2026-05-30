@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from './db';
 import { AuthorizationError } from './errors';
+import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
 import { auth } from './auth';
 import {
   resolveWritableCompanyId,
@@ -84,7 +85,7 @@ export async function checkPermission(
     if (
       !userRow?.company ||
       userRow.company.deleted_at ||
-      userRow.company.status !== 'ACTIVE'
+      !companyAllowsAuthentication(userRow.company.status)
     ) {
       return false;
     }
@@ -180,7 +181,7 @@ export async function requireActionAuth(): Promise<ActionAuthContext> {
   if (
     !activeUser?.company ||
     activeUser.company.deleted_at ||
-    activeUser.company.status !== 'ACTIVE'
+    !companyAllowsAuthentication(activeUser.company.status)
   ) {
     throw new AuthorizationError('Authentication required');
   }

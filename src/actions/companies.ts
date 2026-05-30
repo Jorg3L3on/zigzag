@@ -11,6 +11,11 @@ import {
 } from '@/lib/company-schema';
 import { bootstrapCompanyTenant } from '@/lib/company-bootstrap';
 import {
+  canTransitionCompanyLifecycle,
+  normalizeCompanyLifecycleStatus,
+} from '@/lib/company-lifecycle';
+import { listCompanyProfileGaps } from '@/lib/company-readiness';
+import {
   buildActionError,
   handleCodedServerActionError,
   type ActionErrorType,
@@ -138,6 +143,49 @@ export async function updateCompany(
 
     const validatedData = companyFormSchema.parse(data);
     const settings = normalizeCompanySettingsForDb(validatedData.settings);
+
+    const existing = await db.query.company.findFirst({
+      where: and(eq(company.id, id), isNull(company.deleted_at)),
+    });
+    if (!existing) {
+      return buildActionError('CO006');
+    }
+
+    const nextLifecycle = normalizeCompanyLifecycleStatus(validatedData.status);
+    const transition = canTransitionCompanyLifecycle(
+      existing.status,
+      nextLifecycle,
+    );
+    if (!transition.allowed) {
+      return buildActionError('CO009');
+    }
+
+    const mergedPreview = {
+      ...existing,
+      name: validatedData.name,
+      phone: validatedData.phone,
+      email: validatedData.email,
+      logo: validatedData.logo || null,
+      street: validatedData.street,
+      interior_number: validatedData.interior_number?.trim()
+        ? validatedData.interior_number.trim()
+        : null,
+      exterior_number: validatedData.exterior_number,
+      neighborhood: validatedData.neighborhood,
+      city: validatedData.city,
+      state: validatedData.state,
+      country: validatedData.country,
+      postal_code: validatedData.postal_code,
+      status: validatedData.status,
+      settings,
+    };
+
+    if (
+      nextLifecycle === 'ACTIVE' &&
+      listCompanyProfileGaps(mergedPreview).length > 0
+    ) {
+      return buildActionError('CO008');
+    }
 
     const [updated] = await db
       .update(company)

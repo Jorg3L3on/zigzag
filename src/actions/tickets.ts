@@ -26,6 +26,7 @@ import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
 } from '@/lib/ticket-payment-status';
+import { assertCompanyProductionReady } from '@/lib/company-production-guard';
 import { requireActionPermission } from '@/lib/security';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
@@ -212,6 +213,8 @@ export async function createTicket(
       'tickets.write',
       validatedData.company_id,
     );
+
+    await assertCompanyProductionReady(effectiveCompanyId);
 
     const values = {
       client_id: validatedData.client_id,

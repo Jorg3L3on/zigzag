@@ -21,7 +21,7 @@ export const companyFormSchema = z.object({
   state: z.string().min(1, 'El estado es requerido'),
   country: z.string().min(1, 'El país es requerido'),
   postal_code: z.string().min(1, 'El código postal es requerido'),
-  status: z.enum(['ACTIVE', 'INACTIVE']),
+  status: z.enum(['SETUP', 'ACTIVE', 'SUSPENDED', 'ARCHIVED']),
   settings: companySettingsSchema.optional(),
 });
 

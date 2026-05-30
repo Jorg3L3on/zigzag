@@ -7,10 +7,8 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
+import { companyLifecycleLabel } from '@/lib/company-lifecycle';
 import { cn } from '@/lib/utils';
-
-const statusLabel = (status: Company['status']) =>
-  status === 'ACTIVE' ? 'Activa' : 'Inactiva';
 
 function CompanySortableHeader<TData>({
   column,
@@ -122,7 +120,7 @@ export const createCompaniesColumns = ({
       const active = row.original.status === 'ACTIVE';
       return (
         <Badge variant={active ? 'default' : 'secondary'}>
-          {statusLabel(row.original.status)}
+          {companyLifecycleLabel(row.original.status)}
         </Badge>
       );
     },
