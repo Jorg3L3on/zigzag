@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { CompanyForm } from '@/components/companies/company-form';
+import { CompanyPortabilityPanel } from '@/components/companies/company-portability-panel';
 import { CompanyReadinessPanel } from '@/components/companies/company-readiness-panel';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
 import {
@@ -89,6 +90,7 @@ export default async function EditCompanyPage({
         >
           <div className="space-y-6">
             <CompanyReadinessPanel assessment={readiness} />
+            <CompanyPortabilityPanel company={companyRow} />
             <CompanyForm company={companyRow} key={companyRow.logo ?? 'no-logo'} />
           </div>
         </TripledResourceCard>

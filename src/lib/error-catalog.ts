@@ -166,6 +166,22 @@ export const ERROR_CATALOG = {
       'Tu plan no permite crear más recursos de este tipo. Actualiza el plan o libera espacio.',
     type: 'validation',
   },
+  CO012: {
+    code: 'CO012',
+    module: 'companies',
+    title: 'Exportación no disponible',
+    message:
+      'No se pudo generar la exportación de datos de la empresa. Verifica permisos e intenta de nuevo.',
+    type: 'server',
+  },
+  CO013: {
+    code: 'CO013',
+    module: 'companies',
+    title: 'Offboarding no permitido',
+    message:
+      'No se puede archivar esta empresa con su estado actual o ya fue dada de baja.',
+    type: 'validation',
+  },
   DB001: {
     code: 'DB001',
     module: 'dashboard',
