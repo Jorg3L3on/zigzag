@@ -25,8 +25,18 @@ import {
 } from '@/lib/dashboard-metrics';
 import { checkPermission } from '@/lib/security';
 
+export type DashboardRecentTicket = {
+  id: string;
+  clientName: string;
+  total: number | null;
+  paid: number | null;
+  ticketDate: Date | null;
+  createdAt: Date;
+};
+
 export interface DashboardMetrics {
   kpis: DashboardKpi[];
+  recentTickets: DashboardRecentTicket[];
   totalTickets: number;
   totalRevenue: number;
   totalRevenueRecognized: number;
@@ -132,6 +142,39 @@ async function loadDashboardMetricsForCompany(
         ),
       );
 
+    const recentTicketRows = await db
+      .select({
+        id: ticket.id,
+        client_name: ticket.client_name,
+        client_table_name: client.name,
+        total: ticket.total,
+        paid: ticket.paid,
+        ticket_date: ticket.ticket_date,
+        created_at: ticket.created_at,
+      })
+      .from(ticket)
+      .leftJoin(
+        client,
+        and(eq(ticket.client_id, client.id), isNull(client.deleted_at)),
+      )
+      .where(ticketScope)
+      .orderBy(desc(sql`COALESCE(${ticket.ticket_date}, ${ticket.created_at})`))
+      .limit(15);
+
+    const recentTickets: DashboardRecentTicket[] = recentTicketRows.map(
+      (row) => ({
+        id: String(row.id),
+        clientName:
+          row.client_table_name?.trim() ||
+          row.client_name?.trim() ||
+          'Sin cliente',
+        total: row.total,
+        paid: row.paid,
+        ticketDate: row.ticket_date,
+        createdAt: row.created_at,
+      }),
+    );
+
     const clientMetrics = await db
       .select({
         id: client.id,
@@ -160,6 +203,7 @@ async function loadDashboardMetricsForCompany(
       success: true,
       data: {
         kpis,
+        recentTickets,
         totalTickets: Number(ticketTotals?.totalTickets ?? 0),
         totalRevenue: Number(ticketTotals?.totalRevenueRecognized ?? 0),
         totalRevenueRecognized: Number(ticketTotals?.totalRevenueRecognized ?? 0),
