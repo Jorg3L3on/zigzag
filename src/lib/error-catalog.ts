@@ -135,6 +135,53 @@ export const ERROR_CATALOG = {
     message: 'Revisa los campos marcados e intenta de nuevo.',
     type: 'validation',
   },
+  CO008: {
+    code: 'CO008',
+    module: 'companies',
+    title: 'Empresa no lista para operar',
+    message:
+      'Completa la configuración de la empresa o activa el estado operativo antes de continuar.',
+    type: 'validation',
+  },
+  CO009: {
+    code: 'CO009',
+    module: 'companies',
+    title: 'Cambio de estado no permitido',
+    message: 'El estado solicitado no es válido para esta empresa.',
+    type: 'validation',
+  },
+  CO010: {
+    code: 'CO010',
+    module: 'companies',
+    title: 'Logo no válido',
+    message:
+      'El archivo de logo no cumple el formato, tamaño o dimensiones permitidas.',
+    type: 'validation',
+  },
+  CO011: {
+    code: 'CO011',
+    module: 'companies',
+    title: 'Límite del plan alcanzado',
+    message:
+      'Tu plan no permite crear más recursos de este tipo. Actualiza el plan o libera espacio.',
+    type: 'validation',
+  },
+  CO012: {
+    code: 'CO012',
+    module: 'companies',
+    title: 'Exportación no disponible',
+    message:
+      'No se pudo generar la exportación de datos de la empresa. Verifica permisos e intenta de nuevo.',
+    type: 'server',
+  },
+  CO013: {
+    code: 'CO013',
+    module: 'companies',
+    title: 'Offboarding no permitido',
+    message:
+      'No se puede archivar esta empresa con su estado actual o ya fue dada de baja.',
+    type: 'validation',
+  },
   DB001: {
     code: 'DB001',
     module: 'dashboard',

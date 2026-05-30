@@ -17,12 +17,25 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-export const companyStatusEnum = pgEnum('CompanyStatus', ['ACTIVE', 'INACTIVE']);
+export const companyStatusEnum = pgEnum('CompanyStatus', [
+  'SETUP',
+  'ACTIVE',
+  'SUSPENDED',
+  'ARCHIVED',
+  'INACTIVE',
+]);
+
+export type CompanyLifecycleStatus =
+  | 'SETUP'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'ARCHIVED';
 
 export type CompanySettingsJson = {
   rfc?: string;
   invoice_footer_note?: string;
   default_currency?: string;
+  plan?: 'starter' | 'standard' | 'enterprise';
 };
 
 export const company = pgTable(
@@ -276,6 +289,32 @@ export const ticketAuditEvent = pgTable(
   ],
 );
 
+export const governanceAuditEvent = pgTable(
+  'GovernanceAuditEvent',
+  {
+    id: serial('id').primaryKey(),
+    resource_type: text('resource_type').notNull(),
+    resource_id: text('resource_id').notNull(),
+    company_id: integer('company_id'),
+    actor_user_id: bigint('actor_user_id', { mode: 'bigint' }),
+    actor_company_id: integer('actor_company_id'),
+    event_type: text('event_type').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown> | null>(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('GovernanceAuditEvent_resource_type_resource_id_idx').on(
+      t.resource_type,
+      t.resource_id,
+    ),
+    index('GovernanceAuditEvent_company_id_idx').on(t.company_id),
+    index('GovernanceAuditEvent_actor_user_id_idx').on(t.actor_user_id),
+    index('GovernanceAuditEvent_actor_company_id_idx').on(t.actor_company_id),
+  ],
+);
+
 export const rolePermission = pgTable(
   'RolePermission',
   {
@@ -390,6 +429,20 @@ export const ticketAuditEventRelations = relations(ticketAuditEvent, ({ one }) =
   }),
 }));
 
+export const governanceAuditEventRelations = relations(
+  governanceAuditEvent,
+  ({ one }) => ({
+    actor: one(user, {
+      fields: [governanceAuditEvent.actor_user_id],
+      references: [user.id],
+    }),
+    company: one(company, {
+      fields: [governanceAuditEvent.company_id],
+      references: [company.id],
+    }),
+  }),
+);
+
 export const servicesTicketsRelations = relations(servicesTickets, ({ one }) => ({
   service: one(service, {
     fields: [servicesTickets.service_id],
@@ -414,6 +467,7 @@ export type ServiceRow = typeof service.$inferSelect;
 export type TicketRow = typeof ticket.$inferSelect;
 export type TicketPaymentRow = typeof ticketPayment.$inferSelect;
 export type TicketAuditEventRow = typeof ticketAuditEvent.$inferSelect;
+export type GovernanceAuditEventRow = typeof governanceAuditEvent.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
 export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;

@@ -1,8 +1,17 @@
 import { hash } from 'bcryptjs';
+import {
+  assertCompanyEntitlementAllows,
+  CompanyEntitlementExceededError,
+} from '@/lib/company-entitlement-guard';
 import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
+import {
+  recordGovernanceAudit,
+  sanitizeUserForAudit,
+  sessionUserToGovernanceActor,
+} from '@/lib/governance-audit';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
@@ -65,6 +74,8 @@ export async function POST(request: NextRequest) {
       return fail('AU002', 400, 'auth');
     }
 
+    await assertCompanyEntitlementAllows(targetCompanyId, 'users');
+
     const hashedPassword = await hash(parsed.password, 10);
 
     const [created] = await db
@@ -80,10 +91,22 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
+    await recordGovernanceAudit(db, {
+      actor: sessionUserToGovernanceActor(session.user),
+      resourceType: 'user',
+      resourceId: created.id,
+      targetCompanyId: targetCompanyId,
+      eventType: 'created',
+      after: sanitizeUserForAudit(created),
+    });
+
     return ok(created, 201);
   } catch (e) {
     if (e instanceof z.ZodError) {
       return fail('US005', 400, 'validation');
+    }
+    if (e instanceof CompanyEntitlementExceededError) {
+      return fail('CO011', 403, 'validation');
     }
     console.error(e);
     return fail('US002', 500, 'server');

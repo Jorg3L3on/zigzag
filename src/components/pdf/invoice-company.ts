@@ -7,6 +7,7 @@ import {
   formatCompanyAddress,
   formatCompanyAddressOneLine,
 } from '@/lib/company-address';
+import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 
 export interface InvoiceIssuerData {
   /** Stacked uppercase title lines in the header */
@@ -66,7 +67,7 @@ export const invoiceIssuerFromCompany = (
     footerPhone: company.phone,
     footerEmail: company.email,
     footerAddress: formatCompanyAddressOneLine(company),
-    logoUrl: company.logo ?? null,
+    logoUrl: resolveCompanyLogoUrl(company.logo),
     currencyCode,
   };
 };

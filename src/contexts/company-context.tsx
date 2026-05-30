@@ -1,13 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { GalleryVerticalEnd } from 'lucide-react';
-import Image from 'next/image';
+import { CompanyBrandAvatar } from '@/components/companies/company-brand-avatar';
+import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 
 interface Company {
   id: number;
   name: string;
   logo: React.ElementType;
+  logoUrl: string | null;
   plan: string;
   is_system: boolean;
 }
@@ -15,7 +16,7 @@ interface Company {
 interface StoredCompany {
   id: number;
   name: string;
-  logo: string | null;
+  logoUrl: string | null;
   plan: string;
   is_system: boolean;
 }
@@ -29,6 +30,24 @@ const CompanyContext = React.createContext<CompanyContextType | undefined>(
   undefined,
 );
 
+const companyFromStored = (storedCompany: StoredCompany): Company => ({
+  ...storedCompany,
+  logo: () => (
+    <CompanyBrandAvatar
+      name={storedCompany.name}
+      logoUrl={storedCompany.logoUrl}
+    />
+  ),
+});
+
+const companyToStored = (company: Company): StoredCompany => ({
+  id: company.id,
+  name: company.name,
+  logoUrl: resolveCompanyLogoUrl(company.logoUrl),
+  plan: company.plan,
+  is_system: company.is_system,
+});
+
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const [selectedCompany, setSelectedCompany] = React.useState<Company | null>(
     () => {
@@ -36,22 +55,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         const saved = localStorage.getItem('selectedCompany');
         if (saved) {
           const storedCompany = JSON.parse(saved) as StoredCompany;
-          return {
-            ...storedCompany,
-            logo:
-              typeof storedCompany.logo === 'string' &&
-              storedCompany.logo.length > 0
-                ? () => (
-                    <Image
-                      src={storedCompany.logo!}
-                      alt={storedCompany.name}
-                      width={16}
-                      height={16}
-                      className="size-4"
-                    />
-                  )
-                : GalleryVerticalEnd,
-          };
+          return companyFromStored(storedCompany);
         }
       }
       return null;
@@ -62,15 +66,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     (company: Company | null) => {
       setSelectedCompany(company);
       if (company) {
-        // Store only the serializable parts
-        const storedCompany: StoredCompany = {
-          id: company.id,
-          name: company.name,
-          logo: typeof company.logo === 'function' ? null : company.logo,
-          plan: company.plan,
-          is_system: company.is_system,
-        };
-        localStorage.setItem('selectedCompany', JSON.stringify(storedCompany));
+        localStorage.setItem(
+          'selectedCompany',
+          JSON.stringify(companyToStored(company)),
+        );
       } else {
         localStorage.removeItem('selectedCompany');
       }

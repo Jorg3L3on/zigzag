@@ -23,6 +23,7 @@ interface Team {
   id: number;
   name: string;
   logo: React.ElementType;
+  logoUrl: string | null;
   plan: string;
   is_system: boolean;
 }

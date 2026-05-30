@@ -3,6 +3,11 @@ import type {
   FintechInvoiceItem,
   FintechInvoicePayload,
 } from '@/lib/fintech-invoice-payload';
+import { detectPdfImageFormat } from '@/lib/company-logo-branding-shared';
+
+export type FintechInvoiceRenderOptions = {
+  issuerLogoDataUrl?: string | null;
+};
 
 const W = 595.2756;
 const H = 841.8898;
@@ -68,7 +73,9 @@ const conceptLabel = (count: number): string =>
 
 export function renderFintechInvoicePdf(
   payload: FintechInvoicePayload,
+  options: FintechInvoiceRenderOptions = {},
 ): ArrayBuffer {
+  const issuerLogoDataUrl = options.issuerLogoDataUrl ?? null;
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
@@ -196,7 +203,7 @@ export function renderFintechInvoicePdf(
     }
   };
 
-  const drawLogo = (x: number, y: number, size = 34) => {
+  const drawLogoPlaceholder = (x: number, y: number, size = 34) => {
     gradientRect(x, y, size, size, 10);
     doc.setDrawColor(COLORS.white);
     doc.setLineWidth(2.6);
@@ -210,6 +217,31 @@ export function renderFintechInvoicePdf(
       x + size * 0.24,
       top + size * 0.4,
     );
+  };
+
+  const drawIssuerLogo = (x: number, y: number, size = 34) => {
+    if (issuerLogoDataUrl) {
+      const format = detectPdfImageFormat(issuerLogoDataUrl);
+      if (format) {
+        try {
+          doc.addImage(
+            issuerLogoDataUrl,
+            format,
+            x,
+            yTop(y, size),
+            size,
+            size,
+            undefined,
+            'FAST',
+          );
+          return;
+        } catch {
+          // Fall back to vector placeholder when image data is invalid.
+        }
+      }
+    }
+
+    drawLogoPlaceholder(x, y, size);
   };
 
   const wrapText = (
@@ -362,7 +394,7 @@ export function renderFintechInvoicePdf(
 
     const logoX = margin + 26;
     const logoY = headerY + headerH - 55;
-    drawLogo(logoX, logoY, 34);
+    drawIssuerLogo(logoX, logoY, 34);
     text(payload.issuer.name, logoX + 46, logoY + 21, 16, COLORS.white, 'bold', 'left', 165);
     text(payload.issuer.address, logoX + 46, logoY + 6, 8.1, '#CBD5E1', 'normal', 'left', 210);
     text(`Tel. ${payload.issuer.phone || 'Sin teléfono'}`, logoX + 46, logoY - 8, 8.1, '#CBD5E1', 'normal', 'left', 210);

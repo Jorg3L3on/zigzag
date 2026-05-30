@@ -37,6 +37,7 @@ import type { Company, Role } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
 import { getRoles } from '@/actions/roles';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 
 const formSchema = z
   .object({
@@ -148,6 +149,7 @@ export function CreateUserDialog({
         <DialogHeader>
           <DialogTitle>Crear Usuario</DialogTitle>
         </DialogHeader>
+        <CompanyEntitlementNotice metric="users" />
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField

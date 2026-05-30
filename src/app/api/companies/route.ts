@@ -7,7 +7,13 @@ import {
   companyApiUpdateSchema,
   normalizeCompanySettingsForDb,
 } from '@/lib/company-schema';
+import { bootstrapCompanyTenant } from '@/lib/company-bootstrap';
 import { db } from '@/lib/db';
+import {
+  recordGovernanceAudit,
+  sanitizeCompanyForAudit,
+  sessionUserToGovernanceActor,
+} from '@/lib/governance-audit';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
 const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
@@ -136,33 +142,30 @@ export async function POST(request: Request) {
       return fail('CO007', 400, 'validation');
     }
     const body = parsed.data;
-    const settings = normalizeCompanySettingsForDb(body.settings);
 
-    const [created] = await db
-      .insert(company)
-      .values({
-        name: body.name,
-        phone: body.phone,
-        email: body.email,
-        logo: body.logo || null,
-        street: body.street,
-        interior_number: body.interior_number?.trim()
-          ? body.interior_number.trim()
-          : null,
-        exterior_number: body.exterior_number,
-        neighborhood: body.neighborhood,
-        city: body.city,
-        state: body.state,
-        country: body.country,
-        postal_code: body.postal_code,
-        status: body.status,
-        settings,
-        is_system: false,
-      })
-      .returning();
+    const result = await bootstrapCompanyTenant({
+      company: body,
+      owner: body.owner,
+      actor: sessionUserToGovernanceActor(session.user),
+    });
 
-    return ok(created, 201);
+    return ok(
+      {
+        ...result.company,
+        owner_user_id: result.owner.id.toString(),
+        owner_role_id: result.ownerRole.id,
+      },
+      201,
+    );
   } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    ) {
+      return fail('US004', 409, 'validation');
+    }
     console.error(error);
     return fail('CO003', 500, 'server');
   }
@@ -200,13 +203,21 @@ export async function PUT(request: Request) {
 
     const settings = normalizeCompanySettingsForDb(body.settings);
 
+    const existing = await db.query.company.findFirst({
+      where: and(eq(company.id, body.id), isNull(company.deleted_at)),
+    });
+
+    if (!existing) {
+      return fail('CO006', 404, 'validation');
+    }
+
     const [updated] = await db
       .update(company)
       .set({
         name: body.name,
         phone: body.phone,
         email: body.email,
-        logo: body.logo || null,
+        logo: existing.logo,
         street: body.street,
         interior_number: body.interior_number?.trim()
           ? body.interior_number.trim()
@@ -228,6 +239,16 @@ export async function PUT(request: Request) {
     if (!updated) {
       return fail('CO006', 404, 'validation');
     }
+
+    await recordGovernanceAudit(db, {
+      actor: sessionUserToGovernanceActor(session.user),
+      resourceType: 'company',
+      resourceId: body.id,
+      targetCompanyId: body.id,
+      eventType: 'updated',
+      before: sanitizeCompanyForAudit(existing),
+      after: sanitizeCompanyForAudit(updated),
+    });
 
     return ok(updated);
   } catch (error) {

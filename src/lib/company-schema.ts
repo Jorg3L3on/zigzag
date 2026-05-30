@@ -1,18 +1,19 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
+import { COMPANY_PLAN_IDS } from '@/lib/company-entitlements';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
   invoice_footer_note: z.string().optional(),
   default_currency: z.string().optional(),
+  plan: z.enum(COMPANY_PLAN_IDS).optional(),
 });
 
 export const companyFormSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   email: z.string().email('El correo electrónico no es válido'),
   phone: z.string().min(1, 'El teléfono es requerido'),
-  logo: z.string().optional().or(z.literal('')),
   street: z.string().min(1, 'La calle es requerida'),
   interior_number: z.string().optional().or(z.literal('')),
   exterior_number: z.string().min(1, 'El número exterior es requerido'),
@@ -21,7 +22,7 @@ export const companyFormSchema = z.object({
   state: z.string().min(1, 'El estado es requerido'),
   country: z.string().min(1, 'El país es requerido'),
   postal_code: z.string().min(1, 'El código postal es requerido'),
-  status: z.enum(['ACTIVE', 'INACTIVE']),
+  status: z.enum(['SETUP', 'ACTIVE', 'SUSPENDED', 'ARCHIVED']),
   settings: companySettingsSchema.optional(),
 });
 
@@ -47,10 +48,27 @@ export function normalizeCompanySettingsForDb(
   if (cur) {
     out.default_currency = cur;
   }
+  if (input.plan) {
+    out.plan = input.plan;
+  }
   return Object.keys(out).length > 0 ? out : null;
 }
 
-export const companyApiCreateSchema = companyFormSchema;
+export const companyOwnerBootstrapSchema = z.object({
+  name: z.string().min(1, 'El nombre del propietario es requerido'),
+  email: z.string().email('El correo del propietario no es válido'),
+  password: z
+    .string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres'),
+});
+
+export const companyBootstrapSchema = companyFormSchema.extend({
+  owner: companyOwnerBootstrapSchema,
+});
+
+export type CompanyBootstrapFormValues = z.infer<typeof companyBootstrapSchema>;
+
+export const companyApiCreateSchema = companyBootstrapSchema;
 
 export const companyApiUpdateSchema = companyFormSchema.extend({
   id: z.number().int().positive(),

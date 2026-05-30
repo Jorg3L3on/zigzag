@@ -39,6 +39,7 @@ export type FintechInvoicePayload = {
     email: string;
     footerAddress: string;
     currencyCode: string;
+    logoUrl: string | null;
   };
   client: {
     name: string;
@@ -111,6 +112,7 @@ export const buildFintechInvoicePayload = (
       email: issuer.footerEmail || '',
       footerAddress: issuer.footerAddress || detailAddress,
       currencyCode,
+      logoUrl: issuer.logoUrl,
     },
     client: {
       name: ticket.client_name?.trim() || 'Cliente',

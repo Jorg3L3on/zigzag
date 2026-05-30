@@ -3,7 +3,6 @@
 import * as React from 'react';
 import {
   Building,
-  GalleryVerticalEnd,
   Shield,
   Home,
   Package,
@@ -13,10 +12,11 @@ import {
   CalendarClock,
   type LucideIcon,
 } from 'lucide-react';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
+import { CompanyBrandAvatar } from '@/components/companies/company-brand-avatar';
+import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
@@ -31,16 +31,11 @@ import {
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import type { Company as CompanyRow } from '@/db/schema';
 import { PERMISSIONS } from '@/lib/permissions';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 import { usePermissions } from '@/hooks/use-permissions';
 
-interface Company {
-  id: number;
-  name: string;
-  logo: string | null;
-  is_system: boolean;
-}
 
 type SidebarItem = {
   title: string;
@@ -126,7 +121,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { can } = usePermissions();
-  const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [companies, setCompanies] = React.useState<CompanyRow[]>([]);
 
   React.useEffect(() => {
     const fetchCompanies = async () => {
@@ -206,22 +201,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const teams = React.useMemo(() => {
     const mappedTeams = companies.map((company) => {
-      const logoUrl = company.logo;
+      const logoUrl = resolveCompanyLogoUrl(company.logo);
 
       return {
         id: company.id,
         name: company.name,
-        logo: logoUrl
-          ? () => (
-              <Image
-                src={logoUrl}
-                alt={company.name}
-                width={24}
-                height={24}
-                className="size-6 rounded-sm object-contain"
-              />
-            )
-          : GalleryVerticalEnd,
+        logoUrl,
+        logo: () => (
+          <CompanyBrandAvatar name={company.name} logoUrl={company.logo} />
+        ),
         plan: 'Enterprise',
         is_system: company.is_system,
       };

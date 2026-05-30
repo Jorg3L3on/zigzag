@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -27,25 +27,34 @@ import { toast } from 'sonner';
 import { createCompany, updateCompany } from '@/actions/companies';
 import type { Company } from '@/db/schema';
 import {
+  companyBootstrapSchema,
   companyFormSchema,
+  type CompanyBootstrapFormValues,
   type CompanyFormValues,
 } from '@/lib/company-schema';
 import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
+import {
+  COMPANY_PLAN_IDS,
+  COMPANY_PLAN_LABELS,
+  getCompanyPlanId,
+} from '@/lib/company-entitlements';
+import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 
 const defaultSettings = {
   rfc: '',
   invoice_footer_note: '',
   default_currency: 'MXN',
+  plan: 'standard' as const,
 };
 
-const emptyDefaults: CompanyFormValues = {
+const emptyDefaults: CompanyBootstrapFormValues = {
   name: '',
   email: '',
   phone: '',
-  logo: '',
   street: '',
   interior_number: '',
   exterior_number: '',
@@ -54,8 +63,13 @@ const emptyDefaults: CompanyFormValues = {
   state: '',
   country: 'México',
   postal_code: '',
-  status: 'ACTIVE',
+  status: 'SETUP',
   settings: { ...defaultSettings },
+  owner: {
+    name: '',
+    email: '',
+    password: '',
+  },
 };
 
 interface CompanyFormProps {
@@ -67,14 +81,15 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEdit = Boolean(company);
 
-  const form = useForm<CompanyFormValues>({
-    resolver: zodResolver(companyFormSchema),
+  const form = useForm<CompanyBootstrapFormValues>({
+    resolver: (isEdit
+      ? zodResolver(companyFormSchema)
+      : zodResolver(companyBootstrapSchema)) as Resolver<CompanyBootstrapFormValues>,
     defaultValues: company
       ? {
           name: company.name,
           email: company.email,
           phone: company.phone,
-          logo: company.logo ?? '',
           street: company.street,
           interior_number: company.interior_number ?? '',
           exterior_number: company.exterior_number,
@@ -83,23 +98,26 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
           state: company.state,
           country: company.country,
           postal_code: company.postal_code,
-          status: company.status,
+          status: normalizeCompanyLifecycleStatus(company.status),
           settings: {
             rfc: company.settings?.rfc ?? '',
             invoice_footer_note:
               company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
+            plan: getCompanyPlanId(company.settings),
           },
+          owner: { name: '', email: '', password: '' },
         }
       : emptyDefaults,
   });
 
-  const handleSubmit = async (data: CompanyFormValues) => {
+  const handleSubmit = async (data: CompanyBootstrapFormValues) => {
     try {
       setIsSubmitting(true);
       if (company) {
-        const result = await updateCompany(company.id, data);
+        const { owner: _owner, ...companyData } = data;
+        const result = await updateCompany(company.id, companyData);
         if (!result.success) {
           const errorType = classifyClientError(
             null,
@@ -184,8 +202,10 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="SETUP">En configuración</SelectItem>
                       <SelectItem value="ACTIVE">Activa</SelectItem>
-                      <SelectItem value="INACTIVE">Inactiva</SelectItem>
+                      <SelectItem value="SUSPENDED">Suspendida</SelectItem>
+                      <SelectItem value="ARCHIVED">Archivada</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -218,21 +238,18 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="logo"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>URL del logo</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="url" placeholder="https://" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
         </div>
+
+        {company ? (
+          <>
+            <Separator />
+            <CompanyLogoUpload
+              companyId={company.id}
+              logoUrl={company.logo}
+            />
+          </>
+        ) : null}
 
         <Separator />
 
@@ -348,6 +365,70 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
           </div>
         </div>
 
+        {!isEdit ? (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-foreground">
+                Propietario del tenant
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Se crea el usuario administrador, el rol por defecto y la
+                empresa en una sola operación.
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="owner.name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre del propietario</FormLabel>
+                      <FormControl>
+                        <Input {...field} autoComplete="name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="owner.email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Correo del propietario</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="email"
+                          autoComplete="email"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="owner.password"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Contraseña inicial</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="new-password"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
+
         <Separator />
 
         <div className="space-y-4">
@@ -355,6 +436,30 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
             Configuración
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="settings.plan"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Plan comercial</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger aria-label="Plan comercial">
+                        <SelectValue placeholder="Selecciona un plan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {COMPANY_PLAN_IDS.map((planId) => (
+                        <SelectItem key={planId} value={planId}>
+                          {COMPANY_PLAN_LABELS[planId]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="settings.rfc"
