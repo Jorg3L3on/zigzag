@@ -7,6 +7,11 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
+import {
+  recordGovernanceAudit,
+  sanitizeUserForAudit,
+  sessionUserToGovernanceActor,
+} from '@/lib/governance-audit';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
@@ -85,6 +90,15 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
       })
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: sessionUserToGovernanceActor(session.user),
+      resourceType: 'user',
+      resourceId: created.id,
+      targetCompanyId: targetCompanyId,
+      eventType: 'created',
+      after: sanitizeUserForAudit(created),
+    });
 
     return ok(created, 201);
   } catch (e) {

@@ -50,6 +50,20 @@
       "when": 1780000000000,
       "tag": "0006_client_service_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780086400000,
+      "tag": "0007_company_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780172800000,
+      "tag": "0008_governance_audit",
+      "breakpoints": true
     }
   ]
 }

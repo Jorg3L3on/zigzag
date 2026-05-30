@@ -14,6 +14,11 @@ import {
   requireSystemUser,
 } from '@/lib/security';
 import { revalidatePath } from 'next/cache';
+import {
+  actionAuthToGovernanceActor,
+  recordGovernanceAudit,
+  sanitizePermissionForAudit,
+} from '@/lib/governance-audit';
 
 type PermissionWithCompany = typeof permission.$inferSelect & {
   company: Company | null;
@@ -121,6 +126,16 @@ export async function createPermission(data: {
         updated_at: new Date(),
       })
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'permission',
+      resourceId: created.id,
+      targetCompanyId: data.company_id,
+      eventType: 'created',
+      after: sanitizePermissionForAudit(created),
+    });
+
     revalidatePath('/dashboard/permissions');
     return { success: true, data: created };
   } catch (error) {
@@ -146,6 +161,17 @@ export async function updatePermission(
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
+    const existing = await db.query.permission.findFirst({
+      where: and(
+        eq(permission.id, id),
+        eq(permission.company_id, data.company_id),
+        isNull(permission.deleted_at),
+      ),
+    });
+    if (!existing) {
+      throw new AuthorizationError('Permission not found');
+    }
+
     const [updated] = await db
       .update(permission)
       .set({
@@ -162,6 +188,17 @@ export async function updatePermission(
         ),
       )
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'permission',
+      resourceId: id,
+      targetCompanyId: data.company_id,
+      eventType: 'updated',
+      before: sanitizePermissionForAudit(existing),
+      after: sanitizePermissionForAudit(updated),
+    });
+
     revalidatePath('/dashboard/permissions');
     return { success: true, data: updated };
   } catch (error) {
@@ -179,12 +216,30 @@ export async function deletePermission(id: number): Promise<{
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
+    const existing = await db.query.permission.findFirst({
+      where: and(eq(permission.id, id), isNull(permission.deleted_at)),
+    });
+    if (!existing) {
+      throw new AuthorizationError('Permission not found');
+    }
+
     await db.delete(rolePermission).where(eq(rolePermission.permission_id, id));
 
-    await db
+    const [updated] = await db
       .update(permission)
       .set({ deleted_at: new Date() })
-      .where(and(eq(permission.id, id), isNull(permission.deleted_at)));
+      .where(and(eq(permission.id, id), isNull(permission.deleted_at)))
+      .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'permission',
+      resourceId: id,
+      targetCompanyId: existing.company_id,
+      eventType: 'deleted',
+      before: sanitizePermissionForAudit(existing),
+      after: sanitizePermissionForAudit(updated),
+    });
 
     revalidatePath('/dashboard/permissions');
     return { success: true };
@@ -208,6 +263,15 @@ export async function assignPermissionToRole(
     requireSystemUser(authContext);
     await assertRolePermissionSameScope(roleId, permissionId);
 
+    const [roleRow, permissionRow] = await Promise.all([
+      db.query.role.findFirst({
+        where: and(eq(role.id, roleId), isNull(role.deleted_at)),
+      }),
+      db.query.permission.findFirst({
+        where: and(eq(permission.id, permissionId), isNull(permission.deleted_at)),
+      }),
+    ]);
+
     const [rolePermissionRow] = await db
       .insert(rolePermission)
       .values({
@@ -216,6 +280,20 @@ export async function assignPermissionToRole(
         created_at: new Date(),
       })
       .returning();
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'role',
+      resourceId: roleId,
+      targetCompanyId: roleRow?.company_id ?? null,
+      eventType: 'permission_assigned',
+      before: { permission_id: permissionId, assigned: false },
+      after: {
+        permission_id: permissionId,
+        permission: sanitizePermissionForAudit(permissionRow),
+        assigned: true,
+      },
+    });
 
     revalidatePath('/dashboard/roles');
     return { success: true, data: rolePermissionRow };
@@ -238,6 +316,15 @@ export async function removePermissionFromRole(
     const authContext = await requireActionAuth();
     requireSystemUser(authContext);
 
+    const [roleRow, permissionRow] = await Promise.all([
+      db.query.role.findFirst({
+        where: and(eq(role.id, roleId), isNull(role.deleted_at)),
+      }),
+      db.query.permission.findFirst({
+        where: and(eq(permission.id, permissionId), isNull(permission.deleted_at)),
+      }),
+    ]);
+
     await db
       .delete(rolePermission)
       .where(
@@ -246,6 +333,20 @@ export async function removePermissionFromRole(
           eq(rolePermission.permission_id, permissionId),
         ),
       );
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'role',
+      resourceId: roleId,
+      targetCompanyId: roleRow?.company_id ?? null,
+      eventType: 'permission_removed',
+      before: {
+        permission_id: permissionId,
+        permission: sanitizePermissionForAudit(permissionRow),
+        assigned: true,
+      },
+      after: { permission_id: permissionId, assigned: false },
+    });
 
     revalidatePath('/dashboard/roles');
     return { success: true, data: null };

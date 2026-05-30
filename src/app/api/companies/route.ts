@@ -9,6 +9,11 @@ import {
 } from '@/lib/company-schema';
 import { bootstrapCompanyTenant } from '@/lib/company-bootstrap';
 import { db } from '@/lib/db';
+import {
+  recordGovernanceAudit,
+  sanitizeCompanyForAudit,
+  sessionUserToGovernanceActor,
+} from '@/lib/governance-audit';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 
 const attachCounts = async (rows: (typeof company.$inferSelect)[]) => {
@@ -141,6 +146,7 @@ export async function POST(request: Request) {
     const result = await bootstrapCompanyTenant({
       company: body,
       owner: body.owner,
+      actor: sessionUserToGovernanceActor(session.user),
     });
 
     return ok(
@@ -233,6 +239,16 @@ export async function PUT(request: Request) {
     if (!updated) {
       return fail('CO006', 404, 'validation');
     }
+
+    await recordGovernanceAudit(db, {
+      actor: sessionUserToGovernanceActor(session.user),
+      resourceType: 'company',
+      resourceId: body.id,
+      targetCompanyId: body.id,
+      eventType: 'updated',
+      before: sanitizeCompanyForAudit(existing),
+      after: sanitizeCompanyForAudit(updated),
+    });
 
     return ok(updated);
   } catch (error) {
