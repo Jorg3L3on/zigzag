@@ -51,7 +51,12 @@ import { useEffect, useState } from 'react';
 import type { Company } from '@/db/schema';
 import { getClients, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
-import { TripledPageHeader, TripledStepper } from '@/components/tripled';
+import {
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledPageHeader,
+  TripledStepper,
+} from '@/components/tripled';
 import { buildTicketInvoiceDownloadUrl } from '@/lib/ticket-invoice-url';
 import {
   buildToastErrorContent,
@@ -346,14 +351,20 @@ export default function EditTicketPage({
   return (
     <>
       <TripledPageHeader
+        className="hidden md:flex"
         items={[
           { label: 'Tickets', href: '/dashboard/tickets' },
           { label: 'Editar Ticket' },
         ]}
       />
 
-      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
-        <div className="mx-auto w-full max-w-2xl">
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+          <TripledMobileAppBar
+            title={`Ticket #${resolvedParams.id}`}
+            subtitle="Editar ticket"
+            backHref="/dashboard/tickets"
+            className="mb-3"
+          />
           <TripledStepper
             steps={[
               { id: 'create', title: 'Datos del ticket' },
@@ -773,8 +784,7 @@ export default function EditTicketPage({
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+      </TripledDashboardShell>
 
     </>
   );

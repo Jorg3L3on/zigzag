@@ -10,14 +10,13 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AccountFormDialog } from '@/components/account/account-form-dialog';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from '@/components/ui/breadcrumb';
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledPageHeader,
+  TripledResourceCard,
+} from '@/components/tripled';
+import { UserRound } from 'lucide-react';
 
 export default function AccountPage() {
   const { data: session } = useSession();
@@ -26,22 +25,15 @@ export default function AccountPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Mi cuenta</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full">
-          <Card className="border-0 shadow-lg">
+      <TripledPageHeader items={[{ label: 'Mi cuenta' }]} className="hidden md:flex" />
+      <TripledDashboardShell maxWidthClassName="max-w-3xl">
+        <TripledMobileAppBar title="Mi cuenta" subtitle="Perfil y empresa" className="mb-3" />
+        <TripledResourceCard
+          title="Mi cuenta"
+          description="Perfil, empresa y datos de acceso."
+          icon={<UserRound className="size-5" aria-hidden />}
+        >
+          <Card className="border-border/60 shadow-sm">
             <CardHeader>
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
@@ -73,8 +65,8 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

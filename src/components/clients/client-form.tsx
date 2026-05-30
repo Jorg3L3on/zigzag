@@ -216,10 +216,11 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           )}
         />
 
-        <div className="flex justify-end gap-4">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
           <Button
             type="button"
             variant="outline"
+            className="min-h-11 sm:min-h-10"
             onClick={() => {
               if (onCancel) {
                 onCancel();
@@ -234,7 +235,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="min-h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 sm:min-h-10"
           >
             {isSubmitting ? 'Guardando...' : client ? 'Actualizar' : 'Crear'}
           </Button>

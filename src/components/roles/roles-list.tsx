@@ -9,8 +9,12 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { getRoles } from '@/actions/roles';
-import { TripledDataPanel, TripledEmptyState } from '@/components/tripled';
-import { Loader2, Shield } from 'lucide-react';
+import {
+  TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
+import { Loader2, Search, Shield, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -21,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { CreateRoleDialog } from '@/app/dashboard/roles/create-role-dialog';
 import { UpdateRoleDialog } from '@/app/dashboard/roles/update-role-dialog';
 import { DeleteRoleDialog } from '@/app/dashboard/roles/delete-role-dialog';
@@ -174,6 +179,10 @@ export function RolesList() {
   });
 
   const mobileSortValue = encodeSortingState(sorting);
+  const hasActiveFilters =
+    debouncedSearch !== '' ||
+    companyScopeFilter !== 'all' ||
+    permissionAssignmentFilter !== 'all';
 
   const companyScopeOptions: Array<{ value: CompanyScopeFilter; label: string }> =
     [
@@ -191,16 +200,69 @@ export function RolesList() {
     { value: 'without', label: 'Sin permisos' },
   ];
 
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setCompanyScopeFilter('all');
+    setPermissionAssignmentFilter('all');
+    setSorting(DEFAULT_ROLE_SORTING);
+  };
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredRoles.length} de ${roles.length} roles`,
+      variant: 'secondary' as const,
+    },
+    ...(debouncedSearch
+      ? [{ key: 'search', label: `Busqueda: ${debouncedSearch}` }]
+      : []),
+    ...(companyScopeFilter !== 'all'
+      ? [
+          {
+            key: 'scope',
+            label:
+              companyScopeOptions.find(
+                (option) => option.value === companyScopeFilter,
+              )?.label ?? 'Alcance',
+          },
+        ]
+      : []),
+    ...(permissionAssignmentFilter !== 'all'
+      ? [
+          {
+            key: 'permissions',
+            label:
+              permissionFilterOptions.find(
+                (option) => option.value === permissionAssignmentFilter,
+              )?.label ?? 'Permisos',
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <TripledDataPanel
-        title="Roles"
-        description="Lista de todos los roles registrados."
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        ctaSlot={canWriteRoles ? <CreateRoleDialog onCreated={fetchRoles} /> : null}
-      >
-        <div className="mb-4 flex flex-col gap-3">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        {canWriteRoles ? <CreateRoleDialog onCreated={fetchRoles} /> : null}
+      </div>
+
+      <div className="space-y-4">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Buscar por rol, descripcion, empresa o permiso..."
+            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
+            aria-label="Buscar roles"
+          />
+        </div>
+
+        <div className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
             {companyScopeOptions.map((option) => (
               <Button
@@ -209,7 +271,7 @@ export function RolesList() {
                 variant={
                   companyScopeFilter === option.value ? 'default' : 'outline'
                 }
-                size="sm"
+                className="min-h-11 rounded-xl"
                 onClick={() => setCompanyScopeFilter(option.value)}
                 aria-label={`Filtrar por alcance: ${option.label.toLowerCase()}`}
               >
@@ -227,7 +289,7 @@ export function RolesList() {
                     ? 'default'
                     : 'outline'
                 }
-                size="sm"
+                className="min-h-11 rounded-xl"
                 onClick={() => setPermissionAssignmentFilter(option.value)}
                 aria-label={`Filtrar por permisos: ${option.label.toLowerCase()}`}
               >
@@ -236,29 +298,26 @@ export function RolesList() {
             ))}
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              Mostrando{' '}
-              <span className="font-medium text-foreground">
-                {filteredRoles.length}
-              </span>
-              {roles.length !== filteredRoles.length ? (
-                <>
-                  {' '}
-                  de{' '}
-                  <span className="font-medium text-foreground">
-                    {roles.length}
-                  </span>
-                </>
-              ) : null}{' '}
-              roles
-            </p>
+            <TripledFilterChips chips={filterChips} />
+            {hasActiveFilters ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
+                onClick={handleClearFilters}
+                aria-label="Limpiar filtros de roles"
+              >
+                <X className="mr-2 h-4 w-4" aria-hidden />
+                Limpiar filtros
+              </Button>
+            ) : null}
             <div className="w-full sm:w-auto md:hidden">
               <Select
                 value={mobileSortValue}
                 onValueChange={(value) => setSorting(decodeSortingState(value))}
               >
                 <SelectTrigger
-                  className="h-10 w-full sm:w-[min(100%,18rem)]"
+                  className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
                   aria-label="Ordenar lista de roles"
                 >
                   <SelectValue placeholder="Ordenar por" />
@@ -274,6 +333,7 @@ export function RolesList() {
             </div>
           </div>
         </div>
+      </div>
 
         {loading ? (
           <div className="flex h-32 items-center justify-center">
@@ -308,11 +368,9 @@ export function RolesList() {
               {table.getRowModel().rows.map((row) => {
                 const roleRow = row.original;
                 return (
-                  <article
+                  <TripledMobileRecordCard
                     key={row.id}
-                    className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
-                      canWriteRoles ? 'cursor-pointer hover:bg-accent/30' : ''
-                    }`}
+                    interactive={canWriteRoles}
                     tabIndex={canWriteRoles ? 0 : -1}
                     role="button"
                     aria-label={
@@ -374,7 +432,7 @@ export function RolesList() {
                         ) : null,
                       )}
                     </div>
-                  </article>
+                  </TripledMobileRecordCard>
                 );
               })}
             </div>
@@ -458,8 +516,6 @@ export function RolesList() {
             </div>
           </>
         )}
-      </TripledDataPanel>
-
       {editRole ? (
         <UpdateRoleDialog
           role={editRole}

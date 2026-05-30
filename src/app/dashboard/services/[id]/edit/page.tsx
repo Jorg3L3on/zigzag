@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Wrench } from 'lucide-react';
 import * as React from 'react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -29,12 +29,10 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  TripledDashboardShell,
+  TripledMobileAppBar,
+  TripledResourceCard,
+} from '@/components/tripled';
 import { useEffect, useState, useCallback } from 'react';
 import { useCompany } from '@/contexts/company-context';
 import {
@@ -169,7 +167,7 @@ export default function EditServicePage({
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2">
+      <header className="hidden h-16 shrink-0 items-center gap-2 md:flex">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -191,24 +189,22 @@ export default function EditServicePage({
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <div className="mx-auto w-full max-w-2xl">
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-4 pb-8">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl">
-                    {isNew ? 'Nuevo Servicio' : 'Editar Servicio'}
-                  </CardTitle>
-                  <CardDescription>
-                    {isNew
-                      ? 'Completa los datos para crear un nuevo servicio'
-                      : 'Modifica los datos del servicio'}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+        <TripledMobileAppBar
+          title={isNew ? 'Nuevo servicio' : 'Editar servicio'}
+          subtitle={isNew ? 'Catalogo' : 'Datos del servicio'}
+          backHref="/dashboard/services"
+          className="mb-3"
+        />
+        <TripledResourceCard
+          title={isNew ? 'Nuevo servicio' : 'Editar servicio'}
+          description={
+            isNew
+              ? 'Completa los datos para crear un nuevo servicio.'
+              : 'Modifica los datos del servicio.'
+          }
+          icon={<Wrench className="size-5" aria-hidden />}
+        >
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
@@ -313,10 +309,8 @@ export default function EditServicePage({
                   </div>
                 </form>
               </Form>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        </TripledResourceCard>
+      </TripledDashboardShell>
     </>
   );
 }

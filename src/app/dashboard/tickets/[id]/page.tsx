@@ -27,6 +27,10 @@ import { PDFDownloadButton } from '@/components/pdf-download-button';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { TicketPaymentCollectSection } from '@/components/tickets/ticket-payment-collect-section';
 import { requirePagePermission } from '@/lib/page-authz';
+import {
+  TripledDashboardShell,
+  TripledMobileAppBar,
+} from '@/components/tripled';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -48,7 +52,7 @@ export default async function TicketDetailsPage({
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header className="hidden h-16 shrink-0 items-center gap-2 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex">
         <div className="flex min-w-0 items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1 shrink-0" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -70,8 +74,13 @@ export default async function TicketDetailsPage({
         </div>
       </header>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto w-full min-w-0 max-w-2xl">
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+          <TripledMobileAppBar
+            title={`Ticket #${ticket.id}`}
+            subtitle={ticket.finished ? 'Finalizado' : 'En proceso'}
+            backHref="/dashboard/tickets"
+            className="mb-3"
+          />
           <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
             <CardHeader className="space-y-6 border-b border-border/50 bg-gradient-to-br from-muted/40 via-background to-background px-5 pb-6 pt-7 sm:px-8 sm:pb-7 sm:pt-8">
               <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
@@ -275,8 +284,7 @@ export default async function TicketDetailsPage({
               )}
             </CardContent>
           </Card>
-        </div>
-      </div>
+      </TripledDashboardShell>
     </>
   );
 }

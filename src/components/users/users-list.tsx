@@ -10,17 +10,15 @@ import {
 } from '@tanstack/react-table';
 import { getUsers } from '@/actions/users';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { TripledEmptyState } from '@/components/tripled';
+  TripledEmptyState,
+  TripledFilterChips,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
 import {
   Loader2,
   Search,
   Users as UsersIcon,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -203,6 +201,10 @@ export function UsersList() {
   });
 
   const mobileSortValue = encodeSortingState(sorting);
+  const hasActiveFilters =
+    debouncedSearch !== '' ||
+    verificationFilter !== 'all' ||
+    companyAssignmentFilter !== 'all';
 
   const verificationOptions: Array<{
     value: VerificationFilter;
@@ -222,30 +224,57 @@ export function UsersList() {
     { value: 'unassigned', label: 'Sin empresa' },
   ];
 
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setVerificationFilter('all');
+    setCompanyAssignmentFilter('all');
+    setSorting(DEFAULT_USERS_SORTING);
+  };
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredUsers.length} de ${users.length} usuarios`,
+      variant: 'secondary' as const,
+    },
+    ...(debouncedSearch
+      ? [{ key: 'search', label: `Busqueda: ${debouncedSearch}` }]
+      : []),
+    ...(verificationFilter !== 'all'
+      ? [
+          {
+            key: 'verification',
+            label:
+              verificationOptions.find(
+                (option) => option.value === verificationFilter,
+              )?.label ?? 'Correo',
+          },
+        ]
+      : []),
+    ...(companyAssignmentFilter !== 'all'
+      ? [
+          {
+            key: 'company',
+            label:
+              companyOptions.find(
+                (option) => option.value === companyAssignmentFilter,
+              )?.label ?? 'Empresa',
+          },
+        ]
+      : []),
+  ];
+
   return (
     <>
-      <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
-        <CardHeader className="space-y-0 border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-5 sm:px-8 sm:py-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <div className="min-w-0 space-y-1.5">
-              <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
-                Usuarios
-              </CardTitle>
-              <CardDescription className="text-base">
-                Lista de todos los usuarios registrados en el sistema.
-              </CardDescription>
-            </div>
+      <div className="space-y-4">
+        <div className="flex justify-end">
             {canWriteUsers ? (
-              <div className="shrink-0 self-end sm:self-start">
               <CreateUserDialog onCreated={fetchUsers} />
-              </div>
             ) : null}
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4 p-4 pt-5 sm:p-6 sm:pt-6">
+        </div>
           <div className="space-y-4">
-            <div className="relative max-w-sm">
+            <div className="relative">
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
@@ -254,7 +283,7 @@ export function UsersList() {
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
                 placeholder="Buscar por nombre, correo, empresa, rol o ID..."
-                className="pl-9"
+                className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
                 aria-label="Buscar usuarios"
               />
             </div>
@@ -270,7 +299,7 @@ export function UsersList() {
                         ? 'default'
                         : 'outline'
                     }
-                    size="sm"
+                    className="min-h-11 rounded-xl"
                     onClick={() => setVerificationFilter(option.value)}
                     aria-label={`Filtrar correo: ${option.label.toLowerCase()}`}
                   >
@@ -288,7 +317,7 @@ export function UsersList() {
                         ? 'default'
                         : 'outline'
                     }
-                    size="sm"
+                    className="min-h-11 rounded-xl"
                     onClick={() => setCompanyAssignmentFilter(option.value)}
                     aria-label={`Filtrar ${option.label.toLowerCase()}`}
                   >
@@ -304,7 +333,7 @@ export function UsersList() {
                   }
                 >
                   <SelectTrigger
-                    className="h-10 w-full sm:w-[min(100%,18rem)]"
+                    className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
                     aria-label="Ordenar lista de usuarios"
                   >
                     <SelectValue placeholder="Ordenar por" />
@@ -321,22 +350,21 @@ export function UsersList() {
             </div>
 
             {!loading && !loadError ? (
-              <p className="text-xs text-muted-foreground sm:text-sm">
-                Mostrando{' '}
-                <span className="font-medium text-foreground">
-                  {filteredUsers.length}
-                </span>
-                {users.length !== filteredUsers.length ? (
-                  <>
-                    {' '}
-                    de{' '}
-                    <span className="font-medium text-foreground">
-                      {users.length}
-                    </span>
-                  </>
-                ) : null}{' '}
-                usuarios
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <TripledFilterChips chips={filterChips} />
+                {hasActiveFilters ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
+                    onClick={handleClearFilters}
+                    aria-label="Limpiar filtros de usuarios"
+                  >
+                    <X className="mr-2 h-4 w-4" aria-hidden />
+                    Limpiar filtros
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
 
@@ -373,11 +401,9 @@ export function UsersList() {
                 {table.getRowModel().rows.map((row) => {
                   const u = row.original;
                   return (
-                    <article
+                    <TripledMobileRecordCard
                       key={row.id}
-                      className={`rounded-lg border bg-card p-4 shadow-sm transition-colors ${
-                        canWriteUsers ? 'cursor-pointer hover:bg-accent/30' : ''
-                      }`}
+                      interactive={canWriteUsers}
                       tabIndex={canWriteUsers ? 0 : -1}
                       role="button"
                       aria-label={
@@ -452,7 +478,7 @@ export function UsersList() {
                           </dd>
                         </div>
                       </dl>
-                    </article>
+                    </TripledMobileRecordCard>
                   );
                 })}
               </div>
@@ -534,8 +560,7 @@ export function UsersList() {
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {editUser ? (
         <UpdateUserDialog
