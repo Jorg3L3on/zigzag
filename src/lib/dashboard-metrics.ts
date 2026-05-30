@@ -21,17 +21,17 @@ export type TicketForRevenueAggregate = {
   created_at: Date;
 };
 
-export const ALLOWED_DASHBOARD_MONTH_COUNTS = [3, 6, 12] as const;
+export const ALLOWED_DASHBOARD_MONTH_COUNTS = [1, 3, 6, 12] as const;
 export type DashboardMonthCount = (typeof ALLOWED_DASHBOARD_MONTH_COUNTS)[number];
 
 export const parseDashboardMonthCount = (
   value: unknown,
 ): DashboardMonthCount => {
   const n = Number(value);
-  if (n === 3 || n === 6 || n === 12) {
+  if (n === 1 || n === 3 || n === 6 || n === 12) {
     return n;
   }
-  return 12;
+  return 1;
 };
 
 /** Inclusive range of calendar months: `monthCount` months ending at `startOfMonth(now)`. */

@@ -6,6 +6,13 @@ import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Ticket,
   DollarSign,
   Wallet,
@@ -26,6 +33,7 @@ import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
+  { value: 1, label: '1 mes' },
   { value: 3, label: '3 meses' },
   { value: 6, label: '6 meses' },
   { value: 12, label: '12 meses' },
@@ -62,7 +70,7 @@ export const DashboardMetricsClient = () => {
   const router = useRouter();
   const { status, data: session } = useSession();
   const { selectedCompany } = useCompany();
-  const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(12);
+  const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -157,6 +165,26 @@ export const DashboardMetricsClient = () => {
         <span className="mr-auto text-sm text-muted-foreground md:mr-0">
           Periodo de ingresos
         </span>
+        <Select
+          value={String(monthCount)}
+          onValueChange={(value) =>
+            setMonthCount(Number(value) as DashboardMonthCount)
+          }
+        >
+          <SelectTrigger
+            className="min-h-11 w-[170px] rounded-xl sm:min-h-9"
+            aria-label="Seleccionar periodo de ingresos"
+          >
+            <SelectValue placeholder="Seleccionar periodo" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTH_PRESETS.map((preset) => (
+              <SelectItem key={preset.value} value={String(preset.value)}>
+                {preset.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           type="button"
           variant="default"
@@ -167,19 +195,6 @@ export const DashboardMetricsClient = () => {
           <FileDown className="h-4 w-4" aria-hidden />
           Exportar PDF
         </Button>
-        {MONTH_PRESETS.map((p) => (
-          <Button
-            key={p.value}
-            type="button"
-            variant={monthCount === p.value ? 'default' : 'outline'}
-            className="min-h-11 min-w-[5.5rem] rounded-xl sm:min-h-9"
-            onClick={() => setMonthCount(p.value)}
-            aria-pressed={monthCount === p.value}
-            aria-label={`Mostrar ingresos de ${p.label}`}
-          >
-            {p.label}
-          </Button>
-        ))}
       </div>
 
       <TripledMotionDiv

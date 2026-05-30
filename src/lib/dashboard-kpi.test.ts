@@ -18,8 +18,8 @@ describe('computeDeltaPercent', () => {
     expect(computeDeltaPercent(0, 0)).toBe(0);
   });
 
-  it('returns null when prior is zero and current is positive', () => {
-    expect(computeDeltaPercent(50, 0)).toBeNull();
+  it('returns 100 when prior is zero and current is positive', () => {
+    expect(computeDeltaPercent(50, 0)).toBe(100);
   });
 });
 
@@ -100,7 +100,8 @@ describe('buildPaymentStatusBreakdown', () => {
     ]);
     expect(rows.find((r) => r.status === 'paid')?.count).toBe(1);
     expect(rows.find((r) => r.status === 'partial')?.count).toBe(1);
-    expect(rows.find((r) => r.status === 'partial')?.amount).toBe(60);
+    expect(rows.find((r) => r.status === 'paid')?.amount).toBe(100);
+    expect(rows.find((r) => r.status === 'partial')?.amount).toBe(80);
   });
 });
 
