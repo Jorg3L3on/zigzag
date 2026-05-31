@@ -64,6 +64,13 @@
       "when": 1780172800000,
       "tag": "0008_governance_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780259200000,
+      "tag": "0009_audit_event",
+      "breakpoints": true
     }
   ]
 }
