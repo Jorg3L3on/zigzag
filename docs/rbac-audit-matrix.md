@@ -41,6 +41,7 @@ checks are authoritative; client checks only hide unavailable controls.
 | `/dashboard/companies` | `companies.read` | Write controls require System company |
 | `/dashboard/companies/new` | `companies.write` | System company page guard |
 | `/dashboard/companies/[id]/edit` | `companies.write` | System company page guard |
+| `/dashboard/audit` | System company only | `requireSystemPage()`; not permission-based |
 
 ## API routes
 
@@ -65,6 +66,7 @@ checks are authoritative; client checks only hide unavailable controls.
 | `GET /api/companies` | `companies.read` | System sees all; regular users see own company |
 | `POST /api/companies` | `companies.write` | System company only |
 | `PUT /api/companies` | `companies.write` | System company only for administrative updates |
+| `GET /api/audit/events` | System company only | `requireSession()` + `company_is_system`; unified audit log read |
 
 `requireSession()` refreshes `company_id`, `company_name`, and
 `company_is_system` from persisted user/company data before API routes make
