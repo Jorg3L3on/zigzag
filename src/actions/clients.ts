@@ -14,6 +14,7 @@ import {
   CompanyEntitlementExceededError,
 } from '@/lib/company-entitlement-guard';
 import { requireActionPermission } from '@/lib/security';
+import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 
 export type Client = typeof client.$inferSelect;
@@ -188,7 +189,7 @@ export async function createClient(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'clients.write',
       data.company_id,
     );
@@ -214,6 +215,16 @@ export async function createClient(
       })
       .returning();
 
+    await recordResourceAudit(db, {
+      actor: context,
+      resourceType: 'client',
+      resourceId: created.id,
+      targetCompanyId: effectiveCompanyId,
+      action: 'created',
+      after: created,
+      source: 'action',
+    });
+
     revalidatePath('/dashboard/clients');
     return { success: true, data: created };
   } catch (error) {
@@ -233,12 +244,19 @@ export async function updateClient(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'clients.write',
       data.company_id ?? undefined,
     );
 
     const { id, ...updateData } = data;
+    const existing = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, id),
+        eq(client.company_id, effectiveCompanyId),
+        isNull(client.deleted_at),
+      ),
+    });
     const [updated] = await db
       .update(client)
       .set({ ...updateData, company_id: effectiveCompanyId })
@@ -250,6 +268,19 @@ export async function updateClient(
         ),
       )
       .returning();
+
+    if (updated) {
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'client',
+        resourceId: id,
+        targetCompanyId: effectiveCompanyId,
+        action: 'updated',
+        before: existing,
+        after: updated,
+        source: 'action',
+      });
+    }
 
     revalidatePath('/dashboard/clients');
     return { success: true, data: updated };
@@ -263,11 +294,18 @@ export async function deleteClient(
   companyId?: number | null,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'clients.write',
       companyId ?? undefined,
     );
-    await db
+    const existing = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, id),
+        eq(client.company_id, effectiveCompanyId),
+        isNull(client.deleted_at),
+      ),
+    });
+    const [deleted] = await db
       .update(client)
       .set({ deleted_at: new Date() })
       .where(
@@ -276,7 +314,21 @@ export async function deleteClient(
           eq(client.company_id, effectiveCompanyId),
           isNull(client.deleted_at),
         ),
-      );
+      )
+      .returning();
+
+    if (deleted) {
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'client',
+        resourceId: id,
+        targetCompanyId: effectiveCompanyId,
+        action: 'deleted',
+        before: existing,
+        after: deleted,
+        source: 'action',
+      });
+    }
 
     await pauseSchedulesForClient(id, effectiveCompanyId);
 

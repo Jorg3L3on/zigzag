@@ -6,6 +6,7 @@ import { buildFintechInvoicePayload } from '@/lib/fintech-invoice-payload';
 import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
 import { renderFintechInvoicePdf } from '@/lib/fintech-invoice-renderer';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
+import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,6 +61,21 @@ export async function GET(
     );
     const pdf = renderFintechInvoicePdf(payload, { issuerLogoDataUrl });
     const filename = buildTicketPdfFileName(result.data);
+
+    await recordDocumentGeneratedAudit({
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'ticket',
+      resourceId: ticketId,
+      targetCompanyId: result.data.company_id ?? session.user.company_id,
+      requestMeta: {
+        route: `/api/tickets/${ticketId}/invoice`,
+        method: 'GET',
+      },
+    });
 
     return new NextResponse(pdf, {
       status: 200,

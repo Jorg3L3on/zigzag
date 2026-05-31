@@ -15,6 +15,7 @@ import {
   CompanyEntitlementExceededError,
 } from '@/lib/company-entitlement-guard';
 import { requireActionPermission } from '@/lib/security';
+import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 
 export interface CreateServiceData {
@@ -76,7 +77,7 @@ export async function createService(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'services.write',
       data.company_id,
     );
@@ -92,6 +93,16 @@ export async function createService(
         company_id: effectiveCompanyId,
       })
       .returning();
+
+    await recordResourceAudit(db, {
+      actor: context,
+      resourceType: 'service',
+      resourceId: created.id,
+      targetCompanyId: effectiveCompanyId,
+      action: 'created',
+      after: created,
+      source: 'action',
+    });
 
     revalidatePath('/dashboard/services');
     return { success: true, data: created };
@@ -113,10 +124,13 @@ export async function updateService(
 }> {
   try {
     const { id, ...updateData } = data;
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
+    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
       'services.write',
       updateData.company_id ?? undefined,
     );
+    const existing = await db.query.service.findFirst({
+      where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
+    });
     const [updated] = await db
       .update(service)
       .set({
@@ -125,6 +139,19 @@ export async function updateService(
       })
       .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)))
       .returning();
+
+    if (updated) {
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'service',
+        resourceId: id,
+        targetCompanyId: effectiveCompanyId,
+        action: 'updated',
+        before: existing,
+        after: updated,
+        source: 'action',
+      });
+    }
 
     revalidatePath('/dashboard/services');
     return { success: true, data: updated };
@@ -137,15 +164,32 @@ export async function deleteService(
   id: number,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
-    const { companyId: effectiveCompanyId } =
+    const { context, companyId: effectiveCompanyId } =
       await requireActionPermission('services.write');
-    await db
+    const existing = await db.query.service.findFirst({
+      where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
+    });
+    const [deleted] = await db
       .update(service)
       .set({
         deleted_at: new Date(),
         updated_at: new Date(),
       })
-      .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)));
+      .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)))
+      .returning();
+
+    if (deleted) {
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'service',
+        resourceId: id,
+        targetCompanyId: effectiveCompanyId,
+        action: 'deleted',
+        before: existing,
+        after: deleted,
+        source: 'action',
+      });
+    }
 
     await pauseSchedulesForService(id, effectiveCompanyId);
 

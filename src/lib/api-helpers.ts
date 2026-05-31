@@ -12,6 +12,7 @@ import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
 import { checkPermission } from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
 import { convertBigIntToString } from '@/lib/utils';
+import { recordPermissionDeniedAudit } from '@/lib/audit-security';
 
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json(
@@ -75,23 +76,30 @@ export async function requireSession() {
 export async function requireApiPermission(
   permissionName: string,
   requestedCompanyId?: number | null,
+  requestMeta?: Record<string, unknown>,
 ) {
   const { session, unauthorized } = await requireSession();
   if (unauthorized || !session) {
     return { session: null, companyId: null, unauthorized };
   }
 
+  const actor = {
+    userId: session.user.id,
+    companyId: session.user.company_id ?? null,
+    companyIsSystem: Boolean(session.user.company_is_system),
+  };
+
   let companyId: number;
   try {
-    companyId = resolveWritableCompanyId(
-      {
-        userId: session.user.id,
-        companyId: session.user.company_id ?? null,
-        companyIsSystem: Boolean(session.user.company_is_system),
-      },
-      requestedCompanyId,
-    );
+    companyId = resolveWritableCompanyId(actor, requestedCompanyId);
   } catch {
+    await recordPermissionDeniedAudit({
+      actor,
+      targetCompanyId: requestedCompanyId ?? actor.companyId,
+      permission: permissionName,
+      source: 'api',
+      requestMeta,
+    });
     return {
       session: null,
       companyId: null,
@@ -106,6 +114,13 @@ export async function requireApiPermission(
   );
 
   if (!allowed) {
+    await recordPermissionDeniedAudit({
+      actor,
+      targetCompanyId: companyId,
+      permission: permissionName,
+      source: 'api',
+      requestMeta,
+    });
     return {
       session: null,
       companyId: null,

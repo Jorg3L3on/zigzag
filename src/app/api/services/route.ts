@@ -7,6 +7,7 @@ import {
 } from '@/lib/company-entitlement-guard';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { recordResourceAudit } from '@/lib/resource-audit';
 
 export async function GET(request: Request) {
   try {
@@ -63,11 +64,12 @@ export async function POST(request: Request) {
       })
       .parse(body);
 
-    const { unauthorized, companyId } = await requireApiPermission(
+    const { session, unauthorized, companyId } = await requireApiPermission(
       'services.write',
       parsed.company_id,
+      { route: '/api/services', method: 'POST' },
     );
-    if (unauthorized) {
+    if (unauthorized || !session) {
       return unauthorized;
     }
 
@@ -82,6 +84,20 @@ export async function POST(request: Request) {
         company_id: companyId,
       })
       .returning();
+
+    await recordResourceAudit(db, {
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'service',
+      resourceId: created.id,
+      targetCompanyId: companyId,
+      action: 'created',
+      after: created,
+      source: 'api',
+    });
 
     return ok(created, 201);
   } catch (error) {
