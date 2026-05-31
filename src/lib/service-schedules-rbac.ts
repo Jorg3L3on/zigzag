@@ -1,4 +1,5 @@
 import { PERMISSIONS } from '@/lib/permissions';
+import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 
 /**
  * Service Schedules contract:
@@ -31,8 +32,4 @@ export const canCreateTicketFromSchedule = (
   canAccessPermission: CanAccessPermissionFn,
 ): boolean => canAccessPermission(PERMISSIONS.tickets.write);
 
-export const needsSelectedCompanyForSchedules = (
-  isSystem: boolean,
-  selectedCompanyId?: number | null,
-): boolean =>
-  isSystem && (selectedCompanyId == null || selectedCompanyId <= 0);
+export const needsSelectedCompanyForSchedules = needsSelectedCompanyContext;

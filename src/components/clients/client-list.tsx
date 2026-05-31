@@ -60,7 +60,9 @@ import {
   encodeSortingState,
 } from '@/components/clients/clients-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/lib/permissions';
+import { canWriteClients } from '@/lib/clients-rbac';
+import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { formatClientAddressOneLine } from '@/lib/client-address';
 
 type ContactFilter = 'all' | 'with' | 'without';
@@ -71,7 +73,11 @@ const hasMeaningfulText = (value: string | null | undefined): boolean =>
 export function ClientList() {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
-  const canWriteClients = permissions.can(PERMISSIONS.clients.write);
+  const canWrite = canWriteClients(permissions.can);
+  const missingCompany = needsSelectedCompanyContext(
+    permissions.isSystem,
+    selectedCompany?.id,
+  );
   const router = useRouter();
   const [clients, setClients] = React.useState<Client[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -98,6 +104,13 @@ export function ClientList() {
   }, [searchValue]);
 
   const fetchClients = React.useCallback(async () => {
+    if (missingCompany) {
+      setClients([]);
+      setLoadError(null);
+      setLoadingClients(false);
+      return;
+    }
+
     setLoadingClients(true);
     setLoadError(null);
     const result = await getClientsList({
@@ -115,7 +128,7 @@ export function ClientList() {
       );
     }
     setLoadingClients(false);
-  }, [selectedCompany?.id]);
+  }, [missingCompany, selectedCompany?.id]);
 
   React.useEffect(() => {
     void fetchClients();
@@ -169,7 +182,7 @@ export function ClientList() {
     () =>
       createClientsColumns({
         renderActions: (clientRow) =>
-          canWriteClients ? (
+          canWrite ? (
             <>
             <Button
               variant="ghost"
@@ -196,7 +209,7 @@ export function ClientList() {
             </>
           ) : null,
       }),
-    [router, openDeleteDialog, canWriteClients],
+    [router, openDeleteDialog, canWrite],
   );
 
   const table = useReactTable({
@@ -297,6 +310,10 @@ export function ClientList() {
         ]
       : []),
   ];
+
+  if (missingCompany) {
+    return <SystemCompanyContextEmptyState resourceLabel="clientes" />;
+  }
 
   return (
     <>
@@ -432,26 +449,26 @@ export function ClientList() {
                 <TripledMobileRecordCard
                   key={row.id}
                   role="button"
-                  tabIndex={canWriteClients ? 0 : -1}
+                  tabIndex={canWrite ? 0 : -1}
                   aria-label={
-                    canWriteClients
+                    canWrite
                       ? `Editar cliente ${clientRow.name}`
                       : `Cliente ${clientRow.name}`
                   }
-                  interactive={canWriteClients}
+                  interactive={canWrite}
                   className={
-                    canWriteClients
+                    canWrite
                       ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                       : undefined
                   }
                   onClick={() => {
-                    if (canWriteClients) {
+                    if (canWrite) {
                       router.push(`/dashboard/clients/${clientRow.id}/edit`);
                     }
                   }}
                   onKeyDown={(event) => {
                     if (
-                      canWriteClients &&
+                      canWrite &&
                       (event.key === 'Enter' || event.key === ' ')
                     ) {
                       event.preventDefault();
@@ -463,7 +480,7 @@ export function ClientList() {
                     <h3 className="text-sm font-semibold text-foreground">
                       {clientRow.name}
                     </h3>
-                    {canWriteClients ? (
+                    {canWrite ? (
                       <div className="flex shrink-0 gap-1">
                       <Button
                         variant="ghost"
@@ -543,16 +560,16 @@ export function ClientList() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={canWriteClients ? 'cursor-pointer' : undefined}
-                    tabIndex={canWriteClients ? 0 : -1}
+                    className={canWrite ? 'cursor-pointer' : undefined}
+                    tabIndex={canWrite ? 0 : -1}
                     onClick={() => {
-                      if (canWriteClients) {
+                      if (canWrite) {
                         router.push(`/dashboard/clients/${row.original.id}/edit`);
                       }
                     }}
                     onKeyDown={(event) => {
                       if (
-                        canWriteClients &&
+                        canWrite &&
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();

@@ -76,7 +76,9 @@ import { cn } from '@/lib/utils';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import { Badge } from '@/components/ui/badge';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/lib/permissions';
+import { canWriteTickets } from '@/lib/tickets-rbac';
+import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import {
   Sheet,
   SheetClose,
@@ -179,7 +181,11 @@ const TicketsTableSkeleton = () => (
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
-  const canWriteTickets = permissions.can(PERMISSIONS.tickets.write);
+  const canWrite = canWriteTickets(permissions.can);
+  const missingCompany = needsSelectedCompanyContext(
+    permissions.isSystem,
+    selectedCompany?.id,
+  );
   const router = useRouter();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -199,6 +205,12 @@ export default function TicketsList() {
   });
 
   const fetchTickets = React.useCallback(async () => {
+    if (missingCompany) {
+      setTickets([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     if (!selectedCompany?.id) return;
 
     try {
@@ -224,7 +236,7 @@ export default function TicketsList() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCompany?.id]);
+  }, [missingCompany, selectedCompany?.id]);
 
   React.useEffect(() => {
     fetchTickets();
@@ -237,8 +249,8 @@ export default function TicketsList() {
   }, []);
 
   const columns = React.useMemo(
-    () => createTicketsColumns({ onDelete: handleDelete, canWrite: canWriteTickets }),
-    [handleDelete, canWriteTickets],
+    () => createTicketsColumns({ onDelete: handleDelete, canWrite }),
+    [handleDelete, canWrite],
   );
 
   const filteredTickets = React.useMemo(() => {
@@ -388,6 +400,10 @@ export default function TicketsList() {
         ]
       : []),
   ];
+
+  if (missingCompany) {
+    return <SystemCompanyContextEmptyState resourceLabel="tickets" />;
+  }
 
   if (loading) {
     return <TicketsTableSkeleton />;
@@ -805,17 +821,17 @@ export default function TicketsList() {
                   aria-label={
                     ticket.finished
                       ? `Ver ticket ${ticket.id.toString()}`
-                      : canWriteTickets
+                      : canWrite
                         ? `Editar ticket ${ticket.id.toString()}`
                         : `Ver ticket ${ticket.id.toString()}`
                   }
                   onClick={() =>
-                    router.push(hrefForTicketListRow(ticket, canWriteTickets))
+                    router.push(hrefForTicketListRow(ticket, canWrite))
                   }
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      router.push(hrefForTicketListRow(ticket, canWriteTickets));
+                      router.push(hrefForTicketListRow(ticket, canWrite));
                     }
                   }}
                 >
@@ -839,7 +855,7 @@ export default function TicketsList() {
                       <TicketRowActions
                         ticket={ticket}
                         onDelete={handleDelete}
-                        canWrite={canWriteTickets}
+                        canWrite={canWrite}
                       />
                     </div>
                   </div>
@@ -904,13 +920,13 @@ export default function TicketsList() {
                     className="cursor-pointer"
                     tabIndex={0}
                     onClick={() =>
-                      router.push(hrefForTicketListRow(row.original, canWriteTickets))
+                      router.push(hrefForTicketListRow(row.original, canWrite))
                     }
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         router.push(
-                          hrefForTicketListRow(row.original, canWriteTickets),
+                          hrefForTicketListRow(row.original, canWrite),
                         );
                       }
                     }}

@@ -9,7 +9,8 @@ import {
 } from '@/components/tripled';
 import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
-import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
+import { canAccessPermission } from '@/lib/permissions';
+import { canWriteTickets } from '@/lib/tickets-rbac';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -17,9 +18,8 @@ export const revalidate = 0;
 export default async function TicketsPage() {
   await requirePagePermission('tickets.read');
   const permissionMap = await getSessionPermissionMap();
-  const canWriteTickets = canAccessPermission(
-    permissionMap,
-    PERMISSIONS.tickets.write,
+  const canWrite = canWriteTickets((permission) =>
+    canAccessPermission(permissionMap, permission),
   );
 
   return (
@@ -33,7 +33,7 @@ export default async function TicketsPage() {
           desktopDescription="Lista de todos los tickets registrados"
           icon={<Ticket className="size-5" aria-hidden />}
           action={
-            canWriteTickets ? (
+            canWrite ? (
               <Link
                 href="/dashboard/tickets/create"
                 className="w-full shrink-0 sm:w-auto sm:self-start"

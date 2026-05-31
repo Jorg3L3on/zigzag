@@ -60,12 +60,18 @@ import {
 } from '@/components/services/services-sort-presets';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/lib/permissions';
+import { canWriteServices } from '@/lib/services-rbac';
+import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 
 export function ServicesListClient() {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
-  const canWriteServices = permissions.can(PERMISSIONS.services.write);
+  const canWrite = canWriteServices(permissions.can);
+  const missingCompany = needsSelectedCompanyContext(
+    permissions.isSystem,
+    selectedCompany?.id,
+  );
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -124,6 +130,13 @@ export function ServicesListClient() {
 
   React.useEffect(() => {
     const fetchServices = async () => {
+      if (missingCompany) {
+        setServices([]);
+        setLoadError(null);
+        setLoadingServices(false);
+        return;
+      }
+
       setLoadingServices(true);
       setLoadError(null);
       const result = await getServices(selectedCompany?.id ?? null, statusFilter);
@@ -141,7 +154,7 @@ export function ServicesListClient() {
       setLoadingServices(false);
     };
     void fetchServices();
-  }, [selectedCompany, statusFilter]);
+  }, [missingCompany, selectedCompany, statusFilter]);
 
   const filteredServices = useMemo(() => {
     const search = debouncedSearch.toLowerCase();
@@ -162,7 +175,7 @@ export function ServicesListClient() {
     () =>
       createServicesColumns({
         renderActions: (service) =>
-          canWriteServices ? (
+          canWrite ? (
             <>
             <Button
               variant="ghost"
@@ -189,7 +202,7 @@ export function ServicesListClient() {
             </>
           ) : null,
       }),
-    [router, openDeleteDialog, canWriteServices],
+    [router, openDeleteDialog, canWrite],
   );
 
   const table = useReactTable({
@@ -238,6 +251,10 @@ export function ServicesListClient() {
         ]
       : []),
   ];
+
+  if (missingCompany) {
+    return <SystemCompanyContextEmptyState resourceLabel="servicios" />;
+  }
 
   return (
     <>
@@ -346,26 +363,26 @@ export function ServicesListClient() {
                 <TripledMobileRecordCard
                   key={row.id}
                   role="button"
-                  tabIndex={canWriteServices ? 0 : -1}
+                  tabIndex={canWrite ? 0 : -1}
                   aria-label={
-                    canWriteServices
+                    canWrite
                       ? `Editar servicio ${service.name}`
                       : `Servicio ${service.name}`
                   }
-                  interactive={canWriteServices}
+                  interactive={canWrite}
                   className={
-                    canWriteServices
+                    canWrite
                       ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                       : undefined
                   }
                   onClick={() => {
-                    if (canWriteServices) {
+                    if (canWrite) {
                       router.push(`/dashboard/services/${service.id}/edit`);
                     }
                   }}
                   onKeyDown={(event) => {
                     if (
-                      canWriteServices &&
+                      canWrite &&
                       (event.key === 'Enter' || event.key === ' ')
                     ) {
                       event.preventDefault();
@@ -409,7 +426,7 @@ export function ServicesListClient() {
                     </span>
                   </div>
 
-                  {canWriteServices ? (
+                  {canWrite ? (
                     <div className="mt-4 flex justify-end gap-2">
                     <Button
                       variant="ghost"
@@ -466,16 +483,16 @@ export function ServicesListClient() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={canWriteServices ? 'cursor-pointer' : undefined}
-                    tabIndex={canWriteServices ? 0 : -1}
+                    className={canWrite ? 'cursor-pointer' : undefined}
+                    tabIndex={canWrite ? 0 : -1}
                     onClick={() => {
-                      if (canWriteServices) {
+                      if (canWrite) {
                         router.push(`/dashboard/services/${row.original.id}/edit`);
                       }
                     }}
                     onKeyDown={(event) => {
                       if (
-                        canWriteServices &&
+                        canWrite &&
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();

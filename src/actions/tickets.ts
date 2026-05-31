@@ -35,7 +35,7 @@ import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
-import { requireActionPermission } from '@/lib/security';
+import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
 
@@ -217,8 +217,7 @@ export async function createTicket(
 }> {
   try {
     const validatedData = ticketSchema.parse(data);
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'tickets.write',
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validatedData.company_id,
     );
 
@@ -287,8 +286,7 @@ export async function getTickets(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
-      'tickets.read',
+    const { companyId: effectiveCompanyId } = await requireTicketRead(
       companyId ?? undefined,
     );
     const tickets = await db.query.ticket.findMany({
@@ -322,8 +320,7 @@ export async function getTicketsList(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
-      'tickets.read',
+    const { companyId: effectiveCompanyId } = await requireTicketRead(
       companyId ?? undefined,
     );
     const tickets = await db.query.ticket.findMany({
@@ -345,10 +342,7 @@ export async function getTicketById(
   requestedCompanyId?: number | null,
 ): Promise<GetTicketByIdResult> {
   try {
-    const { context, companyId } = await requireActionPermission(
-      'tickets.read',
-      requestedCompanyId,
-    );
+    const { context, companyId } = await requireTicketRead(requestedCompanyId);
     const ticketRow = await db.query.ticket.findFirst({
       where:
         context.companyIsSystem && requestedCompanyId == null
@@ -391,8 +385,7 @@ export async function updateTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'tickets.write',
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       data.company_id ?? undefined,
     );
     const ticketId = BigInt(id);
@@ -526,7 +519,7 @@ export async function deleteTicket(id: number): Promise<{
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireActionPermission('tickets.write');
+      await requireTicketWrite();
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
     const prior = await db.query.ticket.findFirst({
@@ -579,7 +572,7 @@ export async function finishTicket(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireActionPermission('tickets.write');
+      await requireTicketWrite();
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
@@ -654,7 +647,7 @@ export async function applyTicketPayment(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireActionPermission('tickets.write');
+      await requireTicketWrite();
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
