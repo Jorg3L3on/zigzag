@@ -24,5 +24,15 @@ other users are restricted to their own `company_id`.
 - `/dashboard/forbidden` is authenticated and intentionally reachable after a
   failed page permission check.
 
-The static RBAC coverage test enforces these rules so new routes or actions do
-not bypass authorization accidentally.
+## Edge-role policy
+
+| Scenario | Server | UI |
+| --- | --- | --- |
+| `tickets.write` without `tickets.read` | Write actions allowed when reached; read actions denied | Read-guarded pages redirect/deny; mutation controls hidden without write |
+| Schedule write via `clients.write` | `requireScheduleWrite` falls back to `clients.write` | Schedule write controls visible with either permission |
+| Read-only viewer | Read guards pass; write guards fail | Create/edit/delete controls hidden; payment collect hidden |
+| System company without selected tenant | Server rejects missing company context | Lists/widgets show selected-company empty state |
+| Admin resources (users, roles, permissions, companies) | Requires permission + system company for cross-tenant admin | Sidebar and write CTAs require `isSystem` and write permission |
+
+Contract modules under `src/lib/*-rbac.ts` are the canonical policy surface for UI and server helpers.
+

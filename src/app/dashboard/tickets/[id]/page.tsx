@@ -16,16 +16,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Mail, Phone, Calendar, Receipt } from 'lucide-react';
-import Link from 'next/link';
 import { FormattedDate } from '@/components/formatted-date';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { notFound } from 'next/navigation';
-import { PDFDownloadButton } from '@/components/pdf-download-button';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { TicketPaymentCollectSection } from '@/components/tickets/ticket-payment-collect-section';
+import { TicketDetailActions } from '@/components/tickets/ticket-detail-actions';
+import { TicketDetailHeaderActions } from '@/components/tickets/ticket-detail-header-actions';
 import { requirePagePermission } from '@/lib/page-authz';
 import {
   TripledDashboardShell,
@@ -95,20 +93,13 @@ export default async function TicketDetailsPage({
                     </span>
                   </CardDescription>
                 </div>
-                {ticket.finished && (
-                  <div className="flex w-full min-w-0 shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:w-auto">
-                    <Badge
-                      variant="secondary"
-                      className="w-fit shrink-0 border-transparent bg-emerald-100 px-3 py-1 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/80 dark:text-emerald-100"
-                    >
-                      Finalizado
-                    </Badge>
-                    <PDFDownloadButton
-                      ticketId={ticket.id}
-                      downloadFileName={buildTicketPdfFileName(ticket)}
-                    />
-                  </div>
-                )}
+                {ticket.finished ? (
+                  <TicketDetailHeaderActions
+                    ticketId={ticket.id}
+                    downloadFileName={buildTicketPdfFileName(ticket)}
+                    finished={ticket.finished}
+                  />
+                ) : null}
               </div>
             </CardHeader>
 
@@ -273,15 +264,10 @@ export default async function TicketDetailsPage({
                 payments={ticket.ticket_payments ?? []}
               />
 
-              {!ticket.finished && (
-                <div className="pt-2">
-                  <Link href={`/dashboard/tickets/${ticket.id}/edit`}>
-                    <Button className="h-12 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold shadow-md transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg">
-                      Editar Ticket
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <TicketDetailActions
+                ticketId={ticket.id}
+                finished={ticket.finished}
+              />
             </CardContent>
           </Card>
       </TripledDashboardShell>

@@ -21,6 +21,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FormattedDate } from '@/components/formatted-date';
+import { usePermissions } from '@/hooks/use-permissions';
+import { canCollectTicketPayment } from '@/lib/tickets-rbac';
 import { getErrorMessageByType } from '@/lib/network-awareness';
 
 type TicketPaymentHistoryRow = {
@@ -45,12 +47,14 @@ export const TicketPaymentCollectSection = ({
   payments,
 }: TicketPaymentCollectSectionProps) => {
   const router = useRouter();
+  const { can } = usePermissions();
+  const canCollect = canCollectTicketPayment(can);
   const [amountInput, setAmountInput] = React.useState('');
   const [isPending, startTransition] = React.useTransition();
 
   const balanceDue = getTicketBalanceDue(total, paid);
   const paymentStatus = getTicketPaymentStatus(total, paid);
-  const showCollectUi = finished && paymentStatus === 'partial';
+  const showCollectUi = finished && paymentStatus === 'partial' && canCollect;
 
   const parseAmount = (value: string): number => {
     if (!value.trim()) return 0;

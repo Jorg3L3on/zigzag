@@ -305,6 +305,15 @@ async function main() {
       password:
         '$2b$10$/LQ52AQ6cG.uC9AleMV72OdDLVrcNpvcNp6.w5V6O2grk9Dd7ZCPO',
     },
+    {
+      id: 4n,
+      name: 'viewer',
+      email: 'viewer@test.com',
+      company_id: 1,
+      role_id: 3,
+      password:
+        '$2b$12$6SjcCwTOEYxnZwWPprPg9OrS5QIJ.g8axo3OpmE7CGfJUhx9fwlHK',
+    },
   ]);
 
   await db.insert(service).values([

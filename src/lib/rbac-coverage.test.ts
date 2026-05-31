@@ -51,6 +51,20 @@ describe('RBAC coverage', () => {
           'checkPermission(',
           'requireScheduleRead(',
           'requireScheduleWrite(',
+          'requireTicketRead(',
+          'requireTicketWrite(',
+          'requireClientRead(',
+          'requireClientWrite(',
+          'requireServiceRead(',
+          'requireServiceWrite(',
+          'requireCompanyRead(',
+          'requireCompanyWrite(',
+          'requireUserRead(',
+          'requireUserWrite(',
+          'requireRoleRead(',
+          'requireRoleWrite(',
+          'requirePermissionRead(',
+          'requirePermissionWrite(',
         ]);
       })
       .map(relative);
@@ -104,5 +118,24 @@ describe('RBAC coverage', () => {
   it('keeps auth-only dashboard exceptions behind active-session validation', () => {
     const dashboardLayout = read(path.join(root, 'src/app/dashboard/layout.tsx'));
     expect(dashboardLayout).toContain('requireActionAuth(');
+  });
+
+  it('keeps canonical RBAC contract modules present for major resources', () => {
+    const contractModules = [
+      'src/lib/tickets-rbac.ts',
+      'src/lib/clients-rbac.ts',
+      'src/lib/services-rbac.ts',
+      'src/lib/companies-rbac.ts',
+      'src/lib/users-rbac.ts',
+      'src/lib/roles-rbac.ts',
+      'src/lib/permissions-rbac.ts',
+      'src/lib/system-company-context.ts',
+    ];
+
+    const missing = contractModules.filter(
+      (modulePath) => !existsSync(path.join(root, modulePath)),
+    );
+
+    expect(missing).toEqual([]);
   });
 });
