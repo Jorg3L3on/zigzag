@@ -42,6 +42,23 @@ describe('coded error builders', () => {
     });
   });
 
+  it('uses the app error message when the cause code matches', () => {
+    const error = new AppError(
+      'La empresa no está lista para operar. Completa: Colonia.',
+      403,
+      true,
+      'CO008',
+    );
+
+    expect(buildPublicError('CO008', error)).toEqual({
+      error:
+        'La empresa no está lista para operar. Completa: Colonia. Código: CO008',
+      errorCode: 'CO008',
+      errorTitle: 'Empresa no lista para operar',
+      errorType: 'server',
+    });
+  });
+
   it('preserves operation code but classifies auth causes', () => {
     const error = new AuthorizationError('forbidden');
 

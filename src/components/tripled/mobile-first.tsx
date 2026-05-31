@@ -31,14 +31,20 @@ export const TripledDashboardShell = ({
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden bg-muted/20 p-3 sm:gap-6 sm:bg-background sm:p-6',
+        'flex min-w-0 flex-1 flex-col gap-4 bg-muted/20 p-3 sm:gap-6 sm:bg-background sm:p-6',
         hasMobileStickyAction
           ? 'pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-6'
           : 'pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6',
         className,
       )}
     >
-      <div className={cn('mx-auto w-full min-w-0', maxWidthClassName, contentClassName)}>
+      <div
+        className={cn(
+          'mx-auto w-full min-w-0 overflow-x-hidden',
+          maxWidthClassName,
+          contentClassName,
+        )}
+      >
         {children}
       </div>
     </div>
@@ -123,6 +129,9 @@ type TripledMobileAppBarProps = {
   endSlot?: ReactNode;
 };
 
+/** Reserved height for fixed mobile app bar (py-3 + h-11 row). */
+export const MOBILE_APP_BAR_HEIGHT = '4.25rem';
+
 export const TripledMobileAppBar = ({
   title,
   subtitle,
@@ -132,29 +141,43 @@ export const TripledMobileAppBar = ({
   endSlot,
 }: TripledMobileAppBarProps) => {
   return (
-    <div className={cn('flex items-center justify-between gap-3 md:hidden', className)}>
-      {backHref ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-11 w-11 rounded-full bg-background shadow-sm"
-          asChild
-        >
-          <Link href={backHref} aria-label={backLabel}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-          </Link>
-        </Button>
-      ) : (
-        <div className="h-11 w-11" aria-hidden />
+    <div
+      className={cn(
+        // Cancel shell top padding so the bar aligns with the viewport edge.
+        '-mt-3 sm:-mt-6 md:hidden',
+        className,
       )}
-      <div className="min-w-0 flex-1 text-center">
-        <p className="truncate text-sm font-semibold">{title}</p>
-        {subtitle ? (
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
-        ) : null}
-      </div>
-      {endSlot ?? <div className="h-11 w-11" aria-hidden />}
+    >
+      <header
+        className="fixed inset-x-0 top-[var(--network-status-banner-offset,0px)] z-40 border-b border-border/40 bg-background/95 px-3 pb-3 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6"
+        data-testid="mobile-app-bar"
+      >
+        <div className="flex items-center justify-between gap-3">
+          {backHref ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 rounded-full bg-background shadow-sm"
+              asChild
+            >
+              <Link href={backHref} aria-label={backLabel}>
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+              </Link>
+            </Button>
+          ) : (
+            <div className="h-11 w-11" aria-hidden />
+          )}
+          <div className="min-w-0 flex-1 text-center">
+            <p className="truncate text-sm font-semibold">{title}</p>
+            {subtitle ? (
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            ) : null}
+          </div>
+          {endSlot ?? <div className="h-11 w-11" aria-hidden />}
+        </div>
+      </header>
+      <div aria-hidden="true" style={{ height: MOBILE_APP_BAR_HEIGHT }} />
     </div>
   );
 };

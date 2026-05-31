@@ -60,6 +60,7 @@ import {
 } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/clients/client-form';
 import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
+import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
@@ -269,6 +270,7 @@ const CreateTicketPageContent = () => {
           />
 
           <CompanyEntitlementNotice metric="tickets_month" />
+          <CompanyProductionNotice />
 
           <div className="md:hidden">
             <TripledStepper
@@ -327,9 +329,9 @@ const CreateTicketPageContent = () => {
                                 disabled={isClientsLoading}
                                 onValueChange={handleClientSelect}
                                 value={
-                                  field.value != null
+                                  field.value != null && field.value > 0
                                     ? String(field.value)
-                                    : undefined
+                                    : ''
                                 }
                               >
                                 <FormControl>

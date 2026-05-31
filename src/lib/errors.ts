@@ -154,9 +154,15 @@ export function buildPublicError(
   errorType?: ActionErrorType,
 ): PublicErrorPayload {
   const entry = getErrorCatalogEntry(code);
+  const customMessage =
+    cause instanceof AppError &&
+    cause.errorCode === code &&
+    cause.message.trim()
+      ? cause.message.trim()
+      : entry.message;
 
   return {
-    error: `${entry.message} Código: ${entry.code}`,
+    error: `${customMessage} Código: ${entry.code}`,
     errorCode: entry.code as ErrorCode,
     errorTitle: entry.title,
     errorType: errorType ?? resolvePublicErrorType(code, cause),

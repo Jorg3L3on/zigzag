@@ -14,7 +14,11 @@ import {
   canTransitionCompanyLifecycle,
   normalizeCompanyLifecycleStatus,
 } from '@/lib/company-lifecycle';
-import { listCompanyProfileGaps } from '@/lib/company-readiness';
+import {
+  assessCompanyReadiness,
+  listCompanyProfileGaps,
+  type CompanyReadinessAssessment,
+} from '@/lib/company-readiness';
 import { parseCompanyLogoFile } from '@/lib/company-logo-upload';
 import {
   deleteCompanyLogoBlob,
@@ -99,6 +103,29 @@ export async function getCompany(id: number): Promise<{
     return { success: true, data: row };
   } catch (e) {
     return handleCodedServerActionError('companies.get', 'CO002', e);
+  }
+}
+
+export async function getCompanyReadiness(companyId: number): Promise<{
+  success: boolean;
+  data?: CompanyReadinessAssessment;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    await requireActionPermission('companies.read', companyId);
+
+    const row = await db.query.company.findFirst({
+      where: and(eq(company.id, companyId), isNull(company.deleted_at)),
+    });
+
+    if (!row) {
+      return buildActionError('CO006');
+    }
+
+    return { success: true, data: assessCompanyReadiness(row) };
+  } catch (e) {
+    return handleCodedServerActionError('companies.readiness', 'CO002', e);
   }
 }
 

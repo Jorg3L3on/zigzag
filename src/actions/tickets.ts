@@ -19,6 +19,7 @@ import {
   AuthorizationError,
   buildActionError,
   handleCodedServerActionError,
+  handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
 import { calculateTicketTotal } from '@/lib/ticket-financials';
@@ -30,7 +31,10 @@ import {
   assertCompanyEntitlementAllows,
   CompanyEntitlementExceededError,
 } from '@/lib/company-entitlement-guard';
-import { assertCompanyProductionReady } from '@/lib/company-production-guard';
+import {
+  assertCompanyProductionReady,
+  CompanyProductionBlockedError,
+} from '@/lib/company-production-guard';
 import { requireActionPermission } from '@/lib/security';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
@@ -263,6 +267,9 @@ export async function createTicket(
   } catch (error) {
     if (error instanceof CompanyEntitlementExceededError) {
       return handleCodedServerActionError('tickets.create.entitlement', 'CO011', error);
+    }
+    if (error instanceof CompanyProductionBlockedError) {
+      return handleServerActionError(error);
     }
     if (error instanceof z.ZodError) {
       return handleCodedServerActionError('tickets.create.validation', 'TC009', error);
