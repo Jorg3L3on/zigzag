@@ -4,6 +4,8 @@ import { compare } from 'bcryptjs';
 import { and, eq, isNull } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { db } from '@/lib/db';
+import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
+import { recordAuthAuditEvent } from '@/lib/audit-security';
 
 class LoginRateLimiter {
   private requests = new Map<string, { count: number; resetTime: number }>();
@@ -74,6 +76,11 @@ export const {
       async authorize(credentials) {
         try {
           if (!credentials?.email || !credentials?.password) {
+            await recordAuthAuditEvent({
+              action: 'sign_in_failed',
+              result: 'failed',
+              reason: 'missing_credentials',
+            });
             return null;
           }
 
@@ -82,6 +89,12 @@ export const {
 
           if (!loginRateLimiter.isAllowed(email)) {
             console.warn('[auth][authorize] login throttled', { email });
+            await recordAuthAuditEvent({
+              action: 'sign_in_failed',
+              result: 'failed',
+              email,
+              reason: 'throttled',
+            });
             return null;
           }
 
@@ -93,11 +106,37 @@ export const {
           });
 
           if (!row?.password) {
+            await recordAuthAuditEvent({
+              action: 'sign_in_failed',
+              result: 'failed',
+              email,
+              reason: 'invalid_credentials',
+            });
+            return null;
+          }
+
+          if (
+            !row.company ||
+            row.company.deleted_at ||
+            !companyAllowsAuthentication(row.company.status)
+          ) {
+            await recordAuthAuditEvent({
+              action: 'sign_in_failed',
+              result: 'failed',
+              email,
+              reason: 'inactive_company',
+            });
             return null;
           }
 
           const isPasswordValid = await compare(password, row.password);
           if (!isPasswordValid) {
+            await recordAuthAuditEvent({
+              action: 'sign_in_failed',
+              result: 'failed',
+              email,
+              reason: 'invalid_credentials',
+            });
             return null;
           }
 
@@ -136,6 +175,42 @@ export const {
         session.user.company_is_system = token.company_is_system as boolean;
       }
       return session;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      if (!user?.id) {
+        return;
+      }
+      await recordAuthAuditEvent({
+        action: 'signed_in',
+        result: 'success',
+        actor: {
+          userId: user.id,
+          companyId: user.company_id ?? null,
+          companyIsSystem: Boolean(user.company_is_system),
+        },
+        targetCompanyId: user.company_id ?? null,
+        resourceId: user.id,
+        email: user.email ?? null,
+      });
+    },
+    async signOut(message) {
+      const token = 'token' in message ? message.token : null;
+      const userId = token?.id ?? token?.sub;
+      if (!userId) {
+        return;
+      }
+      await recordAuthAuditEvent({
+        action: 'signed_out',
+        result: 'success',
+        actor: {
+          userId: String(userId),
+          companyId: (token?.company_id as number | undefined) ?? null,
+          companyIsSystem: Boolean(token?.company_is_system),
+        },
+        resourceId: String(userId),
+      });
     },
   },
 });

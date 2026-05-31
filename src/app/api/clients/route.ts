@@ -6,6 +6,7 @@ import {
   assertCompanyEntitlementAllows,
   CompanyEntitlementExceededError,
 } from '@/lib/company-entitlement-guard';
+import { recordResourceAudit } from '@/lib/resource-audit';
 
 export async function GET(request: Request) {
   try {
@@ -58,11 +59,12 @@ export async function POST(req: Request) {
       country,
       company_id,
     } = body;
-    const { unauthorized, companyId } = await requireApiPermission(
+    const { session, unauthorized, companyId } = await requireApiPermission(
       'clients.write',
       typeof company_id === 'number' ? company_id : undefined,
+      { route: '/api/clients', method: 'POST' },
     );
-    if (unauthorized) {
+    if (unauthorized || !session) {
       return unauthorized;
     }
 
@@ -91,6 +93,20 @@ export async function POST(req: Request) {
         company_id: companyId as number,
       })
       .returning();
+
+    await recordResourceAudit(db, {
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'client',
+      resourceId: created.id,
+      targetCompanyId: companyId as number,
+      action: 'created',
+      after: created,
+      source: 'api',
+    });
 
     return ok(created, 201);
   } catch (error) {

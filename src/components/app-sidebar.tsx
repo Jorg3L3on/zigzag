@@ -10,6 +10,7 @@ import {
   User,
   Key,
   CalendarClock,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -42,6 +43,7 @@ type SidebarItem = {
   url: string;
   icon?: LucideIcon;
   requiredPermission?: string;
+  systemOnly?: boolean;
   items?: {
     title: string;
     url: string;
@@ -105,6 +107,12 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       url: '/dashboard/permissions',
       icon: Key,
       requiredPermission: PERMISSIONS.permissions.read,
+    },
+    {
+      title: 'Auditoría',
+      url: '/dashboard/audit',
+      icon: ClipboardList,
+      systemOnly: true,
     },
   ],
 };
@@ -194,10 +202,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     [canAccess],
   );
 
-  const visibleSystem = React.useMemo(
-    () => data.system.filter((item) => canAccess(item.requiredPermission)),
-    [canAccess],
-  );
+  const visibleSystem = React.useMemo(() => {
+    const isSystemUser = session?.user?.company_is_system ?? false;
+    return data.system.filter((item) => {
+      if (item.systemOnly) {
+        return isSystemUser;
+      }
+      return canAccess(item.requiredPermission);
+    });
+  }, [canAccess, session?.user?.company_is_system]);
 
   const teams = React.useMemo(() => {
     const mappedTeams = companies.map((company) => {

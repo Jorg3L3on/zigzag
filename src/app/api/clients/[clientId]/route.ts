@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import { recordResourceAudit } from '@/lib/resource-audit';
 
 export async function GET(
   req: Request,
@@ -68,17 +69,27 @@ export async function PATCH(
       typeof company_id === 'number'
         ? company_id
         : Number.parseInt(new URL(req.url).searchParams.get('company_id') ?? '', 10);
-    const { unauthorized, companyId } = await requireApiPermission(
+    const { session, unauthorized, companyId } = await requireApiPermission(
       'clients.write',
       Number.isNaN(requestedCompanyId) ? undefined : requestedCompanyId,
+      { route: `/api/clients/${clientId}`, method: 'PATCH' },
     );
-    if (unauthorized) {
+    if (unauthorized || !session) {
       return unauthorized;
     }
 
     if (!name) {
       return fail('CL007', 400, 'validation');
     }
+
+    const parsedClientId = parseInt(clientId, 10);
+    const existing = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, parsedClientId),
+        eq(client.company_id, companyId as number),
+        isNull(client.deleted_at),
+      ),
+    });
 
     const [updated] = await db
       .update(client)
@@ -100,7 +111,7 @@ export async function PATCH(
       })
       .where(
         and(
-          eq(client.id, parseInt(clientId, 10)),
+          eq(client.id, parsedClientId),
           eq(client.company_id, companyId as number),
           isNull(client.deleted_at),
         ),
@@ -110,6 +121,21 @@ export async function PATCH(
     if (!updated) {
       return fail('CL006', 404, 'validation');
     }
+
+    await recordResourceAudit(db, {
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'client',
+      resourceId: parsedClientId,
+      targetCompanyId: companyId as number,
+      action: 'updated',
+      before: existing,
+      after: updated,
+      source: 'api',
+    });
 
     return ok(updated);
   } catch (error) {
@@ -125,20 +151,30 @@ export async function DELETE(
   try {
     const { clientId } = await context.params;
     const requestedCompanyId = new URL(req.url).searchParams.get('company_id');
-    const { unauthorized, companyId } = await requireApiPermission(
+    const { session, unauthorized, companyId } = await requireApiPermission(
       'clients.write',
       requestedCompanyId ? Number.parseInt(requestedCompanyId, 10) : undefined,
+      { route: `/api/clients/${clientId}`, method: 'DELETE' },
     );
-    if (unauthorized) {
+    if (unauthorized || !session) {
       return unauthorized;
     }
+
+    const parsedClientId = parseInt(clientId, 10);
+    const existing = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, parsedClientId),
+        eq(client.company_id, companyId as number),
+        isNull(client.deleted_at),
+      ),
+    });
 
     const [deleted] = await db
       .update(client)
       .set({ deleted_at: new Date() })
       .where(
         and(
-          eq(client.id, parseInt(clientId, 10)),
+          eq(client.id, parsedClientId),
           eq(client.company_id, companyId as number),
           isNull(client.deleted_at),
         ),
@@ -147,6 +183,21 @@ export async function DELETE(
     if (!deleted) {
       return fail('CL006', 404, 'validation');
     }
+
+    await recordResourceAudit(db, {
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'client',
+      resourceId: parsedClientId,
+      targetCompanyId: companyId as number,
+      action: 'deleted',
+      before: existing,
+      after: deleted,
+      source: 'api',
+    });
 
     return ok({ deleted: true });
   } catch (error) {

@@ -107,7 +107,10 @@ describe('RBAC coverage', () => {
       .filter((filePath) => {
         const pageAndLayouts = [filePath, ...nearestLayouts(filePath)];
         return !pageAndLayouts.some((candidate) =>
-          read(candidate).includes('requirePagePermission('),
+          hasAny(read(candidate), [
+            'requirePagePermission(',
+            'requireSystemPage(',
+          ]),
         );
       })
       .map(relative);
