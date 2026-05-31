@@ -41,19 +41,19 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
       : formatCompactNumber(kpi.value);
 
   return (
-    <TripledMotionDiv variants={tripledFadeInUp}>
-      <Card className="border-border/60 bg-gradient-to-b from-card to-card/80 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <TripledMotionDiv className="min-w-0" variants={tripledFadeInUp}>
+      <Card className="overflow-hidden border-border/60 bg-gradient-to-b from-card to-card/80 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {kpi.label}
           </CardTitle>
           {icon}
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-end justify-between gap-3">
-            <div className="text-2xl font-semibold tabular-nums">
+        <CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="space-y-1">
+            <p className="text-xl font-semibold tabular-nums leading-none sm:text-2xl">
               {compactValue}
-            </div>
+            </p>
             <div
               className={cn(
                 'flex items-center gap-1 text-xs font-medium tabular-nums',
