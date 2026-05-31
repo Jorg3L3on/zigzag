@@ -6,9 +6,9 @@ export const e2ePassword = process.env.E2E_PASSWORD;
 export const hasE2eCredentials = Boolean(e2eEmail && e2ePassword);
 
 export async function login(page: Page) {
-  await page.goto('/login');
-  await page.getByLabel('Correo electrónico').fill(e2eEmail!);
-  await page.getByLabel('Contraseña').fill(e2ePassword!);
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await page.locator('#email').fill(e2eEmail!);
+  await page.locator('#password').fill(e2ePassword!);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
 }

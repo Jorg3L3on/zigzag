@@ -10,6 +10,8 @@ import {
 test.use({ ...devices['Pixel 5'] });
 
 test.describe('Mobile sticky navigation', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     test.skip(
       !e2eEmail || !e2ePassword,
@@ -44,7 +46,7 @@ test.describe('Mobile sticky navigation', () => {
       }) => {
         await page.goto(path);
 
-        await expect(page.getByText(title, { exact: true })).toBeVisible();
+        await expect(page.getByTestId('mobile-app-bar').getByText(title)).toBeVisible();
         const appBar = page.getByTestId('mobile-app-bar');
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
       });

@@ -19,6 +19,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:mobile-nav": "npm run build && PLAYWRIGHT_USE_PROD=1 playwright test e2e/mobile-sticky-navbar.spec.ts --workers=1",
     "icons:generate": "node scripts/generate-pwa-icons.mjs",
     "rag:index": "ts-node -P rag/tsconfig.json rag/scripts/index-docs.ts",
     "rag:search": "ts-node -P rag/tsconfig.json rag/scripts/search.ts",
