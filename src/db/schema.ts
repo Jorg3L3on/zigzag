@@ -315,6 +315,41 @@ export const governanceAuditEvent = pgTable(
   ],
 );
 
+export const auditEvent = pgTable(
+  'AuditEvent',
+  {
+    id: serial('id').primaryKey(),
+    occurred_at: timestamp('occurred_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    actor_user_id: bigint('actor_user_id', { mode: 'bigint' }),
+    actor_company_id: integer('actor_company_id'),
+    target_company_id: integer('target_company_id'),
+    resource_type: text('resource_type').notNull(),
+    resource_id: text('resource_id'),
+    action: text('action').notNull(),
+    result: text('result').notNull(),
+    source: text('source').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown> | null>(),
+    request_meta: jsonb('request_meta').$type<Record<string, unknown> | null>(),
+  },
+  (t) => [
+    index('AuditEvent_occurred_at_idx').on(t.occurred_at),
+    index('AuditEvent_target_company_id_occurred_at_idx').on(
+      t.target_company_id,
+      t.occurred_at,
+    ),
+    index('AuditEvent_actor_user_id_occurred_at_idx').on(
+      t.actor_user_id,
+      t.occurred_at,
+    ),
+    index('AuditEvent_resource_type_resource_id_idx').on(
+      t.resource_type,
+      t.resource_id,
+    ),
+  ],
+);
+
 export const rolePermission = pgTable(
   'RolePermission',
   {
@@ -443,6 +478,23 @@ export const governanceAuditEventRelations = relations(
   }),
 );
 
+export const auditEventRelations = relations(auditEvent, ({ one }) => ({
+  actor: one(user, {
+    fields: [auditEvent.actor_user_id],
+    references: [user.id],
+  }),
+  actorCompany: one(company, {
+    fields: [auditEvent.actor_company_id],
+    references: [company.id],
+    relationName: 'auditActorCompany',
+  }),
+  targetCompany: one(company, {
+    fields: [auditEvent.target_company_id],
+    references: [company.id],
+    relationName: 'auditTargetCompany',
+  }),
+}));
+
 export const servicesTicketsRelations = relations(servicesTickets, ({ one }) => ({
   service: one(service, {
     fields: [servicesTickets.service_id],
@@ -468,6 +520,7 @@ export type TicketRow = typeof ticket.$inferSelect;
 export type TicketPaymentRow = typeof ticketPayment.$inferSelect;
 export type TicketAuditEventRow = typeof ticketAuditEvent.$inferSelect;
 export type GovernanceAuditEventRow = typeof governanceAuditEvent.$inferSelect;
+export type AuditEventRow = typeof auditEvent.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
 export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;

@@ -7,7 +7,10 @@ import {
   type User,
 } from '@/db/schema';
 import type { ActionAuthContext } from '@/lib/authz-context';
+import { toAuditJson } from '@/lib/audit';
 import type { db } from '@/lib/db';
+
+export { toAuditJson, sanitizeUserForAudit } from '@/lib/audit';
 
 export const GOVERNANCE_RESOURCE_TYPES = [
   'company',
@@ -43,47 +46,6 @@ export type GovernanceAuditActor = {
 export type GovernanceAuditWriter = Pick<typeof db, 'insert'>;
 
 export type GovernanceAuditDb = Pick<typeof db, 'insert' | 'select'>;
-
-export const toAuditJson = (value: unknown): unknown => {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(toAuditJson);
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, toAuditJson(entry)]),
-    );
-  }
-
-  return value;
-};
-
-const SENSITIVE_USER_KEYS = new Set(['password', 'remember_token']);
-
-export const sanitizeUserForAudit = (
-  row: User | null | undefined,
-): Record<string, unknown> | null => {
-  if (!row) {
-    return null;
-  }
-
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(row)) {
-    if (SENSITIVE_USER_KEYS.has(key)) {
-      continue;
-    }
-    out[key] = value;
-  }
-  return out;
-};
 
 export const sanitizeCompanyForAudit = (
   row: Company | null | undefined,
