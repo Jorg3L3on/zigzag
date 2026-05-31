@@ -6,7 +6,6 @@ import {
   service,
   servicesTickets,
   ticket,
-  ticketAuditEvent,
   ticketPayment,
   type Company,
   type Service,
@@ -15,6 +14,7 @@ import {
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
+import { recordTicketAudit } from '@/lib/ticket-audit';
 import {
   AuthorizationError,
   buildActionError,
@@ -139,47 +139,6 @@ const assertTicketWritable = async (
   if (ticketRow.company_id !== companyId) {
     throw new AuthorizationError('Access denied to this ticket');
   }
-};
-
-const toAuditJson = (value: unknown): unknown => {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(toAuditJson);
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, toAuditJson(entry)]),
-    );
-  }
-
-  return value;
-};
-
-type TicketAuditWriter = Pick<typeof db, 'insert'>;
-
-const recordTicketAudit = async (
-  tx: TicketAuditWriter,
-  context: ActionAuthContext,
-  ticketId: bigint,
-  companyId: number | null,
-  eventType: string,
-  payload: Record<string, unknown>,
-) => {
-  await tx.insert(ticketAuditEvent).values({
-    ticket_id: ticketId,
-    company_id: companyId,
-    actor_user_id: BigInt(context.userId),
-    event_type: eventType,
-    payload: toAuditJson(payload) as Record<string, unknown>,
-  });
 };
 
 const assertServicesBelongToCompany = async (

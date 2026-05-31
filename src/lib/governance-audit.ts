@@ -7,7 +7,12 @@ import {
   type User,
 } from '@/db/schema';
 import type { ActionAuthContext } from '@/lib/authz-context';
-import { toAuditJson } from '@/lib/audit';
+import {
+  buildAuditPayload,
+  recordAuditEvent,
+  toAuditJson,
+} from '@/lib/audit';
+import type { AuditAction, AuditSource } from '@/lib/audit-catalog';
 import type { db } from '@/lib/db';
 
 export { toAuditJson, sanitizeUserForAudit } from '@/lib/audit';
@@ -149,6 +154,10 @@ export const fetchRolePermissionIds = async (
   return rows.map((row) => row.permission_id);
 };
 
+export const mapGovernanceEventToAuditAction = (
+  eventType: GovernanceEventType,
+): AuditAction => eventType;
+
 export const recordGovernanceAudit = async (
   tx: GovernanceAuditWriter,
   input: {
@@ -160,8 +169,18 @@ export const recordGovernanceAudit = async (
     before?: unknown;
     after?: unknown;
     extra?: Record<string, unknown>;
+    source?: AuditSource;
   },
 ): Promise<void> => {
+  const payload = buildGovernanceAuditPayload({
+    actor: input.actor,
+    mutation: input.eventType,
+    before: input.before,
+    after: input.after,
+    targetCompanyId: input.targetCompanyId,
+    extra: input.extra,
+  }) as Record<string, unknown>;
+
   await tx.insert(governanceAuditEvent).values({
     resource_type: input.resourceType,
     resource_id: normalizeGovernanceResourceId(input.resourceId),
@@ -169,13 +188,26 @@ export const recordGovernanceAudit = async (
     actor_user_id: BigInt(input.actor.userId),
     actor_company_id: input.actor.companyId,
     event_type: input.eventType,
-    payload: buildGovernanceAuditPayload({
+    payload,
+  });
+
+  await recordAuditEvent(tx, {
+    actor: input.actor,
+    targetCompanyId: input.targetCompanyId,
+    resourceType: input.resourceType,
+    resourceId: input.resourceId,
+    action: mapGovernanceEventToAuditAction(input.eventType),
+    result: 'success',
+    source: input.source ?? 'action',
+    payload: buildAuditPayload({
       actor: input.actor,
-      mutation: input.eventType,
+      targetCompanyId: input.targetCompanyId,
       before: input.before,
       after: input.after,
-      targetCompanyId: input.targetCompanyId,
-      extra: input.extra,
-    }) as Record<string, unknown>,
+      extra: {
+        mutation: input.eventType,
+        ...input.extra,
+      },
+    }),
   });
 };
