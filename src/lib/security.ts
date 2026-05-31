@@ -10,6 +10,7 @@ import {
   requireSystemUser,
   type ActionAuthContext,
 } from './authz-context';
+import { recordPermissionDeniedAudit } from '@/lib/audit-security';
 export {
   resolveWritableCompanyId,
   requireSystemUser,
@@ -202,6 +203,12 @@ export async function requireActionPermission(
   const allowed = await checkPermission(context.userId, companyId, permissionName);
 
   if (!allowed) {
+    await recordPermissionDeniedAudit({
+      actor: context,
+      targetCompanyId: companyId,
+      permission: permissionName,
+      source: 'action',
+    });
     throw new AuthorizationError(`Missing permission: ${permissionName}`);
   }
 

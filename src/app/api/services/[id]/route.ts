@@ -3,6 +3,7 @@ import { service } from '@/db/schema';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import { recordResourceAudit } from '@/lib/resource-audit';
 
 export async function GET(
   request: Request,
@@ -90,6 +91,10 @@ export async function PUT(
       return unauthorized;
     }
 
+    const existing = await db.query.service.findFirst({
+      where: eq(service.id, serviceId),
+    });
+
     const [updated] = await db
       .update(service)
       .set({
@@ -112,6 +117,21 @@ export async function PUT(
     if (!updated) {
       return fail('SV003', 404, 'validation');
     }
+
+    await recordResourceAudit(db, {
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'service',
+      resourceId: serviceId,
+      targetCompanyId: updated.company_id ?? (companyId as number),
+      action: 'updated',
+      before: existing,
+      after: updated,
+      source: 'api',
+    });
 
     return ok(updated);
   } catch (error) {
@@ -146,6 +166,10 @@ export async function DELETE(
       return unauthorized;
     }
 
+    const existing = await db.query.service.findFirst({
+      where: eq(service.id, serviceId),
+    });
+
     const [deleted] = await db
       .update(service)
       .set({ deleted_at: new Date(), updated_at: new Date() })
@@ -163,6 +187,21 @@ export async function DELETE(
     if (!deleted) {
       return fail('SV004', 404, 'validation');
     }
+
+    await recordResourceAudit(db, {
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'service',
+      resourceId: serviceId,
+      targetCompanyId: deleted.company_id ?? (companyId as number),
+      action: 'deleted',
+      before: existing,
+      after: deleted,
+      source: 'api',
+    });
 
     return ok({ deleted: true });
   } catch (error) {

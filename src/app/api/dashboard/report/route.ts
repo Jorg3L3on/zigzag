@@ -10,6 +10,7 @@ import {
 } from '@/lib/dashboard-report-payload';
 import { renderDashboardReportPdf } from '@/lib/dashboard-report-renderer';
 import { parseDashboardMonthCount } from '@/lib/dashboard-metrics';
+import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 import { and, eq, isNull } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -80,6 +81,18 @@ export async function GET(request: Request) {
     );
     const pdf = renderDashboardReportPdf(payload);
     const filename = buildDashboardReportFileName(generatedAt);
+
+    await recordDocumentGeneratedAudit({
+      actor: {
+        userId: session.user.id,
+        companyId: session.user.company_id ?? null,
+        companyIsSystem: Boolean(session.user.company_is_system),
+      },
+      resourceType: 'report',
+      resourceId: effectiveCompanyId,
+      targetCompanyId: effectiveCompanyId,
+      requestMeta: { route: '/api/dashboard/report', method: 'GET' },
+    });
 
     return new NextResponse(pdf, {
       status: 200,
