@@ -1,4 +1,5 @@
 #!/usr/bin/env npx tsx
+import 'dotenv/config';
 /**
  * One-time backfill of TicketAuditEvent and GovernanceAuditEvent into AuditEvent.
  * Safe to re-run: skips rows whose legacy id is already present in payload.

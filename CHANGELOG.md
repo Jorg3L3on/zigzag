@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unified audit module:** append-only `AuditEvent` store, dual-write from ticket/governance audit tables, auth and permission-denied instrumentation, Client/Service/PDF auditing, System-only console at `/dashboard/audit` (`drizzle/0009_audit_event.sql`, backfill via `scripts/backfill-audit-events.ts`)
 - **Client service schedules (Recordatorios de servicio):** per Client + Service reminders with interval and next due date; management page at `/dashboard/service-schedules`; dashboard widget for próximos/atrasados; schedule prompt when finishing a Ticket; `Crear ticket` prefill from reminders (`drizzle/0006_client_service_schedule.sql`)
 - Agent workflow docs (`docs/agents/`), Cursor skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `validate-issues`), and GitHub label bootstrap script
 - Server-generated fintech invoice PDF (`GET /api/tickets/[id]/invoice`)
