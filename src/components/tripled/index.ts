@@ -6,4 +6,5 @@ export * from '@/components/tripled/mobile-first';
 export * from '@/components/tripled/motion';
 export * from '@/components/tripled/native-delete';
 export * from '@/components/tripled/page-header';
+export * from '@/components/tripled/route-state';
 export * from '@/components/tripled/stepper';
