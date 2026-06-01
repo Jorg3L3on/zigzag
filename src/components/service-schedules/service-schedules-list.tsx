@@ -8,7 +8,7 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { CalendarClock, Loader2, Plus, Search } from 'lucide-react';
+import { CalendarClock, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,12 @@ import {
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
 import { useCompany } from '@/contexts/company-context';
-import { TripledEmptyState, TripledMobileRecordCard } from '@/components/tripled';
+import {
+  TripledEmptyState,
+  TripledListLoadingState,
+  TripledMobileRecordCard,
+} from '@/components/tripled';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import { createServiceSchedulesColumns } from '@/components/service-schedules/service-schedules-columns';
 import { ScheduleFormDialog } from '@/components/service-schedules/schedule-form-dialog';
 import {
@@ -231,6 +236,21 @@ export const ServiceSchedulesList = () => {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+  const hasActiveFilters = debouncedSearch !== '' || filter !== 'todos';
+  const listState = resolveResourceListState({
+    isLoading: loading,
+    loadError,
+    totalCount: items.length,
+    visibleCount: filteredItems.length,
+    hasActiveFilters,
+  });
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setFilter('todos');
+    setSorting(DEFAULT_SORTING);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -275,18 +295,19 @@ export const ServiceSchedulesList = () => {
         ))}
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : loadError ? (
-        <div className="space-y-3">
-          <TripledEmptyState
-            icon={<CalendarClock className="h-4 w-4" />}
-            title="Error al cargar"
-            description={loadError}
-          />
-          <div className="flex justify-center">
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de recordatorios"
+          desktopColumns={6}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<CalendarClock className="h-4 w-4" />}
+          title="Error al cargar"
+          description={listState.message}
+          role="alert"
+          action={
             <Button
               type="button"
               variant="outline"
@@ -295,13 +316,40 @@ export const ServiceSchedulesList = () => {
             >
               Reintentar
             </Button>
-          </div>
-        </div>
-      ) : filteredItems.length === 0 ? (
+          }
+        />
+      ) : listState.kind === 'empty' ? (
         <TripledEmptyState
           icon={<CalendarClock className="h-4 w-4" />}
           title="Sin recordatorios"
-          description="No hay recordatorios en este filtro."
+          description={
+            canWrite
+              ? 'Crea el primer recordatorio para programar servicios recurrentes.'
+              : 'No hay recordatorios registrados todavía.'
+          }
+          action={
+            canWrite ? (
+              <Button
+                type="button"
+                className="rounded-xl"
+                onClick={handleAdd}
+              >
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                Nuevo recordatorio
+              </Button>
+            ) : null
+          }
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<CalendarClock className="h-4 w-4" />}
+          title="Sin resultados"
+          description="No hay recordatorios que coincidan con la búsqueda o el filtro."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          }
         />
       ) : (
         <>

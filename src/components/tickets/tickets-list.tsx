@@ -89,6 +89,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 
 type StatusFilterValue = 'all' | TicketPaymentStatus;
 type PdfFilterValue = 'all' | 'with' | 'without';
@@ -329,6 +330,13 @@ export default function TicketsList() {
     pdfFilter !== 'all' ||
     finishedFilter !== 'all' ||
     Boolean(dateRange?.from);
+  const listState = resolveResourceListState({
+    isLoading: loading,
+    loadError,
+    totalCount: tickets.length,
+    visibleCount: filteredTickets.length,
+    hasActiveFilters,
+  });
 
   const activeFilterCount = React.useMemo(() => {
     let n = 0;
@@ -396,6 +404,14 @@ export default function TicketsList() {
           {
             key: 'date',
             label: formatDateRangeLabel(dateRange),
+          },
+        ]
+      : []),
+    ...(searchValue.trim()
+      ? [
+          {
+            key: 'search',
+            label: `Búsqueda: ${searchValue.trim()}`,
           },
         ]
       : []),
@@ -784,27 +800,47 @@ export default function TicketsList() {
           <TripledFilterChips chips={filterChips} />
         </div>
 
-      {loadError ? (
-        <div className="space-y-4">
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Error de carga"
-            description={loadError}
-          />
-          <div className="flex justify-center">
+      {listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<TicketIcon className="h-4 w-4" />}
+          title="Error de carga"
+          description={listState.message}
+          role="alert"
+          action={
             <Button variant="outline" onClick={fetchTickets}>
               Reintentar
             </Button>
-          </div>
-        </div>
-      ) : filteredTickets.length === 0 ? (
+          }
+        />
+      ) : listState.kind === 'empty' ? (
         <TripledEmptyState
           icon={<TicketIcon className="h-4 w-4" />}
           title="Sin tickets"
           description={
-            tickets.length === 0
-              ? 'No hay tickets registrados aún.'
-              : 'No hay tickets que coincidan con los filtros seleccionados.'
+            canWrite
+              ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
+              : 'No hay tickets registrados aún.'
+          }
+          action={
+            canWrite ? (
+              <Button
+                type="button"
+                onClick={() => router.push('/dashboard/tickets/create')}
+              >
+                Crear ticket
+              </Button>
+            ) : null
+          }
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<TicketIcon className="h-4 w-4" />}
+          title="Sin resultados"
+          description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
           }
         />
       ) : (

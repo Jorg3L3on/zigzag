@@ -11,7 +11,7 @@ import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wallet } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -24,6 +24,7 @@ import { FormattedDate } from '@/components/formatted-date';
 import { usePermissions } from '@/hooks/use-permissions';
 import { canCollectTicketPayment } from '@/lib/tickets-rbac';
 import { getErrorMessageByType } from '@/lib/network-awareness';
+import { TripledEmptyState } from '@/components/tripled';
 
 type TicketPaymentHistoryRow = {
   id: number;
@@ -177,9 +178,11 @@ export const TicketPaymentCollectSection = ({
           Historial de abonos
         </p>
         {payments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No hay abonos registrados en el historial.
-          </p>
+          <TripledEmptyState
+            icon={<Wallet className="h-4 w-4" />}
+            title="Sin abonos"
+            description="No hay abonos registrados en el historial."
+          />
         ) : (
           <>
             <ul className="divide-y divide-border rounded-md border md:hidden">

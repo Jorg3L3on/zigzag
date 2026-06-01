@@ -18,8 +18,13 @@ import {
   Wallet,
   ClipboardList,
   FileDown,
+  AlertTriangle,
 } from 'lucide-react';
-import { TripledMotionDiv, tripledStagger } from '@/components/tripled';
+import {
+  TripledEmptyState,
+  TripledMotionDiv,
+  tripledStagger,
+} from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
@@ -132,9 +137,17 @@ export const DashboardMetricsClient = () => {
 
   if (error && !metrics) {
     return (
-      <p className="text-muted-foreground" role="alert">
-        {error}
-      </p>
+      <TripledEmptyState
+        icon={<AlertTriangle className="h-4 w-4" />}
+        title="Error al cargar"
+        description={error}
+        role="alert"
+        action={
+          <Button type="button" variant="outline" onClick={() => router.refresh()}>
+            Reintentar
+          </Button>
+        }
+      />
     );
   }
 
