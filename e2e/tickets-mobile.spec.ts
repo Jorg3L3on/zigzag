@@ -11,6 +11,18 @@ async function login(page: import('@playwright/test').Page) {
   await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
 }
 
+async function expectNoHorizontalOverflow(page: import('@playwright/test').Page) {
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth + 1,
+      ),
+    )
+    .toBe(true);
+}
+
 test.use({ ...devices['Pixel 5'] });
 
 test.describe('Mobile ticket screens', () => {
@@ -31,6 +43,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Nuevo Ticket' })).toBeVisible();
     await expect(page.getByText(/de \d+ tickets/)).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
 
   test('shows mobile-first create ticket flow', async ({ page }) => {

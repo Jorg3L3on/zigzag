@@ -11,6 +11,18 @@ async function login(page: Page) {
   await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
 }
 
+async function expectNoHorizontalOverflow(page: Page) {
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth + 1,
+      ),
+    )
+    .toBe(true);
+}
+
 test.use({ ...devices['Pixel 5'] });
 
 test.describe('Mobile dashboard redesign', () => {
@@ -43,6 +55,7 @@ test.describe('Mobile dashboard redesign', () => {
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /Filtrar correo/ })).toHaveCount(3);
     await expect(page.getByText(/de \d+ usuarios/)).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
 
   test('shows mobile-first account page chrome', async ({ page }) => {

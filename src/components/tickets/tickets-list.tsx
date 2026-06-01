@@ -982,15 +982,15 @@ export default function TicketsList() {
           </div>
 
           <div className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-border/60 bg-muted/20 px-3 py-4 sm:flex-row sm:items-center sm:px-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="whitespace-nowrap">Filas por página</span>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span className="min-w-0">Filas por página</span>
               <Select
                 value={String(table.getState().pagination.pageSize)}
                 onValueChange={(value) => {
                   table.setPageSize(Number(value));
                 }}
               >
-                <SelectTrigger className="h-9 w-[4.5rem]" aria-label="Filas por página">
+                <SelectTrigger className="h-11 w-[5rem]" aria-label="Filas por página">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1004,7 +1004,8 @@ export default function TicketsList() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-11 w-11"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
                 aria-label="Página anterior"
@@ -1018,7 +1019,8 @@ export default function TicketsList() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-11 w-11"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
                 aria-label="Página siguiente"
