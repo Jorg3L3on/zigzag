@@ -1,11 +1,16 @@
 import { and, eq, isNull } from 'drizzle-orm';
-import { servicesTickets, ticket } from '@/db/schema';
+import { service, servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { z } from 'zod';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import { recordTicketAudit } from '@/lib/ticket-audit';
 
-async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
+async function ensureTicketAccess(
+  ticketId: bigint,
+  permissionName: string,
+  method: string,
+) {
   const ticketRow = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
@@ -17,20 +22,54 @@ async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
   const { session, unauthorized } = await requireApiPermission(
     permissionName,
     ticketRow.company_id,
+    {
+      route: `/api/tickets/${ticketId.toString()}/services/[serviceId]`,
+      method,
+    },
   );
   if (unauthorized || !session) {
-    return { response: unauthorized };
+    return { session, ticket: ticketRow, response: unauthorized };
   }
 
   if (
     !session.user.company_is_system &&
     ticketRow.company_id !== session.user.company_id
   ) {
-    return { response: fail('AU002', 403, 'auth') };
+    return { session, ticket: ticketRow, response: fail('AU002', 403, 'auth') };
   }
 
-  return { response: null };
+  return { session, ticket: ticketRow, response: null };
 }
+
+const buildAuditContext = (session: NonNullable<Awaited<ReturnType<typeof requireApiPermission>>['session']>) => ({
+  userId: session.user.id,
+  companyId: session.user.company_id ?? null,
+  companyIsSystem: Boolean(session.user.company_is_system),
+});
+
+const serviceTicketSnapshot = (
+  row:
+    | ((typeof servicesTickets.$inferSelect) & {
+        service?: typeof service.$inferSelect | null;
+      })
+    | null
+    | undefined,
+) => {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    ticket_id: row.ticket_id,
+    service_id: row.service_id,
+    service_name: row.service?.name ?? null,
+    quantity: row.quantity,
+    price: row.price,
+    line_total: row.quantity * row.price,
+    deleted_at: row.deleted_at,
+  };
+};
 
 export async function PUT(
   request: Request,
@@ -44,7 +83,7 @@ export async function PUT(
       return fail('TS003', 400, 'validation');
     }
 
-    const access = await ensureTicketAccess(ticketId, 'tickets.write');
+    const access = await ensureTicketAccess(ticketId, 'tickets.write', 'PUT');
     if (access.response) {
       return access.response;
     }
@@ -57,7 +96,21 @@ export async function PUT(
       })
       .parse(body);
 
+    const ticketTotalBefore = access.ticket.total ?? null;
     const full = await db.transaction(async (tx) => {
+      const before = await tx.query.servicesTickets.findFirst({
+        where: and(
+          eq(servicesTickets.id, serviceTicketId),
+          eq(servicesTickets.ticket_id, ticketId),
+          isNull(servicesTickets.deleted_at),
+        ),
+        with: { service: true },
+      });
+
+      if (!before) {
+        return null;
+      }
+
       const [updated] = await tx
         .update(servicesTickets)
         .set({
@@ -78,15 +131,38 @@ export async function PUT(
         return null;
       }
 
-      await syncTicketTotal(tx, ticketId);
+      const ticketTotalAfter = await syncTicketTotal(tx, ticketId);
 
-      return tx.query.servicesTickets.findFirst({
+      const after = await tx.query.servicesTickets.findFirst({
         where: and(
           eq(servicesTickets.id, serviceTicketId),
           isNull(servicesTickets.deleted_at),
         ),
         with: { service: true },
       });
+
+      await recordTicketAudit(tx, buildAuditContext(access.session), ticketId, access.ticket.company_id, 'updated', {
+        ticket: {
+          id: ticketId,
+          company_id: access.ticket.company_id,
+        },
+        source: 'api',
+        mutation: 'ticket_service_updated',
+        ticket_service: {
+          before: serviceTicketSnapshot(before),
+          after: serviceTicketSnapshot(after),
+        },
+        ticket_total: {
+          before: ticketTotalBefore,
+          after: ticketTotalAfter,
+          delta:
+            ticketTotalBefore === null
+              ? null
+              : ticketTotalAfter - ticketTotalBefore,
+        },
+      });
+
+      return after;
     });
 
     if (!full) {
@@ -115,12 +191,26 @@ export async function DELETE(
       return fail('TS004', 400, 'validation');
     }
 
-    const access = await ensureTicketAccess(ticketId, 'tickets.write');
+    const access = await ensureTicketAccess(ticketId, 'tickets.write', 'DELETE');
     if (access.response) {
       return access.response;
     }
 
+    const ticketTotalBefore = access.ticket.total ?? null;
     const deleted = await db.transaction(async (tx) => {
+      const before = await tx.query.servicesTickets.findFirst({
+        where: and(
+          eq(servicesTickets.id, serviceTicketId),
+          eq(servicesTickets.ticket_id, ticketId),
+          isNull(servicesTickets.deleted_at),
+        ),
+        with: { service: true },
+      });
+
+      if (!before) {
+        return null;
+      }
+
       const [deletedRow] = await tx
         .update(servicesTickets)
         .set({ deleted_at: new Date(), updated_at: new Date() })
@@ -137,7 +227,33 @@ export async function DELETE(
         return null;
       }
 
-      await syncTicketTotal(tx, ticketId);
+      const ticketTotalAfter = await syncTicketTotal(tx, ticketId);
+      const after = {
+        ...before,
+        deleted_at: deletedRow.deleted_at,
+      };
+
+      await recordTicketAudit(tx, buildAuditContext(access.session), ticketId, access.ticket.company_id, 'updated', {
+        ticket: {
+          id: ticketId,
+          company_id: access.ticket.company_id,
+        },
+        source: 'api',
+        mutation: 'ticket_service_removed',
+        ticket_service: {
+          before: serviceTicketSnapshot(before),
+          after: serviceTicketSnapshot(after),
+        },
+        ticket_total: {
+          before: ticketTotalBefore,
+          after: ticketTotalAfter,
+          delta:
+            ticketTotalBefore === null
+              ? null
+              : ticketTotalAfter - ticketTotalBefore,
+        },
+      });
+
       return deletedRow;
     });
 

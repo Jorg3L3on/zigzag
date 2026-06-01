@@ -98,6 +98,9 @@ export async function requireApiPermission(
       targetCompanyId: requestedCompanyId ?? actor.companyId,
       permission: permissionName,
       source: 'api',
+      reason: 'invalid_company_context',
+      actorCompanyId: actor.companyId,
+      requestedCompanyId: requestedCompanyId ?? null,
       requestMeta,
     });
     return {
@@ -119,6 +122,9 @@ export async function requireApiPermission(
       targetCompanyId: companyId,
       permission: permissionName,
       source: 'api',
+      reason: 'missing_permission',
+      actorCompanyId: actor.companyId,
+      requestedCompanyId: requestedCompanyId ?? companyId,
       requestMeta,
     });
     return {

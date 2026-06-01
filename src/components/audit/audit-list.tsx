@@ -6,7 +6,9 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ClipboardList, Loader2, Search } from 'lucide-react';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -28,6 +30,7 @@ import { TripledEmptyState } from '@/components/tripled';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import {
+  AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
 } from '@/lib/audit-catalog';
@@ -36,15 +39,90 @@ import {
   type AuditEventRow,
 } from '@/components/audit/audit-columns';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import {
+  formatAuditResourceLabel,
+  redactAuditDisplayValue,
+  resolveAuditResourceLink,
+} from '@/lib/audit-display';
+
+const AuditJsonBlock = ({
+  title,
+  value,
+}: {
+  title: string;
+  value: Record<string, unknown> | null;
+}) => (
+  <section className="space-y-2">
+    <h4 className="text-sm font-medium">{title}</h4>
+    <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs">
+      {JSON.stringify(redactAuditDisplayValue(value ?? {}), null, 2)}
+    </pre>
+  </section>
+);
+
+const AuditEventDetails = ({ event }: { event: AuditEventRow }) => (
+  <div className="grid gap-3 md:grid-cols-2">
+    <AuditJsonBlock title="Carga útil" value={event.payload} />
+    <AuditJsonBlock title="Metadatos de solicitud" value={event.request_meta} />
+  </div>
+);
+
+const AuditResourceLabel = ({ event }: { event: AuditEventRow }) => {
+  const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
+  const label = formatAuditResourceLabel(event.resource_type, event.resource_id);
+
+  if (!link) {
+    return <>{label}</>;
+  }
+
+  return (
+    <Link
+      href={link.href}
+      className="font-medium text-primary underline-offset-4 hover:underline"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {link.label}
+    </Link>
+  );
+};
 
 export const AuditList = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [events, setEvents] = React.useState<AuditEventRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [searchValue, setSearchValue] = React.useState('');
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [resourceType, setResourceType] = React.useState<string>('all');
-  const [resultFilter, setResultFilter] = React.useState<string>('all');
+  const [searchValue, setSearchValue] = React.useState(
+    () => searchParams.get('search') ?? '',
+  );
+  const [debouncedSearch, setDebouncedSearch] = React.useState(
+    () => searchParams.get('search')?.trim() ?? '',
+  );
+  const [targetCompanyId, setTargetCompanyId] = React.useState(
+    () => searchParams.get('target_company_id') ?? '',
+  );
+  const [actorUserId, setActorUserId] = React.useState(
+    () => searchParams.get('actor_user_id') ?? '',
+  );
+  const [resourceType, setResourceType] = React.useState<string>(
+    () => searchParams.get('resource_type') ?? 'all',
+  );
+  const [resourceId, setResourceId] = React.useState(
+    () => searchParams.get('resource_id') ?? '',
+  );
+  const [actionFilter, setActionFilter] = React.useState<string>(
+    () => searchParams.get('action') ?? 'all',
+  );
+  const [resultFilter, setResultFilter] = React.useState<string>(
+    () => searchParams.get('result') ?? 'all',
+  );
+  const [fromDate, setFromDate] = React.useState(
+    () => searchParams.get('from') ?? '',
+  );
+  const [toDate, setToDate] = React.useState(
+    () => searchParams.get('to') ?? '',
+  );
   const [expandedId, setExpandedId] = React.useState<number | null>(null);
   const [nextCursor, setNextCursor] = React.useState<number | null>(null);
 
@@ -55,10 +133,63 @@ export const AuditList = () => {
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
 
+  React.useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) {
+      params.set('search', debouncedSearch);
+    }
+    if (targetCompanyId.trim()) {
+      params.set('target_company_id', targetCompanyId.trim());
+    }
+    if (actorUserId.trim()) {
+      params.set('actor_user_id', actorUserId.trim());
+    }
+    if (resourceType !== 'all') {
+      params.set('resource_type', resourceType);
+    }
+    if (resourceId.trim()) {
+      params.set('resource_id', resourceId.trim());
+    }
+    if (actionFilter !== 'all') {
+      params.set('action', actionFilter);
+    }
+    if (resultFilter !== 'all') {
+      params.set('result', resultFilter);
+    }
+    if (fromDate) {
+      params.set('from', fromDate);
+    }
+    if (toDate) {
+      params.set('to', toDate);
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    actionFilter,
+    actorUserId,
+    debouncedSearch,
+    fromDate,
+    pathname,
+    resourceId,
+    resourceType,
+    resultFilter,
+    router,
+    targetCompanyId,
+    toDate,
+  ]);
+
   const fetchEvents = React.useCallback(
     async (cursor?: number | null, append = false) => {
       setLoading(true);
       setLoadError(null);
+      if (!append) {
+        setEvents([]);
+        setNextCursor(null);
+        setExpandedId(null);
+      }
       try {
         const params = new URLSearchParams();
         if (debouncedSearch) {
@@ -67,8 +198,26 @@ export const AuditList = () => {
         if (resourceType !== 'all') {
           params.set('resource_type', resourceType);
         }
+        if (targetCompanyId.trim()) {
+          params.set('target_company_id', targetCompanyId.trim());
+        }
+        if (actorUserId.trim()) {
+          params.set('actor_user_id', actorUserId.trim());
+        }
+        if (resourceId.trim()) {
+          params.set('resource_id', resourceId.trim());
+        }
+        if (actionFilter !== 'all') {
+          params.set('action', actionFilter);
+        }
         if (resultFilter !== 'all') {
           params.set('result', resultFilter);
+        }
+        if (fromDate) {
+          params.set('from', fromDate);
+        }
+        if (toDate) {
+          params.set('to', toDate);
         }
         if (cursor != null) {
           params.set('cursor', String(cursor));
@@ -106,7 +255,17 @@ export const AuditList = () => {
         setLoading(false);
       }
     },
-    [debouncedSearch, resourceType, resultFilter],
+    [
+      actionFilter,
+      actorUserId,
+      debouncedSearch,
+      fromDate,
+      resourceId,
+      resourceType,
+      resultFilter,
+      targetCompanyId,
+      toDate,
+    ],
   );
 
   React.useEffect(() => {
@@ -140,9 +299,23 @@ export const AuditList = () => {
         />
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Input
+          value={targetCompanyId}
+          onChange={(event) => setTargetCompanyId(event.target.value)}
+          placeholder="Empresa objetivo"
+          inputMode="numeric"
+          aria-label="Filtrar por empresa objetivo"
+        />
+        <Input
+          value={actorUserId}
+          onChange={(event) => setActorUserId(event.target.value)}
+          placeholder="Actor usuario"
+          inputMode="numeric"
+          aria-label="Filtrar por actor usuario"
+        />
         <Select value={resourceType} onValueChange={setResourceType}>
-          <SelectTrigger className="w-[180px]" aria-label="Filtrar por tipo de recurso">
+          <SelectTrigger aria-label="Filtrar por tipo de recurso">
             <SelectValue placeholder="Recurso" />
           </SelectTrigger>
           <SelectContent>
@@ -154,8 +327,27 @@ export const AuditList = () => {
             ))}
           </SelectContent>
         </Select>
+        <Input
+          value={resourceId}
+          onChange={(event) => setResourceId(event.target.value)}
+          placeholder="ID de recurso"
+          aria-label="Filtrar por ID de recurso"
+        />
+        <Select value={actionFilter} onValueChange={setActionFilter}>
+          <SelectTrigger aria-label="Filtrar por acción">
+            <SelectValue placeholder="Acción" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las acciones</SelectItem>
+            {AUDIT_ACTIONS.map((action) => (
+              <SelectItem key={action} value={action}>
+                {action}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={resultFilter} onValueChange={setResultFilter}>
-          <SelectTrigger className="w-[160px]" aria-label="Filtrar por resultado">
+          <SelectTrigger aria-label="Filtrar por resultado">
             <SelectValue placeholder="Resultado" />
           </SelectTrigger>
           <SelectContent>
@@ -167,6 +359,18 @@ export const AuditList = () => {
             ))}
           </SelectContent>
         </Select>
+        <Input
+          type="date"
+          value={fromDate}
+          onChange={(event) => setFromDate(event.target.value)}
+          aria-label="Filtrar desde fecha"
+        />
+        <Input
+          type="date"
+          value={toDate}
+          onChange={(event) => setToDate(event.target.value)}
+          aria-label="Filtrar hasta fecha"
+        />
       </div>
 
       {loading && events.length === 0 ? (
@@ -211,7 +415,7 @@ export const AuditList = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">
-                      {event.resource_type} · {event.action}
+                      <AuditResourceLabel event={event} /> · {event.action}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <FormattedDate
@@ -237,9 +441,9 @@ export const AuditList = () => {
                   </div>
                 </dl>
                 {expandedId === event.id ? (
-                  <pre className="mt-3 max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
-                    {JSON.stringify(event.payload, null, 2)}
-                  </pre>
+                  <div className="mt-3">
+                    <AuditEventDetails event={event} />
+                  </div>
                 ) : null}
               </article>
             ))}
@@ -290,9 +494,7 @@ export const AuditList = () => {
                     {expandedId === row.original.id ? (
                       <TableRow>
                         <TableCell colSpan={columns.length + 1}>
-                          <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs">
-                            {JSON.stringify(row.original.payload, null, 2)}
-                          </pre>
+                          <AuditEventDetails event={row.original} />
                         </TableCell>
                       </TableRow>
                     ) : null}

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { z } from 'zod';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import { recordTicketAudit } from '@/lib/ticket-audit';
 
 async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
   const ticketRow = await db.query.ticket.findFirst({
@@ -17,10 +18,10 @@ async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
     };
   }
 
-  const { session, unauthorized } = await requireApiPermission(
-    permissionName,
-    ticketRow.company_id,
-  );
+  const { session, unauthorized } = await requireApiPermission(permissionName, ticketRow.company_id, {
+    route: `/api/tickets/${ticketId.toString()}/services`,
+    method: permissionName === 'tickets.read' ? 'GET' : 'POST',
+  });
   if (unauthorized || !session) {
     return { session, response: unauthorized };
   }
@@ -34,6 +35,36 @@ async function ensureTicketAccess(ticketId: bigint, permissionName: string) {
 
   return { session, ticket: ticketRow, response: null };
 }
+
+const buildAuditContext = (session: NonNullable<Awaited<ReturnType<typeof requireApiPermission>>['session']>) => ({
+  userId: session.user.id,
+  companyId: session.user.company_id ?? null,
+  companyIsSystem: Boolean(session.user.company_is_system),
+});
+
+const serviceTicketSnapshot = (
+  row:
+    | ((typeof servicesTickets.$inferSelect) & {
+        service?: typeof service.$inferSelect | null;
+      })
+    | null
+    | undefined,
+) => {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    ticket_id: row.ticket_id,
+    service_id: row.service_id,
+    service_name: row.service?.name ?? null,
+    quantity: row.quantity,
+    price: row.price,
+    line_total: row.quantity * row.price,
+    deleted_at: row.deleted_at,
+  };
+};
 
 export async function GET(
   request: Request,
@@ -97,6 +128,7 @@ export async function POST(
       return fail('TS002', 404, 'validation');
     }
 
+    const ticketTotalBefore = access.ticket.total ?? null;
     const createdWithDetails = await db.transaction(async (tx) => {
       const [ticketService] = await tx
         .insert(servicesTickets)
@@ -108,12 +140,34 @@ export async function POST(
         })
         .returning();
 
-      await syncTicketTotal(tx, ticketId);
-
-      return tx.query.servicesTickets.findFirst({
+      const ticketTotalAfter = await syncTicketTotal(tx, ticketId);
+      const created = await tx.query.servicesTickets.findFirst({
         where: eq(servicesTickets.id, ticketService.id),
         with: { service: true },
       });
+
+      await recordTicketAudit(tx, buildAuditContext(access.session), ticketId, access.ticket.company_id, 'updated', {
+        ticket: {
+          id: ticketId,
+          company_id: access.ticket.company_id,
+        },
+        source: 'api',
+        mutation: 'ticket_service_added',
+        ticket_service: {
+          before: null,
+          after: serviceTicketSnapshot(created),
+        },
+        ticket_total: {
+          before: ticketTotalBefore,
+          after: ticketTotalAfter,
+          delta:
+            ticketTotalBefore === null
+              ? null
+              : ticketTotalAfter - ticketTotalBefore,
+        },
+      });
+
+      return created;
     });
 
     return ok(createdWithDetails, 201);
