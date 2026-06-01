@@ -8,6 +8,10 @@ export type AuthAuditFailureReason =
   | 'throttled'
   | 'inactive_company';
 
+export type PermissionDeniedAuditReason =
+  | 'missing_permission'
+  | 'invalid_company_context';
+
 export const recordAuthAuditEvent = async (input: {
   action: Extract<AuditAction, 'signed_in' | 'signed_out' | 'sign_in_failed'>;
   result: 'success' | 'failed';
@@ -45,6 +49,9 @@ export const recordPermissionDeniedAudit = async (input: {
   targetCompanyId: number | null;
   permission: string;
   source: Extract<AuditSource, 'action' | 'api'>;
+  reason?: PermissionDeniedAuditReason;
+  actorCompanyId?: number | null;
+  requestedCompanyId?: number | null;
   requestMeta?: Record<string, unknown>;
 }): Promise<void> => {
   await recordAuditEvent(db, {
@@ -58,6 +65,9 @@ export const recordPermissionDeniedAudit = async (input: {
     payload: {
       permission: input.permission,
       error_code: 'AU002',
+      denial_reason: input.reason ?? 'missing_permission',
+      actor_company_id: input.actorCompanyId ?? input.actor.companyId,
+      requested_company_id: input.requestedCompanyId ?? input.targetCompanyId,
     },
     requestMeta: input.requestMeta,
   });
