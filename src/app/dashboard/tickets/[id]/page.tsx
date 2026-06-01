@@ -84,7 +84,7 @@ export default async function TicketDetailsPage({
               <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
                 <div className="min-w-0 space-y-2">
                   <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
-                    Información del Cliente
+                    Información del cliente
                   </CardTitle>
                   <CardDescription className="text-base text-muted-foreground">
                     Detalles del ticket{' '}

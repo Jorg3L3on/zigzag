@@ -181,12 +181,12 @@ export function CreateRoleDialog({
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
           <Plus className="mr-2 h-4 w-4" />
-          Crear Rol
+          Crear rol
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Crear Rol</DialogTitle>
+          <DialogTitle>Crear rol</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -324,7 +324,7 @@ export function CreateRoleDialog({
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creando...' : 'Crear Rol'}
+              {isSubmitting ? 'Creando...' : 'Crear rol'}
             </Button>
           </form>
         </Form>

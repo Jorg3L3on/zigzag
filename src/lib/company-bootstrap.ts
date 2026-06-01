@@ -27,7 +27,7 @@ import { PERMISSIONS, type PermissionName } from '@/lib/permissions';
 import * as schema from '@/db/schema';
 
 export const TENANT_OWNER_ROLE_DESCRIPTION =
-  'Administrador del tenant con permisos operativos (sin administración global de empresas).';
+  'Administrador de la empresa con permisos operativos (sin administración global de empresas).';
 
 /** Permissions granted to the default tenant owner role (global catalog rows only). */
 export const TENANT_OWNER_EXCLUDED_PERMISSIONS: PermissionName[] = [

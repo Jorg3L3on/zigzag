@@ -476,7 +476,7 @@ export default function EditTicketPage({
           <Card className="border-0 shadow-lg mb-6">
             <CardHeader className="space-y-4 pb-8">
               <div className="space-y-1">
-                <CardTitle className="text-xl">Información del Cliente</CardTitle>
+                <CardTitle className="text-xl">Información del cliente</CardTitle>
                 <CardDescription>
                   Información del cliente asociado al ticket
                 </CardDescription>
@@ -672,7 +672,7 @@ export default function EditTicketPage({
                     }
                   >
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Gestionar Servicios
+                    Gestionar servicios
                   </Button>
                 )}
               </div>

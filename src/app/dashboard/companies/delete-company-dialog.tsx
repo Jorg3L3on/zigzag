@@ -52,7 +52,7 @@ export function DeleteCompanyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Eliminar Empresa</DialogTitle>
+          <DialogTitle>Eliminar empresa</DialogTitle>
           <DialogDescription>
             Estás seguro de querer eliminar la empresa {company.name}? Esta
             acción no puede ser deshecha.

@@ -25,7 +25,7 @@ export default async function OperatorConsolePage() {
         <TripledResourceCard
           title="Consola operadora"
           description="Vista central para operar empresas del sistema."
-          desktopDescription="Busca, filtra y selecciona contexto de empresa para operaciones cross-tenant."
+          desktopDescription="Busca, filtra y selecciona contexto de empresa para operaciones entre empresas."
           icon={<Building2 className="size-5" aria-hidden />}
         >
           <CompaniesList />

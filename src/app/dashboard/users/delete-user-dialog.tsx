@@ -52,7 +52,7 @@ export function DeleteUserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Eliminar Usuario</DialogTitle>
+          <DialogTitle>Eliminar usuario</DialogTitle>
           <DialogDescription>
             Estás seguro de querer eliminar el usuario {user.name}? Esta acción
             no puede ser deshecha.

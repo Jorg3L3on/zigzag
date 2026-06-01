@@ -348,7 +348,7 @@ export function TicketServicesListClient({
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1.5">
                   <CardTitle className="text-balance text-2xl font-semibold tracking-tight">
-                    Servicios Asignados
+                    Servicios asignados
                   </CardTitle>
                   <CardDescription className="text-base">
                     Lista de servicios asignados a este ticket
@@ -366,7 +366,7 @@ export function TicketServicesListClient({
                   <DialogTrigger asChild>
                     <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transition-all duration-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg sm:w-auto">
                       <PlusCircle className="mr-2 h-5 w-5" />
-                      Agregar Servicio
+                      Agregar servicio
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-x-hidden sm:max-w-lg">
@@ -748,7 +748,7 @@ export function TicketServicesListClient({
                       No hay servicios asignados a este ticket
                     </p>
                     <p>
-                      Usa <span className="font-semibold">Agregar Servicio</span> para añadir el primero.
+                      Usa <span className="font-semibold">Agregar servicio</span> para añadir el primero.
                     </p>
                   </div>
                 </div>

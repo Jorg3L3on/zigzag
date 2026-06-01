@@ -100,7 +100,7 @@ export const createClientsColumns = ({
     id: 'email',
     accessorFn: (row) => row.email ?? '',
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="Email" />
+      <ClientSortableHeader column={column} label="Correo" />
     ),
     cell: ({ row }) => (
       <span className="line-clamp-1 max-w-[14rem]">
