@@ -29,6 +29,7 @@ import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
+import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
@@ -37,6 +38,12 @@ import {
 } from '@/actions/dashboard';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
+import {
+  canCreateTicketFromSchedule,
+  canWriteServiceSchedules,
+} from '@/lib/service-schedules-rbac';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 1, label: '1 mes' },
@@ -76,6 +83,7 @@ export const DashboardMetricsClient = () => {
   const router = useRouter();
   const { status, data: session } = useSession();
   const { selectedCompany } = useCompany();
+  const permissions = usePermissions();
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -164,6 +172,14 @@ export const DashboardMetricsClient = () => {
     const url = `/api/dashboard/report?${params.toString()}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+  const canCreateClients = permissions.can(PERMISSIONS.clients.write);
+  const canCreateServices = permissions.can(PERMISSIONS.services.write);
+  const canCreateTickets = permissions.can(PERMISSIONS.tickets.write);
+  const canCreateSchedules = canWriteServiceSchedules(permissions.can);
+  const canCollectPayments = canCreateTicketFromSchedule(permissions.can);
+  const needsCompanyContext =
+    session?.user.company_is_system === true &&
+    (selectedCompany == null || selectedCompany.is_system === true);
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
@@ -210,6 +226,19 @@ export const DashboardMetricsClient = () => {
           Exportar PDF
         </Button>
       </div>
+
+      <DashboardOnboardingHelp
+        totalClients={metrics.totalClients}
+        totalServices={metrics.totalServices}
+        totalTickets={metrics.totalTickets}
+        totalServicesSold={metrics.totalServicesSold}
+        canCreateClients={canCreateClients}
+        canCreateServices={canCreateServices}
+        canCreateTickets={canCreateTickets}
+        canCreateSchedules={canCreateSchedules}
+        canCollectPayments={canCollectPayments}
+        needsCompanyContext={needsCompanyContext}
+      />
 
       <TripledMotionDiv
         className="grid grid-cols-2 gap-5 sm:gap-4 lg:grid-cols-4"
