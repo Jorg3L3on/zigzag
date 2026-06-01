@@ -46,6 +46,7 @@ import {
   decodeSortingState,
   encodeSortingState,
 } from '@/components/roles/roles-sort-presets';
+import { useOperatorTenantCompany } from '@/hooks/use-operator-tenant-company';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 
@@ -57,6 +58,8 @@ const countAssignedPermissions = (role: Role) =>
 
 export function RolesList() {
   const permissions = usePermissions();
+  const { tenantCompanyId, tenantCompanyName, isTenantScoped } =
+    useOperatorTenantCompany();
   const canWriteRoles =
     permissions.isSystem && permissions.can(PERMISSIONS.roles.write);
   const [roles, setRoles] = React.useState<Role[]>([]);
@@ -146,9 +149,19 @@ export function RolesList() {
         return false;
       }
 
+      if (tenantCompanyId != null && roleRow.company?.id !== tenantCompanyId) {
+        return false;
+      }
+
       return true;
     });
-  }, [roles, debouncedSearch, companyScopeFilter, permissionAssignmentFilter]);
+  }, [
+    roles,
+    debouncedSearch,
+    companyScopeFilter,
+    permissionAssignmentFilter,
+    tenantCompanyId,
+  ]);
 
   const openEdit = React.useCallback((roleRow: Role) => {
     setEditRole(roleRow);
@@ -244,7 +257,14 @@ export function RolesList() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        {canWriteRoles ? <CreateRoleDialog onCreated={fetchRoles} /> : null}
+        {canWriteRoles ? (
+          <CreateRoleDialog
+            onCreated={fetchRoles}
+            defaultCompanyId={tenantCompanyId ?? undefined}
+            defaultCompanyName={tenantCompanyName ?? undefined}
+            lockCompany={isTenantScoped}
+          />
+        ) : null}
       </div>
 
       <div className="space-y-4">

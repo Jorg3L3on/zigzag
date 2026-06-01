@@ -85,6 +85,12 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
   ],
   system: [
     {
+      title: 'Consola operadora',
+      url: '/dashboard/operator-console',
+      icon: Building,
+      systemOnly: true,
+    },
+    {
       title: 'Usuarios',
       url: '/dashboard/users',
       icon: User,

@@ -57,10 +57,16 @@ type FormData = z.infer<typeof formSchema>;
 
 export type CreateUserDialogProps = {
   onCreated?: () => void;
+  defaultCompanyId?: number;
+  defaultCompanyName?: string;
+  lockCompany?: boolean;
 };
 
 export function CreateUserDialog({
   onCreated,
+  defaultCompanyId,
+  defaultCompanyName,
+  lockCompany = false,
 }: CreateUserDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -81,14 +87,24 @@ export function CreateUserDialog({
   const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
+    if (lockCompany && defaultCompanyId) {
+      form.setValue('company_id', defaultCompanyId);
+      return;
+    }
     const fetchCompanies = async () => {
       const result = await getCompanies();
       if (result.success && result.data) {
         setCompanies(result.data);
       }
     };
-    fetchCompanies();
-  }, []);
+    void fetchCompanies();
+  }, [defaultCompanyId, form, lockCompany]);
+
+  useEffect(() => {
+    if (defaultCompanyId && open) {
+      form.setValue('company_id', defaultCompanyId);
+    }
+  }, [defaultCompanyId, form, open]);
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -210,30 +226,44 @@ export function CreateUserDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Empresa</FormLabel>
-                  <Select
-                    onValueChange={(value: string) => {
-                      field.onChange(Number(value));
-                      // Reset role when company changes
-                      form.setValue('role_id', undefined);
-                    }}
-                    value={field.value ? field.value.toString() : undefined}
-                  >
+                  {lockCompany && defaultCompanyId ? (
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una empresa" />
-                      </SelectTrigger>
+                      <Input
+                        readOnly
+                        aria-readonly="true"
+                        value={
+                          defaultCompanyName ??
+                          companies.find((row) => row.id === defaultCompanyId)
+                            ?.name ??
+                          `Empresa #${defaultCompanyId}`
+                        }
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem
-                          key={company.id}
-                          value={company.id.toString()}
-                        >
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  ) : (
+                    <Select
+                      onValueChange={(value: string) => {
+                        field.onChange(Number(value));
+                        form.setValue('role_id', undefined);
+                      }}
+                      value={field.value ? field.value.toString() : undefined}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una empresa" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem
+                            key={company.id}
+                            value={company.id.toString()}
+                          >
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
