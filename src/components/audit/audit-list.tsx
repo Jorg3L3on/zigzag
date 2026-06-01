@@ -7,7 +7,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ClipboardList, Loader2, Search } from 'lucide-react';
+import { ClipboardList, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,7 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { TripledEmptyState } from '@/components/tripled';
+import { TripledEmptyState, TripledListLoadingState } from '@/components/tripled';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -282,6 +283,36 @@ export const AuditList = () => {
   const handleToggleExpanded = (id: number) => {
     setExpandedId((current) => (current === id ? null : id));
   };
+  const hasActiveFilters =
+    debouncedSearch !== '' ||
+    targetCompanyId.trim() !== '' ||
+    actorUserId.trim() !== '' ||
+    resourceType !== 'all' ||
+    resourceId.trim() !== '' ||
+    actionFilter !== 'all' ||
+    resultFilter !== 'all' ||
+    fromDate !== '' ||
+    toDate !== '';
+  const listState = resolveResourceListState({
+    isLoading: loading && events.length === 0,
+    loadError,
+    totalCount: events.length,
+    visibleCount: events.length,
+    hasActiveFilters,
+  });
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setTargetCompanyId('');
+    setActorUserId('');
+    setResourceType('all');
+    setResourceId('');
+    setActionFilter('all');
+    setResultFilter('all');
+    setFromDate('');
+    setToDate('');
+  };
 
   return (
     <div className="space-y-4">
@@ -373,26 +404,40 @@ export const AuditList = () => {
         />
       </div>
 
-      {loading && events.length === 0 ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : loadError ? (
-        <div className="space-y-3 text-center">
-          <TripledEmptyState
-            icon={<ClipboardList className="h-4 w-4" />}
-            title="Error al cargar"
-            description={loadError}
-          />
-          <Button type="button" onClick={() => fetchEvents()}>
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando eventos de auditoría"
+          desktopColumns={6}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<ClipboardList className="h-4 w-4" />}
+          title="Error al cargar"
+          description={listState.message}
+          role="alert"
+          action={
+            <Button type="button" variant="outline" onClick={() => fetchEvents()}>
             Reintentar
           </Button>
-        </div>
-      ) : events.length === 0 ? (
+          }
+        />
+      ) : listState.kind === 'empty' ? (
         <TripledEmptyState
           icon={<ClipboardList className="h-4 w-4" />}
           title="Sin eventos"
+          description="No hay eventos de auditoría registrados todavía."
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<ClipboardList className="h-4 w-4" />}
+          title="Sin resultados"
           description="No hay eventos de auditoría para los filtros seleccionados."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          }
         />
       ) : (
         <>

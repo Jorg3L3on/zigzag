@@ -1,4 +1,5 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AuditList } from '@/components/audit/audit-list';
 
 const replace = jest.fn();
@@ -69,5 +70,29 @@ describe('AuditList', () => {
     expect(lastReplaceCall).toContain('result=denied');
     expect(lastReplaceCall).toContain('from=2026-05-01');
     expect(lastReplaceCall).toContain('to=2026-05-31');
+  });
+
+  it('shows recoverable load errors', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        success: false,
+        error: 'No se pudo cargar la auditoría',
+        errorType: 'server',
+      }),
+    })) as jest.Mock;
+
+    render(<AuditList />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ocurrió un error del servidor',
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Reintentar/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
   });
 });
