@@ -15,8 +15,10 @@ import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
   TripledFilterChips,
+  TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import {
   Table,
   TableBody,
@@ -35,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Pencil, Trash2, Factory, Globe2, Search, X } from 'lucide-react';
+import { Pencil, Trash2, Factory, Globe2, Search, X, Plus } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
 import { DeleteCompanyDialog } from '@/app/dashboard/companies/delete-company-dialog';
@@ -336,6 +338,13 @@ export function CompaniesList() {
   const rowCount = table.getRowModel().rows.length;
   const mobileSortValue = encodeSortingState(sorting);
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'all';
+  const listState = resolveResourceListState({
+    isLoading: loading,
+    loadError,
+    totalCount: companies.length,
+    visibleCount: rowCount,
+    hasActiveFilters,
+  });
   const activeStatusLabel =
     statusFilterOptions.find((option) => option.value === statusFilter)?.label ??
     'Todas';
@@ -365,7 +374,7 @@ export function CompaniesList() {
       ? [
           {
             key: 'search',
-            label: `Busqueda: ${debouncedSearch}`,
+            label: `Búsqueda: ${debouncedSearch}`,
           },
         ]
       : []),
@@ -381,7 +390,7 @@ export function CompaniesList() {
           <Input
             value={searchValue}
             onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, correo o telefono..."
+            placeholder="Buscar por nombre, correo o teléfono..."
             className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar empresas"
           />
@@ -440,18 +449,19 @@ export function CompaniesList() {
           ) : null}
         </div>
 
-        {loading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : loadError ? (
-          <div className="space-y-4">
-            <TripledEmptyState
-              icon={<Factory className="h-4 w-4" />}
-              title="Error de carga"
-              description={loadError}
-            />
-            <div className="flex justify-center">
+        {listState.kind === 'loading' ? (
+          <TripledListLoadingState
+            label="Cargando lista de empresas"
+            desktopColumns={6}
+            desktopRows={5}
+          />
+        ) : listState.kind === 'error' ? (
+          <TripledEmptyState
+            icon={<Factory className="h-4 w-4" />}
+            title="Error de carga"
+            description={listState.message}
+            role="alert"
+            action={
               <Button
                 type="button"
                 variant="outline"
@@ -461,16 +471,38 @@ export function CompaniesList() {
               >
                 Reintentar
               </Button>
-            </div>
-          </div>
-        ) : rowCount === 0 ? (
+            }
+          />
+        ) : listState.kind === 'empty' ? (
+          <TripledEmptyState
+            icon={<Factory className="h-4 w-4" />}
+            title="Sin empresas"
+            description={
+              canWriteCompanies
+                ? 'Crea la primera empresa para separar usuarios, permisos y operación por contexto.'
+                : 'No hay empresas registradas todavía.'
+            }
+            action={
+              canWriteCompanies ? (
+                <Button
+                  type="button"
+                  onClick={() => router.push('/dashboard/companies/new')}
+                >
+                  <Plus className="mr-2 h-4 w-4" aria-hidden />
+                  Nueva empresa
+                </Button>
+              ) : null
+            }
+          />
+        ) : listState.kind === 'filtered-empty' ? (
           <TripledEmptyState
             icon={<Factory className="h-4 w-4" />}
             title="Sin resultados"
-            description={
-              companies.length === 0
-                ? 'No hay empresas registradas todavía.'
-                : 'No encontramos empresas con ese filtro.'
+            description="No encontramos empresas con esa búsqueda o esos filtros."
+            action={
+              <Button type="button" variant="outline" onClick={handleClearFilters}>
+                Limpiar filtros
+              </Button>
             }
           />
         ) : (

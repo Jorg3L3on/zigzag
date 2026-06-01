@@ -12,10 +12,11 @@ import { getUsers } from '@/actions/users';
 import {
   TripledEmptyState,
   TripledFilterChips,
+  TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import {
-  Loader2,
   Search,
   Users as UsersIcon,
   X,
@@ -213,6 +214,13 @@ export function UsersList() {
     debouncedSearch !== '' ||
     verificationFilter !== 'all' ||
     companyAssignmentFilter !== 'all';
+  const listState = resolveResourceListState({
+    isLoading: loading,
+    loadError,
+    totalCount: users.length,
+    visibleCount: filteredUsers.length,
+    hasActiveFilters,
+  });
 
   const verificationOptions: Array<{
     value: VerificationFilter;
@@ -247,7 +255,7 @@ export function UsersList() {
       variant: 'secondary' as const,
     },
     ...(debouncedSearch
-      ? [{ key: 'search', label: `Busqueda: ${debouncedSearch}` }]
+      ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
       : []),
     ...(verificationFilter !== 'all'
       ? [
@@ -381,31 +389,53 @@ export function UsersList() {
             ) : null}
           </div>
 
-          {loading ? (
-            <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : loadError ? (
-            <div className="space-y-4">
-              <TripledEmptyState
-                icon={<UsersIcon className="h-4 w-4" />}
-                title="Error de carga"
-                description={loadError}
-              />
-              <div className="flex justify-center">
+          {listState.kind === 'loading' ? (
+            <TripledListLoadingState
+              label="Cargando lista de usuarios"
+              desktopColumns={6}
+              desktopRows={5}
+            />
+          ) : listState.kind === 'error' ? (
+            <TripledEmptyState
+              icon={<UsersIcon className="h-4 w-4" />}
+              title="Error de carga"
+              description={listState.message}
+              role="alert"
+              action={
                 <Button type="button" variant="outline" onClick={fetchUsers}>
                   Reintentar
                 </Button>
-              </div>
-            </div>
-          ) : filteredUsers.length === 0 ? (
+              }
+            />
+          ) : listState.kind === 'empty' ? (
+            <TripledEmptyState
+              icon={<UsersIcon className="h-4 w-4" />}
+              title="Sin usuarios"
+              description={
+                canWriteUsers
+                  ? 'Crea el primer usuario y asígnale empresa y rol para habilitar su acceso.'
+                  : 'No hay usuarios registrados.'
+              }
+              action={
+                canWriteUsers ? (
+                  <CreateUserDialog
+                    onCreated={fetchUsers}
+                    defaultCompanyId={tenantCompanyId ?? undefined}
+                    defaultCompanyName={tenantCompanyName ?? undefined}
+                    lockCompany={isTenantScoped}
+                  />
+                ) : null
+              }
+            />
+          ) : listState.kind === 'filtered-empty' ? (
             <TripledEmptyState
               icon={<UsersIcon className="h-4 w-4" />}
               title="Sin resultados"
-              description={
-                users.length === 0
-                  ? 'No hay usuarios registrados.'
-                  : 'No hay usuarios que coincidan con los filtros o la búsqueda.'
+              description="No hay usuarios que coincidan con la búsqueda o los filtros."
+              action={
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  Limpiar filtros
+                </Button>
               }
             />
           ) : (
