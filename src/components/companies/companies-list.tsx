@@ -52,6 +52,12 @@ import {
   companyLifecycleLabel,
   normalizeCompanyLifecycleStatus,
 } from '@/lib/company-lifecycle';
+import { assessCompanyReadiness } from '@/lib/company-readiness';
+import {
+  COMPANY_PLAN_LABELS,
+  getCompanyPlanId,
+  getPlanLimits,
+} from '@/lib/company-entitlements';
 
 type StatusFilter = 'all' | 'setup' | 'active' | 'restricted';
 
@@ -76,12 +82,15 @@ const matchesStatusFilter = (
 };
 
 export function CompaniesList() {
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, setSelectedCompany } = useCompany();
   const permissions = usePermissions();
   const canWriteCompanies =
     permissions.isSystem && permissions.can(PERMISSIONS.companies.write);
   const router = useRouter();
-  const [companies, setCompanies] = React.useState<Company[]>([]);
+  type CompanyListRow = Company & {
+    users?: Array<{ deleted_at?: Date | null }>;
+  };
+  const [companies, setCompanies] = React.useState<CompanyListRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [searchValue, setSearchValue] = React.useState('');
@@ -108,7 +117,7 @@ export function CompaniesList() {
     try {
       const result = await getCompanies();
       if (result.success && result.data) {
-        setCompanies(result.data);
+        setCompanies((result.data as CompanyListRow[]) ?? []);
       } else {
         const errorType = classifyClientError(null, undefined, result.errorType);
         setLoadError(
@@ -187,13 +196,88 @@ export function CompaniesList() {
     [systemCompanyId],
   );
 
+  const isSystemUser = permissions.isSystem;
+
+  const buildContextCompany = React.useCallback(
+    (companyRow: CompanyListRow) => ({
+      id: companyRow.id,
+      name: companyRow.name,
+      logo: () => null,
+      logoUrl: companyRow.logo,
+      plan: COMPANY_PLAN_LABELS[getCompanyPlanId(companyRow.settings)],
+      is_system: companyRow.is_system,
+    }),
+    [],
+  );
+
+  const getReadinessBadge = React.useCallback((companyRow: CompanyListRow) => {
+    const readiness = assessCompanyReadiness(companyRow);
+    if (readiness.productionReady) {
+      return <Badge variant="default">Lista</Badge>;
+    }
+    return <Badge variant="secondary">Con pendientes</Badge>;
+  }, []);
+
+  const getPlanPressureBadge = React.useCallback((companyRow: CompanyListRow) => {
+    const plan = getCompanyPlanId(companyRow.settings);
+    const userLimit = getPlanLimits(plan).users;
+    const userUsage =
+      companyRow.users?.filter((userRow) => userRow.deleted_at == null).length ?? 0;
+
+    if (userLimit === null) {
+      return <Badge variant="outline">Plan {COMPANY_PLAN_LABELS[plan]}: sin límite</Badge>;
+    }
+
+    const ratio = userLimit > 0 ? userUsage / userLimit : 0;
+    if (ratio >= 1) {
+      return (
+        <Badge variant="destructive">
+          Plan {COMPANY_PLAN_LABELS[plan]}: límite alcanzado ({userUsage}/{userLimit})
+        </Badge>
+      );
+    }
+    if (ratio >= 0.8) {
+      return (
+        <Badge variant="secondary" className="border-amber-200 bg-amber-100 text-amber-900">
+          Plan {COMPANY_PLAN_LABELS[plan]}: cerca del límite ({userUsage}/{userLimit})
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline">
+        Plan {COMPANY_PLAN_LABELS[plan]}: estable ({userUsage}/{userLimit})
+      </Badge>
+    );
+  }, []);
+
+  const handleSelectContext = React.useCallback(
+    (companyRow: CompanyListRow) => {
+      setSelectedCompany(buildContextCompany(companyRow));
+    },
+    [buildContextCompany, setSelectedCompany],
+  );
+
   const columns = React.useMemo(
     () =>
       createCompaniesColumns({
         renderContextBadge,
         renderActions: (companyRow) =>
-          canWriteCompanies ? (
+          canWriteCompanies || isSystemUser ? (
             <>
+            {isSystemUser ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mr-2"
+                aria-label={`Seleccionar contexto ${companyRow.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleSelectContext(companyRow);
+                }}
+              >
+                Seleccionar
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -219,7 +303,14 @@ export function CompaniesList() {
             </>
           ) : null,
       }),
-    [router, openDeleteDialog, renderContextBadge, canWriteCompanies],
+    [
+      router,
+      openDeleteDialog,
+      renderContextBadge,
+      canWriteCompanies,
+      isSystemUser,
+      handleSelectContext,
+    ],
   );
 
   const table = useReactTable({
@@ -435,11 +526,26 @@ export function CompaniesList() {
                           >
                             {statusLabel(companyRow.status)}
                           </Badge>
+                          {getReadinessBadge(companyRow)}
+                          {getPlanPressureBadge(companyRow)}
                           {renderContextBadge(companyRow)}
                         </div>
                       </div>
-                      {canWriteCompanies ? (
+                      {canWriteCompanies || isSystemUser ? (
                         <div className="flex shrink-0 gap-1">
+                        {isSystemUser ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Seleccionar contexto ${companyRow.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleSelectContext(companyRow);
+                            }}
+                          >
+                            Seleccionar
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="icon"
