@@ -51,9 +51,17 @@ type FormData = z.infer<typeof formSchema>;
 
 type CreateRoleDialogProps = {
   onCreated?: () => void;
+  defaultCompanyId?: number;
+  defaultCompanyName?: string;
+  lockCompany?: boolean;
 };
 
-export function CreateRoleDialog({ onCreated }: CreateRoleDialogProps = {}) {
+export function CreateRoleDialog({
+  onCreated,
+  defaultCompanyId,
+  defaultCompanyName,
+  lockCompany = false,
+}: CreateRoleDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -74,14 +82,24 @@ export function CreateRoleDialog({ onCreated }: CreateRoleDialogProps = {}) {
   const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
+    if (lockCompany && defaultCompanyId) {
+      form.setValue('company_id', defaultCompanyId);
+      return;
+    }
     const fetchCompanies = async () => {
       const result = await getCompanies();
       if (result.success && result.data) {
         setCompanies(result.data);
       }
     };
-    fetchCompanies();
-  }, []);
+    void fetchCompanies();
+  }, [defaultCompanyId, form, lockCompany]);
+
+  useEffect(() => {
+    if (defaultCompanyId && open) {
+      form.setValue('company_id', defaultCompanyId);
+    }
+  }, [defaultCompanyId, form, open]);
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -191,26 +209,41 @@ export function CreateRoleDialog({ onCreated }: CreateRoleDialogProps = {}) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Empresa</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value ? field.value.toString() : undefined}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una empresa" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem
-                            key={company.id}
-                            value={company.id.toString()}
-                          >
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                  {lockCompany && defaultCompanyId ? (
+                    <FormControl>
+                      <Input
+                        readOnly
+                        aria-readonly="true"
+                        value={
+                          defaultCompanyName ??
+                          companies.find((row) => row.id === defaultCompanyId)
+                            ?.name ??
+                          `Empresa #${defaultCompanyId}`
+                        }
+                      />
+                    </FormControl>
+                  ) : (
+                    <FormControl>
+                      <Select
+                        onValueChange={(value) => field.onChange(Number(value))}
+                        value={field.value ? field.value.toString() : undefined}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una empresa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {companies.map((company) => (
+                            <SelectItem
+                              key={company.id}
+                              value={company.id.toString()}
+                            >
+                              {company.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

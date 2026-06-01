@@ -54,6 +54,7 @@ import {
 } from '@/components/users/users-sort-presets';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
+import { useOperatorTenantCompany } from '@/hooks/use-operator-tenant-company';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 
@@ -62,6 +63,8 @@ type CompanyAssignmentFilter = 'all' | 'assigned' | 'unassigned';
 
 export function UsersList() {
   const permissions = usePermissions();
+  const { tenantCompanyId, tenantCompanyName, isTenantScoped } =
+    useOperatorTenantCompany();
   const canWriteUsers =
     permissions.isSystem && permissions.can(PERMISSIONS.users.write);
   const [users, setUsers] = React.useState<UserWithRelations[]>([]);
@@ -162,6 +165,10 @@ export function UsersList() {
         return false;
       }
 
+      if (tenantCompanyId != null && row.company_id !== tenantCompanyId) {
+        return false;
+      }
+
       return true;
     });
   }, [
@@ -169,6 +176,7 @@ export function UsersList() {
     debouncedSearch,
     verificationFilter,
     companyAssignmentFilter,
+    tenantCompanyId,
   ]);
 
   const columns = React.useMemo(
@@ -270,7 +278,12 @@ export function UsersList() {
       <div className="space-y-4">
         <div className="flex justify-end">
             {canWriteUsers ? (
-              <CreateUserDialog onCreated={fetchUsers} />
+              <CreateUserDialog
+                onCreated={fetchUsers}
+                defaultCompanyId={tenantCompanyId ?? undefined}
+                defaultCompanyName={tenantCompanyName ?? undefined}
+                lockCompany={isTenantScoped}
+              />
             ) : null}
         </div>
           <div className="space-y-4">
