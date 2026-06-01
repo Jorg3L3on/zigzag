@@ -12,9 +12,11 @@ import { getRoles } from '@/actions/roles';
 import {
   TripledEmptyState,
   TripledFilterChips,
+  TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
-import { Loader2, Search, Shield, X } from 'lucide-react';
+import { Search, Shield, X } from 'lucide-react';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -196,6 +198,13 @@ export function RolesList() {
     debouncedSearch !== '' ||
     companyScopeFilter !== 'all' ||
     permissionAssignmentFilter !== 'all';
+  const listState = resolveResourceListState({
+    isLoading: loading,
+    loadError,
+    totalCount: roles.length,
+    visibleCount: filteredRoles.length,
+    hasActiveFilters,
+  });
 
   const companyScopeOptions: Array<{ value: CompanyScopeFilter; label: string }> =
     [
@@ -228,7 +237,7 @@ export function RolesList() {
       variant: 'secondary' as const,
     },
     ...(debouncedSearch
-      ? [{ key: 'search', label: `Busqueda: ${debouncedSearch}` }]
+      ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
       : []),
     ...(companyScopeFilter !== 'all'
       ? [
@@ -276,7 +285,7 @@ export function RolesList() {
           <Input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por rol, descripcion, empresa o permiso..."
+            placeholder="Buscar por rol, descripción, empresa o permiso..."
             className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar roles"
           />
@@ -355,31 +364,53 @@ export function RolesList() {
         </div>
       </div>
 
-        {loading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : loadError ? (
-          <div className="space-y-4">
-            <TripledEmptyState
-              icon={<Shield className="h-4 w-4" />}
-              title="Error de carga"
-              description={loadError}
-            />
-            <div className="flex justify-center">
+        {listState.kind === 'loading' ? (
+          <TripledListLoadingState
+            label="Cargando lista de roles"
+            desktopColumns={5}
+            desktopRows={5}
+          />
+        ) : listState.kind === 'error' ? (
+          <TripledEmptyState
+            icon={<Shield className="h-4 w-4" />}
+            title="Error de carga"
+            description={listState.message}
+            role="alert"
+            action={
               <Button type="button" variant="outline" onClick={fetchRoles}>
                 Reintentar
               </Button>
-            </div>
-          </div>
-        ) : filteredRoles.length === 0 ? (
+            }
+          />
+        ) : listState.kind === 'empty' ? (
+          <TripledEmptyState
+            icon={<Shield className="h-4 w-4" />}
+            title="Sin roles"
+            description={
+              canWriteRoles
+                ? 'Crea el primer rol para agrupar permisos y asignarlo a usuarios.'
+                : 'No hay roles registrados.'
+            }
+            action={
+              canWriteRoles ? (
+                <CreateRoleDialog
+                  onCreated={fetchRoles}
+                  defaultCompanyId={tenantCompanyId ?? undefined}
+                  defaultCompanyName={tenantCompanyName ?? undefined}
+                  lockCompany={isTenantScoped}
+                />
+              ) : null
+            }
+          />
+        ) : listState.kind === 'filtered-empty' ? (
           <TripledEmptyState
             icon={<Shield className="h-4 w-4" />}
             title="Sin resultados"
-            description={
-              roles.length === 0
-                ? 'No hay roles registrados.'
-                : 'No hay roles que coincidan con la búsqueda o los filtros.'
+            description="No hay roles que coincidan con la búsqueda o los filtros."
+            action={
+              <Button type="button" variant="outline" onClick={handleClearFilters}>
+                Limpiar filtros
+              </Button>
             }
           />
         ) : (

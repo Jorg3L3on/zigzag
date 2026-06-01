@@ -12,9 +12,11 @@ import { getPermissions } from '@/actions/permissions';
 import {
   TripledEmptyState,
   TripledFilterChips,
+  TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
-import { KeyRound, Loader2, Search, X } from 'lucide-react';
+import { KeyRound, Search, X } from 'lucide-react';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -171,6 +173,13 @@ export function PermissionsList() {
 
   const mobileSortValue = encodeSortingState(sorting);
   const hasActiveFilters = debouncedSearch !== '' || companyScopeFilter !== 'all';
+  const listState = resolveResourceListState({
+    isLoading: loading,
+    loadError,
+    totalCount: permissions.length,
+    visibleCount: filteredPermissions.length,
+    hasActiveFilters,
+  });
 
   const companyScopeOptions: Array<{ value: CompanyScopeFilter; label: string }> =
     [
@@ -193,7 +202,7 @@ export function PermissionsList() {
       variant: 'secondary' as const,
     },
     ...(debouncedSearch
-      ? [{ key: 'search', label: `Busqueda: ${debouncedSearch}` }]
+      ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
       : []),
     ...(companyScopeFilter !== 'all'
       ? [
@@ -225,7 +234,7 @@ export function PermissionsList() {
           <Input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por permiso, descripcion o empresa..."
+            placeholder="Buscar por permiso, descripción o empresa..."
             className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar permisos"
           />
@@ -286,18 +295,19 @@ export function PermissionsList() {
         </div>
       </div>
 
-        {loading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : loadError ? (
-          <div className="space-y-4">
-            <TripledEmptyState
-              icon={<KeyRound className="h-4 w-4" />}
-              title="Error de carga"
-              description={loadError}
-            />
-            <div className="flex justify-center">
+        {listState.kind === 'loading' ? (
+          <TripledListLoadingState
+            label="Cargando lista de permisos"
+            desktopColumns={4}
+            desktopRows={5}
+          />
+        ) : listState.kind === 'error' ? (
+          <TripledEmptyState
+            icon={<KeyRound className="h-4 w-4" />}
+            title="Error de carga"
+            description={listState.message}
+            role="alert"
+            action={
               <Button
                 type="button"
                 variant="outline"
@@ -305,16 +315,32 @@ export function PermissionsList() {
               >
                 Reintentar
               </Button>
-            </div>
-          </div>
-        ) : filteredPermissions.length === 0 ? (
+            }
+          />
+        ) : listState.kind === 'empty' ? (
+          <TripledEmptyState
+            icon={<KeyRound className="h-4 w-4" />}
+            title="Sin permisos"
+            description={
+              canWritePermissions
+                ? 'Crea el primer permiso para habilitar controles de acceso por rol.'
+                : 'No hay permisos registrados.'
+            }
+            action={
+              canWritePermissions ? (
+                <CreatePermissionDialog onCreated={fetchPermissions} />
+              ) : null
+            }
+          />
+        ) : listState.kind === 'filtered-empty' ? (
           <TripledEmptyState
             icon={<KeyRound className="h-4 w-4" />}
             title="Sin resultados"
-            description={
-              permissions.length === 0
-                ? 'No hay permisos registrados.'
-                : 'No hay permisos que coincidan con la búsqueda o los filtros.'
+            description="No hay permisos que coincidan con la búsqueda o los filtros."
+            action={
+              <Button type="button" variant="outline" onClick={handleClearFilters}>
+                Limpiar filtros
+              </Button>
             }
           />
         ) : (
