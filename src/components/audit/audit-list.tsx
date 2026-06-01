@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ClipboardList, Loader2, Search } from 'lucide-react';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -36,6 +37,52 @@ import {
   type AuditEventRow,
 } from '@/components/audit/audit-columns';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import {
+  formatAuditResourceLabel,
+  redactAuditDisplayValue,
+  resolveAuditResourceLink,
+} from '@/lib/audit-display';
+
+const AuditJsonBlock = ({
+  title,
+  value,
+}: {
+  title: string;
+  value: Record<string, unknown> | null;
+}) => (
+  <section className="space-y-2">
+    <h4 className="text-sm font-medium">{title}</h4>
+    <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs">
+      {JSON.stringify(redactAuditDisplayValue(value ?? {}), null, 2)}
+    </pre>
+  </section>
+);
+
+const AuditEventDetails = ({ event }: { event: AuditEventRow }) => (
+  <div className="grid gap-3 md:grid-cols-2">
+    <AuditJsonBlock title="Carga útil" value={event.payload} />
+    <AuditJsonBlock title="Metadatos de solicitud" value={event.request_meta} />
+  </div>
+);
+
+const AuditResourceLabel = ({ event }: { event: AuditEventRow }) => {
+  const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
+  const label = formatAuditResourceLabel(event.resource_type, event.resource_id);
+
+  if (!link) {
+    return <>{label}</>;
+  }
+
+  return (
+    <Link
+      href={link.href}
+      className="font-medium text-primary underline-offset-4 hover:underline"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {link.label}
+    </Link>
+  );
+};
 
 export const AuditList = () => {
   const [events, setEvents] = React.useState<AuditEventRow[]>([]);
@@ -211,7 +258,7 @@ export const AuditList = () => {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">
-                      {event.resource_type} · {event.action}
+                      <AuditResourceLabel event={event} /> · {event.action}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <FormattedDate
@@ -237,9 +284,9 @@ export const AuditList = () => {
                   </div>
                 </dl>
                 {expandedId === event.id ? (
-                  <pre className="mt-3 max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
-                    {JSON.stringify(event.payload, null, 2)}
-                  </pre>
+                  <div className="mt-3">
+                    <AuditEventDetails event={event} />
+                  </div>
                 ) : null}
               </article>
             ))}
@@ -290,9 +337,7 @@ export const AuditList = () => {
                     {expandedId === row.original.id ? (
                       <TableRow>
                         <TableCell colSpan={columns.length + 1}>
-                          <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs">
-                            {JSON.stringify(row.original.payload, null, 2)}
-                          </pre>
+                          <AuditEventDetails event={row.original} />
                         </TableCell>
                       </TableRow>
                     ) : null}
