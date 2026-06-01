@@ -51,4 +51,23 @@ describe('AuditList', () => {
     expect(params.get('from')).toBe('2026-05-01');
     expect(params.get('to')).toBe('2026-05-31');
   });
+
+  it('writes active filters back to the URL', async () => {
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalled();
+    });
+
+    const lastReplaceCall = replace.mock.calls.at(-1)?.[0] as string;
+    expect(lastReplaceCall).toContain('search=denied');
+    expect(lastReplaceCall).toContain('target_company_id=2');
+    expect(lastReplaceCall).toContain('actor_user_id=7');
+    expect(lastReplaceCall).toContain('resource_type=ticket');
+    expect(lastReplaceCall).toContain('resource_id=42');
+    expect(lastReplaceCall).toContain('action=updated');
+    expect(lastReplaceCall).toContain('result=denied');
+    expect(lastReplaceCall).toContain('from=2026-05-01');
+    expect(lastReplaceCall).toContain('to=2026-05-31');
+  });
 });

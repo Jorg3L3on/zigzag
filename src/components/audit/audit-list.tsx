@@ -138,6 +138,11 @@ export const AuditList = () => {
     async (cursor?: number | null, append = false) => {
       setLoading(true);
       setLoadError(null);
+      if (!append) {
+        setEvents([]);
+        setNextCursor(null);
+        setExpandedId(null);
+      }
       try {
         const params = new URLSearchParams();
         if (debouncedSearch) {
