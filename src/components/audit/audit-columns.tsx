@@ -1,9 +1,14 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
+import Link from 'next/link';
 import type { AuditEventListItem } from '@/lib/audit-query';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
+import {
+  formatAuditResourceLabel,
+  resolveAuditResourceLink,
+} from '@/lib/audit-display';
 
 export type AuditEventRow = AuditEventListItem;
 
@@ -48,8 +53,29 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
     id: 'resource',
     header: 'Recurso',
-    cell: ({ row }) =>
-      `${row.original.resource_type}${row.original.resource_id ? `#${row.original.resource_id}` : ''}`,
+    cell: ({ row }) => {
+      const link = resolveAuditResourceLink(
+        row.original.resource_type,
+        row.original.resource_id,
+      );
+      const label = formatAuditResourceLabel(
+        row.original.resource_type,
+        row.original.resource_id,
+      );
+
+      if (!link) {
+        return label;
+      }
+
+      return (
+        <Link
+          href={link.href}
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {link.label}
+        </Link>
+      );
+    },
   },
   {
     accessorKey: 'action',
