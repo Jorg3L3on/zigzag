@@ -11,6 +11,14 @@ const parseOptionalInt = (value: string | null): number | undefined => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+const parseOptionalDate = (value: string | null): Date | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
 export async function GET(request: Request) {
   try {
     const { session, unauthorized } = await requireSession();
@@ -31,12 +39,8 @@ export async function GET(request: Request) {
       resourceId: url.searchParams.get('resource_id') ?? undefined,
       action: url.searchParams.get('action') ?? undefined,
       result: url.searchParams.get('result') ?? undefined,
-      from: url.searchParams.get('from')
-        ? new Date(url.searchParams.get('from') as string)
-        : undefined,
-      to: url.searchParams.get('to')
-        ? new Date(url.searchParams.get('to') as string)
-        : undefined,
+      from: parseOptionalDate(url.searchParams.get('from')),
+      to: parseOptionalDate(url.searchParams.get('to')),
       cursor: parseOptionalInt(url.searchParams.get('cursor')),
       limit: parseOptionalInt(url.searchParams.get('limit')),
     };
