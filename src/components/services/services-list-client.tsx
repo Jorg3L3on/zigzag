@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Plus, Pencil, Trash2, Loader2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -48,8 +48,10 @@ import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
   TripledFilterChips,
+  TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { createServicesColumns } from '@/components/services/services-columns';
 import {
@@ -128,8 +130,7 @@ export function ServicesListClient() {
     }
   };
 
-  React.useEffect(() => {
-    const fetchServices = async () => {
+  const fetchServices = React.useCallback(async () => {
       if (missingCompany) {
         setServices([]);
         setLoadError(null);
@@ -152,9 +153,11 @@ export function ServicesListClient() {
         );
       }
       setLoadingServices(false);
-    };
+  }, [missingCompany, selectedCompany?.id, statusFilter]);
+
+  React.useEffect(() => {
     void fetchServices();
-  }, [missingCompany, selectedCompany, statusFilter]);
+  }, [fetchServices]);
 
   const filteredServices = useMemo(() => {
     const search = debouncedSearch.toLowerCase();
@@ -217,6 +220,13 @@ export function ServicesListClient() {
   const mobileSortValue = encodeSortingState(sorting);
   const isBusy = loading || loadingServices;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'active';
+  const listState = resolveResourceListState({
+    isLoading: isBusy,
+    loadError,
+    totalCount: services.length,
+    visibleCount: filteredServices.length,
+    hasActiveFilters,
+  });
   const activeStatusLabel =
     filterOptions.find((option) => option.value === statusFilter)?.label ??
     'Activos';
@@ -246,7 +256,7 @@ export function ServicesListClient() {
       ? [
           {
             key: 'search',
-            label: `Busqueda: ${debouncedSearch}`,
+            label: `Búsqueda: ${debouncedSearch}`,
           },
         ]
       : []),
@@ -267,7 +277,7 @@ export function ServicesListClient() {
           <Input
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por nombre o descripcion..."
+            placeholder="Buscar por nombre o descripción..."
             className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar servicios"
           />
@@ -327,31 +337,60 @@ export function ServicesListClient() {
         </div>
       </div>
 
-      {isBusy ? (
-        <div className="flex h-32 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : loadError ? (
-        <div className="space-y-4">
-          <TripledEmptyState
-            icon={<Plus className="h-4 w-4" />}
-            title="Error de carga"
-            description={loadError}
-          />
-          <div className="flex justify-center">
-            <Button variant="outline" onClick={() => router.refresh()}>
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de servicios"
+          desktopColumns={4}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<Plus className="h-4 w-4" />}
+          title="Error de carga"
+          description={listState.message}
+          role="alert"
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void fetchServices();
+              }}
+            >
               Reintentar
             </Button>
-          </div>
-        </div>
-      ) : filteredServices.length === 0 ? (
+          }
+        />
+      ) : listState.kind === 'empty' ? (
+        <TripledEmptyState
+          icon={<Plus className="h-4 w-4" />}
+          title="Sin servicios"
+          description={
+            canWrite
+              ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
+              : 'No hay servicios registrados en este catálogo todavía.'
+          }
+          action={
+            canWrite ? (
+              <Button
+                type="button"
+                onClick={() => router.push('/dashboard/services/new')}
+              >
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                Nuevo servicio
+              </Button>
+            ) : null
+          }
+        />
+      ) : listState.kind === 'filtered-empty' ? (
         <TripledEmptyState
           icon={<Plus className="h-4 w-4" />}
           title="Sin resultados"
-          description={
-            services.length === 0
-              ? 'No hay servicios en este catálogo todavía.'
-              : 'No encontramos servicios con ese filtro.'
+          description="No encontramos servicios con esa búsqueda o esos filtros."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
           }
         />
       ) : (

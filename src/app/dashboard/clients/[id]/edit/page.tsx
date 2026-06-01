@@ -21,7 +21,7 @@ import { requirePagePermission } from '@/lib/page-authz';
 import { UserRoundCog } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Editar Cliente',
+  title: 'Editar cliente',
   description: 'Edita la información del cliente',
 };
 
@@ -55,7 +55,7 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Editar Cliente</BreadcrumbPage>
+                <BreadcrumbPage>Editar cliente</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

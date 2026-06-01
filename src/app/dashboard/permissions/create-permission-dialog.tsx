@@ -108,12 +108,12 @@ export function CreatePermissionDialog({
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
           <Plus className="mr-2 h-4 w-4" />
-          Crear Permiso
+          Crear permiso
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Crear Permiso</DialogTitle>
+          <DialogTitle>Crear permiso</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -179,7 +179,7 @@ export function CreatePermissionDialog({
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creando...' : 'Crear Permiso'}
+              {isSubmitting ? 'Creando...' : 'Crear permiso'}
             </Button>
           </form>
         </Form>

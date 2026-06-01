@@ -321,7 +321,7 @@ const CreateTicketPageContent = () => {
                       render={({ field }) => (
                         <FormItem className="min-w-0 space-y-3">
                           <FormLabel className="text-sm font-medium text-foreground">
-                            Seleccionar Cliente
+                            Seleccionar cliente
                           </FormLabel>
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             <div className="min-w-0 flex-1">
@@ -376,12 +376,12 @@ const CreateTicketPageContent = () => {
                                   className="h-12 w-full shrink-0 gap-2 rounded-xl border-input bg-background px-4 text-base shadow-sm transition-colors hover:bg-accent sm:w-auto md:h-10 md:text-sm"
                                 >
                                   <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                                  Nuevo Cliente
+                                  Nuevo cliente
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
                                 <DialogHeader>
-                                  <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+                                  <DialogTitle>Crear nuevo cliente</DialogTitle>
                                   <DialogDescription>
                                     Completa los datos del nuevo cliente
                                   </DialogDescription>
@@ -451,7 +451,7 @@ const CreateTicketPageContent = () => {
                       >
                         No hay clientes registrados. Usa{' '}
                         <span className="font-medium text-foreground">
-                          Nuevo Cliente
+                          Nuevo cliente
                         </span>{' '}
                         para crear el primero.
                       </p>

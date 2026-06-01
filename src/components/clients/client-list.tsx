@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Plus, Pencil, Trash2, Loader2, Search, Users, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, UserPlus, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -49,6 +49,7 @@ import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
   TripledFilterChips,
+  TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
@@ -64,6 +65,7 @@ import { canWriteClients } from '@/lib/clients-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { formatClientAddressOneLine } from '@/lib/client-address';
+import { resolveResourceListState } from '@/lib/resource-list-state';
 
 type ContactFilter = 'all' | 'with' | 'without';
 
@@ -230,8 +232,8 @@ export function ClientList() {
 
   const emailFilterOptions: Array<{ value: ContactFilter; label: string }> = [
     { value: 'all', label: 'Todas' },
-    { value: 'with', label: 'Con email' },
-    { value: 'without', label: 'Sin email' },
+    { value: 'with', label: 'Con correo' },
+    { value: 'without', label: 'Sin correo' },
   ];
 
   const phoneFilterOptions: Array<{ value: ContactFilter; label: string }> = [
@@ -289,7 +291,7 @@ export function ClientList() {
       ? [
           {
             key: 'search',
-            label: `Busqueda: ${debouncedSearch}`,
+            label: `Búsqueda: ${debouncedSearch}`,
           },
         ]
       : []),
@@ -297,7 +299,7 @@ export function ClientList() {
       ? [
           {
             key: 'email',
-            label: emailFilter === 'with' ? 'Con email' : 'Sin email',
+            label: emailFilter === 'with' ? 'Con correo' : 'Sin correo',
           },
         ]
       : []),
@@ -305,7 +307,7 @@ export function ClientList() {
       ? [
           {
             key: 'phone',
-            label: phoneFilter === 'with' ? 'Con telefono' : 'Sin telefono',
+            label: phoneFilter === 'with' ? 'Con teléfono' : 'Sin teléfono',
           },
         ]
       : []),
@@ -314,6 +316,14 @@ export function ClientList() {
   if (missingCompany) {
     return <SystemCompanyContextEmptyState resourceLabel="clientes" />;
   }
+
+  const listState = resolveResourceListState({
+    isLoading: isBusy,
+    loadError,
+    totalCount: clients.length,
+    visibleCount: filteredClients.length,
+    hasActiveFilters,
+  });
 
   return (
     <>
@@ -326,7 +336,7 @@ export function ClientList() {
           <Input
             value={searchValue}
             onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, teléfono, email, documento..."
+            placeholder="Buscar por nombre, teléfono, correo o documento..."
             className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
             aria-label="Buscar clientes"
           />
@@ -334,7 +344,7 @@ export function ClientList() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Email</p>
+            <p className="text-xs font-medium text-muted-foreground">Correo</p>
             <div className="flex flex-wrap gap-2">
               {emailFilterOptions.map((option) => (
                 <Button
@@ -343,7 +353,7 @@ export function ClientList() {
                   variant={emailFilter === option.value ? 'default' : 'outline'}
                   className="min-h-11 rounded-xl"
                   onClick={() => setEmailFilter(option.value)}
-                  aria-label={`Filtrar clientes por email: ${option.label}`}
+                  aria-label={`Filtrar clientes por correo: ${option.label}`}
                 >
                   {option.label}
                 </Button>
@@ -406,37 +416,67 @@ export function ClientList() {
         </div>
       </div>
 
-      {isBusy ? (
-        <div className="flex h-32 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : loadError ? (
-        <div className="space-y-4">
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de clientes"
+          desktopColumns={5}
+          desktopRows={6}
+          mobileCards={4}
+        />
+      ) : listState.kind === 'error' ? (
           <TripledEmptyState
             icon={<Users className="h-4 w-4" />}
             title="Error de carga"
-            description={loadError}
+            description={listState.message}
+            role="alert"
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void fetchClients();
+                }}
+              >
+                Reintentar
+              </Button>
+            }
           />
-          <div className="flex justify-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                void fetchClients();
-              }}
-            >
-              Reintentar
-            </Button>
-          </div>
-        </div>
-      ) : filteredClients.length === 0 ? (
+      ) : listState.kind === 'filtered-empty' ? (
         <TripledEmptyState
           icon={<Users className="h-4 w-4" />}
           title="Sin resultados"
+          description="No hay clientes que coincidan con la búsqueda o los filtros seleccionados."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClearFilters}
+              aria-label="Limpiar filtros de clientes"
+            >
+              <X className="mr-2 h-4 w-4" aria-hidden />
+              Limpiar filtros
+            </Button>
+          }
+        />
+      ) : listState.kind === 'empty' ? (
+        <TripledEmptyState
+          icon={<UserPlus className="h-4 w-4" />}
+          title="Sin clientes"
           description={
-            clients.length === 0
-              ? 'No hay clientes en este catálogo todavía.'
-              : 'No encontramos clientes con ese filtro.'
+            canWrite
+              ? 'Agrega el primer cliente para registrar sus datos de contacto y crear tickets con mayor rapidez.'
+              : 'No hay clientes registrados para esta empresa todavía.'
+          }
+          action={
+            canWrite ? (
+              <Button
+                type="button"
+                onClick={() => router.push('/dashboard/clients/new')}
+              >
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                Nuevo cliente
+              </Button>
+            ) : null
           }
         />
       ) : (
@@ -516,7 +556,7 @@ export function ClientList() {
                       </dd>
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">
-                      <dt className="text-muted-foreground">Email</dt>
+                      <dt className="text-muted-foreground">Correo</dt>
                       <dd className="truncate">{clientRow.email || '—'}</dd>
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">

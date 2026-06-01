@@ -158,12 +158,12 @@ export function CreateUserDialog({
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-600">
           <Plus className="mr-2 h-4 w-4" />
-          Crear Usuario
+          Crear usuario
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Crear Usuario</DialogTitle>
+          <DialogTitle>Crear usuario</DialogTitle>
         </DialogHeader>
         <CompanyEntitlementNotice metric="users" />
         <Form {...form}>
@@ -303,7 +303,7 @@ export function CreateUserDialog({
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creando...' : 'Crear Usuario'}
+              {isSubmitting ? 'Creando...' : 'Crear usuario'}
             </Button>
           </form>
         </Form>

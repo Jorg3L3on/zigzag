@@ -105,7 +105,7 @@ export const OperatorAccessPanel = () => {
           Acceso y cuentas
         </h2>
         <p className="text-sm text-muted-foreground">
-          Administra usuarios y roles del tenant seleccionado.
+          Administra usuarios y roles de la empresa seleccionada.
         </p>
       </div>
 
@@ -133,7 +133,7 @@ export const OperatorAccessPanel = () => {
 
       <Card className="border-border/70 shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Roles del tenant</CardTitle>
+          <CardTitle className="text-base">Roles de la empresa</CardTitle>
           <CardDescription>
             Permisos asignados por rol en {selectedCompany?.name}
           </CardDescription>

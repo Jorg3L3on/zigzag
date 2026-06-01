@@ -197,7 +197,7 @@ export function UpdateUserDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Actualizar Usuario</DialogTitle>
+          <DialogTitle>Actualizar usuario</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -343,7 +343,7 @@ export function UpdateUserDialog({
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Actualizando...' : 'Actualizar Usuario'}
+              {isSubmitting ? 'Actualizando...' : 'Actualizar usuario'}
             </Button>
           </form>
         </Form>

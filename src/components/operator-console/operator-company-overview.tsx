@@ -220,7 +220,7 @@ export const OperatorCompanyOverview = () => {
       <TripledEmptyState
         icon={<Building2 className="h-4 w-4" aria-hidden />}
         title="Empresa del sistema"
-        description="Elige una empresa tenant (no la empresa Sistema) para revisar salud operativa."
+        description="Elige una empresa operativa (no la empresa Sistema) para revisar salud operativa."
       />
     );
   }
@@ -235,7 +235,7 @@ export const OperatorCompanyOverview = () => {
             Resumen: {selectedCompany?.name}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Contexto activo para operaciones cross-tenant.
+            Contexto activo para operaciones entre empresas.
           </p>
         </div>
         {summary ? (

@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Card,
   CardContent,
@@ -24,6 +25,7 @@ import {
   canReadServiceSchedules,
   needsSelectedCompanyForSchedules,
 } from '@/lib/service-schedules-rbac';
+import { TripledEmptyState } from '@/components/tripled';
 
 const mergeUrgent = (
   proximos: ClientServiceScheduleListItem[],
@@ -63,8 +65,15 @@ export const DashboardServiceSchedulesWidget = () => {
   const [atrasados, setAtrasados] = React.useState<ClientServiceScheduleListItem[]>(
     [],
   );
+  const mountedRef = React.useRef(true);
 
   React.useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const loadSchedules = React.useCallback(async () => {
     if (permissionsLoading) {
       return;
     }
@@ -87,47 +96,43 @@ export const DashboardServiceSchedulesWidget = () => {
 
     let cancelled = false;
 
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      const companyId = selectedCompany?.id ?? null;
+    setLoading(true);
+    setError(null);
+    const companyId = selectedCompany?.id ?? null;
 
-      const [proximosRes, atrasadosRes] = await Promise.all([
-        listClientServiceSchedules({ companyId, filter: 'proximos' }),
-        listClientServiceSchedules({ companyId, filter: 'atrasados' }),
-      ]);
+    const [proximosRes, atrasadosRes] = await Promise.all([
+      listClientServiceSchedules({ companyId, filter: 'proximos' }),
+      listClientServiceSchedules({ companyId, filter: 'atrasados' }),
+    ]);
 
-      if (cancelled) {
-        return;
-      }
+    if (!mountedRef.current) {
+      return;
+    }
 
-      setLoading(false);
+    setLoading(false);
 
-      if (!proximosRes.success || !atrasadosRes.success) {
-        setError(
-          getErrorDisplayMessage(
-            proximosRes.success ? atrasadosRes : proximosRes,
-            'No se pudieron cargar los recordatorios',
-          ),
-        );
-        return;
-      }
+    if (!proximosRes.success || !atrasadosRes.success) {
+      setError(
+        getErrorDisplayMessage(
+          proximosRes.success ? atrasadosRes : proximosRes,
+          'No se pudieron cargar los recordatorios',
+        ),
+      );
+      return;
+    }
 
-      setProximos(proximosRes.data ?? []);
-      setAtrasados(atrasadosRes.data ?? []);
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
+    setProximos(proximosRes.data ?? []);
+    setAtrasados(atrasadosRes.data ?? []);
   }, [
     canRead,
     missingCompany,
     permissionsLoading,
     selectedCompany?.id,
   ]);
+
+  React.useEffect(() => {
+    void loadSchedules();
+  }, [loadSchedules]);
 
   if (permissionsLoading) {
     return null;
@@ -154,21 +159,44 @@ export const DashboardServiceSchedulesWidget = () => {
       </CardHeader>
       <CardContent>
         {missingCompany ? (
-          <p className="text-sm text-muted-foreground" role="status">
-            Selecciona una empresa para ver recordatorios.
-          </p>
+          <TripledEmptyState
+            icon={<CalendarClock className="h-4 w-4" />}
+            title="Selecciona una empresa"
+            description="Selecciona una empresa para ver recordatorios."
+          />
         ) : loading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div
+            className="space-y-3"
+            role="status"
+            aria-label="Cargando recordatorios de servicio"
+          >
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-4/5 rounded-lg" />
           </div>
         ) : error ? (
-          <p className="text-sm text-muted-foreground" role="alert">
-            {error}
-          </p>
+          <TripledEmptyState
+            icon={<CalendarClock className="h-4 w-4" />}
+            title="Error al cargar"
+            description={error}
+            role="alert"
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void loadSchedules()}
+              >
+                Reintentar
+              </Button>
+            }
+          />
         ) : urgentRows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No hay recordatorios urgentes.
-          </p>
+          <TripledEmptyState
+            icon={<CalendarClock className="h-4 w-4" />}
+            title="Sin urgentes"
+            description="No hay recordatorios urgentes."
+          />
         ) : (
           <ul className="space-y-3">
             {urgentRows.map((row) => (

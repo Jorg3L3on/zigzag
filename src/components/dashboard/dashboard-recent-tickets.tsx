@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Search } from 'lucide-react';
+import { Search, Ticket } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -24,6 +24,8 @@ import {
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
 import type { DashboardRecentTicket } from '@/actions/dashboard';
+import { TripledEmptyState } from '@/components/tripled';
+import { Button } from '@/components/ui/button';
 
 export type DashboardRecentTicketsProps = {
   tickets: DashboardRecentTicket[];
@@ -81,11 +83,27 @@ export const DashboardRecentTickets = ({
       </CardHeader>
       <CardContent>
         {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground" role="status">
-            {tickets.length === 0
-              ? 'No hay tickets para mostrar.'
-              : 'Ningún ticket coincide con la búsqueda.'}
-          </p>
+          <TripledEmptyState
+            icon={<Ticket className="h-4 w-4" />}
+            title={tickets.length === 0 ? 'Sin actividad' : 'Sin resultados'}
+            description={
+              tickets.length === 0
+                ? 'No hay tickets recientes para mostrar.'
+                : 'Ningún ticket coincide con la búsqueda.'
+            }
+            action={
+              tickets.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setQuery('')}
+                >
+                  Limpiar búsqueda
+                </Button>
+              ) : null
+            }
+          />
         ) : (
           <>
             <div className="space-y-4 md:hidden">

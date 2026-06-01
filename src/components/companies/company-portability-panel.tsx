@@ -106,7 +106,7 @@ export const CompanyPortabilityPanel = ({
           Portabilidad y offboarding
         </h3>
         <p className="text-sm text-muted-foreground">
-          Exporta datos del tenant para solicitudes de portabilidad. El
+          Exporta datos de la empresa para solicitudes de portabilidad. El
           offboarding archiva la empresa sin borrar registros.
         </p>
       </div>

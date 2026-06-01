@@ -9,6 +9,6 @@ export const needsSelectedCompanyContext = (
   isSystem && (selectedCompanyId == null || selectedCompanyId <= 0);
 
 export const SYSTEM_COMPANY_CONTEXT_MESSAGE =
-  'Selecciona una empresa en el menú superior para ver y gestionar datos de ese tenant.';
+  'Selecciona una empresa en el menú superior para ver y gestionar sus datos.';
 
 export const SYSTEM_COMPANY_CONTEXT_TITLE = 'Empresa no seleccionada';

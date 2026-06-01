@@ -213,11 +213,11 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Correo</FormLabel>
               <FormControl>
                 <Input
                   type="email"
-                  placeholder="Email del cliente (opcional)"
+                  placeholder="Correo del cliente (opcional)"
                   {...field}
                 />
               </FormControl>
