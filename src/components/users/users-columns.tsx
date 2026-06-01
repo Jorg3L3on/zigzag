@@ -112,7 +112,7 @@ export const createUsersColumns = ({
     ),
     cell: ({ row }) => (
       <span className="line-clamp-2 max-w-[12rem]">
-        {row.original.company?.name ?? 'N/A'}
+        {row.original.company?.name ?? 'Sin empresa'}
       </span>
     ),
     sortingFn: (a, b) => {
@@ -127,7 +127,7 @@ export const createUsersColumns = ({
     header: ({ column }) => <UserSortableHeader column={column} label="Rol" />,
     cell: ({ row }) => (
       <span className="line-clamp-2 max-w-[10rem]">
-        {row.original.role?.name ?? 'N/A'}
+        {row.original.role?.name ?? 'Sin rol'}
       </span>
     ),
     sortingFn: (a, b) => {

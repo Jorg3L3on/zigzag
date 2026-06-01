@@ -24,7 +24,7 @@ test.describe('RBAC browser specs', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await login(page, viewerEmail, viewerPassword!);
     await page.goto('/dashboard/tickets');
-    await expect(page.getByRole('link', { name: 'Nuevo Ticket' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toHaveCount(0);
   });
 
   test('admin sees ticket create CTA @768px', async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('RBAC browser specs', () => {
     await page.setViewportSize({ width: 768, height: 900 });
     await login(page, adminEmail!, adminPassword!);
     await page.goto('/dashboard/tickets');
-    await expect(page.getByRole('link', { name: 'Nuevo Ticket' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toBeVisible();
   });
 
   test('viewer ticket detail hides edit action', async ({ page }) => {

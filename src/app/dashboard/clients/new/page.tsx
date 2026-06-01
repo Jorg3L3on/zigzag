@@ -20,7 +20,7 @@ import { UserPlus } from 'lucide-react';
 import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 
 export const metadata: Metadata = {
-  title: 'Nuevo Cliente',
+  title: 'Nuevo cliente',
   description: 'Crea un nuevo cliente',
 };
 
@@ -42,7 +42,7 @@ export default async function NewClientPage() {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Nuevo Cliente</BreadcrumbPage>
+                <BreadcrumbPage>Nuevo cliente</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

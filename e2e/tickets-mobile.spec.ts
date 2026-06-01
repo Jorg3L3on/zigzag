@@ -41,7 +41,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('heading', { name: 'Tickets' })).toBeVisible();
     await expect(page.getByPlaceholder('Buscar tickets...')).toBeVisible();
     await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Nuevo Ticket' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toBeVisible();
     await expect(page.getByText(/de \d+ tickets/)).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
@@ -52,8 +52,8 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByText('Nuevo ticket')).toBeVisible();
     await expect(page.getByText('Paso 1 de 3')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Información del cliente' })).toBeVisible();
-    await expect(page.getByLabel('Seleccionar Cliente')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Nuevo Cliente' })).toBeVisible();
+    await expect(page.getByLabel('Seleccionar cliente')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Crear' })).toBeVisible();
   });
 });

@@ -40,7 +40,7 @@ export default async function TicketsPage() {
               >
                 <Button className="min-h-11 w-full gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold shadow-sm hover:bg-primary/90 sm:w-auto">
                   <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                  Nuevo Ticket
+                  Nuevo ticket
                 </Button>
               </Link>
             ) : null

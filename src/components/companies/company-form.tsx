@@ -370,7 +370,7 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
             <Separator />
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-foreground">
-                Propietario del tenant
+                Propietario de la empresa
               </h3>
               <p className="text-sm text-muted-foreground">
                 Se crea el usuario administrador, el rol por defecto y la

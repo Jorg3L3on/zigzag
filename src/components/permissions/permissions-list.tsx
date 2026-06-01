@@ -396,7 +396,7 @@ export function PermissionsList() {
                       <div className="grid grid-cols-[88px_1fr] gap-2">
                         <dt className="text-muted-foreground">Empresa</dt>
                         <dd className="truncate">
-                          {permRow.company?.name ?? 'N/A'}
+                          {permRow.company?.name ?? 'Sin empresa'}
                         </dd>
                       </div>
                       <div className="grid grid-cols-[88px_1fr] gap-2">

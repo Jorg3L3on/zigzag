@@ -85,7 +85,7 @@ export const createPermissionsColumns = ({
       <PermissionSortableHeader column={column} label="Empresa" />
     ),
     cell: ({ row }) => (
-      <span className="line-clamp-2">{row.original.company?.name ?? 'N/A'}</span>
+      <span className="line-clamp-2">{row.original.company?.name ?? 'Sin empresa'}</span>
     ),
     sortingFn: (a, b) => {
       const na = a.original.company?.name ?? '';

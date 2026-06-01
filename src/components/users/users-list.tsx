@@ -507,12 +507,12 @@ export function UsersList() {
                         <div className="grid grid-cols-[88px_1fr] gap-2">
                           <dt className="text-muted-foreground">Empresa</dt>
                           <dd className="truncate">
-                            {u.company?.name ?? 'N/A'}
+                            {u.company?.name ?? 'Sin empresa'}
                           </dd>
                         </div>
                         <div className="grid grid-cols-[88px_1fr] gap-2">
                           <dt className="text-muted-foreground">Rol</dt>
-                          <dd className="truncate">{u.role?.name ?? 'N/A'}</dd>
+                          <dd className="truncate">{u.role?.name ?? 'Sin rol'}</dd>
                         </div>
                         <div className="grid grid-cols-[88px_1fr] gap-2">
                           <dt className="text-muted-foreground">Alta</dt>

@@ -182,7 +182,7 @@ export default function EditServicePage({
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {isNew ? 'Nuevo Servicio' : 'Editar Servicio'}
+                  {isNew ? 'Nuevo servicio' : 'Editar servicio'}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
@@ -298,7 +298,7 @@ export default function EditServicePage({
                       ) : (
                         <>
                           <CheckCircle2 className="mr-2 h-4 w-4" />
-                          {isNew ? 'Crear Servicio' : 'Actualizar Servicio'}
+                          {isNew ? 'Crear servicio' : 'Actualizar servicio'}
                         </>
                       )}
                     </Button>
