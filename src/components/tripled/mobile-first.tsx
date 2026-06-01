@@ -232,7 +232,7 @@ export const TripledFilterChips = ({
         <Badge
           key={chip.key}
           variant={chip.variant ?? 'outline'}
-          className="rounded-full px-2.5 py-1"
+          className="max-w-full whitespace-normal rounded-full px-2.5 py-1 text-left leading-snug"
         >
           {chip.label}
         </Badge>
@@ -256,7 +256,7 @@ export const TripledMobileRecordCard = ({
   return (
     <article
       className={cn(
-        'rounded-2xl border border-border/70 bg-card p-4 shadow-sm',
+        'min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card p-4 shadow-sm',
         interactive &&
           'cursor-pointer transition-colors hover:bg-muted/40 active:bg-muted/60',
         className,
