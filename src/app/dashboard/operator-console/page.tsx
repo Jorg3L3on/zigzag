@@ -1,5 +1,6 @@
 import { Building2 } from 'lucide-react';
 import { CompaniesList } from '@/components/companies/companies-list';
+import { OperatorLifecyclePanel } from '@/components/operator-console/operator-lifecycle-panel';
 import { OperatorAccessPanel } from '@/components/operator-console/operator-access-panel';
 import { OperatorActivityPanel } from '@/components/operator-console/operator-activity-panel';
 import { OperatorCompanyOverview } from '@/components/operator-console/operator-company-overview';
@@ -30,6 +31,7 @@ export default async function OperatorConsolePage() {
           <CompaniesList />
           <OperatorCompanyOverview />
           <OperatorAccessPanel />
+          <OperatorLifecyclePanel />
           <OperatorActivityPanel />
         </TripledResourceCard>
       </TripledDashboardShell>

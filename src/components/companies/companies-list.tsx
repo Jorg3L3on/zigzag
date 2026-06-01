@@ -519,9 +519,12 @@ export function CompaniesList() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Badge
                             variant={
-                              companyRow.status === 'ACTIVE'
-                                ? 'default'
-                                : 'secondary'
+                              normalizeCompanyLifecycleStatus(companyRow.status) ===
+                              'ARCHIVED'
+                                ? 'destructive'
+                                : companyRow.status === 'ACTIVE'
+                                  ? 'default'
+                                  : 'secondary'
                             }
                           >
                             {statusLabel(companyRow.status)}
