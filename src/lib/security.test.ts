@@ -3,9 +3,14 @@ import {
   requireSystemUser,
   type ActionAuthContext,
 } from '@/lib/authz-context';
-import { checkPermission, requireActionAuth } from '@/lib/security';
+import {
+  checkPermission,
+  requireActionAuth,
+  requireActionPermission,
+} from '@/lib/security';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { recordPermissionDeniedAudit } from '@/lib/audit-security';
 
 jest.mock('@/lib/auth', () => ({
   auth: jest.fn(),
@@ -25,7 +30,15 @@ jest.mock('@/lib/db', () => ({
   },
 }));
 
+jest.mock('@/lib/audit-security', () => ({
+  recordPermissionDeniedAudit: jest.fn(),
+}));
+
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
+const mockRecordPermissionDeniedAudit =
+  recordPermissionDeniedAudit as jest.MockedFunction<
+    typeof recordPermissionDeniedAudit
+  >;
 const mockDb = db as unknown as {
   query: {
     user: {
@@ -303,6 +316,86 @@ describe('security helpers', () => {
 
       await expect(requireActionAuth()).rejects.toThrow(
         'Authentication required',
+      );
+    });
+  });
+
+  describe('requireActionPermission', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('records denied audit rows for invalid Server Action company context', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '10',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 10n,
+        company_id: 10,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+
+      await expect(
+        requireActionPermission('tickets.write', 99),
+      ).rejects.toThrow('Access denied to requested company');
+
+      expect(mockRecordPermissionDeniedAudit).toHaveBeenCalledWith({
+        actor: {
+          userId: '10',
+          companyId: 10,
+          companyIsSystem: false,
+        },
+        targetCompanyId: 99,
+        permission: 'tickets.write',
+        source: 'action',
+        reason: 'invalid_company_context',
+        actorCompanyId: 10,
+        requestedCompanyId: 99,
+      });
+    });
+
+    it('continues recording missing-permission denials', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '11',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 11n,
+        company_id: 10,
+        role_id: null,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+
+      await expect(
+        requireActionPermission('tickets.write', 10),
+      ).rejects.toThrow('Missing permission: tickets.write');
+
+      expect(mockRecordPermissionDeniedAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetCompanyId: 10,
+          permission: 'tickets.write',
+          source: 'action',
+          reason: 'missing_permission',
+          actorCompanyId: 10,
+          requestedCompanyId: 10,
+        }),
       );
     });
   });

@@ -199,7 +199,22 @@ export async function requireActionPermission(
   requestedCompanyId?: number | null,
 ): Promise<{ context: ActionAuthContext; companyId: number }> {
   const context = await requireActionAuth();
-  const companyId = resolveWritableCompanyId(context, requestedCompanyId);
+  let companyId: number;
+  try {
+    companyId = resolveWritableCompanyId(context, requestedCompanyId);
+  } catch (error) {
+    await recordPermissionDeniedAudit({
+      actor: context,
+      targetCompanyId: requestedCompanyId ?? context.companyId,
+      permission: permissionName,
+      source: 'action',
+      reason: 'invalid_company_context',
+      actorCompanyId: context.companyId,
+      requestedCompanyId: requestedCompanyId ?? null,
+    });
+    throw error;
+  }
+
   const allowed = await checkPermission(context.userId, companyId, permissionName);
 
   if (!allowed) {
@@ -208,6 +223,9 @@ export async function requireActionPermission(
       targetCompanyId: companyId,
       permission: permissionName,
       source: 'action',
+      reason: 'missing_permission',
+      actorCompanyId: context.companyId,
+      requestedCompanyId: requestedCompanyId ?? companyId,
     });
     throw new AuthorizationError(`Missing permission: ${permissionName}`);
   }
