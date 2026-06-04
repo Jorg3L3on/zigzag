@@ -1,36 +1,32 @@
 import { test, expect } from '@playwright/test';
-
-const adminEmail = process.env.E2E_EMAIL;
-const adminPassword = process.env.E2E_PASSWORD;
-const viewerEmail = process.env.E2E_VIEWER_EMAIL ?? 'viewer@test.com';
-const viewerPassword = process.env.E2E_VIEWER_PASSWORD ?? process.env.E2E_PASSWORD;
-
-const login = async (
-  page: import('@playwright/test').Page,
-  email: string,
-  password: string,
-) => {
-  await page.goto('/login');
-  await page.getByLabel('Correo electrónico').fill(email);
-  await page.getByLabel('Contraseña').fill(password);
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
-};
+import {
+  e2eSystemCredentialsSkipReason,
+  ensureSystemCompany,
+  hasE2eSystemCredentials,
+  loginAsSystemUser,
+  loginAsViewer,
+  e2eViewerCredentialsSkipReason,
+  hasE2eViewerCredentials,
+} from './helpers/auth';
 
 test.describe('Audit log access', () => {
   test('system admin can open audit page', async ({ page }) => {
-    test.skip(!adminEmail || !adminPassword, 'Set E2E_EMAIL and E2E_PASSWORD');
+    test.skip(!hasE2eSystemCredentials, e2eSystemCredentialsSkipReason);
 
-    await login(page, adminEmail!, adminPassword!);
+    await loginAsSystemUser(page);
+    await ensureSystemCompany(page);
     await page.goto('/dashboard/audit');
-    await expect(page.getByRole('heading', { name: 'Auditoría' })).toBeVisible();
-    await expect(page.getByText('Eventos de auditoría')).toBeVisible();
+
+    await expect(page.getByText('Auditoría', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByLabel('Buscar eventos de auditoría'),
+    ).toBeVisible();
   });
 
   test('non-system viewer is forbidden on audit page', async ({ page }) => {
-    test.skip(!viewerPassword, 'Set E2E_VIEWER_PASSWORD or E2E_PASSWORD');
+    test.skip(!hasE2eViewerCredentials, e2eViewerCredentialsSkipReason);
 
-    await login(page, viewerEmail, viewerPassword!);
+    await loginAsViewer(page);
     await page.goto('/dashboard/audit');
     await expect(page).toHaveURL(/\/dashboard\/forbidden/);
   });

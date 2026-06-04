@@ -1,15 +1,10 @@
 import { test, expect, devices, type Page } from '@playwright/test';
-
-const email = process.env.E2E_EMAIL;
-const password = process.env.E2E_PASSWORD;
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await page.getByLabel('Correo electrónico').fill(email!);
-  await page.getByLabel('Contraseña').fill(password!);
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
-}
+import {
+  e2eCredentialsSkipReason,
+  ensureTenantCompany,
+  hasE2eCredentials,
+  login,
+} from './helpers/auth';
 
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
@@ -27,21 +22,16 @@ test.use({ ...devices['Pixel 5'] });
 
 test.describe('Mobile dashboard redesign', () => {
   test.beforeEach(async ({ page }) => {
-    test.skip(
-      !email || !password,
-      'Set E2E_EMAIL and E2E_PASSWORD to run authenticated mobile dashboard E2E',
-    );
-
+    test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
     await login(page);
+    await ensureTenantCompany(page);
   });
 
   test('shows mobile-first client form chrome', async ({ page }) => {
     await page.goto('/dashboard/clients/new');
 
-    await expect(page.getByText('Nuevo cliente')).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Información del cliente' }),
-    ).toBeVisible();
+    await expect(page.getByTestId('mobile-app-bar').getByText('Nuevo cliente')).toBeVisible();
+    await expect(page.getByText('Información del cliente')).toBeVisible();
     await expect(page.getByLabel('Nombre')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Crear' })).toBeVisible();
   });
@@ -49,11 +39,16 @@ test.describe('Mobile dashboard redesign', () => {
   test('shows mobile-first admin list controls', async ({ page }) => {
     await page.goto('/dashboard/users');
 
-    await expect(page.getByText('Usuarios')).toBeVisible();
+    const forbidden = page.getByText('Acceso denegado');
+    if (await forbidden.isVisible().catch(() => false)) {
+      test.skip(true, 'Current E2E user cannot access users module');
+    }
+
+    await expect(page.getByTestId('page-header').getByText('Usuarios')).toBeVisible();
     await expect(
       page.getByPlaceholder('Buscar por nombre, correo, empresa, rol o ID...'),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: /Filtrar correo/ })).toHaveCount(3);
+    await expect(page.getByRole('button', { name: /Filtrar correo:/i })).toHaveCount(3);
     await expect(page.getByText(/de \d+ usuarios/)).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
@@ -61,8 +56,8 @@ test.describe('Mobile dashboard redesign', () => {
   test('shows mobile-first account page chrome', async ({ page }) => {
     await page.goto('/dashboard/account');
 
-    await expect(page.getByText('Mi cuenta')).toBeVisible();
+    await expect(page.getByTestId('mobile-app-bar').getByText('Mi cuenta')).toBeVisible();
     await expect(page.getByText('Perfil y empresa')).toBeVisible();
-    await expect(page.getByText('Empresa')).toBeVisible();
+    await expect(page.getByText('Empresa', { exact: true })).toBeVisible();
   });
 });

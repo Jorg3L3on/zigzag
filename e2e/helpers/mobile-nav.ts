@@ -1,19 +1,23 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import {
+  e2eEmail,
+  e2ePassword,
+  ensureSystemCompany,
+  hasE2eCredentials,
+  login,
+  loginAsSystemUser,
+} from './auth';
 
-export const e2eEmail = process.env.E2E_EMAIL;
-export const e2ePassword = process.env.E2E_PASSWORD;
+export {
+  e2eEmail,
+  e2ePassword,
+  ensureSystemCompany,
+  hasE2eCredentials,
+  login,
+  loginAsSystemUser,
+};
 
-export const hasE2eCredentials = Boolean(e2eEmail && e2ePassword);
-
-export async function login(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.locator('#email').fill(e2eEmail!);
-  await page.locator('#password').fill(e2ePassword!);
-  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
-}
-
-export async function scrollPageDown(page: Page) {
+export const scrollPageDown = async (page: Page) => {
   await page.evaluate(() => {
     const target = Math.max(
       document.body.scrollHeight,
@@ -22,13 +26,13 @@ export async function scrollPageDown(page: Page) {
     );
     window.scrollTo(0, target);
   });
-}
+};
 
-export async function expectPinnedNavWhileScrolling(
+export const expectPinnedNavWhileScrolling = async (
   page: Page,
   nav: Locator,
   expectedPosition: 'fixed' | 'sticky',
-) {
+) => {
   await expect(nav).toBeVisible();
 
   const position = await nav.evaluate(
@@ -43,4 +47,4 @@ export async function expectPinnedNavWhileScrolling(
   const yAfterScroll = (await nav.boundingBox())?.y ?? -1;
   expect(yAfterScroll).toBeLessThanOrEqual(yBeforeScroll + 2);
   expect(yAfterScroll).toBeGreaterThanOrEqual(0);
-}
+};
