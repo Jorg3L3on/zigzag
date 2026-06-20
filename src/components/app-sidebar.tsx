@@ -291,10 +291,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
-          <NavMain items={navItems} />
           {(isSystemCompany || systemItems.length > 0) && (
             <NavProject items={systemItems} />
           )}
+          <NavMain items={navItems} />
         </TripledMotionDiv>
       </SidebarContent>
       <SidebarFooter>
