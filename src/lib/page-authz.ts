@@ -16,7 +16,7 @@ export async function requirePagePermission(
   try {
     companyId = resolveWritableCompanyId(context, requestedCompanyId);
   } catch {
-    redirect('/dashboard/forbidden');
+    redirect('/forbidden');
   }
 
   const allowed = await checkPermission(
@@ -26,7 +26,7 @@ export async function requirePagePermission(
   );
 
   if (!allowed) {
-    redirect('/dashboard/forbidden');
+    redirect('/forbidden');
   }
 
   return companyId;
@@ -37,6 +37,6 @@ export async function requireSystemPage(): Promise<void> {
     const context = await requireActionAuth();
     requireSystemUser(context);
   } catch {
-    redirect('/dashboard/forbidden');
+    redirect('/forbidden');
   }
 }

@@ -24,7 +24,7 @@ test.describe('Core business flow smoke', () => {
     const clientName = `E2E Smoke Client ${uniqueSuffix()}`;
     const clientPhone = `961${uniqueSuffix().slice(-7)}`;
 
-    await page.goto('/dashboard/tickets/create');
+    await page.goto('/tickets/create');
     await expect(page.getByText('Información del cliente')).toBeVisible({
       timeout: 15_000,
     });
@@ -56,7 +56,7 @@ test.describe('Core business flow smoke', () => {
     ).toContainText(clientName);
 
     await page.getByRole('button', { name: 'Crear Ticket' }).click();
-    await page.waitForURL(/\/dashboard\/tickets\/\d+\/services/, {
+    await page.waitForURL(/\/tickets\/\d+\/services/, {
       timeout: 30_000,
     });
 
@@ -88,7 +88,7 @@ test.describe('Core business flow smoke', () => {
 
     await page.getByRole('button', { name: 'Continuar a revisión' }).click();
     await page.waitForURL(
-      new RegExp(`/dashboard/tickets/${ticketId}/edit\\?step=review`),
+      new RegExp(`/tickets/${ticketId}/edit\\?step=review`),
       { timeout: 30_000 },
     );
 
@@ -107,7 +107,7 @@ test.describe('Core business flow smoke', () => {
     await expect(schedulesDialog).toBeVisible({ timeout: 15_000 });
     await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
 
-    await page.waitForURL(new RegExp(`/dashboard/tickets/${ticketId}$`), {
+    await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
       timeout: 60_000,
     });
     await expect(

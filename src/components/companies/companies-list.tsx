@@ -40,7 +40,7 @@ import {
 import { Pencil, Trash2, Factory, Globe2, Search, X, Plus } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
-import { DeleteCompanyDialog } from '@/app/dashboard/companies/delete-company-dialog';
+import { DeleteCompanyDialog } from '@/app/(app)/companies/delete-company-dialog';
 import { createCompaniesColumns } from '@/components/companies/companies-columns';
 import {
   COMPANIES_MOBILE_SORT_OPTIONS,
@@ -286,7 +286,7 @@ export function CompaniesList() {
               aria-label={`Editar ${companyRow.name}`}
               onClick={(event) => {
                 event.stopPropagation();
-                router.push(`/dashboard/companies/${companyRow.id}/edit`);
+                router.push(`/companies/${companyRow.id}/edit`);
               }}
             >
               <Pencil className="h-4 w-4" />
@@ -486,7 +486,7 @@ export function CompaniesList() {
               canWriteCompanies ? (
                 <Button
                   type="button"
-                  onClick={() => router.push('/dashboard/companies/new')}
+                  onClick={() => router.push('/companies/new')}
                 >
                   <Plus className="mr-2 h-4 w-4" aria-hidden />
                   Nueva empresa
@@ -528,7 +528,7 @@ export function CompaniesList() {
                     }
                     onClick={() => {
                       if (canWriteCompanies) {
-                        router.push(`/dashboard/companies/${companyRow.id}/edit`);
+                        router.push(`/companies/${companyRow.id}/edit`);
                       }
                     }}
                     onKeyDown={(event) => {
@@ -538,7 +538,7 @@ export function CompaniesList() {
                       ) {
                         event.preventDefault();
                         router.push(
-                          `/dashboard/companies/${companyRow.id}/edit`,
+                          `/companies/${companyRow.id}/edit`,
                         );
                       }
                     }}
@@ -588,7 +588,7 @@ export function CompaniesList() {
                           onClick={(event) => {
                             event.stopPropagation();
                             router.push(
-                              `/dashboard/companies/${companyRow.id}/edit`,
+                              `/companies/${companyRow.id}/edit`,
                             );
                           }}
                         >
@@ -670,7 +670,7 @@ export function CompaniesList() {
                       onClick={() => {
                         if (canWriteCompanies) {
                           router.push(
-                            `/dashboard/companies/${row.original.id}/edit`,
+                            `/companies/${row.original.id}/edit`,
                           );
                         }
                       }}
@@ -681,7 +681,7 @@ export function CompaniesList() {
                         ) {
                           event.preventDefault();
                           router.push(
-                            `/dashboard/companies/${row.original.id}/edit`,
+                            `/companies/${row.original.id}/edit`,
                           );
                         }
                       }}

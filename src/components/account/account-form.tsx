@@ -26,20 +26,34 @@ const formSchema = z
   .object({
     name: z.string().min(1, 'El nombre es requerido'),
     email: z.string().email('El correo electrónico no es válido'),
-    password: z.string().optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().optional(),
     confirmPassword: z.string().optional(),
     changePassword: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
     if (data.changePassword) {
-      if (!data.password) {
+      if (!data.currentPassword) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'La contraseña es requerida',
-          path: ['password'],
+          message: 'La contraseña actual es requerida',
+          path: ['currentPassword'],
         });
       }
-      if (data.password !== data.confirmPassword) {
+      if (!data.newPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'La nueva contraseña es requerida',
+          path: ['newPassword'],
+        });
+      } else if (data.newPassword.length < 8) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'La contraseña debe tener al menos 8 caracteres',
+          path: ['newPassword'],
+        });
+      }
+      if (data.newPassword !== data.confirmPassword) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Las contraseñas no coinciden',
@@ -64,20 +78,26 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
     defaultValues: {
       name: '',
       email: '',
-      password: '',
+      currentPassword: '',
+      newPassword: '',
       confirmPassword: '',
       changePassword: false,
     },
   });
 
   const changePassword = form.watch('changePassword');
+  const email = form.watch('email');
+  const needsCurrentPassword =
+    changePassword ||
+    Boolean(session?.user?.email && email !== session.user.email);
 
   useEffect(() => {
     if (session?.user) {
       form.reset({
         name: session.user.name || '',
         email: session.user.email || '',
-        password: '',
+        currentPassword: '',
+        newPassword: '',
         confirmPassword: '',
         changePassword: false,
       });
@@ -87,22 +107,28 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
   async function onSubmit(data: FormData) {
     if (!session?.user) return;
 
-    const { changePassword, ...userData } = data;
-    if (!changePassword) {
-      delete userData.password;
+    if (needsCurrentPassword && !data.currentPassword) {
+      form.setError('currentPassword', {
+        message: 'La contraseña actual es requerida',
+      });
+      return;
     }
 
     const result = await updateOwnAccount({
-      ...userData,
-      password: userData.password || undefined,
+      name: data.name,
+      email: data.email,
+      currentPassword: needsCurrentPassword
+        ? data.currentPassword || undefined
+        : undefined,
+      newPassword: changePassword ? data.newPassword || undefined : undefined,
+      confirmPassword: changePassword
+        ? data.confirmPassword || undefined
+        : undefined,
     });
 
     if (result.error) {
       toast.error(
-        getErrorMessageByType(
-          result.errorType ?? 'server',
-          result.error,
-        ),
+        getErrorMessageByType(result.errorType ?? 'server', result.error),
       );
       return;
     }
@@ -144,6 +170,21 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
             </FormItem>
           )}
         />
+        {needsCurrentPassword && (
+          <FormField
+            control={form.control}
+            name="currentPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contraseña actual</FormLabel>
+                <FormControl>
+                  <PasswordInput {...field} autoComplete="current-password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="changePassword"
@@ -165,12 +206,12 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
           <>
             <FormField
               control={form.control}
-              name="password"
+              name="newPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contraseña</FormLabel>
+                  <FormLabel>Nueva contraseña</FormLabel>
                   <FormControl>
-                    <PasswordInput {...field} />
+                    <PasswordInput {...field} autoComplete="new-password" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -183,7 +224,7 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
                 <FormItem>
                   <FormLabel>Confirmar Contraseña</FormLabel>
                   <FormControl>
-                    <PasswordInput {...field} />
+                    <PasswordInput {...field} autoComplete="new-password" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

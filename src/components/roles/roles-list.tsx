@@ -28,9 +28,9 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { CreateRoleDialog } from '@/app/dashboard/roles/create-role-dialog';
-import { UpdateRoleDialog } from '@/app/dashboard/roles/update-role-dialog';
-import { DeleteRoleDialog } from '@/app/dashboard/roles/delete-role-dialog';
+import { CreateRoleDialog } from '@/app/(app)/roles/create-role-dialog';
+import { UpdateRoleDialog } from '@/app/(app)/roles/update-role-dialog';
+import { DeleteRoleDialog } from '@/app/(app)/roles/delete-role-dialog';
 import { createRolesColumns, type Role } from '@/components/roles/roles-columns';
 import { RoleActionsMenu } from '@/components/roles/role-actions-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';

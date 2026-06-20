@@ -825,7 +825,7 @@ export default function TicketsList() {
             canWrite ? (
               <Button
                 type="button"
-                onClick={() => router.push('/dashboard/tickets/create')}
+                onClick={() => router.push('/tickets/create')}
               >
                 Crear ticket
               </Button>

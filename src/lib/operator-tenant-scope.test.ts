@@ -17,11 +17,11 @@ describe('operator tenant scope', () => {
   });
 
   it('builds management links with tenant company query', () => {
-    expect(operatorManagementHref('/dashboard/users', 42)).toBe(
-      '/dashboard/users?tenant_company_id=42',
+    expect(operatorManagementHref('/users', 42)).toBe(
+      '/users?tenant_company_id=42',
     );
-    expect(operatorManagementHref('/dashboard/roles', 7)).toBe(
-      '/dashboard/roles?tenant_company_id=7',
+    expect(operatorManagementHref('/roles', 7)).toBe(
+      '/roles?tenant_company_id=7',
     );
   });
 });

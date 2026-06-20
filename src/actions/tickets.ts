@@ -682,8 +682,8 @@ export async function applyTicketPayment(
     });
 
     revalidatePath('/dashboard');
-    revalidatePath('/dashboard/tickets');
-    revalidatePath(`/dashboard/tickets/${id}`);
+    revalidatePath('/tickets');
+    revalidatePath(`/tickets/${id}`);
 
     return { success: true, data: updated };
   } catch (e) {

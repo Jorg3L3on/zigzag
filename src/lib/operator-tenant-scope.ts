@@ -15,6 +15,6 @@ export const resolveOperatorTenantCompanyId = (
 };
 
 export const operatorManagementHref = (
-  path: '/dashboard/users' | '/dashboard/roles',
+  path: '/users' | '/roles',
   companyId: number,
 ): string => `${path}?tenant_company_id=${companyId}`;

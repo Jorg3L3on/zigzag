@@ -151,7 +151,7 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
         }
         toast.success('Empresa creada correctamente');
       }
-      router.push('/dashboard/companies');
+      router.push('/companies');
       router.refresh();
     } catch (error) {
       console.error(error);

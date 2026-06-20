@@ -28,17 +28,17 @@ test.describe('Mobile sticky navigation', () => {
       const staticAppBarPages = [
         {
           name: 'account',
-          path: '/dashboard/account',
+          path: '/account',
           title: 'Mi cuenta',
         },
         {
           name: 'new client',
-          path: '/dashboard/clients/new',
+          path: '/clients/new',
           title: 'Nuevo cliente',
         },
         {
           name: 'new ticket',
-          path: '/dashboard/tickets/create',
+          path: '/tickets/create',
           title: 'Nuevo ticket',
         },
       ] as const;
@@ -60,12 +60,12 @@ test.describe('Mobile sticky navigation', () => {
       test('ticket detail keeps back navigation reachable after scroll', async ({
         page,
       }) => {
-        await page.goto('/dashboard/tickets');
+        await page.goto('/tickets');
         await page
           .getByRole('button', { name: /Ver ticket|Editar ticket/i })
           .first()
           .click();
-        await page.waitForURL(/\/dashboard\/tickets\/\d+/);
+        await page.waitForURL(/\/tickets\/\d+/);
 
         const appBar = page.getByTestId('mobile-app-bar');
         await expect(appBar).toBeVisible();
@@ -73,28 +73,28 @@ test.describe('Mobile sticky navigation', () => {
         await expect(appBar).toBeVisible();
 
         await appBar.getByRole('link', { name: 'Volver' }).click();
-        await expect(page).toHaveURL(/\/dashboard\/tickets$/);
+        await expect(page).toHaveURL(/\/tickets$/);
       });
 
       test('ticket edit keeps mobile app bar fixed while scrolling', async ({
         page,
       }) => {
-        await page.goto('/dashboard/tickets');
+        await page.goto('/tickets');
         const editButton = page
           .getByRole('button', { name: /Editar ticket/i })
           .first();
         if (await editButton.isVisible().catch(() => false)) {
           await editButton.click();
-          await page.waitForURL(/\/dashboard\/tickets\/\d+\/edit/);
+          await page.waitForURL(/\/tickets\/\d+\/edit/);
         } else {
           await page
             .getByRole('button', { name: /Ver ticket/i })
             .first()
             .click();
-          await page.waitForURL(/\/dashboard\/tickets\/\d+$/);
+          await page.waitForURL(/\/tickets\/\d+$/);
           const ticketId = page.url().match(/\/tickets\/(\d+)$/)?.[1];
           test.skip(!ticketId, 'No ticket available for edit nav test');
-          await page.goto(`/dashboard/tickets/${ticketId}/edit`);
+          await page.goto(`/tickets/${ticketId}/edit`);
         }
 
         const appBar = page.getByTestId('mobile-app-bar');
@@ -104,26 +104,26 @@ test.describe('Mobile sticky navigation', () => {
       test('ticket services step keeps mobile app bar fixed while scrolling', async ({
         page,
       }) => {
-        await page.goto('/dashboard/tickets');
+        await page.goto('/tickets');
         const editButton = page
           .getByRole('button', { name: /Editar ticket/i })
           .first();
         if (await editButton.isVisible().catch(() => false)) {
           await editButton.click();
-          await page.waitForURL(/\/dashboard\/tickets\/\d+\/edit/);
+          await page.waitForURL(/\/tickets\/\d+\/edit/);
         } else {
           await page
             .getByRole('button', { name: /Ver ticket/i })
             .first()
             .click();
-          await page.waitForURL(/\/dashboard\/tickets\/\d+$/);
+          await page.waitForURL(/\/tickets\/\d+$/);
         }
 
         const ticketId =
           page.url().match(/\/tickets\/(\d+)(?:\/edit)?/)?.[1] ?? null;
         test.skip(!ticketId, 'No ticket available for services step nav test');
 
-        await page.goto(`/dashboard/tickets/${ticketId}/services`);
+        await page.goto(`/tickets/${ticketId}/services`);
 
         const appBar = page.getByTestId('mobile-app-bar');
         await expect(appBar).toBeVisible();
@@ -134,12 +134,12 @@ test.describe('Mobile sticky navigation', () => {
       test('client edit keeps mobile app bar fixed while scrolling', async ({
         page,
       }) => {
-        await page.goto('/dashboard/clients');
+        await page.goto('/clients');
         await page
           .getByRole('button', { name: /Editar cliente/i })
           .first()
           .click();
-        await page.waitForURL(/\/dashboard\/clients\/\d+\/edit/);
+        await page.waitForURL(/\/clients\/\d+\/edit/);
 
         const appBar = page.getByTestId('mobile-app-bar');
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
@@ -148,12 +148,12 @@ test.describe('Mobile sticky navigation', () => {
       test('service edit keeps mobile app bar fixed while scrolling', async ({
         page,
       }) => {
-        await page.goto('/dashboard/services');
+        await page.goto('/services');
         await page
           .getByRole('button', { name: /Editar servicio/i })
           .first()
           .click();
-        await page.waitForURL(/\/dashboard\/services\/\d+\/edit/);
+        await page.waitForURL(/\/services\/\d+\/edit/);
 
         const appBar = page.getByTestId('mobile-app-bar');
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
@@ -163,19 +163,19 @@ test.describe('Mobile sticky navigation', () => {
     test.describe('Sticky page header (list & dashboard modules)', () => {
       const listModulePages = [
         { name: 'dashboard', path: '/dashboard', label: 'Dashboard' },
-        { name: 'tickets', path: '/dashboard/tickets', label: 'Tickets' },
-        { name: 'clients', path: '/dashboard/clients', label: 'Clientes' },
-        { name: 'services', path: '/dashboard/services', label: 'Servicios' },
-        { name: 'users', path: '/dashboard/users', label: 'Usuarios' },
-        { name: 'roles', path: '/dashboard/roles', label: 'Roles' },
+        { name: 'tickets', path: '/tickets', label: 'Tickets' },
+        { name: 'clients', path: '/clients', label: 'Clientes' },
+        { name: 'services', path: '/services', label: 'Servicios' },
+        { name: 'users', path: '/users', label: 'Usuarios' },
+        { name: 'roles', path: '/roles', label: 'Roles' },
         {
           name: 'permissions',
-          path: '/dashboard/permissions',
+          path: '/permissions',
           label: 'Permisos',
         },
         {
           name: 'service schedules',
-          path: '/dashboard/service-schedules',
+          path: '/service-schedules',
           label: 'Recordatorios de servicio',
         },
       ] as const;
@@ -210,7 +210,7 @@ test.describe('Mobile sticky navigation', () => {
     test('company edit keeps mobile app bar fixed while scrolling', async ({
       page,
     }) => {
-      await page.goto('/dashboard/companies');
+      await page.goto('/companies');
 
       const forbidden = page.getByText('Acceso denegado');
       if (await forbidden.isVisible().catch(() => false)) {
@@ -223,7 +223,7 @@ test.describe('Mobile sticky navigation', () => {
       }
 
       await editCompany.first().click();
-      await page.waitForURL(/\/dashboard\/companies\/\d+\/edit/, {
+      await page.waitForURL(/\/companies\/\d+\/edit/, {
         timeout: 30_000,
       });
 
@@ -234,7 +234,7 @@ test.describe('Mobile sticky navigation', () => {
     test('new company keeps mobile app bar fixed while scrolling', async ({
       page,
     }) => {
-      await page.goto('/dashboard/companies/new');
+      await page.goto('/companies/new');
       const forbidden = page.getByText('Acceso denegado');
       if (await forbidden.isVisible().catch(() => false)) {
         test.skip(true, 'Current E2E user cannot access companies module');
@@ -249,7 +249,7 @@ test.describe('Mobile sticky navigation', () => {
     test('companies list keeps page header sticky while scrolling', async ({
       page,
     }) => {
-      await page.goto('/dashboard/companies');
+      await page.goto('/companies');
 
       const forbidden = page.getByText('Acceso denegado');
       if (await forbidden.isVisible().catch(() => false)) {

@@ -17,7 +17,7 @@ const hasAny = (content: string, tokens: string[]) =>
   tokens.some((token) => content.includes(token));
 
 const nearestLayouts = (pagePath: string): string[] => {
-  const dashboardRoot = path.join(root, 'src/app/dashboard');
+  const dashboardRoot = path.join(root, 'src/app/(app)');
   const layouts: string[] = [];
   let dir = path.dirname(pagePath);
 
@@ -93,13 +93,13 @@ describe('RBAC coverage', () => {
   });
 
   it('keeps restricted dashboard pages behind page-level RBAC', () => {
-    const dashboardRoot = path.join(root, 'src/app/dashboard');
+    const dashboardRoot = path.join(root, 'src/app/(app)');
     const pageFiles = walk(dashboardRoot).filter((filePath) =>
       filePath.endsWith('/page.tsx'),
     );
     const authOnlyPages = new Set([
-      'src/app/dashboard/account/page.tsx',
-      'src/app/dashboard/forbidden/page.tsx',
+      'src/app/(app)/account/page.tsx',
+      'src/app/(app)/forbidden/page.tsx',
     ]);
 
     const missing = pageFiles
@@ -119,7 +119,7 @@ describe('RBAC coverage', () => {
   });
 
   it('keeps auth-only dashboard exceptions behind active-session validation', () => {
-    const dashboardLayout = read(path.join(root, 'src/app/dashboard/layout.tsx'));
+    const dashboardLayout = read(path.join(root, 'src/app/(app)/layout.tsx'));
     expect(dashboardLayout).toContain('requireActionAuth(');
   });
 

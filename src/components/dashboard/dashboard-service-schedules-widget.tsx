@@ -154,7 +154,7 @@ export const DashboardServiceSchedulesWidget = () => {
           </CardDescription>
         </div>
         <Button variant="outline" size="sm" className="shrink-0 rounded-lg" asChild>
-          <Link href="/dashboard/service-schedules">Ver todos</Link>
+          <Link href="/service-schedules">Ver todos</Link>
         </Button>
       </CardHeader>
       <CardContent>

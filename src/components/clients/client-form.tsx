@@ -124,7 +124,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           toast.success('Cliente actualizado correctamente');
           onSuccess?.(result.data);
           if (!onSuccess) {
-            router.push('/dashboard/clients');
+            router.push('/clients');
             router.refresh();
           }
         } else {
@@ -143,7 +143,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           toast.success('Cliente creado correctamente');
           onSuccess?.(result.data);
           if (!onSuccess) {
-            router.push('/dashboard/clients');
+            router.push('/clients');
             router.refresh();
           }
         } else {
@@ -369,7 +369,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
                 return;
               }
 
-              router.push('/dashboard/clients');
+              router.push('/clients');
             }}
           >
             Cancelar

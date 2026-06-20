@@ -29,7 +29,7 @@ export const TicketDetailActions = ({
 
   return (
     <div className="pt-2">
-      <Link href={`/dashboard/tickets/${id}/edit`}>
+      <Link href={`/tickets/${id}/edit`}>
         <Button className="h-12 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold shadow-md transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg">
           Editar Ticket
         </Button>

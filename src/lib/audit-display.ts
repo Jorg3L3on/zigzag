@@ -59,13 +59,13 @@ export const resolveAuditResourceLink = (
 
   switch (type) {
     case 'ticket':
-      return { href: `/dashboard/tickets/${resourceId}`, label };
+      return { href: `/tickets/${resourceId}`, label };
     case 'client':
-      return { href: `/dashboard/clients/${resourceId}/edit`, label };
+      return { href: `/clients/${resourceId}/edit`, label };
     case 'service':
-      return { href: `/dashboard/services/${resourceId}/edit`, label };
+      return { href: `/services/${resourceId}/edit`, label };
     case 'company':
-      return { href: `/dashboard/companies/${resourceId}/edit`, label };
+      return { href: `/companies/${resourceId}/edit`, label };
     default:
       return null;
   }

@@ -30,6 +30,7 @@ export const loginAs = async (
   page: Page,
   email: string,
   password: string,
+  expectedLandingPath: RegExp = /\/dashboard/,
 ) => {
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await page.locator('#email').waitFor({ state: 'visible', timeout: 30_000 });
@@ -60,7 +61,7 @@ export const loginAs = async (
     /Correo o contraseña incorrectos|No se pudo iniciar sesión/,
   );
   await Promise.race([
-    expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 }),
+    expect(page).toHaveURL(expectedLandingPath, { timeout: 30_000 }),
     loginError.waitFor({ state: 'visible', timeout: 30_000 }).then(async () => {
       throw new Error(`Login failed for ${email}: ${await loginError.textContent()}`);
     }),
@@ -72,7 +73,7 @@ export const login = async (page: Page) => {
 };
 
 export const loginAsSystemUser = async (page: Page) => {
-  await loginAs(page, e2eSystemEmail, e2eSystemPassword!);
+  await loginAs(page, e2eSystemEmail, e2eSystemPassword!, /\/operator-console/);
 };
 
 export const loginAsViewer = async (page: Page) => {

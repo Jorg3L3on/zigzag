@@ -147,9 +147,9 @@ export async function createCompany(data: CompanyBootstrapData): Promise<{
       actor: actionAuthToGovernanceActor(authContext),
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath('/dashboard/companies/new');
-    revalidatePath('/dashboard/users');
+    revalidatePath('/companies');
+    revalidatePath('/companies/new');
+    revalidatePath('/users');
     return { success: true, data: result.company };
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -261,8 +261,8 @@ export async function updateCompany(
       after: sanitizeCompanyForAudit(updated),
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${id}/edit`);
+    revalidatePath('/companies');
+    revalidatePath(`/companies/${id}/edit`);
     return { success: true, data: updated };
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -336,8 +336,8 @@ export async function uploadCompanyLogo(
       after: { logo: updated.logo },
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${companyId}/edit`);
+    revalidatePath('/companies');
+    revalidatePath(`/companies/${companyId}/edit`);
     return { success: true, data: updated };
   } catch (e) {
     if (e instanceof ValidationError || e instanceof AppError) {
@@ -380,8 +380,8 @@ export async function removeCompanyLogo(companyId: number): Promise<{
       after: { logo: null },
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${companyId}/edit`);
+    revalidatePath('/companies');
+    revalidatePath(`/companies/${companyId}/edit`);
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('companies.logo.remove', 'CO004', e);
@@ -424,7 +424,7 @@ export async function deleteCompany(id: number): Promise<{
       });
     }
 
-    revalidatePath('/dashboard/companies');
+    revalidatePath('/companies');
     return { success: true };
   } catch (e) {
     return handleCodedServerActionError('companies.delete', 'CO005', e);

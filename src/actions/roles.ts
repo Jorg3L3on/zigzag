@@ -167,7 +167,7 @@ export async function createRole(data: {
       },
     });
 
-    revalidatePath('/dashboard/roles');
+    revalidatePath('/roles');
     return { success: true, data: full };
   } catch (error) {
     return handleCodedServerActionError('roles.create', 'RL002', error);
@@ -248,7 +248,7 @@ export async function updateRole(
       },
     });
 
-    revalidatePath('/dashboard/roles');
+    revalidatePath('/roles');
     return { success: true, data: full };
   } catch (error) {
     return handleCodedServerActionError('roles.update', 'RL003', error);
@@ -289,7 +289,7 @@ export async function deleteRole(id: number): Promise<{
       after: sanitizeRoleForAudit(updatedRole, beforePermissionIds),
     });
 
-    revalidatePath('/dashboard/roles');
+    revalidatePath('/roles');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('roles.delete', 'RL004', error);

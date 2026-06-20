@@ -67,7 +67,7 @@ export type ServiceScheduleFormCatalog = {
 };
 
 const SCHEDULE_PATHS = [
-  '/dashboard/service-schedules',
+  '/service-schedules',
   '/dashboard',
 ] as const;
 

@@ -50,14 +50,14 @@ export function TicketRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <Link href={`/dashboard/tickets/${ticket.id}`}>
+        <Link href={`/tickets/${ticket.id}`}>
           <DropdownMenuItem>
             <Eye className="mr-2 h-4 w-4" />
             Ver detalles
           </DropdownMenuItem>
         </Link>
         {showCollectLink && (
-          <Link href={`/dashboard/tickets/${ticket.id}#cobranza`}>
+          <Link href={`/tickets/${ticket.id}#cobranza`}>
             <DropdownMenuItem>
               <Banknote className="mr-2 h-4 w-4" />
               Cobrar saldo
@@ -65,7 +65,7 @@ export function TicketRowActions({
           </Link>
         )}
         {canWrite && !ticket.finished && (
-          <Link href={`/dashboard/tickets/${ticket.id}/edit`}>
+          <Link href={`/tickets/${ticket.id}/edit`}>
             <DropdownMenuItem>
               <Pencil className="mr-2 h-4 w-4" />
               Editar

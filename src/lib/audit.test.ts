@@ -122,7 +122,7 @@ describe('recordAuditEvent', () => {
       result: 'success',
       source: 'action',
       payload: { ticket_id: BigInt(100) },
-      requestMeta: { route: '/dashboard/tickets' },
+      requestMeta: { route: '/tickets' },
     });
 
     expect(values).toHaveLength(1);
@@ -136,7 +136,7 @@ describe('recordAuditEvent', () => {
       result: 'success',
       source: 'action',
       payload: { ticket_id: '100' },
-      request_meta: { route: '/dashboard/tickets' },
+      request_meta: { route: '/tickets' },
     });
   });
 

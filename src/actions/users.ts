@@ -4,6 +4,7 @@ import { desc, eq, and, isNull } from 'drizzle-orm';
 import { user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
+  AppError,
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
@@ -16,7 +17,7 @@ import {
   requireActionPermission,
   requireSystemUser,
 } from '@/lib/security';
-import { hash } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -25,23 +26,67 @@ import {
   sanitizeUserForAudit,
 } from '@/lib/governance-audit';
 
+const PASSWORD_MIN_LENGTH = 8;
+const passwordSchema = z
+  .string()
+  .min(
+    PASSWORD_MIN_LENGTH,
+    `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`,
+  );
+
 const userSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   email: z.string().email('El correo electrónico no es válido'),
-  password: z.string().optional(),
+  password: passwordSchema.optional(),
   company_id: z.number().min(1, 'La empresa es requerida'),
   role_id: z.number().optional(),
 });
 
 const createUserSchema = userSchema.extend({
-  password: z.string().min(1, 'La contraseña es requerida'),
+  password: passwordSchema,
 });
 
-const accountSchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
-  email: z.string().email('El correo electrónico no es válido'),
-  password: z.string().optional(),
-});
+const accountSchema = z
+  .object({
+    name: z.string().min(1, 'El nombre es requerido'),
+    email: z.string().email('El correo electrónico no es válido'),
+    currentPassword: z.string().optional(),
+    newPassword: passwordSchema.optional(),
+    confirmPassword: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const isChangingPassword = Boolean(
+      data.newPassword || data.confirmPassword,
+    );
+
+    if (!isChangingPassword) {
+      return;
+    }
+
+    if (!data.currentPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La contraseña actual es requerida',
+        path: ['currentPassword'],
+      });
+    }
+
+    if (!data.newPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La nueva contraseña es requerida',
+        path: ['newPassword'],
+      });
+    }
+
+    if (data.newPassword !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Las contraseñas no coinciden',
+        path: ['confirmPassword'],
+      });
+    }
+  });
 
 export type UserFormData = z.infer<typeof userSchema>;
 export type CreateUserFormData = z.infer<typeof createUserSchema>;
@@ -124,7 +169,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
       after: sanitizeUserForAudit(created),
     });
 
-    revalidatePath('/dashboard/users');
+    revalidatePath('/users');
     return { success: true, data: created };
   } catch (e) {
     if (e instanceof CompanyEntitlementExceededError) {
@@ -191,7 +236,7 @@ export async function updateUser(
       after: sanitizeUserForAudit(updated),
     });
 
-    revalidatePath('/dashboard/users');
+    revalidatePath('/users');
     return { success: true, data: updated };
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -212,8 +257,53 @@ export async function updateOwnAccount(
   try {
     const authContext = await requireActionAuth();
     const validatedData = accountSchema.parse(data);
-    const hashedPassword = validatedData.password
-      ? await hash(validatedData.password, 10)
+
+    const existing = await db.query.user.findFirst({
+      where: and(
+        eq(user.id, BigInt(authContext.userId)),
+        isNull(user.deleted_at),
+      ),
+    });
+
+    if (!existing) {
+      return handleCodedServerActionError(
+        'users.account',
+        'US003',
+        new Error('User not found'),
+      );
+    }
+
+    const requiresCurrentPassword =
+      existing.email !== validatedData.email ||
+      Boolean(validatedData.newPassword);
+
+    if (requiresCurrentPassword && !validatedData.currentPassword) {
+      throw new AppError(
+        'La contraseña actual es requerida',
+        400,
+        true,
+        'US005',
+      );
+    }
+
+    if (requiresCurrentPassword) {
+      const currentPasswordIsValid = await compare(
+        validatedData.currentPassword as string,
+        existing.password,
+      );
+
+      if (!currentPasswordIsValid) {
+        throw new AppError(
+          'La contraseña actual no es correcta',
+          400,
+          true,
+          'US005',
+        );
+      }
+    }
+
+    const hashedPassword = validatedData.newPassword
+      ? await hash(validatedData.newPassword, 10)
       : undefined;
 
     const [updated] = await db
@@ -221,17 +311,26 @@ export async function updateOwnAccount(
       .set({
         name: validatedData.name,
         email: validatedData.email,
-        ...(validatedData.password && { password: hashedPassword }),
+        ...(validatedData.newPassword && { password: hashedPassword }),
         updated_at: new Date(),
       })
-      .where(and(eq(user.id, BigInt(authContext.userId)), isNull(user.deleted_at)))
+      .where(
+        and(eq(user.id, BigInt(authContext.userId)), isNull(user.deleted_at)),
+      )
       .returning();
 
-    revalidatePath('/dashboard/account');
+    revalidatePath('/account');
     return { success: true, data: updated };
   } catch (e) {
-    if (e instanceof z.ZodError) {
-      return handleCodedServerActionError('users.account.validation', 'US005', e);
+    if (
+      e instanceof z.ZodError ||
+      (e instanceof AppError && e.errorCode === 'US005')
+    ) {
+      return handleCodedServerActionError(
+        'users.account.validation',
+        'US005',
+        e,
+      );
     }
     return handleCodedServerActionError('users.account', 'US003', e);
   }
@@ -278,7 +377,7 @@ export async function deleteUser(id: bigint): Promise<{
       after: sanitizeUserForAudit(updated),
     });
 
-    revalidatePath('/dashboard/users');
+    revalidatePath('/users');
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('users.delete', 'US004', e);

@@ -143,8 +143,8 @@ export async function offboardCompany(companyId: number): Promise<{
       },
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${companyId}/edit`);
+    revalidatePath('/companies');
+    revalidatePath(`/companies/${companyId}/edit`);
 
     return {
       success: true,

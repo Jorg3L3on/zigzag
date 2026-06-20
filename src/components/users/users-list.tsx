@@ -38,9 +38,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CreateUserDialog } from '@/app/dashboard/users/create-user-dialog';
-import { UpdateUserDialog } from '@/app/dashboard/users/update-user-dialog';
-import { DeleteUserDialog } from '@/app/dashboard/users/delete-user-dialog';
+import { CreateUserDialog } from '@/app/(app)/users/create-user-dialog';
+import { UpdateUserDialog } from '@/app/(app)/users/update-user-dialog';
+import { DeleteUserDialog } from '@/app/(app)/users/delete-user-dialog';
 import { UserActionsMenu } from '@/components/users/user-actions-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import {

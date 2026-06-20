@@ -125,7 +125,7 @@ export const createServiceSchedulesColumns = ({
           {canCreateTicket ? (
             <Button variant="outline" size="sm" className="rounded-lg" asChild>
               <Link
-                href={`/dashboard/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
+                href={`/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
               >
                 Crear ticket
               </Link>

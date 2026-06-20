@@ -28,7 +28,7 @@ test.describe('Mobile dashboard redesign', () => {
   });
 
   test('shows mobile-first client form chrome', async ({ page }) => {
-    await page.goto('/dashboard/clients/new');
+    await page.goto('/clients/new');
 
     await expect(page.getByTestId('mobile-app-bar').getByText('Nuevo cliente')).toBeVisible();
     await expect(page.getByText('Información del cliente')).toBeVisible();
@@ -37,7 +37,7 @@ test.describe('Mobile dashboard redesign', () => {
   });
 
   test('shows mobile-first admin list controls', async ({ page }) => {
-    await page.goto('/dashboard/users');
+    await page.goto('/users');
 
     const forbidden = page.getByText('Acceso denegado');
     if (await forbidden.isVisible().catch(() => false)) {
@@ -54,7 +54,7 @@ test.describe('Mobile dashboard redesign', () => {
   });
 
   test('shows mobile-first account page chrome', async ({ page }) => {
-    await page.goto('/dashboard/account');
+    await page.goto('/account');
 
     await expect(page.getByTestId('mobile-app-bar').getByText('Mi cuenta')).toBeVisible();
     await expect(page.getByText('Perfil y empresa')).toBeVisible();

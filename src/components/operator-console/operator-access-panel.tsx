@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import React from 'react';
 import { getRoles } from '@/actions/roles';
-import { CreateUserDialog } from '@/app/dashboard/users/create-user-dialog';
+import { CreateUserDialog } from '@/app/(app)/users/create-user-dialog';
 import { useCompany } from '@/contexts/company-context';
 import { TripledEmptyState } from '@/components/tripled';
 import { Badge } from '@/components/ui/badge';
@@ -111,13 +111,13 @@ export const OperatorAccessPanel = () => {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button asChild variant="outline" className="min-h-11 rounded-xl">
-          <Link href={operatorManagementHref('/dashboard/users', companyId)}>
+          <Link href={operatorManagementHref('/users', companyId)}>
             <Users className="mr-2 h-4 w-4" aria-hidden />
             Gestionar usuarios
           </Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11 rounded-xl">
-          <Link href={operatorManagementHref('/dashboard/roles', companyId)}>
+          <Link href={operatorManagementHref('/roles', companyId)}>
             <Shield className="mr-2 h-4 w-4" aria-hidden />
             Gestionar roles
           </Link>

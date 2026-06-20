@@ -48,7 +48,7 @@ export const CompanyProductionNotice = () => {
           {missingLabels.join(', ')}.
         </p>
         <Button asChild variant="outline" size="sm" className="h-9">
-          <Link href={`/dashboard/companies/${selectedCompany.id}/edit`}>
+          <Link href={`/companies/${selectedCompany.id}/edit`}>
             Completar configuración
           </Link>
         </Button>

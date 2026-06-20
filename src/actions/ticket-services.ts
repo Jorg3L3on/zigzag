@@ -200,7 +200,7 @@ export async function createServiceTicket(
       with: { service: true },
     });
 
-    revalidatePath(`/dashboard/tickets/${ticketId}/services`);
+    revalidatePath(`/tickets/${ticketId}/services`);
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
     return handleCodedServerActionError('ticket-services.create', 'TS002', error);
@@ -270,7 +270,7 @@ export async function updateServiceTicket(
       with: { service: true },
     });
 
-    revalidatePath(`/dashboard/tickets/${ticketId}/services`);
+    revalidatePath(`/tickets/${ticketId}/services`);
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
     return handleCodedServerActionError('ticket-services.update', 'TS003', error);
@@ -297,7 +297,7 @@ export async function deleteServiceTicket(
       await syncTicketTotal(tx, ticketIdBigInt(ticketId));
     });
 
-    revalidatePath(`/dashboard/tickets/${ticketId}/services`);
+    revalidatePath(`/tickets/${ticketId}/services`);
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('ticket-services.delete', 'TS004', error);

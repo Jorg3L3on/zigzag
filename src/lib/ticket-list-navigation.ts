@@ -8,6 +8,6 @@ export const hrefForTicketListRow = (ticket: {
 }, canWrite = true): string => {
   const id = ticket.id.toString();
   return ticket.finished || !canWrite
-    ? `/dashboard/tickets/${id}`
-    : `/dashboard/tickets/${id}/edit`;
+    ? `/tickets/${id}`
+    : `/tickets/${id}/edit`;
 };

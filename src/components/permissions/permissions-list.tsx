@@ -26,9 +26,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { CreatePermissionDialog } from '@/app/dashboard/permissions/create-permission-dialog';
-import { UpdatePermissionDialog } from '@/app/dashboard/permissions/update-permission-dialog';
-import { DeletePermissionDialog } from '@/app/dashboard/permissions/delete-permission-dialog';
+import { CreatePermissionDialog } from '@/app/(app)/permissions/create-permission-dialog';
+import { UpdatePermissionDialog } from '@/app/(app)/permissions/update-permission-dialog';
+import { DeletePermissionDialog } from '@/app/(app)/permissions/delete-permission-dialog';
 import {
   createPermissionsColumns,
   type Permission,

@@ -192,7 +192,7 @@ export function ClientList() {
               aria-label={`Editar ${clientRow.name}`}
               onClick={(event) => {
                 event.stopPropagation();
-                router.push(`/dashboard/clients/${clientRow.id}/edit`);
+                router.push(`/clients/${clientRow.id}/edit`);
               }}
             >
               <Pencil className="h-4 w-4" />
@@ -471,7 +471,7 @@ export function ClientList() {
             canWrite ? (
               <Button
                 type="button"
-                onClick={() => router.push('/dashboard/clients/new')}
+                onClick={() => router.push('/clients/new')}
               >
                 <Plus className="mr-2 h-4 w-4" aria-hidden />
                 Nuevo cliente
@@ -503,7 +503,7 @@ export function ClientList() {
                   }
                   onClick={() => {
                     if (canWrite) {
-                      router.push(`/dashboard/clients/${clientRow.id}/edit`);
+                      router.push(`/clients/${clientRow.id}/edit`);
                     }
                   }}
                   onKeyDown={(event) => {
@@ -512,7 +512,7 @@ export function ClientList() {
                       (event.key === 'Enter' || event.key === ' ')
                     ) {
                       event.preventDefault();
-                      router.push(`/dashboard/clients/${clientRow.id}/edit`);
+                      router.push(`/clients/${clientRow.id}/edit`);
                     }
                   }}
                 >
@@ -528,7 +528,7 @@ export function ClientList() {
                         aria-label={`Editar ${clientRow.name}`}
                         onClick={(event) => {
                           event.stopPropagation();
-                          router.push(`/dashboard/clients/${clientRow.id}/edit`);
+                          router.push(`/clients/${clientRow.id}/edit`);
                         }}
                       >
                         <Pencil className="h-4 w-4" />
@@ -604,7 +604,7 @@ export function ClientList() {
                     tabIndex={canWrite ? 0 : -1}
                     onClick={() => {
                       if (canWrite) {
-                        router.push(`/dashboard/clients/${row.original.id}/edit`);
+                        router.push(`/clients/${row.original.id}/edit`);
                       }
                     }}
                     onKeyDown={(event) => {
@@ -613,7 +613,7 @@ export function ClientList() {
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();
-                        router.push(`/dashboard/clients/${row.original.id}/edit`);
+                        router.push(`/clients/${row.original.id}/edit`);
                       }
                     }}
                   >

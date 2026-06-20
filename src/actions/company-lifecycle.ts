@@ -71,9 +71,9 @@ export async function setCompanyLifecycleStatus(
       after: sanitizeCompanyForAudit(updated),
     });
 
-    revalidatePath('/dashboard/companies');
-    revalidatePath(`/dashboard/companies/${companyId}/edit`);
-    revalidatePath('/dashboard/operator-console');
+    revalidatePath('/companies');
+    revalidatePath(`/companies/${companyId}/edit`);
+    revalidatePath('/operator-console');
 
     return { success: true, data: updated };
   } catch (error) {

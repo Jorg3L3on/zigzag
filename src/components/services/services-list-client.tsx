@@ -186,7 +186,7 @@ export function ServicesListClient() {
               aria-label={`Editar ${service.name}`}
               onClick={(event) => {
                 event.stopPropagation();
-                router.push(`/dashboard/services/${service.id}/edit`);
+                router.push(`/services/${service.id}/edit`);
               }}
             >
               <Pencil className="h-4 w-4" />
@@ -374,7 +374,7 @@ export function ServicesListClient() {
             canWrite ? (
               <Button
                 type="button"
-                onClick={() => router.push('/dashboard/services/new')}
+                onClick={() => router.push('/services/new')}
               >
                 <Plus className="mr-2 h-4 w-4" aria-hidden />
                 Nuevo servicio
@@ -416,7 +416,7 @@ export function ServicesListClient() {
                   }
                   onClick={() => {
                     if (canWrite) {
-                      router.push(`/dashboard/services/${service.id}/edit`);
+                      router.push(`/services/${service.id}/edit`);
                     }
                   }}
                   onKeyDown={(event) => {
@@ -425,7 +425,7 @@ export function ServicesListClient() {
                       (event.key === 'Enter' || event.key === ' ')
                     ) {
                       event.preventDefault();
-                      router.push(`/dashboard/services/${service.id}/edit`);
+                      router.push(`/services/${service.id}/edit`);
                     }
                   }}
                 >
@@ -473,7 +473,7 @@ export function ServicesListClient() {
                       aria-label={`Editar ${service.name}`}
                       onClick={(event) => {
                         event.stopPropagation();
-                        router.push(`/dashboard/services/${service.id}/edit`);
+                        router.push(`/services/${service.id}/edit`);
                       }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -526,7 +526,7 @@ export function ServicesListClient() {
                     tabIndex={canWrite ? 0 : -1}
                     onClick={() => {
                       if (canWrite) {
-                        router.push(`/dashboard/services/${row.original.id}/edit`);
+                        router.push(`/services/${row.original.id}/edit`);
                       }
                     }}
                     onKeyDown={(event) => {
@@ -535,7 +535,7 @@ export function ServicesListClient() {
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();
-                        router.push(`/dashboard/services/${row.original.id}/edit`);
+                        router.push(`/services/${row.original.id}/edit`);
                       }
                     }}
                   >

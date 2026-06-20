@@ -136,7 +136,7 @@ export async function createPermission(data: {
       after: sanitizePermissionForAudit(created),
     });
 
-    revalidatePath('/dashboard/permissions');
+    revalidatePath('/permissions');
     return { success: true, data: created };
   } catch (error) {
     return handleCodedServerActionError('permissions.create', 'PM002', error);
@@ -199,7 +199,7 @@ export async function updatePermission(
       after: sanitizePermissionForAudit(updated),
     });
 
-    revalidatePath('/dashboard/permissions');
+    revalidatePath('/permissions');
     return { success: true, data: updated };
   } catch (error) {
     return handleCodedServerActionError('permissions.update', 'PM003', error);
@@ -241,7 +241,7 @@ export async function deletePermission(id: number): Promise<{
       after: sanitizePermissionForAudit(updated),
     });
 
-    revalidatePath('/dashboard/permissions');
+    revalidatePath('/permissions');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('permissions.delete', 'PM004', error);
@@ -295,7 +295,7 @@ export async function assignPermissionToRole(
       },
     });
 
-    revalidatePath('/dashboard/roles');
+    revalidatePath('/roles');
     return { success: true, data: rolePermissionRow };
   } catch (error) {
     return handleCodedServerActionError('permissions.assign-to-role', 'PM005', error);
@@ -348,7 +348,7 @@ export async function removePermissionFromRole(
       after: { permission_id: permissionId, assigned: false },
     });
 
-    revalidatePath('/dashboard/roles');
+    revalidatePath('/roles');
     return { success: true, data: null };
   } catch (error) {
     return handleCodedServerActionError('permissions.remove-from-role', 'PM006', error);

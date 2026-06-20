@@ -5,7 +5,7 @@ import { AuditList } from '@/components/audit/audit-list';
 const replace = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  usePathname: () => '/dashboard/audit',
+  usePathname: () => '/audit',
   useRouter: () => ({
     replace,
   }),

@@ -15,7 +15,7 @@ test.describe('RBAC browser specs', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAsViewer(page);
-    await page.goto('/dashboard/tickets');
+    await page.goto('/tickets');
     await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toHaveCount(0);
   });
 
@@ -25,7 +25,7 @@ test.describe('RBAC browser specs', () => {
     await page.setViewportSize({ width: 768, height: 900 });
     await login(page);
     await ensureTenantCompany(page);
-    await page.goto('/dashboard/tickets');
+    await page.goto('/tickets');
     await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toBeVisible();
   });
 
@@ -34,7 +34,7 @@ test.describe('RBAC browser specs', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAsViewer(page);
-    await page.goto('/dashboard/tickets');
+    await page.goto('/tickets');
 
     const firstTicket = page
       .getByRole('button', { name: /Ver ticket|Editar ticket/i })
@@ -52,7 +52,7 @@ test.describe('RBAC browser specs', () => {
 
     await page.setViewportSize({ width: 768, height: 900 });
     await loginAsViewer(page);
-    await page.goto('/dashboard/clients');
+    await page.goto('/clients');
     await expect(page.getByRole('link', { name: /Nuevo cliente/i })).toHaveCount(0);
   });
 });

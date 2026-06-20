@@ -28,7 +28,7 @@ test.describe('Mobile ticket screens', () => {
   });
 
   test('shows mobile-first tickets list controls', async ({ page }) => {
-    await page.goto('/dashboard/tickets');
+    await page.goto('/tickets');
 
     await expect(page.getByTestId('page-header').getByText('Tickets')).toBeVisible();
     await expect(page.getByPlaceholder('Buscar tickets...')).toBeVisible();
@@ -39,7 +39,7 @@ test.describe('Mobile ticket screens', () => {
   });
 
   test('shows mobile-first create ticket flow', async ({ page }) => {
-    await page.goto('/dashboard/tickets/create');
+    await page.goto('/tickets/create');
 
     await expect(page.getByTestId('mobile-app-bar').getByText('Nuevo ticket')).toBeVisible();
     await expect(page.getByText('Paso 1 de 3')).toBeVisible();

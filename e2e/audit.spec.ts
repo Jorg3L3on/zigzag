@@ -15,7 +15,7 @@ test.describe('Audit log access', () => {
 
     await loginAsSystemUser(page);
     await ensureSystemCompany(page);
-    await page.goto('/dashboard/audit');
+    await page.goto('/audit');
 
     await expect(page.getByText('Auditoría', { exact: true }).first()).toBeVisible();
     await expect(
@@ -27,7 +27,7 @@ test.describe('Audit log access', () => {
     test.skip(!hasE2eViewerCredentials, e2eViewerCredentialsSkipReason);
 
     await loginAsViewer(page);
-    await page.goto('/dashboard/audit');
-    await expect(page).toHaveURL(/\/dashboard\/forbidden/);
+    await page.goto('/audit');
+    await expect(page).toHaveURL(/\/forbidden/);
   });
 });

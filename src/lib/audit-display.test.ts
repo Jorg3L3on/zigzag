@@ -43,19 +43,19 @@ describe('audit display helpers', () => {
 
   it('resolves links only for safe dashboard resource destinations', () => {
     expect(resolveAuditResourceLink('ticket', '123')).toEqual({
-      href: '/dashboard/tickets/123',
+      href: '/tickets/123',
       label: 'ticket#123',
     });
     expect(resolveAuditResourceLink('client', '9')).toEqual({
-      href: '/dashboard/clients/9/edit',
+      href: '/clients/9/edit',
       label: 'client#9',
     });
     expect(resolveAuditResourceLink('service', '5')).toEqual({
-      href: '/dashboard/services/5/edit',
+      href: '/services/5/edit',
       label: 'service#5',
     });
     expect(resolveAuditResourceLink('company', '2')).toEqual({
-      href: '/dashboard/companies/2/edit',
+      href: '/companies/2/edit',
       label: 'company#2',
     });
   });

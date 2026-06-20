@@ -225,7 +225,7 @@ export async function createClient(
       source: 'action',
     });
 
-    revalidatePath('/dashboard/clients');
+    revalidatePath('/clients');
     return { success: true, data: created };
   } catch (error) {
     if (error instanceof CompanyEntitlementExceededError) {
@@ -282,7 +282,7 @@ export async function updateClient(
       });
     }
 
-    revalidatePath('/dashboard/clients');
+    revalidatePath('/clients');
     return { success: true, data: updated };
   } catch (error) {
     return handleCodedServerActionError('clients.update', 'CL004', error);
@@ -332,8 +332,8 @@ export async function deleteClient(
 
     await pauseSchedulesForClient(id, effectiveCompanyId);
 
-    revalidatePath('/dashboard/clients');
-    revalidatePath('/dashboard/service-schedules');
+    revalidatePath('/clients');
+    revalidatePath('/service-schedules');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('clients.delete', 'CL005', error);

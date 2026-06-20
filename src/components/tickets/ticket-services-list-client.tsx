@@ -321,8 +321,8 @@ export function TicketServicesListClient({
       <TripledPageHeader
         className="hidden md:flex"
         items={[
-          { label: 'Tickets', href: '/dashboard/tickets' },
-          { label: `Ticket #${ticketId}`, href: `/dashboard/tickets/${ticketId}/edit` },
+          { label: 'Tickets', href: '/tickets' },
+          { label: `Ticket #${ticketId}`, href: `/tickets/${ticketId}/edit` },
           { label: 'Servicios' },
         ]}
       />
@@ -331,7 +331,7 @@ export function TicketServicesListClient({
         <TripledMobileAppBar
           title={`Ticket #${ticketId}`}
           subtitle="Servicios"
-          backHref={`/dashboard/tickets/${ticketId}/edit`}
+          backHref={`/tickets/${ticketId}/edit`}
           className="mb-3"
         />
         <div className="space-y-4">
@@ -771,7 +771,7 @@ export function TicketServicesListClient({
                   variant="outline"
                   className="h-10 w-full sm:w-auto"
                   onClick={() =>
-                    router.push(`/dashboard/tickets/${ticketId}/edit?step=create`)
+                    router.push(`/tickets/${ticketId}/edit?step=create`)
                   }
                 >
                   Volver a datos del ticket
@@ -781,7 +781,7 @@ export function TicketServicesListClient({
                   className="h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-md transition-colors hover:from-blue-700 hover:to-purple-700 sm:w-auto"
                   disabled={ticketServices.length === 0}
                   onClick={() =>
-                    router.push(`/dashboard/tickets/${ticketId}/edit?step=review`)
+                    router.push(`/tickets/${ticketId}/edit?step=review`)
                   }
                 >
                   Continuar a revisión

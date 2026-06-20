@@ -66,13 +66,13 @@ export const worstEntitlementPressure = (
 const metricHref = (metric: EntitlementMetric): string => {
   switch (metric) {
     case 'users':
-      return '/dashboard/users';
+      return '/users';
     case 'clients':
-      return '/dashboard/clients';
+      return '/clients';
     case 'services':
-      return '/dashboard/services';
+      return '/services';
     case 'tickets_month':
-      return '/dashboard/tickets';
+      return '/tickets';
     default:
       return '/dashboard';
   }
@@ -145,6 +145,6 @@ export const buildCompanyOperatorSummary = (
     overallPressure: worstEntitlementPressure(
       metrics.map((metric) => metric.pressure),
     ),
-    editHref: `/dashboard/companies/${companyRow.id}/edit`,
+    editHref: `/companies/${companyRow.id}/edit`,
   };
 };

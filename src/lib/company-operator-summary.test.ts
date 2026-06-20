@@ -120,11 +120,11 @@ describe('company operator summary', () => {
     );
 
     expect(summary.metrics.map((row) => row.href)).toEqual([
-      '/dashboard/users',
-      '/dashboard/clients',
-      '/dashboard/services',
-      '/dashboard/tickets',
+      '/users',
+      '/clients',
+      '/services',
+      '/tickets',
     ]);
-    expect(summary.editHref).toBe('/dashboard/companies/10/edit');
+    expect(summary.editHref).toBe('/companies/10/edit');
   });
 });

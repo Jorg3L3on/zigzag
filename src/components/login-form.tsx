@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { getSession, signIn } from 'next-auth/react';
 import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
@@ -47,7 +47,11 @@ export function LoginForm({
         return;
       }
 
-      router.push('/dashboard');
+      const session = await getSession();
+      const destination = session?.user?.company_is_system
+        ? '/operator-console'
+        : '/dashboard';
+      router.push(destination);
       router.refresh();
     } catch (e) {
       console.error(e);

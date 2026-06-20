@@ -116,7 +116,7 @@ export const DashboardRecentTickets = ({
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-semibold">
                         <Link
-                          href={`/dashboard/tickets/${row.id}`}
+                          href={`/tickets/${row.id}`}
                           className="text-foreground underline-offset-4 hover:underline"
                         >
                           {row.clientName}
@@ -150,7 +150,7 @@ export const DashboardRecentTickets = ({
                     <TableRow key={row.id}>
                       <TableCell className="font-medium">
                         <Link
-                          href={`/dashboard/tickets/${row.id}`}
+                          href={`/tickets/${row.id}`}
                           className="text-foreground underline-offset-4 hover:underline"
                         >
                           {row.clientName}

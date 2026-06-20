@@ -28,12 +28,12 @@ describe('DashboardOnboardingHelp', () => {
     expect(screen.getByText('5. Cobra y finaliza')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Nuevo cliente/i })).toHaveAttribute(
       'href',
-      '/dashboard/clients/new',
+      '/clients/new',
     );
     expect(screen.queryByRole('link', { name: /Nuevo servicio/i })).toBeNull();
     expect(screen.getByRole('link', { name: /Crear ticket/i })).toHaveAttribute(
       'href',
-      '/dashboard/tickets/create',
+      '/tickets/create',
     );
   });
 
