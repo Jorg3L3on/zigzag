@@ -67,7 +67,8 @@ npm run dev           # http://localhost:3069
 | `npm test` | Jest unit/integration tests |
 | `npm run test:watch` | Jest watch mode |
 | `npm run test:coverage` | Coverage report |
-| `npm run test:e2e` | Playwright E2E tests |
+| `npm run test:e2e` | Playwright E2E (desktop + mobile projects) |
+| `npm run test:e2e:mobile` | Playwright mobile project only (`Pixel 5`) |
 
 ## Project layout
 
@@ -99,7 +100,9 @@ npm run test:e2e
 
 CI-style Jest: `npm test -- --runInBand`.
 
-Playwright runs against **Desktop Chrome** (`e2e/`). The smoke suite includes an unauthenticated redirect test; the dashboard test runs only when credentials are set:
+Playwright runs **two projects**: `chromium` (Desktop Chrome) and `mobile-chrome` (Pixel 5 profile). By default it builds and starts a **production server on port 3070** (same as CI). Turbopack dev (`npm run dev`) incorrectly 404s on `/tickets*` routes; use `PLAYWRIGHT_USE_DEV=1` only if you accept that limitation.
+
+The smoke suite includes an unauthenticated redirect test; authenticated tests run when credentials are set:
 
 ```bash
 export E2E_EMAIL="your-user@example.com"
@@ -107,7 +110,13 @@ export E2E_PASSWORD="your-password"
 npm run test:e2e
 ```
 
-A dedicated mobile device project (iPhone / Pixel) is planned — see `tasks/prd-mobile-testing.md`.
+Mobile-only (faster iteration):
+
+```bash
+npm run test:e2e:mobile
+```
+
+Manual device checks before release: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). Mobile PRD index: [tasks/INDEX.md](tasks/INDEX.md).
 
 ## Mobile & PWA
 
@@ -133,6 +142,8 @@ Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró
 
 **Probar en la red local (opcional):** con `npm run dev` en el puerto **3069**, abre `http://<tu-ip>:3069` desde el teléfono en la misma Wi‑Fi.
 
+Antes de un release móvil, usa la checklist manual: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md).
+
 ### English
 
 **Install on iPhone (Safari)**
@@ -150,6 +161,8 @@ Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró
 After install, the app opens on the **Dashboard** (`/dashboard`). Sign in again if your session expired.
 
 **Test on your LAN (optional):** with `npm run dev` on port **3069**, open `http://<your-ip>:3069` from your phone on the same Wi‑Fi.
+
+Before a mobile release, use the manual checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md).
 
 ### Supported browsers / Navegadores compatibles
 

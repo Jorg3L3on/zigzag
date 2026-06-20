@@ -1,4 +1,4 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import {
   ensureSystemCompany,
   expectPinnedNavWhileScrolling,
@@ -12,8 +12,6 @@ import {
   hasE2eCredentials,
   hasE2eSystemCredentials,
 } from './helpers/auth';
-
-test.use({ ...devices['Pixel 5'] });
 
 test.describe('Mobile sticky navigation', () => {
   test.describe.configure({ mode: 'serial' });

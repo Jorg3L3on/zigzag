@@ -1,4 +1,4 @@
-import { test, expect, devices, type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -17,8 +17,6 @@ async function expectNoHorizontalOverflow(page: Page) {
     )
     .toBe(true);
 }
-
-test.use({ ...devices['Pixel 5'] });
 
 test.describe('Mobile ticket screens', () => {
   test.beforeEach(async ({ page }) => {

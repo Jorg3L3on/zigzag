@@ -5,7 +5,10 @@ dotenv.config();
 
 const devBaseUrl = 'http://127.0.0.1:3069';
 const prodBaseUrl = 'http://127.0.0.1:3070';
-const useProdServer = Boolean(process.env.PLAYWRIGHT_USE_PROD || process.env.CI);
+// Turbopack dev 404s on /tickets* (api/tickets + app/tickets); prod and webpack dev work.
+const useProdServer = process.env.PLAYWRIGHT_USE_DEV !== '1';
+
+const mobileSpecPattern = /(?:^|\/)mobile-.*\.spec\.ts$|(?:^|\/)tickets-mobile\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './e2e',
@@ -21,7 +24,19 @@ export default defineConfig({
       (useProdServer ? prodBaseUrl : devBaseUrl),
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      testMatch: /.*\.spec\.ts$/,
+      testIgnore: mobileSpecPattern,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'mobile-chrome',
+      testMatch: mobileSpecPattern,
+      use: { ...devices['Pixel 5'] },
+    },
+  ],
   webServer: useProdServer
     ? {
         command: 'npm run build && npm run start -- -p 3070',

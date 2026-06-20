@@ -22,7 +22,8 @@ npm test                        # Jest unit/integration tests
 npm test -- --runInBand         # CI-style Jest run
 npm run test:watch              # Watch mode
 npm run test:coverage           # Coverage report
-npm run test:e2e                # Playwright E2E tests in e2e/
+npm run test:e2e                # Playwright E2E (prod build on port 3070; PLAYWRIGHT_USE_DEV=1 for turbopack dev)
+npm run lighthouse:mobile       # Lighthouse mobile baseline (prod server on 3070; needs E2E creds)
 ```
 
 > **Database:** PostgreSQL. Use a `postgresql://...` URL in `DATABASE_URL`; production migrations should prefer `DIRECT_URL`. The database name in examples is **`zigzag`**.
@@ -52,7 +53,7 @@ Several resources have logic in both layers. When editing, be careful not to fix
 - Breakpoint constant: `MOBILE_BREAKPOINT_PX` in `src/lib/breakpoints.ts`; hook: `src/hooks/use-mobile.tsx`.
 - Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
 - **PWA (v1):** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. No service worker or offline sync in v1.
-- Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md).
+- Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md). Manual release checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). E2E: `npm run test:e2e` (desktop + `mobile-chrome` Pixel 5); mobile-only: `npm run test:e2e:mobile`.
 
 ### PDF invoices
 - Generated on demand on the server: `GET /api/tickets/[id]/invoice`.

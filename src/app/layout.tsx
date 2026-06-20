@@ -20,6 +20,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#2563eb',
 };
 
 export const metadata: Metadata = {
@@ -30,7 +31,6 @@ export const metadata: Metadata = {
     title: 'ZigZag',
     statusBarStyle: 'default',
   },
-  themeColor: '#2563eb',
   icons: {
     icon: [
       { url: '/icon.png', sizes: '32x32', type: 'image/png' },

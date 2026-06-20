@@ -10,13 +10,13 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-mobile-ui-ux.md](./prd-mobile-ui-ux.md) | v1 epic |
 | ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
 | ✅ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
-| 🔶 | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
+| ✅ | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
 | ✅ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
 | ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic |
-| ❌ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
+| ✅ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
 | ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
-| ❌ | [prd-mobile-first-dashboard-redesign.md](./prd-mobile-first-dashboard-redesign.md) | v2 visual consistency epic — GitHub [#63](https://github.com/Jorg3L3on/zigzag/issues/63), slices [#64](https://github.com/Jorg3L3on/zigzag/issues/64)–[#70](https://github.com/Jorg3L3on/zigzag/issues/70) |
-| 🔶 | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic (README/AGENTS updated 2026-05-18) |
+| ✅ | [prd-mobile-first-dashboard-redesign.md](./prd-mobile-first-dashboard-redesign.md) | v2 visual consistency epic — GitHub [#63](https://github.com/Jorg3L3on/zigzag/issues/63), slices [#64](https://github.com/Jorg3L3on/zigzag/issues/64)–[#70](https://github.com/Jorg3L3on/zigzag/issues/70) |
+| ✅ | [prd-mobile-documentation.md](./prd-mobile-documentation.md) | v1 epic |
 | ✅ | [prd-invoice-fintech-pdf.md](./prd-invoice-fintech-pdf.md) | Invoice PDF feature |
 | ✅ | [prd-rbac-enforcement-and-system-admin.md](./prd-rbac-enforcement-and-system-admin.md) | RBAC/system-admin hardening |
 
@@ -88,20 +88,20 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## 🔶 prd-mobile-performance.md
+## ✅ prd-mobile-performance.md
 
-**Status:** Partial
+**Status:** Applied (server PDF + reduced motion + Lighthouse baselines)
 
-**TL;DR:** Mobile performance: **server-generated ticket PDF** is now the primary path, `PDFDownloadButton` has a 60s timeout, and dashboard charts/`TripledMotionDiv` honor `prefers-reduced-motion`. Lighthouse baseline procedure exists; numeric authenticated runs and real-device PDF checks remain.
+**TL;DR:** Mobile performance: **server-generated ticket PDF** is the primary path, `PDFDownloadButton` has a 60s timeout, dashboard charts/`TripledMotionDiv` honor `prefers-reduced-motion`, and Lighthouse mobile baselines for `/login`, `/dashboard`, and `/tickets` are in `tasks/mobile-lighthouse-baseline.md` (local prod build). Re-run on Vercel preview before release gate.
 
 | Item | Status |
 |------|--------|
-| US-001 Lighthouse baseline | 🔶 `tasks/mobile-lighthouse-baseline.md` created; numeric `/login`, `/dashboard`, `/dashboard/tickets` runs pending staging/auth setup |
+| US-001 Lighthouse baseline | ✅ `/login` 79, `/dashboard` 68, `/tickets` 76 (local prod, 2026-06-20); script `npm run lighthouse:mobile` |
 | US-002 Server PDF endpoint | ✅ `src/app/api/tickets/[id]/invoice/route.ts` generates authenticated, tenant-scoped PDFs |
 | US-003 PDFDownloadButton server path | ✅ `src/components/pdf-download-button.tsx` fetches `/api/tickets/[id]/invoice` as primary path with timeout/error handling |
 | US-004 Reduced motion | ✅ `src/components/dashboard/dashboard-charts.tsx` disables chart animation under reduced motion; `src/components/tripled/motion.tsx` renders static motion divs |
 
-**Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/components/pdf-download-button.tsx`, `src/components/dashboard/dashboard-charts.tsx`, `src/components/tripled/motion.tsx`, `tasks/mobile-lighthouse-baseline.md`.
+**Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/components/pdf-download-button.tsx`, `src/components/dashboard/dashboard-charts.tsx`, `src/components/tripled/motion.tsx`, `scripts/mobile-lighthouse-baseline.mjs`, `tasks/mobile-lighthouse-baseline.md`.
 
 ---
 
@@ -135,13 +135,21 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## ❌ prd-mobile-testing.md
+## ✅ prd-mobile-testing.md
 
-**Status:** Not applied
+**Status:** Applied (Playwright `mobile-chrome` project + mobile specs in CI)
 
-**TL;DR:** Playwright **mobile device project** (e.g. iPhone 13 / Pixel 5), mobile E2E for ticket cards and sidebar sheet, manual `mobile-release-checklist.md`, optional Lighthouse CI gate (non-blocking in v1).
+**TL;DR:** Playwright **mobile device project** (`mobile-chrome`, Pixel 5 profile), mobile E2E for ticket cards, sidebar sheet, sticky nav, and dashboard redesign smoke; manual `tasks/mobile-release-checklist.md`. Optional Lighthouse CI gate remains out of scope for v1.
 
-**Evidence:** `playwright.config.ts` — Desktop Chrome only; no `tasks/mobile-release-checklist.md`.
+| Item | Status |
+|------|--------|
+| US-001 Playwright mobile project | ✅ `playwright.config.ts` — `chromium` + `mobile-chrome` |
+| US-002 Mobile tickets list cards | ✅ `e2e/mobile-sidebar.spec.ts`, `e2e/tickets-mobile.spec.ts` |
+| US-003 Mobile sidebar sheet | ✅ `e2e/mobile-sidebar.spec.ts` |
+| US-004 Manual release checklist | ✅ `tasks/mobile-release-checklist.md` |
+| US-005 Lighthouse CI (optional) | ⏸️ Deferred |
+
+**Evidence:** `playwright.config.ts`, `e2e/mobile-sidebar.spec.ts`, `e2e/tickets-mobile.spec.ts`, `e2e/mobile-sticky-navbar.spec.ts`, `e2e/mobile-dashboard-redesign.spec.ts`, `tasks/mobile-release-checklist.md`, `.github/workflows/ci.yml`.
 
 ---
 
@@ -169,20 +177,20 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ---
 
-## 🔶 prd-mobile-documentation.md
+## ✅ prd-mobile-documentation.md
 
-**Status:** Partial
+**Status:** Applied
 
-**TL;DR:** Bilingual (ES/EN) README **Mobile & PWA** section: install steps, `start_url` = dashboard, internet required / no offline, supported browsers, link to release checklist, AGENTS.md pointer to list rules and mobile PRDs, E2E mobile project docs.
+**TL;DR:** Bilingual README **Mobile & PWA** section, supported browsers, AGENTS.md mobile pointers, E2E mobile project docs, and link to `tasks/mobile-release-checklist.md`.
 
 | Item | Status |
 |------|--------|
 | US-001 README Mobile & PWA (bilingual install) | ✅ Shipped via `prd-mobile-pwa-install` (PR #61) |
 | US-002 AGENTS.md mobile note | ✅ Mobile/PWA, PDF, list rule, `tasks/INDEX.md` |
 | US-003 Supported browsers (ES + EN) | ✅ README browsers table + ES/EN PDF note |
-| US-004 E2E mobile testing docs | 🔶 README documents `E2E_EMAIL`/`E2E_PASSWORD`; mobile Playwright project pending |
+| US-004 E2E mobile testing docs | ✅ README — `mobile-chrome` project, `test:e2e:mobile`, checklist link |
 
-**Evidence:** `README.md` (Mobile & PWA, browsers, Testing/E2E); `AGENTS.md` (mobile, PDF, error catalog); `CHANGELOG.md` unreleased; `rag/docs/00-stale-notice.md`.
+**Evidence:** `README.md` (Mobile & PWA, browsers, Testing/E2E); `AGENTS.md` (mobile, PDF, error catalog); `tasks/mobile-release-checklist.md`; `tasks/INDEX.md`.
 
 ---
 
@@ -212,4 +220,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-05-18 (docs README/AGENTS/CHANGELOG/rag; PWA PR #61; architecture PR #53).
+- **Last audited:** 2026-06-20 (mobile v1 closure: Playwright mobile-chrome, release checklist, docs; performance `/login` Lighthouse).
