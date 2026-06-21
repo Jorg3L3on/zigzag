@@ -8,6 +8,7 @@ import {
   requireActionAuth,
   requireActionPermission,
 } from '@/lib/security';
+import { RateLimiter } from '@/lib/rate-limiter';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { recordPermissionDeniedAudit } from '@/lib/audit-security';
@@ -92,6 +93,27 @@ describe('security helpers', () => {
     expect(() => requireSystemUser(regularContext)).toThrow(
       'System-level access required',
     );
+  });
+
+  describe('RateLimiter', () => {
+    it('allows requests until the limit is reached', () => {
+      const limiter = new RateLimiter(2, 60_000);
+
+      expect(limiter.isAllowed('user@example.com')).toBe(true);
+      expect(limiter.isAllowed('user@example.com')).toBe(true);
+      expect(limiter.isAllowed('user@example.com')).toBe(false);
+    });
+
+    it('resets the counter for an identifier', () => {
+      const limiter = new RateLimiter(1, 60_000);
+
+      expect(limiter.isAllowed('user@example.com')).toBe(true);
+      expect(limiter.isAllowed('user@example.com')).toBe(false);
+
+      limiter.reset('user@example.com');
+
+      expect(limiter.isAllowed('user@example.com')).toBe(true);
+    });
   });
 
   describe('checkPermission', () => {
