@@ -50,7 +50,7 @@ checks are authoritative; client checks only hide unavailable controls.
 | `GET /api/clients` | `clients.read` | Company-scoped |
 | `POST /api/clients` | `clients.write` | Company-scoped |
 | `GET /api/clients/[clientId]` | `clients.read` | Company-scoped |
-| `PUT /api/clients/[clientId]` | `clients.write` | Company-scoped |
+| `PATCH /api/clients/[clientId]` | `clients.write` | Company-scoped (update) |
 | `DELETE /api/clients/[clientId]` | `clients.write` | Soft delete |
 | `GET /api/services` | `services.read` | Company-scoped |
 | `POST /api/services` | `services.write` | Company-scoped |
@@ -59,14 +59,27 @@ checks are authoritative; client checks only hide unavailable controls.
 | `DELETE /api/services/[id]` | `services.write` | Soft delete |
 | `GET /api/tickets/[id]` | `tickets.read` | Company-scoped |
 | `GET /api/tickets/[id]/invoice` | `tickets.read` | Company-scoped PDF |
-| `POST /api/tickets/[id]/services` | `tickets.write` | Company-scoped |
-| `DELETE /api/tickets/[id]/services/[serviceId]` | `tickets.write` | Company-scoped |
+| `GET /api/tickets/[id]/services` | `tickets.read` | Company-scoped via ticket |
+| `POST /api/tickets/[id]/services` | `tickets.write` | Company-scoped via ticket |
+| `PUT /api/tickets/[id]/services/[serviceId]` | `tickets.write` | Company-scoped via ticket |
+| `DELETE /api/tickets/[id]/services/[serviceId]` | `tickets.write` | Company-scoped via ticket |
+| `GET /api/dashboard/report` | `tickets.read` | Dashboard metrics PDF export; company-scoped |
 | `GET /api/users` | `users.read` | System sees all; regular users see own company |
 | `POST /api/users` | `users.write` | System company only |
 | `GET /api/companies` | `companies.read` | System sees all; regular users see own company |
 | `POST /api/companies` | `companies.write` | System company only |
 | `PUT /api/companies` | `companies.write` | System company only for administrative updates |
+| `GET /api/companies/[id]/export` | `companies.read` | System company operator; tenant export bundle |
+| `GET /api/companies/[id]/entitlements` | `companies.read` | Company-scoped entitlement usage |
+| `GET /api/companies/[id]/readiness` | `companies.read` | Company-scoped readiness assessment |
+| `GET /api/companies/[id]/operator-summary` | `companies.read` | System company only |
+| `POST /api/companies/[id]/offboard` | `companies.write` | System company operator |
+| `POST /api/companies/[id]/logo` | `companies.write` | System company operator |
+| `DELETE /api/companies/[id]/logo` | `companies.write` | System company operator |
 | `GET /api/audit/events` | System company only | `requireSession()` + `company_is_system`; unified audit log read |
+
+Company tenant sub-routes (export, offboard, logo, readiness, entitlements) are
+also documented in [company-tenant-runbook.md](company-tenant-runbook.md).
 
 `requireSession()` refreshes `company_id`, `company_name`, and
 `company_is_system` from persisted user/company data before API routes make
@@ -92,6 +105,8 @@ scope decisions.
 | Test | Coverage |
 |---|---|
 | `src/lib/rbac-coverage.test.ts` | Server action, API route, and dashboard page guard coverage |
+| `src/app/api/tickets/[id]/route.test.ts` | Ticket detail API RBAC (403 without `tickets.read`) |
+| `src/app/api/tickets/[id]/invoice/route.test.ts` | Invoice PDF API RBAC (403 without `tickets.read`) |
 | `src/lib/security.test.ts` | Permission checks, System company bypass, stale root claim denial |
 | `src/lib/api-helpers.test.ts` | API session company claim refresh |
 | `src/lib/permissions.test.ts` | Shared client/server permission helper contract |
