@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from './db';
@@ -16,15 +15,6 @@ export {
   requireSystemUser,
   type ActionAuthContext,
 } from './authz-context';
-
-// Input sanitization
-export function sanitizeInput(input: string): string {
-  return input
-    .trim()
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, ''); // Remove event handlers
-}
 
 // Permission checking
 export async function checkPermission(
@@ -194,28 +184,4 @@ export async function requireActionPermission(
   }
 
   return { context, companyId };
-}
-
-// Input validation schemas
-export const commonSchemas = {
-  id: z.number().positive('El ID debe ser un número positivo'),
-  email: z.string().email('El correo electrónico no es válido'),
-  phone: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'El teléfono no es válido'),
-  name: z.string().min(1, 'El nombre es obligatorio').max(100, 'El nombre es demasiado largo'),
-  description: z.string().max(500, 'La descripción es demasiado larga').optional(),
-  price: z.number().min(0, 'El precio no puede ser negativo'),
-  quantity: z.number().int().min(1, 'La cantidad debe ser al menos 1'),
-} as const;
-
-// CSRF protection helper
-export function generateCSRFToken(): string {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
-}
-
-// SQL injection prevention (basic)
-export function sanitizeSQLInput(input: string): string {
-  return input.replace(/['";\\]/g, '');
 }
