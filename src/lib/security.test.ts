@@ -220,6 +220,35 @@ describe('security helpers', () => {
       expect(mockDb.query.role.findFirst).not.toHaveBeenCalled();
     });
 
+    it('denies when the permission exists but the role lacks a grant', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '12',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 12n,
+        company_id: 10,
+        role_id: 10,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+      mockDb.query.role.findFirst.mockResolvedValue({ id: 10 });
+      mockDb.select
+        .mockReturnValueOnce(mockSelectRows([{ id: 11 }]))
+        .mockReturnValueOnce(mockSelectLimitRows([]));
+
+      await expect(checkPermission('12', 10, 'tickets.read')).resolves.toBe(
+        false,
+      );
+    });
+
     it('fails closed when the permission row is missing', async () => {
       mockAuth.mockResolvedValue({
         user: {

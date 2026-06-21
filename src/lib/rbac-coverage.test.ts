@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { PERMISSIONS } from '@/lib/permissions';
 
 const root = process.cwd();
 
@@ -121,6 +122,19 @@ describe('RBAC coverage', () => {
   it('keeps auth-only dashboard exceptions behind active-session validation', () => {
     const dashboardLayout = read(path.join(root, 'src/app/(app)/layout.tsx'));
     expect(dashboardLayout).toContain('requireActionAuth(');
+  });
+
+  it('seeds every canonical permission name used in code', () => {
+    const seedSource = read(path.join(root, 'scripts/seed.ts'));
+    const permissionNames = Object.values(PERMISSIONS).flatMap((group) =>
+      Object.values(group),
+    );
+
+    const missing = permissionNames.filter(
+      (permissionName) => !seedSource.includes(`name: '${permissionName}'`),
+    );
+
+    expect(missing).toEqual([]);
   });
 
   it('keeps canonical RBAC contract modules present for major resources', () => {
