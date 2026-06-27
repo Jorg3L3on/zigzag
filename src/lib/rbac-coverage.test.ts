@@ -41,7 +41,14 @@ describe('RBAC coverage', () => {
     const actionFiles = walk(path.join(root, 'src/actions')).filter((filePath) =>
       filePath.endsWith('.ts'),
     );
-    const allowedExceptions = new Set(['src/actions/authz.ts']);
+    const allowedExceptions = new Set([
+      'src/actions/authz.ts',
+      // Auth-only: notifications are visible to any authenticated company member
+      // and are scoped by company via requireActionAuth (like the account page).
+      'src/actions/notifications.ts',
+      // Auth-only: each user manages only their own 2FA via requireActionAuth.
+      'src/actions/two-factor.ts',
+    ]);
 
     const missing = actionFiles
       .filter((filePath) => !allowedExceptions.has(relative(filePath)))
@@ -80,6 +87,8 @@ describe('RBAC coverage', () => {
     const allowedPublicRoutes = new Set([
       'src/app/api/auth/[...nextauth]/route.ts',
       'src/app/api/health/route.ts',
+      // Cron endpoint secured with CRON_SECRET rather than a user session.
+      'src/app/api/cron/notifications/route.ts',
     ]);
 
     const missing = routeFiles
@@ -101,6 +110,9 @@ describe('RBAC coverage', () => {
     const authOnlyPages = new Set([
       'src/app/(app)/account/page.tsx',
       'src/app/(app)/forbidden/page.tsx',
+      // Trash aggregates clients/services/tickets and filters each group by the
+      // caller's per-resource read permission inside getTrash().
+      'src/app/(app)/trash/page.tsx',
     ]);
 
     const missing = pageFiles

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import React from 'react';
-import { getCompanyReadiness } from '@/actions/companies';
+import { getOwnCompanyReadiness } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ export const CompanyProductionNotice = () => {
     }
 
     const load = async () => {
-      const result = await getCompanyReadiness(companyId);
+      const result = await getOwnCompanyReadiness();
       if (!result.success || !result.data || result.data.productionReady) {
         setMissingLabels(null);
         return;
@@ -48,9 +48,7 @@ export const CompanyProductionNotice = () => {
           {missingLabels.join(', ')}.
         </p>
         <Button asChild variant="outline" size="sm" className="h-9">
-          <Link href={`/companies/${selectedCompany.id}/edit`}>
-            Completar configuración
-          </Link>
+          <Link href="/company">Completar configuración</Link>
         </Button>
       </AlertDescription>
     </Alert>

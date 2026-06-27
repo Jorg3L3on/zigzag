@@ -230,7 +230,9 @@ export async function PUT(request: Request) {
         postal_code: body.postal_code,
         status: body.status,
         settings,
-        is_system: Boolean((raw as { is_system?: unknown }).is_system),
+        // `is_system` is a platform-level flag and must never be set from a
+        // client request body. Preserve the stored value on update.
+        is_system: existing.is_system,
         updated_at: new Date(),
       })
       .where(and(eq(company.id, body.id), isNull(company.deleted_at)))

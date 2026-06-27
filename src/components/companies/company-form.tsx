@@ -24,7 +24,11 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { createCompany, updateCompany } from '@/actions/companies';
+import {
+  createCompany,
+  updateCompany,
+  updateOwnCompany,
+} from '@/actions/companies';
 import type { Company } from '@/db/schema';
 import {
   companyBootstrapSchema,
@@ -74,12 +78,19 @@ const emptyDefaults: CompanyBootstrapFormValues = {
 
 interface CompanyFormProps {
   company?: Company;
+  /**
+   * 'system' (default): platform operator editing any company via `updateCompany`.
+   * 'self': tenant admin editing their own company via `updateOwnCompany`. Hides
+   * operator-only fields (commercial plan) and returns to the company settings page.
+   */
+  mode?: 'system' | 'self';
 }
 
-export const CompanyForm = ({ company }: CompanyFormProps) => {
+export const CompanyForm = ({ company, mode = 'system' }: CompanyFormProps) => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEdit = Boolean(company);
+  const isSelfService = mode === 'self';
 
   const form = useForm<CompanyBootstrapFormValues>({
     resolver: (isEdit
@@ -117,7 +128,9 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
       setIsSubmitting(true);
       if (company) {
         const { owner: _owner, ...companyData } = data;
-        const result = await updateCompany(company.id, companyData);
+        const result = isSelfService
+          ? await updateOwnCompany(companyData)
+          : await updateCompany(company.id, companyData);
         if (!result.success) {
           const errorType = classifyClientError(
             null,
@@ -151,7 +164,7 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
         }
         toast.success('Empresa creada correctamente');
       }
-      router.push('/companies');
+      router.push(isSelfService ? '/company' : '/companies');
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -436,30 +449,32 @@ export const CompanyForm = ({ company }: CompanyFormProps) => {
             Configuración
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="settings.plan"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Plan comercial</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger aria-label="Plan comercial">
-                        <SelectValue placeholder="Selecciona un plan" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {COMPANY_PLAN_IDS.map((planId) => (
-                        <SelectItem key={planId} value={planId}>
-                          {COMPANY_PLAN_LABELS[planId]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isSelfService ? (
+              <FormField
+                control={form.control}
+                name="settings.plan"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plan comercial</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger aria-label="Plan comercial">
+                          <SelectValue placeholder="Selecciona un plan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {COMPANY_PLAN_IDS.map((planId) => (
+                          <SelectItem key={planId} value={planId}>
+                            {COMPANY_PLAN_LABELS[planId]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
             <FormField
               control={form.control}
               name="settings.rfc"

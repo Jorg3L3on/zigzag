@@ -1,10 +1,11 @@
 'use server';
 
 import { desc, eq, and, isNull } from 'drizzle-orm';
-import { user, type Company, type Role } from '@/db/schema';
+import { role, user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   AppError,
+  buildActionError,
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
@@ -15,7 +16,6 @@ import {
 import {
   requireActionAuth,
   requireActionPermission,
-  requireSystemUser,
 } from '@/lib/security';
 import { compare, hash } from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
@@ -25,6 +25,7 @@ import {
   recordGovernanceAudit,
   sanitizeUserForAudit,
 } from '@/lib/governance-audit';
+import { bumpUserTokenVersion } from '@/lib/session-revocation';
 
 const PASSWORD_MIN_LENGTH = 8;
 const passwordSchema = z
@@ -97,6 +98,35 @@ type UserWithRelations = typeof user.$inferSelect & {
   role: Role | null;
 };
 
+/**
+ * Ensure an assigned role belongs to the target company (or is a global role).
+ * Prevents assigning another tenant's role, which would leak its permissions.
+ */
+async function assertRoleAssignableToCompany(
+  roleId: number | undefined,
+  companyId: number,
+): Promise<void> {
+  if (roleId === undefined) {
+    return;
+  }
+
+  const roleRow = await db.query.role.findFirst({
+    where: and(eq(role.id, roleId), isNull(role.deleted_at)),
+  });
+
+  if (
+    !roleRow ||
+    (roleRow.company_id !== null && roleRow.company_id !== companyId)
+  ) {
+    throw new AppError(
+      'El rol seleccionado no pertenece a esta empresa',
+      400,
+      true,
+      'US005',
+    );
+  }
+}
+
 export async function getUsers(): Promise<{
   success: boolean;
   data?: UserWithRelations[];
@@ -138,13 +168,19 @@ export async function createUser(data: CreateUserFormData): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('users.write', data.company_id);
-    const authContext = await requireActionAuth();
-    requireSystemUser(authContext);
+    // Company-scoped: system operators may target any company; tenant admins
+    // with `users.write` may only target their own company (enforced by
+    // resolveWritableCompanyId inside requireActionPermission).
+    const { context: authContext, companyId: effectiveCompanyId } =
+      await requireActionPermission('users.write', data.company_id);
 
     const validatedData = createUserSchema.parse(data);
 
-    await assertCompanyEntitlementAllows(validatedData.company_id, 'users');
+    await assertCompanyEntitlementAllows(effectiveCompanyId, 'users');
+    await assertRoleAssignableToCompany(
+      validatedData.role_id,
+      effectiveCompanyId,
+    );
 
     const hashedPassword = await hash(validatedData.password, 10);
 
@@ -154,7 +190,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
         name: validatedData.name,
         email: validatedData.email,
         password: hashedPassword,
-        company_id: validatedData.company_id,
+        company_id: effectiveCompanyId,
         role_id: validatedData.role_id,
         updated_at: new Date(),
       })
@@ -164,7 +200,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
       actor: actionAuthToGovernanceActor(authContext),
       resourceType: 'user',
       resourceId: created.id,
-      targetCompanyId: validatedData.company_id,
+      targetCompanyId: effectiveCompanyId,
       eventType: 'created',
       after: sanitizeUserForAudit(created),
     });
@@ -175,7 +211,10 @@ export async function createUser(data: CreateUserFormData): Promise<{
     if (e instanceof CompanyEntitlementExceededError) {
       return handleCodedServerActionError('users.create.entitlement', 'CO011', e);
     }
-    if (e instanceof z.ZodError) {
+    if (
+      e instanceof z.ZodError ||
+      (e instanceof AppError && e.errorCode === 'US005')
+    ) {
       return handleCodedServerActionError('users.create.validation', 'US005', e);
     }
     return handleCodedServerActionError('users.create', 'US002', e);
@@ -192,11 +231,14 @@ export async function updateUser(
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('users.write', data.company_id);
-    const authContext = await requireActionAuth();
-    requireSystemUser(authContext);
+    const { context: authContext, companyId: effectiveCompanyId } =
+      await requireActionPermission('users.write', data.company_id);
 
     const validatedData = userSchema.parse(data);
+    await assertRoleAssignableToCompany(
+      validatedData.role_id,
+      effectiveCompanyId,
+    );
 
     const existing = await db.query.user.findFirst({
       where: and(eq(user.id, id), isNull(user.deleted_at)),
@@ -209,6 +251,11 @@ export async function updateUser(
       );
     }
 
+    // Tenant admins may only edit users that already belong to their company.
+    if (!authContext.companyIsSystem && existing.company_id !== effectiveCompanyId) {
+      return buildActionError('AU002');
+    }
+
     const hashedPassword = validatedData.password
       ? await hash(validatedData.password, 10)
       : undefined;
@@ -219,18 +266,26 @@ export async function updateUser(
         name: validatedData.name,
         email: validatedData.email,
         ...(validatedData.password && { password: hashedPassword }),
-        company_id: validatedData.company_id,
+        company_id: effectiveCompanyId,
         role_id: validatedData.role_id,
         updated_at: new Date(),
       })
       .where(and(eq(user.id, id), isNull(user.deleted_at)))
       .returning();
 
+    // Revoke existing sessions when an admin resets the password or changes the
+    // user's role, so the change takes effect immediately.
+    const passwordChanged = Boolean(validatedData.password);
+    const roleChanged = existing.role_id !== (validatedData.role_id ?? null);
+    if (passwordChanged || roleChanged) {
+      await bumpUserTokenVersion(id);
+    }
+
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(authContext),
       resourceType: 'user',
       resourceId: id,
-      targetCompanyId: validatedData.company_id,
+      targetCompanyId: effectiveCompanyId,
       eventType: 'updated',
       before: sanitizeUserForAudit(existing),
       after: sanitizeUserForAudit(updated),
@@ -239,7 +294,10 @@ export async function updateUser(
     revalidatePath('/users');
     return { success: true, data: updated };
   } catch (e) {
-    if (e instanceof z.ZodError) {
+    if (
+      e instanceof z.ZodError ||
+      (e instanceof AppError && e.errorCode === 'US005')
+    ) {
       return handleCodedServerActionError('users.update.validation', 'US005', e);
     }
     return handleCodedServerActionError('users.update', 'US003', e);
@@ -343,9 +401,8 @@ export async function deleteUser(id: bigint): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('users.write');
-    const authContext = await requireActionAuth();
-    requireSystemUser(authContext);
+    const { context: authContext, companyId: effectiveCompanyId } =
+      await requireActionPermission('users.write');
 
     const existing = await db.query.user.findFirst({
       where: and(eq(user.id, id), isNull(user.deleted_at)),
@@ -358,6 +415,16 @@ export async function deleteUser(id: bigint): Promise<{
       );
     }
 
+    // Tenant admins may only delete users within their own company.
+    if (!authContext.companyIsSystem && existing.company_id !== effectiveCompanyId) {
+      return buildActionError('AU002');
+    }
+
+    // Never allow deleting your own account here.
+    if (existing.id === BigInt(authContext.userId)) {
+      return buildActionError('US004');
+    }
+
     const [updated] = await db
       .update(user)
       .set({
@@ -366,6 +433,9 @@ export async function deleteUser(id: bigint): Promise<{
       })
       .where(and(eq(user.id, id), isNull(user.deleted_at)))
       .returning();
+
+    // Immediately invalidate any active sessions for the deleted user.
+    await bumpUserTokenVersion(id);
 
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(authContext),

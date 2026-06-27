@@ -11,6 +11,9 @@ import { Plus, Users } from 'lucide-react';
 import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
+import { CsvToolbar } from '@/components/data-portability/csv-toolbar';
+import { CLIENT_CSV_HEADERS } from '@/lib/csv-schemas';
+import { bulkImportClients, getClientsForExport } from '@/actions/clients';
 
 export const metadata: Metadata = {
   title: 'Clientes',
@@ -52,6 +55,14 @@ export default async function ClientsPage() {
             ) : null
           }
         >
+          <div className="mb-4">
+            <CsvToolbar
+              headers={CLIENT_CSV_HEADERS}
+              filename="clientes.csv"
+              exportAction={getClientsForExport}
+              importAction={canWriteClients ? bulkImportClients : undefined}
+            />
+          </div>
           <ClientList />
         </TripledResourceCard>
       </TripledDashboardShell>

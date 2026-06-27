@@ -3,10 +3,10 @@ import {
   bigint,
   bigserial,
   boolean,
-  doublePrecision,
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -16,6 +16,17 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
+
+/**
+ * Money columns are stored as PostgreSQL `numeric(12,2)` (exact decimal) and
+ * surfaced to the app as `number` in major units (MXN pesos). This avoids the
+ * binary floating-point representation errors of `double precision` while
+ * keeping the existing number-based UI/calculation code unchanged. Use the
+ * helpers in `src/lib/money.ts` for arithmetic so intermediate sums stay
+ * rounded to cents.
+ */
+const money = (name: string) =>
+  numeric(name, { precision: 12, scale: 2, mode: 'number' });
 
 export const companyStatusEnum = pgEnum('CompanyStatus', [
   'SETUP',
@@ -80,7 +91,7 @@ export const role = pgTable(
     company_id: integer('company_id').references(() => company.id),
   },
   (t) => [
-    uniqueIndex('Role_name_key').on(t.name),
+    uniqueIndex('Role_company_id_name_key').on(t.company_id, t.name),
     index('Role_company_id_idx').on(t.company_id),
   ],
 );
@@ -99,7 +110,7 @@ export const permission = pgTable(
     company_id: integer('company_id').references(() => company.id),
   },
   (t) => [
-    uniqueIndex('Permission_name_key').on(t.name),
+    uniqueIndex('Permission_company_id_name_key').on(t.company_id, t.name),
     index('Permission_company_id_idx').on(t.company_id),
   ],
 );
@@ -116,6 +127,12 @@ export const user = pgTable(
     }),
     password: text('password').notNull(),
     remember_token: text('remember_token'),
+    // Incremented to invalidate all existing JWT sessions for this user
+    // (password change, role change, soft-delete). Compared against the value
+    // embedded in the JWT during session validation.
+    token_version: integer('token_version').notNull().default(0),
+    two_factor_secret: text('two_factor_secret'),
+    two_factor_enabled: boolean('two_factor_enabled').notNull().default(false),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -155,7 +172,10 @@ export const client = pgTable(
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
     company_id: integer('company_id'),
   },
-  (t) => [index('Client_company_id_idx').on(t.company_id)],
+  (t) => [
+    index('Client_company_id_idx').on(t.company_id),
+    index('Client_company_id_created_at_idx').on(t.company_id, t.created_at),
+  ],
 );
 
 export const service = pgTable(
@@ -164,7 +184,7 @@ export const service = pgTable(
     id: serial('id').primaryKey(),
     name: text('name').notNull(),
     description: text('description').notNull(),
-    price: doublePrecision('price').notNull(),
+    price: money('price').notNull(),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -183,8 +203,8 @@ export const ticket = pgTable(
     client_name: varchar('client_name', { length: 100 }),
     client_tel: varchar('client_tel', { length: 10 }),
     ticket_date: timestamp('ticket_date', { precision: 3, mode: 'date' }),
-    total: doublePrecision('total'),
-    paid: doublePrecision('paid'),
+    total: money('total'),
+    paid: money('paid'),
     email: varchar('email', { length: 40 }),
     finished: boolean('finished').notNull().default(false),
     document: varchar('document', { length: 100 }),
@@ -199,6 +219,8 @@ export const ticket = pgTable(
   (t) => [
     index('Ticket_company_id_idx').on(t.company_id),
     index('Ticket_client_id_idx').on(t.client_id),
+    index('Ticket_company_id_created_at_idx').on(t.company_id, t.created_at),
+    index('Ticket_company_id_finished_idx').on(t.company_id, t.finished),
   ],
 );
 
@@ -209,7 +231,7 @@ export const servicesTickets = pgTable(
     service_id: integer('service_id').notNull(),
     ticket_id: bigint('ticket_id', { mode: 'bigint' }).notNull(),
     quantity: integer('quantity').notNull(),
-    price: doublePrecision('price').notNull(),
+    price: money('price').notNull(),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -257,7 +279,7 @@ export const ticketPayment = pgTable(
   {
     id: serial('id').primaryKey(),
     ticket_id: bigint('ticket_id', { mode: 'bigint' }).notNull(),
-    amount: doublePrecision('amount').notNull(),
+    amount: money('amount').notNull(),
     company_id: integer('company_id'),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
@@ -347,6 +369,38 @@ export const auditEvent = pgTable(
       t.resource_type,
       t.resource_id,
     ),
+  ],
+);
+
+/**
+ * In-app notifications (e.g. overdue / upcoming service schedule reminders).
+ * `user_id` null means the notification is visible to the whole company.
+ * `dedupe_key` makes reminder materialization idempotent per company.
+ */
+export const notification = pgTable(
+  'Notification',
+  {
+    id: serial('id').primaryKey(),
+    company_id: integer('company_id').notNull(),
+    user_id: bigint('user_id', { mode: 'bigint' }),
+    type: text('type').notNull(),
+    title: text('title').notNull(),
+    body: text('body'),
+    resource_type: text('resource_type'),
+    resource_id: text('resource_id'),
+    dedupe_key: text('dedupe_key'),
+    read_at: timestamp('read_at', { precision: 3, mode: 'date' }),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('Notification_company_id_idx').on(t.company_id),
+    index('Notification_company_read_idx').on(t.company_id, t.read_at),
+    index('Notification_created_at_idx').on(t.created_at),
+    uniqueIndex('Notification_company_dedupe_uidx')
+      .on(t.company_id, t.dedupe_key)
+      .where(sql`${t.dedupe_key} is not null`),
   ],
 );
 
@@ -524,3 +578,4 @@ export type AuditEventRow = typeof auditEvent.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
 export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;
+export type NotificationRow = typeof notification.$inferSelect;

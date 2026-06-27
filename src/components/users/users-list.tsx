@@ -66,8 +66,10 @@ export function UsersList() {
   const permissions = usePermissions();
   const { tenantCompanyId, tenantCompanyName, isTenantScoped } =
     useOperatorTenantCompany();
-  const canWriteUsers =
-    permissions.isSystem && permissions.can(PERMISSIONS.users.write);
+  // Tenant admins (non-system) with users.write manage their own company; system
+  // operators manage any company. Both are covered by `can(users.write)` since
+  // the permission map sets `isSystem` for operators.
+  const canWriteUsers = permissions.can(PERMISSIONS.users.write);
   const [users, setUsers] = React.useState<UserWithRelations[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);

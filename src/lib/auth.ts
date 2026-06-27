@@ -6,9 +6,26 @@ import { user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
 import { recordAuthAuditEvent } from '@/lib/audit-security';
-import { RateLimiter } from '@/lib/rate-limiter';
+import {
+  checkLoginRateLimit,
+  resetLoginRateLimit,
+} from '@/lib/rate-limiter';
+import { verifyTotp } from '@/lib/totp';
 
-const loginRateLimiter = new RateLimiter(5, 15 * 60 * 1000);
+const getClientIp = (request: unknown): string | null => {
+  if (!request || typeof request !== 'object' || !('headers' in request)) {
+    return null;
+  }
+  const headers = (request as { headers?: Headers }).headers;
+  if (!headers || typeof headers.get !== 'function') {
+    return null;
+  }
+  const forwarded = headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0]?.trim() ?? null;
+  }
+  return headers.get('x-real-ip');
+};
 
 export const {
   handlers: { GET, POST },
@@ -33,6 +50,10 @@ export const {
   },
   session: {
     strategy: 'jwt',
+    // Cap session lifetime; combined with token_version this bounds how long a
+    // stale/compromised token can remain valid.
+    maxAge: 8 * 60 * 60,
+    updateAge: 60 * 60,
   },
   providers: [
     CredentialsProvider({
@@ -40,8 +61,9 @@ export const {
       credentials: {
         email: { label: 'Correo', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        otp: { label: 'Código 2FA', type: 'text' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         try {
           if (!credentials?.email || !credentials?.password) {
             await recordAuthAuditEvent({
@@ -54,8 +76,9 @@ export const {
 
           const email = String(credentials.email).trim().toLowerCase();
           const password = String(credentials.password);
+          const clientIp = getClientIp(request);
 
-          if (!loginRateLimiter.isAllowed(email)) {
+          if (!(await checkLoginRateLimit(email, clientIp))) {
             console.warn('[auth][authorize] login throttled', { email });
             await recordAuthAuditEvent({
               action: 'sign_in_failed',
@@ -108,7 +131,21 @@ export const {
             return null;
           }
 
-          loginRateLimiter.reset(email);
+          // Second factor: when enabled, a valid TOTP code is required.
+          if (row.two_factor_enabled && row.two_factor_secret) {
+            const otp = credentials.otp ? String(credentials.otp) : '';
+            if (!verifyTotp(otp, row.two_factor_secret)) {
+              await recordAuthAuditEvent({
+                action: 'sign_in_failed',
+                result: 'failed',
+                email,
+                reason: otp ? 'twofa_invalid' : 'twofa_required',
+              });
+              return null;
+            }
+          }
+
+          await resetLoginRateLimit(email);
 
           return {
             id: String(row.id),
@@ -117,6 +154,7 @@ export const {
             company_id: row.company_id ?? undefined,
             company_name: row.company?.name ?? undefined,
             company_is_system: row.company?.is_system ?? false,
+            token_version: row.token_version ?? 0,
           };
         } catch (error) {
           console.error('[auth][authorize] unexpected error', error);
@@ -132,6 +170,7 @@ export const {
         token.company_id = user.company_id;
         token.company_name = user.company_name;
         token.company_is_system = user.company_is_system;
+        token.token_version = user.token_version ?? 0;
       }
       return token;
     },
@@ -141,6 +180,7 @@ export const {
         session.user.company_id = token.company_id as number;
         session.user.company_name = token.company_name as string;
         session.user.company_is_system = token.company_is_system as boolean;
+        session.user.token_version = (token.token_version as number) ?? 0;
       }
       return session;
     },

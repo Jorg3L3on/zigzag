@@ -11,6 +11,8 @@ import {
 import { renderDashboardReportPdf } from '@/lib/dashboard-report-renderer';
 import { parseDashboardMonthCount } from '@/lib/dashboard-metrics';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
+import { toCsv } from '@/lib/csv';
+import { captureException } from '@/lib/observability';
 import { and, eq, isNull } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -79,8 +81,6 @@ export async function GET(request: Request) {
       metricsResult.data,
       generatedAt,
     );
-    const pdf = renderDashboardReportPdf(payload);
-    const filename = buildDashboardReportFileName(generatedAt);
 
     await recordDocumentGeneratedAudit({
       actor: {
@@ -94,6 +94,40 @@ export async function GET(request: Request) {
       requestMeta: { route: '/api/dashboard/report', method: 'GET' },
     });
 
+    if (url.searchParams.get('format') === 'csv') {
+      const revenueCsv = toCsv(
+        ['periodo', 'ingresos'],
+        payload.revenueRows.map((row) => ({
+          periodo: row.label,
+          ingresos: row.amountLabel,
+        })),
+      );
+      const paymentCsv = toCsv(
+        ['estado', 'cantidad', 'monto'],
+        payload.paymentRows.map((row) => ({
+          estado: row.label,
+          cantidad: row.count,
+          monto: row.amountLabel,
+        })),
+      );
+      const csv = `\ufeffIngresos por mes\r\n${revenueCsv}\r\n\r\nEstado de cobro\r\n${paymentCsv}\r\n`;
+      const csvName = buildDashboardReportFileName(generatedAt).replace(
+        /\.pdf$/,
+        '.csv',
+      );
+      return new NextResponse(csv, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv;charset=utf-8;',
+          'Content-Disposition': `attachment; filename="${csvName.replace(/"/g, '')}"`,
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
+    const pdf = renderDashboardReportPdf(payload);
+    const filename = buildDashboardReportFileName(generatedAt);
+
     return new NextResponse(pdf, {
       status: 200,
       headers: {
@@ -103,7 +137,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Error generating dashboard report PDF:', error);
+    captureException(error, { route: '/api/dashboard/report' });
     return fail('PDF001', 500, 'server');
   }
 }

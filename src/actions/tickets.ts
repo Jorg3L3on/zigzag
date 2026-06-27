@@ -1,11 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, inArray } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, inArray, count, ilike, or } from 'drizzle-orm';
 import {
   service,
   servicesTickets,
   ticket,
+  ticketAuditEvent,
   ticketPayment,
   type Company,
   type Service,
@@ -13,6 +14,7 @@ import {
   type TicketPaymentRow,
   type TicketRow,
 } from '@/db/schema';
+import { redactAuditDisplayValue } from '@/lib/audit-display';
 import { db } from '@/lib/db';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import {
@@ -23,10 +25,15 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { calculateTicketTotal } from '@/lib/ticket-financials';
+import { roundMoney, subtractMoney } from '@/lib/money';
+import { TICKET_CSV_HEADERS } from '@/lib/csv-schemas';
 import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
+  getTicketPaymentStatus,
+  TICKET_PAYMENT_STATUS_LABEL,
 } from '@/lib/ticket-payment-status';
+import { format as formatDate } from 'date-fns';
 import {
   assertCompanyEntitlementAllows,
   CompanyEntitlementExceededError,
@@ -296,6 +303,81 @@ export async function getTicketsList(
   }
 }
 
+export interface PaginatedTicketsData {
+  items: TicketRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Server-side paginated + searchable ticket list, scoped to the company. Keeps
+ * large ticket tables responsive instead of loading every row client-side.
+ */
+export async function getTicketsPaginated(params: {
+  companyId?: number | null;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<{
+  success: boolean;
+  data?: PaginatedTicketsData;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireTicketRead(
+      params.companyId ?? undefined,
+    );
+
+    const page = Math.max(1, Math.floor(params.page ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 20)));
+    const search = params.search?.trim();
+
+    const searchCondition = search
+      ? or(
+          ilike(ticket.client_name, `%${search}%`),
+          ilike(ticket.email, `%${search}%`),
+          ilike(ticket.document, `%${search}%`),
+        )
+      : undefined;
+
+    const whereCondition = and(
+      eq(ticket.company_id, effectiveCompanyId),
+      isNull(ticket.deleted_at),
+      ...(searchCondition ? [searchCondition] : []),
+    );
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(ticket)
+      .where(whereCondition);
+
+    const totalCount = Number(total ?? 0);
+    const items = await db
+      .select()
+      .from(ticket)
+      .where(whereCondition)
+      .orderBy(desc(ticket.created_at))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+
+    return {
+      success: true,
+      data: {
+        items,
+        total: totalCount,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+      },
+    };
+  } catch (e) {
+    return handleCodedServerActionError('tickets.paginated-list', 'TC002', e);
+  }
+}
+
 export async function getTicketById(
   id: number,
   requestedCompanyId?: number | null,
@@ -546,13 +628,16 @@ export async function finishTicket(
       return buildActionError('TC006', undefined, 'validation');
     }
 
+    const totalAmount = roundMoney(total);
+    const paidAmount = roundMoney(paid);
+
     const updated = await db.transaction(async (tx) => {
       const [row] = await tx
         .update(ticket)
         .set({
           finished: true,
-          total: total,
-          paid: paid,
+          total: totalAmount,
+          paid: paidAmount,
         })
         .where(
           and(
@@ -563,10 +648,10 @@ export async function finishTicket(
         )
         .returning();
 
-      if (row && paid > AMOUNT_TOLERANCE) {
+      if (row && paidAmount > AMOUNT_TOLERANCE) {
         await tx.insert(ticketPayment).values({
           ticket_id: ticketId,
-          amount: paid,
+          amount: paidAmount,
           company_id: row.company_id,
         });
       }
@@ -581,7 +666,7 @@ export async function finishTicket(
           {
             before: prior,
             after: row,
-            initialPayment: paid > AMOUNT_TOLERANCE ? paid : 0,
+            initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
           },
         );
       }
@@ -634,8 +719,8 @@ export async function applyTicketPayment(
       return buildActionError('TC007', undefined, 'validation');
     }
 
-    const newPaid = Math.min(totalAmount, currentPaid + additionalPaid);
-    const appliedAmount = newPaid - currentPaid;
+    const newPaid = roundMoney(Math.min(totalAmount, currentPaid + additionalPaid));
+    const appliedAmount = subtractMoney(newPaid, currentPaid);
 
     if (appliedAmount <= AMOUNT_TOLERANCE) {
       return buildActionError('TC007', undefined, 'validation');
@@ -688,5 +773,102 @@ export async function applyTicketPayment(
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
+  }
+}
+
+/** Active tickets for the caller's company as CSV-ready rows. */
+export async function getTicketsForExport(): Promise<{
+  success: boolean;
+  data?: Array<Record<(typeof TICKET_CSV_HEADERS)[number], string>>;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireTicketRead();
+    const rows = await db
+      .select()
+      .from(ticket)
+      .where(and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at)))
+      .orderBy(desc(ticket.created_at));
+
+    return {
+      success: true,
+      data: rows.map((row) => {
+        const total = row.total ?? 0;
+        const paid = row.paid ?? 0;
+        const ref = row.ticket_date ?? row.created_at;
+        return {
+          id: row.id.toString(),
+          cliente: row.client_name ?? '',
+          telefono: row.client_tel ?? '',
+          email: row.email ?? '',
+          fecha: ref ? formatDate(ref, 'yyyy-MM-dd') : '',
+          total: total.toFixed(2),
+          pagado: paid.toFixed(2),
+          saldo: getTicketBalanceDue(row.total, row.paid).toFixed(2),
+          estado: TICKET_PAYMENT_STATUS_LABEL[
+            getTicketPaymentStatus(row.total, row.paid)
+          ],
+          finalizado: row.finished ? 'Sí' : 'No',
+        };
+      }),
+    };
+  } catch (e) {
+    return handleCodedServerActionError('tickets.export', 'TC001', e);
+  }
+}
+
+export type TicketAuditHistoryEntry = {
+  id: number;
+  eventType: string;
+  createdAt: Date;
+  actorName: string | null;
+  payload: Record<string, unknown> | null;
+};
+
+/**
+ * Tenant-facing immutable history for a ticket, read from `TicketAuditEvent`.
+ * Scoped by company (system operators may read any ticket). Sensitive payload
+ * values are redacted before returning to the UI.
+ */
+export async function getTicketAuditHistory(id: number): Promise<{
+  success: boolean;
+  data?: TicketAuditHistoryEntry[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { context, companyId } = await requireTicketRead();
+    const ticketId = BigInt(id);
+
+    const ticketRow = await db.query.ticket.findFirst({
+      where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
+    });
+    if (!ticketRow) {
+      return buildActionError('TC008');
+    }
+    if (!context.companyIsSystem && ticketRow.company_id !== companyId) {
+      return buildActionError('TC008');
+    }
+
+    const events = await db.query.ticketAuditEvent.findMany({
+      where: eq(ticketAuditEvent.ticket_id, ticketId),
+      with: { actor: true },
+      orderBy: [desc(ticketAuditEvent.created_at)],
+    });
+
+    const data: TicketAuditHistoryEntry[] = events.map((event) => ({
+      id: event.id,
+      eventType: event.event_type,
+      createdAt: event.created_at,
+      actorName: event.actor?.name ?? null,
+      payload: (redactAuditDisplayValue(event.payload) ?? null) as
+        | Record<string, unknown>
+        | null,
+    }));
+
+    return { success: true, data };
+  } catch (e) {
+    return handleCodedServerActionError('tickets.audit-history', 'TC001', e);
   }
 }

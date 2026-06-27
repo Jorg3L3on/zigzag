@@ -25,7 +25,11 @@ test.describe('Core business flow smoke', () => {
     const clientPhone = `961${uniqueSuffix().slice(-7)}`;
 
     await page.goto('/tickets/create');
-    await expect(page.getByText('Información del cliente')).toBeVisible({
+    // Responsive layout renders the heading for both desktop and mobile, so
+    // scope to the first match to avoid a strict-mode violation.
+    await expect(
+      page.getByText('Información del cliente').first(),
+    ).toBeVisible({
       timeout: 15_000,
     });
 

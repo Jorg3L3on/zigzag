@@ -17,6 +17,21 @@ import {
 import { requireActionPermission } from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { roundMoney } from '@/lib/money';
+import { SERVICE_CSV_HEADERS } from '@/lib/csv-schemas';
+
+const importServiceSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  price: z.coerce.number().nonnegative(),
+});
+
+export type ServiceBulkImportSummary = {
+  inserted: number;
+  failed: number;
+  errors: string[];
+};
 
 export interface CreateServiceData {
   name: string;
@@ -198,5 +213,107 @@ export async function deleteService(
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('services.delete', 'SV004', error);
+  }
+}
+
+/** Returns all active services for the caller's company as CSV-ready rows. */
+export async function getServicesForExport(): Promise<{
+  success: boolean;
+  data?: Array<Record<(typeof SERVICE_CSV_HEADERS)[number], string>>;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('services.read');
+    const rows = await db
+      .select()
+      .from(service)
+      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .orderBy(desc(service.created_at));
+
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        name: row.name,
+        description: row.description,
+        price: String(row.price),
+      })),
+    };
+  } catch (error) {
+    return handleCodedServerActionError('services.export', 'SV001', error);
+  }
+}
+
+/**
+ * Bulk-create services from parsed CSV records. Validates each row, re-checks
+ * the plan entitlement before every insert, and rounds prices to cents.
+ */
+export async function bulkImportServices(
+  records: Array<Record<string, string>>,
+): Promise<{
+  success: boolean;
+  data?: ServiceBulkImportSummary;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { context, companyId } = await requireActionPermission('services.write');
+
+    const summary: ServiceBulkImportSummary = {
+      inserted: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    for (let index = 0; index < records.length; index += 1) {
+      const rowNumber = index + 2;
+      const parsed = importServiceSchema.safeParse(records[index]);
+      if (!parsed.success) {
+        summary.failed += 1;
+        summary.errors.push(
+          `Fila ${rowNumber}: nombre, descripción y precio válido requeridos`,
+        );
+        continue;
+      }
+
+      try {
+        await assertCompanyEntitlementAllows(companyId, 'services');
+      } catch (error) {
+        if (error instanceof CompanyEntitlementExceededError) {
+          summary.errors.push(
+            `Fila ${rowNumber}: límite del plan alcanzado; importación detenida`,
+          );
+          break;
+        }
+        throw error;
+      }
+
+      const value = parsed.data;
+      const [created] = await db
+        .insert(service)
+        .values({
+          name: value.name,
+          description: value.description,
+          price: roundMoney(value.price),
+          company_id: companyId,
+        })
+        .returning();
+
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'service',
+        resourceId: created.id,
+        targetCompanyId: companyId,
+        action: 'created',
+        after: created,
+        source: 'action',
+      });
+      summary.inserted += 1;
+    }
+
+    revalidatePath('/services');
+    return { success: true, data: summary };
+  } catch (error) {
+    return handleCodedServerActionError('services.import', 'SV002', error);
   }
 }

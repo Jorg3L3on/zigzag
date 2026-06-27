@@ -106,6 +106,30 @@ export async function getCompany(id: number): Promise<{
   }
 }
 
+/** Tenant self-service read of the caller's own company. Gated by `company.manage`. */
+export async function getOwnCompany(): Promise<{
+  success: boolean;
+  data?: typeof company.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('company.manage');
+
+    const row = await db.query.company.findFirst({
+      where: and(eq(company.id, companyId), isNull(company.deleted_at)),
+    });
+
+    if (!row) {
+      return buildActionError('CO006');
+    }
+
+    return { success: true, data: row };
+  } catch (e) {
+    return handleCodedServerActionError('company.get', 'CO002', e);
+  }
+}
+
 export async function getCompanyReadiness(companyId: number): Promise<{
   success: boolean;
   data?: CompanyReadinessAssessment;
@@ -126,6 +150,34 @@ export async function getCompanyReadiness(companyId: number): Promise<{
     return { success: true, data: assessCompanyReadiness(row) };
   } catch (e) {
     return handleCodedServerActionError('companies.readiness', 'CO002', e);
+  }
+}
+
+/**
+ * Readiness for the caller's own company. Gated by `company.manage` so tenant
+ * admins (who lack the platform-level `companies.read`) can see what is missing
+ * before going live.
+ */
+export async function getOwnCompanyReadiness(): Promise<{
+  success: boolean;
+  data?: CompanyReadinessAssessment;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('company.manage');
+
+    const row = await db.query.company.findFirst({
+      where: and(eq(company.id, companyId), isNull(company.deleted_at)),
+    });
+
+    if (!row) {
+      return buildActionError('CO006');
+    }
+
+    return { success: true, data: assessCompanyReadiness(row) };
+  } catch (e) {
+    return handleCodedServerActionError('company.readiness', 'CO002', e);
   }
 }
 
@@ -167,6 +219,107 @@ export async function createCompany(data: CompanyBootstrapData): Promise<{
   }
 }
 
+type CompanyUpdateActor = Awaited<ReturnType<typeof requireActionAuth>>;
+
+/**
+ * Shared company profile update: lifecycle transition + readiness validation,
+ * persistence, and governance audit. Used by the system operator path
+ * (`updateCompany`) and the tenant self-service path (`updateOwnCompany`).
+ */
+async function performCompanyProfileUpdate(
+  id: number,
+  validatedData: CompanyFormData,
+  authContext: CompanyUpdateActor,
+  revalidate: string[],
+): Promise<{
+  success: boolean;
+  data?: typeof company.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  const settings = normalizeCompanySettingsForDb(validatedData.settings);
+
+  const existing = await db.query.company.findFirst({
+    where: and(eq(company.id, id), isNull(company.deleted_at)),
+  });
+  if (!existing) {
+    return buildActionError('CO006');
+  }
+
+  const nextLifecycle = normalizeCompanyLifecycleStatus(validatedData.status);
+  const transition = canTransitionCompanyLifecycle(
+    existing.status,
+    nextLifecycle,
+  );
+  if (!transition.allowed) {
+    return buildActionError('CO009');
+  }
+
+  const interiorNumber = validatedData.interior_number?.trim()
+    ? validatedData.interior_number.trim()
+    : null;
+
+  const mergedPreview = {
+    ...existing,
+    name: validatedData.name,
+    phone: validatedData.phone,
+    email: validatedData.email,
+    logo: existing.logo,
+    street: validatedData.street,
+    interior_number: interiorNumber,
+    exterior_number: validatedData.exterior_number,
+    neighborhood: validatedData.neighborhood,
+    city: validatedData.city,
+    state: validatedData.state,
+    country: validatedData.country,
+    postal_code: validatedData.postal_code,
+    status: validatedData.status,
+    settings,
+  };
+
+  if (
+    nextLifecycle === 'ACTIVE' &&
+    listCompanyProfileGaps(mergedPreview).length > 0
+  ) {
+    return buildActionError('CO008');
+  }
+
+  const [updated] = await db
+    .update(company)
+    .set({
+      name: validatedData.name,
+      phone: validatedData.phone,
+      email: validatedData.email,
+      logo: existing.logo,
+      street: validatedData.street,
+      interior_number: interiorNumber,
+      exterior_number: validatedData.exterior_number,
+      neighborhood: validatedData.neighborhood,
+      city: validatedData.city,
+      state: validatedData.state,
+      country: validatedData.country,
+      postal_code: validatedData.postal_code,
+      status: validatedData.status,
+      settings,
+      updated_at: new Date(),
+    })
+    .where(and(eq(company.id, id), isNull(company.deleted_at)))
+    .returning();
+
+  await recordGovernanceAudit(db, {
+    actor: actionAuthToGovernanceActor(authContext),
+    resourceType: 'company',
+    resourceId: id,
+    targetCompanyId: id,
+    eventType: 'updated',
+    before: sanitizeCompanyForAudit(existing),
+    after: sanitizeCompanyForAudit(updated),
+  });
+
+  revalidate.forEach((path) => revalidatePath(path));
+  return { success: true, data: updated };
+}
+
 export async function updateCompany(
   id: number,
   data: CompanyFormData,
@@ -182,88 +335,10 @@ export async function updateCompany(
     requireSystemUser(authContext);
 
     const validatedData = companyFormSchema.parse(data);
-    const settings = normalizeCompanySettingsForDb(validatedData.settings);
-
-    const existing = await db.query.company.findFirst({
-      where: and(eq(company.id, id), isNull(company.deleted_at)),
-    });
-    if (!existing) {
-      return buildActionError('CO006');
-    }
-
-    const nextLifecycle = normalizeCompanyLifecycleStatus(validatedData.status);
-    const transition = canTransitionCompanyLifecycle(
-      existing.status,
-      nextLifecycle,
-    );
-    if (!transition.allowed) {
-      return buildActionError('CO009');
-    }
-
-    const mergedPreview = {
-      ...existing,
-      name: validatedData.name,
-      phone: validatedData.phone,
-      email: validatedData.email,
-      logo: existing.logo,
-      street: validatedData.street,
-      interior_number: validatedData.interior_number?.trim()
-        ? validatedData.interior_number.trim()
-        : null,
-      exterior_number: validatedData.exterior_number,
-      neighborhood: validatedData.neighborhood,
-      city: validatedData.city,
-      state: validatedData.state,
-      country: validatedData.country,
-      postal_code: validatedData.postal_code,
-      status: validatedData.status,
-      settings,
-    };
-
-    if (
-      nextLifecycle === 'ACTIVE' &&
-      listCompanyProfileGaps(mergedPreview).length > 0
-    ) {
-      return buildActionError('CO008');
-    }
-
-    const [updated] = await db
-      .update(company)
-      .set({
-        name: validatedData.name,
-        phone: validatedData.phone,
-        email: validatedData.email,
-        logo: existing.logo,
-        street: validatedData.street,
-        interior_number: validatedData.interior_number?.trim()
-          ? validatedData.interior_number.trim()
-          : null,
-        exterior_number: validatedData.exterior_number,
-        neighborhood: validatedData.neighborhood,
-        city: validatedData.city,
-        state: validatedData.state,
-        country: validatedData.country,
-        postal_code: validatedData.postal_code,
-        status: validatedData.status,
-        settings,
-        updated_at: new Date(),
-      })
-      .where(and(eq(company.id, id), isNull(company.deleted_at)))
-      .returning();
-
-    await recordGovernanceAudit(db, {
-      actor: actionAuthToGovernanceActor(authContext),
-      resourceType: 'company',
-      resourceId: id,
-      targetCompanyId: id,
-      eventType: 'updated',
-      before: sanitizeCompanyForAudit(existing),
-      after: sanitizeCompanyForAudit(updated),
-    });
-
-    revalidatePath('/companies');
-    revalidatePath(`/companies/${id}/edit`);
-    return { success: true, data: updated };
+    return await performCompanyProfileUpdate(id, validatedData, authContext, [
+      '/companies',
+      `/companies/${id}/edit`,
+    ]);
   } catch (e) {
     if (e instanceof z.ZodError) {
       return handleCodedServerActionError('companies.update.validation', 'CO007', e);
@@ -272,10 +347,51 @@ export async function updateCompany(
   }
 }
 
+/**
+ * Tenant self-service update of the caller's OWN company. Gated by
+ * `company.manage`; the target is always the authenticated user's company, so a
+ * tenant can never edit another company even by passing a different id.
+ */
+export async function updateOwnCompany(data: CompanyFormData): Promise<{
+  success: boolean;
+  data?: typeof company.$inferSelect;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { context, companyId } = await requireActionPermission(
+      'company.manage',
+    );
+
+    const validatedData = companyFormSchema.parse(data);
+    return await performCompanyProfileUpdate(companyId, validatedData, context, [
+      '/company',
+      '/dashboard',
+    ]);
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return handleCodedServerActionError('company.update.validation', 'CO007', e);
+    }
+    return handleCodedServerActionError('company.update', 'CO004', e);
+  }
+}
+
+/**
+ * Authorize a write to a specific company. System operators may write any
+ * company (`companies.write`); tenant admins may write only their OWN company
+ * (`company.manage`). System companies are never editable here.
+ */
 const loadWritableCompany = async (id: number) => {
-  await requireActionPermission('companies.write', id);
   const authContext = await requireActionAuth();
-  requireSystemUser(authContext);
+
+  if (authContext.companyIsSystem) {
+    await requireActionPermission('companies.write', id);
+  } else {
+    const { companyId } = await requireActionPermission('company.manage');
+    if (companyId !== id) {
+      return null;
+    }
+  }
 
   const row = await db.query.company.findFirst({
     where: and(eq(company.id, id), isNull(company.deleted_at)),

@@ -177,7 +177,10 @@ describe('user actions', () => {
 
   describe('updateUser', () => {
     it('rejects short admin-set passwords before updating the user row', async () => {
-      mockRequireActionPermission.mockResolvedValue(undefined);
+      mockRequireActionPermission.mockResolvedValue({
+        context: { userId: '1', companyId: 10, companyIsSystem: false },
+        companyId: 10,
+      });
       mockRequireSystemUser.mockReturnValue(undefined);
 
       const result = await updateUser(2n, {
@@ -191,6 +194,32 @@ describe('user actions', () => {
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('US005');
       expect(mockDb.query.user.findFirst).not.toHaveBeenCalled();
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it('blocks a tenant admin from editing a user in another company', async () => {
+      mockRequireActionPermission.mockResolvedValue({
+        context: { userId: '1', companyId: 10, companyIsSystem: false },
+        companyId: 10,
+      });
+      // Target user belongs to company 99, not the caller's company 10.
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 2n,
+        name: 'Bob',
+        email: 'bob@example.com',
+        company_id: 99,
+        role_id: null,
+        deleted_at: null,
+      });
+
+      const result = await updateUser(2n, {
+        name: 'Bob',
+        email: 'bob@example.com',
+        company_id: 10,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('AU002');
       expect(mockDb.update).not.toHaveBeenCalled();
     });
   });

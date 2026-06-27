@@ -5,6 +5,7 @@ declare module 'next-auth' {
     company_id?: number;
     company_name?: string;
     company_is_system?: boolean;
+    token_version?: number;
     company?: {
       id: number;
       name: string;
@@ -18,6 +19,7 @@ declare module 'next-auth' {
       company_id: number;
       company_name: string;
       company_is_system: boolean;
+      token_version?: number;
     };
   }
 }
@@ -27,5 +29,6 @@ declare module 'next-auth/jwt' {
     company_id?: number;
     company_name?: string;
     company_is_system?: boolean;
+    token_version?: number;
   }
 }

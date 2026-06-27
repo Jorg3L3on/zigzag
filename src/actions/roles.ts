@@ -17,8 +17,8 @@ import {
 import {
   requireActionAuth,
   requireActionPermission,
-  requireSystemUser,
 } from '@/lib/security';
+import { tenantOwnerRoleName } from '@/lib/company-bootstrap';
 import { revalidatePath } from 'next/cache';
 import { AuthorizationError } from '@/lib/errors';
 import {
@@ -118,10 +118,13 @@ export async function createRole(data: {
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('roles.write', data.company_id);
-    const authContext = await requireActionAuth();
-    requireSystemUser(authContext);
-    await assertPermissionsAssignableToCompany(data.permissions, data.company_id);
+    // Company-scoped: tenant admins create roles inside their own company only.
+    const { context: authContext, companyId: effectiveCompanyId } =
+      await requireActionPermission('roles.write', data.company_id);
+    await assertPermissionsAssignableToCompany(
+      data.permissions,
+      effectiveCompanyId,
+    );
 
     let newRoleId = 0;
     await db.transaction(async (tx) => {
@@ -130,7 +133,7 @@ export async function createRole(data: {
         .values({
           name: data.name,
           description: data.description,
-          company_id: data.company_id,
+          company_id: effectiveCompanyId,
         })
         .returning();
 
@@ -149,7 +152,7 @@ export async function createRole(data: {
         actor: actionAuthToGovernanceActor(authContext),
         resourceType: 'role',
         resourceId: newRole.id,
-        targetCompanyId: data.company_id,
+        targetCompanyId: effectiveCompanyId,
         eventType: 'created',
         after: sanitizeRoleForAudit(newRole, data.permissions),
       });
@@ -189,16 +192,25 @@ export async function updateRole(
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('roles.write', data.company_id);
-    const authContext = await requireActionAuth();
-    requireSystemUser(authContext);
-    await assertPermissionsAssignableToCompany(data.permissions, data.company_id);
+    const { context: authContext, companyId: effectiveCompanyId } =
+      await requireActionPermission('roles.write', data.company_id);
+    await assertPermissionsAssignableToCompany(
+      data.permissions,
+      effectiveCompanyId,
+    );
 
     const existingRole = await db.query.role.findFirst({
       where: and(eq(role.id, id), isNull(role.deleted_at)),
     });
     if (!existingRole) {
       throw new AuthorizationError('Role not found');
+    }
+    // Tenant admins may only edit roles in their own company.
+    if (
+      !authContext.companyIsSystem &&
+      existingRole.company_id !== effectiveCompanyId
+    ) {
+      throw new AuthorizationError('Access denied to this role');
     }
     const beforePermissionIds = await fetchRolePermissionIds(id);
 
@@ -210,7 +222,7 @@ export async function updateRole(
         .set({
           name: data.name,
           description: data.description,
-          company_id: data.company_id,
+          company_id: effectiveCompanyId,
           updated_at: new Date(),
         })
         .where(and(eq(role.id, id), isNull(role.deleted_at)))
@@ -229,7 +241,7 @@ export async function updateRole(
         actor: actionAuthToGovernanceActor(authContext),
         resourceType: 'role',
         resourceId: id,
-        targetCompanyId: data.company_id,
+        targetCompanyId: effectiveCompanyId,
         eventType: 'updated',
         before: sanitizeRoleForAudit(existingRole, beforePermissionIds),
         after: sanitizeRoleForAudit(updatedRole, data.permissions),
@@ -261,15 +273,25 @@ export async function deleteRole(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('roles.write');
-    const authContext = await requireActionAuth();
-    requireSystemUser(authContext);
+    const { context: authContext, companyId: effectiveCompanyId } =
+      await requireActionPermission('roles.write');
 
     const existingRole = await db.query.role.findFirst({
       where: and(eq(role.id, id), isNull(role.deleted_at)),
     });
     if (!existingRole) {
       throw new AuthorizationError('Role not found');
+    }
+    // Tenant admins may only delete roles in their own company.
+    if (
+      !authContext.companyIsSystem &&
+      existingRole.company_id !== effectiveCompanyId
+    ) {
+      throw new AuthorizationError('Access denied to this role');
+    }
+    // Protect the bootstrap tenant-admin role from removal to avoid lockout.
+    if (existingRole.name === tenantOwnerRoleName(effectiveCompanyId)) {
+      throw new AuthorizationError('Cannot delete the tenant administrator role');
     }
     const beforePermissionIds = await fetchRolePermissionIds(id);
 

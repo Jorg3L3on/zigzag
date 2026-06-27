@@ -11,8 +11,27 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/zigzag
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/zigzag
       NEXTAUTH_SECRET: ci-test-secret
-      NEXTAUTH_URL: http://127.0.0.1:3069
+      AUTH_SECRET: ci-test-secret
+      NEXTAUTH_URL: http://127.0.0.1:3070
+      E2E_EMAIL: e2e@zigzag.test
+      E2E_PASSWORD: e2e-Password123!
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: zigzag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d zigzag"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -30,13 +49,22 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test
-        run: npm test -- --runInBand
+      - name: Unit tests (with coverage gate)
+        run: npm test -- --runInBand --coverage
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Seed database
+        run: npm run seed
+
+      - name: Create E2E user
+        run: node scripts/ci-create-e2e-user.mjs
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: E2E
+      - name: E2E (critical path)
         run: npm run test:e2e
 
       - name: Build

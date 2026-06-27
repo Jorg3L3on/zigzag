@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { fail, ok } from '@/lib/api-helpers';
+import { captureException } from '@/lib/observability';
 
 export async function GET() {
   try {
@@ -11,7 +12,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('[HEALTH_CHECK]', error);
+    captureException(error, { route: '/api/health' });
     return fail('No se pudo verificar el estado del sistema', 503, 'server');
   }
 }

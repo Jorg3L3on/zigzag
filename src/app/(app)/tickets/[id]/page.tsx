@@ -1,4 +1,5 @@
-import { getTicketById } from '@/actions/tickets';
+import { getTicketById, getTicketAuditHistory } from '@/actions/tickets';
+import { TicketAuditHistory } from '@/components/tickets/ticket-audit-history';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -47,6 +48,8 @@ export default async function TicketDetailsPage({
   }
 
   const ticket = result.data;
+  const auditResult = await getTicketAuditHistory(Number(id));
+  const auditEntries = auditResult.success ? (auditResult.data ?? []) : [];
 
   return (
     <>
@@ -268,6 +271,10 @@ export default async function TicketDetailsPage({
                 ticketId={ticket.id}
                 finished={ticket.finished}
               />
+
+              <Separator className="bg-border/60" />
+
+              <TicketAuditHistory entries={auditEntries} />
             </CardContent>
           </Card>
       </TripledDashboardShell>

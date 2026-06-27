@@ -4,7 +4,7 @@ import {
   CompanyEntitlementExceededError,
 } from '@/lib/company-entitlement-guard';
 import { and, eq, isNull } from 'drizzle-orm';
-import { user } from '@/db/schema';
+import { role, user } from '@/db/schema';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
 import { db } from '@/lib/db';
 import {
@@ -45,6 +45,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    // Only client-settable fields are accepted. `email_verified_at` and
+    // `remember_token` are server-managed and must never come from the client.
     const parsed = z
       .object({
         name: z.string().min(1),
@@ -52,12 +54,10 @@ export async function POST(request: NextRequest) {
         password: z.string().min(8),
         company_id: z.number().int().positive().optional(),
         role_id: z.number().int().positive().optional(),
-        email_verified_at: z.coerce.date().optional(),
-        remember_token: z.string().optional(),
       })
       .parse(body);
 
-    const { session, unauthorized } = await requireApiPermission(
+    const { session, companyId, unauthorized } = await requireApiPermission(
       'users.write',
       parsed.company_id,
     );
@@ -65,13 +65,24 @@ export async function POST(request: NextRequest) {
       return unauthorized;
     }
 
-    if (!session.user.company_is_system) {
-      return fail('AU002', 403, 'auth');
-    }
-
-    const targetCompanyId = parsed.company_id ?? session.user.company_id;
+    // resolveWritableCompanyId guarantees non-system callers can only target
+    // their own company; system operators target the requested company.
+    const targetCompanyId = companyId;
     if (!targetCompanyId) {
       return fail('AU002', 400, 'auth');
+    }
+
+    if (parsed.role_id !== undefined) {
+      const roleRow = await db.query.role.findFirst({
+        where: and(eq(role.id, parsed.role_id), isNull(role.deleted_at)),
+      });
+      // The assigned role must belong to the target company or be global.
+      if (
+        !roleRow ||
+        (roleRow.company_id !== null && roleRow.company_id !== targetCompanyId)
+      ) {
+        return fail('US005', 400, 'validation');
+      }
     }
 
     await assertCompanyEntitlementAllows(targetCompanyId, 'users');
@@ -85,8 +96,6 @@ export async function POST(request: NextRequest) {
         email: parsed.email,
         company_id: targetCompanyId,
         role_id: parsed.role_id ?? null,
-        email_verified_at: parsed.email_verified_at ?? null,
-        remember_token: parsed.remember_token ?? null,
         password: hashedPassword,
       })
       .returning();

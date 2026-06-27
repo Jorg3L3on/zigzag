@@ -163,14 +163,24 @@ export const DashboardMetricsClient = () => {
     return null;
   }
 
-  const handleExportPdf = () => {
+  const buildReportUrl = (format?: 'csv') => {
     const params = new URLSearchParams();
     params.set('monthCount', String(monthCount));
+    if (format) {
+      params.set('format', format);
+    }
     if (session?.user.company_is_system && selectedCompany?.id != null) {
       params.set('company_id', String(selectedCompany.id));
     }
-    const url = `/api/dashboard/report?${params.toString()}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    return `/api/dashboard/report?${params.toString()}`;
+  };
+
+  const handleExportPdf = () => {
+    window.open(buildReportUrl(), '_blank', 'noopener,noreferrer');
+  };
+
+  const handleExportCsv = () => {
+    window.open(buildReportUrl('csv'), '_blank', 'noopener,noreferrer');
   };
   const canCreateClients = permissions.can(PERMISSIONS.clients.write);
   const canCreateServices = permissions.can(PERMISSIONS.services.write);
@@ -224,6 +234,16 @@ export const DashboardMetricsClient = () => {
         >
           <FileDown className="h-4 w-4" aria-hidden />
           Exportar PDF
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 gap-2 rounded-xl sm:min-h-9"
+          onClick={handleExportCsv}
+          aria-label="Exportar resumen del dashboard en CSV"
+        >
+          <FileDown className="h-4 w-4" aria-hidden />
+          Exportar CSV
         </Button>
       </div>
 

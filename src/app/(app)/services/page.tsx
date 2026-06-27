@@ -10,6 +10,9 @@ import {
 import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
+import { CsvToolbar } from '@/components/data-portability/csv-toolbar';
+import { SERVICE_CSV_HEADERS } from '@/lib/csv-schemas';
+import { bulkImportServices, getServicesForExport } from '@/actions/services';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -46,6 +49,14 @@ export default async function ServicesPage() {
             ) : null
           }
         >
+          <div className="mb-4">
+            <CsvToolbar
+              headers={SERVICE_CSV_HEADERS}
+              filename="servicios.csv"
+              exportAction={getServicesForExport}
+              importAction={canWriteServices ? bulkImportServices : undefined}
+            />
+          </div>
           <ServicesListClient />
         </TripledResourceCard>
       </TripledDashboardShell>

@@ -62,8 +62,9 @@ export function RolesList() {
   const permissions = usePermissions();
   const { tenantCompanyId, tenantCompanyName, isTenantScoped } =
     useOperatorTenantCompany();
-  const canWriteRoles =
-    permissions.isSystem && permissions.can(PERMISSIONS.roles.write);
+  // Tenant admins with roles.write manage their own company's roles; system
+  // operators manage any company. `can` already returns true for operators.
+  const canWriteRoles = permissions.can(PERMISSIONS.roles.write);
   const [roles, setRoles] = React.useState<Role[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);

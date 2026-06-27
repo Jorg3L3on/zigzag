@@ -18,6 +18,16 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
   ],
+  // Conservative floor below current coverage so it acts as a regression guard
+  // (fails CI on a meaningful drop) without being brittle. Raise over time.
+  coverageThreshold: {
+    global: {
+      statements: 25,
+      branches: 17,
+      functions: 20,
+      lines: 25,
+    },
+  },
   testPathIgnorePatterns: [
     '<rootDir>/.next/',
     '<rootDir>/node_modules/',

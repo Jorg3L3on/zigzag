@@ -1,6 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
+import { sumLineTotals } from '@/lib/money';
 
 type FinancialLine = {
   quantity: number;
@@ -13,7 +14,7 @@ type TicketMutationExecutor = {
 };
 
 export const calculateTicketTotal = (lines: FinancialLine[]): number =>
-  lines.reduce((sum, line) => sum + line.quantity * line.price, 0);
+  sumLineTotals(lines);
 
 export async function syncTicketTotal(
   executor: TicketMutationExecutor,

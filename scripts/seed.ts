@@ -223,6 +223,15 @@ async function main() {
       created_at: new Date(),
       updated_at: new Date(),
     },
+    // Own company self-administration (tenant scope)
+    {
+      id: 15,
+      name: 'company.manage',
+      description: 'Puede administrar su propia empresa (perfil, logo, datos)',
+      company_id: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
   ]);
 
   // Seed roles (global, company-agnostic)
@@ -256,8 +265,8 @@ async function main() {
 
   // Assign permissions to roles
   await db.insert(rolePermission).values([
-    // Admin: all permissions (1–14)
-    ...Array.from({ length: 14 }, (_, idx) => ({
+    // Admin: all permissions (1–15)
+    ...Array.from({ length: 15 }, (_, idx) => ({
       role_id: 1,
       permission_id: idx + 1,
       created_at: new Date(),
@@ -271,6 +280,7 @@ async function main() {
     { role_id: 2, permission_id: 6, created_at: new Date() }, // clients.write
     { role_id: 2, permission_id: 7, created_at: new Date() }, // users.read
     { role_id: 2, permission_id: 13, created_at: new Date() }, // companies.read
+    { role_id: 2, permission_id: 15, created_at: new Date() }, // company.manage
     // Viewer: read tickets, services, clients
     { role_id: 3, permission_id: 1, created_at: new Date() }, // tickets.read
     { role_id: 3, permission_id: 3, created_at: new Date() }, // services.read

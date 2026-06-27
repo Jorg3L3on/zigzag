@@ -16,8 +16,23 @@ import {
 import { requireActionPermission } from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { CLIENT_CSV_HEADERS } from '@/lib/csv-schemas';
 
 export type Client = typeof client.$inferSelect;
+
+const importClientSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email().optional().or(z.literal('')),
+  phone: z.string().trim().optional(),
+  document: z.string().trim().optional(),
+});
+
+export type BulkImportSummary = {
+  inserted: number;
+  failed: number;
+  errors: string[];
+};
 
 export interface CreateClientData {
   name: string;
@@ -337,5 +352,104 @@ export async function deleteClient(
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('clients.delete', 'CL005', error);
+  }
+}
+
+/** Returns all active clients for the caller's company as plain CSV-ready rows. */
+export async function getClientsForExport(): Promise<{
+  success: boolean;
+  data?: Array<Record<(typeof CLIENT_CSV_HEADERS)[number], string>>;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('clients.read');
+    const rows = await db
+      .select()
+      .from(client)
+      .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)))
+      .orderBy(desc(client.created_at));
+
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        name: row.name,
+        email: row.email ?? '',
+        phone: row.phone ?? '',
+        document: row.document ?? '',
+      })),
+    };
+  } catch (error) {
+    return handleCodedServerActionError('clients.export', 'CL001', error);
+  }
+}
+
+/**
+ * Bulk-create clients from parsed CSV records. Each row is validated and the
+ * plan entitlement is re-checked before every insert, so the import stops once
+ * the company's client limit is reached. Returns a per-row summary.
+ */
+export async function bulkImportClients(
+  records: Array<Record<string, string>>,
+): Promise<{
+  success: boolean;
+  data?: BulkImportSummary;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { context, companyId } = await requireActionPermission('clients.write');
+
+    const summary: BulkImportSummary = { inserted: 0, failed: 0, errors: [] };
+
+    for (let index = 0; index < records.length; index += 1) {
+      const rowNumber = index + 2; // account for header row
+      const parsed = importClientSchema.safeParse(records[index]);
+      if (!parsed.success) {
+        summary.failed += 1;
+        summary.errors.push(`Fila ${rowNumber}: nombre requerido o datos inválidos`);
+        continue;
+      }
+
+      try {
+        await assertCompanyEntitlementAllows(companyId, 'clients');
+      } catch (error) {
+        if (error instanceof CompanyEntitlementExceededError) {
+          summary.errors.push(
+            `Fila ${rowNumber}: límite del plan alcanzado; importación detenida`,
+          );
+          break;
+        }
+        throw error;
+      }
+
+      const value = parsed.data;
+      const [created] = await db
+        .insert(client)
+        .values({
+          name: value.name,
+          email: value.email ? value.email : null,
+          phone: value.phone ? value.phone : null,
+          document: value.document ? value.document : null,
+          company_id: companyId,
+        })
+        .returning();
+
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'client',
+        resourceId: created.id,
+        targetCompanyId: companyId,
+        action: 'created',
+        after: created,
+        source: 'action',
+      });
+      summary.inserted += 1;
+    }
+
+    revalidatePath('/clients');
+    return { success: true, data: summary };
+  } catch (error) {
+    return handleCodedServerActionError('clients.import', 'CL003', error);
   }
 }

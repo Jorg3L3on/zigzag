@@ -27,10 +27,16 @@ export const PERMISSIONS = {
     read: 'companies.read',
     write: 'companies.write',
   },
+  company: {
+    // Tenant-scoped self administration of the user's OWN company (profile,
+    // logo, readiness). Distinct from the platform-level `companies.*`.
+    manage: 'company.manage',
+  },
 } as const;
 
-export type PermissionName =
-  (typeof PERMISSIONS)[keyof typeof PERMISSIONS][keyof (typeof PERMISSIONS)[keyof typeof PERMISSIONS]];
+export type PermissionName = {
+  [Group in keyof typeof PERMISSIONS]: (typeof PERMISSIONS)[Group][keyof (typeof PERMISSIONS)[Group]];
+}[keyof typeof PERMISSIONS];
 
 export type PermissionMap = {
   isSystem: boolean;

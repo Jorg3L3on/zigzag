@@ -11,6 +11,9 @@ import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission } from '@/lib/permissions';
 import { canWriteTickets } from '@/lib/tickets-rbac';
+import { CsvToolbar } from '@/components/data-portability/csv-toolbar';
+import { TICKET_CSV_HEADERS } from '@/lib/csv-schemas';
+import { getTicketsForExport } from '@/actions/tickets';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -46,6 +49,13 @@ export default async function TicketsPage() {
             ) : null
           }
         >
+          <div className="mb-4">
+            <CsvToolbar
+              headers={TICKET_CSV_HEADERS}
+              filename="tickets.csv"
+              exportAction={getTicketsForExport}
+            />
+          </div>
           <TicketsList />
         </TripledResourceCard>
       </TripledDashboardShell>

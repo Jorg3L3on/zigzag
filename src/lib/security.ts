@@ -66,6 +66,12 @@ export async function checkPermission(
       return false;
     }
 
+    // The assigned role must belong to the user's company (or be a global role).
+    // Prevents a role from another tenant granting permissions here.
+    if (roleRow.company_id !== null && roleRow.company_id !== userRow.company_id) {
+      return false;
+    }
+
     if (!permissionName) {
       return true;
     }
@@ -138,6 +144,14 @@ export async function requireActionAuth(): Promise<ActionAuthContext> {
     !companyAllowsAuthentication(activeUser.company.status)
   ) {
     throw new AuthorizationError('Authentication required');
+  }
+
+  // Reject JWTs minted before a session-invalidating change (password/role
+  // change, soft-delete). Older tokens that predate the column default to 0.
+  const tokenVersion =
+    (session.user as { token_version?: number }).token_version ?? 0;
+  if (tokenVersion !== (activeUser.token_version ?? 0)) {
+    throw new AuthorizationError('Session expired');
   }
 
   return {

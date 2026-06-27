@@ -71,6 +71,48 @@
       "when": 1780259200000,
       "tag": "0009_audit_event",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780345600000,
+      "tag": "0010_money_numeric",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780432000000,
+      "tag": "0011_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780518400000,
+      "tag": "0012_user_token_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780604800000,
+      "tag": "0013_user_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1780691200000,
+      "tag": "0014_tenant_fks_and_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1780777600000,
+      "tag": "0015_list_performance_indexes",
+      "breakpoints": true
     }
   ]
 }

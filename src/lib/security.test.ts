@@ -216,13 +216,69 @@ describe('security helpers', () => {
           is_system: false,
         },
       });
-      mockDb.query.role.findFirst.mockResolvedValue({ id: 7 });
+      mockDb.query.role.findFirst.mockResolvedValue({ id: 7, company_id: 10 });
       mockDb.select
         .mockReturnValueOnce(mockSelectRows([{ id: 11 }]))
         .mockReturnValueOnce(mockSelectLimitRows([{ role_id: 7 }]));
 
       await expect(checkPermission('3', 10, 'tickets.read')).resolves.toBe(
         true,
+      );
+    });
+
+    it('allows regular users with a global (company-less) role', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '3',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 3n,
+        company_id: 10,
+        role_id: 7,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+      mockDb.query.role.findFirst.mockResolvedValue({ id: 7, company_id: null });
+      mockDb.select
+        .mockReturnValueOnce(mockSelectRows([{ id: 11 }]))
+        .mockReturnValueOnce(mockSelectLimitRows([{ role_id: 7 }]));
+
+      await expect(checkPermission('3', 10, 'tickets.read')).resolves.toBe(
+        true,
+      );
+    });
+
+    it('denies a role that belongs to another company', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '3',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 3n,
+        company_id: 10,
+        role_id: 7,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+      // Role belongs to company 99, not the user's company 10.
+      mockDb.query.role.findFirst.mockResolvedValue({ id: 7, company_id: 99 });
+
+      await expect(checkPermission('3', 10, 'tickets.read')).resolves.toBe(
+        false,
       );
     });
 

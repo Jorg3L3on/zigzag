@@ -11,6 +11,7 @@ import {
   Key,
   CalendarClock,
   ClipboardList,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -22,6 +23,8 @@ import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
 import { NavUser } from '@/components/nav-user';
+import { NotificationBell } from '@/components/notifications/notification-bell';
+import { GlobalSearch } from '@/components/search/global-search';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
   Sidebar,
@@ -81,6 +84,17 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       url: '/clients',
       icon: User,
       requiredPermission: PERMISSIONS.clients.read,
+    },
+    {
+      title: 'Mi empresa',
+      url: '/company',
+      icon: Building,
+      requiredPermission: PERMISSIONS.company.manage,
+    },
+    {
+      title: 'Papelera',
+      url: '/trash',
+      icon: Trash2,
     },
   ],
   system: [
@@ -290,6 +304,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
+        <div className="px-2 pt-2">
+          <GlobalSearch />
+        </div>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
           {(isSystemCompany || systemItems.length > 0) && (
             <NavProject items={systemItems} />
@@ -298,6 +315,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </TripledMotionDiv>
       </SidebarContent>
       <SidebarFooter>
+        <div className="flex items-center justify-between gap-2 px-1 group-data-[collapsible=icon]:justify-center">
+          <span className="truncate text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+            Notificaciones
+          </span>
+          <NotificationBell />
+        </div>
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
