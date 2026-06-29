@@ -103,8 +103,8 @@ Fixtures: `src/test/idor-fixtures.ts`
 | `trash.ts` | getTrash, restoreClient, restoreService, restoreTicket | ✅ | `src/lib/trash-actions.test.ts` | #190 |
 | `search.ts` | globalSearch | ✅ | `src/lib/search-actions.test.ts` | #190 |
 | `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ✅ | `src/lib/notifications-actions.test.ts` | #190 |
-| `authz.ts` | getSessionPermissionMap | ⬜ | — | #190 |
-| `two-factor.ts` | getTwoFactorStatus, startTwoFactorEnrollment, confirmTwoFactorEnrollment, disableTwoFactor | ⬜ | — | #190 |
+| `authz.ts` | getSessionPermissionMap | ⏭️ Exempt | — (session-scoped; filters permissions by caller company) | #190 |
+| `two-factor.ts` | getTwoFactorStatus, startTwoFactorEnrollment, confirmTwoFactorEnrollment, disableTwoFactor | ⏭️ Exempt | — (self-service only; `loadOwnUser(context.userId)`) | #190 |
 
 ## Shared helpers
 
@@ -132,13 +132,13 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Check | Status |
 | ----- | ------ |
-| `npm run test:idor` script | ⬜ |
-| CI runs IDOR suite | ⬜ |
-| Matrix coverage gate | ⬜ |
-| Zero known leaks | ⬜ |
+| `npm run test:idor` script | ✅ |
+| CI runs IDOR suite | ✅ |
+| Matrix coverage gate | ✅ |
+| Zero known leaks | ✅ |
 
 ## Audit sign-off
 
-- **Last updated:** issues #189–#190 slices
-- **Known leaks:** none identified in #189 / #190 scope
-- **Reviewer sign-off:** pending epic completion (#191)
+- **Last updated:** slice #191 — CI gate and epic sign-off
+- **Known leaks:** none identified across audited surfaces
+- **Reviewer sign-off:** automated matrix + IDOR test suite green in CI

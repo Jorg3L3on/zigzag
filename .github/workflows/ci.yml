@@ -52,6 +52,12 @@ jobs:
       - name: Unit tests (with coverage gate)
         run: npm test -- --runInBand --coverage
 
+      - name: IDOR cross-tenant tests
+        run: npm run test:idor
+
+      - name: IDOR audit matrix coverage gate
+        run: npm run check:idor-coverage
+
       - name: Apply migrations
         run: npm run db:migrate
 
