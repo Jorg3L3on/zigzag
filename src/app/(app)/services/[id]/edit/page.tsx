@@ -1,23 +1,9 @@
-'use client';
-
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { Loader2, CheckCircle2, Wrench } from 'lucide-react';
-import * as React from 'react';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { Wrench } from 'lucide-react';
+import { getService } from '@/actions/services';
+import { ServiceFormWithRedirect } from '@/components/services/service-form-with-redirect';
+import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -33,137 +19,73 @@ import {
   TripledMobileAppBar,
   TripledResourceCard,
 } from '@/components/tripled';
-import { useEffect, useState, useCallback } from 'react';
-import { useCompany } from '@/contexts/company-context';
-import {
-  classifyClientError,
-  getErrorMessageByType,
-} from '@/lib/network-awareness';
-import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
+import { requirePagePermission } from '@/lib/page-authz';
 
-const formSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio'),
-  description: z.string().min(1, 'La descripción es obligatoria'),
-  price: z
-    .string()
-    .min(1, 'El precio es obligatorio')
-    .refine(
-      (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
-      'El precio debe ser un número válido',
-    ),
-});
+export const metadata: Metadata = {
+  title: 'Editar servicio',
+  description: 'Edita o crea un servicio',
+};
 
-type FormValues = z.infer<typeof formSchema>;
+interface EditServicePageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
 
-export default function EditServicePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { selectedCompany } = useCompany();
-  const router = useRouter();
-  const resolvedParams = React.use(params);
-  const [serviceId, setServiceId] = useState<string>('');
-  const isNew = serviceId === 'new';
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      price: '',
-    },
-  });
+export default async function EditServicePage({ params }: EditServicePageProps) {
+  await requirePagePermission('services.write');
+  const { id } = await params;
+  const isNew = id === 'new';
 
-  const fetchService = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/services/${serviceId}`);
-      const data = await response.json();
+  if (isNew) {
+    return (
+      <>
+        <header className="hidden h-16 shrink-0 items-center gap-2 md:flex">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/services">Servicios</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Nuevo servicio</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
 
-      if (data.success) {
-        form.reset({
-          name: data.data.name,
-          description: data.data.description,
-          price: data.data.price.toString(),
-        });
-      } else {
-        const errorType = classifyClientError(
-          null,
-          response.status,
-          data.errorType,
-        );
-        toast.error(
-          getErrorMessageByType(errorType, 'No se pudo cargar el servicio'),
-        );
-        router.push('/services');
-      }
-    } catch (error) {
-      console.error('Error fetching service:', error);
-      const errorType = classifyClientError(error);
-      toast.error(
-        getErrorMessageByType(errorType, 'Ocurrió un error al cargar el servicio'),
-      );
-      router.push('/services');
-    }
-  }, [serviceId, form, router]);
+        <TripledDashboardShell maxWidthClassName="max-w-2xl">
+          <TripledMobileAppBar
+            title="Nuevo servicio"
+            subtitle="Catálogo"
+            backHref="/services"
+            className="mb-3"
+          />
+          <CompanyEntitlementNotice metric="services" />
+          <TripledResourceCard
+            title="Nuevo servicio"
+            description="Completa los datos para crear un nuevo servicio."
+            icon={<Wrench className="size-5" aria-hidden />}
+          >
+            <ServiceFormWithRedirect />
+          </TripledResourceCard>
+        </TripledDashboardShell>
+      </>
+    );
+  }
 
-  useEffect(() => {
-    setServiceId(resolvedParams.id);
-  }, [resolvedParams.id]);
+  const serviceId = Number.parseInt(id, 10);
+  if (Number.isNaN(serviceId)) {
+    notFound();
+  }
 
-  useEffect(() => {
-    if (!isNew && serviceId) {
-      fetchService();
-    }
-  }, [serviceId, isNew, fetchService]);
-
-  async function onSubmit(values: FormValues) {
-    try {
-      const method = isNew ? 'POST' : 'PUT';
-      const url = isNew
-        ? `/api/services?company_id=${selectedCompany?.id}`
-        : `/api/services/${serviceId}?company_id=${selectedCompany?.id}`;
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...values,
-          price: parseFloat(values.price),
-          company_id: selectedCompany?.id,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(
-          isNew
-            ? 'Servicio creado correctamente'
-            : 'Servicio actualizado correctamente',
-        );
-        router.push('/services');
-      } else {
-        const errorType = classifyClientError(
-          null,
-          response.status,
-          data.errorType,
-        );
-        toast.error(
-          getErrorMessageByType(
-            errorType,
-            isNew
-              ? 'No se pudo crear el servicio'
-              : 'No se pudo actualizar el servicio',
-          ),
-        );
-      }
-    } catch (e) {
-      console.error('Error:', e);
-      const errorType = classifyClientError(e);
-      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
-    }
+  const result = await getService(serviceId);
+  if (!result.success || !result.data) {
+    notFound();
   }
 
   return (
@@ -175,15 +97,11 @@ export default function EditServicePage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/services">
-                  Servicios
-                </BreadcrumbLink>
+                <BreadcrumbLink href="/services">Servicios</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>
-                  {isNew ? 'Nuevo servicio' : 'Editar servicio'}
-                </BreadcrumbPage>
+                <BreadcrumbPage>Editar servicio</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -192,125 +110,17 @@ export default function EditServicePage({
 
       <TripledDashboardShell maxWidthClassName="max-w-2xl">
         <TripledMobileAppBar
-          title={isNew ? 'Nuevo servicio' : 'Editar servicio'}
-          subtitle={isNew ? 'Catalogo' : 'Datos del servicio'}
+          title="Editar servicio"
+          subtitle={result.data.name}
           backHref="/services"
           className="mb-3"
         />
-        {isNew ? <CompanyEntitlementNotice metric="services" /> : null}
         <TripledResourceCard
-          title={isNew ? 'Nuevo servicio' : 'Editar servicio'}
-          description={
-            isNew
-              ? 'Completa los datos para crear un nuevo servicio.'
-              : 'Modifica los datos del servicio.'
-          }
+          title="Editar servicio"
+          description="Modifica los datos del servicio."
           icon={<Wrench className="size-5" aria-hidden />}
         >
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-8"
-                >
-                  <div className="grid gap-6">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel className="text-sm font-medium text-foreground">
-                            Nombre del servicio
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Ej: Limpieza de oficinas"
-                              className="h-12 border-2 focus:border-primary transition-colors"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel className="text-sm font-medium text-foreground">
-                            Descripción
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe el servicio..."
-                              className="min-h-[100px] border-2 focus:border-primary transition-colors"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem className="space-y-3">
-                          <FormLabel className="text-sm font-medium text-foreground">
-                            Precio
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                $
-                              </span>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                placeholder="0.00"
-                                className="pl-8 h-12 border-2 focus:border-primary transition-colors"
-                                {...field}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-4 pt-6">
-                    <Button
-                      type="submit"
-                      className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200 transform hover:scale-[1.02]"
-                      disabled={form.formState.isSubmitting}
-                    >
-                      {form.formState.isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {isNew
-                            ? 'Creando servicio...'
-                            : 'Actualizando servicio...'}
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          {isNew ? 'Crear servicio' : 'Actualizar servicio'}
-                        </>
-                      )}
-                    </Button>
-
-                    <p className="text-center text-xs text-muted-foreground">
-                      {isNew
-                        ? 'Al crear el servicio, estará disponible inmediatamente para los tickets'
-                        : 'Los cambios se guardarán automáticamente'}
-                    </p>
-                  </div>
-                </form>
-              </Form>
+          <ServiceFormWithRedirect service={result.data} />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>

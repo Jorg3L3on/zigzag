@@ -12,7 +12,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { updateTicket, finishTicket } from '@/actions/tickets';
+import { updateTicket, finishTicket, getTicketById } from '@/actions/tickets';
 import {
   listClientServiceSchedulesForClient,
   upsertClientServiceSchedule,
@@ -148,33 +148,47 @@ export default function EditTicketPage({
   useEffect(() => {
     const fetchTicket = async () => {
       try {
-        const response = await fetch(`/api/tickets/${resolvedParams.id}`);
-        const data = await response.json();
+        const result = await getTicketById(
+          Number(resolvedParams.id),
+          selectedCompany?.id,
+        );
 
-        if (data.success) {
-          setTicketCompany(data.data.company ?? null);
+        if (result.success) {
+          const data = result.data;
+          setTicketCompany(data.company ?? null);
           const totalFromTicket =
-            typeof data.data.total === 'number' ? data.data.total : 0;
+            typeof data.total === 'number' ? data.total : 0;
           const paidFromTicket =
-            typeof data.data.paid === 'number' ? data.data.paid : null;
+            typeof data.paid === 'number' ? data.paid : null;
 
           form.reset({
-            client_id: data.data.client_id,
-            client_name: data.data.client_name,
-            client_tel: data.data.client_tel,
-            email: data.data.email || '',
-            document: data.data.document || '',
-            ticket_date: data.data.ticket_date
-              ? new Date(data.data.ticket_date)
+            client_id: data.client_id ?? undefined,
+            client_name: data.client_name ?? '',
+            client_tel: data.client_tel ?? '',
+            email: data.email || '',
+            document: data.document || '',
+            ticket_date: data.ticket_date
+              ? new Date(data.ticket_date)
               : undefined,
-            services: data.data.services_tickets.map((st: ServiceTicket) => ({
+            services: data.services_tickets.map((st) => ({
               service_id: st.service_id,
               quantity: st.quantity,
-              price: st.price,
+              price: Number(st.price),
             })),
           });
-          setTicketServices(data.data.services_tickets);
-          setIsFinished(data.data.finished);
+          setTicketServices(
+            data.services_tickets.map((st) => ({
+              id: st.id,
+              service_id: st.service_id,
+              quantity: st.quantity,
+              price: Number(st.price),
+              service: {
+                name: st.service?.name ?? '',
+                description: st.service?.description ?? '',
+              },
+            })),
+          );
+          setIsFinished(data.finished);
           if (paidFromTicket !== null) {
             const normalizedPaid = Math.max(paidFromTicket, 0);
             setIsFullyPaid(normalizedPaid >= totalFromTicket && totalFromTicket > 0);
@@ -184,8 +198,7 @@ export default function EditTicketPage({
             setPaidAmountInput('');
           }
 
-          // If there's a client_id, fetch the client details
-          if (data.data.client_id) {
+          if (data.client_id) {
             const clientsResult = await getClients({
               companyId: selectedCompany?.id ?? null,
               page: 1,
@@ -193,7 +206,7 @@ export default function EditTicketPage({
             });
             if (clientsResult.success && clientsResult.data) {
               const client = clientsResult.data.items.find(
-                (c) => c.id === data.data.client_id,
+                (c) => c.id === data.client_id,
               );
               if (client) {
                 setSelectedClient(client);
@@ -202,9 +215,9 @@ export default function EditTicketPage({
           }
         } else {
           const errorContent = buildToastErrorContent(
-            data,
+            result,
             'No se pudo cargar el ticket',
-            classifyClientError(null, response.status, data.errorType),
+            classifyClientError(null, undefined, result.errorType),
           );
           toast.error(errorContent.title, {
             description: errorContent.description,

@@ -6,6 +6,7 @@ import { service } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
+  buildActionError,
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
@@ -80,6 +81,36 @@ export async function getServices(
     return { success: true, data: services };
   } catch (error) {
     return handleCodedServerActionError('services.list', 'SV001', error);
+  }
+}
+
+export async function getService(id: number): Promise<{
+  success: boolean;
+  data?: Service;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('services.read');
+    const [row] = await db
+      .select()
+      .from(service)
+      .where(
+        and(
+          eq(service.id, id),
+          eq(service.company_id, companyId),
+          isNull(service.deleted_at),
+        ),
+      )
+      .limit(1);
+
+    if (!row) {
+      return buildActionError('SV001');
+    }
+
+    return { success: true, data: row };
+  } catch (error) {
+    return handleCodedServerActionError('services.get', 'SV001', error);
   }
 }
 

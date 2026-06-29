@@ -34,10 +34,10 @@ npm run lighthouse:mobile       # Lighthouse mobile baseline (prod server on 307
 Every resource (Ticket, Client, Service, User, Role, Permission) is scoped by `company_id`. All DB queries must filter by `company_id` explicitly; Drizzle does not enforce this automatically. Users with `company.is_system = true` are super-admins with explicit cross-company access.
 
 ### Two data-access layers
-- **Server Actions** (`src/actions/`) are the primary way UI pages mutate data.
-- **API Routes** (`src/app/api/`) are RESTful endpoints and must call auth helpers themselves.
+- **Server Actions** (`src/actions/`) are the **canonical** path for dashboard UI reads and all mutations on core resources (Tickets, Clients, Services, Users, Companies).
+- **API Routes** (`src/app/api/`) are reserved for **non-UI consumers**: NextAuth, health checks, cron jobs, realtime/SSE, and binary/streaming downloads (ticket invoice PDF, dashboard report PDF, company export bundles). Company operator sub-routes (logo upload, offboard, readiness, entitlements) remain REST where multipart or download semantics require them.
 
-Several resources have logic in both layers. When editing, be careful not to fix one and miss the other.
+Do not add duplicate mutation handlers in API routes for resources that already have Server Actions. IDOR and RBAC coverage for tenant-owned CRUD lives in `src/lib/*-actions.test.ts` and `docs/idor-audit-matrix.md`.
 
 ### Authentication & session
 - NextAuth v5 (beta) uses JWT sessions with a CredentialsProvider.

@@ -17,36 +17,14 @@ Fixtures: `src/test/idor-fixtures.ts`
 | `/api/cron/jobs` | GET | ⏭️ Exempt | Bearer secret, no user session |
 | `/api/cron/notifications` | GET | ⏭️ Exempt | Bearer secret, no user session |
 
-## API routes — Clients & Services (#186)
+## API routes — kept REST surfaces (#200)
+
+Removed duplicate CRUD REST for clients, services, tickets, ticket-services, users, and company collection routes. IDOR coverage for those resources is via Server Actions (see below).
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/clients` | GET, POST | ✅ | `clients/route.test.ts` | #186 |
-| `/api/clients/[clientId]` | GET, PATCH, DELETE | ✅ | `clients/[clientId]/route.test.ts` | #186 |
-| `/api/services` | GET, POST | ✅ | `services/route.test.ts` | #186 |
-| `/api/services/[id]` | GET, PUT, DELETE | ✅ | `services/[id]/route.test.ts` | #186 |
-
-## API routes — Tickets (#187)
-
-| Route | Methods | Status | Test file | Slice |
-| ----- | ------- | ------ | --------- | ----- |
-| `/api/tickets/[id]` | GET | ✅ | `tickets/[id]/route.test.ts` | #187 |
-| `/api/tickets/[id]/services` | GET, POST | ✅ | `tickets/[id]/services/route.test.ts` | #187 |
-| `/api/tickets/[id]/services/[serviceId]` | PUT, DELETE | ✅ | `tickets/[id]/services/[serviceId]/route.test.ts` | #187 |
-| `/api/tickets/[id]/invoice` | GET | ✅ | `tickets/[id]/invoice/route.test.ts` | #187 |
-
-## API routes — Users (#188)
-
-| Route | Methods | Status | Test file | Slice |
-| ----- | ------- | ------ | --------- | ----- |
-| `/api/users` | GET, POST | ✅ | `users/route.test.ts` | #188 |
-
-## API routes — Companies & operator (#189)
-
-| Route | Methods | Status | Test file | Slice |
-| ----- | ------- | ------ | --------- | ----- |
-| `/api/companies` | GET, POST, PUT | ✅ | `companies/route.test.ts` | #189 |
-| `/api/companies/[id]/export` | GET | ✅ | `companies/[id]/export/route.test.ts` | #189 |
+| `/api/tickets/[id]/invoice` | GET | ✅ | `tickets/[id]/invoice/route.test.ts` | #203 |
+| `/api/companies/[id]/export` | GET | ✅ | `companies/[id]/export/route.test.ts` | #205 |
 | `/api/companies/[id]/offboard` | POST | ✅ | `companies/[id]/offboard/route.test.ts` | #189 |
 | `/api/companies/[id]/logo` | POST, DELETE | ✅ | `companies/[id]/logo/route.test.ts` | #189 |
 | `/api/companies/[id]/readiness` | GET | ✅ | `companies/[id]/readiness/route.test.ts` | #189 |
@@ -66,7 +44,7 @@ Fixtures: `src/test/idor-fixtures.ts`
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
 | `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, getClientsForExport, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
-| `services.ts` | getServices, createService, updateService, deleteService, getServicesForExport, bulkImportServices | ✅ | `services-actions.test.ts` | #186 |
+| `services.ts` | getServices, getService, createService, updateService, deleteService, getServicesForExport, bulkImportServices | ✅ | `services-actions.test.ts` | #202 |
 
 ## Server Actions — Tickets (#187)
 

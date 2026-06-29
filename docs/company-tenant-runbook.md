@@ -8,7 +8,7 @@ Related: [company-go-live-checklist.md](company-go-live-checklist.md), [producti
 
 | Area | Module / route | Operator audience |
 | ---- | -------------- | ----------------- |
-| Bootstrap | `bootstrapCompanyTenant`, `POST /api/companies` | System company admin |
+| Bootstrap | `bootstrapCompanyTenant`, `createCompany()` Server Action | System company admin |
 | Lifecycle | `Company.status`: SETUP → ACTIVE → SUSPENDED → ARCHIVED | System company admin |
 | Readiness | `assessCompanyReadiness`, `/api/companies/[id]/readiness` | System admin + tenant owner |
 | Entitlements | `assertCompanyEntitlementAllows`, CO011 | All tenants; plan set by system admin |
@@ -26,7 +26,7 @@ Cross-company actions emit governance audit payloads with `cross_company: true` 
 
 ## Onboarding (new tenant)
 
-1. **Provision** via dashboard **Empresas → Nueva** or `POST /api/companies` (atomic bootstrap: Company + owner user + tenant-admin role + RBAC baseline).
+1. **Provision** via dashboard **Empresas → Nueva** or `createCompany()` Server Action (atomic bootstrap: Company + owner user + tenant-admin role + RBAC baseline).
 2. Confirm bootstrap governance events: `company.created`, `role.created`, `user.created` in `GovernanceAuditEvent`.
 3. Owner completes profile, RFC, currency, optional logo (Blob upload with validation).
 4. System admin sets commercial **plan** (`settings.plan`: starter | standard | enterprise) on company edit.
@@ -63,7 +63,7 @@ curl -s -H "Cookie: …" https://<host>/api/companies/<id>/entitlements | jq .
 Plans and limits live in `src/lib/company-entitlements.ts`. Enforcement points:
 
 - Server actions: `createUser`, `createClient`, `createService`, `createTicket`
-- APIs: `POST /api/users`, `/api/clients`, `/api/services`
+- Server Actions: `createUser()`, `createClient()`, `createService()` (canonical UI mutation path; REST duplicates removed in epic #200)
 
 UI surfaces `CompanyEntitlementNotice` on create entry points. System company tenants bypass entitlement limits.
 
