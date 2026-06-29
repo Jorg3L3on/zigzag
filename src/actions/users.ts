@@ -1,6 +1,6 @@
 'use server';
 
-import { desc, eq, and, isNull } from 'drizzle-orm';
+import { count, desc, eq, and, ilike, isNull, or } from 'drizzle-orm';
 import { role, user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
@@ -156,6 +156,88 @@ export async function getUsers(): Promise<{
     }));
 
     return { success: true, data: visibleUsers as UserWithRelations[] };
+  } catch (e) {
+    return handleCodedServerActionError('users.list', 'US001', e);
+  }
+}
+
+export interface PaginatedUsersData {
+  items: UserWithRelations[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Server-side paginated + searchable user list, scoped to the caller's company
+ * (system operators see all). Mirrors `getClients` so large directories stay
+ * responsive instead of loading every row to filter client-side. Search uses
+ * `ilike` (accelerated by the pg_trgm GIN indexes from migration 0018).
+ */
+export async function getUsersPaginated(params: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<{
+  success: boolean;
+  data?: PaginatedUsersData;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth();
+    await requireActionPermission('users.read', authContext.companyId);
+
+    const page = Math.max(1, Math.floor(params.page ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 20)));
+    const search = params.search?.trim();
+
+    const scope = authContext.companyIsSystem
+      ? isNull(user.deleted_at)
+      : and(
+          isNull(user.deleted_at),
+          eq(user.company_id, authContext.companyId as number),
+        );
+
+    const searchCondition = search
+      ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
+      : undefined;
+
+    const whereCondition = and(
+      scope,
+      ...(searchCondition ? [searchCondition] : []),
+    );
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(user)
+      .where(whereCondition);
+
+    const rows = await db.query.user.findMany({
+      where: whereCondition,
+      with: { company: true, role: true },
+      orderBy: [desc(user.created_at)],
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
+
+    const items = rows.map((userRow) => ({
+      ...userRow,
+      company: userRow.company?.deleted_at ? null : userRow.company,
+      role: userRow.role?.deleted_at ? null : userRow.role,
+    })) as UserWithRelations[];
+
+    return {
+      success: true,
+      data: {
+        items,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
   } catch (e) {
     return handleCodedServerActionError('users.list', 'US001', e);
   }

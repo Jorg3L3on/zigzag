@@ -1,0 +1,25 @@
+{
+  "common": {
+    "appName": "ZigZag",
+    "loading": "Cargando…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "search": "Buscar",
+    "retryHint": "Intenta de nuevo en unos momentos."
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "tickets": "Tickets",
+    "clients": "Clientes",
+    "services": "Servicios",
+    "users": "Usuarios",
+    "roles": "Roles"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "No tienes notificaciones.",
+    "markAll": "Marcar todo"
+  }
+}

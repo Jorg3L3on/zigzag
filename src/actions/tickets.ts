@@ -17,6 +17,8 @@ import {
 import { redactAuditDisplayValue } from '@/lib/audit-display';
 import { db } from '@/lib/db';
 import { recordTicketAudit } from '@/lib/ticket-audit';
+import { invalidateCompanyCache } from '@/lib/cache';
+import { acquireAdvisoryLock, ADVISORY_LOCK_NAMESPACE } from '@/lib/db-locks';
 import {
   AuthorizationError,
   buildActionError,
@@ -224,6 +226,8 @@ export async function createTicket(
         return row;
       });
     }
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
 
     return {
       success: true,
@@ -547,6 +551,8 @@ export async function updateTicket(
       },
     });
 
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+
     return { success: true, data: full ?? updated };
   } catch (e) {
     return handleCodedServerActionError('tickets.update', 'TC004', e);
@@ -594,6 +600,8 @@ export async function deleteTicket(id: number): Promise<{
         );
       }
     });
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
 
     return { success: true };
   } catch (e) {
@@ -674,6 +682,8 @@ export async function finishTicket(
       return row;
     });
 
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('tickets.finish', 'TC006', e);
@@ -699,6 +709,7 @@ export async function applyTicketPayment(
       return buildActionError('TC007', undefined, 'validation');
     }
 
+    // Fast pre-validation (fails before opening a transaction).
     const ticketRow = await db.query.ticket.findFirst({
       where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
     });
@@ -711,26 +722,50 @@ export async function applyTicketPayment(
       return buildActionError('TC007', undefined, 'validation');
     }
 
-    const totalAmount = ticketRow.total ?? 0;
-    const currentPaid = ticketRow.paid ?? 0;
-    const balanceDue = getTicketBalanceDue(ticketRow.total, ticketRow.paid);
-
-    if (balanceDue <= 0) {
+    if (getTicketBalanceDue(ticketRow.total, ticketRow.paid) <= 0) {
       return buildActionError('TC007', undefined, 'validation');
     }
 
-    const newPaid = roundMoney(Math.min(totalAmount, currentPaid + additionalPaid));
-    const appliedAmount = subtractMoney(newPaid, currentPaid);
-
-    if (appliedAmount <= AMOUNT_TOLERANCE) {
+    const previewPaid = roundMoney(
+      Math.min(ticketRow.total ?? 0, (ticketRow.paid ?? 0) + additionalPaid),
+    );
+    if (subtractMoney(previewPaid, ticketRow.paid ?? 0) <= AMOUNT_TOLERANCE) {
       return buildActionError('TC007', undefined, 'validation');
     }
 
-    const updated = await db.transaction(async (tx) => {
+    // Authoritative read + write happen inside one transaction guarded by a
+    // Postgres advisory lock so concurrent collections cannot double-apply.
+    const result = await db.transaction(async (tx) => {
+      await acquireAdvisoryLock(
+        tx,
+        ADVISORY_LOCK_NAMESPACE.ticketPayment,
+        ticketId,
+      );
+
+      const fresh = await tx.query.ticket.findFirst({
+        where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
+      });
+
+      if (!fresh || !fresh.finished) {
+        return { status: 'invalid' as const };
+      }
+
+      const totalAmount = fresh.total ?? 0;
+      const currentPaid = fresh.paid ?? 0;
+      const newPaid = roundMoney(
+        Math.min(totalAmount, currentPaid + additionalPaid),
+      );
+      const appliedAmount = subtractMoney(newPaid, currentPaid);
+
+      if (appliedAmount <= AMOUNT_TOLERANCE) {
+        // A concurrent collection already covered this balance; no-op.
+        return { status: 'noop' as const, row: fresh };
+      }
+
       await tx.insert(ticketPayment).values({
         ticket_id: ticketId,
         amount: appliedAmount,
-        company_id: ticketRow.company_id,
+        company_id: fresh.company_id,
       });
 
       const [row] = await tx
@@ -753,7 +788,7 @@ export async function applyTicketPayment(
           effectiveCompanyId,
           'payment_collected',
           {
-            before: ticketRow,
+            before: fresh,
             after: row,
             payment: {
               requestedAmount: additionalPaid,
@@ -763,14 +798,19 @@ export async function applyTicketPayment(
         );
       }
 
-      return row;
+      return { status: 'ok' as const, row };
     });
 
+    if (result.status === 'invalid') {
+      return buildActionError('TC007', undefined, 'validation');
+    }
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     revalidatePath('/dashboard');
     revalidatePath('/tickets');
     revalidatePath(`/tickets/${id}`);
 
-    return { success: true, data: updated };
+    return { success: true, data: result.row };
   } catch (e) {
     return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
   }

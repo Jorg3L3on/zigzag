@@ -13,6 +13,28 @@ import { checkPermission } from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
 import { convertBigIntToString } from '@/lib/utils';
 import { recordPermissionDeniedAudit } from '@/lib/audit-security';
+import { checkRateLimit, type RateLimitOptions } from '@/lib/rate-limiter';
+
+/** Default budget for authenticated API writes: generous, abuse-stopping. */
+const DEFAULT_API_RATE_LIMIT: RateLimitOptions = {
+  limit: 240,
+  windowMs: 60_000,
+};
+
+/**
+ * Enforce a rate limit for an API caller. Returns a 429 `fail()` response when
+ * the budget is exceeded, otherwise null. Fails open if the backend is down.
+ */
+export async function enforceApiRateLimit(
+  identifier: string,
+  options: RateLimitOptions = DEFAULT_API_RATE_LIMIT,
+) {
+  const allowed = await checkRateLimit(identifier, options);
+  if (!allowed) {
+    return fail('GN004', 429);
+  }
+  return null;
+}
 
 export function ok<T>(data: T, status = 200) {
   return NextResponse.json(
@@ -87,6 +109,11 @@ export async function requireApiPermission(
   const { session, unauthorized } = await requireSession();
   if (unauthorized || !session) {
     return { session: null, companyId: null, unauthorized };
+  }
+
+  const rateLimited = await enforceApiRateLimit(`api:user:${session.user.id}`);
+  if (rateLimited) {
+    return { session: null, companyId: null, unauthorized: rateLimited };
   }
 
   const actor = {

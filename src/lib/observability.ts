@@ -40,3 +40,33 @@ export const captureException = (error: unknown, meta?: LogMeta): void => {
     { ...meta, error },
   );
 };
+
+/** Threshold (ms) above which a span is logged as a slow operation. */
+const SLOW_SPAN_MS = 500;
+
+/**
+ * Trace an async operation: opens a Sentry span (OpenTelemetry-compatible) when
+ * configured, measures wall-clock duration, and logs slow operations. Errors
+ * are reported and re-thrown so callers keep their existing control flow.
+ *
+ * Use to instrument hot paths such as dashboard aggregation or export jobs:
+ *   const data = await withSpan('dashboard.load', () => loadMetrics(id));
+ */
+export const withSpan = async <T>(
+  name: string,
+  operation: () => Promise<T>,
+  meta?: LogMeta,
+): Promise<T> => {
+  const start = Date.now();
+  try {
+    return await Sentry.startSpan({ name, op: 'function' }, () => operation());
+  } catch (error) {
+    captureException(error, { span: name, ...meta });
+    throw error;
+  } finally {
+    const durationMs = Date.now() - start;
+    if (durationMs >= SLOW_SPAN_MS) {
+      logger.warn('Slow operation', { span: name, durationMs, ...meta });
+    }
+  }
+};

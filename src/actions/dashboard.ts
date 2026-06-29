@@ -24,6 +24,8 @@ import {
   type RevenueByMonthPoint,
 } from '@/lib/dashboard-metrics';
 import { checkPermission } from '@/lib/security';
+import { createCompanyCache } from '@/lib/cache';
+import { withSpan } from '@/lib/observability';
 
 export type DashboardRecentTicket = {
   id: string;
@@ -226,6 +228,21 @@ export async function loadDashboardMetricsForCompany(
 }
 
 /**
+ * Read-through cached variant. Dashboard data is display-only and tolerant of
+ * brief staleness, so it is cached per company (tag `company:{id}:dashboard`)
+ * and invalidated by ticket mutations via `invalidateCompanyCache`.
+ */
+const loadDashboardMetricsCached = createCompanyCache(
+  (companyId: number, monthCount: DashboardMonthCount) =>
+    withSpan(
+      'dashboard.load',
+      () => loadDashboardMetricsForCompany(companyId, monthCount),
+      { companyId, monthCount },
+    ),
+  'dashboard',
+);
+
+/**
  * Loads dashboard metrics for the authenticated user.
  * Non-system users are always scoped to `session.user.company_id`.
  * System users may pass `companyId` to view another company.
@@ -255,5 +272,5 @@ export async function fetchDashboardMetrics(
     return buildActionError('AU002');
   }
 
-  return loadDashboardMetricsForCompany(effectiveCompanyId, monthCount);
+  return loadDashboardMetricsCached(effectiveCompanyId, monthCount);
 }

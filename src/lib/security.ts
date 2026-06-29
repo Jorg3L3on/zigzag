@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from './db';
@@ -16,6 +17,18 @@ export {
   type ActionAuthContext,
 } from './authz-context';
 
+/**
+ * Load the active (non-deleted) user with its company. Wrapped in React
+ * `cache()` so multiple calls within a single request (e.g. `requireActionAuth`
+ * followed by `checkPermission`) reuse one query instead of hitting the DB twice.
+ */
+const loadActiveUserWithCompany = cache(async (userId: string) =>
+  db.query.user.findFirst({
+    where: and(eq(user.id, BigInt(userId)), isNull(user.deleted_at)),
+    with: { company: true },
+  }),
+);
+
 // Permission checking
 export async function checkPermission(
   userId: string,
@@ -28,13 +41,7 @@ export async function checkPermission(
       throw new AuthorizationError('User not authenticated');
     }
 
-    const userIdAsBigInt = BigInt(userId);
-    const userRow = await db.query.user.findFirst({
-      where: and(eq(user.id, userIdAsBigInt), isNull(user.deleted_at)),
-      with: {
-        company: true,
-      },
-    });
+    const userRow = await loadActiveUserWithCompany(userId);
 
     if (
       !userRow?.company ||
@@ -131,12 +138,7 @@ export async function requireActionAuth(): Promise<ActionAuthContext> {
     throw new AuthorizationError('Authentication required');
   }
 
-  const activeUser = await db.query.user.findFirst({
-    where: and(eq(user.id, BigInt(session.user.id)), isNull(user.deleted_at)),
-    with: {
-      company: true,
-    },
-  });
+  const activeUser = await loadActiveUserWithCompany(session.user.id);
 
   if (
     !activeUser?.company ||

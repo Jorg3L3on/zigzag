@@ -210,6 +210,13 @@ export const ERROR_CATALOG = {
     message: 'Revisa los campos marcados e intenta de nuevo.',
     type: 'validation',
   },
+  GN004: {
+    code: 'GN004',
+    module: 'generic',
+    title: 'Demasiadas solicitudes',
+    message: 'Has hecho demasiadas solicitudes. Intenta de nuevo en unos minutos.',
+    type: 'unknown',
+  },
   PDF001: {
     code: 'PDF001',
     module: 'pdf',

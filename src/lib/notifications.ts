@@ -3,6 +3,7 @@ import { and, eq, isNull, lte } from 'drizzle-orm';
 import { clientServiceSchedule, notification } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyScheduleBucket, DUE_SOON_DAYS } from '@/lib/schedule-buckets';
+import { emitRealtimeEvent } from '@/lib/realtime/events';
 
 const dueDateKey = (date: Date): string => format(startOfDay(date), 'yyyy-MM-dd');
 
@@ -67,6 +68,11 @@ export const materializeScheduleNotificationsForCompany = async (
   }
 
   await db.insert(notification).values(rows).onConflictDoNothing();
+  await emitRealtimeEvent({
+    type: 'notification',
+    companyId,
+    resourceType: 'client_service_schedule',
+  });
   return rows.length;
 };
 

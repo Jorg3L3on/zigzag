@@ -404,6 +404,65 @@ export const notification = pgTable(
   ],
 );
 
+/**
+ * Distributed fixed-window rate limit counters (no Redis). One row per
+ * identifier (e.g. `login:email:x`, `api:user:1`); the window resets when
+ * `reset_at` passes. See `src/lib/rate-limit-store.ts`.
+ */
+export const rateLimit = pgTable('RateLimit', {
+  identifier: text('identifier').primaryKey(),
+  count: integer('count').notNull().default(0),
+  reset_at: timestamp('reset_at', { precision: 3, mode: 'date' }).notNull(),
+});
+
+/**
+ * Postgres-backed background job queue (no Redis broker). Workers claim due
+ * `pending` rows with `FOR UPDATE SKIP LOCKED`, run the handler for `type`, then
+ * mark the row `completed`/`failed`. Drained by `/api/cron/jobs` (Vercel Cron).
+ */
+export const jobQueue = pgTable(
+  'JobQueue',
+  {
+    id: serial('id').primaryKey(),
+    type: text('type').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown> | null>(),
+    status: text('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    max_attempts: integer('max_attempts').notNull().default(5),
+    run_at: timestamp('run_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    locked_at: timestamp('locked_at', { precision: 3, mode: 'date' }),
+    last_error: text('last_error'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
+  },
+  (t) => [index('JobQueue_status_run_at_idx').on(t.status, t.run_at)],
+);
+
+/**
+ * Transactional outbox for unified audit events. When a direct `AuditEvent`
+ * write fails, the event is captured here (durably) instead of being dropped,
+ * and `processAuditOutbox` replays it. Fixes the previous fail-open behavior.
+ */
+export const auditOutbox = pgTable(
+  'AuditOutbox',
+  {
+    id: serial('id').primaryKey(),
+    event: jsonb('event').$type<Record<string, unknown>>().notNull(),
+    status: text('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    last_error: text('last_error'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    processed_at: timestamp('processed_at', { precision: 3, mode: 'date' }),
+  },
+  (t) => [index('AuditOutbox_status_idx').on(t.status)],
+);
+
 export const rolePermission = pgTable(
   'RolePermission',
   {
@@ -579,3 +638,6 @@ export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
 export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;
 export type NotificationRow = typeof notification.$inferSelect;
+export type RateLimitRow = typeof rateLimit.$inferSelect;
+export type JobQueueRow = typeof jobQueue.$inferSelect;
+export type AuditOutboxRow = typeof auditOutbox.$inferSelect;

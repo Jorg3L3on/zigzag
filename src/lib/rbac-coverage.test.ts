@@ -87,8 +87,9 @@ describe('RBAC coverage', () => {
     const allowedPublicRoutes = new Set([
       'src/app/api/auth/[...nextauth]/route.ts',
       'src/app/api/health/route.ts',
-      // Cron endpoint secured with CRON_SECRET rather than a user session.
+      // Cron endpoints secured with CRON_SECRET rather than a user session.
       'src/app/api/cron/notifications/route.ts',
+      'src/app/api/cron/jobs/route.ts',
     ]);
 
     const missing = routeFiles

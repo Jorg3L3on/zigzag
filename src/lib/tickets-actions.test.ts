@@ -133,6 +133,14 @@ describe('ticket actions — payments', () => {
       const updatedRow = { ...writableTicket, paid: 100 };
       mockDb.transaction.mockImplementation(async (callback) => {
         const tx = {
+          // Advisory lock acquisition (pg_advisory_xact_lock).
+          execute: jest.fn(async () => ({ rows: [] })),
+          // Authoritative re-read performed inside the locked transaction.
+          query: {
+            ticket: {
+              findFirst: jest.fn(async () => writableTicket),
+            },
+          },
           insert: jest.fn(() => ({
             values: jest.fn(async () => []),
           })),

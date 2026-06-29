@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, isNull, or } from 'drizzle-orm';
 import {
   role,
   rolePermission,
@@ -101,6 +101,97 @@ export async function getRoles(): Promise<{
     }));
 
     return { success: true, data: visibleRoles as RoleWithRelations[] };
+  } catch (error) {
+    return handleCodedServerActionError('roles.list', 'RL001', error);
+  }
+}
+
+export interface PaginatedRolesData {
+  items: RoleWithRelations[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Server-side paginated + searchable role list, scoped to the caller's company
+ * (system operators see all). Mirrors `getClients`; search uses `ilike` over the
+ * role name (accelerated by the pg_trgm GIN index from migration 0018).
+ */
+export async function getRolesPaginated(params: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<{
+  success: boolean;
+  data?: PaginatedRolesData;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth();
+    await requireActionPermission('roles.read', authContext.companyId);
+
+    const page = Math.max(1, Math.floor(params.page ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 20)));
+    const search = params.search?.trim();
+
+    const scope = authContext.companyIsSystem
+      ? isNull(role.deleted_at)
+      : and(
+          isNull(role.deleted_at),
+          eq(role.company_id, authContext.companyId as number),
+        );
+
+    const searchCondition = search
+      ? or(ilike(role.name, `%${search}%`), ilike(role.description, `%${search}%`))
+      : undefined;
+
+    const whereCondition = and(
+      scope,
+      ...(searchCondition ? [searchCondition] : []),
+    );
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(role)
+      .where(whereCondition);
+
+    const roles = await db.query.role.findMany({
+      where: whereCondition,
+      with: {
+        company: true,
+        permissions: { with: { permission: true } },
+      },
+      orderBy: [desc(role.created_at)],
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+    });
+
+    const items = roles.map((roleRow) => ({
+      ...roleRow,
+      company: roleRow.company?.deleted_at ? null : roleRow.company,
+      permissions: roleRow.permissions
+        .map((assignment) => ({
+          ...assignment,
+          permission: assignment.permission?.deleted_at
+            ? null
+            : assignment.permission,
+        }))
+        .filter((assignment) => assignment.permission !== null),
+    })) as RoleWithRelations[];
+
+    return {
+      success: true,
+      data: {
+        items,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
   } catch (error) {
     return handleCodedServerActionError('roles.list', 'RL001', error);
   }
