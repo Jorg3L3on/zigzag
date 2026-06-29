@@ -30,10 +30,10 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/tickets/[id]` | GET | 🟡 | `route.test.ts` (RBAC only) | #187 |
-| `/api/tickets/[id]/services` | GET, POST | ⬜ | — | #187 |
-| `/api/tickets/[id]/services/[serviceId]` | PUT, DELETE | ⬜ | — | #187 |
-| `/api/tickets/[id]/invoice` | GET | 🟡 | `invoice/route.test.ts` (partial) | #187 |
+| `/api/tickets/[id]` | GET | ✅ | `tickets/[id]/route.test.ts` | #187 |
+| `/api/tickets/[id]/services` | GET, POST | ✅ | `tickets/[id]/services/route.test.ts` | #187 |
+| `/api/tickets/[id]/services/[serviceId]` | PUT, DELETE | ✅ | `tickets/[id]/services/[serviceId]/route.test.ts` | #187 |
+| `/api/tickets/[id]/invoice` | GET | ✅ | `tickets/[id]/invoice/route.test.ts` | #187 |
 
 ## API routes — Users (#188)
 
@@ -72,8 +72,8 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketsForExport, getTicketAuditHistory | ⬜ | — | #187 |
-| `ticket-services.ts` | getTicketServices, createServiceTicket, updateServiceTicket, deleteServiceTicket | ⬜ | — | #187 |
+| `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketsForExport, getTicketAuditHistory | ✅ | `src/lib/tickets-actions.test.ts` | #187 |
+| `ticket-services.ts` | getTicketServices, createServiceTicket, updateServiceTicket, deleteServiceTicket | ✅ | `src/lib/ticket-services-actions.test.ts` | #187 |
 
 ## Server Actions — Users, Roles, Permissions (#188)
 
@@ -139,6 +139,6 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 ## Audit sign-off
 
-- **Last updated:** foundation slice (#185)
+- **Last updated:** tickets slice (#187)
 - **Known leaks:** TBD (fix in owning slice)
 - **Reviewer sign-off:** pending epic completion (#191)

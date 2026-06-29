@@ -1,6 +1,15 @@
-import { getTicketServices } from '@/actions/ticket-services';
+import {
+  createServiceTicket,
+  deleteServiceTicket,
+  getTicketServices,
+  updateServiceTicket,
+} from '@/actions/ticket-services';
 import { db } from '@/lib/db';
 import { requireActionPermission } from '@/lib/security';
+import {
+  IDOR_RESOURCES_A,
+  mockActionCrossTenantDenied,
+} from '@/test/cross-tenant-action-helpers';
 
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
@@ -88,5 +97,56 @@ describe('ticket-services actions', () => {
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe('TS001');
     expect(mockDb.query.servicesTickets.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('cross-tenant IDOR — ticket-services actions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it.each([
+    [
+      'getTicketServices',
+      () => getTicketServices(String(IDOR_RESOURCES_A.ticketId)),
+    ],
+    [
+      'createServiceTicket',
+      () =>
+        createServiceTicket(String(IDOR_RESOURCES_A.ticketId), {
+          service_id: IDOR_RESOURCES_A.serviceId,
+          quantity: 1,
+          price: 100,
+        }),
+    ],
+    [
+      'updateServiceTicket',
+      () =>
+        updateServiceTicket(
+          String(IDOR_RESOURCES_A.ticketId),
+          IDOR_RESOURCES_A.serviceId,
+          { quantity: 2, price: 50 },
+        ),
+    ],
+    [
+      'deleteServiceTicket',
+      () =>
+        deleteServiceTicket(
+          String(IDOR_RESOURCES_A.ticketId),
+          IDOR_RESOURCES_A.serviceId,
+        ),
+    ],
+  ])('%s denies cross-tenant company context', async (_name, call) => {
+    mockActionCrossTenantDenied(mockRequireActionPermission as unknown as jest.Mock);
+
+    const result = await call();
+
+    expect(result.success).toBe(false);
+    expect(mockRequireActionPermission).toHaveBeenCalled();
   });
 });

@@ -1,10 +1,21 @@
-import { applyTicketPayment, finishTicket } from '@/actions/tickets';
+import {
+  applyTicketPayment,
+  createTicket,
+  deleteTicket,
+  finishTicket,
+  getTicketAuditHistory,
+  getTicketById,
+  getTickets,
+  updateTicket,
+} from '@/actions/tickets';
 import { db } from '@/lib/db';
+import { AuthorizationError } from '@/lib/errors';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import {
   requireTicketRead,
   requireTicketWrite,
 } from '@/lib/tickets-rbac-server';
+import { IDOR_COMPANY_A, IDOR_RESOURCES_A } from '@/test/idor-fixtures';
 
 jest.mock('@/lib/db', () => ({
   db: {
@@ -51,6 +62,9 @@ const mockDb = db as unknown as {
 
 const mockRequireTicketWrite = requireTicketWrite as jest.MockedFunction<
   typeof requireTicketWrite
+>;
+const mockRequireTicketRead = requireTicketRead as jest.MockedFunction<
+  typeof requireTicketRead
 >;
 const mockRecordTicketAudit = recordTicketAudit as jest.MockedFunction<
   typeof recordTicketAudit
@@ -255,5 +269,100 @@ describe('ticket actions — read guard wiring', () => {
 
     await requireTicketRead(10);
     expect(requireTicketRead).toHaveBeenCalledWith(10);
+  });
+});
+
+describe('cross-tenant IDOR — ticket actions', () => {
+  const crossTenantError = new AuthorizationError(
+    'Access denied to requested company',
+  );
+
+  const createTicketPayload = {
+    client_id: 1,
+    client_name: 'Cliente',
+    client_tel: '5551234567',
+    email: 'cliente@example.com',
+    document: 'ABC123',
+    ticket_date: new Date('2026-01-01T00:00:00.000Z'),
+    services: [{ service_id: 1, quantity: 1, price: 100 }],
+    company_id: IDOR_COMPANY_A.id,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireTicketRead.mockRejectedValue(crossTenantError);
+    mockRequireTicketWrite.mockRejectedValue(crossTenantError);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('getTicketById denies cross-tenant requested company context', async () => {
+    const result = await getTicketById(
+      IDOR_RESOURCES_A.ticketId,
+      IDOR_COMPANY_A.id,
+    );
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketRead).toHaveBeenCalledWith(IDOR_COMPANY_A.id);
+  });
+
+  it('updateTicket denies cross-tenant requested company context', async () => {
+    const result = await updateTicket(IDOR_RESOURCES_A.ticketId, {
+      client_name: 'Updated',
+      company_id: IDOR_COMPANY_A.id,
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith(IDOR_COMPANY_A.id);
+  });
+
+  it('deleteTicket denies cross-tenant access before mutation', async () => {
+    const result = await deleteTicket(IDOR_RESOURCES_A.ticketId);
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('finishTicket denies cross-tenant access before mutation', async () => {
+    const result = await finishTicket(IDOR_RESOURCES_A.ticketId, 100, 50);
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('applyTicketPayment denies cross-tenant access before mutation', async () => {
+    const result = await applyTicketPayment(IDOR_RESOURCES_A.ticketId, 10);
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('getTicketAuditHistory denies cross-tenant access before lookup', async () => {
+    const result = await getTicketAuditHistory(IDOR_RESOURCES_A.ticketId);
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketRead).toHaveBeenCalledWith();
+    expect(mockDb.query.ticket.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('getTickets denies cross-tenant requested company context', async () => {
+    const result = await getTickets(IDOR_COMPANY_A.id);
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketRead).toHaveBeenCalledWith(IDOR_COMPANY_A.id);
+  });
+
+  it('createTicket denies cross-tenant requested company context', async () => {
+    const result = await createTicket(createTicketPayload);
+
+    expect(result.success).toBe(false);
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith(IDOR_COMPANY_A.id);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,13 @@ import { buildFintechInvoicePayload } from '@/lib/fintech-invoice-payload';
 import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
 import { renderFintechInvoicePdf } from '@/lib/fintech-invoice-renderer';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
+import {
+  IDOR_COMPANY_A,
+  IDOR_COMPANY_B,
+  IDOR_RESOURCES_A,
+  mockTenantBCrossTenantDenied,
+  mockTenantBAllowed,
+} from '@/test/cross-tenant-helpers';
 
 jest.mock('@/lib/api-helpers', () => ({
   fail: jest.fn((code, status = 400, errorType) => ({
@@ -137,5 +144,41 @@ describe('GET /api/tickets/[id]/invoice', () => {
     expect(mockRequireApiPermission).toHaveBeenCalledWith('tickets.read', 10);
     expect(mockGetTicketById).toHaveBeenCalledWith(42, 10);
     expect(mockRecordDocumentGeneratedAudit).toHaveBeenCalled();
+  });
+
+  it('returns 403 when Company B requests Company A invoice context', async () => {
+    mockRequireApiPermission.mockResolvedValue(mockTenantBCrossTenantDenied());
+
+    const response = await GET(
+      makeGetRequest(
+        `http://localhost/api/tickets/${IDOR_RESOURCES_A.ticketId}/invoice?company_id=${IDOR_COMPANY_A.id}`,
+      ),
+      makeContext(String(IDOR_RESOURCES_A.ticketId)),
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockGetTicketById).not.toHaveBeenCalled();
+    expect(mockRenderFintechInvoicePdf).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when Company B requests foreign Company A ticket invoice', async () => {
+    mockRequireApiPermission.mockResolvedValue(mockTenantBAllowed());
+    mockGetTicketById.mockResolvedValue({
+      success: false,
+      error: 'Ticket not found',
+      errorCode: 'TC008',
+      errorType: 'validation',
+    });
+
+    const response = await GET(
+      makeGetRequest(
+        `http://localhost/api/tickets/${IDOR_RESOURCES_A.ticketId}/invoice?company_id=${IDOR_COMPANY_B.id}`,
+      ),
+      makeContext(String(IDOR_RESOURCES_A.ticketId)),
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ success: false, error: 'TC008' });
+    expect(mockRenderFintechInvoicePdf).not.toHaveBeenCalled();
   });
 });
