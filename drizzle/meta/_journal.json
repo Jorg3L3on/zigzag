@@ -134,6 +134,13 @@
       "when": 1781036800000,
       "tag": "0018_search_trgm_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1781123200000,
+      "tag": "0019_idor_audit_fks",
+      "breakpoints": true
     }
   ]
 }
