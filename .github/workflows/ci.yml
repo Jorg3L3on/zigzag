@@ -64,8 +64,12 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: E2E (critical path)
+      - name: E2E (critical path, includes axe-core a11y gate)
         run: npm run test:e2e
 
       - name: Build
         run: npm run build
+
+      - name: Lighthouse (mobile baseline, informational)
+        run: npm run lighthouse:mobile
+        continue-on-error: true

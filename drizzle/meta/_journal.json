@@ -113,6 +113,27 @@
       "when": 1780777600000,
       "tag": "0015_list_performance_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1780864000000,
+      "tag": "0016_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1780950400000,
+      "tag": "0017_jobs_and_audit_outbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781036800000,
+      "tag": "0018_search_trgm_indexes",
+      "breakpoints": true
     }
   ]
 }

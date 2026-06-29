@@ -1,16 +1,16 @@
 /**
- * Rate limiting.
+ * Rate limiting (no Redis).
  *
  * Production runs on Vercel serverless where process memory is per-instance and
- * short-lived, so an in-memory map cannot enforce limits across requests. When
- * an Upstash Redis / Vercel KV REST endpoint is configured this module uses it
- * (fixed window via INCR + EXPIRE); otherwise it falls back to an in-memory
- * limiter suitable for local development and tests.
+ * short-lived, so an in-memory map cannot enforce limits across requests. The
+ * distributed backend is Postgres (a fixed-window counter in the `RateLimit`
+ * table); an in-memory limiter is kept as a fallback for local development and
+ * tests, and as a fail-open path if the database is briefly unreachable.
  *
- * Supported env vars (either pair works):
- *   - UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
- *   - KV_REST_API_URL + KV_REST_API_TOKEN  (Vercel KV)
+ * The Postgres backend is used when `NODE_ENV === 'production'` or when
+ * `RATE_LIMIT_BACKEND=postgres` is set; otherwise the in-memory limiter is used.
  */
+import { logger } from '@/lib/logger';
 
 /** In-memory fixed-window limiter. Used as a fallback and in tests. */
 export class RateLimiter {
@@ -49,45 +49,6 @@ export class RateLimiter {
   }
 }
 
-type RedisRestConfig = {
-  url: string;
-  token: string;
-};
-
-const getRedisRestConfig = (): RedisRestConfig | null => {
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token =
-    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  if (!url || !token) {
-    return null;
-  }
-  return { url: url.replace(/\/$/, ''), token };
-};
-
-const redisCommand = async (
-  config: RedisRestConfig,
-  command: (string | number)[],
-): Promise<{ result: unknown } | null> => {
-  try {
-    const response = await fetch(config.url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(command),
-      cache: 'no-store',
-    });
-    if (!response.ok) {
-      return null;
-    }
-    return (await response.json()) as { result: unknown };
-  } catch {
-    return null;
-  }
-};
-
 export type RateLimitOptions = {
   limit: number;
   windowMs: number;
@@ -105,48 +66,49 @@ const getFallbackLimiter = (options: RateLimitOptions): RateLimiter => {
   return limiter;
 };
 
+const shouldUsePostgres = (): boolean =>
+  process.env.RATE_LIMIT_BACKEND === 'postgres' ||
+  process.env.NODE_ENV === 'production';
+
 /**
  * Returns true if the identifier is within the rate limit for this call.
- * Distributed when Redis/KV is configured, in-memory otherwise.
+ * Distributed via Postgres when enabled, in-memory otherwise (and as a
+ * fail-open fallback if the database call fails).
  */
 export const checkRateLimit = async (
   identifier: string,
   options: RateLimitOptions,
 ): Promise<boolean> => {
-  const config = getRedisRestConfig();
-  if (!config) {
+  if (!shouldUsePostgres()) {
     return getFallbackLimiter(options).isAllowed(identifier);
   }
 
-  const key = `ratelimit:${identifier}`;
-  const windowSeconds = Math.ceil(options.windowMs / 1000);
-
-  const incr = await redisCommand(config, ['INCR', key]);
-  if (!incr) {
-    // If Redis is unreachable, fail open to the in-memory limiter rather than
-    // locking everyone out.
+  try {
+    const { checkRateLimitPg } = await import('@/lib/rate-limit-store');
+    return await checkRateLimitPg(identifier, options);
+  } catch (error) {
+    // Fail open to the in-memory limiter rather than locking everyone out.
+    logger.warn('Rate limit store unavailable; using in-memory fallback', {
+      error,
+    });
     return getFallbackLimiter(options).isAllowed(identifier);
   }
-
-  const count = Number(incr.result ?? 0);
-  if (count === 1) {
-    await redisCommand(config, ['EXPIRE', key, windowSeconds]);
-  }
-
-  return count <= options.limit;
 };
 
 /** Clears any stored counter for the identifier (e.g. after a success). */
 export const resetRateLimit = async (identifier: string): Promise<void> => {
-  const config = getRedisRestConfig();
-  if (!config) {
-    getFallbackLimiter({ limit: 0, windowMs: 0 });
-    for (const limiter of fallbackLimiters.values()) {
-      limiter.reset(identifier);
-    }
+  for (const limiter of fallbackLimiters.values()) {
+    limiter.reset(identifier);
+  }
+  if (!shouldUsePostgres()) {
     return;
   }
-  await redisCommand(config, ['DEL', `ratelimit:${identifier}`]);
+  try {
+    const { resetRateLimitPg } = await import('@/lib/rate-limit-store');
+    await resetRateLimitPg(identifier);
+  } catch (error) {
+    logger.warn('Rate limit reset failed', { error });
+  }
 };
 
 const LOGIN_LIMIT = 5;
@@ -175,6 +137,17 @@ export const checkLoginRateLimit = async (
   return emailAllowed && ipAllowed;
 };
 
-export const resetLoginRateLimit = async (email: string): Promise<void> => {
+/**
+ * Clear login counters after a successful sign-in. Resets both the per-email and
+ * per-IP keys so a legitimate high-volume source (shared office NAT, automated
+ * test runner) is not locked out by the per-IP cap after repeated good logins.
+ */
+export const resetLoginRateLimit = async (
+  email: string,
+  ip?: string | null,
+): Promise<void> => {
   await resetRateLimit(`login:email:${email}`);
+  if (ip) {
+    await resetRateLimit(`login:ip:${ip}`);
+  }
 };

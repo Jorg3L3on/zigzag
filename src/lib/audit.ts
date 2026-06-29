@@ -1,5 +1,6 @@
-import { auditEvent, type User } from '@/db/schema';
-import type { db } from '@/lib/db';
+import { auditEvent, auditOutbox, type User } from '@/db/schema';
+import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import {
   assertAuditAction,
   assertAuditResourceType,
@@ -114,6 +115,29 @@ export type RecordAuditEventInput = {
   occurredAt?: Date;
 };
 
+/**
+ * Build a fully-serialized, JSON-safe representation of an audit event suitable
+ * for storage in the outbox (and replay into `AuditEvent`). `actor_user_id` is
+ * kept as a string so it survives JSON round-tripping; the worker re-casts it.
+ */
+export const buildAuditEventRow = (
+  input: RecordAuditEventInput,
+): Record<string, unknown> => ({
+  occurred_at: (input.occurredAt ?? new Date()).toISOString(),
+  actor_user_id: input.actor?.userId ?? null,
+  actor_company_id: input.actor?.companyId ?? null,
+  target_company_id: input.targetCompanyId,
+  resource_type: input.resourceType,
+  resource_id: normalizeAuditResourceId(input.resourceId),
+  action: input.action,
+  result: input.result,
+  source: input.source,
+  payload:
+    input.payload === undefined ? null : toAuditJson(input.payload),
+  request_meta:
+    input.requestMeta === undefined ? null : toAuditJson(input.requestMeta),
+});
+
 export const recordAuditEvent = async (
   tx: AuditWriter,
   input: RecordAuditEventInput,
@@ -148,11 +172,23 @@ export const recordAuditEvent = async (
       request_meta: requestMeta,
     });
   } catch (error) {
-    console.error('[audit][recordAuditEvent] failed to persist audit event', {
+    // Fail-safe (not fail-open): the direct write failed, so capture the event
+    // durably in the outbox for replay instead of silently dropping it. The
+    // outbox insert uses a fresh `db` handle in case `tx` is already aborted.
+    logger.error('[audit] direct write failed; capturing to outbox', {
       resourceType: input.resourceType,
       action: input.action,
       result: input.result,
       error,
     });
+    try {
+      await db.insert(auditOutbox).values({ event: buildAuditEventRow(input) });
+    } catch (outboxError) {
+      logger.error('[audit] outbox capture failed', {
+        resourceType: input.resourceType,
+        action: input.action,
+        outboxError,
+      });
+    }
   }
 };

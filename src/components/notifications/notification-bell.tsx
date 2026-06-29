@@ -17,6 +17,7 @@ import {
   markNotificationRead,
 } from '@/actions/notifications';
 import type { NotificationRow } from '@/db/schema';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -71,6 +72,23 @@ export const NotificationBell = () => {
       void loadItems();
     }
   }, [open, loadItems]);
+
+  // Live updates via SSE (Postgres LISTEN/NOTIFY) — refresh immediately when a
+  // notification or export-ready event arrives, instead of waiting for the poll.
+  useRealtimeEvents(
+    React.useCallback(
+      (event) => {
+        if (event.type === 'notification' || event.type === 'export_ready') {
+          if (open) {
+            void loadItems();
+          } else {
+            void refreshCount();
+          }
+        }
+      },
+      [open, loadItems, refreshCount],
+    ),
+  );
 
   const handleMarkRead = async (id: number) => {
     setItems((prev) =>

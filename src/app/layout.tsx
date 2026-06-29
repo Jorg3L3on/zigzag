@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
@@ -47,23 +49,28 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="es">
+    <html lang={locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <CompanyProvider>
-          <Providers>
-            <NetworkStatusBanner />
-            {children}
-            <AppToaster />
-          </Providers>
-        </CompanyProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <CompanyProvider>
+            <Providers>
+              <NetworkStatusBanner />
+              {children}
+              <AppToaster />
+            </Providers>
+          </CompanyProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

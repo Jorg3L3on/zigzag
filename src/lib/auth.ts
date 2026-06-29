@@ -145,7 +145,7 @@ export const {
             }
           }
 
-          await resetLoginRateLimit(email);
+          await resetLoginRateLimit(email, clientIp);
 
           return {
             id: String(row.id),
