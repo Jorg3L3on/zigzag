@@ -39,7 +39,7 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/users` | GET, POST | ⬜ | — | #188 |
+| `/api/users` | GET, POST | ✅ | `users/route.test.ts` | #188 |
 
 ## API routes — Companies & operator (#189)
 
@@ -79,9 +79,9 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `users.ts` | getUsers, getUsersPaginated, createUser, updateUser, updateOwnAccount, deleteUser | ⬜ | — | #188 |
-| `roles.ts` | getRoles, getRolesPaginated, createRole, updateRole, deleteRole | ⬜ | — | #188 |
-| `permissions.ts` | getPermissions, getPermissionsByCompany, createPermission, updatePermission, deletePermission, assignPermissionToRole, removePermissionFromRole | ⬜ | — | #188 |
+| `users.ts` | getUsers, getUsersPaginated, createUser, updateUser, updateOwnAccount, deleteUser | ✅ | `users-actions.test.ts` | #188 |
+| `roles.ts` | getRoles, getRolesPaginated, createRole, updateRole, deleteRole | ✅ | `roles-actions.test.ts` | #188 |
+| `permissions.ts` | getPermissions, getPermissionsByCompany, createPermission, updatePermission, deletePermission, assignPermissionToRole, removePermissionFromRole | ✅ | `permissions-actions.test.ts` | #188 |
 
 ## Server Actions — Companies & operator (#189)
 

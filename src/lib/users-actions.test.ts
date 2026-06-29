@@ -1,5 +1,16 @@
-import { updateOwnAccount, updateUser } from '@/actions/users';
+import {
+  createUser,
+  deleteUser,
+  getUsers,
+  getUsersPaginated,
+  updateOwnAccount,
+  updateUser,
+} from '@/actions/users';
 import { db } from '@/lib/db';
+import { IDOR_COMPANY_A, IDOR_RESOURCES_A } from '@/test/cross-tenant-action-helpers';
+import {
+  mockActionCrossTenantDenied,
+} from '@/test/cross-tenant-action-helpers';
 import {
   requireActionAuth,
   requireActionPermission,
@@ -9,8 +20,14 @@ import { compare, hash } from 'bcryptjs';
 
 jest.mock('@/lib/db', () => ({
   db: {
+    select: jest.fn(),
+    insert: jest.fn(),
     query: {
       user: {
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+      },
+      role: {
         findFirst: jest.fn(),
       },
     },
@@ -40,8 +57,14 @@ jest.mock('@/lib/governance-audit', () => ({
 }));
 
 const mockDb = db as unknown as {
+  select: jest.Mock;
+  insert: jest.Mock;
   query: {
     user: {
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
+    };
+    role: {
       findFirst: jest.Mock;
     };
   };
@@ -220,6 +243,41 @@ describe('user actions', () => {
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('AU002');
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cross-tenant IDOR', () => {
+    it.each([
+      ['getUsers', () => getUsers()],
+      [
+        'getUsersPaginated',
+        () =>
+          getUsersPaginated({
+            page: 1,
+            pageSize: 10,
+            search: 'foreign',
+          }),
+      ],
+      [
+        'createUser',
+        () =>
+          createUser({
+            name: 'Foreign User',
+            email: 'foreign@example.com',
+            password: 'password123',
+            company_id: IDOR_COMPANY_A.id,
+          }),
+      ],
+      ['deleteUser', () => deleteUser(BigInt(IDOR_RESOURCES_A.userId))],
+    ])('%s denies cross-tenant company context', async (_name, call) => {
+      mockActionCrossTenantDenied(mockRequireActionPermission);
+
+      const result = await call();
+
+      expect(result.success).toBe(false);
+      expect(mockDb.select).not.toHaveBeenCalled();
+      expect(mockDb.insert).not.toHaveBeenCalled();
       expect(mockDb.update).not.toHaveBeenCalled();
     });
   });
