@@ -2,6 +2,7 @@ import {
   bulkImportServices,
   createService,
   deleteService,
+  getService,
   getServices,
   getServicesForExport,
   updateService,
@@ -68,6 +69,7 @@ describe('cross-tenant IDOR — service actions', () => {
 
   it.each([
     ['getServices', () => getServices(IDOR_COMPANY_A.id)],
+    ['getService', () => getService(IDOR_RESOURCES_A.serviceId)],
     ['createService', () => createService(servicePayload)],
     [
       'updateService',
