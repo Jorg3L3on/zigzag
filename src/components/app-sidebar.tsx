@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import { getCompanies } from '@/actions/companies';
 import type { Company as CompanyRow } from '@/db/schema';
 import { PERMISSIONS } from '@/lib/permissions';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
@@ -154,41 +155,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const response = await fetch('/api/companies');
-        // During sign-out/session expiry we can receive non-200 responses.
-        // Keep sidebar stable instead of logging noisy runtime errors.
-        if (!response.ok) {
-          setCompanies([]);
-          const payload = await response.json().catch(() => null);
-          const errorType = classifyClientError(
-            null,
-            response.status,
-            payload?.errorType,
-          );
-          toast.error(
-            getErrorMessageByType(
-              errorType,
-              payload?.error || 'No se pudieron cargar las empresas',
-            ),
-          );
-          return;
-        }
-        const payload = await response.json();
-        if (payload?.success) {
-          setCompanies(payload.data ?? []);
+        const result = await getCompanies();
+        if (result.success) {
+          setCompanies(result.data ?? []);
           return;
         }
 
-        const errorType = classifyClientError(
-          null,
-          response.status,
-          payload?.errorType,
-        );
         setCompanies([]);
+        const errorType = classifyClientError(null, undefined, result.errorType);
         toast.error(
           getErrorMessageByType(
             errorType,
-            payload?.error || 'No se pudieron cargar las empresas',
+            result.error || 'No se pudieron cargar las empresas',
           ),
         );
       } catch (error) {

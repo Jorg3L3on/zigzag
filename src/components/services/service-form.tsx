@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import type { Service } from '@/db/schema';
-import { createService } from '@/actions/services';
+import { createService, updateService } from '@/actions/services';
 import { useCompany } from '@/contexts/company-context';
 import {
   classifyClientError,
@@ -40,22 +40,36 @@ const serviceSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
 interface ServiceFormProps {
+  service?: Service;
   onSuccess?: (savedService: Service) => void;
   onCancel?: () => void;
 }
 
-export function ServiceForm({ onSuccess, onCancel }: ServiceFormProps) {
+export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) {
   const { selectedCompany } = useCompany();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isEditing = Boolean(service);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      price: '',
+      name: service?.name ?? '',
+      description: service?.description ?? '',
+      price: service?.price != null ? String(service.price) : '',
     },
   });
+
+  React.useEffect(() => {
+    if (!service) {
+      return;
+    }
+
+    form.reset({
+      name: service.name,
+      description: service.description,
+      price: String(service.price),
+    });
+  }, [service, form]);
 
   const handleSubmit = async (data: ServiceFormValues) => {
     if (!selectedCompany?.id) {
@@ -65,23 +79,35 @@ export function ServiceForm({ onSuccess, onCancel }: ServiceFormProps) {
 
     try {
       setIsSubmitting(true);
-      const result = await createService({
+      const payload = {
         name: data.name.trim(),
         description: data.description.trim(),
         price: parseFloat(data.price),
         company_id: selectedCompany.id,
-      });
+      };
+      const result = isEditing && service
+        ? await updateService({ id: service.id, ...payload })
+        : await createService(payload);
 
       if (result.success && result.data) {
-        toast.success('Servicio creado correctamente');
-        form.reset();
+        toast.success(
+          isEditing
+            ? 'Servicio actualizado correctamente'
+            : 'Servicio creado correctamente',
+        );
+        if (!isEditing) {
+          form.reset();
+        }
         onSuccess?.(result.data);
       } else {
         const errorType = classifyClientError(null, undefined, result.errorType);
         toast.error(
           getErrorMessageByType(
             errorType,
-            result.error || 'Error al crear el servicio',
+            result.error ||
+              (isEditing
+                ? 'Error al actualizar el servicio'
+                : 'Error al crear el servicio'),
           ),
         );
       }
@@ -181,12 +207,12 @@ export function ServiceForm({ onSuccess, onCancel }: ServiceFormProps) {
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creando...
+                {isEditing ? 'Actualizando...' : 'Creando...'}
               </>
             ) : (
               <>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Crear servicio
+                {isEditing ? 'Actualizar servicio' : 'Crear servicio'}
               </>
             )}
           </Button>
