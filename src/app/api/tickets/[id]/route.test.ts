@@ -1,6 +1,13 @@
 import { GET } from '@/app/api/tickets/[id]/route';
 import { getTicketById } from '@/actions/tickets';
 import { requireApiPermission } from '@/lib/api-helpers';
+import {
+  IDOR_COMPANY_A,
+  IDOR_COMPANY_B,
+  IDOR_RESOURCES_A,
+  mockTenantBCrossTenantDenied,
+  mockTenantBAllowed,
+} from '@/test/cross-tenant-helpers';
 
 jest.mock('@/lib/api-helpers', () => ({
   ok: jest.fn((data, status = 200) => ({ body: { success: true, data }, status })),
@@ -107,5 +114,47 @@ describe('GET /api/tickets/[id]', () => {
 
     expect(response.status).toBe(200);
     expect(mockGetTicketById).toHaveBeenCalledWith(42, 99);
+  });
+
+  it('returns 403 when Company B requests Company A context', async () => {
+    mockRequireApiPermission.mockResolvedValue(mockTenantBCrossTenantDenied());
+
+    const response = await GET(
+      makeGetRequest(
+        `http://localhost/api/tickets/${IDOR_RESOURCES_A.ticketId}?company_id=${IDOR_COMPANY_A.id}`,
+      ),
+      makeContext(String(IDOR_RESOURCES_A.ticketId)),
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockRequireApiPermission).toHaveBeenCalledWith(
+      'tickets.read',
+      IDOR_COMPANY_A.id,
+    );
+    expect(mockGetTicketById).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when Company B requests foreign Company A ticket id', async () => {
+    mockRequireApiPermission.mockResolvedValue(mockTenantBAllowed());
+    mockGetTicketById.mockResolvedValue({
+      success: false,
+      error: 'Ticket not found',
+      errorCode: 'TC008',
+      errorType: 'validation',
+    });
+
+    const response = await GET(
+      makeGetRequest(
+        `http://localhost/api/tickets/${IDOR_RESOURCES_A.ticketId}?company_id=${IDOR_COMPANY_B.id}`,
+      ),
+      makeContext(String(IDOR_RESOURCES_A.ticketId)),
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ success: false, error: 'TC008' });
+    expect(mockGetTicketById).toHaveBeenCalledWith(
+      IDOR_RESOURCES_A.ticketId,
+      IDOR_COMPANY_B.id,
+    );
   });
 });
