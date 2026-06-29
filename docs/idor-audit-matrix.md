@@ -21,10 +21,10 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/clients` | GET, POST | ⬜ | — | #186 |
-| `/api/clients/[clientId]` | GET, PATCH, DELETE | ⬜ | — | #186 |
-| `/api/services` | GET, POST | ⬜ | — | #186 |
-| `/api/services/[id]` | GET, PUT, DELETE | ⬜ | — | #186 |
+| `/api/clients` | GET, POST | ✅ | `clients/route.test.ts` | #186 |
+| `/api/clients/[clientId]` | GET, PATCH, DELETE | ✅ | `clients/[clientId]/route.test.ts` | #186 |
+| `/api/services` | GET, POST | ✅ | `services/route.test.ts` | #186 |
+| `/api/services/[id]` | GET, PUT, DELETE | ✅ | `services/[id]/route.test.ts` | #186 |
 
 ## API routes — Tickets (#187)
 
@@ -65,8 +65,8 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, getClientsForExport, bulkImportClients | ⬜ | — | #186 |
-| `services.ts` | getServices, createService, updateService, deleteService, getServicesForExport, bulkImportServices | ⬜ | — | #186 |
+| `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, getClientsForExport, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
+| `services.ts` | getServices, createService, updateService, deleteService, getServicesForExport, bulkImportServices | ✅ | `services-actions.test.ts` | #186 |
 
 ## Server Actions — Tickets (#187)
 
