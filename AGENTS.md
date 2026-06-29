@@ -96,7 +96,7 @@ Several resources have logic in both layers. When editing, be careful not to fix
 
 ## Agent skills
 
-Configuration for PRD/issue skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Vercel:** [docs/agents/deployment.md](docs/agents/deployment.md) — slice PRs merge to `feat/<slug>`; **`main` stays production** (one merge when PRD is done).
+Configuration for PRD/issue skills (`start-work`, `prd`, `to-prd`, `to-issues`, `implement-issue`, `fix-bug`, `ship-feature`, `release`, `validate-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Vercel:** [docs/agents/deployment.md](docs/agents/deployment.md) — slice PRs merge to `feat/<slug>`; **`main` stays production** (one merge when PRD is done).
 
 ### Issue tracker
 

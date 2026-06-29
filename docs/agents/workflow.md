@@ -87,13 +87,16 @@ Patch = bug fixes; minor = features; major = breaking changes.
 
 | Skill | Location | Purpose |
 | ----- | -------- | ------- |
+| `start-work` | `.cursor/skills/start-work/` | Route bugs, features, epics, releases to the right skill |
 | `setup-matt-pocock-skills` | `.cursor/skills/setup-matt-pocock-skills/` | Reconfigure tracker / labels / domain docs |
 | `prd` | `.cursor/skills/prd/` | Interview → `tasks/prd-*.md` |
 | `to-prd` | `.cursor/skills/to-prd/` | Conversation → GitHub PRD issue |
 | `to-issues` | `.cursor/skills/to-issues/` | PRD/plan → GitHub slice issues (auto default) |
 | `validate-issues` | `.cursor/skills/validate-issues/` | Audit/fix issue metadata |
-| `implement-issue` | `.cursor/skills/implement-issue/` | Issue → merge-ready PR (no merge) |
-| `ship-feature` | `.cursor/skills/ship-feature/` | Full pipeline; manual merge only |
+| `implement-issue` | `.cursor/skills/implement-issue/` | Slice issue → merge-ready PR into `feat/<slug>` |
+| `fix-bug` | `.cursor/skills/fix-bug/` | Bug issue → merge-ready PR into `main` |
+| `ship-feature` | `.cursor/skills/ship-feature/` | Full epic pipeline on `feat/<slug>` |
+| `release` | `.cursor/skills/release/` | CHANGELOG + tag + GitHub Release |
 | `list-and-responsive-tables` | `.cursor/skills/list-and-responsive-tables/` | Dashboard list UI pattern |
 
 ## Agent configuration files
