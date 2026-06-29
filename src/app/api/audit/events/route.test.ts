@@ -1,6 +1,7 @@
 import { GET } from '@/app/api/audit/events/route';
 import { requireSession } from '@/lib/api-helpers';
 import { queryAuditEvents } from '@/lib/audit-query';
+import { IDOR_COMPANY_A, IDOR_COMPANY_B, buildIdorSession } from '@/test/idor-fixtures';
 
 jest.mock('@/lib/api-helpers', () => ({
   ok: jest.fn((data, status = 200) => ({ body: { success: true, data }, status })),
@@ -32,18 +33,32 @@ describe('GET /api/audit/events', () => {
 
   it('returns 403 for non-system authenticated users', async () => {
     mockRequireSession.mockResolvedValue({
-      session: {
-        user: {
-          id: '10',
-          company_id: 2,
-          company_is_system: false,
-        },
-      },
+      session: buildIdorSession(IDOR_COMPANY_B, '201'),
       unauthorized: undefined,
     });
 
     const response = await GET(
       makeGetRequest('http://localhost/api/audit/events'),
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      success: false,
+      error: 'AU002',
+    });
+    expect(mockQueryAuditEvents).not.toHaveBeenCalled();
+  });
+
+  it('denies non-system cross-tenant audit filters', async () => {
+    mockRequireSession.mockResolvedValue({
+      session: buildIdorSession(IDOR_COMPANY_B, '201'),
+      unauthorized: undefined,
+    });
+
+    const response = await GET(
+      makeGetRequest(
+        `http://localhost/api/audit/events?target_company_id=${IDOR_COMPANY_A.id}`,
+      ),
     );
 
     expect(response.status).toBe(403);
