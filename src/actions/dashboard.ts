@@ -255,6 +255,14 @@ export async function fetchDashboardMetrics(
     return buildActionError('AU001');
   }
 
+  if (
+    !session.user.company_is_system &&
+    input.companyId != null &&
+    input.companyId !== session.user.company_id
+  ) {
+    return buildActionError('AU002');
+  }
+
   const monthCount = parseDashboardMonthCount(input.monthCount);
 
   let effectiveCompanyId = session.user.company_id;

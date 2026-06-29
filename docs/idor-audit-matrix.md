@@ -45,21 +45,21 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/companies` | GET, POST, PUT | ⬜ | — | #189 |
-| `/api/companies/[id]/export` | GET | ⬜ | — | #189 |
-| `/api/companies/[id]/offboard` | POST | ⬜ | — | #189 |
-| `/api/companies/[id]/logo` | POST, DELETE | ⬜ | — | #189 |
-| `/api/companies/[id]/readiness` | GET | ⬜ | — | #189 |
-| `/api/companies/[id]/entitlements` | GET | ⬜ | — | #189 |
-| `/api/companies/[id]/operator-summary` | GET | ⬜ | — | #189 |
+| `/api/companies` | GET, POST, PUT | ✅ | `companies/route.test.ts` | #189 |
+| `/api/companies/[id]/export` | GET | ✅ | `companies/[id]/export/route.test.ts` | #189 |
+| `/api/companies/[id]/offboard` | POST | ✅ | `companies/[id]/offboard/route.test.ts` | #189 |
+| `/api/companies/[id]/logo` | POST, DELETE | ✅ | `companies/[id]/logo/route.test.ts` | #189 |
+| `/api/companies/[id]/readiness` | GET | ✅ | `companies/[id]/readiness/route.test.ts` | #189 |
+| `/api/companies/[id]/entitlements` | GET | ✅ | `companies/[id]/entitlements/route.test.ts` | #189 |
+| `/api/companies/[id]/operator-summary` | GET | ✅ | `companies/[id]/operator-summary/route.test.ts` | #189 |
 
 ## API routes — Audit, dashboard, realtime (#190)
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/audit/events` | GET | 🟡 | `events/route.test.ts` (partial) | #190 |
-| `/api/dashboard/report` | GET | ⬜ | — | #190 |
-| `/api/realtime` | GET | ⬜ | — | #190 |
+| `/api/audit/events` | GET | ✅ | `audit/events/route.test.ts` | #190 |
+| `/api/dashboard/report` | GET | ✅ | `dashboard/report/route.test.ts` | #190 |
+| `/api/realtime` | GET | ⏭️ Exempt | `realtime/route.test.ts` (session-only SSE) | #190 |
 
 ## Server Actions — Clients & Services (#186)
 
@@ -87,22 +87,22 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `companies.ts` | getCompanies, getCompany, getOwnCompany, getCompanyReadiness, getOwnCompanyReadiness, createCompany, updateCompany, updateOwnCompany, uploadCompanyLogo, removeCompanyLogo, deleteCompany | ⬜ | — | #189 |
-| `company-portability.ts` | exportCompanyData, downloadCompanyExportJson, offboardCompany | ⬜ | — | #189 |
-| `company-lifecycle.ts` | setCompanyLifecycleStatus | ⬜ | — | #189 |
-| `company-operator.ts` | getCompanyOperatorSummary | ⬜ | — | #189 |
-| `company-entitlements.ts` | getCompanyEntitlements | ⬜ | — | #189 |
-| `exports.ts` | requestCompanyExport | ⬜ | — | #189 |
+| `companies.ts` | getCompanies, getCompany, getOwnCompany, getCompanyReadiness, getOwnCompanyReadiness, createCompany, updateCompany, updateOwnCompany, uploadCompanyLogo, removeCompanyLogo, deleteCompany | ✅ | `src/lib/companies-actions.test.ts` | #189 |
+| `company-portability.ts` | exportCompanyData, downloadCompanyExportJson, offboardCompany | ✅ | `src/lib/companies-actions.test.ts` | #189 |
+| `company-lifecycle.ts` | setCompanyLifecycleStatus | ✅ | `src/lib/companies-actions.test.ts` | #189 |
+| `company-operator.ts` | getCompanyOperatorSummary | ✅ | `src/lib/companies-actions.test.ts` | #189 |
+| `company-entitlements.ts` | getCompanyEntitlements | ✅ | `src/lib/companies-actions.test.ts` | #189 |
+| `exports.ts` | requestCompanyExport | ✅ | `src/lib/companies-actions.test.ts` | #189 |
 
 ## Server Actions — Remaining (#190)
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `dashboard.ts` | loadDashboardMetricsForCompany, fetchDashboardMetrics | ⬜ | — | #190 |
-| `client-service-schedules.ts` | list*, upsert, pause, resume, delete | ⬜ | — | #190 |
-| `trash.ts` | getTrash, restoreClient, restoreService, restoreTicket | ⬜ | — | #190 |
-| `search.ts` | globalSearch | ⬜ | — | #190 |
-| `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ⬜ | — | #190 |
+| `dashboard.ts` | loadDashboardMetricsForCompany, fetchDashboardMetrics | ✅ | `src/lib/dashboard-actions.test.ts` | #190 |
+| `client-service-schedules.ts` | list*, upsert, pause, resume, delete | ✅ | `src/lib/client-service-schedules-actions.test.ts` | #190 |
+| `trash.ts` | getTrash, restoreClient, restoreService, restoreTicket | ✅ | `src/lib/trash-actions.test.ts` | #190 |
+| `search.ts` | globalSearch | ✅ | `src/lib/search-actions.test.ts` | #190 |
+| `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ✅ | `src/lib/notifications-actions.test.ts` | #190 |
 | `authz.ts` | getSessionPermissionMap | ⬜ | — | #190 |
 | `two-factor.ts` | getTwoFactorStatus, startTwoFactorEnrollment, confirmTwoFactorEnrollment, disableTwoFactor | ⬜ | — | #190 |
 
@@ -139,6 +139,6 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 ## Audit sign-off
 
-- **Last updated:** tickets slice (#187)
-- **Known leaks:** TBD (fix in owning slice)
+- **Last updated:** issue #190 slice
+- **Known leaks:** none identified in #190 scope
 - **Reviewer sign-off:** pending epic completion (#191)
