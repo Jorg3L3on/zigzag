@@ -47,11 +47,8 @@ checks are authoritative; client checks only hide unavailable controls.
 
 | Surface | Permission | Notes |
 |---|---|---|
-| `GET /api/clients` | `clients.read` | Company-scoped |
-| `POST /api/clients` | `clients.write` | Company-scoped |
-| `GET /api/clients/[clientId]` | `clients.read` | Company-scoped |
-| `PATCH /api/clients/[clientId]` | `clients.write` | Company-scoped (update) |
-| `DELETE /api/clients/[clientId]` | `clients.write` | Soft delete |
+| `GET /api/clients` | `clients.read` | Company-scoped list (read-only REST; mutations via Server Actions) |
+| `GET /api/clients/[clientId]` | `clients.read` | Company-scoped detail (read-only REST; mutations via Server Actions) |
 | `GET /api/services` | `services.read` | Company-scoped |
 | `POST /api/services` | `services.write` | Company-scoped |
 | `GET /api/services/[id]` | `services.read` | Company-scoped |

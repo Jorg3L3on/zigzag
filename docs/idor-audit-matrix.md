@@ -21,8 +21,8 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
-| `/api/clients` | GET, POST | ✅ | `clients/route.test.ts` | #186 |
-| `/api/clients/[clientId]` | GET, PATCH, DELETE | ✅ | `clients/[clientId]/route.test.ts` | #186 |
+| `/api/clients` | GET | ✅ | `clients/route.test.ts` | #201 |
+| `/api/clients/[clientId]` | GET | ✅ | `clients/[clientId]/route.test.ts` | #201 |
 | `/api/services` | GET, POST | ✅ | `services/route.test.ts` | #186 |
 | `/api/services/[id]` | GET, PUT, DELETE | ✅ | `services/[id]/route.test.ts` | #186 |
 
