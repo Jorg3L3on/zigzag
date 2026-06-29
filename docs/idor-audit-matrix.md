@@ -139,6 +139,6 @@ Fixtures: `src/test/idor-fixtures.ts`
 
 ## Audit sign-off
 
-- **Last updated:** issue #190 slice
-- **Known leaks:** none identified in #190 scope
+- **Last updated:** issues #189–#190 slices
+- **Known leaks:** none identified in #189 / #190 scope
 - **Reviewer sign-off:** pending epic completion (#191)
