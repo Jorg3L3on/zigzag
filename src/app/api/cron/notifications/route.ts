@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
 import { materializeScheduleNotificationsForAllCompanies } from '@/lib/notifications';
+import { runDueJobs } from '@/lib/jobs/queue';
+import { processAuditOutbox } from '@/lib/jobs/audit-outbox';
 import { captureException } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Cron entry point that materializes service-schedule reminder notifications for
- * every company. Secured with CRON_SECRET: Vercel Cron sends
- * `Authorization: Bearer <CRON_SECRET>`. If CRON_SECRET is unset the route is
- * disabled in production to avoid an open trigger.
+ * Daily cron entry point. Materializes service-schedule reminder notifications,
+ * drains the background job queue, and replays the audit outbox. Consolidated
+ * into one cron to stay within the Vercel Hobby plan's cron limits (a single
+ * daily schedule). The dedicated `/api/cron/jobs` route remains available for
+ * more frequent triggering on paid plans or via an external scheduler.
+ *
+ * Secured with CRON_SECRET: Vercel Cron sends `Authorization: Bearer
+ * <CRON_SECRET>`. If CRON_SECRET is unset the route is disabled in production to
+ * avoid an open trigger.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -32,7 +39,9 @@ export async function GET(request: Request) {
 
   try {
     const result = await materializeScheduleNotificationsForAllCompanies();
-    return NextResponse.json({ success: true, ...result });
+    const jobs = await runDueJobs();
+    const outbox = await processAuditOutbox();
+    return NextResponse.json({ success: true, ...result, jobs, outbox });
   } catch (error) {
     captureException(error, { route: '/api/cron/notifications' });
     return NextResponse.json(
