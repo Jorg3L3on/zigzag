@@ -1,8 +1,14 @@
 'use client';
 
-import { BadgeCheck, ChevronsUpDown, LogOut } from 'lucide-react';
+import { BadgeCheck, BookOpen, ChevronsUpDown, LogOut } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+
+import {
+  EMPRESA_GUIDE_LINK,
+  getOnboardingGuidesForUser,
+  openOnboardingGuide,
+} from '@/lib/onboarding-guides';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -12,6 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -32,6 +41,9 @@ export function NavUser() {
   };
 
   if (!session?.user) return null;
+
+  const isSystemUser = session.user.company_is_system ?? false;
+  const guideLinks = getOnboardingGuidesForUser(isSystemUser);
 
   const user = {
     name: session.user.name || 'Usuario',
@@ -83,12 +95,35 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => router.push('/account')}
-              >
+              <DropdownMenuItem onClick={() => router.push('/account')}>
                 <BadgeCheck className="mr-2 h-4 w-4" />
                 Cuenta
               </DropdownMenuItem>
+              {isSystemUser ? (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Guías
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {guideLinks.map((guide) => (
+                      <DropdownMenuItem
+                        key={guide.href}
+                        onClick={() => openOnboardingGuide(guide.href)}
+                      >
+                        {guide.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => openOnboardingGuide(EMPRESA_GUIDE_LINK.href)}
+                >
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Guías
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>

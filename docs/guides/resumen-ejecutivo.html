@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZigZag — Resumen ejecutivo</title>
+  <meta name="description" content="Visión de producto ZigZag: plataforma multi-empresa para tickets de servicio, facturación PDF y operaciones de campo." />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="stylesheet" href="guides.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <img src="assets/logo.png" alt="Logo de ZigZag" width="88" height="88" />
+      <h1>ZigZag — Resumen ejecutivo</h1>
+      <p>
+        Plataforma SaaS multi-empresa para negocios de servicios: tickets, cobranza,
+        facturación PDF, recordatorios y auditoría — con datos de demostración en vivo.
+      </p>
+      <span class="badge">Para inversores · socios · evaluación de producto</span>
+    </div>
+  </header>
+
+  <div class="guide-toolbar" role="navigation" aria-label="Acciones de la guía">
+    <nav class="guide-toolbar-nav">
+      <a href="index.html">Todas las guías</a>
+      <a href="guia-empresa.html">Guía empresas</a>
+      <a href="guia-empresa-maestra.html">Guía plataforma</a>
+    </nav>
+    <div class="guide-toolbar-actions">
+      <button type="button" class="btn-guide btn-guide--primary" data-guide-print>Descargar PDF</button>
+    </div>
+  </div>
+
+  <main class="guide-layout">
+    <div class="guide-content">
+      <section class="card">
+        <h2>El problema</h2>
+        <p>
+          Empresas de servicios (HVAC, mantenimiento, instalaciones, facility management) operan con
+          herramientas fragmentadas: hojas de cálculo, WhatsApp, facturas manuales y cero visibilidad
+          multi-sucursal. Eso genera pérdida de ingresos, cobranza inconsistente y cero trazabilidad.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>La solución: ZigZag</h2>
+        <p>
+          ZigZag unifica el ciclo completo en una sola plataforma web moderna, multi-tenant y lista para móvil:
+        </p>
+        <div class="flow" aria-label="Flujo de valor">
+          <span>Cliente</span><span class="arrow">→</span>
+          <span>Ticket</span><span class="arrow">→</span>
+          <span>Servicios</span><span class="arrow">→</span>
+          <span>Cobro</span><span class="arrow">→</span>
+          <span>Factura PDF</span>
+        </div>
+        <div class="grid-2">
+          <div class="feature"><strong>Multi-tenant nativo</strong> Aislamiento por empresa con consola operadora central.</div>
+          <div class="feature"><strong>Facturación server-side</strong> PDF generado en servidor, sin archivos subidos.</div>
+          <div class="feature"><strong>RBAC granular</strong> Roles Admin, Operator y Viewer con permisos por módulo.</div>
+          <div class="feature"><strong>Auditoría enterprise</strong> Eventos inmutables en tickets y operaciones sensibles.</div>
+          <div class="feature"><strong>Recordatorios</strong> Mantenimientos recurrentes con notificaciones in-app.</div>
+          <div class="feature"><strong>PWA instalable</strong> Acceso móvil desde el navegador, sin app store.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Demostración en vivo — ClimaTotal Demo</h2>
+        <p>
+          El tenant <strong>ClimaTotal Demo</strong> muestra la plataforma con datos realistas para evaluación
+          comercial (login demo disponible bajo solicitud):
+        </p>
+        <div class="grid-3">
+          <div class="stat"><span class="value">53</span><strong>Tickets</strong> Activos, finalizados y con pagos parciales.</div>
+          <div class="stat"><span class="value">21</span><strong>Clientes</strong> Hoteles, clínicas, comercios y más.</div>
+          <div class="stat"><span class="value">$104K+</span><strong>Volumen demo</strong> Historial de 12 meses en dashboard.</div>
+          <div class="stat"><span class="value">14</span><strong>Recordatorios</strong> Próximos, atrasados y pausados.</div>
+          <div class="stat"><span class="value">10+</span><strong>Servicios</strong> Catálogo con precios reutilizables.</div>
+          <div class="stat"><span class="value">PDF</span><strong>Factura</strong> Ticket #1000 listo para descarga.</div>
+        </div>
+        <figure class="screenshot" style="margin-top:1.25rem">
+          <div class="screenshot-frame">
+            <img src="images/empresa/01-dashboard.webp" alt="Dashboard de ClimaTotal Demo con KPIs y gráficas" loading="lazy" />
+            <span class="screenshot-zoom-hint">Clic para ampliar</span>
+          </div>
+          <figcaption>Dashboard operativo con ingresos, estado de cobro y tendencia mensual.</figcaption>
+        </figure>
+        <figure class="screenshot" style="margin-top:1rem">
+          <div class="screenshot-frame">
+            <img src="images/empresa/10-factura-pdf.webp" alt="Factura PDF generada en servidor" loading="lazy" />
+            <span class="screenshot-zoom-hint">Clic para ampliar</span>
+          </div>
+          <figcaption>Factura PDF de ticket #1000 — diferenciador clave del producto.</figcaption>
+        </figure>
+      </section>
+
+      <section class="card">
+        <h2>Modelo de negocio objetivo</h2>
+        <ul>
+          <li><strong>SaaS B2B</strong> — Suscripción por empresa (planes starter / standard / enterprise en settings).</li>
+          <li><strong>Franquicias y grupos</strong> — Empresa maestra opera N tenants desde una consola.</li>
+          <li><strong>Vertical servicios</strong> — HVAC, limpieza industrial, mantenimiento, facility services.</li>
+          <li><strong>Expansión LATAM</strong> — UI en español, moneda MXN, RFC y facturación localizable.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Stack tecnológico</h2>
+        <div class="grid-2">
+          <div class="feature"><strong>Next.js 16</strong> App Router, server actions, API selectiva.</div>
+          <div class="feature"><strong>PostgreSQL + Drizzle</strong> Migraciones versionadas, multi-tenant explícito.</div>
+          <div class="feature"><strong>NextAuth v5</strong> JWT, RBAC, soporte 2FA.</div>
+          <div class="feature"><strong>Vercel</strong> Deploy con previews por feature, main = producción.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Siguiente paso</h2>
+        <p>Explora las guías detalladas con capturas de pantalla del producto:</p>
+        <nav class="toc">
+          <a href="guia-empresa.html">Guía para empresas operativas →</a>
+          <a href="guia-empresa-maestra.html">Guía empresa maestra (plataforma) →</a>
+          <a href="index.html">Índice de todas las guías →</a>
+        </nav>
+      </section>
+    </div>
+  </main>
+
+  <footer class="guide-footer">
+    <img src="assets/logo.png" alt="" width="40" height="40" aria-hidden="true" />
+    <p>ZigZag — Gestión de tickets multi-empresa</p>
+    <p class="version" data-guide-version></p>
+  </footer>
+
+  <script src="guides.js"></script>
+</body>
+</html>

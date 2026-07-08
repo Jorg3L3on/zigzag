@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, CircleDot } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle2, CircleDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OPERATOR_GUIDE_ANCHORS } from '@/lib/onboarding-guides';
 
 export type DashboardOnboardingHelpProps = {
   totalClients: number;
@@ -25,6 +26,7 @@ type Step = {
   href?: string;
   action?: string;
   canAct: boolean;
+  guideHref?: string;
 };
 
 export const shouldShowDashboardOnboardingHelp = ({
@@ -88,6 +90,7 @@ export const DashboardOnboardingHelp = ({
       href: '/clients/new',
       action: 'Nuevo cliente',
       canAct: canCreateClients,
+      guideHref: OPERATOR_GUIDE_ANCHORS.clientes,
     },
     {
       key: 'services',
@@ -97,6 +100,7 @@ export const DashboardOnboardingHelp = ({
       href: '/services/new',
       action: 'Nuevo servicio',
       canAct: canCreateServices,
+      guideHref: OPERATOR_GUIDE_ANCHORS.servicios,
     },
     {
       key: 'tickets',
@@ -106,6 +110,7 @@ export const DashboardOnboardingHelp = ({
       href: '/tickets/create',
       action: 'Crear ticket',
       canAct: canCreateTickets,
+      guideHref: OPERATOR_GUIDE_ANCHORS.crearTicket,
     },
     {
       key: 'schedules',
@@ -115,6 +120,7 @@ export const DashboardOnboardingHelp = ({
       href: '/service-schedules',
       action: 'Ver recordatorios',
       canAct: canCreateSchedules,
+      guideHref: OPERATOR_GUIDE_ANCHORS.recordatorios,
     },
     {
       key: 'payments',
@@ -124,6 +130,7 @@ export const DashboardOnboardingHelp = ({
       href: '/tickets',
       action: 'Ver tickets',
       canAct: canCollectPayments,
+      guideHref: OPERATOR_GUIDE_ANCHORS.facturaPdf,
     },
   ];
 
@@ -171,6 +178,19 @@ export const DashboardOnboardingHelp = ({
                     {step.action}
                     <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden />
                   </Link>
+                </Button>
+              ) : null}
+              {step.guideHref ? (
+                <Button
+                  asChild
+                  variant="link"
+                  size="sm"
+                  className="mt-1 h-auto min-h-8 px-2 text-xs text-muted-foreground"
+                >
+                  <a href={step.guideHref} target="_blank" rel="noopener noreferrer">
+                    <BookOpen className="mr-1 h-3.5 w-3.5" aria-hidden />
+                    Ver guía
+                  </a>
                 </Button>
               ) : null}
             </li>

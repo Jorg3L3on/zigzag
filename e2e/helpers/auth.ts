@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { DEMO_COMPANY_NAME } from '../../src/lib/demo-company';
 
 export const e2eEmail = process.env.E2E_EMAIL;
 export const e2ePassword = process.env.E2E_PASSWORD;
@@ -105,7 +106,7 @@ const hasSystemCompanySelected = () => {
 /** System-company sessions default to the platform tenant; pick an operational company. */
 export const ensureTenantCompany = async (
   page: Page,
-  companyName = process.env.E2E_COMPANY_NAME ?? 'SOLUCIONES CHANO',
+  companyName = process.env.E2E_COMPANY_NAME ?? DEMO_COMPANY_NAME,
 ) => {
   if (await page.evaluate(hasTenantCompanySelected, companyName)) {
     return;

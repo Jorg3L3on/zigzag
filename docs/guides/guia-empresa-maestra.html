@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZigZag — Guía empresa maestra</title>
+  <meta name="description" content="Guía para super-administradores de la plataforma zigzag: consola operadora, empresas, auditoría y multi-tenant." />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="stylesheet" href="guides.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <img src="assets/logo.png" alt="Logo de ZigZag" width="88" height="88" />
+      <h1>Guía de inicio — Empresa maestra</h1>
+      <p>
+        Para administradores de la <strong>empresa maestra</strong> (plataforma <em>zigzag</em>) que operan
+        y supervisan todas las empresas del ecosistema.
+      </p>
+      <span class="badge">Rol: Super-administrador · Acceso global</span>
+    </div>
+  </header>
+
+  <div class="guide-toolbar" role="navigation" aria-label="Acciones de la guía">
+    <nav class="guide-toolbar-nav">
+      <a href="index.html">Índice</a>
+      <a href="resumen-ejecutivo.html">Resumen ejecutivo</a>
+      <a href="guia-empresa.html">Guía empresas</a>
+    </nav>
+    <div class="guide-toolbar-actions">
+      <button type="button" class="btn-guide btn-guide--primary" data-guide-print>Descargar PDF</button>
+    </div>
+  </div>
+
+  <main class="guide-layout guide-layout--with-sidebar">
+    <aside class="guide-sidebar" aria-label="Navegación lateral">
+      <div class="guide-sidebar-inner">
+        <h2>En esta guía</h2>
+        <nav class="toc">
+          <a href="#intro">Introducción</a>
+          <a href="#onboarding">Onboarding tenant</a>
+          <a href="#paso-1">1. Iniciar sesión</a>
+          <a href="#paso-2">2. Consola operadora</a>
+          <a href="#paso-3">3. Empresas</a>
+          <a href="#paso-4">4. Usuarios</a>
+          <a href="#paso-5">5. Roles y permisos</a>
+          <a href="#paso-6">6. Auditoría</a>
+          <a href="#paso-7">7. Selector de empresa</a>
+          <a href="#paso-8">8. Tenant demo</a>
+          <a href="#consejos">Consejos</a>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="guide-content">
+      <section class="card" id="intro">
+        <h2>¿Qué es la empresa maestra?</h2>
+        <p>
+          La empresa maestra (<em>zigzag</em>) es el tenant especial del sistema. Sus usuarios pueden
+          administrar <strong>todas las empresas</strong>, revisar auditoría global y cambiar de contexto
+          para operar cualquier tenant sin salir de la plataforma.
+        </p>
+        <div class="grid-2">
+          <div class="feature"><strong>Multi-tenant seguro</strong> Aislamiento por empresa; acceso cruzado solo aquí.</div>
+          <div class="feature"><strong>Auditoría unificada</strong> Eventos críticos en toda la plataforma.</div>
+          <div class="feature"><strong>Selector de empresa</strong> Cambio de contexto en la barra lateral.</div>
+          <div class="feature"><strong>ClimaTotal Demo</strong> Tenant showcase con datos históricos completos.</div>
+        </div>
+        <div class="highlight" style="margin-top:1rem">
+          ¿Evalúas el producto para inversión?
+          Comienza con el <a href="resumen-ejecutivo.html">resumen ejecutivo</a>.
+        </div>
+      </section>
+
+      <section class="card" id="onboarding">
+        <h2>Onboarding de un nuevo tenant</h2>
+        <ol class="checklist">
+          <li><strong>Crear empresa</strong> — nombre, RFC y moneda en <em>Empresas</em>.</li>
+          <li><strong>Asignar usuarios</strong> — cuentas Admin y Operator con acceso al tenant.</li>
+          <li><strong>Configurar roles</strong> — permisos por módulo según el perfil.</li>
+          <li><strong>Entregar guía operativa</strong> — comparte la <a href="guia-empresa.html">guía para empresas</a>.</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2>Paso a paso</h2>
+
+        <article class="step" id="paso-1">
+          <div class="step-header">
+            <span class="step-number">1</span>
+            <div>
+              <h3>Iniciar sesión</h3>
+              <p>Tras autenticarte irás a la <strong>Consola operadora</strong>, no al dashboard estándar.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/00-login.webp" alt="Inicio de sesión ZigZag" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Acceso con branding ZigZag y autenticación segura.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-2">
+          <div class="step-header">
+            <span class="step-number">2</span>
+            <div>
+              <h3>Consola operadora</h3>
+              <p>Centro de mando: estado, ciclo de vida, acceso y actividad reciente de empresas.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/01-consola-operadora.webp" alt="Consola operadora" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Vista general del ecosistema multi-empresa.</figcaption>
+          </figure>
+          <div class="grid-2" style="margin-top:1rem">
+            <figure class="screenshot">
+              <div class="screenshot-frame">
+                <img src="images/empresa-maestra/01b-operator-acceso.webp" alt="Panel de acceso y cuentas" loading="lazy" />
+                <span class="screenshot-zoom-hint">Clic para ampliar</span>
+              </div>
+              <figcaption>Acceso y cuentas — usuarios y roles del tenant.</figcaption>
+            </figure>
+            <figure class="screenshot">
+              <div class="screenshot-frame">
+                <img src="images/empresa-maestra/01c-operator-actividad.webp" alt="Panel de actividad reciente" loading="lazy" />
+                <span class="screenshot-zoom-hint">Clic para ampliar</span>
+              </div>
+              <figcaption>Actividad reciente con filtros por recurso y acción.</figcaption>
+            </figure>
+          </div>
+        </article>
+
+        <article class="step" id="paso-3">
+          <div class="step-header">
+            <span class="step-number">3</span>
+            <div>
+              <h3>Gestión de empresas</h3>
+              <p>Crea, edita y da de baja tenants. Cada uno aísla tickets, clientes y usuarios.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/02-empresas.webp" alt="Listado de empresas" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:50%; --y:35%">Tenants</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Catálogo incluyendo ClimaTotal Demo y empresas activas.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-4">
+          <div class="step-header">
+            <span class="step-number">4</span>
+            <div>
+              <h3>Usuarios del sistema</h3>
+              <p>Cuentas globales y por tenant con roles Admin, Operator y Viewer.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/03-usuarios.webp" alt="Usuarios del sistema" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Gestión centralizada de cuentas.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-5">
+          <div class="step-header">
+            <span class="step-number">5</span>
+            <div>
+              <h3>Roles y permisos</h3>
+              <p>Perfiles de acceso con permisos granulares por módulo (tickets, clientes, auditoría, etc.).</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/03b-roles-permisos.webp" alt="Roles y permisos globales" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>RBAC configurable a nivel plataforma.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-6">
+          <div class="step-header">
+            <span class="step-number">6</span>
+            <div>
+              <h3>Auditoría global</h3>
+              <p>Exclusivo de la maestra: pagos, cambios de ticket y operaciones administrativas.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/04-auditoria.webp" alt="Auditoría global" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Historial unificado para cumplimiento y soporte enterprise.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-7">
+          <div class="step-header">
+            <span class="step-number">7</span>
+            <div>
+              <h3>Selector de empresa</h3>
+              <p>
+                Abre el menú en la parte superior del sidebar para cambiar entre <em>zigzag</em>
+                y cualquier tenant operativo.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/06-selector-empresa.webp" alt="Selector de empresa abierto" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:14%; --y:22%">Menú</span>
+                <span class="callout" style="--x:14%; --y:55%">Tenants</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Dropdown con empresas disponibles — confirma el contexto activo antes de operar.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-8">
+          <div class="step-header">
+            <span class="step-number">8</span>
+            <div>
+              <h3>Operar un tenant — ClimaTotal Demo</h3>
+              <p>
+                Selecciona <strong>ClimaTotal Demo</strong> para ver el producto con datos reales: 53 tickets,
+                21 clientes, recordatorios y factura PDF en ticket #1000.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa-maestra/05-dashboard-tenant.webp" alt="Dashboard ClimaTotal Demo" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:14%; --y:8%">Selector</span>
+                <span class="callout" style="--x:72%; --y:20%">KPIs</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Dashboard operativo del tenant demo tras cambiar contexto.</figcaption>
+          </figure>
+        </article>
+      </section>
+
+      <section class="card" id="consejos">
+        <h2>Consejos y buenas prácticas</h2>
+        <ul>
+          <li><strong>Pocos super-admins</strong> — solo personal de confianza.</li>
+          <li><strong>Auditoría periódica</strong> — detecta anomalías temprano.</li>
+          <li><strong>Roles granulares</strong> — no todos necesitan escritura global.</li>
+          <li><strong>Confirma el contexto activo</strong> — revisa el selector lateral al cambiar tenant.</li>
+          <li><strong>Onboarding</strong> — crea empresa → usuarios → roles → <a href="guia-empresa.html">guía empresas</a>.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Siguiente paso</h2>
+        <p>
+          Comparte la <a href="guia-empresa.html">guía para empresas operativas</a> con administradores de cada tenant.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="guide-footer">
+    <img src="assets/logo.png" alt="" width="40" height="40" aria-hidden="true" />
+    <p>ZigZag — Guía plataforma (empresa maestra)</p>
+    <p class="version" data-guide-version></p>
+  </footer>
+
+  <script src="guides.js"></script>
+</body>
+</html>

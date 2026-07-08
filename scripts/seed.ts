@@ -13,6 +13,7 @@ import {
   ticket,
   user,
 } from '../src/db/schema';
+import { seedDemoCompany } from './seed-demo-company';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -407,6 +408,17 @@ async function main() {
   ]);
 
   await syncPostgresIdSequences();
+
+  const { seedDemoCompany } = await import('./seed-demo-company');
+  const demoResult = await seedDemoCompany(db, {
+    fixedCompanyId: 4,
+    adminUserId: 10n,
+    operatorUserId: 11n,
+    viewerUserId: 12n,
+  });
+  console.log(
+    `Seeded demo company "${demoResult.companyId}" with ${demoResult.ticketCount} tickets.`,
+  );
 }
 
 main()

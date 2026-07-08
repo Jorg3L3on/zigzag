@@ -35,6 +35,7 @@ describe('DashboardOnboardingHelp', () => {
       'href',
       '/tickets/create',
     );
+    expect(screen.getAllByRole('link', { name: /Ver guía/i })).toHaveLength(5);
   });
 
   it('uses selected-company guidance for system users without tenant context', () => {

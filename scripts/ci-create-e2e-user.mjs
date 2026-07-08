@@ -1,15 +1,16 @@
 // Creates (or updates) a deterministic E2E user with a known password so the
 // authenticated Playwright suite can log in during CI. Attaches the user to the
-// seeded ACTIVE company (id 1) with the global Admin role (id 1).
+// demo showcase company with the global Admin role (id 1).
 import 'dotenv/config';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 
-const email = process.env.E2E_EMAIL;
+const email = process.env.E2E_EMAIL ?? 'demo@zigzag.app';
 const password = process.env.E2E_PASSWORD;
+const demoCompanyName = process.env.E2E_COMPANY_NAME ?? 'ClimaTotal Demo';
 
-if (!email || !password) {
-  console.error('E2E_EMAIL and E2E_PASSWORD must be set');
+if (!password) {
+  console.error('E2E_PASSWORD must be set');
   process.exit(1);
 }
 
@@ -28,7 +29,9 @@ async function main() {
        ("name", "email", "password", "company_id", "role_id",
         "email_verified_at", "token_version", "two_factor_enabled",
         "created_at", "updated_at")
-     VALUES ($1, $2, $3, 1, 1, NOW(), 0, false, NOW(), NOW())
+     SELECT $1, $2, $3, c.id, 1, NOW(), 0, false, NOW(), NOW()
+     FROM "Company" c
+     WHERE c.name = $4 AND c.deleted_at IS NULL
      ON CONFLICT ("email") DO UPDATE
        SET "password" = EXCLUDED."password",
            "company_id" = EXCLUDED."company_id",
@@ -37,9 +40,9 @@ async function main() {
            "two_factor_enabled" = false,
            "deleted_at" = NULL,
            "updated_at" = NOW()`,
-    ['E2E User', email, passwordHash],
+    ['Ana Administradora', email, passwordHash, demoCompanyName],
   );
-  console.log(`E2E user ready: ${email}`);
+  console.log(`E2E user ready: ${email} (${demoCompanyName})`);
 }
 
 main()

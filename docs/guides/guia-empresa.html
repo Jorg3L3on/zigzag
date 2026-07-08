@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZigZag — Guía para empresas</title>
+  <meta name="description" content="Guía paso a paso para operar tickets, clientes, servicios y facturación PDF en ZigZag." />
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="stylesheet" href="guides.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <img src="assets/logo.png" alt="Logo de ZigZag" width="88" height="88" />
+      <h1>Guía de inicio — Tu empresa</h1>
+      <p>
+        Aprende a operar tickets de servicio, clientes, catálogo, cobranza y facturación PDF
+        en ZigZag — con capturas reales del tenant de demostración <strong>ClimaTotal Demo</strong>.
+      </p>
+      <span class="badge">Rol: Administrador / Operador de empresa</span>
+    </div>
+  </header>
+
+  <div class="guide-toolbar" role="navigation" aria-label="Acciones de la guía">
+    <nav class="guide-toolbar-nav">
+      <a href="index.html">Índice</a>
+      <a href="resumen-ejecutivo.html">Resumen ejecutivo</a>
+      <a href="guia-empresa-maestra.html">Guía plataforma</a>
+    </nav>
+    <div class="guide-toolbar-actions">
+      <button type="button" class="btn-guide btn-guide--primary" data-guide-print>Descargar PDF</button>
+    </div>
+  </div>
+
+  <main class="guide-layout guide-layout--with-sidebar">
+    <aside class="guide-sidebar" aria-label="Navegación lateral">
+      <div class="guide-sidebar-inner">
+        <h2>En esta guía</h2>
+        <nav class="toc">
+          <a href="#intro">Introducción</a>
+          <a href="#inicio-rapido">Inicio rápido</a>
+          <a href="#paso-1">1. Iniciar sesión</a>
+          <a href="#paso-2">2. Dashboard</a>
+          <a href="#paso-3">3. Mi empresa</a>
+          <a href="#paso-4">4. Servicios</a>
+          <a href="#paso-5">5. Clientes</a>
+          <a href="#paso-6">6. Tickets</a>
+          <a href="#paso-7">7. Crear ticket</a>
+          <a href="#paso-8">8. Agregar servicios</a>
+          <a href="#paso-9">9. Detalle y PDF</a>
+          <a href="#paso-10">10. Factura PDF</a>
+          <a href="#paso-11">11. Recordatorios</a>
+          <a href="#paso-12">12. Roles</a>
+          <a href="#paso-13">13. Móvil / PWA</a>
+          <a href="#paso-14">14. Búsqueda global</a>
+          <a href="#consejos">Consejos</a>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="guide-content">
+      <section class="card" id="intro">
+        <h2>¿Qué puedes hacer en ZigZag?</h2>
+        <p>
+          Cada empresa opera en su propio espacio aislado. La plataforma centraliza el flujo completo:
+          desde la solicitud del cliente hasta la factura PDF, con auditoría y recordatorios.
+        </p>
+        <div class="flow" aria-label="Flujo de trabajo">
+          <span>Cliente</span><span class="arrow">→</span>
+          <span>Ticket</span><span class="arrow">→</span>
+          <span>Servicios</span><span class="arrow">→</span>
+          <span>Factura PDF</span>
+        </div>
+        <div class="grid-2">
+          <div class="feature"><strong>Dashboard en tiempo real</strong> Ingresos, cobranza y tickets activos.</div>
+          <div class="feature"><strong>Tickets de servicio</strong> Estados de pago y historial auditado.</div>
+          <div class="feature"><strong>Catálogo de servicios</strong> Precios reutilizables por ticket.</div>
+          <div class="feature"><strong>Facturación PDF</strong> Comprobantes con logo y datos fiscales.</div>
+          <div class="feature"><strong>Recordatorios</strong> Mantenimientos recurrentes por cliente.</div>
+          <div class="feature"><strong>Notificaciones</strong> Alertas de servicios vencidos o próximos.</div>
+        </div>
+      </section>
+
+      <section class="card" id="inicio-rapido">
+        <h2>Inicio rápido (5 minutos)</h2>
+        <p>Sigue este orden la primera vez que operes tu empresa:</p>
+        <ol class="checklist">
+          <li>Configura <strong>Mi empresa</strong> — logo, RFC y moneda.</li>
+          <li>Arma tu <strong>catálogo de servicios</strong> con precios.</li>
+          <li>Registra tus <strong>clientes</strong> frecuentes.</li>
+          <li>Crea un <strong>ticket</strong>, agrega servicios y registra pagos.</li>
+          <li>Descarga la <strong>factura PDF</strong> y programa recordatorios.</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2>Paso a paso</h2>
+
+        <article class="step" id="paso-1">
+          <div class="step-header">
+            <span class="step-number">1</span>
+            <div>
+              <h3>Iniciar sesión</h3>
+              <p>Ingresa con tu correo y contraseña. Llegarás al <strong>Dashboard</strong> de tu empresa.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/00-login.webp" alt="Pantalla de inicio de sesión de ZigZag" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Acceso seguro con soporte para autenticación de dos factores.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-2">
+          <div class="step-header">
+            <span class="step-number">2</span>
+            <div>
+              <h3>Dashboard — tu centro de control</h3>
+              <p>Resumen de ingresos, tickets activos, gráfica de tendencia, estado de cobro y recordatorios.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/01-dashboard.webp" alt="Dashboard con KPIs y gráficas" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:72%; --y:18%">KPIs</span>
+                <span class="callout" style="--x:38%; --y:62%">Ingresos</span>
+                <span class="callout" style="--x:82%; --y:58%">Cobro</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>ClimaTotal Demo — ingresos del periodo, 53 tickets históricos, gráfica de tendencia.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-3">
+          <div class="step-header">
+            <span class="step-number">3</span>
+            <div>
+              <h3>Perfil de tu empresa</h3>
+              <p>Configura nombre comercial, RFC, logo y moneda antes de emitir facturas.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/05-mi-empresa.webp" alt="Configuración de la empresa" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Perfil corporativo con logo y datos fiscales (MXN).</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-4">
+          <div class="step-header">
+            <span class="step-number">4</span>
+            <div>
+              <h3>Catálogo de servicios</h3>
+              <p>Define servicios con precio y descripción para reutilizar en cada ticket.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/03-servicios.webp" alt="Catálogo de servicios" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Mantenimiento, instalación, diagnóstico y más.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-5">
+          <div class="step-header">
+            <span class="step-number">5</span>
+            <div>
+              <h3>Base de clientes</h3>
+              <p>Directorio de clientes con contacto; selección rápida al crear tickets.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/04-clientes.webp" alt="Listado de clientes" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Hoteles, comercios, clínicas y empresas.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-6">
+          <div class="step-header">
+            <span class="step-number">6</span>
+            <div>
+              <h3>Gestión de tickets</h3>
+              <p>Órdenes de servicio con estados de cobro: saldado, parcial o pendiente.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/02-tickets.webp" alt="Listado de tickets" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:88%; --y:10%">Nuevo</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Tickets activos y finalizados con filtros y búsqueda.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-7">
+          <div class="step-header">
+            <span class="step-number">7</span>
+            <div>
+              <h3>Crear un ticket</h3>
+              <p>
+                Pulsa <strong>Nuevo ticket</strong>, elige un cliente del directorio y confirma con
+                <strong>Crear Ticket</strong>. El flujo continúa en la pantalla de servicios.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/08-crear-ticket.webp" alt="Formulario de creación de ticket" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:50%; --y:42%">Cliente</span>
+                <span class="callout" style="--x:88%; --y:88%">Crear</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Paso 1 del flujo — cliente seleccionado (Hotel Riviera Dorada).</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-8">
+          <div class="step-header">
+            <span class="step-number">8</span>
+            <div>
+              <h3>Agregar servicios al ticket</h3>
+              <p>
+                En <strong>/tickets/{id}/services</strong> agrega líneas del catálogo con cantidad y precio.
+                Continúa a revisión cuando el total sea correcto.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/09-agregar-servicios.webp" alt="Servicios agregados a un ticket" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:88%; --y:12%">Agregar</span>
+                <span class="callout" style="--x:50%; --y:55%">Líneas</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Ticket #1000 con servicios de mantenimiento e instalación.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-9">
+          <div class="step-header">
+            <span class="step-number">9</span>
+            <div>
+              <h3>Detalle del ticket y descarga</h3>
+              <p>
+                Ticket <strong>#1000 · Hotel Riviera Dorada</strong>: servicios, pagos y botón
+                <strong>Descargar PDF</strong> con logo y RFC de tu empresa.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/06-detalle-ticket.webp" alt="Ticket con descarga PDF" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:92%; --y:12%">PDF</span>
+                <span class="callout" style="--x:50%; --y:72%">Servicios</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Ticket finalizado y saldado — listo para emitir comprobante.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-10">
+          <div class="step-header">
+            <span class="step-number">10</span>
+            <div>
+              <h3>Factura PDF generada</h3>
+              <p>
+                El PDF se genera en el servidor al descargar — incluye logo, RFC, desglose de servicios
+                y totales. Sin subir archivos externos.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/10-factura-pdf.webp" alt="Vista previa de la factura PDF" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Comprobante PDF de ticket #1000 — ClimaTotal Demo.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-11">
+          <div class="step-header">
+            <span class="step-number">11</span>
+            <div>
+              <h3>Recordatorios de servicio</h3>
+              <p>Mantenimientos recurrentes clasificados en próximos, atrasados y pausados.</p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/07-recordatorios.webp" alt="Recordatorios de servicio" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Programación por cliente y servicio con notificaciones in-app.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-12">
+          <div class="step-header">
+            <span class="step-number">12</span>
+            <div>
+              <h3>Roles y permisos</h3>
+              <p>
+                Perfiles <strong>Admin</strong>, <strong>Operator</strong> y <strong>Viewer</strong>
+                con permisos por módulo (tickets, clientes, servicios, etc.).
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/11-roles-permisos.webp" alt="Roles y permisos de la empresa" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Control de acceso granular dentro de tu tenant.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-13">
+          <div class="step-header">
+            <span class="step-number">13</span>
+            <div>
+              <h3>Experiencia móvil y PWA</h3>
+              <p>
+                En pantallas estrechas la app usa tarjetas, barra de acciones fija y menú lateral tipo sheet.
+                Instala ZigZag como PWA desde el navegador.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/12-mobile-tickets.webp" alt="Listado de tickets en móvil" loading="lazy" />
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Vista móvil del listado de tickets (Pixel 5).</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="paso-14">
+          <div class="step-header">
+            <span class="step-number">14</span>
+            <div>
+              <h3>Búsqueda global</h3>
+              <p>
+                Atajo <kbd>Ctrl</kbd>+<kbd>K</kbd> (o <kbd>⌘</kbd>+<kbd>K</kbd>) desde cualquier pantalla.
+                Encuentra tickets, clientes y servicios en segundos.
+              </p>
+            </div>
+          </div>
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src="images/empresa/13-busqueda-global.webp" alt="Búsqueda global con resultados" loading="lazy" />
+              <div class="callouts" aria-hidden="true">
+                <span class="callout" style="--x:50%; --y:18%">Buscar</span>
+                <span class="callout" style="--x:50%; --y:62%">Resultados</span>
+              </div>
+              <span class="screenshot-zoom-hint">Clic para ampliar</span>
+            </div>
+            <figcaption>Resultados agrupados por tickets, clientes y servicios.</figcaption>
+          </figure>
+        </article>
+      </section>
+
+      <section class="card" id="consejos">
+        <h2>Consejos para el día a día</h2>
+        <ul>
+          <li><strong>Configura primero tu empresa</strong> — logo y RFC antes de la primera factura.</li>
+          <li><strong>Arma tu catálogo</strong> — ahorra tiempo en cada ticket nuevo.</li>
+          <li><strong>Programa recordatorios</strong> — ideal para mantenimientos mensuales o trimestrales.</li>
+          <li><strong>Búsqueda global</strong> — <kbd>Ctrl</kbd>+<kbd>K</kbd> o el botón <em>Buscar</em> en la barra lateral.</li>
+          <li><strong>PWA</strong> — agrega ZigZag a la pantalla de inicio del móvil.</li>
+        </ul>
+        <div class="highlight">
+          <strong>¿Administras varias empresas?</strong>
+          Consulta la <a href="guia-empresa-maestra.html">guía para la empresa maestra</a>.
+          ¿Evalúas invertir? Lee el <a href="resumen-ejecutivo.html">resumen ejecutivo</a>.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>¿Necesitas ayuda?</h2>
+        <p>Contacta al administrador de tu cuenta o al equipo de soporte de la plataforma.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="guide-footer">
+    <img src="assets/logo.png" alt="" width="40" height="40" aria-hidden="true" />
+    <p>ZigZag — Guía operativa para empresas</p>
+    <p class="version" data-guide-version></p>
+  </footer>
+
+  <script src="guides.js"></script>
+</body>
+</html>
