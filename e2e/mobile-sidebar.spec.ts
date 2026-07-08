@@ -5,6 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import { visiblePageHeader } from './helpers/mobile-chrome';
 
 test.describe('Mobile sidebar sheet', () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +19,7 @@ test.describe('Mobile sidebar sheet', () => {
   }) => {
     await page.goto('/dashboard');
 
-    await expect(page.getByTestId('page-header').getByText('Dashboard')).toBeVisible();
+    await expect(visiblePageHeader(page).getByText('Dashboard')).toBeVisible();
 
     await page.getByRole('button', { name: 'Abrir menú de navegación' }).click();
 
@@ -33,7 +34,7 @@ test.describe('Mobile sidebar sheet', () => {
       .click({ position: { x: 320, y: 400 }, force: true });
     await expect(navDialog).toBeHidden();
 
-    await expect(page.getByTestId('page-header').getByText('Dashboard')).toBeVisible();
+    await expect(visiblePageHeader(page).getByText('Dashboard')).toBeVisible();
   });
 
   test('shows mobile ticket cards instead of desktop-only table layout', async ({
@@ -41,7 +42,7 @@ test.describe('Mobile sidebar sheet', () => {
   }) => {
     await page.goto('/tickets');
 
-    await expect(page.getByTestId('page-header').getByText('Tickets')).toBeVisible();
+    await expect(visiblePageHeader(page).getByText('Tickets')).toBeVisible();
     await expect(
       page
         .getByText(/\d+ de \d+ tickets/)

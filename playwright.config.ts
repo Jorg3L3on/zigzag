@@ -47,6 +47,7 @@ export default defineConfig({
           ...process.env,
           PORT: '3070',
           NEXTAUTH_URL: prodBaseUrl,
+          AUTH_TRUST_HOST: 'true',
         },
       }
     : {
@@ -57,6 +58,7 @@ export default defineConfig({
         env: {
           ...process.env,
           NEXTAUTH_URL: devBaseUrl,
+          AUTH_TRUST_HOST: 'true',
         },
       },
 });

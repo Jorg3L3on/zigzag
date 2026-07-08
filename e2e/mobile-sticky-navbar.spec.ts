@@ -12,6 +12,7 @@ import {
   hasE2eCredentials,
   hasE2eSystemCredentials,
 } from './helpers/auth';
+import { visibleMobileAppBar, visiblePageHeader } from './helpers/mobile-chrome';
 
 test.describe('Mobile sticky navigation', () => {
   test.describe.configure({ mode: 'serial' });
@@ -48,9 +49,9 @@ test.describe('Mobile sticky navigation', () => {
           await page.goto(path);
 
           await expect(
-            page.getByTestId('mobile-app-bar').getByText(title),
+            visibleMobileAppBar(page).getByText(title),
           ).toBeVisible();
-          const appBar = page.getByTestId('mobile-app-bar');
+          const appBar = visibleMobileAppBar(page);
           await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
         });
       }
@@ -65,7 +66,7 @@ test.describe('Mobile sticky navigation', () => {
           .click();
         await page.waitForURL(/\/tickets\/\d+/);
 
-        const appBar = page.getByTestId('mobile-app-bar');
+        const appBar = visibleMobileAppBar(page);
         await expect(appBar).toBeVisible();
         await scrollPageDown(page);
         await expect(appBar).toBeVisible();
@@ -95,7 +96,7 @@ test.describe('Mobile sticky navigation', () => {
           await page.goto(`/tickets/${ticketId}/edit`);
         }
 
-        const appBar = page.getByTestId('mobile-app-bar');
+        const appBar = visibleMobileAppBar(page);
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
       });
 
@@ -123,7 +124,7 @@ test.describe('Mobile sticky navigation', () => {
 
         await page.goto(`/tickets/${ticketId}/services`);
 
-        const appBar = page.getByTestId('mobile-app-bar');
+        const appBar = visibleMobileAppBar(page);
         await expect(appBar).toBeVisible();
         await expect(appBar.getByText('Servicios')).toBeVisible();
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
@@ -139,7 +140,7 @@ test.describe('Mobile sticky navigation', () => {
           .click();
         await page.waitForURL(/\/clients\/\d+\/edit/);
 
-        const appBar = page.getByTestId('mobile-app-bar');
+        const appBar = visibleMobileAppBar(page);
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
       });
 
@@ -153,7 +154,7 @@ test.describe('Mobile sticky navigation', () => {
           .click();
         await page.waitForURL(/\/services\/\d+\/edit/);
 
-        const appBar = page.getByTestId('mobile-app-bar');
+        const appBar = visibleMobileAppBar(page);
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
       });
     });
@@ -189,7 +190,7 @@ test.describe('Mobile sticky navigation', () => {
             test.skip(true, `Current E2E user cannot access ${name}`);
           }
 
-          const pageHeader = page.getByTestId('page-header');
+          const pageHeader = visiblePageHeader(page);
           await expect(pageHeader).toBeVisible();
           await expect(pageHeader.getByText(label)).toBeVisible();
           await expectPinnedNavWhileScrolling(page, pageHeader, 'sticky');
@@ -225,7 +226,7 @@ test.describe('Mobile sticky navigation', () => {
         timeout: 30_000,
       });
 
-      const appBar = page.getByTestId('mobile-app-bar');
+      const appBar = visibleMobileAppBar(page);
       await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
     });
 
@@ -238,7 +239,7 @@ test.describe('Mobile sticky navigation', () => {
         test.skip(true, 'Current E2E user cannot access companies module');
       }
 
-      const appBar = page.getByTestId('mobile-app-bar');
+      const appBar = visibleMobileAppBar(page);
       await expect(appBar).toBeVisible();
       await expect(appBar.getByText('Nueva empresa')).toBeVisible();
       await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
@@ -254,7 +255,7 @@ test.describe('Mobile sticky navigation', () => {
         test.skip(true, 'Current E2E user cannot access companies module');
       }
 
-      const pageHeader = page.getByTestId('page-header');
+      const pageHeader = visiblePageHeader(page);
       await expect(pageHeader).toBeVisible();
       await expect(pageHeader.getByText('Empresas')).toBeVisible();
       await expectPinnedNavWhileScrolling(page, pageHeader, 'sticky');
