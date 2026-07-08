@@ -5,6 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import { visibleMobileAppBar, visiblePageHeader } from './helpers/mobile-chrome';
 
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
@@ -28,7 +29,7 @@ test.describe('Mobile dashboard redesign', () => {
   test('shows mobile-first client form chrome', async ({ page }) => {
     await page.goto('/clients/new');
 
-    await expect(page.getByTestId('mobile-app-bar').getByText('Nuevo cliente')).toBeVisible();
+    await expect(visibleMobileAppBar(page).getByText('Nuevo cliente')).toBeVisible();
     await expect(page.getByText('Información del cliente')).toBeVisible();
     await expect(page.getByLabel('Nombre')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Crear' })).toBeVisible();
@@ -42,7 +43,7 @@ test.describe('Mobile dashboard redesign', () => {
       test.skip(true, 'Current E2E user cannot access users module');
     }
 
-    await expect(page.getByTestId('page-header').getByText('Usuarios')).toBeVisible();
+    await expect(visiblePageHeader(page).getByText('Usuarios')).toBeVisible();
     await expect(
       page.getByPlaceholder('Buscar por nombre, correo, empresa, rol o ID...'),
     ).toBeVisible();
@@ -54,7 +55,7 @@ test.describe('Mobile dashboard redesign', () => {
   test('shows mobile-first account page chrome', async ({ page }) => {
     await page.goto('/account');
 
-    await expect(page.getByTestId('mobile-app-bar').getByText('Mi cuenta')).toBeVisible();
+    await expect(visibleMobileAppBar(page).getByText('Mi cuenta')).toBeVisible();
     await expect(page.getByText('Perfil y empresa')).toBeVisible();
     await expect(page.getByText('Empresa', { exact: true })).toBeVisible();
   });
