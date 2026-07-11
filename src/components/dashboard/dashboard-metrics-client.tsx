@@ -40,7 +40,7 @@ import {
   fetchDashboardMetrics,
   type DashboardMetrics,
 } from '@/actions/dashboard';
-import { fetchOnboardingStatus } from '@/actions/onboarding-status';
+import { fetchOnboardingStatus, dismissOnboardingChecklist } from '@/actions/onboarding-status';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -90,6 +90,7 @@ export const DashboardMetricsClient = () => {
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
   const [onboardingSignals, setOnboardingSignals] =
     React.useState<OnboardingChecklistSignals | null>(null);
+  const [isDismissingChecklist, setIsDismissingChecklist] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -210,6 +211,38 @@ export const DashboardMetricsClient = () => {
     onboardingSignals,
   ]);
 
+  const handleDismissOnboardingChecklist = React.useCallback(async () => {
+    setIsDismissingChecklist(true);
+    const isSystem = session?.user.company_is_system;
+    const companyIdArg =
+      isSystem ? (selectedCompany?.id ?? session?.user.company_id) : undefined;
+
+    const result = await dismissOnboardingChecklist({
+      companyId: companyIdArg,
+    });
+    setIsDismissingChecklist(false);
+
+    if (!result.success) {
+      setError(
+        getErrorDisplayMessage(
+          result,
+          'No se pudo ocultar la guía de inicio',
+          result.errorType,
+        ),
+      );
+      return;
+    }
+
+    setOnboardingSignals((current) =>
+      current
+        ? {
+            ...current,
+            dismissedAt: new Date().toISOString(),
+          }
+        : current,
+    );
+  }, [selectedCompany?.id, session?.user.company_id, session?.user.company_is_system]);
+
   if (status === 'loading' || (loading && !metrics && !error)) {
     return <DashboardLoadingSkeleton />;
   }
@@ -313,6 +346,9 @@ export const DashboardMetricsClient = () => {
       <DashboardOnboardingHelp
         checklist={onboardingChecklist}
         needsCompanyContext={needsCompanyContext}
+        canDismiss={permissions.can(PERMISSIONS.company.manage)}
+        isDismissing={isDismissingChecklist}
+        onDismiss={handleDismissOnboardingChecklist}
       />
 
       <TripledMotionDiv
