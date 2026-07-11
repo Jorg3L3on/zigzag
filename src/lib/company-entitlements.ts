@@ -1,5 +1,3 @@
-import type { CompanySettingsJson } from '@/db/schema';
-
 export const COMPANY_PLAN_IDS = ['starter', 'standard', 'enterprise'] as const;
 
 export type CompanyPlanId = (typeof COMPANY_PLAN_IDS)[number];
@@ -25,27 +23,6 @@ export type EntitlementEvaluation = {
   allowed: boolean;
 };
 
-const PLAN_LIMITS: Record<CompanyPlanId, EntitlementLimits> = {
-  starter: {
-    users: 3,
-    clients: 25,
-    services: 25,
-    tickets_month: 50,
-  },
-  standard: {
-    users: 15,
-    clients: 200,
-    services: 200,
-    tickets_month: 500,
-  },
-  enterprise: {
-    users: null,
-    clients: null,
-    services: null,
-    tickets_month: null,
-  },
-};
-
 export const COMPANY_PLAN_LABELS: Record<CompanyPlanId, string> = {
   starter: 'Starter',
   standard: 'Standard',
@@ -59,29 +36,17 @@ export const ENTITLEMENT_METRIC_LABELS: Record<EntitlementMetric, string> = {
   tickets_month: 'tickets este mes',
 };
 
-export const getCompanyPlanId = (
-  settings: CompanySettingsJson | null | undefined,
-): CompanyPlanId => {
-  const plan = settings?.plan;
-  if (plan && COMPANY_PLAN_IDS.includes(plan)) {
-    return plan;
-  }
-  return 'standard';
-};
-
-export const getPlanLimits = (plan: CompanyPlanId): EntitlementLimits =>
-  PLAN_LIMITS[plan];
-
 export const evaluateEntitlement = (
-  plan: CompanyPlanId,
+  effectiveLimits: EntitlementLimits,
+  planSlug: CompanyPlanId,
   metric: EntitlementMetric,
   usage: number,
 ): EntitlementEvaluation => {
-  const limit = PLAN_LIMITS[plan][metric];
+  const limit = effectiveLimits[metric];
   const allowed = limit === null || usage < limit;
 
   return {
-    plan,
+    plan: planSlug,
     metric,
     limit,
     usage,

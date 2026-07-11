@@ -1,4 +1,4 @@
-import type { Company } from '@/db/schema';
+import type { Company, Plan } from '@/db/schema';
 import {
   buildCompanyOperatorSummary,
   getEntitlementPressure,
@@ -6,7 +6,22 @@ import {
 } from '@/lib/company-operator-summary';
 import type { EntitlementUsage } from '@/lib/company-entitlements';
 
-const baseCompany = (overrides: Partial<Company> = {}): Company => ({
+const starterPlan: Plan = {
+  id: 1,
+  slug: 'starter',
+  name: 'Starter',
+  limits: {
+    users: 3,
+    clients: 25,
+    services: 25,
+    tickets_month: 50,
+  },
+  created_at: new Date(),
+};
+
+const baseCompany = (
+  overrides: Partial<Company & { plan?: Plan | null }> = {},
+): Company & { plan?: Plan | null } => ({
   id: 10,
   name: 'Acme',
   phone: '555',
@@ -22,7 +37,10 @@ const baseCompany = (overrides: Partial<Company> = {}): Company => ({
   country: 'México',
   postal_code: '01000',
   status: 'SETUP',
-  settings: { rfc: 'ACM010101AAA', default_currency: 'MXN', plan: 'starter' },
+  plan_id: starterPlan.id,
+  entitlement_limit_overrides: null,
+  settings: { rfc: 'ACM010101AAA', default_currency: 'MXN' },
+  plan: starterPlan,
   created_at: new Date(),
   updated_at: null,
   deleted_at: null,
@@ -96,7 +114,7 @@ describe('company operator summary', () => {
 
   it('marks starter plan over user limit as at_limit overall pressure', () => {
     const summary = buildCompanyOperatorSummary(
-      baseCompany({ status: 'ACTIVE', settings: { plan: 'starter' } }),
+      baseCompany({ status: 'ACTIVE' }),
       {
         users: 3,
         clients: 0,

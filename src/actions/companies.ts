@@ -1,7 +1,7 @@
 'use server';
 
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import { company } from '@/db/schema';
+import { company, type Company, type Plan } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   companyBootstrapSchema,
@@ -47,9 +47,14 @@ import {
 export type CompanyFormData = z.infer<typeof companyFormSchema>;
 export type CompanyBootstrapData = CompanyBootstrapFormValues;
 
+export type CompanyListItem = Company & {
+  plan?: Plan | null;
+  users?: Array<{ deleted_at?: Date | null }>;
+};
+
 export async function getCompanies(): Promise<{
   success: boolean;
-  data?: (typeof company.$inferSelect)[];
+  data?: CompanyListItem[];
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -64,11 +69,12 @@ export async function getCompanies(): Promise<{
             eq(company.id, authContext.companyId as number),
           ),
       with: {
+        plan: true,
         users: true,
       },
       orderBy: [desc(company.created_at)],
     });
-    return { success: true, data: companies };
+    return { success: true, data: companies as CompanyListItem[] };
   } catch (e) {
     return handleCodedServerActionError('companies.list', 'CO001', e);
   }
@@ -301,6 +307,9 @@ async function performCompanyProfileUpdate(
       postal_code: validatedData.postal_code,
       status: validatedData.status,
       settings,
+      ...(authContext.companyIsSystem && validatedData.plan_id != null
+        ? { plan_id: validatedData.plan_id }
+        : {}),
       updated_at: new Date(),
     })
     .where(and(eq(company.id, id), isNull(company.deleted_at)))

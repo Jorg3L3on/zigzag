@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/card';
 import { Loader2, Building2, Gauge, ListChecks } from 'lucide-react';
 import type { EntitlementPressureLevel } from '@/lib/company-operator-summary';
+import { OperatorPlanControls } from '@/components/operator-console/operator-plan-controls';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
 const pressureBadge = (pressure: EntitlementPressureLevel) => {
@@ -65,6 +66,8 @@ export const OperatorCompanyOverview = () => {
   const [usage, setUsage] = React.useState(
     initialPanelState<Awaited<ReturnType<typeof getCompanyEntitlements>>['data']>(),
   );
+
+  const [refreshToken, setRefreshToken] = React.useState(0);
 
   React.useEffect(() => {
     if (!companyId || isSystemTenant) {
@@ -203,7 +206,7 @@ export const OperatorCompanyOverview = () => {
     return () => {
       cancelled = true;
     };
-  }, [companyId, isSystemTenant]);
+  }, [companyId, isSystemTenant, refreshToken]);
 
   if (!companyId) {
     return (
@@ -355,7 +358,12 @@ export const OperatorCompanyOverview = () => {
                 {usage.error}
               </p>
             ) : usage.data ? (
-              <ul className="space-y-3 text-sm">
+              <div className="space-y-4">
+                <OperatorPlanControls
+                  companyId={companyId}
+                  onUpdated={() => setRefreshToken((value) => value + 1)}
+                />
+                <ul className="space-y-3 text-sm">
                 {usage.data.metrics.map((metric) => {
                   const summaryMetric = summary?.metrics.find(
                     (row) => row.metric === metric.metric,
@@ -387,7 +395,8 @@ export const OperatorCompanyOverview = () => {
                     </li>
                   );
                 })}
-              </ul>
+                </ul>
+              </div>
             ) : null}
           </CardContent>
         </Card>

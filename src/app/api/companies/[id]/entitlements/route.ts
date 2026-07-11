@@ -1,13 +1,12 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { company } from '@/db/schema';
 import { fail, ok, requireApiPermission } from '@/lib/api-helpers';
+import { loadCompanyPlanContext } from '@/lib/company-effective-limits';
 import { getCompanyEntitlementUsage } from '@/lib/company-entitlement-usage';
 import {
-  COMPANY_PLAN_LABELS,
   ENTITLEMENT_METRICS,
   ENTITLEMENT_METRIC_LABELS,
   evaluateEntitlement,
-  getCompanyPlanId,
 } from '@/lib/company-entitlements';
 import { db } from '@/lib/db';
 
@@ -31,29 +30,33 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return unauthorized;
     }
 
-    const row = await db.query.company.findFirst({
-      where: and(eq(company.id, companyId), isNull(company.deleted_at)),
-    });
-
-    if (!row) {
+    const planContext = await loadCompanyPlanContext(companyId);
+    if (!planContext) {
       return fail('CO006', 404, 'validation');
     }
 
-    const plan = getCompanyPlanId(row.settings);
     const usage = await getCompanyEntitlementUsage(companyId);
 
     return ok({
-      plan,
-      planLabel: COMPANY_PLAN_LABELS[plan],
+      plan: planContext.planSlug,
+      planLabel: planContext.planLabel,
+      planId: planContext.planId,
       usage,
       metrics: ENTITLEMENT_METRICS.map((metric) => {
-        const evaluation = evaluateEntitlement(plan, metric, usage[metric]);
+        const evaluation = evaluateEntitlement(
+          planContext.effectiveLimits,
+          planContext.planSlug,
+          metric,
+          usage[metric],
+        );
         return {
           metric,
           label: ENTITLEMENT_METRIC_LABELS[metric],
           limit: evaluation.limit,
+          catalogLimit: planContext.catalogLimits[metric],
           usage: evaluation.usage,
           allowed: evaluation.allowed,
+          isOverridden: planContext.overriddenMetrics.includes(metric),
         };
       }),
     });
