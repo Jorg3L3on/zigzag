@@ -1,6 +1,6 @@
 # PRD: Onboarding Checklist for New Companies
 
-**Status:** Published — GitHub issue [#220](https://github.com/Jorg3L3on/zigzag/issues/220)  
+**Status:** Shipped — merged to `main` via PR [#227](https://github.com/Jorg3L3on/zigzag/pull/227) (Jul 2026)  
 **Source:** Execution plan task 3.3; operator guide `guia-empresa.html` § Inicio rápido
 
 ## Problem Statement
