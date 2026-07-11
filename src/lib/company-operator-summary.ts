@@ -1,14 +1,12 @@
-import type { Company, CompanyLifecycleStatus } from '@/db/schema';
+import type { Company, Plan } from '@/db/schema';
 import {
-  COMPANY_PLAN_LABELS,
   ENTITLEMENT_METRICS,
   ENTITLEMENT_METRIC_LABELS,
   evaluateEntitlement,
-  getCompanyPlanId,
-  type EntitlementMetric,
   type CompanyPlanId,
   type EntitlementUsage,
 } from '@/lib/company-entitlements';
+import { resolveEffectiveLimits } from '@/lib/effective-plan-limits';
 import {
   assessCompanyReadiness,
   type CompanyReadinessAssessment,
@@ -18,6 +16,7 @@ import {
   companyLifecycleLabel,
   normalizeCompanyLifecycleStatus,
 } from '@/lib/company-lifecycle';
+import { normalizePlanSlug } from '@/lib/company-effective-limits';
 
 export type EntitlementPressureLevel =
   | 'ok'
@@ -63,7 +62,7 @@ export const worstEntitlementPressure = (
   );
 };
 
-const metricHref = (metric: EntitlementMetric): string => {
+const metricHref = (metric: (typeof ENTITLEMENT_METRICS)[number]): string => {
   switch (metric) {
     case 'users':
       return '/users';
@@ -79,7 +78,7 @@ const metricHref = (metric: EntitlementMetric): string => {
 };
 
 export type CompanyOperatorMetricSummary = {
-  metric: EntitlementMetric;
+  metric: (typeof ENTITLEMENT_METRICS)[number];
   label: string;
   usage: number;
   limit: number | null;
@@ -93,11 +92,12 @@ export type CompanyOperatorSummary = {
   name: string;
   email: string;
   phone: string;
-  lifecycle: CompanyLifecycleStatus;
+  lifecycle: ReturnType<typeof normalizeCompanyLifecycleStatus>;
   lifecycleLabel: string;
   allowsAuthentication: boolean;
   plan: CompanyPlanId;
   planLabel: string;
+  planId: number;
   readiness: CompanyReadinessAssessment;
   roleCount: number;
   metrics: CompanyOperatorMetricSummary[];
@@ -105,18 +105,30 @@ export type CompanyOperatorSummary = {
   editHref: string;
 };
 
+type CompanyWithPlan = Company & { plan?: Plan | null };
+
 export const buildCompanyOperatorSummary = (
-  companyRow: Company,
+  companyRow: CompanyWithPlan,
   usage: EntitlementUsage,
   roleCount: number,
 ): CompanyOperatorSummary => {
-  const plan = getCompanyPlanId(companyRow.settings);
+  const planSlug = normalizePlanSlug(companyRow.plan?.slug);
+  const planLabel = companyRow.plan?.name ?? 'Standard';
+  const effectiveLimits = resolveEffectiveLimits(
+    companyRow.plan?.limits ?? null,
+    companyRow.entitlement_limit_overrides,
+  );
   const lifecycle = normalizeCompanyLifecycleStatus(companyRow.status);
   const readiness = assessCompanyReadiness(companyRow);
 
   const metrics: CompanyOperatorMetricSummary[] = ENTITLEMENT_METRICS.map(
     (metric) => {
-      const evaluation = evaluateEntitlement(plan, metric, usage[metric]);
+      const evaluation = evaluateEntitlement(
+        effectiveLimits,
+        planSlug,
+        metric,
+        usage[metric],
+      );
       return {
         metric,
         label: ENTITLEMENT_METRIC_LABELS[metric],
@@ -137,8 +149,9 @@ export const buildCompanyOperatorSummary = (
     lifecycle,
     lifecycleLabel: companyLifecycleLabel(companyRow.status),
     allowsAuthentication: companyAllowsAuthentication(companyRow.status),
-    plan,
-    planLabel: COMPANY_PLAN_LABELS[plan],
+    plan: planSlug,
+    planLabel,
+    planId: companyRow.plan_id,
     readiness,
     roleCount,
     metrics,

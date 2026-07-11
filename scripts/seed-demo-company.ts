@@ -199,10 +199,10 @@ const upsertDemoCompany = async (
     logo: DEMO_COMPANY_LOGO_PATH,
     is_system: false,
     status: 'ACTIVE' as const,
+    plan_id: 3,
     settings: {
       rfc: 'CTD010101ABC',
       default_currency: 'MXN',
-      plan: 'enterprise' as const,
       invoice_footer_note:
         'Gracias por confiar en ClimaTotal Demo — soluciones integrales en climatización.',
     },
