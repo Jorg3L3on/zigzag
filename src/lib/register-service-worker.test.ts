@@ -12,6 +12,21 @@ describe('shouldRegisterServiceWorker', () => {
     expect(shouldRegisterServiceWorker({ nodeEnv: undefined })).toBe(false);
   });
 
+  it('can be disabled for Playwright / CI via env flag', () => {
+    expect(
+      shouldRegisterServiceWorker({
+        nodeEnv: 'production',
+        disableServiceWorker: '1',
+      }),
+    ).toBe(false);
+    expect(
+      shouldRegisterServiceWorker({
+        nodeEnv: 'production',
+        disableServiceWorker: 'true',
+      }),
+    ).toBe(false);
+  });
+
   it('exposes same-origin SW URL and root scope', () => {
     expect(SERWIST_SW_URL).toBe('/serwist/sw.js');
     expect(SERWIST_SCOPE).toBe('/');

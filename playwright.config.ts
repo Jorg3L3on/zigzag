@@ -59,6 +59,8 @@ export default defineConfig({
           PORT: '3070',
           NEXTAUTH_URL: prodBaseUrl,
           AUTH_TRUST_HOST: 'true',
+          // Keep E2E isolated from PWA shell caching across tests/sessions.
+          NEXT_PUBLIC_DISABLE_SERVICE_WORKER: '1',
         },
       }
     : {
@@ -70,6 +72,7 @@ export default defineConfig({
           ...process.env,
           NEXTAUTH_URL: devBaseUrl,
           AUTH_TRUST_HOST: 'true',
+          NEXT_PUBLIC_DISABLE_SERVICE_WORKER: '1',
         },
       },
 });
