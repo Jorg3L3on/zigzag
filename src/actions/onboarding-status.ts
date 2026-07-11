@@ -2,11 +2,17 @@
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
-import { client, company, service } from '@/db/schema';
-import { db } from '@/lib/db';
 import {
-  assessCompanyReadiness,
-} from '@/lib/company-readiness';
+  client,
+  clientServiceSchedule,
+  company,
+  service,
+  servicesTickets,
+  ticket,
+  user,
+} from '@/db/schema';
+import { db } from '@/lib/db';
+import { assessCompanyReadiness } from '@/lib/company-readiness';
 import {
   buildActionError,
   handleCodedServerActionError,
@@ -44,6 +50,10 @@ export async function loadOnboardingStatusForCompany(
     }
 
     const readiness = assessCompanyReadiness(companyRow);
+    const ticketScope = and(
+      eq(ticket.company_id, companyId),
+      isNull(ticket.deleted_at),
+    );
 
     const [clientsAgg] = await db
       .select({ totalClients: sql<number>`count(*)` })
@@ -55,12 +65,58 @@ export async function loadOnboardingStatusForCompany(
       .from(service)
       .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)));
 
+    const [ticketAgg] = await db
+      .select({
+        totalTickets: sql<number>`count(*)`,
+        finishedTicketCount: sql<number>`count(*) filter (where ${ticket.finished})`,
+        hasPaidOrFinishedTicket: sql<number>`count(*) filter (where ${ticket.finished} or ${ticket.paid} > 0)`,
+      })
+      .from(ticket)
+      .where(ticketScope);
+
+    const [servicesSoldAgg] = await db
+      .select({
+        totalServicesSold: sql<number>`COALESCE(SUM(${servicesTickets.quantity}), 0)`,
+      })
+      .from(servicesTickets)
+      .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+      .where(
+        and(
+          eq(ticket.company_id, companyId),
+          isNull(ticket.deleted_at),
+          isNull(servicesTickets.deleted_at),
+        ),
+      );
+
+    const [usersAgg] = await db
+      .select({ totalUsers: sql<number>`count(*)` })
+      .from(user)
+      .where(and(eq(user.company_id, companyId), isNull(user.deleted_at)));
+
+    const [schedulesAgg] = await db
+      .select({ totalServiceSchedules: sql<number>`count(*)` })
+      .from(clientServiceSchedule)
+      .where(
+        and(
+          eq(clientServiceSchedule.company_id, companyId),
+          isNull(clientServiceSchedule.deleted_at),
+        ),
+      );
+
     return {
       success: true,
       data: {
         profileReady: readiness.profileReady,
         totalClients: Number(clientsAgg?.totalClients ?? 0),
         totalServices: Number(servicesAgg?.totalServices ?? 0),
+        totalTickets: Number(ticketAgg?.totalTickets ?? 0),
+        totalServicesSold: Number(servicesSoldAgg?.totalServicesSold ?? 0),
+        hasPaidOrFinishedTicket:
+          Number(ticketAgg?.hasPaidOrFinishedTicket ?? 0) > 0,
+        finishedTicketCount: Number(ticketAgg?.finishedTicketCount ?? 0),
+        totalUsers: Number(usersAgg?.totalUsers ?? 0),
+        totalServiceSchedules: Number(schedulesAgg?.totalServiceSchedules ?? 0),
+        dismissedAt: companyRow.settings?.onboarding_checklist_dismissed_at ?? null,
       },
     };
   } catch (error) {

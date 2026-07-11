@@ -84,6 +84,21 @@ export const DashboardOnboardingHelp = ({
                   </Link>
                 </Button>
               ) : null}
+              {step.secondaryHref &&
+              step.secondaryActionLabel &&
+              step.secondaryCanAct ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 h-auto min-h-9 px-2"
+                >
+                  <Link href={step.secondaryHref}>
+                    {step.secondaryActionLabel}
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                </Button>
+              ) : null}
               {step.guideHref ? (
                 <Button
                   asChild

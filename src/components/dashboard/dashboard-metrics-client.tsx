@@ -45,6 +45,7 @@ import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 1, label: '1 mes' },
@@ -145,6 +146,13 @@ export const DashboardMetricsClient = () => {
               profileReady: false,
               totalClients: res.data.totalClients,
               totalServices: res.data.totalServices,
+              totalTickets: res.data.totalTickets,
+              totalServicesSold: res.data.totalServicesSold,
+              hasPaidOrFinishedTicket: false,
+              finishedTicketCount: 0,
+              totalUsers: 0,
+              totalServiceSchedules: 0,
+              dismissedAt: null,
             },
       );
     };
@@ -160,33 +168,47 @@ export const DashboardMetricsClient = () => {
     session?.user.company_is_system === true &&
     (selectedCompany == null || selectedCompany.is_system === true);
 
+  const onboardingPermissions = React.useMemo(
+    () => ({
+      canManageCompany: permissions.can(PERMISSIONS.company.manage),
+      canCreateClients: permissions.can(PERMISSIONS.clients.write),
+      canCreateServices: permissions.can(PERMISSIONS.services.write),
+      canCreateTickets: permissions.can(PERMISSIONS.tickets.write),
+      canCreateUsers: permissions.can(PERMISSIONS.users.write),
+      canViewTickets: permissions.can(PERMISSIONS.tickets.read),
+      canViewSchedules: canReadServiceSchedules(permissions.can),
+    }),
+    [permissions],
+  );
+
   const onboardingChecklist = React.useMemo(() => {
-    if (!onboardingSignals) {
-      return buildCompanyOnboardingChecklist({
-        signals: {
-          profileReady: false,
-          totalClients: 0,
-          totalServices: 0,
-        },
-        permissions: {
-          canManageCompany: permissions.can(PERMISSIONS.company.manage),
-          canCreateClients: permissions.can(PERMISSIONS.clients.write),
-          canCreateServices: permissions.can(PERMISSIONS.services.write),
-        },
-        needsCompanyContext,
-      });
-    }
+    const fallbackSignals = {
+      profileReady: false,
+      totalClients: metrics?.totalClients ?? 0,
+      totalServices: metrics?.totalServices ?? 0,
+      totalTickets: metrics?.totalTickets ?? 0,
+      totalServicesSold: metrics?.totalServicesSold ?? 0,
+      hasPaidOrFinishedTicket: false,
+      finishedTicketCount: 0,
+      totalUsers: 0,
+      totalServiceSchedules: 0,
+      dismissedAt: null,
+    };
 
     return buildCompanyOnboardingChecklist({
-      signals: onboardingSignals,
-      permissions: {
-        canManageCompany: permissions.can(PERMISSIONS.company.manage),
-        canCreateClients: permissions.can(PERMISSIONS.clients.write),
-        canCreateServices: permissions.can(PERMISSIONS.services.write),
-      },
+      signals: onboardingSignals ?? fallbackSignals,
+      permissions: onboardingPermissions,
       needsCompanyContext,
     });
-  }, [needsCompanyContext, onboardingSignals, permissions]);
+  }, [
+    metrics?.totalClients,
+    metrics?.totalServices,
+    metrics?.totalTickets,
+    metrics?.totalServicesSold,
+    needsCompanyContext,
+    onboardingPermissions,
+    onboardingSignals,
+  ]);
 
   if (status === 'loading' || (loading && !metrics && !error)) {
     return <DashboardLoadingSkeleton />;
