@@ -63,6 +63,7 @@ export const openOnboardingGuide = (href: string) => {
 
 /** Deep links into the operator guide for in-app empty states. */
 export const OPERATOR_GUIDE_ANCHORS = {
+  miEmpresa: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-3`,
   clientes: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-5`,
   servicios: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-4`,
   crearTicket: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-7`,

@@ -243,14 +243,21 @@ async function performCompanyProfileUpdate(
   error?: string;
   errorType?: ActionErrorType;
 }> {
-  const settings = normalizeCompanySettingsForDb(validatedData.settings);
-
   const existing = await db.query.company.findFirst({
     where: and(eq(company.id, id), isNull(company.deleted_at)),
   });
   if (!existing) {
     return buildActionError('CO006');
   }
+
+  const formSettings = normalizeCompanySettingsForDb(validatedData.settings);
+  const settings =
+    formSettings || existing.settings
+      ? {
+          ...(existing.settings ?? {}),
+          ...(formSettings ?? {}),
+        }
+      : null;
 
   const nextLifecycle = normalizeCompanyLifecycleStatus(validatedData.status);
   const transition = canTransitionCompanyLifecycle(
