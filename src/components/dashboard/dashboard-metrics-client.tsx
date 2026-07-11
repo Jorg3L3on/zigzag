@@ -30,20 +30,21 @@ import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
+import {
+  buildCompanyOnboardingChecklist,
+  type OnboardingChecklistSignals,
+} from '@/lib/company-onboarding-checklist';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
   fetchDashboardMetrics,
   type DashboardMetrics,
 } from '@/actions/dashboard';
+import { fetchOnboardingStatus } from '@/actions/onboarding-status';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
-import {
-  canCreateTicketFromSchedule,
-  canWriteServiceSchedules,
-} from '@/lib/service-schedules-rbac';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 1, label: '1 mes' },
@@ -86,6 +87,8 @@ export const DashboardMetricsClient = () => {
   const permissions = usePermissions();
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
+  const [onboardingSignals, setOnboardingSignals] =
+    React.useState<OnboardingChecklistSignals | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -109,10 +112,15 @@ export const DashboardMetricsClient = () => {
           ? (selectedCompany?.id ?? session.user.company_id)
           : undefined;
 
-      const res = await fetchDashboardMetrics({
-        companyId: companyIdArg,
-        monthCount,
-      });
+      const [res, onboardingRes] = await Promise.all([
+        fetchDashboardMetrics({
+          companyId: companyIdArg,
+          monthCount,
+        }),
+        fetchOnboardingStatus({
+          companyId: companyIdArg,
+        }),
+      ]);
 
       if (cancelled) {
         return;
@@ -130,6 +138,15 @@ export const DashboardMetricsClient = () => {
       }
       setError(null);
       setMetrics(res.data);
+      setOnboardingSignals(
+        onboardingRes.success && onboardingRes.data
+          ? onboardingRes.data
+          : {
+              profileReady: false,
+              totalClients: res.data.totalClients,
+              totalServices: res.data.totalServices,
+            },
+      );
     };
 
     void load();
@@ -138,6 +155,38 @@ export const DashboardMetricsClient = () => {
       cancelled = true;
     };
   }, [status, session, selectedCompany?.id, monthCount, router]);
+
+  const needsCompanyContext =
+    session?.user.company_is_system === true &&
+    (selectedCompany == null || selectedCompany.is_system === true);
+
+  const onboardingChecklist = React.useMemo(() => {
+    if (!onboardingSignals) {
+      return buildCompanyOnboardingChecklist({
+        signals: {
+          profileReady: false,
+          totalClients: 0,
+          totalServices: 0,
+        },
+        permissions: {
+          canManageCompany: permissions.can(PERMISSIONS.company.manage),
+          canCreateClients: permissions.can(PERMISSIONS.clients.write),
+          canCreateServices: permissions.can(PERMISSIONS.services.write),
+        },
+        needsCompanyContext,
+      });
+    }
+
+    return buildCompanyOnboardingChecklist({
+      signals: onboardingSignals,
+      permissions: {
+        canManageCompany: permissions.can(PERMISSIONS.company.manage),
+        canCreateClients: permissions.can(PERMISSIONS.clients.write),
+        canCreateServices: permissions.can(PERMISSIONS.services.write),
+      },
+      needsCompanyContext,
+    });
+  }, [needsCompanyContext, onboardingSignals, permissions]);
 
   if (status === 'loading' || (loading && !metrics && !error)) {
     return <DashboardLoadingSkeleton />;
@@ -182,14 +231,6 @@ export const DashboardMetricsClient = () => {
   const handleExportCsv = () => {
     window.open(buildReportUrl('csv'), '_blank', 'noopener,noreferrer');
   };
-  const canCreateClients = permissions.can(PERMISSIONS.clients.write);
-  const canCreateServices = permissions.can(PERMISSIONS.services.write);
-  const canCreateTickets = permissions.can(PERMISSIONS.tickets.write);
-  const canCreateSchedules = canWriteServiceSchedules(permissions.can);
-  const canCollectPayments = canCreateTicketFromSchedule(permissions.can);
-  const needsCompanyContext =
-    session?.user.company_is_system === true &&
-    (selectedCompany == null || selectedCompany.is_system === true);
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
@@ -248,15 +289,7 @@ export const DashboardMetricsClient = () => {
       </div>
 
       <DashboardOnboardingHelp
-        totalClients={metrics.totalClients}
-        totalServices={metrics.totalServices}
-        totalTickets={metrics.totalTickets}
-        totalServicesSold={metrics.totalServicesSold}
-        canCreateClients={canCreateClients}
-        canCreateServices={canCreateServices}
-        canCreateTickets={canCreateTickets}
-        canCreateSchedules={canCreateSchedules}
-        canCollectPayments={canCollectPayments}
+        checklist={onboardingChecklist}
         needsCompanyContext={needsCompanyContext}
       />
 

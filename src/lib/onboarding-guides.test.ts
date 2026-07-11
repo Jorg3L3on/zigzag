@@ -29,6 +29,9 @@ describe('onboarding-guides', () => {
   });
 
   it('exposes deep links into the operator guide', () => {
+    expect(OPERATOR_GUIDE_ANCHORS.miEmpresa).toBe(
+      `${ONBOARDING_GUIDE_PATHS.empresa}#paso-3`,
+    );
     expect(OPERATOR_GUIDE_ANCHORS.crearTicket).toBe(
       `${ONBOARDING_GUIDE_PATHS.empresa}#paso-7`,
     );
