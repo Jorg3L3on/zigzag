@@ -6,6 +6,7 @@ import * as schema from '../src/db/schema';
 import {
   company,
   permission,
+  plan,
   role,
   rolePermission,
   service,
@@ -24,6 +25,7 @@ const pool = new Pool({ connectionString });
 const db = drizzle(pool, { schema });
 
 const TABLES_NEED_SEQUENCE_SYNC = [
+  'Plan',
   'Company',
   'Service',
   'Ticket',
@@ -46,8 +48,44 @@ async function syncPostgresIdSequences() {
 async function main() {
   // Reset to keep local seed deterministic.
   await db.execute(
-    sql`TRUNCATE TABLE "RolePermission", "Role", "Permission", "ServicesTickets", "Ticket", "Client", "User", "Service", "Company" RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE TABLE "RolePermission", "Role", "Permission", "ServicesTickets", "Ticket", "Client", "User", "Service", "Company", "Plan" RESTART IDENTITY CASCADE`,
   );
+
+  await db.insert(plan).values([
+    {
+      id: 1,
+      slug: 'starter',
+      name: 'Starter',
+      limits: {
+        users: 3,
+        clients: 25,
+        services: 25,
+        tickets_month: 50,
+      },
+    },
+    {
+      id: 2,
+      slug: 'standard',
+      name: 'Standard',
+      limits: {
+        users: 15,
+        clients: 200,
+        services: 200,
+        tickets_month: 500,
+      },
+    },
+    {
+      id: 3,
+      slug: 'enterprise',
+      name: 'Enterprise',
+      limits: {
+        users: null,
+        clients: null,
+        services: null,
+        tickets_month: null,
+      },
+    },
+  ]);
 
   await db.insert(company).values([
     {
@@ -65,6 +103,7 @@ async function main() {
       logo: null,
       is_system: false,
       status: 'ACTIVE',
+      plan_id: 2,
       settings: { rfc: 'SCH010101AAA', default_currency: 'MXN' },
     },
     {
@@ -82,6 +121,7 @@ async function main() {
       logo: '/icons/icon-192.png',
       is_system: true,
       status: 'ACTIVE',
+      plan_id: 2,
       settings: { rfc: 'ZZG010101AAA', default_currency: 'MXN' },
     },
     {
@@ -99,6 +139,7 @@ async function main() {
       logo: null,
       is_system: false,
       status: 'ACTIVE',
+      plan_id: 2,
       settings: { rfc: 'EPR010101AAA', default_currency: 'MXN' },
     },
   ]);
