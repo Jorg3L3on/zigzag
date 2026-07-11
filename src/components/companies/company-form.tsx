@@ -41,18 +41,13 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
-import {
-  COMPANY_PLAN_IDS,
-  COMPANY_PLAN_LABELS,
-  getCompanyPlanId,
-} from '@/lib/company-entitlements';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
+import type { CompanyPlanId } from '@/lib/company-entitlements';
 
 const defaultSettings = {
   rfc: '',
   invoice_footer_note: '',
   default_currency: 'MXN',
-  plan: 'standard' as const,
 };
 
 const emptyDefaults: CompanyBootstrapFormValues = {
@@ -78,6 +73,7 @@ const emptyDefaults: CompanyBootstrapFormValues = {
 
 interface CompanyFormProps {
   company?: Company;
+  planOptions?: Array<{ id: number; slug: CompanyPlanId; name: string }>;
   /**
    * 'system' (default): platform operator editing any company via `updateCompany`.
    * 'self': tenant admin editing their own company via `updateOwnCompany`. Hides
@@ -86,7 +82,11 @@ interface CompanyFormProps {
   mode?: 'system' | 'self';
 }
 
-export const CompanyForm = ({ company, mode = 'system' }: CompanyFormProps) => {
+export const CompanyForm = ({
+  company,
+  planOptions = [],
+  mode = 'system',
+}: CompanyFormProps) => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEdit = Boolean(company);
@@ -116,8 +116,8 @@ export const CompanyForm = ({ company, mode = 'system' }: CompanyFormProps) => {
               company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
-            plan: getCompanyPlanId(company.settings),
           },
+          plan_id: company.plan_id,
           owner: { name: '', email: '', password: '' },
         }
       : emptyDefaults,
@@ -452,20 +452,23 @@ export const CompanyForm = ({ company, mode = 'system' }: CompanyFormProps) => {
             {!isSelfService ? (
               <FormField
                 control={form.control}
-                name="settings.plan"
+                name="plan_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Plan comercial</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={(value) => field.onChange(Number.parseInt(value, 10))}
+                      value={field.value != null ? String(field.value) : undefined}
+                    >
                       <FormControl>
                         <SelectTrigger aria-label="Plan comercial">
                           <SelectValue placeholder="Selecciona un plan" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {COMPANY_PLAN_IDS.map((planId) => (
-                          <SelectItem key={planId} value={planId}>
-                            {COMPANY_PLAN_LABELS[planId]}
+                        {planOptions.map((planOption) => (
+                          <SelectItem key={planOption.id} value={String(planOption.id)}>
+                            {planOption.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

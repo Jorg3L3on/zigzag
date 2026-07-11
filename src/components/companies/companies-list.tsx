@@ -9,9 +9,10 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
-import type { Company } from '@/db/schema';
+import type { Company, Plan } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
+import { resolveEffectiveLimits } from '@/lib/effective-plan-limits';
 import {
   TripledEmptyState,
   TripledFilterChips,
@@ -55,11 +56,6 @@ import {
   normalizeCompanyLifecycleStatus,
 } from '@/lib/company-lifecycle';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
-import {
-  COMPANY_PLAN_LABELS,
-  getCompanyPlanId,
-  getPlanLimits,
-} from '@/lib/company-entitlements';
 
 type StatusFilter = 'all' | 'setup' | 'active' | 'restricted';
 
@@ -90,6 +86,7 @@ export function CompaniesList() {
     permissions.isSystem && permissions.can(PERMISSIONS.companies.write);
   const router = useRouter();
   type CompanyListRow = Company & {
+    plan?: Plan | null;
     users?: Array<{ deleted_at?: Date | null }>;
   };
   const [companies, setCompanies] = React.useState<CompanyListRow[]>([]);
@@ -206,7 +203,7 @@ export function CompaniesList() {
       name: companyRow.name,
       logo: () => null,
       logoUrl: companyRow.logo,
-      plan: COMPANY_PLAN_LABELS[getCompanyPlanId(companyRow.settings)],
+      plan: companyRow.plan?.name ?? 'Standard',
       is_system: companyRow.is_system,
     }),
     [],
@@ -221,33 +218,36 @@ export function CompaniesList() {
   }, []);
 
   const getPlanPressureBadge = React.useCallback((companyRow: CompanyListRow) => {
-    const plan = getCompanyPlanId(companyRow.settings);
-    const userLimit = getPlanLimits(plan).users;
+    const planLabel = companyRow.plan?.name ?? 'Standard';
+    const userLimit = resolveEffectiveLimits(
+      companyRow.plan?.limits ?? null,
+      companyRow.entitlement_limit_overrides,
+    ).users;
     const userUsage =
       companyRow.users?.filter((userRow) => userRow.deleted_at == null).length ?? 0;
 
     if (userLimit === null) {
-      return <Badge variant="outline">Plan {COMPANY_PLAN_LABELS[plan]}: sin límite</Badge>;
+      return <Badge variant="outline">Plan {planLabel}: sin límite</Badge>;
     }
 
     const ratio = userLimit > 0 ? userUsage / userLimit : 0;
     if (ratio >= 1) {
       return (
         <Badge variant="destructive">
-          Plan {COMPANY_PLAN_LABELS[plan]}: límite alcanzado ({userUsage}/{userLimit})
+          Plan {planLabel}: límite alcanzado ({userUsage}/{userLimit})
         </Badge>
       );
     }
     if (ratio >= 0.8) {
       return (
         <Badge variant="secondary" className="border-amber-200 bg-amber-100 text-amber-900">
-          Plan {COMPANY_PLAN_LABELS[plan]}: cerca del límite ({userUsage}/{userLimit})
+          Plan {planLabel}: cerca del límite ({userUsage}/{userLimit})
         </Badge>
       );
     }
     return (
       <Badge variant="outline">
-        Plan {COMPANY_PLAN_LABELS[plan]}: estable ({userUsage}/{userLimit})
+        Plan {planLabel}: estable ({userUsage}/{userLimit})
       </Badge>
     );
   }, []);

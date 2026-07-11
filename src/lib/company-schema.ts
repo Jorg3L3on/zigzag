@@ -1,13 +1,11 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
-import { COMPANY_PLAN_IDS } from '@/lib/company-entitlements';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
   invoice_footer_note: z.string().optional(),
   default_currency: z.string().optional(),
-  plan: z.enum(COMPANY_PLAN_IDS).optional(),
 });
 
 export const companyFormSchema = z.object({
@@ -23,6 +21,7 @@ export const companyFormSchema = z.object({
   country: z.string().min(1, 'El país es requerido'),
   postal_code: z.string().min(1, 'El código postal es requerido'),
   status: z.enum(['SETUP', 'ACTIVE', 'SUSPENDED', 'ARCHIVED']),
+  plan_id: z.number().int().positive().optional(),
   settings: companySettingsSchema.optional(),
 });
 
@@ -47,9 +46,6 @@ export function normalizeCompanySettingsForDb(
   }
   if (cur) {
     out.default_currency = cur;
-  }
-  if (input.plan) {
-    out.plan = input.plan;
   }
   return Object.keys(out).length > 0 ? out : null;
 }

@@ -12,6 +12,7 @@ export const loadCompanyOperatorSummary = async (
 ): Promise<CompanyOperatorSummary | null> => {
   const row = await db.query.company.findFirst({
     where: and(eq(company.id, companyId), isNull(company.deleted_at)),
+    with: { plan: true },
   });
 
   if (!row || row.is_system) {

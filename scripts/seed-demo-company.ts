@@ -203,7 +203,6 @@ const upsertDemoCompany = async (
     settings: {
       rfc: 'CTD010101ABC',
       default_currency: 'MXN',
-      plan: 'enterprise' as const,
       invoice_footer_note:
         'Gracias por confiar en ClimaTotal Demo — soluciones integrales en climatización.',
     },

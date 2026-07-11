@@ -5,15 +5,15 @@ import type {
 
 import {
   ENTITLEMENT_METRICS,
-  getPlanLimits,
   type EntitlementLimits,
 } from '@/lib/company-entitlements';
+import { STANDARD_FALLBACK_LIMITS } from '@/lib/plan-limit-fallbacks';
 
 export const resolveEffectiveLimits = (
   planLimits: PlanLimitsJson | null | undefined,
   overrides: EntitlementLimitOverridesJson | null | undefined,
 ): EntitlementLimits => {
-  const base = planLimits ?? getPlanLimits('standard');
+  const base = planLimits ?? STANDARD_FALLBACK_LIMITS;
 
   return ENTITLEMENT_METRICS.reduce<EntitlementLimits>((limits, metric) => {
     if (overrides && Object.prototype.hasOwnProperty.call(overrides, metric)) {
