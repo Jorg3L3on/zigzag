@@ -23,6 +23,7 @@ export function AppSerwistProvider({ children }: AppSerwistProviderProps) {
       swUrl={SERWIST_SW_URL}
       disable={disable}
       register={!disable}
+      cacheOnNavigation={false}
       options={{ scope: SERWIST_SCOPE }}
       reloadOnOnline={false}
     >
