@@ -222,8 +222,8 @@
   <div class="audit-banner">
     <div class="audit-banner-title">Coverage snapshot — zigzag @ main (July 2026)</div>
     <div class="audit-stats">
-      <span><span class="status-badge st-done">5 Done</span></span>
-      <span><span class="status-badge st-partial">6 Partial</span></span>
+      <span><span class="status-badge st-done">6 Done</span></span>
+      <span><span class="status-badge st-partial">5 Partial</span></span>
       <span><span class="status-badge st-open">2 Not started</span></span>
     </div>
     <div class="audit-banner-meta">Security foundation (IDOR + Server Actions) is shipped. DB-backed plans (1.3) and component decomposition (2.1) are complete. Self-serve signup removed from scope.</div>
@@ -520,7 +520,7 @@
     <div class="phase-header">
       <span class="phase-num ph-3">PHASE 3</span>
       <span class="phase-title">Quality &amp; Observability — Know when things break</span>
-      <span class="phase-status">0 done · 3 partial · 0 open</span>
+      <span class="phase-status">1 done · 2 partial · 0 open</span>
       <span class="phase-timeline">~1–2 weeks</span>
     </div>
     <p class="phase-intro">
@@ -598,27 +598,27 @@
           <div>
             <div class="task-title">3.3 — Onboarding checklist for new companies</div>
             <div class="task-why">
-              <code>dashboard-onboarding-help.tsx</code> exists but is minimal. After self-serve signup lands
-              (Phase 1), new companies will arrive with zero data and no guidance. A structured onboarding
-              checklist (add first service → add first client → create first ticket) dramatically reduces
-              the time-to-value and prevents churn at the activation step.
+              New Company tenants need a structured activation path on the dashboard. The in-app
+              <strong>Inicio rápido</strong> checklist mirrors <code>guia-empresa.html</code>, auto-detects
+              progress from tenant data, links each step to create flows and guide anchors, and supports
+              admin dismiss persisted in <code>Company.settings</code>.
             </div>
           </div>
           <div class="task-meta">
-            <span class="status-badge st-partial">Partial</span>
+            <span class="status-badge st-done">Done</span>
             <span class="effort-badge ef-m">Medium</span>
             <span class="score-change">↑ Activation UX</span>
           </div>
         </div>
-        <div class="coverage-note"><strong>Evidence:</strong> <code>DashboardOnboardingHelp</code> (“Ruta de inicio”) with linked steps. Missing invite-team step, persisted dismiss in company settings, exact “fewer than 3 of 3” trigger logic.</div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>company-onboarding-checklist.ts</code>, <code>fetchOnboardingStatus</code> / <code>dismissOnboardingChecklist</code>, <code>DashboardOnboardingHelp</code> (6 steps, progress, RBAC-gated actions, guide deep links). Shipped PRD #220 → <code>main</code> Jul 2026.</div>
         <div class="task-criteria">
           <div class="criteria-label">Acceptance criteria</div>
           <ul class="criteria-list">
-            <li class="partial">Checklist shows on dashboard when company has fewer than 3 of: services, clients, tickets — shows when any count is 0</li>
-            <li class="partial">Steps: Add a service → Add a client → Create your first ticket → Invite a team member — 5 steps incl. schedules/payments, no invite step</li>
+            <li class="done">Checklist shows on dashboard when company has fewer than 3 of: services, clients, tickets, or any step remains incomplete</li>
+            <li class="done">Steps: Mi empresa → servicios → clientes → primer ticket → invitar equipo → factura PDF y recordatorios (guide order + team step)</li>
             <li class="done">Each step links directly to the relevant create flow</li>
-            <li class="partial">Checklist auto-hides once all steps are complete (persisted in company settings) — hides on counts, not persisted dismiss</li>
-            <li class="open">Progress persists across sessions; dismissable by admin</li>
+            <li class="done">Checklist auto-hides once all six steps are complete</li>
+            <li class="done">Progress persists across sessions (DB-derived); dismissable by admin via <code>onboarding_checklist_dismissed_at</code></li>
           </ul>
         </div>
       </div>
