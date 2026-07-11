@@ -50,6 +50,14 @@ export function normalizeCompanySettingsForDb(
   return Object.keys(out).length > 0 ? out : null;
 }
 
+export const mergeOnboardingChecklistDismiss = (
+  existing: CompanySettingsJson | null | undefined,
+  dismissedAt: string,
+): CompanySettingsJson => ({
+  ...(existing ?? {}),
+  onboarding_checklist_dismissed_at: dismissedAt,
+});
+
 export const companyOwnerBootstrapSchema = z.object({
   name: z.string().min(1, 'El nombre del propietario es requerido'),
   email: z.string().email('El correo del propietario no es válido'),

@@ -18,8 +18,10 @@ import {
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
-import { checkPermission } from '@/lib/security';
+import { checkPermission, requireActionPermission } from '@/lib/security';
 import type { OnboardingChecklistSignals } from '@/lib/company-onboarding-checklist';
+import { mergeOnboardingChecklistDismiss } from '@/lib/company-schema';
+import { revalidatePath } from 'next/cache';
 
 export type OnboardingStatusData = OnboardingChecklistSignals;
 
@@ -156,4 +158,52 @@ export async function fetchOnboardingStatus(
   }
 
   return loadOnboardingStatusForCompany(effectiveCompanyId);
+}
+
+export async function dismissOnboardingChecklist(
+  input: FetchOnboardingStatusInput = {},
+): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('company.manage');
+
+    if (
+      input.companyId != null &&
+      input.companyId !== companyId
+    ) {
+      return buildActionError('AU002');
+    }
+
+    const existing = await db.query.company.findFirst({
+      where: and(eq(company.id, companyId), isNull(company.deleted_at)),
+    });
+
+    if (!existing) {
+      return buildActionError('CO006');
+    }
+
+    const dismissedAt = new Date().toISOString();
+    const settings = mergeOnboardingChecklistDismiss(
+      existing.settings,
+      dismissedAt,
+    );
+
+    await db
+      .update(company)
+      .set({
+        settings,
+        updated_at: new Date(),
+      })
+      .where(and(eq(company.id, companyId), isNull(company.deleted_at)));
+
+    revalidatePath('/dashboard');
+    revalidatePath('/company');
+
+    return { success: true };
+  } catch (error) {
+    return handleCodedServerActionError('onboarding.dismiss', 'CO004', error);
+  }
 }

@@ -1,18 +1,35 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BookOpen, CheckCircle2, CircleDot } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle2, CircleDot, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import type { CompanyOnboardingChecklistSnapshot } from '@/lib/company-onboarding-checklist';
 
 export type DashboardOnboardingHelpProps = {
   checklist: CompanyOnboardingChecklistSnapshot;
   needsCompanyContext?: boolean;
+  canDismiss?: boolean;
+  isDismissing?: boolean;
+  onDismiss?: () => void;
 };
 
 export const DashboardOnboardingHelp = ({
   checklist,
   needsCompanyContext = false,
+  canDismiss = false,
+  isDismissing = false,
+  onDismiss,
 }: DashboardOnboardingHelpProps) => {
   if (needsCompanyContext) {
     return (
@@ -43,9 +60,44 @@ export const DashboardOnboardingHelp = ({
             guía de 5 minutos.
           </p>
         </div>
-        <p className="text-xs font-medium text-muted-foreground">
-          {checklist.progress.completed} de {checklist.progress.total}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {checklist.progress.completed} de {checklist.progress.total}
+          </p>
+          {canDismiss && onDismiss ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-muted-foreground"
+                  aria-label="Ocultar guía de inicio rápido"
+                  disabled={isDismissing}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" aria-hidden />
+                  Ocultar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Ocultar inicio rápido?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    El panel desaparecerá del dashboard para esta empresa. Podrás
+                    seguir abriendo la guía HTML desde Mi empresa o el menú
+                    Guías.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDismiss} disabled={isDismissing}>
+                    Ocultar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+        </div>
       </div>
       <ol className="grid gap-3 lg:grid-cols-3">
         {checklist.steps.map((step) => {

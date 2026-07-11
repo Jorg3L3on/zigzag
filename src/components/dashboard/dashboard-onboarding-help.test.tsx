@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
 import { buildCompanyOnboardingChecklist } from '@/lib/company-onboarding-checklist';
 
@@ -144,5 +145,62 @@ describe('DashboardOnboardingHelp', () => {
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows dismiss only for admins and hides after dismiss', async () => {
+    const user = userEvent.setup();
+    const onDismiss = jest.fn();
+
+    const { rerender, container } = render(
+      <DashboardOnboardingHelp
+        checklist={buildChecklist()}
+        canDismiss
+        onDismiss={onDismiss}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Ocultar guía de inicio rápido/i }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: /Ocultar guía de inicio rápido/i }),
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Ocultar', hidden: true }),
+    );
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <DashboardOnboardingHelp
+        checklist={buildChecklist({
+          signals: {
+            profileReady: false,
+            totalClients: 0,
+            totalServices: 0,
+            totalTickets: 0,
+            totalServicesSold: 0,
+            hasPaidOrFinishedTicket: false,
+            finishedTicketCount: 0,
+            totalUsers: 1,
+            totalServiceSchedules: 0,
+            dismissedAt: '2026-07-11T00:00:00.000Z',
+          },
+        })}
+        canDismiss
+        onDismiss={onDismiss}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('does not show dismiss for users without company.manage', () => {
+    render(<DashboardOnboardingHelp checklist={buildChecklist()} />);
+
+    expect(
+      screen.queryByRole('button', { name: /Ocultar guía de inicio rápido/i }),
+    ).toBeNull();
   });
 });
