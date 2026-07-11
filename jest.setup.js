@@ -57,6 +57,13 @@ jest.mock('posthog-js/react', () => ({
   usePostHog: () => null,
 }));
 
+// @serwist/turbopack ships ESM that Jest does not transform. Mock so layout
+// imports (e.g. pwa-icons.test) can load without parsing the package.
+jest.mock('@serwist/turbopack/react', () => ({
+  SerwistProvider: ({ children }) => children,
+  useSerwist: () => ({ serwist: null }),
+}));
+
 // Mock NextAuth
 jest.mock('next-auth/react', () => ({
   useSession() {
