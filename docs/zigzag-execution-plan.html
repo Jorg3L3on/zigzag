@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZigZag — Execution Plan (Status: Jul 2026)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.12);
+    --text: #eeede8;
+    --text-muted: #5a5955;
+    --text-secondary: #96948e;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.07);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.07);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.07);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.07);
+    --purple: #a78bfa;
+    --purple-dim: rgba(167,139,250,0.07);
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 52px 24px 96px; }
+
+  /* ── Header ── */
+  .header { margin-bottom: 52px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--purple); margin-bottom: 10px;
+  }
+  .title {
+    font-size: 38px; font-weight: 700; letter-spacing: -.025em;
+    line-height: 1.1; margin-bottom: 10px;
+  }
+  .title span { color: var(--text-muted); }
+  .header-meta { font-size: 14px; color: var(--text-secondary); }
+
+  /* ── Summary strip ── */
+  .summary {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border-strong);
+    border: 1px solid var(--border-strong); border-radius: 12px;
+    overflow: hidden; margin-bottom: 52px;
+  }
+  .summary-cell {
+    background: var(--surface); padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .summary-num { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
+  .summary-label { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Phase block ── */
+  .phase { margin-bottom: 52px; }
+  .phase-header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 20px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .phase-num {
+    font-size: 11px; font-weight: 700; font-family: var(--mono);
+    letter-spacing: .1em; padding: 4px 10px; border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .phase-title { font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+  .phase-timeline {
+    margin-left: auto; font-size: 12px; font-family: var(--mono);
+    color: var(--text-muted); flex-shrink: 0;
+  }
+  .phase-intro { font-size: 13px; color: var(--text-secondary); line-height: 1.75; margin-bottom: 20px; }
+
+  /* ── Task cards ── */
+  .tasks { display: grid; gap: 10px; }
+  .task {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .task-main { padding: 16px 20px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+  .task-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .task-why { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+  .task-why code {
+    font-family: var(--mono); font-size: 11px;
+    background: rgba(255,255,255,0.06); padding: 1px 5px;
+    border-radius: 3px; color: #c4b5fd;
+  }
+  .task-meta { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+  .effort-badge {
+    font-size: 11px; font-weight: 600; font-family: var(--mono);
+    padding: 3px 9px; border-radius: 5px; white-space: nowrap;
+  }
+  .score-change {
+    font-size: 11px; font-family: var(--mono); color: var(--green);
+    display: flex; align-items: center; gap: 3px;
+  }
+
+  /* ── Acceptance criteria ── */
+  .task-criteria {
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.02);
+  }
+  .criteria-label {
+    font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+  }
+  .criteria-list { list-style: none; display: grid; gap: 4px; }
+  .criteria-list li {
+    font-size: 12px; color: var(--text-secondary); display: flex; gap: 8px; line-height: 1.5;
+  }
+  .criteria-list li::before {
+    content: '□'; color: var(--text-muted); flex-shrink: 0; font-size: 11px; margin-top: 1px;
+  }
+  .criteria-list li code {
+    font-family: var(--mono); font-size: 11px;
+    background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 3px; color: #c4b5fd;
+  }
+
+  /* ── Effort / color helpers ── */
+  .ef-s  { background: var(--green-dim);  color: var(--green);  }
+  .ef-m  { background: var(--amber-dim);  color: var(--amber);  }
+  .ef-l  { background: var(--red-dim);    color: var(--red);    }
+  .ph-1  { background: var(--red-dim);    color: var(--red);    }
+  .ph-2  { background: var(--amber-dim);  color: var(--amber);  }
+  .ph-3  { background: var(--blue-dim);   color: var(--blue);   }
+  .ph-4  { background: var(--purple-dim); color: var(--purple); }
+
+  /* ── Status badges ── */
+  .status-badge {
+    font-size: 11px; font-weight: 600; font-family: var(--mono);
+    padding: 3px 9px; border-radius: 5px; white-space: nowrap;
+  }
+  .st-done     { background: var(--green-dim);  color: var(--green);  }
+  .st-partial  { background: var(--amber-dim);  color: var(--amber);  }
+  .st-open     { background: var(--red-dim);    color: var(--red);    }
+
+  .audit-banner {
+    background: var(--surface2);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: grid; gap: 10px;
+  }
+  .audit-banner-title {
+    font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .audit-banner-meta { font-size: 12px; color: var(--text-secondary); }
+  .audit-stats {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    font-size: 12px; font-family: var(--mono);
+  }
+  .audit-stats span { display: flex; align-items: center; gap: 6px; }
+
+  .coverage-note {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .coverage-note strong { color: var(--text); font-weight: 600; }
+
+  .criteria-list li.done::before { content: '☑'; color: var(--green); }
+  .criteria-list li.partial::before { content: '◑'; color: var(--amber); }
+  .criteria-list li.open::before { content: '□'; color: var(--text-muted); }
+
+  .phase-status {
+    font-size: 11px; font-family: var(--mono); color: var(--text-secondary);
+    margin-left: 0; flex-shrink: 0;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-bottom: 36px; font-size: 12px; color: var(--text-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-pip { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* ── Footer ── */
+  .footer {
+    font-size: 12px; color: var(--text-muted); padding-top: 24px;
+    border-top: 1px solid var(--border); line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="eyebrow">ZigZag · Execution Roadmap</div>
+    <h1 class="title">What to fix, <span>and in what order.</span></h1>
+    <p class="header-meta">Scope: all weak &amp; partial scores · Excludes billing &amp; email · Ordered by risk and compounding impact · Audited against repo 2026-07-10</p>
+  </div>
+
+  <!-- Audit status -->
+  <div class="audit-banner">
+    <div class="audit-banner-title">Coverage snapshot — zigzag @ main (July 2026)</div>
+    <div class="audit-stats">
+      <span><span class="status-badge st-done">5 Done</span></span>
+      <span><span class="status-badge st-partial">6 Partial</span></span>
+      <span><span class="status-badge st-open">2 Not started</span></span>
+    </div>
+    <div class="audit-banner-meta">Security foundation (IDOR + Server Actions) is shipped. DB-backed plans (1.3) and component decomposition (2.1) are complete. Self-serve signup removed from scope.</div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-cell">
+      <span class="summary-num" style="color:var(--green)">3<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
+      <span class="summary-label">Phase 1 · Critical</span>
+    </div>
+    <div class="summary-cell">
+      <span class="summary-num" style="color:var(--amber)">2<span style="font-size:16px;color:var(--text-muted)">/4</span></span>
+      <span class="summary-label">Phase 2 · Architecture</span>
+    </div>
+    <div class="summary-cell">
+      <span class="summary-num" style="color:var(--blue)">0<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
+      <span class="summary-label">Phase 3 · Quality</span>
+    </div>
+    <div class="summary-cell">
+      <span class="summary-num" style="color:var(--purple)">0<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
+      <span class="summary-label">Phase 4 · Polish</span>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><span class="legend-pip" style="background:var(--green)"></span> Done</div>
+    <div class="legend-item"><span class="legend-pip" style="background:var(--amber)"></span> Partial</div>
+    <div class="legend-item"><span class="legend-pip" style="background:var(--red)"></span> Not started</div>
+    <div class="legend-item"><span class="legend-pip" style="background:var(--text-muted)"></span> Small (1–3 days)</div>
+    <div class="legend-item"><span class="legend-pip" style="background:var(--amber)"></span> Medium (3–7 days)</div>
+    <div class="legend-item"><span class="legend-pip" style="background:var(--red)"></span> Large (1–2 weeks)</div>
+  </div>
+
+  <!-- ═══ PHASE 1 ═══ -->
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num ph-1">PHASE 1</span>
+      <span class="phase-title">Security &amp; Correctness — Fix before any user touches it</span>
+      <span class="phase-status">3 done · 0 partial · 0 open</span>
+      <span class="phase-timeline">~2–3 weeks</span>
+    </div>
+    <p class="phase-intro">
+      Multi-tenancy is the entire product contract. If Company A can read Company B's data, nothing else matters —
+      not the UI, not the feature set, not the performance. These tasks must be done before any external beta.
+    </p>
+    <div class="tasks">
+
+      <!-- Task 1.1 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">1.1 — Full IDOR audit: cross-tenant isolation test for every endpoint</div>
+            <div class="task-why">
+              AGENTS.md explicitly admits <code>company_id</code> FK is missing from some columns.
+              Every API route and every Server Action needs a test proving a session from Company B
+              cannot read, write, or delete a resource owned by Company A. This is the only way to know
+              where the leaks are — and there will be leaks.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-done">Done</span>
+            <span class="effort-badge ef-l">Large</span>
+            <span class="score-change">↑ Security 9→10</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>docs/idor-audit-matrix.md</code> signed off — zero known leaks. CI runs <code>npm run test:idor</code> and <code>npm run check:idor-coverage</code>. FK migrations <code>0014</code>, <code>0019</code>.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="done">Every <code>GET/POST/PATCH/DELETE</code> route in <code>src/app/api/</code> has a cross-tenant test asserting <code>403</code> or <code>404</code></li>
+            <li class="done">Every Server Action in <code>src/actions/</code> has a matching cross-tenant test</li>
+            <li class="done">A CI job runs these tests in isolation — failure blocks merge to main</li>
+            <li class="done">All missing <code>company_id</code> FKs identified in AGENTS.md are added to schema with a migration</li>
+            <li class="done">Zero cross-tenant data leaks in the audit output</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 1.2 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">1.2 — Consolidate Server Actions vs API routes (pick one per resource)</div>
+            <div class="task-why">
+              Right now mutations exist in both <code>src/actions/</code> and <code>src/app/api/</code> for the same resources.
+              A bug fixed in the Action is still live in the API route and vice versa. This doubles the IDOR surface
+              from task 1.1, doubles the test burden forever, and makes every future feature slower to build safely.
+              Pick the Server Action as the canonical layer (it has RBAC helpers already); keep API routes only for
+              external/webhook consumers.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-done">Done</span>
+            <span class="effort-badge ef-l">Large</span>
+            <span class="score-change">↑ API consistency 6→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> Duplicate CRUD REST removed. <code>AGENTS.md</code> + <code>docs/rbac-audit-matrix.md</code> document Server Actions as canonical. Kept API routes: PDF, cron, health, operator sub-routes only. PRD still marked Draft.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="done">Each resource (tickets, clients, services, users, companies) has exactly one mutation path</li>
+            <li class="done">Server Actions are canonical for UI-driven mutations; API routes remain only for cron/webhook consumers</li>
+            <li class="done">Duplicate routes removed; no dead code remains</li>
+            <li class="done">All existing tests pass; no regression on RBAC checks</li>
+            <li class="done">AGENTS.md updated to document the canonical pattern</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 1.3 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">1.3 — Move plan limits from code to DB</div>
+            <div class="task-why">
+              <code>PLAN_LIMITS</code> in <code>company-entitlements.ts</code> is hardcoded. Changing a limit requires
+              a deploy. Every SaaS eventually needs to offer custom limits per customer, grace periods,
+              or promotional overrides — none of which are possible without this change. Entitlement
+              checks already exist in the codebase; this is just giving them a proper data source.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-done">Done</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ Entitlements 6→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> PRD #211 shipped via PRs #217–#219. Migration <code>0020_plan_catalog</code> adds <code>Plan</code>, <code>Company.plan_id</code>, and entitlement overrides. Guards, entitlements API, Company form/list, and operator console now resolve effective limits from DB-backed plans; <code>settings.plan</code> production reads are blocked by an architecture test.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="done">New <code>plans</code> table: <code>id, name, limits (jsonb), created_at</code></li>
+            <li class="done"><code>company</code> table has <code>plan_id FK</code> replacing the JSONB <code>settings.plan</code> field</li>
+            <li class="done">Migration backfills existing companies from settings JSON to plan FK</li>
+            <li class="done">Operator console UI shows plan assignment and allows override per company</li>
+            <li class="done">All entitlement checks read from DB; hardcoded <code>PLAN_LIMITS</code> object deleted</li>
+            <li class="done">Existing entitlement tests updated and pass; architecture guard prevents legacy plan reads</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ PHASE 2 ═══ -->
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num ph-2">PHASE 2</span>
+      <span class="phase-title">Architecture — Stop accruing technical debt</span>
+      <span class="phase-status">2 done · 2 partial · 1 open</span>
+      <span class="phase-timeline">~2 weeks</span>
+    </div>
+    <p class="phase-intro">
+      These aren't emergencies but they compound. Every week you wait, more code is written against the
+      broken pattern, making the fix larger. The right time to do these is immediately after Phase 1,
+      while the codebase is still manageable.
+    </p>
+    <div class="tasks">
+
+      <!-- Task 2.1 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">2.1 — Decompose oversized components</div>
+            <div class="task-why">
+              <code>tickets-list.tsx</code> (36KB) and <code>ticket-services-list-client.tsx</code> (32KB)
+              are already painful to work in. At this size, every change risks unintended side effects,
+              tests are hard to scope, and new developers can't orient quickly. The decomposition also
+              forces clean prop/interface boundaries which improve testability.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-done">Done</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ Architecture 7→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> Decomposed components under 300 lines. 12 unit test suites in <code>src/components/tickets/</code>. Visual baselines in <code>e2e/tickets-visual.spec.ts-snapshots/</code> (<code>npm run test:e2e:visual</code>).</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="done">No single component file exceeds 300 lines / ~8KB</li>
+            <li class="done"><code>tickets-list.tsx</code> split into: list container, row, filter bar, sort controls, mobile card</li>
+            <li class="done"><code>ticket-services-list-client.tsx</code> split into: services table, service row, add-service panel</li>
+            <li class="done">All existing tests pass; new unit tests for extracted sub-components</li>
+            <li class="done">No visual regression (Playwright screenshot baseline)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 2.2 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">2.2 — N+1 query audit and index review</div>
+            <div class="task-why">
+              Tenant-scoped list queries — tickets, clients, audit events — hit the database with a
+              <code>WHERE company_id = ?</code> filter on every request. Without proper indexes and a
+              review of relation loading, these queries will degrade linearly as data grows. A company
+              with 12 months of ticket history should not feel slower than a new company.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-open">Not started</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ Performance baseline</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Gap:</strong> No <code>docs/query-budget.md</code>, no <code>EXPLAIN ANALYZE</code> artifacts, no 10k-ticket perf baseline recorded.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="open"><code>EXPLAIN ANALYZE</code> run on all list queries for Ticket, Client, Service, AuditEvent, User</li>
+            <li class="open">All sequential scans on tenant-scoped queries replaced with index scans</li>
+            <li class="open">No N+1 patterns in list endpoints — relations eager-loaded in single query</li>
+            <li class="open">Query budget documented: acceptable ms thresholds per endpoint in <code>docs/query-budget.md</code></li>
+            <li class="open">Seed dataset of 10k tickets / 1k clients used as perf baseline, results recorded</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 2.3 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">2.3 — Expand RBAC test coverage to full role matrix</div>
+            <div class="task-why">
+              <code>rbac-role-matrix.test.ts</code> exists but the current coverage is incomplete.
+              The permissions system is custom-built — no external library enforcing it. Every
+              permission (<code>tickets:create</code>, <code>clients:delete</code>, etc.) needs a test
+              asserting it blocks the right roles and allows the right roles. Gaps here cause silent
+              privilege escalation.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ RBAC 8→10</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>rbac-role-matrix.test.ts</code>, <code>rbac-coverage.test.ts</code>, <code>docs/rbac-audit-matrix.md</code>, RBAC epic shipped. Missing full permission×role matrix, &gt;90% coverage gate on <code>*-rbac*.ts</code>, CI fail on new permission without test.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="partial">Every permission in <code>error-catalog.ts</code> has at least one allow and one deny test — permissions tested via RBAC helpers, not full matrix</li>
+            <li class="partial">Role matrix table in tests: each role × each permission = expected result documented</li>
+            <li class="done">System user bypass tested explicitly: super-admin can access all, regular user cannot</li>
+            <li class="open">Coverage report shows &gt;90% on all files under <code>src/lib/*-rbac*.ts</code></li>
+            <li class="open">CI fails if a new permission is added without a corresponding test</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 2.4 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">2.4 — Error handling audit: unify action and API error shapes</div>
+            <div class="task-why">
+              Server Actions return <code>{ success, data?, error?, errorType? }</code> while API routes
+              use <code>ok()</code> / <code>fail()</code> helpers with different shapes. The frontend
+              currently handles both inconsistently. Unifying these means error handling can be written
+              once, toast messages are consistent, and the <code>error-catalog.ts</code> codes are
+              actually surfaced to users rather than lost.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-s">Small</span>
+            <span class="score-change">↑ Error handling 7→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>error-catalog.ts</code> (55 codes), <code>handleServerActionError</code>, <code>ok()</code>/<code>fail()</code>, <code>getErrorMessageByType</code>. Missing shared <code>ActionResult&lt;T&gt;</code> / <code>ApiResponse&lt;T&gt;</code> types, consistent Sentry context, unified component error flow.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="partial">Single <code>ActionResult&lt;T&gt;</code> type used by all Server Actions — ad-hoc inline shapes instead</li>
+            <li class="partial">Single <code>ApiResponse&lt;T&gt;</code> type used by all API routes — <code>ok()</code>/<code>fail()</code> helpers exist, no shared type</li>
+            <li class="done">All 55 error codes in <code>error-catalog.ts</code> map to a user-visible toast message</li>
+            <li class="partial">No raw <code>try/catch</code> blocks in components — all errors flow through shared handler — mixed patterns remain</li>
+            <li class="partial">Sentry receives structured error context on every failure (error code + resource type) — Sentry wired, context not uniform</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ PHASE 3 ═══ -->
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num ph-3">PHASE 3</span>
+      <span class="phase-title">Quality &amp; Observability — Know when things break</span>
+      <span class="phase-status">0 done · 3 partial · 0 open</span>
+      <span class="phase-timeline">~1–2 weeks</span>
+    </div>
+    <p class="phase-intro">
+      Once the architecture is clean and security is tight, you need the instrumentation to run this
+      in production with confidence. These tasks close the gaps in test coverage, observability, and
+      API consistency.
+    </p>
+    <div class="tasks">
+
+      <!-- Task 3.1 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">3.1 — Increase test coverage on critical paths</div>
+            <div class="task-why">
+              75 test files for 399 source files (18.7%) is thin for a security-critical multi-tenant app.
+              The priority is not coverage percentage as a metric — it's covering the paths where a bug
+              causes data loss or security failure: auth flows, RBAC checks, ticket financials, audit
+              event writes, and the job queue retry logic.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-l">Large</span>
+            <span class="score-change">↑ Test coverage 7→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> CI coverage gate at <strong>25%</strong> global (<code>jest.config.js</code>), not 70%. <code>ticket-financials.test.ts</code> and <code>money.test.ts</code> exist. Job queue: backoff math only. No auth/<code>token_version</code> or audit-outbox tests.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="partial">Auth flow (login, 2FA, token version invalidation) at 100% branch coverage — 2FA E2E exists, no token_version unit tests</li>
+            <li class="partial">Ticket financials (<code>ticket-financials.ts</code>, <code>money.ts</code>) at 100% — tests exist, not full branch coverage</li>
+            <li class="open">Audit event writes covered: success path, failure path, outbox fallback</li>
+            <li class="partial">Job queue: enqueue, claim, complete, retry backoff, exhaustion all tested — backoff only</li>
+            <li class="partial">Overall coverage gate of 70% added to CI — build fails below threshold — gate exists at 25%</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 3.2 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">3.2 — Structured logging with request correlation IDs</div>
+            <div class="task-why">
+              <code>logger.ts</code> exists and Sentry is wired up, but without request-level correlation IDs
+              it's nearly impossible to trace a user complaint ("my ticket save failed") to a specific
+              log line in production. A correlation ID threaded through every log call turns a 2-hour
+              debug session into a 2-minute log query.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-s">Small</span>
+            <span class="score-change">↑ Observability 7→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>logger.ts</code> + <code>correlationId()</code> exist. Missing <code>x-request-id</code> header propagation, request threading through routes/actions, health endpoint request ID, <code>docs/observability.md</code>.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="open">Every incoming request gets a <code>x-request-id</code> header (generated if absent)</li>
+            <li class="open">Request ID threaded through all logger calls in API routes and Server Actions</li>
+            <li class="partial">Sentry <code>captureException</code> calls include <code>requestId</code> in context — Sentry wired, requestId not threaded</li>
+            <li class="open"><code>/api/health</code> returns request ID in response for smoke-test traceability</li>
+            <li class="open">Log format documented in <code>docs/observability.md</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 3.3 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">3.3 — Onboarding checklist for new companies</div>
+            <div class="task-why">
+              <code>dashboard-onboarding-help.tsx</code> exists but is minimal. After self-serve signup lands
+              (Phase 1), new companies will arrive with zero data and no guidance. A structured onboarding
+              checklist (add first service → add first client → create first ticket) dramatically reduces
+              the time-to-value and prevents churn at the activation step.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ Activation UX</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>DashboardOnboardingHelp</code> (“Ruta de inicio”) with linked steps. Missing invite-team step, persisted dismiss in company settings, exact “fewer than 3 of 3” trigger logic.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="partial">Checklist shows on dashboard when company has fewer than 3 of: services, clients, tickets — shows when any count is 0</li>
+            <li class="partial">Steps: Add a service → Add a client → Create your first ticket → Invite a team member — 5 steps incl. schedules/payments, no invite step</li>
+            <li class="done">Each step links directly to the relevant create flow</li>
+            <li class="partial">Checklist auto-hides once all steps are complete (persisted in company settings) — hides on counts, not persisted dismiss</li>
+            <li class="open">Progress persists across sessions; dismissable by admin</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ PHASE 4 ═══ -->
+  <div class="phase">
+    <div class="phase-header">
+      <span class="phase-num ph-4">PHASE 4</span>
+      <span class="phase-title">Polish — Close the remaining partial scores</span>
+      <span class="phase-status">0 done · 2 partial · 1 open</span>
+      <span class="phase-timeline">~1 week</span>
+    </div>
+    <p class="phase-intro">
+      These are the remaining 7/10 items — good but not great. They're last because they don't block
+      shipping, but they matter for the product feeling like a professional, complete tool.
+    </p>
+    <div class="tasks">
+
+      <!-- Task 4.1 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">4.1 — PWA offline detection and graceful degradation</div>
+            <div class="task-why">
+              The app is installable but has no offline mode and no graceful offline message. A user
+              who installs the PWA and loses network sees a blank screen with no explanation. The README
+              acknowledges this as a v1 limitation. Add a simple offline banner and cache the shell so
+              installed users see a clear "you're offline" state instead of a broken app.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-s">Small</span>
+            <span class="score-change">↑ PWA 7→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>NetworkStatusBanner</code> + <code>use-network-status</code> (offline banner, auto-dismiss on reconnect). No service worker or app-shell caching — explicitly deferred in <code>tasks/prd-mobile-pwa-offline.md</code>.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="open">Service worker caches app shell (HTML, CSS, JS) on install</li>
+            <li class="done">Offline banner renders immediately when network is lost — no blank screen</li>
+            <li class="done">Banner auto-dismisses when connection is restored</li>
+            <li class="open">Cached shell allows navigating between already-loaded pages while offline</li>
+            <li class="open">Playwright mobile test: go offline → assert banner visible → come back online → assert banner gone</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 4.2 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">4.2 — Feature flags system (lightweight, DB-backed)</div>
+            <div class="task-why">
+              No feature flags means every experiment, gradual rollout, or per-company beta feature requires
+              a code deploy or a hardcoded env var. As soon as there are multiple customers, you'll need
+              to give one company early access to something without giving it to everyone. A simple
+              DB-backed flags table is enough — no need for a third-party service at this stage.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-open">Not started</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ Operational flexibility</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Gap:</strong> PostHog wrapper only (<code>src/lib/analytics.ts</code>, <code>src/lib/flags.ts</code>). No <code>feature_flags</code> DB table, operator UI, or 60s TTL cache.</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="open">New <code>feature_flags</code> table: <code>key, enabled (bool), company_ids (int[] nullable)</code></li>
+            <li class="open"><code>isFeatureEnabled(key, companyId)</code> helper — global if <code>company_ids</code> is null, scoped if set</li>
+            <li class="open">Flags readable in Server Actions, API routes, and React Server Components</li>
+            <li class="open">Operator console UI to toggle flags per company without a deploy</li>
+            <li class="open">Cached with 60s TTL to avoid a DB call on every render</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Task 4.3 -->
+      <div class="task">
+        <div class="task-main">
+          <div>
+            <div class="task-title">4.3 — Mobile E2E coverage for core flows</div>
+            <div class="task-why">
+              Playwright mobile-chrome tests exist for navigation and layout, but the core business flows
+              — create ticket, add service to ticket, collect payment — are only tested on desktop.
+              Given the mobile-first initiative tracked in <code>tasks/INDEX.md</code> and the PWA push,
+              these flows need mobile E2E coverage before they can be considered production-ready on phone.
+            </div>
+          </div>
+          <div class="task-meta">
+            <span class="status-badge st-partial">Partial</span>
+            <span class="effort-badge ef-m">Medium</span>
+            <span class="score-change">↑ Mobile coverage 7→9</span>
+          </div>
+        </div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>mobile-chrome</code> in CI. Mobile specs cover layout/navigation (<code>tickets-mobile.spec.ts</code>, sidebar, sticky nav). Full business flow in <code>e2e/core-flow.spec.ts</code> runs desktop-only (1280×900).</div>
+        <div class="task-criteria">
+          <div class="criteria-label">Acceptance criteria</div>
+          <ul class="criteria-list">
+            <li class="partial">Mobile E2E test: create ticket end-to-end on Pixel 5 profile — create flow layout only, not full E2E</li>
+            <li class="open">Mobile E2E test: add service to ticket, verify total updates correctly</li>
+            <li class="open">Mobile E2E test: collect payment on ticket, verify status changes to paid</li>
+            <li class="open">Mobile E2E test: PDF invoice download works on mobile Chrome</li>
+            <li class="done">All tests run in CI on <code>mobile-chrome</code> Playwright project — failures block merge</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- Footer -->
+  <div class="footer">
+    <strong style="color:var(--text-secondary)">What this plan does not include:</strong> Stripe, subscription lifecycle, transactional email, password reset flow, self-serve signup — those are a separate workstream.
+    Complete this plan first; the commercial layer lands on top of a trustworthy foundation.
+    <br><br>
+    <strong style="color:var(--text-secondary)">Recommended next:</strong> 3.2 Request correlation IDs → 2.2 Query audit → 4.3 Mobile core-flow E2E → 2.3 RBAC matrix.
+    <br><br>
+    ZigZag codebase · ~444 source files · 20 DB migrations · Status audited 2026-07-10
+  </div>
+
+</div>
+</body>
+</html>
