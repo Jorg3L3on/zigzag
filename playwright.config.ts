@@ -9,6 +9,7 @@ const prodBaseUrl = 'http://127.0.0.1:3070';
 const useProdServer = process.env.PLAYWRIGHT_USE_DEV !== '1';
 
 const mobileSpecPattern = /(?:^|\/)mobile-.*\.spec\.ts$|(?:^|\/)tickets-mobile\.spec\.ts$/;
+const visualSpecPattern = /(?:^|\/)tickets-visual\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './e2e',
@@ -18,6 +19,11 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: 'list',
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.03,
+    },
+  },
   use: {
     baseURL:
       process.env.PLAYWRIGHT_BASE_URL ??
@@ -28,13 +34,18 @@ export default defineConfig({
     {
       name: 'chromium',
       testMatch: /.*\.spec\.ts$/,
-      testIgnore: mobileSpecPattern,
+      testIgnore: [mobileSpecPattern, visualSpecPattern],
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'mobile-chrome',
       testMatch: mobileSpecPattern,
       use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'visual',
+      testMatch: visualSpecPattern,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: useProdServer

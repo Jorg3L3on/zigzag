@@ -23,6 +23,8 @@
     "check:idor-coverage": "node scripts/check-idor-coverage.mjs",
     "test:e2e": "playwright test",
     "test:e2e:mobile": "playwright test --project=mobile-chrome",
+    "test:e2e:visual": "playwright test --project=visual",
+    "test:e2e:visual:update": "playwright test --project=visual --update-snapshots",
     "test:e2e:mobile-nav": "playwright test e2e/mobile-sticky-navbar.spec.ts --project=mobile-chrome --workers=1",
     "guides:capture": "node scripts/capture-onboarding-guide-screenshots.mjs",
     "guides:capture:prod": "GUIDES_BASE_URL=http://127.0.0.1:3070 node scripts/capture-onboarding-guide-screenshots.mjs",
