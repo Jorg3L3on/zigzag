@@ -1,7 +1,6 @@
 # PRD: PWA Offline & Install Prompt (Future)
 
-> **Status: Not in v1.** Deferred per `prd-mobile-program-decisions.md` (Q1 C, Q3 A).  
-> Implement only after `prd-mobile-pwa-install.md` and `prd-mobile-documentation.md` are complete.
+> **Status: Partial.** App shell caching shipped in `prd-pwa-offline-shell.md` (execution plan 4.1). This stub covers install prompt and richer offline UX only.
 
 ## Introduction
 

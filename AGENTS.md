@@ -52,7 +52,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - Dashboard lists use **TanStack Table** on desktop and **card layout** below `md` (768px). See [.cursor/rules/lists-and-responsive-tables.mdc](.cursor/rules/lists-and-responsive-tables.mdc).
 - Breakpoint constant: `MOBILE_BREAKPOINT_PX` in `src/lib/breakpoints.ts`; hook: `src/hooks/use-mobile.tsx`.
 - Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
-- **PWA (v1):** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. No service worker or offline sync in v1.
+- **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service data requires network (no offline sync).
 - Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md). Manual release checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). E2E: `npm run test:e2e` (desktop + `mobile-chrome` Pixel 5); mobile-only: `npm run test:e2e:mobile`.
 
 ### PDF invoices

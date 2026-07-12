@@ -9,7 +9,7 @@ Multi-tenant ticket management built with **Next.js 16**, **Drizzle ORM**, and *
 - Tickets, clients, and service catalog
 - Dashboard metrics and **server-generated** ticket invoices (PDF)
 - Mobile-friendly UI (responsive lists, touch targets, accessibility)
-- Installable PWA (`start_url` → `/dashboard`; internet required, no offline mode in v1)
+- Installable PWA (`start_url` → `/dashboard`; service worker caches app shell; Ticket data requires internet)
 - UI with shadcn/ui and Tailwind CSS
 
 ## Tech stack
@@ -122,7 +122,7 @@ Manual device checks before release: [tasks/mobile-release-checklist.md](tasks/m
 
 Install ZigZag on a phone or tablet for quick access from the home screen. After install, the app opens on the **Dashboard** (`/dashboard`). If your session expired, sign in again.
 
-**Internet required:** There is no offline mode in the current version. You need a network connection to load and save data (no service worker or offline sync).
+**Internet required for data:** A service worker caches the **app shell** (UI, static assets) so the installed app can load offline after one online visit. **Tickets, clients, services, and saves still require a live connection** — there is no offline sync or offline CRUD.
 
 ### Español
 
@@ -139,6 +139,8 @@ Install ZigZag on a phone or tablet for quick access from the home screen. After
 3. Confirma la instalación.
 
 Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró, inicia sesión de nuevo.
+
+**Conexión para datos:** un service worker guarda la **cáscara de la app** (interfaz y recursos estáticos) para que la app instalada pueda abrirse sin red tras una visita en línea. **Tickets, clientes, servicios y guardados siguen requiriendo internet** — no hay sincronización ni edición offline.
 
 **Probar en la red local (opcional):** con `npm run dev` en el puerto **3069**, abre `http://<tu-ip>:3069` desde el teléfono en la misma Wi‑Fi.
 
@@ -159,6 +161,8 @@ Antes de un release móvil, usa la checklist manual: [tasks/mobile-release-check
 3. Confirm the install.
 
 After install, the app opens on the **Dashboard** (`/dashboard`). Sign in again if your session expired.
+
+**Data requires internet:** a service worker caches the **app shell** (UI and static assets) so the installed app can load offline after one online visit. **Tickets, clients, services, and saves still need a live connection** — no offline sync or offline CRUD.
 
 **Test on your LAN (optional):** with `npm run dev` on port **3069**, open `http://<your-ip>:3069` from your phone on the same Wi‑Fi.
 

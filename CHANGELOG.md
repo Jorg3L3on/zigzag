@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Client service schedules (Recordatorios de servicio):** per Client + Service reminders with interval and next due date; management page at `/dashboard/service-schedules`; dashboard widget for próximos/atrasados; schedule prompt when finishing a Ticket; `Crear ticket` prefill from reminders (`drizzle/0006_client_service_schedule.sql`)
 - Agent workflow docs (`docs/agents/`), Cursor skills (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `validate-issues`), and GitHub label bootstrap script
 - Server-generated fintech invoice PDF (`GET /api/tickets/[id]/invoice`)
-- PWA install metadata (`start_url` `/dashboard`, manifest icons, bilingual README install section)
+- PWA offline app shell: `@serwist/turbopack` service worker, `/offline` fallback page, production-only registration; Playwright `mobile-offline` spec
 - Mobile accessibility: touch targets, chart labels, sheet/dialog focus trap, form error associations
 - Companies list TanStack migration, mobile sort presets, shared list Cursor rule
 

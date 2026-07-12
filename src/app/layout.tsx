@@ -5,6 +5,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
+import { AppSerwistProvider } from '@/components/serwist-provider';
 import './globals.css';
 import { CompanyProvider } from '@/contexts/company-context';
 
@@ -65,9 +66,11 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <CompanyProvider>
             <Providers>
-              <NetworkStatusBanner />
-              {children}
-              <AppToaster />
+              <AppSerwistProvider>
+                <NetworkStatusBanner />
+                {children}
+                <AppToaster />
+              </AppSerwistProvider>
             </Providers>
           </CompanyProvider>
         </NextIntlClientProvider>
