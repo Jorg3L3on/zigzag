@@ -84,27 +84,50 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
   );
   const displayTeams = isSystemUser ? teams : userCompany ? [userCompany] : [];
 
+  const companyBrandContent = (
+    <>
+      <div className="flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-sidebar-border/60 bg-background shadow-sm">
+        <selectedCompany.logo className="size-8 rounded-lg" />
+      </div>
+      <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+        <span className="truncate font-semibold text-sidebar-foreground">
+          {selectedCompany.name}
+        </span>
+        <span className="truncate text-xs text-muted-foreground">
+          {selectedCompany.is_system ? 'Admin' : 'Empresa'}
+        </span>
+      </div>
+      {isSystemUser && (
+        <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+      )}
+    </>
+  );
+
+  if (!isSystemUser) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <div
+            className="flex h-12 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-2"
+            aria-label={`Empresa: ${selectedCompany.name}`}
+          >
+            {companyBrandContent}
+          </div>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger disabled={!isSystemUser} asChild>
+          <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-transparent">
-                <selectedCompany.logo className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">
-                  {selectedCompany.name}
-                </span>
-                <span className="truncate text-xs">
-                  {selectedCompany.is_system ? 'Admin' : 'Empresa'}
-                </span>
-              </div>
-              {isSystemUser && <ChevronsUpDown className="ml-auto" />}
+              {companyBrandContent}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -122,8 +145,8 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
                 onClick={() => handleCompanySelect(team)}
                 className="gap-2 p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-sm border">
-                  <team.logo className="size-4 shrink-0" />
+                <div className="flex size-6 items-center justify-center overflow-hidden rounded-sm border">
+                  <team.logo className="size-6 shrink-0 rounded-sm" />
                 </div>
                 {team.name}
               </DropdownMenuItem>

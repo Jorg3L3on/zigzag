@@ -6,11 +6,14 @@ import {
   TripledPageHeader,
   TripledResourceCard,
 } from '@/components/tripled';
+import { requireSystemPage } from '@/lib/page-authz';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function TrashPage() {
+  await requireSystemPage();
+
   const result = await getTrash();
   const data = result.success
     ? (result.data ?? { clients: [], services: [], tickets: [] })

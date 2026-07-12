@@ -92,11 +92,6 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       icon: Building,
       requiredPermission: PERMISSIONS.company.manage,
     },
-    {
-      title: 'Papelera',
-      url: '/trash',
-      icon: Trash2,
-    },
   ],
   system: [
     {
@@ -133,6 +128,12 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       title: 'Auditoría',
       url: '/audit',
       icon: ClipboardList,
+      systemOnly: true,
+    },
+    {
+      title: 'Papelera',
+      url: '/trash',
+      icon: Trash2,
       systemOnly: true,
     },
   ],

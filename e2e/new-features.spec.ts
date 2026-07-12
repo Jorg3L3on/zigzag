@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
 import {
   e2eCredentialsSkipReason,
+  e2eSystemCredentialsSkipReason,
   hasE2eCredentials,
+  hasE2eSystemCredentials,
   login,
+  loginAsSystemUser,
 } from './helpers/auth';
 
 test.describe('Sellability features smoke', () => {
@@ -23,6 +26,8 @@ test.describe('Sellability features smoke', () => {
   });
 
   test('trash page renders', async ({ page }) => {
+    test.skip(!hasE2eSystemCredentials, e2eSystemCredentialsSkipReason);
+    await loginAsSystemUser(page);
     await page.goto('/trash');
     await expect(page.getByText('Papelera').first()).toBeVisible({
       timeout: 15_000,

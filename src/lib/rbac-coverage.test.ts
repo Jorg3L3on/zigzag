@@ -109,9 +109,6 @@ describe('RBAC coverage', () => {
     const authOnlyPages = new Set([
       'src/app/(app)/account/page.tsx',
       'src/app/(app)/forbidden/page.tsx',
-      // Trash aggregates clients/services/tickets and filters each group by the
-      // caller's per-resource read permission inside getTrash().
-      'src/app/(app)/trash/page.tsx',
     ]);
 
     const missing = pageFiles
