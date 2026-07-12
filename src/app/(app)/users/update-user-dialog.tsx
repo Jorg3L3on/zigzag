@@ -123,9 +123,10 @@ export function UpdateUserDialog({
       if (companyId) {
         const result = await getRoles();
         if (result.success && result.data) {
-          // Filter roles by company_id
+          // Company-scoped roles plus global roles (company_id null).
           const companyRoles = result.data.filter(
-            (role) => role.company_id === companyId,
+            (role) =>
+              role.company_id === null || role.company_id === companyId,
           );
           setRoles(companyRoles);
           // Keep only roles that belong to the new company

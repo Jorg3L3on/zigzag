@@ -76,7 +76,10 @@ export async function getRoles(): Promise<{
         ? isNull(role.deleted_at)
         : and(
             isNull(role.deleted_at),
-            eq(role.company_id, authContext.companyId as number),
+            or(
+              eq(role.company_id, authContext.companyId as number),
+              isNull(role.company_id),
+            ),
           ),
       with: {
         company: true,

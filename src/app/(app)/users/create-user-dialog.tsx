@@ -113,9 +113,10 @@ export function CreateUserDialog({
       if (companyId) {
         const rolesResult = await getRoles();
         if (rolesResult.success && rolesResult.data) {
-          // Filter roles by company_id
+          // Company-scoped roles plus global roles (company_id null).
           const companyRoles = rolesResult.data.filter(
-            (role) => role.company_id === companyId,
+            (role) =>
+              role.company_id === null || role.company_id === companyId,
           );
           setRoles(companyRoles);
         }
