@@ -59,7 +59,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ClientForm } from '@/components/clients/client-form';
-import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
 import {
   TripledDashboardShell,
@@ -269,7 +268,6 @@ const CreateTicketPageContent = () => {
             backLabel="Volver a tickets"
           />
 
-          <CompanyEntitlementNotice metric="tickets_month" />
           <CompanyProductionNotice />
 
           <div className="md:hidden">

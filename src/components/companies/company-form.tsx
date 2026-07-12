@@ -42,7 +42,6 @@ import {
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
-import type { CompanyPlanId } from '@/lib/company-entitlements';
 
 const defaultSettings = {
   rfc: '',
@@ -73,18 +72,16 @@ const emptyDefaults: CompanyBootstrapFormValues = {
 
 interface CompanyFormProps {
   company?: Company;
-  planOptions?: Array<{ id: number; slug: CompanyPlanId; name: string }>;
   /**
    * 'system' (default): platform operator editing any company via `updateCompany`.
-   * 'self': tenant admin editing their own company via `updateOwnCompany`. Hides
-   * operator-only fields (commercial plan) and returns to the company settings page.
+   * 'self': tenant admin editing their own company via `updateOwnCompany` and
+   * returns to the company settings page.
    */
   mode?: 'system' | 'self';
 }
 
 export const CompanyForm = ({
   company,
-  planOptions = [],
   mode = 'system',
 }: CompanyFormProps) => {
   const router = useRouter();
@@ -117,7 +114,6 @@ export const CompanyForm = ({
             default_currency:
               company.settings?.default_currency ?? 'MXN',
           },
-          plan_id: company.plan_id,
           owner: { name: '', email: '', password: '' },
         }
       : emptyDefaults,
@@ -449,35 +445,6 @@ export const CompanyForm = ({
             Configuración
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
-            {!isSelfService ? (
-              <FormField
-                control={form.control}
-                name="plan_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Plan comercial</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(Number.parseInt(value, 10))}
-                      value={field.value != null ? String(field.value) : undefined}
-                    >
-                      <FormControl>
-                        <SelectTrigger aria-label="Plan comercial">
-                          <SelectValue placeholder="Selecciona un plan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {planOptions.map((planOption) => (
-                          <SelectItem key={planOption.id} value={String(planOption.id)}>
-                            {planOption.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ) : null}
             <FormField
               control={form.control}
               name="settings.rfc"

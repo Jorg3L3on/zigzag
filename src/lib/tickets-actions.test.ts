@@ -41,11 +41,6 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
 
-jest.mock('@/lib/company-entitlement-guard', () => ({
-  assertCompanyEntitlementAllows: jest.fn(),
-  CompanyEntitlementExceededError: class CompanyEntitlementExceededError extends Error {},
-}));
-
 jest.mock('@/lib/company-production-guard', () => ({
   assertCompanyProductionReady: jest.fn(),
   CompanyProductionBlockedError: class CompanyProductionBlockedError extends Error {},

@@ -21,7 +21,6 @@ export const companyFormSchema = z.object({
   country: z.string().min(1, 'El país es requerido'),
   postal_code: z.string().min(1, 'El código postal es requerido'),
   status: z.enum(['SETUP', 'ACTIVE', 'SUSPENDED', 'ARCHIVED']),
-  plan_id: z.number().int().positive().optional(),
   settings: companySettingsSchema.optional(),
 });
 

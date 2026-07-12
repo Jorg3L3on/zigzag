@@ -11,10 +11,6 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { pauseSchedulesForService } from '@/lib/client-service-schedule-lifecycle';
-import {
-  assertCompanyEntitlementAllows,
-  CompanyEntitlementExceededError,
-} from '@/lib/company-entitlement-guard';
 import { requireActionPermission } from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
@@ -128,8 +124,6 @@ export async function createService(
       data.company_id,
     );
 
-    await assertCompanyEntitlementAllows(effectiveCompanyId, 'services');
-
     const [created] = await db
       .insert(service)
       .values({
@@ -153,9 +147,6 @@ export async function createService(
     revalidatePath('/services');
     return { success: true, data: created };
   } catch (error) {
-    if (error instanceof CompanyEntitlementExceededError) {
-      return handleCodedServerActionError('services.create.entitlement', 'CO011', error);
-    }
     return handleCodedServerActionError('services.create', 'SV002', error);
   }
 }
@@ -276,8 +267,8 @@ export async function getServicesForExport(): Promise<{
 }
 
 /**
- * Bulk-create services from parsed CSV records. Validates each row, re-checks
- * the plan entitlement before every insert, and rounds prices to cents.
+ * Bulk-create services from parsed CSV records. Validates each row and rounds
+ * prices to cents.
  */
 export async function bulkImportServices(
   records: Array<Record<string, string>>,
@@ -305,18 +296,6 @@ export async function bulkImportServices(
           `Fila ${rowNumber}: nombre, descripción y precio válido requeridos`,
         );
         continue;
-      }
-
-      try {
-        await assertCompanyEntitlementAllows(companyId, 'services');
-      } catch (error) {
-        if (error instanceof CompanyEntitlementExceededError) {
-          summary.errors.push(
-            `Fila ${rowNumber}: límite del plan alcanzado; importación detenida`,
-          );
-          break;
-        }
-        throw error;
       }
 
       const value = parsed.data;

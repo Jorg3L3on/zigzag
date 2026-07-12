@@ -33,10 +33,6 @@ jest.mock('@/lib/security', () => ({
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 jest.mock('@/lib/resource-audit', () => ({ recordResourceAudit: jest.fn() }));
-jest.mock('@/lib/company-entitlement-guard', () => ({
-  assertCompanyEntitlementAllows: jest.fn(),
-  CompanyEntitlementExceededError: class extends Error {},
-}));
 jest.mock('@/lib/client-service-schedule-lifecycle', () => ({
   pauseSchedulesForClient: jest.fn(),
 }));

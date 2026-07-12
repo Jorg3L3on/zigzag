@@ -37,10 +37,6 @@ import {
 } from '@/lib/ticket-payment-status';
 import { format as formatDate } from 'date-fns';
 import {
-  assertCompanyEntitlementAllows,
-  CompanyEntitlementExceededError,
-} from '@/lib/company-entitlement-guard';
-import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
@@ -190,7 +186,6 @@ export async function createTicket(
     );
 
     await assertCompanyProductionReady(effectiveCompanyId);
-    await assertCompanyEntitlementAllows(effectiveCompanyId, 'tickets_month');
 
     const values = {
       client_id: validatedData.client_id,
@@ -234,9 +229,6 @@ export async function createTicket(
       data: created as unknown as Ticket,
     };
   } catch (error) {
-    if (error instanceof CompanyEntitlementExceededError) {
-      return handleCodedServerActionError('tickets.create.entitlement', 'CO011', error);
-    }
     if (error instanceof CompanyProductionBlockedError) {
       return handleServerActionError(error);
     }

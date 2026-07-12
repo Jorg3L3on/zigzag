@@ -9,10 +9,6 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { pauseSchedulesForClient } from '@/lib/client-service-schedule-lifecycle';
-import {
-  assertCompanyEntitlementAllows,
-  CompanyEntitlementExceededError,
-} from '@/lib/company-entitlement-guard';
 import { requireActionPermission } from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
@@ -209,8 +205,6 @@ export async function createClient(
       data.company_id,
     );
 
-    await assertCompanyEntitlementAllows(effectiveCompanyId, 'clients');
-
     const [created] = await db
       .insert(client)
       .values({
@@ -243,9 +237,6 @@ export async function createClient(
     revalidatePath('/clients');
     return { success: true, data: created };
   } catch (error) {
-    if (error instanceof CompanyEntitlementExceededError) {
-      return handleCodedServerActionError('clients.create.entitlement', 'CO011', error);
-    }
     return handleCodedServerActionError('clients.create', 'CL003', error);
   }
 }
@@ -385,9 +376,8 @@ export async function getClientsForExport(): Promise<{
 }
 
 /**
- * Bulk-create clients from parsed CSV records. Each row is validated and the
- * plan entitlement is re-checked before every insert, so the import stops once
- * the company's client limit is reached. Returns a per-row summary.
+ * Bulk-create clients from parsed CSV records. Each row is validated and
+ * inserted for the caller's company. Returns a per-row summary.
  */
 export async function bulkImportClients(
   records: Array<Record<string, string>>,
@@ -409,18 +399,6 @@ export async function bulkImportClients(
         summary.failed += 1;
         summary.errors.push(`Fila ${rowNumber}: nombre requerido o datos inválidos`);
         continue;
-      }
-
-      try {
-        await assertCompanyEntitlementAllows(companyId, 'clients');
-      } catch (error) {
-        if (error instanceof CompanyEntitlementExceededError) {
-          summary.errors.push(
-            `Fila ${rowNumber}: límite del plan alcanzado; importación detenida`,
-          );
-          break;
-        }
-        throw error;
       }
 
       const value = parsed.data;

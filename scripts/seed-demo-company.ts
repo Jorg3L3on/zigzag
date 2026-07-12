@@ -199,7 +199,6 @@ const upsertDemoCompany = async (
     logo: DEMO_COMPANY_LOGO_PATH,
     is_system: false,
     status: 'ACTIVE' as const,
-    plan_id: 3,
     settings: {
       rfc: 'CTD010101ABC',
       default_currency: 'MXN',

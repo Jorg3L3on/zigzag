@@ -18,7 +18,6 @@ import {
 } from '@/actions/company-portability';
 import { setCompanyLifecycleStatus } from '@/actions/company-lifecycle';
 import { getCompanyOperatorSummary } from '@/actions/company-operator';
-import { getCompanyEntitlements } from '@/actions/company-entitlements';
 import { requestCompanyExport } from '@/actions/exports';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
 import {
@@ -71,9 +70,6 @@ jest.mock('@/lib/company-lifecycle-change', () => ({
 jest.mock('@/lib/company-readiness', () => ({
   assessCompanyReadiness: jest.fn(),
   listCompanyProfileGaps: jest.fn(),
-}));
-jest.mock('@/lib/company-entitlement-usage', () => ({
-  getCompanyEntitlementUsage: jest.fn(),
 }));
 jest.mock('@/lib/company-operator-summary-loader', () => ({
   loadCompanyOperatorSummary: jest.fn(),
@@ -223,12 +219,6 @@ describe('cross-tenant IDOR - company and operator actions', () => {
     [
       'getCompanyOperatorSummary',
       () => getCompanyOperatorSummary(IDOR_COMPANY_A.id),
-      'companies.read',
-      IDOR_COMPANY_A.id,
-    ],
-    [
-      'getCompanyEntitlements',
-      () => getCompanyEntitlements(IDOR_COMPANY_A.id),
       'companies.read',
       IDOR_COMPANY_A.id,
     ],

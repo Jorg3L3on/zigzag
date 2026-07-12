@@ -39,11 +39,10 @@ export const EMPRESA_MAESTRA_GUIDE_LINK: OnboardingGuideLink = {
   audienceLabel: 'Administro la plataforma',
 };
 
-/** Shown on the public login page (all audiences). */
+/** Shown on the public login page (investors and tenant operators only). */
 export const PUBLIC_ONBOARDING_GUIDE_LINKS: OnboardingGuideLink[] = [
   EXECUTIVE_SUMMARY_LINK,
   EMPRESA_GUIDE_LINK,
-  EMPRESA_MAESTRA_GUIDE_LINK,
 ];
 
 /** In-app guides menu for authenticated users. */

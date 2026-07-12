@@ -10,10 +10,6 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import {
-  assertCompanyEntitlementAllows,
-  CompanyEntitlementExceededError,
-} from '@/lib/company-entitlement-guard';
-import {
   requireActionAuth,
   requireActionPermission,
 } from '@/lib/security';
@@ -258,7 +254,6 @@ export async function createUser(data: CreateUserFormData): Promise<{
 
     const validatedData = createUserSchema.parse(data);
 
-    await assertCompanyEntitlementAllows(effectiveCompanyId, 'users');
     await assertRoleAssignableToCompany(
       validatedData.role_id,
       effectiveCompanyId,
@@ -290,9 +285,6 @@ export async function createUser(data: CreateUserFormData): Promise<{
     revalidatePath('/users');
     return { success: true, data: created };
   } catch (e) {
-    if (e instanceof CompanyEntitlementExceededError) {
-      return handleCodedServerActionError('users.create.entitlement', 'CO011', e);
-    }
     if (
       e instanceof z.ZodError ||
       (e instanceof AppError && e.errorCode === 'US005')

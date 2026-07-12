@@ -5,7 +5,6 @@ import { hash } from 'bcryptjs';
 import {
   company,
   permission,
-  plan,
   role,
   rolePermission,
   user,
@@ -97,16 +96,6 @@ export const bootstrapCompanyTenant = async (
   const hashedPassword = await hash(input.owner.password, 10);
 
   return db.transaction(async (tx) => {
-    const [starterPlan] = await tx
-      .select({ id: plan.id })
-      .from(plan)
-      .where(eq(plan.slug, 'starter'))
-      .limit(1);
-
-    if (!starterPlan) {
-      throw new Error('Starter plan is not seeded');
-    }
-
     const [createdCompany] = await tx
       .insert(company)
       .values({
@@ -126,7 +115,6 @@ export const bootstrapCompanyTenant = async (
         postal_code: input.company.postal_code,
         status: 'SETUP',
         settings,
-        plan_id: starterPlan.id,
         is_system: false,
         updated_at: new Date(),
       })

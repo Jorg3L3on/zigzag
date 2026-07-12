@@ -17,8 +17,6 @@ import {
 } from '@/components/ui/breadcrumb';
 import { requirePagePermission } from '@/lib/page-authz';
 import { UserPlus } from 'lucide-react';
-import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
-
 export const metadata: Metadata = {
   title: 'Nuevo cliente',
   description: 'Crea un nuevo cliente',
@@ -56,7 +54,6 @@ export default async function NewClientPage() {
           backHref="/clients"
           className="mb-3"
         />
-        <CompanyEntitlementNotice metric="clients" />
         <TripledResourceCard
           title="Información del cliente"
           description="Ingresa la información del nuevo cliente."

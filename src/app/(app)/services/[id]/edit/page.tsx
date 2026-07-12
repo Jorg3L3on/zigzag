@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { Wrench } from 'lucide-react';
 import { getService } from '@/actions/services';
 import { ServiceFormWithRedirect } from '@/components/services/service-form-with-redirect';
-import { CompanyEntitlementNotice } from '@/components/companies/company-entitlement-notice';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -65,7 +64,6 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
             backHref="/services"
             className="mb-3"
           />
-          <CompanyEntitlementNotice metric="services" />
           <TripledResourceCard
             title="Nuevo servicio"
             description="Completa los datos para crear un nuevo servicio."

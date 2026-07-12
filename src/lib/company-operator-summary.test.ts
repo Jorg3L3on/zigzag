@@ -1,27 +1,7 @@
-import type { Company, Plan } from '@/db/schema';
-import {
-  buildCompanyOperatorSummary,
-  getEntitlementPressure,
-  worstEntitlementPressure,
-} from '@/lib/company-operator-summary';
-import type { EntitlementUsage } from '@/lib/company-entitlements';
+import type { Company } from '@/db/schema';
+import { buildCompanyOperatorSummary } from '@/lib/company-operator-summary';
 
-const starterPlan: Plan = {
-  id: 1,
-  slug: 'starter',
-  name: 'Starter',
-  limits: {
-    users: 3,
-    clients: 25,
-    services: 25,
-    tickets_month: 50,
-  },
-  created_at: new Date(),
-};
-
-const baseCompany = (
-  overrides: Partial<Company & { plan?: Plan | null }> = {},
-): Company & { plan?: Plan | null } => ({
+const baseCompany = (overrides: Partial<Company> = {}): Company => ({
   id: 10,
   name: 'Acme',
   phone: '555',
@@ -37,28 +17,17 @@ const baseCompany = (
   country: 'México',
   postal_code: '01000',
   status: 'SETUP',
-  plan_id: starterPlan.id,
-  entitlement_limit_overrides: null,
   settings: { rfc: 'ACM010101AAA', default_currency: 'MXN' },
-  plan: starterPlan,
   created_at: new Date(),
   updated_at: null,
   deleted_at: null,
   ...overrides,
 });
 
-const emptyUsage = (): EntitlementUsage => ({
-  users: 0,
-  clients: 0,
-  services: 0,
-  tickets_month: 0,
-});
-
 describe('company operator summary', () => {
   it('derives setup lifecycle and readiness blockers', () => {
     const summary = buildCompanyOperatorSummary(
       baseCompany({ status: 'SETUP', settings: null }),
-      emptyUsage(),
       1,
     );
 
@@ -71,7 +40,6 @@ describe('company operator summary', () => {
   it('marks active tenants with complete profile as production ready', () => {
     const summary = buildCompanyOperatorSummary(
       baseCompany({ status: 'ACTIVE' }),
-      emptyUsage(),
       2,
     );
 
@@ -82,7 +50,6 @@ describe('company operator summary', () => {
   it('reflects suspended lifecycle and blocked authentication semantics', () => {
     const summary = buildCompanyOperatorSummary(
       baseCompany({ status: 'SUSPENDED' }),
-      emptyUsage(),
       1,
     );
 
@@ -94,7 +61,6 @@ describe('company operator summary', () => {
   it('reflects archived lifecycle', () => {
     const summary = buildCompanyOperatorSummary(
       baseCompany({ status: 'ARCHIVED' }),
-      emptyUsage(),
       0,
     );
 
@@ -102,47 +68,10 @@ describe('company operator summary', () => {
     expect(summary.allowsAuthentication).toBe(false);
   });
 
-  it('flags near-limit and at-limit plan pressure', () => {
-    expect(getEntitlementPressure(10, 8)).toBe('near_limit');
-    expect(getEntitlementPressure(10, 10)).toBe('at_limit');
-    expect(getEntitlementPressure(null, 100)).toBe('unlimited');
-    expect(worstEntitlementPressure(['ok', 'near_limit', 'unlimited'])).toBe(
-      'near_limit',
-    );
-    expect(worstEntitlementPressure(['ok', 'at_limit'])).toBe('at_limit');
-  });
+  it('includes edit href and role count', () => {
+    const summary = buildCompanyOperatorSummary(baseCompany(), 3);
 
-  it('marks starter plan over user limit as at_limit overall pressure', () => {
-    const summary = buildCompanyOperatorSummary(
-      baseCompany({ status: 'ACTIVE' }),
-      {
-        users: 3,
-        clients: 0,
-        services: 0,
-        tickets_month: 0,
-      },
-      1,
-    );
-
-    const usersMetric = summary.metrics.find((row) => row.metric === 'users');
-    expect(usersMetric?.pressure).toBe('at_limit');
-    expect(usersMetric?.allowed).toBe(false);
-    expect(summary.overallPressure).toBe('at_limit');
-  });
-
-  it('scopes metric deep links to tenant resource lists', () => {
-    const summary = buildCompanyOperatorSummary(
-      baseCompany(),
-      emptyUsage(),
-      0,
-    );
-
-    expect(summary.metrics.map((row) => row.href)).toEqual([
-      '/users',
-      '/clients',
-      '/services',
-      '/tickets',
-    ]);
+    expect(summary.roleCount).toBe(3);
     expect(summary.editHref).toBe('/companies/10/edit');
   });
 });

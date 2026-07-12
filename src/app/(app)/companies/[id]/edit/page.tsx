@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import { CompanyForm } from '@/components/companies/company-form';
-import { CompanyPortabilityPanel } from '@/components/companies/company-portability-panel';
 import { CompanyReadinessPanel } from '@/components/companies/company-readiness-panel';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
 import {
@@ -9,7 +8,6 @@ import {
   TripledResourceCard,
 } from '@/components/tripled';
 import { getCompany } from '@/actions/companies';
-import { listCompanyPlanOptions } from '@/actions/company-entitlements';
 import { notFound } from 'next/navigation';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -46,10 +44,7 @@ export default async function EditCompanyPage({
     notFound();
   }
 
-  const [result, plansResult] = await Promise.all([
-    getCompany(numericId),
-    listCompanyPlanOptions(),
-  ]);
+  const result = await getCompany(numericId);
 
   if (!result.success || !result.data) {
     notFound();
@@ -94,10 +89,8 @@ export default async function EditCompanyPage({
         >
           <div className="space-y-6">
             <CompanyReadinessPanel assessment={readiness} />
-            <CompanyPortabilityPanel company={companyRow} />
             <CompanyForm
               company={companyRow}
-              planOptions={plansResult.success ? plansResult.data ?? [] : []}
               key={companyRow.logo ?? 'no-logo'}
             />
           </div>

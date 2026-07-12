@@ -49,29 +49,6 @@ export type CompanySettingsJson = {
   onboarding_checklist_dismissed_at?: string;
 };
 
-export type PlanLimitsJson = {
-  users: number | null;
-  clients: number | null;
-  services: number | null;
-  tickets_month: number | null;
-};
-
-export type EntitlementLimitOverridesJson = Partial<PlanLimitsJson>;
-
-export const plan = pgTable(
-  'Plan',
-  {
-    id: serial('id').primaryKey(),
-    slug: text('slug').notNull(),
-    name: text('name').notNull(),
-    limits: jsonb('limits').$type<PlanLimitsJson>().notNull(),
-    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
-      .notNull()
-      .defaultNow(),
-  },
-  (t) => [uniqueIndex('Plan_slug_key').on(t.slug)],
-);
-
 export const company = pgTable(
   'Company',
   {
@@ -91,22 +68,13 @@ export const company = pgTable(
     postal_code: text('postal_code').notNull(),
     status: companyStatusEnum('status').notNull().default('ACTIVE'),
     settings: jsonb('settings').$type<CompanySettingsJson | null>(),
-    plan_id: integer('plan_id')
-      .notNull()
-      .references(() => plan.id),
-    entitlement_limit_overrides: jsonb('entitlement_limit_overrides').$type<
-      EntitlementLimitOverridesJson | null
-    >(),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
     updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
   },
-  (t) => [
-    uniqueIndex('Company_name_key').on(t.name),
-    index('Company_plan_id_idx').on(t.plan_id),
-  ],
+  (t) => [uniqueIndex('Company_name_key').on(t.name)],
 );
 
 export const role = pgTable(
@@ -513,12 +481,7 @@ export const rolePermission = pgTable(
   ],
 );
 
-export const planRelations = relations(plan, ({ many }) => ({
-  companies: many(company),
-}));
-
 export const companyRelations = relations(company, ({ one, many }) => ({
-  plan: one(plan, { fields: [company.plan_id], references: [plan.id] }),
   users: many(user),
   tickets: many(ticket),
   services: many(service),
@@ -655,7 +618,6 @@ export const servicesTicketsRelations = relations(servicesTickets, ({ one }) => 
 }));
 
 /** UI / API row types derived from the Drizzle schema. */
-export type Plan = typeof plan.$inferSelect;
 export type Company = typeof company.$inferSelect;
 export type User = typeof user.$inferSelect;
 export type Role = typeof role.$inferSelect;

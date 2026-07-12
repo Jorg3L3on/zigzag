@@ -33,7 +33,7 @@ export const useOperatorTenantCompany = () => {
         name: row.name,
         logo: () => null,
         logoUrl: row.logo,
-        plan: row.plan?.name ?? 'Standard',
+        plan: '',
         is_system: row.is_system,
       });
     };

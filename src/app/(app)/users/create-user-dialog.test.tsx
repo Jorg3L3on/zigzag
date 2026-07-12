@@ -17,10 +17,6 @@ jest.mock('@/actions/users', () => ({
   createUser: jest.fn(),
 }));
 
-jest.mock('@/components/companies/company-entitlement-notice', () => ({
-  CompanyEntitlementNotice: () => null,
-}));
-
 describe('CreateUserDialog', () => {
   it('locks company field when defaultCompanyId is provided', async () => {
     render(

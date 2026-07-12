@@ -9,10 +9,9 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
-import type { Company, Plan } from '@/db/schema';
+import type { Company } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
-import { resolveEffectiveLimits } from '@/lib/effective-plan-limits';
 import {
   TripledEmptyState,
   TripledFilterChips,
@@ -86,7 +85,6 @@ export function CompaniesList() {
     permissions.isSystem && permissions.can(PERMISSIONS.companies.write);
   const router = useRouter();
   type CompanyListRow = Company & {
-    plan?: Plan | null;
     users?: Array<{ deleted_at?: Date | null }>;
   };
   const [companies, setCompanies] = React.useState<CompanyListRow[]>([]);
@@ -203,7 +201,7 @@ export function CompaniesList() {
       name: companyRow.name,
       logo: () => null,
       logoUrl: companyRow.logo,
-      plan: companyRow.plan?.name ?? 'Standard',
+      plan: '',
       is_system: companyRow.is_system,
     }),
     [],
@@ -215,41 +213,6 @@ export function CompaniesList() {
       return <Badge variant="default">Lista</Badge>;
     }
     return <Badge variant="secondary">Con pendientes</Badge>;
-  }, []);
-
-  const getPlanPressureBadge = React.useCallback((companyRow: CompanyListRow) => {
-    const planLabel = companyRow.plan?.name ?? 'Standard';
-    const userLimit = resolveEffectiveLimits(
-      companyRow.plan?.limits ?? null,
-      companyRow.entitlement_limit_overrides,
-    ).users;
-    const userUsage =
-      companyRow.users?.filter((userRow) => userRow.deleted_at == null).length ?? 0;
-
-    if (userLimit === null) {
-      return <Badge variant="outline">Plan {planLabel}: sin límite</Badge>;
-    }
-
-    const ratio = userLimit > 0 ? userUsage / userLimit : 0;
-    if (ratio >= 1) {
-      return (
-        <Badge variant="destructive">
-          Plan {planLabel}: límite alcanzado ({userUsage}/{userLimit})
-        </Badge>
-      );
-    }
-    if (ratio >= 0.8) {
-      return (
-        <Badge variant="secondary" className="border-amber-200 bg-amber-100 text-amber-900">
-          Plan {planLabel}: cerca del límite ({userUsage}/{userLimit})
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline">
-        Plan {planLabel}: estable ({userUsage}/{userLimit})
-      </Badge>
-    );
   }, []);
 
   const handleSelectContext = React.useCallback(
@@ -562,7 +525,6 @@ export function CompaniesList() {
                             {statusLabel(companyRow.status)}
                           </Badge>
                           {getReadinessBadge(companyRow)}
-                          {getPlanPressureBadge(companyRow)}
                           {renderContextBadge(companyRow)}
                         </div>
                       </div>

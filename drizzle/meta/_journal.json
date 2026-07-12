@@ -148,6 +148,13 @@
       "when": 1781296000000,
       "tag": "0021_drop_user_two_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1781382400000,
+      "tag": "0022_drop_plan_catalog",
+      "breakpoints": true
     }
   ]
 }
