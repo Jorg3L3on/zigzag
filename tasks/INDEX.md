@@ -12,7 +12,8 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
 | ✅ | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
 | ✅ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
-| ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic |
+| ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic (install prompt) |
+| ✅ | [prd-pwa-offline-shell.md](./prd-pwa-offline-shell.md) | Execution plan 4.1 — app shell SW |
 | ✅ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
 | ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
 | ✅ | [prd-mobile-first-dashboard-redesign.md](./prd-mobile-first-dashboard-redesign.md) | v2 visual consistency epic — GitHub [#63](https://github.com/Jorg3L3on/zigzag/issues/63), slices [#64](https://github.com/Jorg3L3on/zigzag/issues/64)–[#70](https://github.com/Jorg3L3on/zigzag/issues/70) |
@@ -123,15 +124,27 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 **Evidence:** `src/app/manifest.ts`, `src/app/layout.tsx`, `src/app/manifest.test.ts`, `src/app/pwa-icons.test.ts`, `src/proxy.test.ts`, `README.md` (Mobile & PWA).
 
-**Out of scope (unchanged):** service worker, offline shell, `beforeinstallprompt` banner → `prd-mobile-pwa-offline.md`.
+**Out of scope (unchanged):** Android install prompt, push, offline CRUD → `prd-mobile-pwa-offline.md`. App shell SW shipped in `prd-pwa-offline-shell.md` (execution plan 4.1).
+
+---
+
+## ✅ prd-pwa-offline-shell.md
+
+**Status:** Applied (shipped to `main` via PRD #228)
+
+**GitHub:** Parent [#228](https://github.com/Jorg3L3on/zigzag/issues/228); slices [#229](https://github.com/Jorg3L3on/zigzag/issues/229)–[#231](https://github.com/Jorg3L3on/zigzag/issues/231).
+
+**TL;DR:** Production `@serwist/turbopack` service worker caches app shell (`/offline` fallback, static assets); API/RSC network-only; existing `NetworkStatusBanner`; Playwright `e2e/mobile-offline.spec.ts`; docs updated (README, AGENTS.md, release checklist).
+
+**Evidence:** `src/app/sw.ts`, `src/app/serwist/[path]/route.ts`, `src/app/offline/page.tsx`, `src/components/serwist-provider.tsx`, `src/lib/register-service-worker.ts`, `e2e/mobile-offline.spec.ts`, `docs/zigzag-execution-plan.html` §4.1.
 
 ---
 
 ## ⏸️ prd-mobile-pwa-offline.md
 
-**Status:** Deferred (explicitly out of v1)
+**Status:** Deferred (install prompt + richer offline UX)
 
-**TL;DR:** Future epic: service worker, offline app shell, “requires network” messaging, optional Android `beforeinstallprompt` banner. Depends on PWA install (✅) + remaining docs PRD work. Stub only—refine before implementation.
+**TL;DR:** Future epic: optional Android `beforeinstallprompt` banner, push, background sync. **App shell SW** shipped separately in `prd-pwa-offline-shell.md` (✅).
 
 ---
 

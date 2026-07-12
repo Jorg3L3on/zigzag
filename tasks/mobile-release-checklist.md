@@ -20,7 +20,7 @@ Set `E2E_EMAIL` and `E2E_PASSWORD` for authenticated Playwright cases. Optional:
 - [ ] Start **Nuevo ticket** — form controls readable; numeric keyboard on phone fields.
 - [ ] Open an existing ticket detail — actions reachable; no overlap with safe area.
 - [ ] Download ticket PDF on a finished ticket (Wi‑Fi); failure shows toast `PDF001`.
-- [ ] Toggle airplane mode — offline banner appears; app does not claim offline sync.
+- [ ] Toggle airplane mode — offline banner appears; shell may load from cache on cold start after prior online visit; no offline data sync.
 - [ ] **Share → Add to Home Screen** — icon installs; cold start opens **Dashboard** (`/dashboard`).
 
 ## Manual — Android Chrome
@@ -29,12 +29,12 @@ Set `E2E_EMAIL` and `E2E_PASSWORD` for authenticated Playwright cases. Optional:
 - [ ] Tickets list cards and filters usable with touch targets.
 - [ ] Create-ticket flow: client step and services step scroll without layout break.
 - [ ] PDF download on finished ticket.
-- [ ] Airplane mode — offline banner only (no offline data).
+- [ ] Airplane mode — offline banner; shell may load from cache after prior online visit; still no offline data sync.
 - [ ] **Install app** / **Add to home screen** — cold start opens Dashboard.
 
 ## Regression notes
 
-- PWA v1 has **no service worker** and **requires internet**.
+- PWA service worker caches **app shell only**; **network required for Ticket/Company data** (see README Mobile & PWA).
 - Ticket PDFs are **server-generated** (`GET /api/tickets/[id]/invoice`); do not re-enable client-only canvas PDF in production UI.
 - Dashboard lists use **TanStack table on desktop** and **cards below 768px** — see `.cursor/rules/lists-and-responsive-tables.mdc`.
 
