@@ -46,8 +46,6 @@ describe('RBAC coverage', () => {
       // Auth-only: notifications are visible to any authenticated company member
       // and are scoped by company via requireActionAuth (like the account page).
       'src/actions/notifications.ts',
-      // Auth-only: each user manages only their own 2FA via requireActionAuth.
-      'src/actions/two-factor.ts',
     ]);
 
     const missing = actionFiles

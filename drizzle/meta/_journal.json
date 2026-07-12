@@ -141,6 +141,13 @@
       "when": 1781209600000,
       "tag": "0020_plan_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781296000000,
+      "tag": "0021_drop_user_two_factor",
+      "breakpoints": true
     }
   ]
 }

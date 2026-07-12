@@ -27,9 +27,9 @@ async function main() {
   await pool.query(
     `INSERT INTO "User"
        ("name", "email", "password", "company_id", "role_id",
-        "email_verified_at", "token_version", "two_factor_enabled",
+        "email_verified_at", "token_version",
         "created_at", "updated_at")
-     SELECT $1, $2, $3, c.id, 1, NOW(), 0, false, NOW(), NOW()
+     SELECT $1, $2, $3, c.id, 1, NOW(), 0, NOW(), NOW()
      FROM "Company" c
      WHERE c.name = $4 AND c.deleted_at IS NULL
      ON CONFLICT ("email") DO UPDATE
@@ -37,7 +37,6 @@ async function main() {
            "company_id" = EXCLUDED."company_id",
            "role_id" = EXCLUDED."role_id",
            "email_verified_at" = EXCLUDED."email_verified_at",
-           "two_factor_enabled" = false,
            "deleted_at" = NULL,
            "updated_at" = NOW()`,
     ['Ana Administradora', email, passwordHash, demoCompanyName],

@@ -10,8 +10,6 @@ import {
   checkLoginRateLimit,
   resetLoginRateLimit,
 } from '@/lib/rate-limiter';
-import { verifyTotp } from '@/lib/totp';
-
 const getClientIp = (request: unknown): string | null => {
   if (!request || typeof request !== 'object' || !('headers' in request)) {
     return null;
@@ -61,7 +59,6 @@ export const {
       credentials: {
         email: { label: 'Correo', type: 'email' },
         password: { label: 'Password', type: 'password' },
-        otp: { label: 'Código 2FA', type: 'text' },
       },
       async authorize(credentials, request) {
         try {
@@ -129,20 +126,6 @@ export const {
               reason: 'invalid_credentials',
             });
             return null;
-          }
-
-          // Second factor: when enabled, a valid TOTP code is required.
-          if (row.two_factor_enabled && row.two_factor_secret) {
-            const otp = credentials.otp ? String(credentials.otp) : '';
-            if (!verifyTotp(otp, row.two_factor_secret)) {
-              await recordAuthAuditEvent({
-                action: 'sign_in_failed',
-                result: 'failed',
-                email,
-                reason: otp ? 'twofa_invalid' : 'twofa_required',
-              });
-              return null;
-            }
           }
 
           await resetLoginRateLimit(email, clientIp);

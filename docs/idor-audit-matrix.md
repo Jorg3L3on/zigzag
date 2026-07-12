@@ -82,7 +82,6 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `search.ts` | globalSearch | ✅ | `src/lib/search-actions.test.ts` | #190 |
 | `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ✅ | `src/lib/notifications-actions.test.ts` | #190 |
 | `authz.ts` | getSessionPermissionMap | ⏭️ Exempt | — (session-scoped; filters permissions by caller company) | #190 |
-| `two-factor.ts` | getTwoFactorStatus, startTwoFactorEnrollment, confirmTwoFactorEnrollment, disableTwoFactor | ⏭️ Exempt | — (self-service only; `loadOwnUser(context.userId)`) | #190 |
 
 ## Shared helpers
 

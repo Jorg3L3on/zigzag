@@ -6,9 +6,7 @@ export type AuthAuditFailureReason =
   | 'missing_credentials'
   | 'invalid_credentials'
   | 'throttled'
-  | 'inactive_company'
-  | 'twofa_required'
-  | 'twofa_invalid';
+  | 'inactive_company';
 
 export type PermissionDeniedAuditReason =
   | 'missing_permission'

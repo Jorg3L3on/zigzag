@@ -163,8 +163,6 @@ export const user = pgTable(
     // (password change, role change, soft-delete). Compared against the value
     // embedded in the JWT during session validation.
     token_version: integer('token_version').notNull().default(0),
-    two_factor_secret: text('two_factor_secret'),
-    two_factor_enabled: boolean('two_factor_enabled').notNull().default(false),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),

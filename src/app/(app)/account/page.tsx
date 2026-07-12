@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AccountFormDialog } from '@/components/account/account-form-dialog';
-import { TwoFactorSection } from '@/components/account/two-factor-section';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
@@ -62,9 +61,6 @@ export default function AccountPage() {
                 </div>
                 <div className="pt-4">
                   <AccountFormDialog />
-                </div>
-                <div className="pt-2">
-                  <TwoFactorSection />
                 </div>
               </div>
             </CardContent>

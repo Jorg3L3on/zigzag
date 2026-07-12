@@ -39,13 +39,11 @@ export function LoginForm({
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
-    const otp = (formData.get('otp') as string | null)?.trim() ?? '';
 
     try {
       const result = await signIn('credentials', {
         email,
         password,
-        otp,
         redirect: false,
       });
 
@@ -115,18 +113,6 @@ export function LoginForm({
                 autoComplete="current-password"
                 className="h-11"
                 required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="otp">Código de autenticación (si está activado)</Label>
-              <Input
-                id="otp"
-                name="otp"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123456"
-                className="h-11"
               />
             </div>
             {error && <div className="text-sm text-red-500">{error}</div>}

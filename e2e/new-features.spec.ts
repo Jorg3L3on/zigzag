@@ -44,13 +44,6 @@ test.describe('Sellability features smoke', () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('account page exposes two-factor setup', async ({ page }) => {
-    await page.goto('/account');
-    await expect(
-      page.getByText('Autenticación en dos pasos (2FA)'),
-    ).toBeVisible({ timeout: 15_000 });
-  });
-
   test('clients page exposes CSV import/export', async ({ page }) => {
     await page.goto('/clients');
     await expect(
