@@ -111,6 +111,7 @@ const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
       url: '/companies',
       icon: Building,
       requiredPermission: PERMISSIONS.companies.read,
+      systemOnly: true,
     },
     {
       title: 'Roles',
@@ -203,9 +204,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const visibleSystem = React.useMemo(() => {
     const isSystemUser = session?.user?.company_is_system ?? false;
-    if (!isSystemUser) {
-      return [];
-    }
     return data.system.filter((item) => {
       if (item.systemOnly) {
         return isSystemUser;
@@ -278,8 +276,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }));
   }, [globalLongest, visibleSystem]);
 
-  const isSystemCompany = session?.user?.company_is_system;
-
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50">
       <SidebarHeader className="bg-gradient-to-r from-primary/5 to-transparent">
@@ -290,9 +286,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <GlobalSearch />
         </div>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
-          {isSystemCompany && systemItems.length > 0 && (
-            <NavProject items={systemItems} />
-          )}
+          {systemItems.length > 0 && <NavProject items={systemItems} />}
           <NavMain items={navItems} />
         </TripledMotionDiv>
       </SidebarContent>

@@ -42,7 +42,7 @@ jest.mock('@/lib/governance-audit', () => ({
   sanitizeRoleForAudit: jest.fn((row) => row),
 }));
 jest.mock('@/lib/company-bootstrap', () => ({
-  tenantOwnerRoleName: jest.fn(() => 'tenant-owner'),
+  isProtectedBootstrapAdminRole: jest.fn(() => false),
 }));
 
 const mockRequireActionAuth = requireActionAuth as jest.MockedFunction<

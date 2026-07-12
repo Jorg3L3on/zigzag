@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { getCompanies } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
 import { resolveOperatorTenantCompanyId } from '@/lib/operator-tenant-scope';
@@ -9,6 +10,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 
 export const useOperatorTenantCompany = () => {
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const { selectedCompany, setSelectedCompany } = useCompany();
   const permissions = usePermissions();
 
@@ -46,15 +48,23 @@ export const useOperatorTenantCompany = () => {
     setSelectedCompany,
   ]);
 
-  const tenantCompanyId = React.useMemo(
-    () =>
-      resolveOperatorTenantCompanyId(permissions.isSystem, selectedCompany),
-    [permissions.isSystem, selectedCompany],
-  );
+  const tenantCompanyId = React.useMemo(() => {
+    if (permissions.isSystem) {
+      return resolveOperatorTenantCompanyId(true, selectedCompany);
+    }
+    return session?.user.company_id ?? null;
+  }, [permissions.isSystem, selectedCompany, session?.user.company_id]);
+
+  const tenantCompanyName = React.useMemo(() => {
+    if (permissions.isSystem) {
+      return selectedCompany?.name ?? null;
+    }
+    return session?.user.company_name ?? null;
+  }, [permissions.isSystem, selectedCompany?.name, session?.user.company_name]);
 
   return {
     tenantCompanyId,
-    tenantCompanyName: selectedCompany?.name ?? null,
+    tenantCompanyName,
     isTenantScoped: tenantCompanyId != null,
   };
 };

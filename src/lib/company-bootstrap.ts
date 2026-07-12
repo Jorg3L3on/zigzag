@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, isNull } from 'drizzle-orm';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PgQueryResultHKT, PgTransaction } from 'drizzle-orm/pg-core';
 import { hash } from 'bcryptjs';
@@ -16,7 +16,6 @@ import {
   type CompanyFormValues,
 } from '@/lib/company-schema';
 import {
-  fetchRolePermissionIds,
   recordGovernanceAudit,
   sanitizeCompanyForAudit,
   sanitizeRoleForAudit,
@@ -26,14 +25,19 @@ import {
 import { PERMISSIONS, type PermissionName } from '@/lib/permissions';
 import * as schema from '@/db/schema';
 
-export const TENANT_OWNER_ROLE_DESCRIPTION =
-  'Administrador de la empresa con permisos operativos (sin administración global de empresas).';
-
-/** Permissions granted to the default tenant owner role (global catalog rows only). */
-export const TENANT_OWNER_EXCLUDED_PERMISSIONS: PermissionName[] = [
+/** Platform-level permissions never assigned to tenant bootstrap roles. */
+export const TENANT_EXCLUDED_PERMISSIONS: PermissionName[] = [
   PERMISSIONS.companies.read,
   PERMISSIONS.companies.write,
+  PERMISSIONS.permissions.write,
 ];
+
+/** @deprecated Use `TENANT_EXCLUDED_PERMISSIONS`. */
+export const TENANT_OWNER_EXCLUDED_PERMISSIONS = TENANT_EXCLUDED_PERMISSIONS;
+
+export const TENANT_BOOTSTRAP_ADMIN_ROLE_NAME = 'Admin';
+export const TENANT_BOOTSTRAP_OPERATOR_ROLE_NAME = 'Operator';
+export const TENANT_BOOTSTRAP_VIEWER_ROLE_NAME = 'Viewer';
 
 export type CompanyBootstrapOwnerInput = {
   name: string;
@@ -59,33 +63,109 @@ type DbTransaction = PgTransaction<
   ExtractTablesWithRelations<typeof schema>
 >;
 
+type TenantRoleTemplate = {
+  name: string;
+  description: string;
+  permissionNames: PermissionName[];
+};
+
+/** Legacy bootstrap admin role name kept for delete-protection on older tenants. */
 export const tenantOwnerRoleName = (companyId: number): string =>
   `tenant-admin-${companyId}`;
 
-export const filterTenantOwnerPermissionNames = (
+export const isProtectedBootstrapAdminRole = (
+  roleName: string,
+  roleCompanyId: number | null,
+  companyId: number,
+): boolean =>
+  roleCompanyId === companyId &&
+  (roleName === TENANT_BOOTSTRAP_ADMIN_ROLE_NAME ||
+    roleName === tenantOwnerRoleName(companyId));
+
+export const filterTenantAssignablePermissionNames = (
   permissionNames: string[],
 ): string[] =>
   permissionNames.filter(
     (name) =>
-      !TENANT_OWNER_EXCLUDED_PERMISSIONS.includes(name as PermissionName),
+      !TENANT_EXCLUDED_PERMISSIONS.includes(name as PermissionName),
   );
 
-export const resolveTenantOwnerPermissionIds = async (
-  tx: DbTransaction,
-): Promise<number[]> => {
-  const rows = await tx
+/** @deprecated Use `filterTenantAssignablePermissionNames`. */
+export const filterTenantOwnerPermissionNames = filterTenantAssignablePermissionNames;
+
+const TENANT_OPERATOR_PERMISSIONS: PermissionName[] = [
+  PERMISSIONS.tickets.read,
+  PERMISSIONS.tickets.write,
+  PERMISSIONS.services.read,
+  PERMISSIONS.services.write,
+  PERMISSIONS.clients.read,
+  PERMISSIONS.clients.write,
+  PERMISSIONS.users.read,
+  PERMISSIONS.company.manage,
+];
+
+const TENANT_VIEWER_PERMISSIONS: PermissionName[] = [
+  PERMISSIONS.tickets.read,
+  PERMISSIONS.services.read,
+  PERMISSIONS.clients.read,
+];
+
+const buildTenantRoleTemplates = (
+  adminPermissionNames: PermissionName[],
+): TenantRoleTemplate[] => [
+  {
+    name: TENANT_BOOTSTRAP_ADMIN_ROLE_NAME,
+    description: 'Rol administrador con acceso completo dentro de la empresa',
+    permissionNames: adminPermissionNames,
+  },
+  {
+    name: TENANT_BOOTSTRAP_OPERATOR_ROLE_NAME,
+    description:
+      'Puede gestionar tickets, clientes y servicios pero no administración global',
+    permissionNames: TENANT_OPERATOR_PERMISSIONS,
+  },
+  {
+    name: TENANT_BOOTSTRAP_VIEWER_ROLE_NAME,
+    description: 'Solo lectura de tickets, clientes y servicios',
+    permissionNames: TENANT_VIEWER_PERMISSIONS,
+  },
+];
+
+const loadGlobalPermissionCatalog = async (tx: DbTransaction) =>
+  tx
     .select({ id: permission.id, name: permission.name })
     .from(permission)
     .where(
       and(isNull(permission.company_id), isNull(permission.deleted_at)),
     );
 
-  const allowedNames = filterTenantOwnerPermissionNames(
+const resolvePermissionIds = (
+  permissionNames: PermissionName[],
+  permissionIdByName: Map<string, number>,
+): number[] => {
+  const ids: number[] = [];
+  for (const name of permissionNames) {
+    const id = permissionIdByName.get(name);
+    if (id == null) {
+      throw new Error(`Missing global permission catalog row: ${name}`);
+    }
+    ids.push(id);
+  }
+  return ids;
+};
+
+export const resolveTenantOwnerPermissionIds = async (
+  tx: DbTransaction,
+): Promise<number[]> => {
+  const rows = await loadGlobalPermissionCatalog(tx);
+  const allowedNames = filterTenantAssignablePermissionNames(
     rows.map((row) => row.name),
   );
-  const allowedSet = new Set(allowedNames);
-
-  return rows.filter((row) => allowedSet.has(row.name)).map((row) => row.id);
+  const permissionIdByName = new Map(rows.map((row) => [row.name, row.id]));
+  return resolvePermissionIds(
+    allowedNames as PermissionName[],
+    permissionIdByName,
+  );
 };
 
 export const bootstrapCompanyTenant = async (
@@ -120,28 +200,63 @@ export const bootstrapCompanyTenant = async (
       })
       .returning();
 
-    const permissionIds = await resolveTenantOwnerPermissionIds(tx);
-    if (permissionIds.length === 0) {
+    const catalogRows = await loadGlobalPermissionCatalog(tx);
+    if (catalogRows.length === 0) {
       throw new Error('No global permissions available for tenant bootstrap');
     }
 
-    const [ownerRole] = await tx
-      .insert(role)
-      .values({
-        name: tenantOwnerRoleName(createdCompany.id),
-        description: TENANT_OWNER_ROLE_DESCRIPTION,
-        company_id: createdCompany.id,
-        updated_at: new Date(),
-      })
-      .returning();
-
-    await tx.insert(rolePermission).values(
-      permissionIds.map((permissionId) => ({
-        role_id: ownerRole.id,
-        permission_id: permissionId,
-        created_at: new Date(),
-      })),
+    const permissionIdByName = new Map(
+      catalogRows.map((row) => [row.name, row.id]),
     );
+    const adminPermissionNames = filterTenantAssignablePermissionNames(
+      catalogRows.map((row) => row.name),
+    ) as PermissionName[];
+    const roleTemplates = buildTenantRoleTemplates(adminPermissionNames);
+    const actor = input.actor;
+    const targetCompanyId = createdCompany.id;
+    let ownerRole: Role | null = null;
+
+    for (const template of roleTemplates) {
+      const permissionIds = resolvePermissionIds(
+        template.permissionNames,
+        permissionIdByName,
+      );
+
+      const [createdRole] = await tx
+        .insert(role)
+        .values({
+          name: template.name,
+          description: template.description,
+          company_id: createdCompany.id,
+          updated_at: new Date(),
+        })
+        .returning();
+
+      await tx.insert(rolePermission).values(
+        permissionIds.map((permissionId) => ({
+          role_id: createdRole.id,
+          permission_id: permissionId,
+          created_at: new Date(),
+        })),
+      );
+
+      if (template.name === TENANT_BOOTSTRAP_ADMIN_ROLE_NAME) {
+        ownerRole = createdRole;
+      }
+
+      await recordGovernanceAudit(tx, {
+        actor,
+        resourceType: 'role',
+        resourceId: createdRole.id,
+        targetCompanyId,
+        eventType: 'created',
+        after: sanitizeRoleForAudit(createdRole, permissionIds),
+      });
+    }
+
+    if (!ownerRole) {
+      throw new Error('Tenant bootstrap failed to create the Admin role');
+    }
 
     const [owner] = await tx
       .insert(user)
@@ -156,10 +271,6 @@ export const bootstrapCompanyTenant = async (
       })
       .returning();
 
-    const ownerPermissionIds = await fetchRolePermissionIds(ownerRole.id, tx);
-    const actor = input.actor;
-    const targetCompanyId = createdCompany.id;
-
     await recordGovernanceAudit(tx, {
       actor,
       resourceType: 'company',
@@ -167,15 +278,6 @@ export const bootstrapCompanyTenant = async (
       targetCompanyId,
       eventType: 'created',
       after: sanitizeCompanyForAudit(createdCompany),
-    });
-
-    await recordGovernanceAudit(tx, {
-      actor,
-      resourceType: 'role',
-      resourceId: ownerRole.id,
-      targetCompanyId,
-      eventType: 'created',
-      after: sanitizeRoleForAudit(ownerRole, ownerPermissionIds),
     });
 
     await recordGovernanceAudit(tx, {

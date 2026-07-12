@@ -92,7 +92,13 @@ export async function getPermissionsByCompany(companyId: number): Promise<{
       .select()
       .from(permission)
       .where(
-        and(eq(permission.company_id, companyId), isNull(permission.deleted_at)),
+        and(
+          isNull(permission.deleted_at),
+          or(
+            eq(permission.company_id, companyId),
+            isNull(permission.company_id),
+          ),
+        ),
       )
       .orderBy(asc(permission.name));
     return { success: true, data: permissions };

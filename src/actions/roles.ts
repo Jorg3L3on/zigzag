@@ -18,7 +18,9 @@ import {
   requireActionAuth,
   requireActionPermission,
 } from '@/lib/security';
-import { tenantOwnerRoleName } from '@/lib/company-bootstrap';
+import {
+  isProtectedBootstrapAdminRole,
+} from '@/lib/company-bootstrap';
 import { revalidatePath } from 'next/cache';
 import { AuthorizationError } from '@/lib/errors';
 import {
@@ -384,7 +386,13 @@ export async function deleteRole(id: number): Promise<{
       throw new AuthorizationError('Access denied to this role');
     }
     // Protect the bootstrap tenant-admin role from removal to avoid lockout.
-    if (existingRole.name === tenantOwnerRoleName(effectiveCompanyId)) {
+    if (
+      isProtectedBootstrapAdminRole(
+        existingRole.name,
+        existingRole.company_id,
+        effectiveCompanyId,
+      )
+    ) {
       throw new AuthorizationError('Cannot delete the tenant administrator role');
     }
     const beforePermissionIds = await fetchRolePermissionIds(id);
