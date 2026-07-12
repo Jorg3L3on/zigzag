@@ -377,14 +377,15 @@ const CreateTicketPageContent = () => {
                                   Nuevo cliente
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
+                              <DialogContent className="flex max-h-[min(90vh,100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg flex-col overflow-hidden rounded-2xl p-0 sm:w-full">
+                                <DialogHeader className="shrink-0 border-b border-border/60 px-6 pb-4 pr-12 pt-6">
                                   <DialogTitle>Crear nuevo cliente</DialogTitle>
                                   <DialogDescription>
                                     Completa los datos del nuevo cliente
                                   </DialogDescription>
                                 </DialogHeader>
                                 <ClientForm
+                                  compact
                                   onCancel={() => {
                                     setIsNewClientDialogOpen(false);
                                   }}

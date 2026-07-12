@@ -22,6 +22,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { cn } from '@/lib/utils';
 
 const PHONE_MIN_DIGITS = 7;
 const PHONE_MAX_DIGITS = 20;
@@ -64,11 +65,17 @@ const emptyToNull = (value: string | null | undefined) => {
 
 interface ClientFormProps {
   client?: Client;
+  compact?: boolean;
   onSuccess?: (savedClient?: Client) => void;
   onCancel?: () => void;
 }
 
-export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
+export function ClientForm({
+  client,
+  compact = false,
+  onSuccess,
+  onCancel,
+}: ClientFormProps) {
   const router = useRouter();
   const { selectedCompany } = useCompany();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -168,8 +175,21 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+    <div className={cn(compact && 'flex min-h-0 min-w-0 flex-1 flex-col')}>
+      <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className={cn(
+          'flex min-h-0 flex-1 flex-col',
+          compact ? 'gap-0' : 'space-y-8',
+        )}
+      >
+        <div
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto',
+            compact ? 'space-y-4 px-6 py-4' : 'space-y-8',
+          )}
+        >
         <FormField
           control={form.control}
           name="name"
@@ -357,8 +377,15 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             />
           </div>
         </div>
+        </div>
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
+        <div
+          className={cn(
+            'flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4',
+            compact &&
+              'border-t border-border/60 bg-background px-6 py-4',
+          )}
+        >
           <Button
             type="button"
             variant="outline"
@@ -384,5 +411,6 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
         </div>
       </form>
     </Form>
+    </div>
   );
 }
