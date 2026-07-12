@@ -202,6 +202,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const visibleSystem = React.useMemo(() => {
     const isSystemUser = session?.user?.company_is_system ?? false;
+    if (!isSystemUser) {
+      return [];
+    }
     return data.system.filter((item) => {
       if (item.systemOnly) {
         return isSystemUser;
@@ -286,7 +289,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <GlobalSearch />
         </div>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
-          {(isSystemCompany || systemItems.length > 0) && (
+          {isSystemCompany && systemItems.length > 0 && (
             <NavProject items={systemItems} />
           )}
           <NavMain items={navItems} />
