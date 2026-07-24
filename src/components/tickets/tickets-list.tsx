@@ -38,9 +38,23 @@ import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { Ticket as TicketIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
+
+const parseStatusFilter = (value: string | null): StatusFilterValue => {
+  if (value === 'paid' || value === 'partial' || value === 'pending') {
+    return value;
+  }
+  return 'all';
+};
+
+const parseFinishedFilter = (value: string | null): FinishedFilterValue => {
+  if (value === 'yes' || value === 'no') {
+    return value;
+  }
+  return 'all';
+};
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
@@ -51,15 +65,20 @@ export default function TicketsList() {
     selectedCompany?.id,
   );
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [searchValue, setSearchValue] = React.useState('');
-  const [statusFilter, setStatusFilter] =
-    React.useState<StatusFilterValue>('all');
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(() =>
+    parseStatusFilter(searchParams.get('status')),
+  );
   const [pdfFilter, setPdfFilter] = React.useState<PdfFilterValue>('all');
   const [finishedFilter, setFinishedFilter] =
-    React.useState<FinishedFilterValue>('all');
+    React.useState<FinishedFilterValue>(() =>
+      parseFinishedFilter(searchParams.get('finished')),
+    );
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
   const [sorting, setSorting] =
     React.useState<SortingState>(DEFAULT_TICKET_SORTING);
@@ -67,6 +86,33 @@ export default function TicketsList() {
     pageIndex: 0,
     pageSize: 10,
   });
+
+  React.useEffect(() => {
+    setStatusFilter(parseStatusFilter(searchParams.get('status')));
+    setFinishedFilter(parseFinishedFilter(searchParams.get('finished')));
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (statusFilter === 'all') {
+      params.delete('status');
+    } else {
+      params.set('status', statusFilter);
+    }
+    if (finishedFilter === 'all') {
+      params.delete('finished');
+    } else {
+      params.set('finished', finishedFilter);
+    }
+    const nextQuery = params.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery === currentQuery) {
+      return;
+    }
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [statusFilter, finishedFilter, pathname, router, searchParams]);
 
   const fetchTickets = React.useCallback(async () => {
     if (missingCompany) {

@@ -13,19 +13,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  listClientServiceSchedules,
-  type ClientServiceScheduleListItem,
-} from '@/actions/client-service-schedules';
-import { useCompany } from '@/contexts/company-context';
+import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import { FormattedDate } from '@/components/formatted-date';
-import { getErrorDisplayMessage } from '@/lib/network-awareness';
-import { usePermissions } from '@/hooks/use-permissions';
-import {
-  canReadServiceSchedules,
-  needsSelectedCompanyForSchedules,
-} from '@/lib/service-schedules-rbac';
 import { TripledEmptyState } from '@/components/tripled';
+import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
+import { cn } from '@/lib/utils';
 
 const mergeUrgent = (
   proximos: ClientServiceScheduleListItem[],
@@ -49,91 +41,27 @@ const mergeUrgent = (
   return merged;
 };
 
-export const DashboardServiceSchedulesWidget = () => {
-  const { selectedCompany } = useCompany();
-  const { can, isSystem, loading: permissionsLoading } = usePermissions();
-  const canRead = canReadServiceSchedules(can);
-  const missingCompany = needsSelectedCompanyForSchedules(
-    isSystem,
-    selectedCompany?.id,
-  );
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [proximos, setProximos] = React.useState<ClientServiceScheduleListItem[]>(
-    [],
-  );
-  const [atrasados, setAtrasados] = React.useState<ClientServiceScheduleListItem[]>(
-    [],
-  );
-  const mountedRef = React.useRef(true);
+export type DashboardServiceSchedulesWidgetProps = {
+  canRead: boolean;
+  missingCompany: boolean;
+  permissionsLoading: boolean;
+  loading: boolean;
+  error: string | null;
+  proximos: ClientServiceScheduleListItem[];
+  atrasados: ClientServiceScheduleListItem[];
+  onRetry: () => void;
+};
 
-  React.useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const loadSchedules = React.useCallback(async () => {
-    if (permissionsLoading) {
-      return;
-    }
-
-    if (!canRead) {
-      setLoading(false);
-      setError(null);
-      setProximos([]);
-      setAtrasados([]);
-      return;
-    }
-
-    if (missingCompany) {
-      setLoading(false);
-      setError(null);
-      setProximos([]);
-      setAtrasados([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    setLoading(true);
-    setError(null);
-    const companyId = selectedCompany?.id ?? null;
-
-    const [proximosRes, atrasadosRes] = await Promise.all([
-      listClientServiceSchedules({ companyId, filter: 'proximos' }),
-      listClientServiceSchedules({ companyId, filter: 'atrasados' }),
-    ]);
-
-    if (!mountedRef.current) {
-      return;
-    }
-
-    setLoading(false);
-
-    if (!proximosRes.success || !atrasadosRes.success) {
-      setError(
-        getErrorDisplayMessage(
-          proximosRes.success ? atrasadosRes : proximosRes,
-          'No se pudieron cargar los recordatorios',
-        ),
-      );
-      return;
-    }
-
-    setProximos(proximosRes.data ?? []);
-    setAtrasados(atrasadosRes.data ?? []);
-  }, [
-    canRead,
-    missingCompany,
-    permissionsLoading,
-    selectedCompany?.id,
-  ]);
-
-  React.useEffect(() => {
-    void loadSchedules();
-  }, [loadSchedules]);
-
+export const DashboardServiceSchedulesWidget = ({
+  canRead,
+  missingCompany,
+  permissionsLoading,
+  loading,
+  error,
+  proximos,
+  atrasados,
+  onRetry,
+}: DashboardServiceSchedulesWidgetProps) => {
   if (permissionsLoading) {
     return null;
   }
@@ -145,19 +73,24 @@ export const DashboardServiceSchedulesWidget = () => {
   const urgentRows = mergeUrgent(proximos, atrasados);
 
   return (
-    <Card className="rounded-xl border-border/60 shadow-sm">
-      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
-        <div>
-          <CardTitle className="text-base">Recordatorios de servicio</CardTitle>
-          <CardDescription>
-            Próximos 14 días y atrasados
-          </CardDescription>
+    <Card className={cn(DASHBOARD_CARD_CLASS, 'flex h-full flex-col')}>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 p-4 pb-3 sm:p-5 sm:pb-3">
+        <div className="min-w-0 space-y-1">
+          <CardTitle className="text-base font-semibold tracking-tight">
+            Recordatorios de servicio
+          </CardTitle>
+          <CardDescription>Próximos 14 días y atrasados</CardDescription>
         </div>
-        <Button variant="outline" size="sm" className="shrink-0 rounded-lg" asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0 rounded-lg text-muted-foreground"
+          asChild
+        >
           <Link href="/service-schedules">Ver todos</Link>
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col p-4 pt-0 sm:p-5 sm:pt-0">
         {missingCompany ? (
           <TripledEmptyState
             icon={<CalendarClock className="h-4 w-4" />}
@@ -185,7 +118,7 @@ export const DashboardServiceSchedulesWidget = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => void loadSchedules()}
+                onClick={onRetry}
               >
                 Reintentar
               </Button>
@@ -198,11 +131,11 @@ export const DashboardServiceSchedulesWidget = () => {
             description="No hay recordatorios urgentes."
           />
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-border/40">
             {urgentRows.map((row) => (
               <li
                 key={row.id}
-                className="flex items-start justify-between gap-2 border-b border-border/50 pb-3 last:border-0 last:pb-0"
+                className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{row.clientName}</p>
@@ -215,6 +148,7 @@ export const DashboardServiceSchedulesWidget = () => {
                     variant={
                       row.bucket === 'atrasados' ? 'destructive' : 'secondary'
                     }
+                    className="shadow-none"
                   >
                     {row.bucket === 'atrasados' ? 'Atrasado' : 'Próximo'}
                   </Badge>
@@ -227,7 +161,7 @@ export const DashboardServiceSchedulesWidget = () => {
           </ul>
         )}
         {!missingCompany && !loading && !error ? (
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-auto pt-3 text-xs text-muted-foreground">
             {atrasados.length} atrasados · {proximos.length} próximos
           </p>
         ) : null}

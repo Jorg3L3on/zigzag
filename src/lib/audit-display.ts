@@ -54,18 +54,31 @@ export const resolveAuditResourceLink = (
     return null;
   }
 
-  const label = `${resourceType}#${resourceId}`;
   const type = resourceType as AuditResourceType;
 
   switch (type) {
     case 'ticket':
-      return { href: `/tickets/${resourceId}`, label };
+      return { href: `/tickets/${resourceId}`, label: `Ticket #${resourceId}` };
+    case 'invoice':
+      // Invoice audits store the ticket id as resource_id.
+      return { href: `/tickets/${resourceId}`, label: `Ticket #${resourceId}` };
     case 'client':
-      return { href: `/clients/${resourceId}/edit`, label };
+      return {
+        href: `/clients/${resourceId}/edit`,
+        label: `Cliente #${resourceId}`,
+      };
     case 'service':
-      return { href: `/services/${resourceId}/edit`, label };
+      return {
+        href: `/services/${resourceId}/edit`,
+        label: `Servicio #${resourceId}`,
+      };
     case 'company':
-      return { href: `/companies/${resourceId}/edit`, label };
+      return {
+        href: `/companies/${resourceId}/edit`,
+        label: `Empresa #${resourceId}`,
+      };
+    case 'user':
+      return { href: `/users`, label: `Usuario #${resourceId}` };
     default:
       return null;
   }

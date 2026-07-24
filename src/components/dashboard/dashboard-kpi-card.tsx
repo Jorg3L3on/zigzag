@@ -7,6 +7,7 @@ import { useReducedMotion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled/motion';
+import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
 import type { DashboardKpi } from '@/lib/dashboard-kpi';
 import { formatCompactCurrency, formatCompactNumber } from '@/lib/format-compact';
 import { cn } from '@/lib/utils';
@@ -41,49 +42,56 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
       : formatCompactNumber(kpi.value);
 
   return (
-    <TripledMotionDiv className="min-w-0" variants={tripledFadeInUp}>
-      <Card className="overflow-hidden border-border/60 bg-gradient-to-b from-card to-card/80 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2 sm:p-6 sm:pb-2">
+    <TripledMotionDiv className="h-full min-w-0" variants={tripledFadeInUp}>
+      <Card className={cn(DASHBOARD_CARD_CLASS, 'flex h-full flex-col overflow-hidden')}>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 p-4 pb-3 sm:p-5 sm:pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {kpi.label}
           </CardTitle>
-          {icon}
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground"
+            aria-hidden
+          >
+            {icon}
+          </span>
         </CardHeader>
-        <CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
-          <div className="space-y-1">
-            <p className="text-xl font-semibold tabular-nums leading-none sm:text-2xl">
+        <CardContent className="flex flex-1 flex-col gap-3 p-4 pt-0 sm:p-5 sm:pt-0">
+          <div className="space-y-2">
+            <p className="text-2xl font-semibold tracking-tight tabular-nums leading-none sm:text-3xl">
               {compactValue}
             </p>
-            <div
-              className={cn(
-                'flex items-center gap-1 text-xs font-medium tabular-nums',
-                isUp && 'text-emerald-600 dark:text-emerald-400',
-                isDown && 'text-red-600 dark:text-red-400',
-                isNeutral && 'text-muted-foreground',
-              )}
-              aria-label={
-                delta === null
-                  ? 'Sin comparación con el mes anterior'
-                  : `${formatDelta(delta)} frente al mes anterior`
-              }
-            >
-              {!isNeutral && !isDown ? (
-                <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              ) : null}
-              {!isNeutral && isDown ? (
-                <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              ) : null}
-              <span>{formatDelta(delta)}</span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs font-medium tabular-nums',
+                  isUp && 'text-emerald-600 dark:text-emerald-400',
+                  isDown && 'text-red-600 dark:text-red-400',
+                  isNeutral && 'text-muted-foreground',
+                )}
+                aria-label={
+                  delta === null
+                    ? 'Sin comparación con el mes anterior'
+                    : `${formatDelta(delta)} frente al mes anterior`
+                }
+              >
+                {!isNeutral && !isDown ? (
+                  <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                ) : null}
+                {!isNeutral && isDown ? (
+                  <TrendingDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                ) : null}
+                <span>{formatDelta(delta)}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">vs mes anterior</span>
             </div>
+            {kpi.format === 'currency' ? (
+              <p className="text-xs text-muted-foreground/80 tabular-nums">
+                <FormattedCurrency amount={kpi.value} />
+              </p>
+            ) : null}
           </div>
-          {kpi.format === 'currency' ? (
-            <p className="text-xs text-muted-foreground tabular-nums">
-              <FormattedCurrency amount={kpi.value} />
-            </p>
-          ) : null}
-          <p className="text-xs text-muted-foreground">vs mes anterior</p>
           <div
-            className="h-10 w-full"
+            className="mt-auto h-8 w-full opacity-80"
             role="img"
             aria-label={`Tendencia de ${kpi.label}, últimos ${sparklineData.length} meses`}
           >
@@ -103,7 +111,7 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
                     <stop
                       offset="5%"
                       stopColor="hsl(var(--primary))"
-                      stopOpacity={0.5}
+                      stopOpacity={0.35}
                     />
                     <stop
                       offset="95%"
@@ -116,7 +124,7 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
                   type="monotone"
                   dataKey="value"
                   stroke="hsl(var(--primary))"
-                  strokeWidth={1.8}
+                  strokeWidth={1.5}
                   fill={`url(#spark-${kpi.key})`}
                   isAnimationActive={!shouldReduceMotion}
                   dot={false}
