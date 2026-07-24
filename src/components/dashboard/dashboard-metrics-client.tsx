@@ -27,6 +27,7 @@ import {
 } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
+import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
@@ -55,29 +56,38 @@ const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
 ];
 
 const KPI_ICONS: Record<DashboardKpiKey, React.ReactNode> = {
-  revenue: <DollarSign className="h-4 w-4 text-muted-foreground" />,
-  cashCollected: <Wallet className="h-4 w-4 text-muted-foreground" />,
-  outstandingBalance: <ClipboardList className="h-4 w-4 text-muted-foreground" />,
-  activeTickets: <Ticket className="h-4 w-4 text-muted-foreground" />,
+  revenue: <DollarSign className="h-4 w-4" aria-hidden />,
+  cashCollected: <Wallet className="h-4 w-4" aria-hidden />,
+  outstandingBalance: <ClipboardList className="h-4 w-4" aria-hidden />,
+  activeTickets: <Ticket className="h-4 w-4" aria-hidden />,
 };
 
 const DashboardLoadingSkeleton = () => (
-  <div className="flex flex-col gap-6">
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <Skeleton className="h-9 w-28" />
-      <Skeleton className="h-9 w-28" />
-      <Skeleton className="h-9 w-28" />
+  <div className="flex flex-col gap-6 md:gap-8">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-56 sm:h-9 sm:w-72" />
+        <Skeleton className="h-4 w-40" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-11 w-[170px] rounded-xl sm:h-9" />
+        <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
+        <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
+      </div>
     </div>
-    <div className="grid grid-cols-2 gap-5 sm:gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-36 rounded-xl" />
+        <Skeleton key={i} className="h-40 rounded-xl" />
       ))}
     </div>
-    <div className="grid gap-5 sm:gap-4 lg:grid-cols-3">
-      <Skeleton className="h-[380px] rounded-xl lg:col-span-2" />
-      <Skeleton className="h-[380px] rounded-xl" />
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Skeleton className="h-[280px] rounded-xl lg:col-span-2" />
+      <Skeleton className="h-[280px] rounded-xl" />
     </div>
-    <Skeleton className="h-64 rounded-xl" />
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Skeleton className="h-64 rounded-xl lg:col-span-1" />
+      <Skeleton className="h-64 rounded-xl lg:col-span-2" />
+    </div>
   </div>
 );
 
@@ -287,8 +297,11 @@ export const DashboardMetricsClient = () => {
     window.open(buildReportUrl('csv'), '_blank', 'noopener,noreferrer');
   };
 
+  const companyLabel =
+    selectedCompany?.name ?? session?.user.company_name ?? null;
+
   return (
-    <div className="flex flex-col gap-5 sm:gap-6">
+    <div className="flex flex-col gap-6 md:gap-8">
       {error && metrics ? (
         <p
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -297,10 +310,11 @@ export const DashboardMetricsClient = () => {
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <span className="mr-auto text-sm text-muted-foreground md:mr-0">
-          Periodo de ingresos
-        </span>
+
+      <DashboardPageIntro
+        userName={session?.user?.name}
+        companyName={companyLabel}
+      >
         <Select
           value={String(monthCount)}
           onValueChange={(value) =>
@@ -341,7 +355,7 @@ export const DashboardMetricsClient = () => {
           <FileDown className="h-4 w-4" aria-hidden />
           Exportar CSV
         </Button>
-      </div>
+      </DashboardPageIntro>
 
       <DashboardOnboardingHelp
         checklist={onboardingChecklist}
@@ -352,7 +366,7 @@ export const DashboardMetricsClient = () => {
       />
 
       <TripledMotionDiv
-        className="grid grid-cols-2 gap-5 sm:gap-4 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-4 lg:grid-cols-4"
         variants={tripledStagger}
         initial="hidden"
         animate="visible"
@@ -374,9 +388,12 @@ export const DashboardMetricsClient = () => {
         />
       </div>
 
-      <DashboardServiceSchedulesWidget />
-
-      <DashboardRecentTickets tickets={metrics.recentTickets} />
+      <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+        <DashboardServiceSchedulesWidget />
+        <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
+          <DashboardRecentTickets tickets={metrics.recentTickets} />
+        </div>
+      </div>
     </div>
   );
 };
