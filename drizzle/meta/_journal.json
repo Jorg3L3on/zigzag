@@ -155,6 +155,13 @@
       "when": 1781382400000,
       "tag": "0022_drop_plan_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1781468800000,
+      "tag": "0023_query_audit_active_indexes",
+      "breakpoints": true
     }
   ]
 }

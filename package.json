@@ -11,6 +11,8 @@
     "lint": "eslint .",
     "seed": "tsx scripts/seed.ts",
     "seed:demo": "tsx scripts/seed-demo-company.ts",
+    "seed:perf": "tsx scripts/seed-perf-baseline.ts",
+    "query:audit": "node scripts/query-audit-explain.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
