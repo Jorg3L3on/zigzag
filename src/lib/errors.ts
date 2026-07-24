@@ -4,6 +4,8 @@ import {
   type ErrorCode,
   type PublicErrorPayload,
 } from '@/lib/error-catalog';
+import { logger } from '@/lib/logger';
+import { getRequestId } from '@/lib/request-context';
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -239,7 +241,10 @@ export function handleApiError(error: unknown) {
 
 // Error handler for server actions
 export function handleServerActionError(error: unknown) {
-  console.error('Server Action Error:', error);
+  logger.error('Server Action Error', {
+    error,
+    requestId: getRequestId(),
+  });
   const errorType = classifyServerErrorType(error);
 
   if (error instanceof AppError) {

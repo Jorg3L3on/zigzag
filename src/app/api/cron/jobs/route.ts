@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { runDueJobs } from '@/lib/jobs/queue';
 import { processAuditOutbox } from '@/lib/jobs/audit-outbox';
 import { captureException } from '@/lib/observability';
+import {
+  REQUEST_ID_HEADER,
+  bindRequestIdFromRequest,
+} from '@/lib/request-context';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,34 +16,43 @@ export const dynamic = 'force-dynamic';
  * disabled in production to avoid an open trigger.
  */
 export async function GET(request: Request) {
+  const requestId = bindRequestIdFromRequest(request);
   const secret = process.env.CRON_SECRET;
 
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: false, error: 'CRON_SECRET not configured' },
         { status: 503 },
       );
+      response.headers.set(REQUEST_ID_HEADER, requestId);
+      return response;
     }
   } else {
     const authorization = request.headers.get('authorization');
     if (authorization !== `Bearer ${secret}`) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 },
       );
+      response.headers.set(REQUEST_ID_HEADER, requestId);
+      return response;
     }
   }
 
   try {
     const jobs = await runDueJobs();
     const outbox = await processAuditOutbox();
-    return NextResponse.json({ success: true, jobs, outbox });
+    const response = NextResponse.json({ success: true, jobs, outbox });
+    response.headers.set(REQUEST_ID_HEADER, requestId);
+    return response;
   } catch (error) {
-    captureException(error, { route: '/api/cron/jobs' });
-    return NextResponse.json(
+    captureException(error, { route: '/api/cron/jobs', requestId });
+    const response = NextResponse.json(
       { success: false, error: 'Job processing failed' },
       { status: 500 },
     );
+    response.headers.set(REQUEST_ID_HEADER, requestId);
+    return response;
   }
 }

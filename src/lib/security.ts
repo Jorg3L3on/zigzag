@@ -11,6 +11,7 @@ import {
   type ActionAuthContext,
 } from './authz-context';
 import { recordPermissionDeniedAudit } from '@/lib/audit-security';
+import { bindRequestContextFromHeaders } from '@/lib/request-context';
 export {
   resolveWritableCompanyId,
   requireSystemUser,
@@ -133,6 +134,7 @@ export async function validateCompanyAccess(companyId: number): Promise<void> {
 }
 
 export async function requireActionAuth(): Promise<ActionAuthContext> {
+  await bindRequestContextFromHeaders();
   const session = await auth();
   if (!session?.user?.id) {
     throw new AuthorizationError('Authentication required');
