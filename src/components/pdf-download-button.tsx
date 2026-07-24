@@ -20,6 +20,9 @@ interface PDFDownloadButtonProps {
   downloadFileName: string;
   companyId?: number | null;
   className?: string;
+  /** When set, render a labeled button instead of the icon-only control. */
+  label?: string;
+  variant?: 'outline' | 'default' | 'secondary' | 'ghost';
 }
 
 export function PDFDownloadButton({
@@ -27,6 +30,8 @@ export function PDFDownloadButton({
   downloadFileName,
   companyId,
   className,
+  label,
+  variant = 'outline',
 }: PDFDownloadButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -67,6 +72,28 @@ export function PDFDownloadButton({
     }
   };
 
+  const ariaLabel = label ?? 'Descargar PDF';
+
+  if (label) {
+    return (
+      <Button
+        type="button"
+        variant={variant}
+        onClick={handleDownload}
+        disabled={isGenerating}
+        aria-label={ariaLabel}
+        className={cn('h-10 gap-2', className)}
+      >
+        {isGenerating ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+        ) : (
+          <Download className="h-4 w-4 shrink-0" aria-hidden />
+        )}
+        <span>{isGenerating ? 'Generando…' : label}</span>
+      </Button>
+    );
+  }
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -74,10 +101,10 @@ export function PDFDownloadButton({
           <Button
             type="button"
             size="icon"
-            variant="outline"
+            variant={variant}
             onClick={handleDownload}
             disabled={isGenerating}
-            aria-label="Descargar PDF"
+            aria-label={ariaLabel}
             className={cn(
               'shrink-0 border-blue-200 bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:bg-background',
               className,
