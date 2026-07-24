@@ -26,11 +26,11 @@ import {
   tripledStagger,
 } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
-import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
 import {
@@ -438,7 +438,7 @@ export const DashboardMetricsClient = () => {
             onRetry={urgentSchedules.reload}
           />
           <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
-            <DashboardRecentTickets tickets={metrics.recentTickets} />
+            <DashboardActivityFeed />
           </div>
         </div>
       </section>
