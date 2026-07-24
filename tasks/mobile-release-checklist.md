@@ -8,10 +8,13 @@ Use this list before promoting a mobile-related change to production. Run automa
 npm run lint
 npm test -- --runInBand
 npm run test:e2e          # chromium + mobile-chrome projects
+npm run test:e2e:mobile   # Pixel 5 only (includes mobile-core-flow)
 npm run build
 ```
 
 Set `E2E_EMAIL` and `E2E_PASSWORD` for authenticated Playwright cases. Optional: `E2E_SYSTEM_EMAIL` / `E2E_SYSTEM_PASSWORD` for system-operator nav tests.
+
+Core business flows on mobile (create ticket → add service / total → collect payment → PDF) are covered by `e2e/mobile-core-flow.spec.ts` on the `mobile-chrome` project.
 
 ## Manual — iOS Safari
 
