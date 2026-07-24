@@ -44,7 +44,9 @@ test.describe('RBAC browser specs', () => {
     }
 
     await firstTicket.click();
-    await expect(page.getByRole('link', { name: 'Editar Ticket' })).toHaveCount(0);
+    // Workspace quick actions use aria-label "Editar ticket" (and must stay hidden for viewers).
+    await expect(page.getByRole('link', { name: /Editar ticket/i })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Acciones rápidas' })).toHaveCount(0);
   });
 
   test('viewer clients list hides new client CTA', async ({ page }) => {
