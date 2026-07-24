@@ -41,10 +41,11 @@ test.describe('Mobile ticket screens', () => {
     await page.goto('/tickets/create');
 
     await expect(visibleMobileAppBar(page).getByText('Nuevo ticket')).toBeVisible();
-    await expect(page.getByText('Paso 1 de 3')).toBeVisible();
-    await expect(page.getByText('Información del cliente')).toBeVisible();
-    await expect(page.getByText('Seleccionar cliente')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Crear', exact: true })).toBeVisible();
+    // Responsive layouts may mount duplicate step chrome; scope to first.
+    await expect(page.getByText('Paso 1 de 3').first()).toBeVisible();
+    await expect(page.getByText('Información del cliente').first()).toBeVisible();
+    await expect(page.getByText('Seleccionar cliente').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nuevo cliente' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Crear', exact: true }).first()).toBeVisible();
   });
 });

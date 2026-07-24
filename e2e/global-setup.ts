@@ -31,6 +31,12 @@ export default async function globalSetup() {
       [hash, viewerEmail],
     );
 
+    // Legacy seed email still present in scripts/seed.ts — keep password in sync.
+    await pool.query(
+      `UPDATE "User" SET password = $1 WHERE email = $2 AND deleted_at IS NULL`,
+      [hash, 'viewer@test.com'],
+    );
+
     await pool.query(
       `
       INSERT INTO "User" (name, email, password, company_id, role_id, created_at)

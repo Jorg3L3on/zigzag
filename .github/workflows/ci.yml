@@ -71,8 +71,10 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # Visual baselines are darwin-only today; run chromium + mobile critically.
+      # Update linux snapshots with: npm run test:e2e:visual:update
       - name: E2E (critical path, includes axe-core a11y gate)
-        run: npm run test:e2e
+        run: npx playwright test --project=chromium --project=mobile-chrome
 
       - name: Build
         run: npm run build
