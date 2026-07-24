@@ -222,8 +222,8 @@
   <div class="audit-banner">
     <div class="audit-banner-title">Coverage snapshot — zigzag @ main (July 2026)</div>
     <div class="audit-stats">
-      <span><span class="status-badge st-done">9 Done</span></span>
-      <span><span class="status-badge st-partial">4 Partial</span></span>
+      <span><span class="status-badge st-done">10 Done</span></span>
+      <span><span class="status-badge st-partial">3 Partial</span></span>
       <span><span class="status-badge st-open">1 Not started</span></span>
     </div>
     <div class="audit-banner-meta">Security foundation (IDOR + Server Actions) is shipped. DB-backed plans (1.3), query budget (2.2), and request correlation (3.2) are complete. Self-serve signup removed from scope.</div>
@@ -244,7 +244,7 @@
       <span class="summary-label">Phase 3 · Quality</span>
     </div>
     <div class="summary-cell">
-      <span class="summary-num" style="color:var(--purple)">1<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
+      <span class="summary-num" style="color:var(--purple)">2<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
       <span class="summary-label">Phase 4 · Polish</span>
     </div>
   </div>
@@ -631,7 +631,7 @@
     <div class="phase-header">
       <span class="phase-num ph-4">PHASE 4</span>
       <span class="phase-title">Polish — Close the remaining partial scores</span>
-      <span class="phase-status">1 done · 1 partial · 1 open</span>
+      <span class="phase-status">2 done · 0 partial · 1 open</span>
       <span class="phase-timeline">~1 week</span>
     </div>
     <p class="phase-intro">
@@ -715,19 +715,19 @@
             </div>
           </div>
           <div class="task-meta">
-            <span class="status-badge st-partial">Partial</span>
+            <span class="status-badge st-done">Done</span>
             <span class="effort-badge ef-m">Medium</span>
             <span class="score-change">↑ Mobile coverage 7→9</span>
           </div>
         </div>
-        <div class="coverage-note"><strong>Evidence:</strong> <code>mobile-chrome</code> in CI. Mobile specs cover layout/navigation (<code>tickets-mobile.spec.ts</code>, sidebar, sticky nav). Full business flow in <code>e2e/core-flow.spec.ts</code> runs desktop-only (1280×900).</div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>e2e/mobile-core-flow.spec.ts</code> on Pixel 5 (<code>mobile-chrome</code>): create client/ticket via sticky <code>Crear</code>, add service + assert total after quantity bump, partial finish → <code>Saldar por completo</code> → <code>Pago completado</code>, invoice PDF via <code>Descargar / imprimir</code>. Layout specs remain in <code>tickets-mobile.spec.ts</code> / sidebar / sticky nav. CI: <code>npx playwright test --project=chromium --project=mobile-chrome</code>.</div>
         <div class="task-criteria">
           <div class="criteria-label">Acceptance criteria</div>
           <ul class="criteria-list">
-            <li class="partial">Mobile E2E test: create ticket end-to-end on Pixel 5 profile — create flow layout only, not full E2E</li>
-            <li class="open">Mobile E2E test: add service to ticket, verify total updates correctly</li>
-            <li class="open">Mobile E2E test: collect payment on ticket, verify status changes to paid</li>
-            <li class="open">Mobile E2E test: PDF invoice download works on mobile Chrome</li>
+            <li class="done">Mobile E2E test: create ticket end-to-end on Pixel 5 profile</li>
+            <li class="done">Mobile E2E test: add service to ticket, verify total updates correctly</li>
+            <li class="done">Mobile E2E test: collect payment on ticket, verify status changes to paid</li>
+            <li class="done">Mobile E2E test: PDF invoice download works on mobile Chrome</li>
             <li class="done">All tests run in CI on <code>mobile-chrome</code> Playwright project — failures block merge</li>
           </ul>
         </div>
@@ -743,7 +743,7 @@
     <strong style="color:var(--text-secondary)">What this plan does not include:</strong> Stripe, subscription lifecycle, transactional email, password reset flow, self-serve signup — those are a separate workstream.
     Complete this plan first; the commercial layer lands on top of a trustworthy foundation.
     <br><br>
-    <strong style="color:var(--text-secondary)">Recommended next:</strong> 4.3 Mobile core-flow E2E → 2.3 RBAC matrix → 2.4 Error shape unification.
+    <strong style="color:var(--text-secondary)">Recommended next:</strong> 2.3 RBAC matrix → 2.4 Error shape unification → 4.2 Soft-delete restore UI.
     <br><br>
     ZigZag codebase · ~444 source files · 20 DB migrations · Status audited 2026-07-10
   </div>
