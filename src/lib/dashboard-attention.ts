@@ -106,7 +106,9 @@ export const buildDashboardAttentionItems = (
     items.push({
       key: 'tickets-active',
       title:
-        input.activeTickets === 1 ? 'Ticket activo' : 'Tickets activos',
+        input.activeTickets === 1
+          ? 'Ticket por finalizar'
+          : 'Tickets por finalizar',
       count: input.activeTickets,
       explanation: 'Trabajo abierto pendiente de finalizar',
       href: '/tickets?finished=no',

@@ -18,6 +18,11 @@ test.describe('Dashboard', () => {
 
     await expect(page.getByRole('link', { name: 'Inicio' })).toBeVisible();
     await expect(page.locator('#dashboard-revenue-chart-title')).toBeVisible();
-    await expect(page.getByText('Tickets activos', { exact: true })).toBeVisible();
+    // Scope to the KPI grid so attention-row copy cannot collide.
+    await expect(
+      page
+        .getByLabel(/Desempeño|Tu operación|Resumen del negocio/)
+        .getByText('Tickets activos', { exact: true }),
+    ).toBeVisible();
   });
 });
