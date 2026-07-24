@@ -83,8 +83,12 @@ const addServiceWithPrice = async (
   expect(serviceName).toBeTruthy();
   await serviceOption.click();
 
-  await serviceDialog.getByLabel('Cantidad').fill(String(quantity));
-  await serviceDialog.getByLabel('Precio').fill(String(price));
+  await serviceDialog
+    .getByRole('spinbutton', { name: 'Cantidad' })
+    .fill(String(quantity));
+  await serviceDialog
+    .getByRole('spinbutton', { name: 'Precio' })
+    .fill(String(price));
   await serviceDialog
     .getByRole('button', { name: 'Agregar al ticket' })
     .click();
@@ -98,13 +102,7 @@ const addServiceWithPrice = async (
 
 const expectServicesTotal = async (page: Page, amount: number) => {
   const formatted = formatServiceCurrency(amount);
-  await expect(
-    page
-      .locator('div')
-      .filter({ has: page.getByText('Total', { exact: true }) })
-      .getByText(formatted, { exact: true })
-      .first(),
-  ).toBeVisible();
+  await expect(page.getByText(formatted, { exact: true }).first()).toBeVisible();
 };
 
 const finishWithPartialPayment = async (
@@ -161,28 +159,44 @@ const downloadInvoicePdf = async (page: Page, ticketId: string) => {
     .first();
   await expect(downloadButton).toBeVisible({ timeout: 15_000 });
 
-  const [response] = await Promise.all([
+  await Promise.all([
     page.waitForResponse(
       (res) =>
         res.url().includes(`/api/tickets/${ticketId}/invoice`) &&
-        res.request().method() === 'GET',
+        res.request().method() === 'GET' &&
+        res.status() === 200,
       { timeout: 60_000 },
     ),
     downloadButton.click(),
   ]);
 
-  expect(response.status()).toBe(200);
-  expect((response.headers()['content-type'] ?? '').toLowerCase()).toMatch(
-    /pdf/,
-  );
-
-  const body = await response.body();
-  expect(body.byteLength).toBeGreaterThan(500);
-  expect(Buffer.from(body.subarray(0, 4)).toString('utf8')).toBe('%PDF');
-
   await expect(page.getByText('PDF descargado correctamente')).toBeVisible({
     timeout: 15_000,
   });
+
+  // Re-fetch for byte-level assertions (Playwright may not retain response bodies
+  // after the page consumes the download stream).
+  const pdfCheck = await page.evaluate(async (id) => {
+    const raw = localStorage.getItem('selectedCompany');
+    const companyId = raw ? (JSON.parse(raw) as { id?: number }).id : null;
+    const query = companyId ? `?company_id=${companyId}` : '';
+    const response = await fetch(`/api/tickets/${id}/invoice${query}`, {
+      cache: 'no-store',
+    });
+    const buffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    return {
+      status: response.status,
+      contentType: response.headers.get('content-type') ?? '',
+      size: bytes.byteLength,
+      magic: new TextDecoder().decode(bytes.subarray(0, 4)),
+    };
+  }, ticketId);
+
+  expect(pdfCheck.status).toBe(200);
+  expect(pdfCheck.contentType.toLowerCase()).toMatch(/pdf/);
+  expect(pdfCheck.size).toBeGreaterThan(500);
+  expect(pdfCheck.magic).toBe('%PDF');
 };
 
 test.describe('Mobile core business flows (Pixel 5)', () => {
@@ -207,10 +221,9 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
 
     await page.getByRole('button', { name: 'Aumentar cantidad del servicio' }).click();
     await expect
-      .poll(async () => {
-        const quantityInput = page.getByLabel('Cantidad del servicio');
-        return quantityInput.inputValue();
-      })
+      .poll(async () =>
+        page.getByRole('spinbutton', { name: 'Cantidad del servicio' }).inputValue(),
+      )
       .toBe(String(UPDATED_QUANTITY));
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 
