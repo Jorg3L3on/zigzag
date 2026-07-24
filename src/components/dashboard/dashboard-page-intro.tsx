@@ -4,8 +4,9 @@ import type { ReactNode } from 'react';
 
 export type DashboardPageIntroProps = {
   userName?: string | null;
-  companyName?: string | null;
-  children: ReactNode;
+  /** Personalized subtitle (attention count, persona copy, etc.). */
+  subtitle?: string | null;
+  children?: ReactNode;
 };
 
 const getGreeting = (hour: number): string => {
@@ -28,16 +29,15 @@ const getDisplayName = (userName?: string | null): string | null => {
 
 export const DashboardPageIntro = ({
   userName,
-  companyName,
+  subtitle,
   children,
 }: DashboardPageIntroProps) => {
   const hour = new Date().getHours();
   const greeting = getGreeting(hour);
   const firstName = getDisplayName(userName);
   const title = firstName ? `${greeting}, ${firstName}` : greeting;
-  const subtitle = companyName?.trim()
-    ? `Resumen de ${companyName.trim()}`
-    : 'Resumen de tu operación';
+  const resolvedSubtitle =
+    subtitle?.trim() || 'Resumen de tu operación';
 
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
@@ -45,11 +45,13 @@ export const DashboardPageIntro = ({
         <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {title}
         </h1>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+        <p className="text-sm text-muted-foreground">{resolvedSubtitle}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {children}
-      </div>
+      {children ? (
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {children}
+        </div>
+      ) : null}
     </header>
   );
 };

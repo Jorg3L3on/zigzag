@@ -30,6 +30,7 @@ import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
+import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform-home';
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
@@ -41,6 +42,11 @@ import {
   buildDashboardAttentionItems,
   countSchedulesDueToday,
 } from '@/lib/dashboard-attention';
+import {
+  buildDashboardComposition,
+  buildDashboardIntroSubtitle,
+} from '@/lib/dashboard-composition';
+import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
@@ -54,6 +60,7 @@ import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedu
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
+import { cn } from '@/lib/utils';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 1, label: '1 mes' },
@@ -123,16 +130,27 @@ export const DashboardMetricsClient = () => {
       return;
     }
 
+    const isSystem = session.user.company_is_system;
+    const viewingSystemHome =
+      isSystem &&
+      (selectedCompany == null || selectedCompany.is_system === true);
+
+    // Platform home does not load tenant metrics.
+    if (viewingSystemHome) {
+      setLoading(false);
+      setMetrics(null);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
 
     const load = async () => {
       setLoading(true);
       setError(null);
-      const isSystem = session.user.company_is_system;
-      const companyIdArg =
-        isSystem
-          ? (selectedCompany?.id ?? session.user.company_id)
-          : undefined;
+      const companyIdArg = isSystem
+        ? (selectedCompany?.id ?? session.user.company_id)
+        : undefined;
 
       const [res, onboardingRes] = await Promise.all([
         fetchDashboardMetrics({
@@ -183,11 +201,20 @@ export const DashboardMetricsClient = () => {
     return () => {
       cancelled = true;
     };
-  }, [status, session, selectedCompany?.id, monthCount, router]);
+  }, [status, session, selectedCompany, monthCount, router]);
 
   const needsCompanyContext =
     session?.user.company_is_system === true &&
     (selectedCompany == null || selectedCompany.is_system === true);
+
+  const persona = resolveDashboardPersona({
+    isSystem: Boolean(
+      session?.user.company_is_system || permissions.isSystem,
+    ),
+    needsCompanyContext,
+    can: permissions.can,
+  });
+  const composition = buildDashboardComposition(persona);
 
   const onboardingPermissions = React.useMemo(
     () => ({
@@ -263,7 +290,33 @@ export const DashboardMetricsClient = () => {
     );
   }, [selectedCompany?.id, session?.user.company_id, session?.user.company_is_system]);
 
-  if (status === 'loading' || (loading && !metrics && !error)) {
+  if (status === 'loading' || permissions.loading) {
+    return <DashboardLoadingSkeleton />;
+  }
+
+  // System platform home does not need tenant metrics.
+  if (persona === 'system') {
+    return (
+      <div className="flex flex-col gap-6 md:gap-8">
+        <DashboardPageIntro
+          userName={session?.user?.name}
+          subtitle={buildDashboardIntroSubtitle({
+            persona,
+            attentionCount: 0,
+            companyName: null,
+          })}
+        />
+        {composition.widgets.map((widgetId) => {
+          if (widgetId === 'platformHome') {
+            return <DashboardPlatformHome key={widgetId} />;
+          }
+          return null;
+        })}
+      </div>
+    );
+  }
+
+  if (loading && !metrics && !error) {
     return <DashboardLoadingSkeleton />;
   }
 
@@ -327,6 +380,170 @@ export const DashboardMetricsClient = () => {
       : null,
   });
 
+  const visibleKpis =
+    composition.kpiKeys === 'all'
+      ? metrics.kpis
+      : metrics.kpis.filter((kpi) => composition.kpiKeys.includes(kpi.key));
+
+  const introSubtitle = buildDashboardIntroSubtitle({
+    persona,
+    attentionCount: attentionItems.reduce((sum, item) => sum + item.count, 0),
+    companyName: companyLabel,
+  });
+
+  const exportControls = composition.showExports ? (
+    <>
+      <Select
+        value={String(monthCount)}
+        onValueChange={(value) =>
+          setMonthCount(Number(value) as DashboardMonthCount)
+        }
+      >
+        <SelectTrigger
+          className="min-h-11 w-[170px] rounded-xl sm:min-h-9"
+          aria-label="Seleccionar periodo de ingresos"
+        >
+          <SelectValue placeholder="Seleccionar periodo" />
+        </SelectTrigger>
+        <SelectContent>
+          {MONTH_PRESETS.map((preset) => (
+            <SelectItem key={preset.value} value={String(preset.value)}>
+              {preset.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        type="button"
+        variant="default"
+        className="min-h-11 gap-2 rounded-xl sm:min-h-9"
+        onClick={handleExportPdf}
+        aria-label="Exportar resumen del dashboard en PDF"
+      >
+        <FileDown className="h-4 w-4" aria-hidden />
+        Exportar PDF
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="min-h-11 gap-2 rounded-xl sm:min-h-9"
+        onClick={handleExportCsv}
+        aria-label="Exportar resumen del dashboard en CSV"
+      >
+        <FileDown className="h-4 w-4" aria-hidden />
+        Exportar CSV
+      </Button>
+    </>
+  ) : null;
+
+  const renderWidget = (widgetId: (typeof composition.widgets)[number]) => {
+    switch (widgetId) {
+      case 'onboarding':
+        return (
+          <DashboardOnboardingHelp
+            key={widgetId}
+            checklist={onboardingChecklist}
+            needsCompanyContext={needsCompanyContext}
+            canDismiss={permissions.can(PERMISSIONS.company.manage)}
+            isDismissing={isDismissingChecklist}
+            onDismiss={handleDismissOnboardingChecklist}
+          />
+        );
+      case 'needsAttention':
+        return (
+          <DashboardNeedsAttention
+            key={widgetId}
+            items={attentionItems}
+            emptyTitle={composition.emptyCopy.attentionTitle}
+            emptyDescription={composition.emptyCopy.attentionDescription}
+          />
+        );
+      case 'kpis':
+        return (
+          <section
+            key={widgetId}
+            aria-label={composition.sectionTitles.kpis}
+            className="space-y-3"
+          >
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              {composition.sectionTitles.kpis}
+            </h2>
+            <TripledMotionDiv
+              className={cn(
+                'grid gap-4',
+                visibleKpis.length <= 2
+                  ? 'grid-cols-2 lg:grid-cols-2 lg:max-w-2xl'
+                  : 'grid-cols-2 lg:grid-cols-4',
+              )}
+              variants={tripledStagger}
+              initial="hidden"
+              animate="visible"
+            >
+              {visibleKpis.map((kpi) => (
+                <DashboardKpiCard
+                  key={kpi.key}
+                  kpi={kpi}
+                  icon={KPI_ICONS[kpi.key]}
+                />
+              ))}
+            </TripledMotionDiv>
+          </section>
+        );
+      case 'charts':
+        return (
+          <div
+            key={widgetId}
+            className={loading ? 'pointer-events-none opacity-60' : ''}
+          >
+            <DashboardCharts
+              revenueByMonth={metrics.revenueByMonth}
+              paymentStatusBreakdown={metrics.paymentStatusBreakdown}
+              revenueMonthCount={monthCount}
+            />
+          </div>
+        );
+      case 'operations':
+        return (
+          <section
+            key={widgetId}
+            aria-label={composition.sectionTitles.operations}
+            className="space-y-3"
+          >
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              {composition.sectionTitles.operations}
+            </h2>
+            <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+              <DashboardServiceSchedulesWidget
+                canRead={urgentSchedules.canRead}
+                missingCompany={urgentSchedules.missingCompany}
+                permissionsLoading={urgentSchedules.permissionsLoading}
+                loading={urgentSchedules.loading}
+                error={urgentSchedules.error}
+                proximos={urgentSchedules.proximos}
+                atrasados={urgentSchedules.atrasados}
+                onRetry={urgentSchedules.reload}
+              />
+              <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
+                <DashboardActivityFeed
+                  emptyTitle={composition.emptyCopy.activityTitle}
+                  emptyDescription={composition.emptyCopy.activityDescription}
+                />
+              </div>
+            </div>
+          </section>
+        );
+      case 'quickActions':
+        if (!composition.showQuickActions) {
+          return null;
+        }
+        return (
+          <DashboardQuickActions key={widgetId} persona={persona} />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 md:gap-8">
       {error && metrics ? (
@@ -340,110 +557,12 @@ export const DashboardMetricsClient = () => {
 
       <DashboardPageIntro
         userName={session?.user?.name}
-        companyName={companyLabel}
+        subtitle={introSubtitle}
       >
-        <Select
-          value={String(monthCount)}
-          onValueChange={(value) =>
-            setMonthCount(Number(value) as DashboardMonthCount)
-          }
-        >
-          <SelectTrigger
-            className="min-h-11 w-[170px] rounded-xl sm:min-h-9"
-            aria-label="Seleccionar periodo de ingresos"
-          >
-            <SelectValue placeholder="Seleccionar periodo" />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTH_PRESETS.map((preset) => (
-              <SelectItem key={preset.value} value={String(preset.value)}>
-                {preset.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="default"
-          className="min-h-11 gap-2 rounded-xl sm:min-h-9"
-          onClick={handleExportPdf}
-          aria-label="Exportar resumen del dashboard en PDF"
-        >
-          <FileDown className="h-4 w-4" aria-hidden />
-          Exportar PDF
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 gap-2 rounded-xl sm:min-h-9"
-          onClick={handleExportCsv}
-          aria-label="Exportar resumen del dashboard en CSV"
-        >
-          <FileDown className="h-4 w-4" aria-hidden />
-          Exportar CSV
-        </Button>
+        {exportControls}
       </DashboardPageIntro>
 
-      <DashboardOnboardingHelp
-        checklist={onboardingChecklist}
-        needsCompanyContext={needsCompanyContext}
-        canDismiss={permissions.can(PERMISSIONS.company.manage)}
-        isDismissing={isDismissingChecklist}
-        onDismiss={handleDismissOnboardingChecklist}
-      />
-
-      <DashboardNeedsAttention items={attentionItems} />
-
-      <section aria-label="Desempeño del negocio" className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-tight text-foreground">
-          Desempeño
-        </h2>
-        <TripledMotionDiv
-          className="grid grid-cols-2 gap-4 lg:grid-cols-4"
-          variants={tripledStagger}
-          initial="hidden"
-          animate="visible"
-        >
-          {metrics.kpis.map((kpi) => (
-            <DashboardKpiCard
-              key={kpi.key}
-              kpi={kpi}
-              icon={KPI_ICONS[kpi.key]}
-            />
-          ))}
-        </TripledMotionDiv>
-      </section>
-
-      <div className={loading ? 'pointer-events-none opacity-60' : ''}>
-        <DashboardCharts
-          revenueByMonth={metrics.revenueByMonth}
-          paymentStatusBreakdown={metrics.paymentStatusBreakdown}
-          revenueMonthCount={monthCount}
-        />
-      </div>
-
-      <section aria-label="Actividad reciente" className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-tight text-foreground">
-          Actividad
-        </h2>
-        <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-          <DashboardServiceSchedulesWidget
-            canRead={urgentSchedules.canRead}
-            missingCompany={urgentSchedules.missingCompany}
-            permissionsLoading={urgentSchedules.permissionsLoading}
-            loading={urgentSchedules.loading}
-            error={urgentSchedules.error}
-            proximos={urgentSchedules.proximos}
-            atrasados={urgentSchedules.atrasados}
-            onRetry={urgentSchedules.reload}
-          />
-          <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
-            <DashboardActivityFeed />
-          </div>
-        </div>
-      </section>
-
-      <DashboardQuickActions />
+      {composition.widgets.map((widgetId) => renderWidget(widgetId))}
     </div>
   );
 };

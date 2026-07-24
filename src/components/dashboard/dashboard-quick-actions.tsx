@@ -13,6 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
 import { usePermissions } from '@/hooks/use-permissions';
+import { quickActionPriority } from '@/lib/dashboard-composition';
+import type { DashboardPersona } from '@/lib/dashboard-persona';
 import { PERMISSIONS } from '@/lib/permissions';
 import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
 import { cn } from '@/lib/utils';
@@ -24,13 +26,19 @@ type QuickAction = {
   icon: ReactNode;
 };
 
-export const DashboardQuickActions = () => {
+export type DashboardQuickActionsProps = {
+  persona?: DashboardPersona;
+};
+
+export const DashboardQuickActions = ({
+  persona = 'admin',
+}: DashboardQuickActionsProps) => {
   const { can } = usePermissions();
 
-  const actions: QuickAction[] = [];
+  const candidates: QuickAction[] = [];
 
   if (can(PERMISSIONS.tickets.write)) {
-    actions.push({
+    candidates.push({
       key: 'create-ticket',
       label: 'Crear ticket',
       href: '/tickets/create',
@@ -39,7 +47,7 @@ export const DashboardQuickActions = () => {
   }
 
   if (can(PERMISSIONS.clients.write)) {
-    actions.push({
+    candidates.push({
       key: 'create-client',
       label: 'Crear cliente',
       href: '/clients/new',
@@ -48,7 +56,7 @@ export const DashboardQuickActions = () => {
   }
 
   if (can(PERMISSIONS.services.write)) {
-    actions.push({
+    candidates.push({
       key: 'create-service',
       label: 'Crear servicio',
       href: '/services/new',
@@ -57,7 +65,7 @@ export const DashboardQuickActions = () => {
   }
 
   if (can(PERMISSIONS.tickets.read)) {
-    actions.push({
+    candidates.push({
       key: 'view-tickets',
       label: 'Ver tickets',
       href: '/tickets',
@@ -66,7 +74,7 @@ export const DashboardQuickActions = () => {
   }
 
   if (canReadServiceSchedules(can)) {
-    actions.push({
+    candidates.push({
       key: 'view-schedules',
       label: 'Recordatorios',
       href: '/service-schedules',
@@ -75,7 +83,7 @@ export const DashboardQuickActions = () => {
   }
 
   if (can(PERMISSIONS.users.write)) {
-    actions.push({
+    candidates.push({
       key: 'create-user',
       label: 'Invitar usuario',
       href: '/users',
@@ -83,9 +91,22 @@ export const DashboardQuickActions = () => {
     });
   }
 
+  const priority = quickActionPriority(persona);
+  const actions = [...candidates].sort((a, b) => {
+    const ai = priority.indexOf(a.key);
+    const bi = priority.indexOf(b.key);
+    const aRank = ai === -1 ? priority.length : ai;
+    const bRank = bi === -1 ? priority.length : bi;
+    return aRank - bRank;
+  });
+
+  // Viewers: composition hides this widget entirely. If shown, only keep
+  // actions the user can execute (already filtered by `can`).
   if (actions.length === 0) {
     return null;
   }
+
+  const primaryKey = actions[0]?.key;
 
   return (
     <section
@@ -97,7 +118,9 @@ export const DashboardQuickActions = () => {
           Acciones rápidas
         </h2>
         <p className="text-sm text-muted-foreground">
-          Atajos a las tareas más frecuentes
+          {persona === 'operator'
+            ? 'Atajos para el trabajo del día'
+            : 'Atajos a las tareas más frecuentes'}
         </p>
       </div>
       <ul className="flex flex-wrap gap-2">
@@ -105,7 +128,7 @@ export const DashboardQuickActions = () => {
           <li key={action.key}>
             <Button
               asChild
-              variant={action.key === 'create-ticket' ? 'default' : 'outline'}
+              variant={action.key === primaryKey ? 'default' : 'outline'}
               size="sm"
               className="min-h-11 gap-2 rounded-xl sm:min-h-9"
             >

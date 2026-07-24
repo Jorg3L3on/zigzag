@@ -11,11 +11,15 @@ import { cn } from '@/lib/utils';
 export type DashboardNeedsAttentionProps = {
   items: DashboardAttentionItem[];
   loading?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 };
 
 export const DashboardNeedsAttention = ({
   items,
   loading = false,
+  emptyTitle = 'Nada urgente por ahora',
+  emptyDescription = 'No hay cobros pendientes, tickets activos ni recordatorios urgentes que requieran tu atención.',
 }: DashboardNeedsAttentionProps) => {
   if (loading) {
     return (
@@ -49,11 +53,10 @@ export const DashboardNeedsAttention = ({
           </span>
           <div className="min-w-0 space-y-1">
             <h2 className="text-base font-semibold tracking-tight">
-              Nada urgente por ahora
+              {emptyTitle}
             </h2>
             <p className="text-sm text-muted-foreground">
-              No hay cobros pendientes, tickets activos ni recordatorios
-              urgentes que requieran tu atención.
+              {emptyDescription}
             </p>
           </div>
         </div>

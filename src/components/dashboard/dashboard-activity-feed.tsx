@@ -125,7 +125,15 @@ const FeedSkeleton = () => (
   </div>
 );
 
-export const DashboardActivityFeed = () => {
+export type DashboardActivityFeedProps = {
+  emptyTitle?: string;
+  emptyDescription?: string;
+};
+
+export const DashboardActivityFeed = ({
+  emptyTitle = 'Sin actividad reciente',
+  emptyDescription = 'Aún no hay actividad reciente. Cuando tu equipo use ZigZag, los eventos importantes aparecerán aquí.',
+}: DashboardActivityFeedProps) => {
   const { data: session } = useSession();
   const { selectedCompany } = useCompany();
   const [items, setItems] = React.useState<ActivityFeedItem[]>([]);
@@ -236,8 +244,8 @@ export const DashboardActivityFeed = () => {
         ) : items.length === 0 ? (
           <TripledEmptyState
             icon={<CheckCircle2 className="h-4 w-4" />}
-            title="Sin actividad reciente"
-            description="Aún no hay actividad reciente. Cuando tu equipo use ZigZag, los eventos importantes aparecerán aquí."
+            title={emptyTitle}
+            description={emptyDescription}
           />
         ) : (
           <>
