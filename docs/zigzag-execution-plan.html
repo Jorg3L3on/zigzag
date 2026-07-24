@@ -222,11 +222,11 @@
   <div class="audit-banner">
     <div class="audit-banner-title">Coverage snapshot — zigzag @ main (July 2026)</div>
     <div class="audit-stats">
-      <span><span class="status-badge st-done">8 Done</span></span>
-      <span><span class="status-badge st-partial">4 Partial</span></span>
+      <span><span class="status-badge st-done">9 Done</span></span>
+      <span><span class="status-badge st-partial">3 Partial</span></span>
       <span><span class="status-badge st-open">1 Not started</span></span>
     </div>
-    <div class="audit-banner-meta">Security foundation (IDOR + Server Actions) is shipped. DB-backed plans (1.3) and component decomposition (2.1) are complete. Self-serve signup removed from scope.</div>
+    <div class="audit-banner-meta">Security foundation (IDOR + Server Actions + RBAC matrix) is shipped. DB-backed plans (1.3) and component decomposition (2.1) are complete. Self-serve signup removed from scope.</div>
   </div>
 
   <!-- Summary -->
@@ -236,7 +236,7 @@
       <span class="summary-label">Phase 1 · Critical</span>
     </div>
     <div class="summary-cell">
-      <span class="summary-num" style="color:var(--amber)">2<span style="font-size:16px;color:var(--text-muted)">/4</span></span>
+      <span class="summary-num" style="color:var(--amber)">3<span style="font-size:16px;color:var(--text-muted)">/4</span></span>
       <span class="summary-label">Phase 2 · Architecture</span>
     </div>
     <div class="summary-cell">
@@ -462,20 +462,20 @@
             </div>
           </div>
           <div class="task-meta">
-            <span class="status-badge st-partial">Partial</span>
+            <span class="status-badge st-done">Done</span>
             <span class="effort-badge ef-m">Medium</span>
             <span class="score-change">↑ RBAC 8→10</span>
           </div>
         </div>
-        <div class="coverage-note"><strong>Evidence:</strong> <code>rbac-role-matrix.test.ts</code>, <code>rbac-coverage.test.ts</code>, <code>docs/rbac-audit-matrix.md</code>, RBAC epic shipped. Missing full permission×role matrix, &gt;90% coverage gate on <code>*-rbac*.ts</code>, CI fail on new permission without test.</div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>rbac-role-matrix.ts</code> / <code>rbac-role-matrix.test.ts</code> full role×permission matrix; <code>resource-rbac-servers.test.ts</code>; <code>rbac-coverage.test.ts</code> permission gate; Jest <code>&gt;90%</code> threshold on <code>src/lib/*-rbac*.ts</code>; <code>docs/rbac-audit-matrix.md</code>.</div>
         <div class="task-criteria">
           <div class="criteria-label">Acceptance criteria</div>
           <ul class="criteria-list">
-            <li class="partial">Every permission in <code>error-catalog.ts</code> has at least one allow and one deny test — permissions tested via RBAC helpers, not full matrix</li>
-            <li class="partial">Role matrix table in tests: each role × each permission = expected result documented</li>
+            <li class="done">Every permission in <code>PERMISSIONS</code> has at least one allow and one deny test</li>
+            <li class="done">Role matrix table in tests: each role × each permission = expected result documented</li>
             <li class="done">System user bypass tested explicitly: super-admin can access all, regular user cannot</li>
-            <li class="open">Coverage report shows &gt;90% on all files under <code>src/lib/*-rbac*.ts</code></li>
-            <li class="open">CI fails if a new permission is added without a corresponding test</li>
+            <li class="done">Coverage report shows &gt;90% on all files under <code>src/lib/*-rbac*.ts</code></li>
+            <li class="done">CI fails if a new permission is added without a corresponding test</li>
           </ul>
         </div>
       </div>
@@ -743,7 +743,7 @@
     <strong style="color:var(--text-secondary)">What this plan does not include:</strong> Stripe, subscription lifecycle, transactional email, password reset flow, self-serve signup — those are a separate workstream.
     Complete this plan first; the commercial layer lands on top of a trustworthy foundation.
     <br><br>
-    <strong style="color:var(--text-secondary)">Recommended next:</strong> 3.2 Request correlation IDs → 4.3 Mobile core-flow E2E → 2.3 RBAC matrix.
+    <strong style="color:var(--text-secondary)">Recommended next:</strong> 3.2 Request correlation IDs → 4.3 Mobile core-flow E2E.
     <br><br>
     ZigZag codebase · ~444 source files · 20 DB migrations · Status audited 2026-07-10
   </div>

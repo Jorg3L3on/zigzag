@@ -86,9 +86,13 @@ scope decisions.
 
 | Test | Coverage |
 |---|---|
-| `src/lib/rbac-coverage.test.ts` | Server action, API route, and dashboard page guard coverage |
+| `src/lib/rbac-coverage.test.ts` | Server action, API route, and dashboard page guard coverage; fails CI when a new `PERMISSIONS` entry lacks role-matrix allow/deny coverage |
+| `src/lib/rbac-role-matrix.test.ts` | Full role × permission matrix (Viewer / Operator / Admin / system-admin / edge roles); every permission has explicit allow + deny |
+| `src/lib/resource-rbac-servers.test.ts` | Server `require*` helpers for every `*-rbac-server.ts` module |
 | `src/app/api/tickets/[id]/invoice/route.test.ts` | Invoice PDF API RBAC (403 without `tickets.read`) |
 | `src/lib/*-actions.test.ts` | Server Action RBAC and cross-tenant denial for core resources |
 | `src/lib/security.test.ts` | Permission checks, System company bypass, stale root claim denial |
 | `src/lib/api-helpers.test.ts` | API session company claim refresh |
 | `src/lib/permissions.test.ts` | Shared client/server permission helper contract |
+
+Jest enforces `>90%` statements/branches/functions/lines on `src/lib/*-rbac*.ts` via `coverageThreshold` in `jest.config.js` (CI runs `npm test -- --coverage`).
