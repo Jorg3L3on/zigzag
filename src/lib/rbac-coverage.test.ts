@@ -1,6 +1,10 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { PERMISSIONS } from '@/lib/permissions';
+import {
+  ALL_PERMISSIONS,
+  ROLE_PERMISSION_MATRIX,
+} from '@/lib/rbac-role-matrix';
 
 const root = process.cwd();
 
@@ -162,5 +166,41 @@ describe('RBAC coverage', () => {
     );
 
     expect(missing).toEqual([]);
+  });
+
+  it('fails when a new PERMISSIONS entry lacks role-matrix allow/deny coverage', () => {
+    const canonical = [...ALL_PERMISSIONS].sort();
+    expect(canonical.length).toBeGreaterThan(0);
+    expect(canonical).toEqual(
+      Object.values(PERMISSIONS)
+        .flatMap((group) => Object.values(group))
+        .sort(),
+    );
+
+    // Matrix rows must enumerate every canonical permission (allow or deny).
+    for (const [role, expectations] of Object.entries(ROLE_PERMISSION_MATRIX)) {
+      expect({
+        role,
+        permissions: Object.keys(expectations).sort(),
+      }).toEqual({
+        role,
+        permissions: canonical,
+      });
+    }
+
+    // Source gate: the role-matrix suite must still contain per-permission
+    // allow+deny coverage so new permissions cannot ship untested.
+    const matrixSource = read(
+      path.join(root, 'src/lib/rbac-role-matrix.test.ts'),
+    );
+    const matrixDataSource = read(
+      path.join(root, 'src/lib/rbac-role-matrix.ts'),
+    );
+    expect(matrixSource).toContain('has an explicit allow and deny outcome');
+    expect(matrixDataSource).toContain('ROLE_PERMISSION_MATRIX');
+
+    for (const permission of canonical) {
+      expect(matrixDataSource).toContain(permission);
+    }
   });
 });
