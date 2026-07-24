@@ -147,11 +147,11 @@ export const DashboardCharts = ({
             id="dashboard-revenue-chart-title"
             className="text-base font-semibold tracking-tight sm:text-lg"
           >
-            Ingresos por mes
+            ¿Cómo van los ingresos?
           </CardTitle>
           <CardDescription>
-            Tickets finalizados, últimos {revenueMonthCount} meses (fecha de
-            ticket o creación)
+            Compara ingresos de tickets finalizados, mes a mes (últimos{' '}
+            {revenueMonthCount} meses)
           </CardDescription>
           <p className="sr-only">
             Los tooltips del gráfico son complementarios. Los montos por mes
@@ -259,10 +259,10 @@ export const DashboardCharts = ({
             id="dashboard-payment-status-title"
             className="text-base font-semibold tracking-tight sm:text-lg"
           >
-            Estado de cobro
+            ¿Dónde está el cobro?
           </CardTitle>
           <CardDescription>
-            Tickets y monto por estado de pago
+            Distribución de tickets por estado de pago para priorizar seguimiento
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-5 p-4 pt-0 sm:p-5 sm:pt-0">

@@ -13,18 +13,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  listClientServiceSchedules,
-  type ClientServiceScheduleListItem,
-} from '@/actions/client-service-schedules';
-import { useCompany } from '@/contexts/company-context';
+import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import { FormattedDate } from '@/components/formatted-date';
-import { getErrorDisplayMessage } from '@/lib/network-awareness';
-import { usePermissions } from '@/hooks/use-permissions';
-import {
-  canReadServiceSchedules,
-  needsSelectedCompanyForSchedules,
-} from '@/lib/service-schedules-rbac';
 import { TripledEmptyState } from '@/components/tripled';
 import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
 import { cn } from '@/lib/utils';
@@ -51,89 +41,27 @@ const mergeUrgent = (
   return merged;
 };
 
-export const DashboardServiceSchedulesWidget = () => {
-  const { selectedCompany } = useCompany();
-  const { can, isSystem, loading: permissionsLoading } = usePermissions();
-  const canRead = canReadServiceSchedules(can);
-  const missingCompany = needsSelectedCompanyForSchedules(
-    isSystem,
-    selectedCompany?.id,
-  );
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [proximos, setProximos] = React.useState<ClientServiceScheduleListItem[]>(
-    [],
-  );
-  const [atrasados, setAtrasados] = React.useState<ClientServiceScheduleListItem[]>(
-    [],
-  );
-  const mountedRef = React.useRef(true);
+export type DashboardServiceSchedulesWidgetProps = {
+  canRead: boolean;
+  missingCompany: boolean;
+  permissionsLoading: boolean;
+  loading: boolean;
+  error: string | null;
+  proximos: ClientServiceScheduleListItem[];
+  atrasados: ClientServiceScheduleListItem[];
+  onRetry: () => void;
+};
 
-  React.useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const loadSchedules = React.useCallback(async () => {
-    if (permissionsLoading) {
-      return;
-    }
-
-    if (!canRead) {
-      setLoading(false);
-      setError(null);
-      setProximos([]);
-      setAtrasados([]);
-      return;
-    }
-
-    if (missingCompany) {
-      setLoading(false);
-      setError(null);
-      setProximos([]);
-      setAtrasados([]);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    const companyId = selectedCompany?.id ?? null;
-
-    const [proximosRes, atrasadosRes] = await Promise.all([
-      listClientServiceSchedules({ companyId, filter: 'proximos' }),
-      listClientServiceSchedules({ companyId, filter: 'atrasados' }),
-    ]);
-
-    if (!mountedRef.current) {
-      return;
-    }
-
-    setLoading(false);
-
-    if (!proximosRes.success || !atrasadosRes.success) {
-      setError(
-        getErrorDisplayMessage(
-          proximosRes.success ? atrasadosRes : proximosRes,
-          'No se pudieron cargar los recordatorios',
-        ),
-      );
-      return;
-    }
-
-    setProximos(proximosRes.data ?? []);
-    setAtrasados(atrasadosRes.data ?? []);
-  }, [
-    canRead,
-    missingCompany,
-    permissionsLoading,
-    selectedCompany?.id,
-  ]);
-
-  React.useEffect(() => {
-    void loadSchedules();
-  }, [loadSchedules]);
-
+export const DashboardServiceSchedulesWidget = ({
+  canRead,
+  missingCompany,
+  permissionsLoading,
+  loading,
+  error,
+  proximos,
+  atrasados,
+  onRetry,
+}: DashboardServiceSchedulesWidgetProps) => {
   if (permissionsLoading) {
     return null;
   }
@@ -190,7 +118,7 @@ export const DashboardServiceSchedulesWidget = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => void loadSchedules()}
+                onClick={onRetry}
               >
                 Reintentar
               </Button>

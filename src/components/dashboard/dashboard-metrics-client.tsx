@@ -27,7 +27,9 @@ import {
 } from '@/components/tripled';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
+import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
+import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardRecentTickets } from '@/components/dashboard/dashboard-recent-tickets';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
@@ -35,6 +37,10 @@ import {
   buildCompanyOnboardingChecklist,
   type OnboardingChecklistSignals,
 } from '@/lib/company-onboarding-checklist';
+import {
+  buildDashboardAttentionItems,
+  countSchedulesDueToday,
+} from '@/lib/dashboard-attention';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
 import {
@@ -44,6 +50,7 @@ import {
 import { fetchOnboardingStatus, dismissOnboardingChecklist } from '@/actions/onboarding-status';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
+import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedules';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
@@ -75,6 +82,7 @@ const DashboardLoadingSkeleton = () => (
         <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
       </div>
     </div>
+    <Skeleton className="h-36 rounded-xl" />
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
         <Skeleton key={i} className="h-40 rounded-xl" />
@@ -88,6 +96,7 @@ const DashboardLoadingSkeleton = () => (
       <Skeleton className="h-64 rounded-xl lg:col-span-1" />
       <Skeleton className="h-64 rounded-xl lg:col-span-2" />
     </div>
+    <Skeleton className="h-28 rounded-xl" />
   </div>
 );
 
@@ -96,6 +105,7 @@ export const DashboardMetricsClient = () => {
   const { status, data: session } = useSession();
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
+  const urgentSchedules = useDashboardUrgentSchedules();
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
   const [onboardingSignals, setOnboardingSignals] =
@@ -300,6 +310,23 @@ export const DashboardMetricsClient = () => {
   const companyLabel =
     selectedCompany?.name ?? session?.user.company_name ?? null;
 
+  const activeTicketsKpi =
+    metrics.kpis.find((kpi) => kpi.key === 'activeTickets')?.value ?? 0;
+
+  const schedulesReady =
+    urgentSchedules.canRead &&
+    !urgentSchedules.missingCompany &&
+    !urgentSchedules.permissionsLoading;
+
+  const attentionItems = buildDashboardAttentionItems({
+    paymentStatusBreakdown: metrics.paymentStatusBreakdown,
+    activeTickets: activeTicketsKpi,
+    overdueSchedules: schedulesReady ? urgentSchedules.atrasados.length : null,
+    dueTodaySchedules: schedulesReady
+      ? countSchedulesDueToday(urgentSchedules.proximos)
+      : null,
+  });
+
   return (
     <div className="flex flex-col gap-6 md:gap-8">
       {error && metrics ? (
@@ -365,20 +392,27 @@ export const DashboardMetricsClient = () => {
         onDismiss={handleDismissOnboardingChecklist}
       />
 
-      <TripledMotionDiv
-        className="grid grid-cols-2 gap-4 lg:grid-cols-4"
-        variants={tripledStagger}
-        initial="hidden"
-        animate="visible"
-      >
-        {metrics.kpis.map((kpi) => (
-          <DashboardKpiCard
-            key={kpi.key}
-            kpi={kpi}
-            icon={KPI_ICONS[kpi.key]}
-          />
-        ))}
-      </TripledMotionDiv>
+      <DashboardNeedsAttention items={attentionItems} />
+
+      <section aria-label="Desempeño del negocio" className="space-y-3">
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">
+          Desempeño
+        </h2>
+        <TripledMotionDiv
+          className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+          variants={tripledStagger}
+          initial="hidden"
+          animate="visible"
+        >
+          {metrics.kpis.map((kpi) => (
+            <DashboardKpiCard
+              key={kpi.key}
+              kpi={kpi}
+              icon={KPI_ICONS[kpi.key]}
+            />
+          ))}
+        </TripledMotionDiv>
+      </section>
 
       <div className={loading ? 'pointer-events-none opacity-60' : ''}>
         <DashboardCharts
@@ -388,12 +422,28 @@ export const DashboardMetricsClient = () => {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-        <DashboardServiceSchedulesWidget />
-        <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
-          <DashboardRecentTickets tickets={metrics.recentTickets} />
+      <section aria-label="Actividad reciente" className="space-y-3">
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">
+          Actividad
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+          <DashboardServiceSchedulesWidget
+            canRead={urgentSchedules.canRead}
+            missingCompany={urgentSchedules.missingCompany}
+            permissionsLoading={urgentSchedules.permissionsLoading}
+            loading={urgentSchedules.loading}
+            error={urgentSchedules.error}
+            proximos={urgentSchedules.proximos}
+            atrasados={urgentSchedules.atrasados}
+            onRetry={urgentSchedules.reload}
+          />
+          <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
+            <DashboardRecentTickets tickets={metrics.recentTickets} />
+          </div>
         </div>
-      </div>
+      </section>
+
+      <DashboardQuickActions />
     </div>
   );
 };
