@@ -12,7 +12,7 @@ import {
 import { AccountForm } from '@/components/account/account-form';
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -29,7 +29,7 @@ export function AccountFormDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          <Pencil className="mr-2 h-4 w-4" />
+          <Pencil className="mr-2 h-4 w-4" data-icon="inline-start" />
           Editar información
         </Button>
       </DialogTrigger>
@@ -43,6 +43,7 @@ export function AccountFormDialog() {
         </DialogHeader>
         <Alert variant="default" className="mb-4">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Cierre de sesión requerido</AlertTitle>
           <AlertDescription>
             Serás cerrado sesión después de guardar los cambios para que estos
             surtan efecto.

@@ -46,20 +46,20 @@ export function TicketRowActions({
           size="icon"
           aria-label={`Más acciones del ticket ${ticket.id.toString()}`}
         >
-          <MoreVertical className="h-4 w-4" aria-hidden />
+          <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start"/>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <Link href={`/tickets/${ticket.id}`}>
           <DropdownMenuItem>
-            <Eye className="mr-2 h-4 w-4" />
+            <Eye className="mr-2 h-4 w-4" data-icon="inline-start" />
             Ver detalles
           </DropdownMenuItem>
         </Link>
         {showCollectLink && (
           <Link href={`/tickets/${ticket.id}#cobranza`}>
             <DropdownMenuItem>
-              <Banknote className="mr-2 h-4 w-4" />
+              <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
               Cobrar saldo
             </DropdownMenuItem>
           </Link>
@@ -67,7 +67,7 @@ export function TicketRowActions({
         {canWrite && !ticket.finished && (
           <Link href={`/tickets/${ticket.id}/edit`}>
             <DropdownMenuItem>
-              <Pencil className="mr-2 h-4 w-4" />
+              <Pencil className="mr-2 h-4 w-4" data-icon="inline-start" />
               Editar
             </DropdownMenuItem>
           </Link>
@@ -80,13 +80,13 @@ export function TicketRowActions({
               rel="noopener noreferrer"
               className="cursor-pointer"
             >
-              <FileDown className="mr-2 h-4 w-4" />
+              <FileDown className="mr-2 h-4 w-4" data-icon="inline-start" />
               Ver PDF
             </a>
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem disabled>
-            <FileDown className="mr-2 h-4 w-4" />
+            <FileDown className="mr-2 h-4 w-4" data-icon="inline-start" />
             Ver PDF
           </DropdownMenuItem>
         )}

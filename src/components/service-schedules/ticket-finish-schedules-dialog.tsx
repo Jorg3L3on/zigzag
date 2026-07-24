@@ -160,7 +160,7 @@ export const TicketFinishSchedulesDialog = ({
                               )}
                               disabled={saving}
                             >
-                              <CalendarIcon className="mr-2 h-4 w-4" aria-hidden />
+                              <CalendarIcon className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
                               {format(line.lastServiceAt, 'PPP', { locale: es })}
                             </Button>
                           </PopoverTrigger>
@@ -235,7 +235,7 @@ export const TicketFinishSchedulesDialog = ({
           >
             {saving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden data-icon="inline-start"/>
                 Guardando…
               </>
             ) : (

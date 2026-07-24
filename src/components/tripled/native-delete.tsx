@@ -106,9 +106,9 @@ export const TripledNativeDelete = ({
                   className={cn('flex items-center', !iconOnly && 'mr-2')}
                 >
                   {isExpanded ? (
-                    <Check className={iconSizeVariants[size]} />
+                    <Check className={iconSizeVariants[size]} data-icon="inline-start"/>
                   ) : (
-                    <Trash2 className={iconSizeVariants[size]} />
+                    <Trash2 className={iconSizeVariants[size]} data-icon="inline-start"/>
                   )}
                 </motion.span>
               )}
@@ -151,7 +151,7 @@ export const TripledNativeDelete = ({
                 onClick={handleCancel}
                 aria-label="Cancelar eliminación"
               >
-                <X className={iconSizeVariants[size]} />
+                <X className={iconSizeVariants[size]} data-icon="inline-start"/>
               </Button>
             </motion.div>
           )}

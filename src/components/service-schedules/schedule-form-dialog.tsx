@@ -232,7 +232,7 @@ export const ScheduleFormDialog = ({
                   )}
                   disabled={saving}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" aria-hidden />
+                  <CalendarIcon className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
                   {lastServiceAt
                     ? format(lastServiceAt, 'PPP', { locale: es })
                     : 'Seleccionar fecha'}
@@ -279,7 +279,7 @@ export const ScheduleFormDialog = ({
           >
             {saving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden data-icon="inline-start"/>
                 Guardando…
               </>
             ) : (

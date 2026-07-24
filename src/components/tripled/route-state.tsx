@@ -16,6 +16,7 @@ type TripledRouteStateProps = {
   action?: ReactNode;
   backHref?: string;
   backLabel?: string;
+  showBackLink?: boolean;
   children?: ReactNode;
 };
 
@@ -26,6 +27,7 @@ export const TripledRouteState = ({
   action,
   backHref = '/dashboard',
   backLabel = 'Volver al dashboard',
+  showBackLink = true,
   children,
 }: TripledRouteStateProps) => (
   <TripledDashboardShell maxWidthClassName="max-w-2xl">
@@ -42,12 +44,18 @@ export const TripledRouteState = ({
         ) : (
           <p className="text-sm text-muted-foreground">{description}</p>
         )}
-        <Button variant="outline" asChild>
-          <Link href={backHref}>
-            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden />
-            {backLabel}
-          </Link>
-        </Button>
+        {showBackLink ? (
+          <Button variant="outline" asChild>
+            <Link href={backHref}>
+              <ArrowLeft
+                className="mr-2 h-4 w-4"
+                aria-hidden
+                data-icon="inline-start"
+              />
+              {backLabel}
+            </Link>
+          </Button>
+        ) : null}
       </div>
     </TripledResourceCard>
   </TripledDashboardShell>
@@ -63,7 +71,11 @@ export const TripledRetryButton = ({
   label = 'Reintentar',
 }: TripledRetryButtonProps) => (
   <Button type="button" onClick={onRetry}>
-    <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
+    <RotateCcw
+      className="mr-2 h-4 w-4"
+      aria-hidden
+      data-icon="inline-start"
+    />
     {label}
   </Button>
 );

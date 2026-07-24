@@ -94,7 +94,7 @@ export const GlobalSearch = () => {
         aria-label="Buscar (Ctrl o Cmd + K)"
         tooltip="Buscar"
       >
-        <Search className="size-4" aria-hidden />
+        <Search className="size-4" aria-hidden  data-icon="inline-start" />
         <span className="group-data-[collapsible=icon]:hidden">Buscar…</span>
       </SidebarMenuButton>
 

@@ -74,6 +74,7 @@ export function DataTable<TData, TValue>({
             }}
             placeholder={filterPlaceholder}
             className="pl-9"
+            aria-label={filterPlaceholder || 'Buscar'}
           />
         </div>
         <p className="text-xs text-muted-foreground">

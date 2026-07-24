@@ -189,7 +189,7 @@ export function ServicesListClient() {
                 router.push(`/services/${service.id}/edit`);
               }}
             >
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-4 w-4"  data-icon="inline-start" />
             </Button>
             <Button
               variant="ghost"
@@ -200,7 +200,7 @@ export function ServicesListClient() {
                 openDeleteDialog(service.id);
               }}
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
+              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
             </Button>
             </>
           ) : null,
@@ -330,7 +330,7 @@ export function ServicesListClient() {
               onClick={handleClearFilters}
               aria-label="Limpiar filtros de servicios"
             >
-              <X className="mr-2 h-4 w-4" aria-hidden />
+              <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
               Limpiar filtros
             </Button>
           ) : null}
@@ -345,7 +345,7 @@ export function ServicesListClient() {
         />
       ) : listState.kind === 'error' ? (
         <TripledEmptyState
-          icon={<Plus className="h-4 w-4" />}
+          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
           title="Error de carga"
           description={listState.message}
           role="alert"
@@ -363,7 +363,7 @@ export function ServicesListClient() {
         />
       ) : listState.kind === 'empty' ? (
         <TripledEmptyState
-          icon={<Plus className="h-4 w-4" />}
+          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
           title="Sin servicios"
           description={
             canWrite
@@ -376,7 +376,7 @@ export function ServicesListClient() {
                 type="button"
                 onClick={() => router.push('/services/new')}
               >
-                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
                 Nuevo servicio
               </Button>
             ) : null
@@ -384,7 +384,7 @@ export function ServicesListClient() {
         />
       ) : listState.kind === 'filtered-empty' ? (
         <TripledEmptyState
-          icon={<Plus className="h-4 w-4" />}
+          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
           title="Sin resultados"
           description="No encontramos servicios con esa búsqueda o esos filtros."
           action={
@@ -476,7 +476,7 @@ export function ServicesListClient() {
                         router.push(`/services/${service.id}/edit`);
                       }}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-4 w-4"  data-icon="inline-start" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -487,7 +487,7 @@ export function ServicesListClient() {
                         openDeleteDialog(service.id);
                       }}
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
                     </Button>
                     </div>
                   ) : null}

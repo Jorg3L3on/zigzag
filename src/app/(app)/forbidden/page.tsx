@@ -32,13 +32,21 @@ export default function ForbiddenPage() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button asChild className="min-h-11 rounded-xl">
                 <Link href="/dashboard">
-                  <LayoutDashboard className="mr-2 h-4 w-4" aria-hidden />
+                  <LayoutDashboard
+                    className="mr-2 h-4 w-4"
+                    aria-hidden
+                    data-icon="inline-start"
+                  />
                   Ir al dashboard
                 </Link>
               </Button>
               <Button asChild variant="outline" className="min-h-11 rounded-xl">
                 <Link href="/account">
-                  <UserCircle className="mr-2 h-4 w-4" aria-hidden />
+                  <UserCircle
+                    className="mr-2 h-4 w-4"
+                    aria-hidden
+                    data-icon="inline-start"
+                  />
                   Ver mi cuenta
                 </Link>
               </Button>

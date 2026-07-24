@@ -220,27 +220,30 @@ export function UpdateRoleDialog({
               name="company_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Empresa</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value ? field.value.toString() : undefined}
-                    >
-                      <SelectTrigger>
+                  <FormLabel htmlFor="update-role-company">Empresa</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value ? field.value.toString() : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger
+                        id="update-role-company"
+                        aria-label="Empresa"
+                      >
                         <SelectValue placeholder="Selecciona una empresa" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem
-                            key={company.id}
-                            value={company.id.toString()}
-                          >
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                    </FormControl>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem
+                          key={company.id}
+                          value={company.id.toString()}
+                        >
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -267,7 +270,10 @@ export function UpdateRoleDialog({
                   <FormControl>
                     <div className="space-y-4">
                       <Select onValueChange={handlePermissionSelect}>
-                        <SelectTrigger>
+                        <SelectTrigger
+                          id="update-role-permissions"
+                          aria-label="Permisos"
+                        >
                           <SelectValue placeholder="Selecciona permisos" />
                         </SelectTrigger>
                         <SelectContent>

@@ -205,7 +205,7 @@ export const TicketDateRangeFilter = ({
       )}
       aria-label="Filtrar por rango de fechas del ticket"
     >
-      <CalendarDays className="mr-2 h-4 w-4 shrink-0 opacity-70" />
+      <CalendarDays className="mr-2 h-4 w-4 shrink-0 opacity-70" data-icon="inline-start"/>
       <span className="truncate">{formatDateRangeLabel(value)}</span>
     </Button>
   );

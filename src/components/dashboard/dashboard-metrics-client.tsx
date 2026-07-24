@@ -420,7 +420,7 @@ export const DashboardMetricsClient = () => {
         onClick={handleExportPdf}
         aria-label="Exportar resumen del dashboard en PDF"
       >
-        <FileDown className="h-4 w-4" aria-hidden />
+        <FileDown className="h-4 w-4" aria-hidden data-icon="inline-start" />
         Exportar PDF
       </Button>
       <Button
@@ -430,7 +430,7 @@ export const DashboardMetricsClient = () => {
         onClick={handleExportCsv}
         aria-label="Exportar resumen del dashboard en CSV"
       >
-        <FileDown className="h-4 w-4" aria-hidden />
+        <FileDown className="h-4 w-4" aria-hidden data-icon="inline-start" />
         Exportar CSV
       </Button>
     </>

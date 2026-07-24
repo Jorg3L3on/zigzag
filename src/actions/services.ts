@@ -292,9 +292,10 @@ export async function bulkImportServices(
       const parsed = importServiceSchema.safeParse(records[index]);
       if (!parsed.success) {
         summary.failed += 1;
-        summary.errors.push(
+        summary.errors = [
+          ...summary.errors,
           `Fila ${rowNumber}: nombre, descripción y precio válido requeridos`,
-        );
+        ];
         continue;
       }
 

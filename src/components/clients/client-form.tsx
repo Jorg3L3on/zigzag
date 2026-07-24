@@ -238,6 +238,7 @@ export function ClientForm({
                 <Input
                   type="email"
                   placeholder="Correo del cliente (opcional)"
+                  autoComplete="email"
                   {...field}
                 />
               </FormControl>

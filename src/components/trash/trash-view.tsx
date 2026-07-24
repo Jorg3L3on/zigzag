@@ -52,7 +52,7 @@ export const TrashView = ({ data }: TrashViewProps) => {
   if (isEmpty) {
     return (
       <TripledEmptyState
-        icon={<Trash2 className="h-4 w-4" />}
+        icon={<Trash2 className="h-4 w-4"  data-icon="inline-start" />}
         title="Papelera vacía"
         description="No hay registros eliminados para restaurar."
       />
@@ -93,7 +93,7 @@ export const TrashView = ({ data }: TrashViewProps) => {
                       handleRestore(key, Number(row.id), restoreTicket)
                     }
                   >
-                    <RotateCcw className="size-3.5" aria-hidden />
+                    <RotateCcw className="size-3.5" aria-hidden  data-icon="inline-start" />
                     Restaurar
                   </Button>
                 </li>
@@ -131,7 +131,7 @@ export const TrashView = ({ data }: TrashViewProps) => {
                     disabled={pendingId === key}
                     onClick={() => handleRestore(key, row.id, restoreClient)}
                   >
-                    <RotateCcw className="size-3.5" aria-hidden />
+                    <RotateCcw className="size-3.5" aria-hidden  data-icon="inline-start" />
                     Restaurar
                   </Button>
                 </li>
@@ -169,7 +169,7 @@ export const TrashView = ({ data }: TrashViewProps) => {
                     disabled={pendingId === key}
                     onClick={() => handleRestore(key, row.id, restoreService)}
                   >
-                    <RotateCcw className="size-3.5" aria-hidden />
+                    <RotateCcw className="size-3.5" aria-hidden  data-icon="inline-start" />
                     Restaurar
                   </Button>
                 </li>

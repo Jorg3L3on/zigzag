@@ -29,11 +29,12 @@ export const TicketDetailActions = ({
 
   return (
     <div className="pt-2">
-      <Link href={`/tickets/${id}/edit`}>
-        <Button className="h-12 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold shadow-md transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg">
-          Editar Ticket
-        </Button>
-      </Link>
+      <Button
+        asChild
+        className="h-12 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold shadow-md transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg"
+      >
+        <Link href={`/tickets/${id}/edit`}>Editar Ticket</Link>
+      </Button>
     </div>
   );
 };

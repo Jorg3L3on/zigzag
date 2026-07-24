@@ -75,7 +75,7 @@ export const DashboardOnboardingHelp = ({
                   aria-label="Ocultar guía de inicio rápido"
                   disabled={isDismissing}
                 >
-                  <X className="mr-1 h-3.5 w-3.5" aria-hidden />
+                  <X className="mr-1 h-3.5 w-3.5" aria-hidden  data-icon="inline-start" />
                   Ocultar
                 </Button>
               </AlertDialogTrigger>
@@ -132,7 +132,11 @@ export const DashboardOnboardingHelp = ({
                 >
                   <Link href={step.href}>
                     {step.actionLabel}
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden />
+                    <ArrowRight
+                      className="ml-1 h-3.5 w-3.5"
+                      aria-hidden
+                      data-icon="inline-end"
+                    />
                   </Link>
                 </Button>
               ) : null}
@@ -147,7 +151,11 @@ export const DashboardOnboardingHelp = ({
                 >
                   <Link href={step.secondaryHref}>
                     {step.secondaryActionLabel}
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden />
+                    <ArrowRight
+                      className="ml-1 h-3.5 w-3.5"
+                      aria-hidden
+                      data-icon="inline-end"
+                    />
                   </Link>
                 </Button>
               ) : null}
@@ -163,7 +171,11 @@ export const DashboardOnboardingHelp = ({
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <BookOpen className="mr-1 h-3.5 w-3.5" aria-hidden />
+                    <BookOpen
+                      className="mr-1 h-3.5 w-3.5"
+                      aria-hidden
+                      data-icon="inline-start"
+                    />
                     Ver guía
                   </a>
                 </Button>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ClientList } from '@/components/clients/client-list';
+import { ClientsCsvToolbar } from '@/components/clients/clients-csv-toolbar';
 import {
   TripledDashboardShell,
   TripledPageHeader,
@@ -11,9 +12,6 @@ import { Plus, Users } from 'lucide-react';
 import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
-import { CsvToolbar } from '@/components/data-portability/csv-toolbar';
-import { CLIENT_CSV_HEADERS } from '@/lib/csv-schemas';
-import { bulkImportClients, getClientsForExport } from '@/actions/clients';
 
 export const metadata: Metadata = {
   title: 'Clientes',
@@ -43,25 +41,24 @@ export default async function ClientsPage() {
           icon={<Users className="size-5" aria-hidden />}
           action={
             canWriteClients ? (
-              <Link
-                href="/clients/new"
-                className="w-full shrink-0 sm:w-auto sm:self-start"
+              <Button
+                asChild
+                className="min-h-11 w-full gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold shadow-sm hover:bg-primary/90 sm:w-auto sm:self-start"
               >
-                <Button className="min-h-11 w-full gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold shadow-sm hover:bg-primary/90 sm:w-auto">
-                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                <Link href="/clients/new">
+                  <Plus
+                    className="h-4 w-4 shrink-0"
+                    aria-hidden
+                    data-icon="inline-start"
+                  />
                   Nuevo cliente
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             ) : null
           }
         >
           <div className="mb-4">
-            <CsvToolbar
-              headers={CLIENT_CSV_HEADERS}
-              filename="clientes.csv"
-              exportAction={getClientsForExport}
-              importAction={canWriteClients ? bulkImportClients : undefined}
-            />
+            <ClientsCsvToolbar canImport={canWriteClients} />
           </div>
           <ClientList />
         </TripledResourceCard>

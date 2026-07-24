@@ -10,6 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { ModeToggle } from '@/components/mode-toggle';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled/motion';
 import { cn } from '@/lib/utils';
 
@@ -36,9 +37,9 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
         variants={tripledFadeInUp}
         initial="hidden"
         animate="visible"
-        className="flex h-16 items-center gap-2"
+        className="flex h-16 items-center gap-2 pr-4"
       >
-        <div className="flex items-center gap-2 px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -64,6 +65,7 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+        <ModeToggle />
       </TripledMotionDiv>
     </header>
   );

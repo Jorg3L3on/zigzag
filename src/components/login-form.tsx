@@ -115,7 +115,15 @@ export function LoginForm({
                 required
               />
             </div>
-            {error && <div className="text-sm text-red-500">{error}</div>}
+            {error ? (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="text-sm text-red-500"
+              >
+                {error}
+              </div>
+            ) : null}
             <Button
               type="submit"
               size="lg"

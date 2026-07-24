@@ -44,7 +44,7 @@ export const TicketsListPagination = ({ table }: TicketsListPaginationProps) => 
         disabled={!table.getCanPreviousPage()}
         aria-label="Página anterior"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" data-icon="inline-start"/>
       </Button>
       <span className="min-w-[8rem] text-center text-sm tabular-nums text-muted-foreground">
         {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
@@ -58,7 +58,7 @@ export const TicketsListPagination = ({ table }: TicketsListPaginationProps) => 
         disabled={!table.getCanNextPage()}
         aria-label="Página siguiente"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" data-icon="inline-start"/>
       </Button>
     </div>
   </div>

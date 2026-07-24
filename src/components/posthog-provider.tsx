@@ -4,6 +4,7 @@ import { Suspense, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider, usePostHog } from 'posthog-js/react';
+import { Loader2 } from 'lucide-react';
 
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const posthogHost =
@@ -59,7 +60,18 @@ export const PostHogProvider = ({
 
   return (
     <PHProvider client={posthog}>
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <div
+            className="pointer-events-none fixed bottom-2 right-2 z-50 flex items-center gap-2 rounded-md border bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            Cargando…
+          </div>
+        }
+      >
         <PageviewTracker />
       </Suspense>
       {children}

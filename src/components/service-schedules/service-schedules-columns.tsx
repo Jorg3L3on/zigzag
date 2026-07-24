@@ -119,8 +119,7 @@ export const createServiceSchedulesColumns = ({
       return (
         <div
           className="flex flex-wrap justify-end gap-1"
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
         >
           {canCreateTicket ? (
             <Button variant="outline" size="sm" className="rounded-lg" asChild>

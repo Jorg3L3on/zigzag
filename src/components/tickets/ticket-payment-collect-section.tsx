@@ -275,7 +275,7 @@ export const TicketPaymentCollectSection = ({
               aria-label="Registrar abono al saldo del ticket"
             >
               {isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" data-icon="inline-start"/>
               ) : (
                 'Abonar'
               )}

@@ -112,13 +112,13 @@ export const OperatorAccessPanel = () => {
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button asChild variant="outline" className="min-h-11 rounded-xl">
           <Link href={operatorManagementHref('/users', companyId)}>
-            <Users className="mr-2 h-4 w-4" aria-hidden />
+            <Users className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start"/>
             Gestionar usuarios
           </Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11 rounded-xl">
           <Link href={operatorManagementHref('/roles', companyId)}>
-            <Shield className="mr-2 h-4 w-4" aria-hidden />
+            <Shield className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start"/>
             Gestionar roles
           </Link>
         </Button>

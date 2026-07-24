@@ -95,7 +95,7 @@ export const TicketsFilterBar = ({
                 : 'Abrir filtros'
             }
           >
-            <ListFilter className="h-4 w-4" aria-hidden />
+            <ListFilter className="h-4 w-4" aria-hidden data-icon="inline-start"/>
             {activeFilterCount > 0 ? (
               <Badge
                 variant="secondary"
@@ -163,7 +163,7 @@ export const TicketsFilterBar = ({
                 onClick={onClearFilters}
                 aria-label="Limpiar todos los filtros activos"
               >
-                <X className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+                <X className="mr-2 h-4 w-4 shrink-0" aria-hidden  data-icon="inline-start" />
                 Limpiar todos los filtros
               </Button>
             ) : null}
@@ -208,7 +208,7 @@ export const TicketsFilterBar = ({
           className="shrink-0"
           onClick={onClearFilters}
         >
-          <X className="mr-2 h-4 w-4" />
+          <X className="mr-2 h-4 w-4"  data-icon="inline-start" />
           Limpiar filtros
         </Button>
       ) : null}

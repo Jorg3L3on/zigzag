@@ -373,7 +373,11 @@ const CreateTicketPageContent = () => {
                                   variant="outline"
                                   className="h-12 w-full shrink-0 gap-2 rounded-xl border-input bg-background px-4 text-base shadow-sm transition-colors hover:bg-accent sm:w-auto md:h-10 md:text-sm"
                                 >
-                                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                                  <Plus
+                                    className="h-4 w-4 shrink-0"
+                                    aria-hidden
+                                    data-icon="inline-start"
+                                  />
                                   Nuevo cliente
                                 </Button>
                               </DialogTrigger>
@@ -526,8 +530,7 @@ const CreateTicketPageContent = () => {
                                 >
                                   <CalendarIcon
                                     className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                                    aria-hidden
-                                  />
+                                    aria-hidden data-icon="inline-start"/>
                                   {field.value ? (
                                     format(field.value, 'PPP', { locale: es })
                                   ) : (
@@ -579,13 +582,12 @@ const CreateTicketPageContent = () => {
                         <>
                           <Loader2
                             className="mr-2 h-4 w-4 animate-spin"
-                            aria-hidden
-                          />
+                            aria-hidden data-icon="inline-start"/>
                           Creando ticket...
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden />
+                          <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start"/>
                           Crear Ticket
                         </>
                       )}
@@ -618,7 +620,7 @@ const CreateTicketPageContent = () => {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden data-icon="inline-start"/>
           ) : (
             'Crear'
           )}

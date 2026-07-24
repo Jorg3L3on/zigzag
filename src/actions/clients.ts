@@ -397,7 +397,20 @@ export async function bulkImportClients(
       const parsed = importClientSchema.safeParse(records[index]);
       if (!parsed.success) {
         summary.failed += 1;
-        summary.errors.push(`Fila ${rowNumber}: nombre requerido o datos inválidos`);
+        const fieldMessages = parsed.error.issues.map((issue) => {
+          const field = issue.path[0] ? String(issue.path[0]) : 'datos';
+          if (field === 'name') {
+            return 'nombre requerido';
+          }
+          if (field === 'email') {
+            return 'correo inválido';
+          }
+          return `${field}: ${issue.message}`;
+        });
+        summary.errors = [
+          ...summary.errors,
+          `Fila ${rowNumber}: ${fieldMessages.join('; ') || 'datos inválidos'}`,
+        ];
         continue;
       }
 

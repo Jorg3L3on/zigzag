@@ -57,7 +57,7 @@ export const TicketsMobileCard = ({
         </div>
         <div
           className="flex shrink-0 items-start gap-1"
-          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
         >
           <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold tabular-nums text-muted-foreground">
             #{ticket.id.toString()}

@@ -126,7 +126,7 @@ export const NotificationBell = () => {
             unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''
           }`}
         >
-          <Bell className="size-5" aria-hidden />
+          <Bell className="size-5" aria-hidden data-icon="inline-start"/>
           {unreadCount > 0 ? (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
               {badgeLabel}
@@ -145,7 +145,7 @@ export const NotificationBell = () => {
               className="h-8 gap-1 text-xs"
               onClick={handleMarkAll}
             >
-              <CheckCheck className="size-3.5" aria-hidden />
+              <CheckCheck className="size-3.5" aria-hidden data-icon="inline-start"/>
               Marcar todo
             </Button>
           ) : null}
