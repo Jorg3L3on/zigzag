@@ -12,9 +12,11 @@ type AddressFields = Pick<
   | 'postal_code'
 >;
 
+const trimPart = (value: string | null | undefined): string => value?.trim() ?? '';
+
 /** Multi-line formatted address for PDFs and detail views. */
 export function formatCompanyAddress(c: AddressFields): string {
-  const streetParts = [c.street.trim()];
+  const streetParts = [trimPart(c.street)].filter(Boolean);
   if (c.interior_number?.trim()) {
     streetParts.push(`Int. ${c.interior_number.trim()}`);
   }
@@ -23,12 +25,17 @@ export function formatCompanyAddress(c: AddressFields): string {
   }
   const line1 = streetParts.join(', ');
   const locality = [
-    c.neighborhood.trim(),
-    c.city.trim(),
-    c.state.trim(),
-    c.postal_code.trim(),
-    c.country.trim(),
+    trimPart(c.neighborhood),
+    trimPart(c.city),
+    trimPart(c.state),
+    trimPart(c.postal_code),
   ].filter(Boolean);
+  const country = trimPart(c.country);
+  // When state/region is present, omit country to avoid contradictory strings
+  // such as "Ponce, Puerto Rico, México" from mixed DB values.
+  if (country && !trimPart(c.state)) {
+    locality.push(country);
+  }
 
   const lines = [line1, locality.join(', ')].filter((s) => s.length > 0);
   return lines.join('\n');
