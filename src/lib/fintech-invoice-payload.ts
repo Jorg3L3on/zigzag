@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type {
+  Client,
   Company,
   Service,
   ServicesTicketsRow,
@@ -18,6 +19,7 @@ type TicketServiceLine = ServicesTicketsRow & {
 
 export type FintechInvoiceTicket = TicketRow & {
   company: Company | null;
+  client?: Client | null;
   services_tickets: TicketServiceLine[];
   ticket_payments?: TicketPaymentRow[];
 };
@@ -44,8 +46,7 @@ export type FintechInvoicePayload = {
   client: {
     name: string;
     phone: string;
-    country: string;
-    statusLabel: string;
+    country: string | null;
   };
   ticketNumber: string;
   issueDate: string;
@@ -54,6 +55,8 @@ export type FintechInvoicePayload = {
   serviceCountLabel: string;
   items: FintechInvoiceItem[];
   subtotal: number;
+  adjustmentAmount: number;
+  hasAdjustment: boolean;
   total: number;
   paid: number;
   balanceDue: number;
@@ -70,6 +73,16 @@ const clamp = (value: number, min: number, max: number): number =>
 
 export const formatTicketNumber = (id: bigint | number | string): string =>
   String(id).padStart(6, '0');
+
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
+
+const resolveClientCountry = (ticket: FintechInvoiceTicket): string | null => {
+  const fromClient = ticket.client?.country?.trim();
+  if (fromClient) return fromClient;
+  const fromCompany = ticket.company?.country?.trim();
+  if (fromCompany) return fromCompany;
+  return null;
+};
 
 export const buildFintechInvoicePayload = (
   ticket: FintechInvoiceTicket,
@@ -96,8 +109,12 @@ export const buildFintechInvoicePayload = (
       };
     });
 
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const total = isFiniteNumber(ticket.total) ? ticket.total : subtotal;
+  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.total, 0));
+  const total = roundMoney(
+    isFiniteNumber(ticket.total) ? ticket.total : subtotal,
+  );
+  const adjustmentAmount = roundMoney(total - subtotal);
+  const hasAdjustment = Math.abs(adjustmentAmount) >= 0.01;
   const paid = Math.max(isFiniteNumber(ticket.paid) ? ticket.paid : 0, 0);
   const balanceDue = getTicketBalanceDue(total, paid);
   const paymentProgress = total > 0 ? clamp(paid / total, 0, 1) : 0;
@@ -117,8 +134,7 @@ export const buildFintechInvoicePayload = (
     client: {
       name: ticket.client_name?.trim() || 'Cliente',
       phone: ticket.client_tel?.trim() || 'Sin teléfono',
-      country: 'México',
-      statusLabel: ticket.client_id ? 'Cuenta activa' : 'Cliente nuevo',
+      country: resolveClientCountry(ticket),
     },
     ticketNumber: formatTicketNumber(ticket.id),
     issueDate: ticket.ticket_date
@@ -132,6 +148,8 @@ export const buildFintechInvoicePayload = (
         : `${items.length} conceptos facturados`,
     items,
     subtotal,
+    adjustmentAmount,
+    hasAdjustment,
     total,
     paid,
     balanceDue,

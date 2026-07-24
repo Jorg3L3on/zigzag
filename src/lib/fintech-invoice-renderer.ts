@@ -11,6 +11,11 @@ export type FintechInvoiceRenderOptions = {
 
 const W = 595.2756;
 const H = 841.8898;
+const MAIN_PAGE_MAX_ROWS = 4;
+const CONTINUATION_PAGE_MAX_ROWS = 12;
+const ROW_STEP = 42;
+const TYPOGRAPHY_SCALE = 0.82;
+const ICON_SCALE = 0.82;
 
 const COLORS = {
   blue: '#2563EB',
@@ -37,6 +42,14 @@ type JsPdfWithGraphics = jsPDF & {
   discardPath: () => jsPDF;
   saveGraphicsState: () => jsPDF;
   restoreGraphicsState: () => jsPDF;
+};
+
+type ServiceTableLayout = {
+  serviceX: number;
+  serviceW: number;
+  qtyX: number;
+  priceRightX: number;
+  amountRightX: number;
 };
 
 const yTop = (y: number, height = 0): number => H - y - height;
@@ -68,8 +81,13 @@ const money = (currencyCode: string, value: number): string =>
     maximumFractionDigits: 2,
   })}`;
 
-const conceptLabel = (count: number): string =>
-  count === 1 ? '1 concepto facturado' : `${count} conceptos facturados`;
+const serviceTableLayout = (margin: number, contentW: number): ServiceTableLayout => ({
+  serviceX: margin + 22,
+  serviceW: 196,
+  qtyX: margin + contentW - 238,
+  priceRightX: margin + contentW - 108,
+  amountRightX: margin + contentW - 18,
+});
 
 export function renderFintechInvoicePdf(
   payload: FintechInvoicePayload,
@@ -84,6 +102,7 @@ export function renderFintechInvoicePdf(
   }) as JsPdfWithGraphics;
 
   const currencyCode = payload.issuer.currencyCode;
+  const isPaid = payload.balanceDue <= 0;
 
   const setFill = (color: string) => doc.setFillColor(color);
   const setStroke = (color: string) => doc.setDrawColor(color);
@@ -100,7 +119,7 @@ export function renderFintechInvoicePdf(
   ) => {
     doc.setTextColor(color);
     doc.setFont('helvetica', font);
-    doc.setFontSize(size);
+    doc.setFontSize(size * TYPOGRAPHY_SCALE);
     const normalized = maxWidth ? truncateText(value, maxWidth) : value;
     doc.text(normalized, x, textY(y), { align });
   };
@@ -115,7 +134,7 @@ export function renderFintechInvoicePdf(
   };
 
   const label = (value: string, x: number, y: number, color = COLORS.muted) => {
-    text(value.toUpperCase(), x, y, 7.1, color, 'bold');
+    text(value.toUpperCase(), x, y, 6.5, color, 'bold');
   };
 
   const rr = (
@@ -254,19 +273,34 @@ export function renderFintechInvoicePdf(
     font: 'normal' | 'bold' = 'normal',
     lineHeight = size + 3,
     maxLines = 2,
+    align: Align = 'left',
   ) => {
     doc.setTextColor(color);
     doc.setFont('helvetica', font);
-    doc.setFontSize(size);
-    const lines = doc.splitTextToSize(value, width).slice(0, maxLines) as string[];
+    const scaledSize = size * TYPOGRAPHY_SCALE;
+    const scaledLineHeight = lineHeight * TYPOGRAPHY_SCALE;
+    doc.setFontSize(scaledSize);
+    const allLines = doc.splitTextToSize(value, width) as string[];
+    const lines = allLines.slice(0, maxLines);
     lines.forEach((line, index) => {
       const suffix =
-        index === maxLines - 1 &&
-        doc.splitTextToSize(value, width).length > maxLines
+        index === maxLines - 1 && allLines.length > maxLines
           ? truncateText(line, width)
           : line;
-      doc.text(suffix, x, textY(y - index * lineHeight));
+      doc.text(suffix, x, textY(y - index * scaledLineHeight), { align });
     });
+  };
+
+  const countWrappedLines = (
+    value: string,
+    width: number,
+    size: number,
+    font: 'normal' | 'bold',
+    maxLines: number,
+  ): number => {
+    doc.setFont('helvetica', font);
+    doc.setFontSize(size * TYPOGRAPHY_SCALE);
+    return Math.min(maxLines, (doc.splitTextToSize(value, width) as string[]).length);
   };
 
   const drawBackground = () => {
@@ -291,35 +325,82 @@ export function renderFintechInvoicePdf(
   const drawFooter = () => {
     const margin = 42;
     const contentW = W - 2 * margin;
-    const footerY = 58;
+    const dividerY = 120;
+    const colWidth = contentW / 3;
+    const iconY = 96;
+    const labelY = 78;
+    const valueY = 66;
+
     setStroke(COLORS.line);
     doc.setLineWidth(0.8);
-    doc.line(margin, textY(footerY + 54), margin + contentW, textY(footerY + 54));
+    doc.line(margin, textY(dividerY), margin + contentW, textY(dividerY));
 
     const drawFooterIcon = (
       kind: 'phone' | 'email' | 'address',
-      x: number,
+      centerX: number,
       y: number,
     ) => {
+      const iconScale = ICON_SCALE;
       setStroke(COLORS.blue);
-      doc.setLineWidth(1.4);
+      doc.setLineWidth(1.2);
       if (kind === 'phone') {
-        doc.roundedRect(x - 5, textY(y + 8), 10, 16, 2, 2, 'S');
-        doc.line(x - 2, textY(y - 5), x + 2, textY(y - 5));
+        doc.roundedRect(
+          centerX - 5 * iconScale,
+          textY(y + 8 * iconScale),
+          10 * iconScale,
+          16 * iconScale,
+          2 * iconScale,
+          2 * iconScale,
+          'S',
+        );
+        doc.line(
+          centerX - 2 * iconScale,
+          textY(y - 5 * iconScale),
+          centerX + 2 * iconScale,
+          textY(y - 5 * iconScale),
+        );
         return;
       }
 
       if (kind === 'email') {
-        doc.roundedRect(x - 8, textY(y + 6), 16, 11, 2, 2, 'S');
-        doc.line(x - 8, textY(y + 6), x, textY(y - 1));
-        doc.line(x + 8, textY(y + 6), x, textY(y - 1));
+        doc.roundedRect(
+          centerX - 8 * iconScale,
+          textY(y + 6 * iconScale),
+          16 * iconScale,
+          11 * iconScale,
+          2 * iconScale,
+          2 * iconScale,
+          'S',
+        );
+        doc.line(
+          centerX - 8 * iconScale,
+          textY(y + 6 * iconScale),
+          centerX,
+          textY(y - iconScale),
+        );
+        doc.line(
+          centerX + 8 * iconScale,
+          textY(y + 6 * iconScale),
+          centerX,
+          textY(y - iconScale),
+        );
         return;
       }
 
-      doc.circle(x, textY(y + 1), 7, 'S');
-      doc.circle(x, textY(y + 1), 2, 'S');
-      doc.line(x - 5, textY(y - 4), x, textY(y - 10));
-      doc.line(x + 5, textY(y - 4), x, textY(y - 10));
+      doc.circle(centerX, textY(y + iconScale), 7 * iconScale, 'S');
+      doc.circle(centerX, textY(y + iconScale), 2 * iconScale, 'S');
+      doc.line(
+        centerX - 5 * iconScale,
+        textY(y - 4 * iconScale),
+        centerX,
+        textY(y - 10 * iconScale),
+      );
+      doc.line(
+        centerX + 5 * iconScale,
+        textY(y - 4 * iconScale),
+        centerX,
+        textY(y - 10 * iconScale),
+      );
     };
 
     const contacts: Array<['phone' | 'email' | 'address', string, string]> = [
@@ -327,48 +408,191 @@ export function renderFintechInvoicePdf(
       ['email', 'CORREO', payload.issuer.email || 'Sin correo'],
       ['address', 'DIRECCIÓN', payload.issuer.footerAddress || payload.issuer.address],
     ];
-    const colXs = [
-      margin + contentW * 0.17,
-      margin + contentW * 0.5,
-      margin + contentW * 0.83,
-    ];
+
     contacts.forEach(([kind, title, value], index) => {
-      const x = colXs[index];
-      rr(x - 13, footerY + 20, 26, 26, 13, COLORS.surfaceBlue, '#DBEAFE');
-      drawFooterIcon(kind, x, footerY + 28);
-      text(title, x, footerY + 4, 7.2, COLORS.ink2, 'bold', 'center');
-      text(value, x, footerY - 12, 7.2, COLORS.muted, 'normal', 'center', 144);
+      const centerX = margin + colWidth * index + colWidth / 2;
+      drawFooterIcon(kind, centerX, iconY);
+      text(title, centerX, labelY, 6.5, COLORS.ink2, 'bold', 'center');
+      wrapText(
+        value,
+        centerX,
+        valueY,
+        colWidth - 24,
+        6.5,
+        COLORS.muted,
+        'normal',
+        8,
+        3,
+        'center',
+      );
     });
 
-    text('Powered by', W / 2 - 15, 24, 6.5, COLORS.muted2, 'normal', 'right');
-    text('zigzag', W / 2 - 11, 24, 6.5, COLORS.ink2, 'bold');
+    text('Powered by', W / 2 - 15, 28, 6.5, COLORS.muted2, 'normal', 'right');
+    text('zigzag', W / 2 - 11, 28, 6.5, COLORS.ink2, 'bold');
     setStroke(COLORS.ink2);
     doc.setLineWidth(0.4);
-    doc.line(W / 2 - 11, textY(23), W / 2 + 10, textY(23));
+    doc.line(W / 2 - 11, textY(27), W / 2 + 10, textY(27));
   };
 
   const drawServiceRows = (
     items: FintechInvoiceItem[],
-    rowY: number,
+    firstRowY: number,
     contentW: number,
     margin: number,
     maxRows: number,
   ) => {
+    const layout = serviceTableLayout(margin, contentW);
+    const nameSize = 10.5;
+    const nameLineHeight = 12;
+    const descSize = 7.5;
+    const descLineHeight = 9;
+
     items.slice(0, maxRows).forEach((item, index) => {
-      const y = rowY - index * 38;
+      const rowTop = firstRowY - index * ROW_STEP;
+      const rowBottom = rowTop - ROW_STEP + 8;
+      const rowCenter = rowTop - ROW_STEP / 2 + 2;
+
       setStroke('#EEF2F7');
       doc.setLineWidth(0.8);
-      doc.line(margin + 18, textY(y + 44), margin + contentW - 18, textY(y + 44));
-      rr(margin + 23, y + 11, 26, 26, 8, COLORS.surfaceBlue, null);
-      text(String(item.number), margin + 36, y + 19, 10, COLORS.blue, 'bold', 'center');
-      wrapText(item.name, margin + 80, y + 30, 180, 12.5, COLORS.ink, 'bold', 13, 1);
+      doc.line(margin + 18, textY(rowBottom), margin + contentW - 18, textY(rowBottom));
+
+      const nameLineCount = countWrappedLines(
+        item.name,
+        layout.serviceW,
+        nameSize,
+        'bold',
+        2,
+      );
+      const nameBaseline = rowTop - 8;
+      wrapText(
+        item.name,
+        layout.serviceX,
+        nameBaseline,
+        layout.serviceW,
+        nameSize,
+        COLORS.ink,
+        'bold',
+        nameLineHeight,
+        2,
+      );
+
       if (item.description) {
-        wrapText(item.description, margin + 80, y + 12, 180, 8.8, COLORS.muted, 'normal', 10, 1);
+        const descBaseline =
+          nameBaseline - nameLineCount * nameLineHeight * TYPOGRAPHY_SCALE - 3;
+        wrapText(
+          item.description,
+          layout.serviceX,
+          descBaseline,
+          layout.serviceW,
+          descSize,
+          COLORS.muted,
+          'normal',
+          descLineHeight,
+          2,
+        );
       }
-      text(String(item.quantity), margin + contentW - 230, y + 21, 10.5, COLORS.ink, 'normal', 'center');
-      text(money(currencyCode, item.unitPrice), margin + contentW - 116, y + 21, 10.5, COLORS.ink2, 'normal', 'right');
-      text(money(currencyCode, item.total), margin + contentW - 22, y + 21, 10.7, COLORS.ink, 'bold', 'right');
+
+      text(String(item.quantity), layout.qtyX, rowCenter - 3, 9, COLORS.ink, 'normal', 'center');
+      text(
+        money(currencyCode, item.unitPrice),
+        layout.priceRightX,
+        rowCenter - 3,
+        9,
+        COLORS.ink2,
+        'normal',
+        'right',
+      );
+      text(
+        money(currencyCode, item.total),
+        layout.amountRightX,
+        rowCenter - 3,
+        9,
+        COLORS.ink,
+        'bold',
+        'right',
+      );
     });
+  };
+
+  const drawPaymentSummary = (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    title: string,
+    fill = COLORS.white,
+  ) => {
+    shadowCard(x, y, width, height, 16, fill);
+    text(title, x + 16, y + height - 24, 10.5, COLORS.ink, 'bold');
+
+    if (payload.hasAdjustment) {
+      text('Subtotal', x + 16, y + height - 44, 8.5, COLORS.muted);
+      text(
+        money(currencyCode, payload.subtotal),
+        x + width - 16,
+        y + height - 44,
+        8.5,
+        COLORS.ink2,
+        'normal',
+        'right',
+      );
+      text('Ajuste', x + 16, y + height - 60, 8.5, COLORS.muted);
+      text(
+        money(currencyCode, payload.adjustmentAmount),
+        x + width - 16,
+        y + height - 60,
+        8.5,
+        COLORS.ink2,
+        'normal',
+        'right',
+      );
+      text('Total', x + 16, y + height - 78, 8.5, COLORS.ink, 'bold');
+      text(
+        money(currencyCode, payload.total),
+        x + width - 16,
+        y + height - 78,
+        8.5,
+        COLORS.ink,
+        'bold',
+        'right',
+      );
+      setStroke('#EEF2F7');
+      doc.line(x + 16, textY(y + 14), x + width - 16, textY(y + 14));
+      text('Pagado', x + 16, y + 8, 8.5, COLORS.muted);
+      text(
+        money(currencyCode, payload.paid),
+        x + width - 16,
+        y + 8,
+        8.5,
+        COLORS.ink2,
+        'normal',
+        'right',
+      );
+      return;
+    }
+
+    text('Total', x + 16, y + height - 44, 8.5, COLORS.ink, 'bold');
+    text(
+      money(currencyCode, payload.total),
+      x + width - 16,
+      y + height - 44,
+      8.5,
+      COLORS.ink,
+      'bold',
+      'right',
+    );
+    setStroke('#EEF2F7');
+    doc.line(x + 16, textY(y + 28), x + width - 16, textY(y + 28));
+    text('Pagado', x + 16, y + 8, 8.5, COLORS.muted);
+    text(
+      money(currencyCode, payload.paid),
+      x + width - 16,
+      y + 8,
+      8.5,
+      COLORS.ink2,
+      'normal',
+      'right',
+    );
   };
 
   const drawMainPage = () => {
@@ -376,180 +600,261 @@ export function renderFintechInvoicePdf(
 
     const margin = 42;
     const contentW = W - 2 * margin;
-    const headerH = 178;
+    const headerH = 138;
     const headerY = H - margin - headerH;
-    shadowCard(margin, headerY, contentW, headerH, 24, COLORS.navy, '#1E293B');
-    gradientRect(margin, headerY, contentW, headerH, 24, COLORS.navy, '#312E81');
+    shadowCard(margin, headerY, contentW, headerH, 20, COLORS.navy, '#1E293B');
+    gradientRect(margin, headerY, contentW, headerH, 20, COLORS.navy, '#312E81');
 
     doc.saveGraphicsState();
-    doc.roundedRect(margin, yTop(headerY, headerH), contentW, headerH, 24, 24, null);
+    doc.roundedRect(margin, yTop(headerY, headerH), contentW, headerH, 20, 20, null);
     doc.clip();
     for (let index = 0; index < 8; index += 1) {
       doc.setDrawColor('#4A4A7A');
       doc.setLineWidth(1);
-      doc.circle(margin + contentW - 120, textY(headerY + 90), 20 + index * 16, 'S');
+      doc.circle(margin + contentW - 110, textY(headerY + 72), 16 + index * 14, 'S');
     }
     doc.discardPath();
     doc.restoreGraphicsState();
 
-    const logoX = margin + 26;
-    const logoY = headerY + headerH - 55;
-    drawIssuerLogo(logoX, logoY, 34);
-    text(payload.issuer.name, logoX + 46, logoY + 21, 16, COLORS.white, 'bold', 'left', 165);
-    text(payload.issuer.address, logoX + 46, logoY + 6, 8.1, '#CBD5E1', 'normal', 'left', 210);
-    text(`Tel. ${payload.issuer.phone || 'Sin teléfono'}`, logoX + 46, logoY - 8, 8.1, '#CBD5E1', 'normal', 'left', 210);
+    const balanceW = 180;
+    const balanceH = 66;
+    const balanceX = margin + contentW - balanceW - 20;
+    const balanceY = headerY + 30;
+    const logoSize = 23;
+    const logoX = margin + 20;
+    const logoY = headerY + headerH - 42;
+    const issuerTextX = logoX + logoSize + 10;
+    const issuerTextW = balanceX - issuerTextX - 14;
 
-    text(`Ticket No. ${payload.ticketNumber}`, margin + 28, headerY + 38, 9.5, '#CBD5E1', 'bold');
-    text(`Fecha: ${payload.issueDate}`, margin + 28, headerY + 22, 9.5, '#CBD5E1');
+    drawIssuerLogo(logoX, logoY, logoSize);
+    wrapText(
+      payload.issuer.name,
+      issuerTextX,
+      logoY + logoSize - 6,
+      issuerTextW,
+      13,
+      COLORS.white,
+      'bold',
+      15,
+      2,
+    );
+    text(payload.issuer.address, issuerTextX, logoY + 2, 7.5, '#CBD5E1', 'normal', 'left', issuerTextW);
+    text(
+      `Tel. ${payload.issuer.phone || 'Sin teléfono'}`,
+      issuerTextX,
+      logoY - 10,
+      7.5,
+      '#CBD5E1',
+      'normal',
+      'left',
+      issuerTextW,
+    );
 
-    gradientRect(margin + contentW - 124, headerY + headerH - 54, 92, 24, 12);
-    text(payload.statusLabel, margin + contentW - 78, headerY + headerH - 44, 8, COLORS.white, 'bold', 'center');
+    text(`Ticket No. ${payload.ticketNumber}`, margin + 22, headerY + 30, 8.5, '#CBD5E1', 'bold');
+    text(`Fecha: ${payload.issueDate}`, margin + 22, headerY + 16, 8.5, '#CBD5E1');
 
-    const balanceW = 214;
-    const balanceH = 96;
-    const balanceX = margin + contentW - balanceW - 30;
-    const balanceY = headerY + 34;
-    rr(balanceX, balanceY, balanceW, balanceH, 20, COLORS.white, COLORS.white);
-    label(payload.balanceLabel, balanceX + 18, balanceY + 70);
+    gradientRect(margin + contentW - 92, headerY + headerH - 38, 62, 15, 7.5);
+    text(payload.statusLabel, margin + contentW - 61, headerY + headerH - 31.5, 6.5, COLORS.white, 'bold', 'center');
+
+    rr(balanceX, balanceY, balanceW, balanceH, 14, COLORS.white, COLORS.white);
+    label(payload.balanceLabel, balanceX + 12, balanceY + 52);
     text(
       money(
         currencyCode,
         payload.balanceDue > 0 ? payload.balanceDue : payload.total,
       ),
-      balanceX + 18,
-      balanceY + 42,
-      25,
+      balanceX + 12,
+      balanceY + 32,
+      17,
       COLORS.ink,
       'bold',
+      'left',
+      balanceW - 24,
     );
-    text(
-      `Pagado ${money(currencyCode, payload.paid)} de ${money(currencyCode, payload.total)}`,
-      balanceX + 18,
-      balanceY + 22,
-      8.2,
+    wrapText(
+      `${money(currencyCode, payload.paid)} / ${money(currencyCode, payload.total)}`,
+      balanceX + 12,
+      balanceY + 17,
+      balanceW - 24,
+      7.5,
       COLORS.muted,
       'normal',
-      'left',
-      balanceW - 36,
+      9,
+      2,
     );
-    progressBar(balanceX + 18, balanceY + 12, balanceW - 36, 5.5, payload.paymentProgress);
+    progressBar(balanceX + 12, balanceY + 7, balanceW - 24, 3, payload.paymentProgress);
 
-    const bodyTop = headerY - 24;
-    const clientW = (contentW - 16) * 0.5;
-    const infoW = (contentW - 16) * 0.5;
-    shadowCard(margin, bodyTop - 92, clientW, 92, 18);
-    label('Cliente', margin + 20, bodyTop - 28);
-    text(payload.client.name, margin + 20, bodyTop - 52, 20, COLORS.ink, 'bold', 'left', clientW - 135);
-    text(payload.client.phone, margin + 20, bodyTop - 70, 9.2, COLORS.muted, 'normal', 'left', 82);
-    text(payload.client.country, margin + 112, bodyTop - 70, 9.2, COLORS.muted);
-    rr(margin + clientW - 105, bodyTop - 36, 84, 19, 9, COLORS.greenSoft, null);
-    text(payload.client.statusLabel, margin + clientW - 63, bodyTop - 28.05, 7.1, COLORS.green, 'bold', 'center');
+    const bodyTop = headerY - 16;
+    const clientCardH = 72;
+    const clientCardY = bodyTop - clientCardH;
 
-    shadowCard(margin + clientW + 16, bodyTop - 92, infoW, 92, 18);
-    label('Emisor', margin + clientW + 36, bodyTop - 28);
-    text(payload.issuer.name, margin + clientW + 36, bodyTop - 52, 17, COLORS.ink, 'bold', 'left', 130);
-    text(payload.issuer.email || 'Sin correo', margin + clientW + 36, bodyTop - 70, 9.2, COLORS.muted, 'normal', 'left', 138);
-    rr(margin + contentW - 110, bodyTop - 62, 78, 24, 12, COLORS.surfaceBlue, null);
-    text(`#${payload.ticketNumber}`, margin + contentW - 71, bodyTop - 51, 9.4, COLORS.ink, 'bold', 'center');
+    shadowCard(margin, clientCardY, contentW, clientCardH, 16);
+    label('Cliente', margin + 16, bodyTop - 18);
+    wrapText(
+      payload.client.name,
+      margin + 16,
+      bodyTop - 38,
+      contentW - 32,
+      13,
+      COLORS.ink,
+      'bold',
+      15,
+      2,
+    );
+    const clientMeta = payload.client.country
+      ? `${payload.client.phone} · ${payload.client.country}`
+      : payload.client.phone;
+    text(clientMeta, margin + 16, bodyTop - 58, 8.5, COLORS.muted);
 
-    const itemsY = bodyTop - 278;
-    const itemsH = 160;
-    shadowCard(margin, itemsY, contentW, itemsH, 18);
-    text('Detalle de servicios', margin + 20, itemsY + itemsH - 30, 13.5, COLORS.ink, 'bold');
-    text(payload.serviceCountLabel, margin + contentW - 20, itemsY + itemsH - 28, 8.5, COLORS.muted, 'normal', 'right');
-    const headerRowY = itemsY + itemsH - 72;
-    rr(margin + 14, headerRowY, contentW - 28, 36, 12, COLORS.tableHead, null);
-    label('Núm.', margin + 28, headerRowY + 13);
-    label('Servicio', margin + 80, headerRowY + 13);
-    label('Cant.', margin + contentW - 248, headerRowY + 13);
-    label('Precio', margin + contentW - 160, headerRowY + 13);
-    label('Importe', margin + contentW - 74, headerRowY + 13);
-    drawServiceRows(payload.items, itemsY + 38, contentW, margin, 2);
-    if (payload.items.length > 2) {
+    const rowsOnPage = Math.min(payload.items.length, MAIN_PAGE_MAX_ROWS);
+    const hasMoreItems = payload.items.length > MAIN_PAGE_MAX_ROWS;
+    const continuationReserve = hasMoreItems ? 22 : 10;
+    const itemsH = 52 + 30 + rowsOnPage * ROW_STEP + continuationReserve;
+    const itemsY = clientCardY - 14 - itemsH;
+
+    shadowCard(margin, itemsY, contentW, itemsH, 16);
+    text('Detalle de servicios', margin + 16, itemsY + itemsH - 26, 11, COLORS.ink, 'bold');
+    text(payload.serviceCountLabel, margin + contentW - 16, itemsY + itemsH - 24, 7.5, COLORS.muted, 'normal', 'right');
+    const headerRowY = itemsY + itemsH - 58;
+    rr(margin + 14, headerRowY, contentW - 28, 30, 10, COLORS.tableHead, null);
+    label('Servicio', margin + 22, headerRowY + 11);
+    label('Cant.', margin + contentW - 248, headerRowY + 11);
+    label('Precio', margin + contentW - 160, headerRowY + 11);
+    label('Importe', margin + contentW - 74, headerRowY + 11);
+    drawServiceRows(
+      payload.items,
+      headerRowY - 8,
+      contentW,
+      margin,
+      MAIN_PAGE_MAX_ROWS,
+    );
+    if (hasMoreItems) {
       text(
-        `+ ${payload.items.length - 2} conceptos en la página siguiente`,
-        margin + 80,
-        itemsY + 12,
-        8.5,
+        `+ ${payload.items.length - MAIN_PAGE_MAX_ROWS} conceptos en la página siguiente`,
+        margin + 22,
+        itemsY + 14,
+        7.5,
         COLORS.muted,
       );
     }
 
-    const summaryY = itemsY - 124;
-    const summaryW = 252;
-    shadowCard(margin + contentW - summaryW, summaryY, summaryW, 104, 18);
-    text('Resumen de pago', margin + contentW - summaryW + 18, summaryY + 78, 12.5, COLORS.ink, 'bold');
-    text('Subtotal', margin + contentW - summaryW + 18, summaryY + 54, 9.4, COLORS.muted);
-    text(money(currencyCode, payload.subtotal), margin + contentW - 18, summaryY + 54, 9.4, COLORS.ink2, 'normal', 'right');
-    text('Total', margin + contentW - summaryW + 18, summaryY + 32, 9.4, COLORS.ink, 'bold');
-    text(money(currencyCode, payload.total), margin + contentW - 18, summaryY + 32, 9.4, COLORS.ink, 'bold', 'right');
-    setStroke('#EEF2F7');
-    doc.line(margin + contentW - summaryW + 18, textY(summaryY + 22), margin + contentW - 18, textY(summaryY + 22));
-    text('Pagado', margin + contentW - summaryW + 18, summaryY + 10, 9.4, COLORS.muted);
-    text(money(currencyCode, payload.paid), margin + contentW - 18, summaryY + 10, 9.4, COLORS.ink2, 'normal', 'right');
+    const summaryH = payload.hasAdjustment ? 106 : 92;
+    const summaryY = itemsY - 12 - summaryH;
+    const summaryW = 236;
+    drawPaymentSummary(
+      margin + contentW - summaryW,
+      summaryY,
+      summaryW,
+      summaryH,
+      'Resumen de pago',
+    );
 
-    const progressW = contentW - summaryW - 18;
-    shadowCard(margin, summaryY, progressW, 104, 18, '#FBFDFF');
-    text('Progreso de pago', margin + 20, summaryY + 78, 12.5, COLORS.ink, 'bold');
-    text(payload.paymentProgressLabel, margin + progressW - 20, summaryY + 78, 9, COLORS.blue, 'bold', 'right');
-    progressBar(margin + 20, summaryY + 52, progressW - 40, 10, payload.paymentProgress);
-    text(`${money(currencyCode, payload.paid)} pagado`, margin + 20, summaryY + 28, 8.8, COLORS.muted);
+    const progressW = contentW - summaryW - 14;
+    const progressH = summaryH;
+    shadowCard(margin, summaryY, progressW, progressH, 16, '#FBFDFF');
+    text('Progreso de pago', margin + 16, summaryY + progressH - 24, 10.5, COLORS.ink, 'bold');
     text(
-      payload.balanceDue > 0
-        ? `${money(currencyCode, payload.balanceDue)} pendiente`
-        : 'Sin saldo pendiente',
-      margin + progressW - 20,
-      summaryY + 28,
-      8.8,
+      payload.paymentProgressLabel,
+      margin + progressW - 16,
+      summaryY + progressH - 24,
+      8,
+      COLORS.blue,
+      'bold',
+      'right',
+    );
+    progressBar(margin + 16, summaryY + progressH - 44, progressW - 32, 6, payload.paymentProgress);
+    if (!isPaid) {
+      text(`${money(currencyCode, payload.paid)} pagado`, margin + 16, summaryY + 24, 7.8, COLORS.muted);
+      text(
+        `${money(currencyCode, payload.balanceDue)} pendiente`,
+        margin + progressW - 16,
+        summaryY + 24,
+        7.8,
+        COLORS.muted,
+        'normal',
+        'right',
+      );
+    }
+
+    if (!isPaid) {
+      const bannerH = 46;
+      const bannerY = summaryY - 12 - bannerH;
+      gradientRect(margin, bannerY, contentW, bannerH, 16);
+      text(payload.balanceLabel, margin + 20, bannerY + 28, 8, '#E0E7FF', 'bold');
+      text(
+        money(currencyCode, payload.balanceDue),
+        margin + 20,
+        bannerY + 10,
+        14,
+        COLORS.white,
+        'bold',
+      );
+      text(payload.dueText, margin + contentW - 20, bannerY + 16, 7.5, '#E0E7FF', 'normal', 'right');
+    }
+
+    drawFooter();
+  };
+
+  const drawContinuationPage = (
+    items: FintechInvoiceItem[],
+    startIndex: number,
+    totalItems: number,
+  ) => {
+    doc.addPage('a4', 'portrait');
+    drawBackground();
+
+    const margin = 42;
+    const contentW = W - 2 * margin;
+    const contextH = 28;
+    const cardH = 52 + contextH + 30 + items.length * ROW_STEP + 18;
+    const cardY = 128;
+    shadowCard(margin, cardY, contentW, cardH, 16);
+
+    const startNum = startIndex + 1;
+    const endNum = startIndex + items.length;
+    text(
+      'Detalle de servicios (continuación)',
+      margin + 16,
+      cardY + cardH - 26,
+      11,
+      COLORS.ink,
+      'bold',
+    );
+    text(
+      `Conceptos ${startNum}–${endNum} de ${totalItems}`,
+      margin + contentW - 16,
+      cardY + cardH - 24,
+      7.5,
       COLORS.muted,
       'normal',
       'right',
     );
-
-    const bannerY = summaryY - 78;
-    gradientRect(margin, bannerY, contentW, 58, 20);
-    text(payload.balanceLabel, margin + 24, bannerY + 34, 9.2, '#E0E7FF', 'bold');
     text(
-      money(
-        currencyCode,
-        payload.balanceDue > 0 ? payload.balanceDue : payload.total,
-      ),
-      margin + 24,
-      bannerY + 13,
-      18.5,
-      COLORS.white,
-      'bold',
+      `${payload.client.name} · Ticket #${payload.ticketNumber} · ${payload.issueDate}`,
+      margin + 16,
+      cardY + cardH - 44,
+      7.5,
+      COLORS.muted,
     );
-    text(payload.dueText, margin + contentW - 24, bannerY + 20, 8.2, '#E0E7FF', 'normal', 'right');
 
-    drawFooter();
-  };
-
-  const drawContinuationPage = (items: FintechInvoiceItem[]) => {
-    doc.addPage('a4', 'portrait');
-    drawBackground();
-    const margin = 42;
-    const contentW = W - 2 * margin;
-    const cardY = 160;
-    const cardH = 610;
-    shadowCard(margin, cardY, contentW, cardH, 18);
-    text('Detalle de servicios', margin + 20, cardY + cardH - 30, 13.5, COLORS.ink, 'bold');
-    text(conceptLabel(items.length), margin + contentW - 20, cardY + cardH - 28, 8.5, COLORS.muted, 'normal', 'right');
     const headerRowY = cardY + cardH - 72;
-    rr(margin + 14, headerRowY, contentW - 28, 36, 12, COLORS.tableHead, null);
-    label('Núm.', margin + 28, headerRowY + 13);
-    label('Servicio', margin + 80, headerRowY + 13);
-    label('Cant.', margin + contentW - 248, headerRowY + 13);
-    label('Precio', margin + contentW - 160, headerRowY + 13);
-    label('Importe', margin + contentW - 74, headerRowY + 13);
-    drawServiceRows(items, cardY + cardH - 118, contentW, margin, 12);
+    rr(margin + 14, headerRowY, contentW - 28, 30, 10, COLORS.tableHead, null);
+    label('Servicio', margin + 22, headerRowY + 11);
+    label('Cant.', margin + contentW - 248, headerRowY + 11);
+    label('Precio', margin + contentW - 160, headerRowY + 11);
+    label('Importe', margin + contentW - 74, headerRowY + 11);
+    drawServiceRows(items, headerRowY - 8, contentW, margin, items.length);
     drawFooter();
   };
 
   drawMainPage();
-  const remainingItems = payload.items.slice(2);
-  for (let index = 0; index < remainingItems.length; index += 12) {
-    drawContinuationPage(remainingItems.slice(index, index + 12));
+  const remainingItems = payload.items.slice(MAIN_PAGE_MAX_ROWS);
+  for (let index = 0; index < remainingItems.length; index += CONTINUATION_PAGE_MAX_ROWS) {
+    drawContinuationPage(
+      remainingItems.slice(index, index + CONTINUATION_PAGE_MAX_ROWS),
+      MAIN_PAGE_MAX_ROWS + index,
+      payload.items.length,
+    );
   }
 
   return doc.output('arraybuffer');

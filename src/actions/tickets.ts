@@ -8,6 +8,7 @@ import {
   ticket,
   ticketAuditEvent,
   ticketPayment,
+  type Client,
   type Company,
   type Service,
   type ServicesTicketsRow,
@@ -88,6 +89,7 @@ export type Ticket = {
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
 export type TicketDetailData = TicketRow & {
   company: Company | null;
+  client?: Client | null;
   /** Creator at ticket create time (not an assignee workflow). */
   User?: Pick<User, 'id' | 'name' | 'email'> | null;
   services_tickets: Array<
@@ -394,6 +396,7 @@ export async function getTicketById(
             ),
       with: {
         company: true,
+        client: true,
         User: {
           columns: {
             id: true,

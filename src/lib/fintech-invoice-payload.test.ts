@@ -98,6 +98,112 @@ describe('fintech invoice payload', () => {
     expect(payload.balanceLabel).toBe('TOTAL DEL TICKET');
     expect(payload.paymentProgress).toBe(1);
     expect(payload.balanceDue).toBe(0);
+    expect(payload.hasAdjustment).toBe(false);
+  });
+
+  it('exposes adjustment when ticket total differs from line items', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        total: 600_882.97,
+        paid: 600_882.97,
+        services_tickets: [
+          {
+            id: 1,
+            service_id: 10,
+            ticket_id: 2n,
+            quantity: 1,
+            price: 500_000,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: {
+              id: 10,
+              name: 'Limpieza juego de salas',
+              description: 'Limpieza profunda',
+              price: 500_000,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+          {
+            id: 2,
+            service_id: 11,
+            ticket_id: 2n,
+            quantity: 1,
+            price: 700,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: {
+              id: 11,
+              name: 'Mantenimiento A/C',
+              description: 'Description for Mantenimiento A/C',
+              price: 700,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+          {
+            id: 3,
+            service_id: 12,
+            ticket_id: 2n,
+            quantity: 3,
+            price: 60.99,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: {
+              id: 12,
+              name: 'Limpiar alfombras',
+              description: 'Alfombras limpias',
+              price: 60.99,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(payload.subtotal).toBe(500_882.97);
+    expect(payload.total).toBe(600_882.97);
+    expect(payload.adjustmentAmount).toBe(100_000);
+    expect(payload.hasAdjustment).toBe(true);
+  });
+
+  it('uses linked client country when available', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        client: {
+          id: 7,
+          name: 'TELMEX 1',
+          email: null,
+          phone: '9613151559',
+          document: null,
+          address: null,
+          street: null,
+          exterior_number: null,
+          interior_number: null,
+          neighborhood: null,
+          city: null,
+          state: null,
+          postal_code: null,
+          country: 'Puerto Rico',
+          created_at: new Date(),
+          updated_at: null,
+          deleted_at: null,
+          company_id: 1,
+        },
+      }),
+    );
+
+    expect(payload.client.country).toBe('Puerto Rico');
   });
 
   it('falls back cleanly when optional company, client, and service data is missing', () => {
@@ -127,7 +233,7 @@ describe('fintech invoice payload', () => {
 
     expect(payload.client.name).toBe('Cliente');
     expect(payload.client.phone).toBe('Sin teléfono');
-    expect(payload.client.statusLabel).toBe('Cliente nuevo');
+    expect(payload.client.country).toBeNull();
     expect(payload.issuer.name).toBe('SOLUCIONES CHANO');
     expect(payload.issuer.logoUrl).toBeNull();
     expect(payload.total).toBe(100);
