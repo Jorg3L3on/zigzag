@@ -143,6 +143,10 @@ export const user = pgTable(
     uniqueIndex('User_email_key').on(t.email),
     index('User_company_id_idx').on(t.company_id),
     index('User_role_id_idx').on(t.role_id),
+    // Active roster: company_id + deleted_at IS NULL + ORDER BY created_at
+    index('User_company_id_created_at_active_idx')
+      .on(t.company_id, t.created_at)
+      .where(sql`${t.deleted_at} is null`),
   ],
 );
 
@@ -173,6 +177,10 @@ export const client = pgTable(
   (t) => [
     index('Client_company_id_idx').on(t.company_id),
     index('Client_company_id_created_at_idx').on(t.company_id, t.created_at),
+    // Active list: company_id + deleted_at IS NULL + ORDER BY created_at
+    index('Client_company_id_created_at_active_idx')
+      .on(t.company_id, t.created_at)
+      .where(sql`${t.deleted_at} is null`),
   ],
 );
 
@@ -190,7 +198,13 @@ export const service = pgTable(
     deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
     company_id: integer('company_id'),
   },
-  (t) => [index('Service_company_id_idx').on(t.company_id)],
+  (t) => [
+    index('Service_company_id_idx').on(t.company_id),
+    // Active catalog: company_id + deleted_at IS NULL + ORDER BY created_at
+    index('Service_company_id_created_at_active_idx')
+      .on(t.company_id, t.created_at)
+      .where(sql`${t.deleted_at} is null`),
+  ],
 );
 
 export const ticket = pgTable(
@@ -219,6 +233,14 @@ export const ticket = pgTable(
     index('Ticket_client_id_idx').on(t.client_id),
     index('Ticket_company_id_created_at_idx').on(t.company_id, t.created_at),
     index('Ticket_company_id_finished_idx').on(t.company_id, t.finished),
+    // Active list: company_id + deleted_at IS NULL + ORDER BY created_at
+    index('Ticket_company_id_created_at_active_idx')
+      .on(t.company_id, t.created_at)
+      .where(sql`${t.deleted_at} is null`),
+    // Finished filter on active tickets (dashboard / list chips)
+    index('Ticket_company_id_finished_active_idx')
+      .on(t.company_id, t.finished)
+      .where(sql`${t.deleted_at} is null`),
   ],
 );
 
@@ -306,6 +328,16 @@ export const ticketAuditEvent = pgTable(
     index('TicketAuditEvent_ticket_id_idx').on(t.ticket_id),
     index('TicketAuditEvent_company_id_idx').on(t.company_id),
     index('TicketAuditEvent_actor_user_id_idx').on(t.actor_user_id),
+    // Ticket history: ticket_id + ORDER BY created_at DESC
+    index('TicketAuditEvent_ticket_id_created_at_idx').on(
+      t.ticket_id,
+      t.created_at,
+    ),
+    // Tenant-scoped audit browse: company_id + ORDER BY created_at DESC
+    index('TicketAuditEvent_company_id_created_at_idx').on(
+      t.company_id,
+      t.created_at,
+    ),
   ],
 );
 

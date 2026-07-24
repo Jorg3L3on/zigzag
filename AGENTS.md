@@ -24,8 +24,9 @@ npm run test:watch              # Watch mode
 npm run test:coverage           # Coverage report
 npm run test:e2e                # Playwright E2E (prod build on port 3070; PLAYWRIGHT_USE_DEV=1 for turbopack dev)
 npm run lighthouse:mobile       # Lighthouse mobile baseline (prod server on 3070; needs E2E creds)
+npm run seed:perf               # 10k tickets / 1k clients for query-budget baseline
+npm run query:audit             # EXPLAIN ANALYZE + ms budgets (docs/query-budget.md)
 ```
-
 > **Database:** PostgreSQL. Use a `postgresql://...` URL in `DATABASE_URL`; production migrations should prefer `DIRECT_URL`. The database name in examples is **`zigzag`**.
 
 ## Architecture
