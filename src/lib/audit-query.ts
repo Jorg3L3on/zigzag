@@ -4,6 +4,7 @@ import {
   eq,
   gte,
   ilike,
+  inArray,
   lt,
   lte,
   or,
@@ -22,8 +23,12 @@ export type AuditEventFilters = {
   targetCompanyId?: number;
   actorUserId?: string;
   resourceType?: string;
+  /** Optional multi-type filter (AND with single resourceType if both set). */
+  resourceTypes?: string[];
   resourceId?: string;
   action?: string;
+  /** Optional multi-action filter. */
+  actions?: string[];
   result?: string;
   from?: Date;
   to?: Date;
@@ -79,7 +84,15 @@ export const normalizeAuditEventFilters = (
     invalid = true;
   }
 
+  if (filters.resourceTypes?.some((value) => !isKnownValue(AUDIT_RESOURCE_TYPES, value))) {
+    invalid = true;
+  }
+
   if (filters.action && !isKnownValue(AUDIT_ACTIONS, filters.action)) {
+    invalid = true;
+  }
+
+  if (filters.actions?.some((value) => !isKnownValue(AUDIT_ACTIONS, value))) {
     invalid = true;
   }
 
@@ -112,11 +125,17 @@ const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   if (normalized.resourceType) {
     conditions.push(eq(auditEvent.resource_type, normalized.resourceType));
   }
+  if (normalized.resourceTypes && normalized.resourceTypes.length > 0) {
+    conditions.push(inArray(auditEvent.resource_type, normalized.resourceTypes));
+  }
   if (normalized.resourceId) {
     conditions.push(eq(auditEvent.resource_id, normalized.resourceId));
   }
   if (normalized.action) {
     conditions.push(eq(auditEvent.action, normalized.action));
+  }
+  if (normalized.actions && normalized.actions.length > 0) {
+    conditions.push(inArray(auditEvent.action, normalized.actions));
   }
   if (normalized.result) {
     conditions.push(eq(auditEvent.result, normalized.result));

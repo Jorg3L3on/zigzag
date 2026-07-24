@@ -33,7 +33,7 @@ export const DashboardOnboardingHelp = ({
 }: DashboardOnboardingHelpProps) => {
   if (needsCompanyContext) {
     return (
-      <section className="rounded-xl border border-dashed bg-muted/20 p-4">
+      <section className="rounded-xl border border-border/50 bg-muted/15 p-4 sm:p-5">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold">Selecciona una empresa</h2>
           <p className="text-sm text-muted-foreground">
@@ -51,8 +51,8 @@ export const DashboardOnboardingHelp = ({
   }
 
   return (
-    <section className="rounded-xl border border-dashed bg-muted/20 p-4">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+    <section className="rounded-xl border border-border/50 bg-muted/15 p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold">Inicio rápido</h2>
           <p className="text-sm text-muted-foreground">
@@ -105,7 +105,7 @@ export const DashboardOnboardingHelp = ({
           return (
             <li
               key={step.key}
-              className="min-w-0 rounded-lg border bg-background/70 p-3"
+              className="min-w-0 rounded-lg border border-border/40 bg-background/60 p-3"
             >
               <div className="flex items-start gap-2">
                 <Icon

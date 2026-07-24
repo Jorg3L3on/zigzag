@@ -9,6 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { CalendarClock, Plus, Search } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ import {
 } from '@/lib/network-awareness';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { ScheduleFilterBucket } from '@/lib/schedule-buckets';
+import { isScheduleFilterBucket } from '@/lib/schedule-buckets';
 import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
 import { Badge } from '@/components/ui/badge';
@@ -79,10 +81,16 @@ export const ServiceSchedulesList = () => {
     selectedCompany?.id,
   );
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [items, setItems] = React.useState<ClientServiceScheduleListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [filter, setFilter] = React.useState<ScheduleFilterBucket>('todos');
+  const [filter, setFilter] = React.useState<ScheduleFilterBucket>(() => {
+    const raw = searchParams.get('filter');
+    return raw && isScheduleFilterBucket(raw) ? raw : 'todos';
+  });
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [sorting, setSorting] = React.useState<SortingState>(DEFAULT_SORTING);
@@ -92,6 +100,29 @@ export const ServiceSchedulesList = () => {
   const [deleteTarget, setDeleteTarget] =
     React.useState<ClientServiceScheduleListItem | null>(null);
   const [actionLoading, setActionLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    const raw = searchParams.get('filter');
+    const next = raw && isScheduleFilterBucket(raw) ? raw : 'todos';
+    setFilter(next);
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (filter === 'todos') {
+      params.delete('filter');
+    } else {
+      params.set('filter', filter);
+    }
+    const nextQuery = params.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery === currentQuery) {
+      return;
+    }
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [filter, pathname, router, searchParams]);
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(

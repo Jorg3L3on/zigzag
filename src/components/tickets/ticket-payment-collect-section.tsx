@@ -1,7 +1,7 @@
 'use client';
 
-import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import * as React from 'react';
 import { toast } from 'sonner';
 import { applyTicketPayment } from '@/actions/tickets';
 import { Button } from '@/components/ui/button';
@@ -117,13 +117,12 @@ export const TicketPaymentCollectSection = ({
   }
 
   return (
-    <div className="space-y-3" id="cobranza">
-      <label className="text-sm font-medium text-foreground">Cobranza</label>
+    <div className="space-y-4" id="cobranza">
       {paymentStatus === 'paid' ? (
-        <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-2">
+        <div className="grid gap-3 rounded-lg bg-muted/40 p-4 sm:grid-cols-2">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Total cobrado</p>
-            <p className="font-medium">
+            <p className="font-medium tabular-nums">
               <FormattedCurrency amount={paid} />
             </p>
           </div>
@@ -132,37 +131,35 @@ export const TicketPaymentCollectSection = ({
             <p className="font-medium text-emerald-700 dark:text-emerald-300">
               Pago completado
             </p>
-            <p className="text-xs text-muted-foreground">
-              Sin saldo pendiente
-            </p>
+            <p className="text-xs text-muted-foreground">Sin saldo pendiente</p>
           </div>
         </div>
       ) : paymentStatus === 'partial' ? (
-        <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-lg bg-muted/40 p-4 sm:grid-cols-3">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Pagado</p>
-            <p className="font-medium">
+            <p className="font-medium tabular-nums">
               <FormattedCurrency amount={paid} />
             </p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Saldo pendiente</p>
-            <p className="font-medium">
+            <p className="font-medium tabular-nums">
               <FormattedCurrency amount={balanceDue} />
             </p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Total</p>
-            <p className="font-medium">
+            <p className="font-medium tabular-nums">
               <FormattedCurrency amount={total} />
             </p>
           </div>
         </div>
       ) : (
-        <div className="grid gap-3 rounded-md border-2 border-muted bg-muted/30 p-4 sm:grid-cols-2">
+        <div className="grid gap-3 rounded-lg bg-muted/40 p-4 sm:grid-cols-2">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Total a cobrar</p>
-            <p className="font-medium">
+            <p className="font-medium tabular-nums">
               <FormattedCurrency amount={total} />
             </p>
           </div>
@@ -174,9 +171,7 @@ export const TicketPaymentCollectSection = ({
       )}
 
       <div className="space-y-2">
-        <p className="text-sm font-medium text-foreground">
-          Historial de abonos
-        </p>
+        <p className="text-sm font-medium text-foreground">Historial de abonos</p>
         {payments.length === 0 ? (
           <TripledEmptyState
             icon={<Wallet className="h-4 w-4" />}
@@ -185,7 +180,7 @@ export const TicketPaymentCollectSection = ({
           />
         ) : (
           <>
-            <ul className="divide-y divide-border rounded-md border md:hidden">
+            <ul className="divide-y divide-border/60 rounded-lg border border-border/60 md:hidden">
               {payments.map((row) => {
                 const paymentDate =
                   typeof row.created_at === 'string'
@@ -208,44 +203,42 @@ export const TicketPaymentCollectSection = ({
               })}
             </ul>
 
-            <div className="hidden rounded-md border md:block">
+            <div className="hidden overflow-hidden rounded-lg border border-border/60 md:block">
               <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-muted-foreground">
-                      <FormattedDate
-                        withTime
-                        date={
-                          typeof row.created_at === 'string'
-                            ? new Date(row.created_at)
-                            : row.created_at
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      <FormattedCurrency amount={row.amount} />
-                    </TableCell>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
+                </TableHeader>
+                <TableBody>
+                  {payments.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="text-muted-foreground">
+                        <FormattedDate
+                          withTime
+                          date={
+                            typeof row.created_at === 'string'
+                              ? new Date(row.created_at)
+                              : row.created_at
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        <FormattedCurrency amount={row.amount} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
               </Table>
             </div>
           </>
         )}
       </div>
 
-      {showCollectUi && (
-        <div className="space-y-3 rounded-md border bg-background p-4">
-          <p className="text-sm font-medium text-foreground">
-            Registrar cobro
-          </p>
+      {showCollectUi ? (
+        <div className="space-y-3 rounded-lg border border-border/60 bg-background p-4">
+          <p className="text-sm font-medium text-foreground">Registrar cobro</p>
           <p className="text-xs text-muted-foreground">
             Puedes abonar una parte del saldo o saldar el ticket por completo.
           </p>
@@ -299,7 +292,7 @@ export const TicketPaymentCollectSection = ({
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
