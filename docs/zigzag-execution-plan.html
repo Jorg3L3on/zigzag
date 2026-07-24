@@ -222,11 +222,11 @@
   <div class="audit-banner">
     <div class="audit-banner-title">Coverage snapshot — zigzag @ main (July 2026)</div>
     <div class="audit-stats">
-      <span><span class="status-badge st-done">8 Done</span></span>
+      <span><span class="status-badge st-done">9 Done</span></span>
       <span><span class="status-badge st-partial">4 Partial</span></span>
       <span><span class="status-badge st-open">1 Not started</span></span>
     </div>
-    <div class="audit-banner-meta">Security foundation (IDOR + Server Actions) is shipped. DB-backed plans (1.3) and component decomposition (2.1) are complete. Self-serve signup removed from scope.</div>
+    <div class="audit-banner-meta">Security foundation (IDOR + Server Actions) is shipped. DB-backed plans (1.3), query budget (2.2), and request correlation (3.2) are complete. Self-serve signup removed from scope.</div>
   </div>
 
   <!-- Summary -->
@@ -240,7 +240,7 @@
       <span class="summary-label">Phase 2 · Architecture</span>
     </div>
     <div class="summary-cell">
-      <span class="summary-num" style="color:var(--blue)">0<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
+      <span class="summary-num" style="color:var(--blue)">2<span style="font-size:16px;color:var(--text-muted)">/3</span></span>
       <span class="summary-label">Phase 3 · Quality</span>
     </div>
     <div class="summary-cell">
@@ -520,7 +520,7 @@
     <div class="phase-header">
       <span class="phase-num ph-3">PHASE 3</span>
       <span class="phase-title">Quality &amp; Observability — Know when things break</span>
-      <span class="phase-status">1 done · 2 partial · 0 open</span>
+      <span class="phase-status">2 done · 1 partial · 0 open</span>
       <span class="phase-timeline">~1–2 weeks</span>
     </div>
     <p class="phase-intro">
@@ -574,20 +574,20 @@
             </div>
           </div>
           <div class="task-meta">
-            <span class="status-badge st-partial">Partial</span>
+            <span class="status-badge st-done">Done</span>
             <span class="effort-badge ef-s">Small</span>
             <span class="score-change">↑ Observability 7→9</span>
           </div>
         </div>
-        <div class="coverage-note"><strong>Evidence:</strong> <code>logger.ts</code> + <code>correlationId()</code> exist. Missing <code>x-request-id</code> header propagation, request threading through routes/actions, health endpoint request ID, <code>docs/observability.md</code>.</div>
+        <div class="coverage-note"><strong>Evidence:</strong> <code>src/lib/request-context.ts</code> + ALS bind in <code>requireActionAuth</code>/<code>requireSession</code>; <code>src/proxy.ts</code> propagates <code>x-request-id</code> for pages and <code>/api/*</code>; health echoes id; <code>docs/observability.md</code>. Shipped Jul 2026.</div>
         <div class="task-criteria">
           <div class="criteria-label">Acceptance criteria</div>
           <ul class="criteria-list">
-            <li class="open">Every incoming request gets a <code>x-request-id</code> header (generated if absent)</li>
-            <li class="open">Request ID threaded through all logger calls in API routes and Server Actions</li>
-            <li class="partial">Sentry <code>captureException</code> calls include <code>requestId</code> in context — Sentry wired, requestId not threaded</li>
-            <li class="open"><code>/api/health</code> returns request ID in response for smoke-test traceability</li>
-            <li class="open">Log format documented in <code>docs/observability.md</code></li>
+            <li class="done">Every incoming request gets a <code>x-request-id</code> header (generated if absent)</li>
+            <li class="done">Request ID threaded through all logger calls in API routes and Server Actions</li>
+            <li class="done">Sentry <code>captureException</code> calls include <code>requestId</code> in context</li>
+            <li class="done"><code>/api/health</code> returns request ID in response for smoke-test traceability</li>
+            <li class="done">Log format documented in <code>docs/observability.md</code></li>
           </ul>
         </div>
       </div>
@@ -743,7 +743,7 @@
     <strong style="color:var(--text-secondary)">What this plan does not include:</strong> Stripe, subscription lifecycle, transactional email, password reset flow, self-serve signup — those are a separate workstream.
     Complete this plan first; the commercial layer lands on top of a trustworthy foundation.
     <br><br>
-    <strong style="color:var(--text-secondary)">Recommended next:</strong> 3.2 Request correlation IDs → 4.3 Mobile core-flow E2E → 2.3 RBAC matrix.
+    <strong style="color:var(--text-secondary)">Recommended next:</strong> 4.3 Mobile core-flow E2E → 2.3 RBAC matrix → 2.4 Error shape unification.
     <br><br>
     ZigZag codebase · ~444 source files · 20 DB migrations · Status audited 2026-07-10
   </div>

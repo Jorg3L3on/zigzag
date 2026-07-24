@@ -14,6 +14,11 @@ import { resolveWritableCompanyId } from '@/lib/authz-context';
 import { convertBigIntToString } from '@/lib/utils';
 import { recordPermissionDeniedAudit } from '@/lib/audit-security';
 import { checkRateLimit, type RateLimitOptions } from '@/lib/rate-limiter';
+import {
+  REQUEST_ID_HEADER,
+  bindRequestContextFromHeaders,
+  getRequestId,
+} from '@/lib/request-context';
 
 /** Default budget for authenticated API writes: generous, abuse-stopping. */
 const DEFAULT_API_RATE_LIMIT: RateLimitOptions = {
@@ -36,10 +41,20 @@ export async function enforceApiRateLimit(
   return null;
 }
 
+const attachRequestIdHeader = (response: NextResponse): NextResponse => {
+  const requestId = getRequestId();
+  if (requestId) {
+    response.headers.set(REQUEST_ID_HEADER, requestId);
+  }
+  return response;
+};
+
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json(
-    { success: true, data: convertBigIntToString(data) },
-    { status },
+  return attachRequestIdHeader(
+    NextResponse.json(
+      { success: true, data: convertBigIntToString(data) },
+      { status },
+    ),
   );
 }
 
@@ -50,24 +65,29 @@ export function fail(
 ) {
   if (isErrorCode(error)) {
     const payload = buildPublicError(error);
-    return NextResponse.json(
-      {
-        success: false,
-        ...payload,
-        ...(errorType ? { errorType } : {}),
-      },
-      { status },
+    return attachRequestIdHeader(
+      NextResponse.json(
+        {
+          success: false,
+          ...payload,
+          ...(errorType ? { errorType } : {}),
+        },
+        { status },
+      ),
     );
   }
 
   const payload = buildPublicError('GN001', undefined, errorType);
-  return NextResponse.json(
-    { success: false, ...payload, ...(errorType ? { errorType } : {}) },
-    { status },
+  return attachRequestIdHeader(
+    NextResponse.json(
+      { success: false, ...payload, ...(errorType ? { errorType } : {}) },
+      { status },
+    ),
   );
 }
 
 export async function requireSession() {
+  await bindRequestContextFromHeaders();
   const session = await auth();
   if (!session?.user?.id) {
     return { session: null, unauthorized: fail('AU001', 401) };

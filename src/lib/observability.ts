@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { logger, type LogMeta } from '@/lib/logger';
+import { getRequestId } from '@/lib/request-context';
 
 let initialized = false;
 
@@ -25,19 +26,39 @@ export const initObservability = (): void => {
   });
 };
 
+const withRequestMeta = (meta?: LogMeta): LogMeta => {
+  const requestId =
+    (typeof meta?.requestId === 'string' ? meta.requestId : undefined) ??
+    getRequestId();
+  if (!requestId) {
+    return { ...meta };
+  }
+  return { ...meta, requestId };
+};
+
 /**
  * Report an unexpected error to Sentry (when configured) and always emit a
- * structured error log. Returns a correlation id when one is supplied in meta.
+ * structured error log. Includes `requestId` from meta or the active request
+ * context when available.
  */
 export const captureException = (error: unknown, meta?: LogMeta): void => {
+  const enriched = withRequestMeta(meta);
   try {
-    Sentry.captureException(error, meta ? { extra: meta } : undefined);
+    Sentry.withScope((scope) => {
+      if (typeof enriched.requestId === 'string') {
+        scope.setTag('requestId', enriched.requestId);
+        scope.setContext('request', { requestId: enriched.requestId });
+      }
+      Sentry.captureException(error, {
+        extra: enriched,
+      });
+    });
   } catch {
     // Never let observability throw into the request path.
   }
   logger.error(
     error instanceof Error ? error.message : 'Unhandled error',
-    { ...meta, error },
+    { ...enriched, error },
   );
 };
 
@@ -58,15 +79,16 @@ export const withSpan = async <T>(
   meta?: LogMeta,
 ): Promise<T> => {
   const start = Date.now();
+  const enriched = withRequestMeta(meta);
   try {
     return await Sentry.startSpan({ name, op: 'function' }, () => operation());
   } catch (error) {
-    captureException(error, { span: name, ...meta });
+    captureException(error, { span: name, ...enriched });
     throw error;
   } finally {
     const durationMs = Date.now() - start;
     if (durationMs >= SLOW_SPAN_MS) {
-      logger.warn('Slow operation', { span: name, durationMs, ...meta });
+      logger.warn('Slow operation', { span: name, durationMs, ...enriched });
     }
   }
 };

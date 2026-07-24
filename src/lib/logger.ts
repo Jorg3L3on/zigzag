@@ -1,23 +1,17 @@
 /**
  * Lightweight structured (JSON) logger. Isomorphic and dependency-free so it is
- * safe to import from anywhere. Pairs with `correlationId()` to thread a request
- * id through logs for a single operation.
+ * safe to import from anywhere. Automatically attaches `requestId` when a
+ * request context is bound (see `request-context.ts`).
  */
+
+import { getRequestId } from '@/lib/request-context';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export type LogMeta = Record<string, unknown>;
 
-/** Generate a correlation/request id for tracing a single operation. */
-export const correlationId = (): string => {
-  try {
-    return crypto.randomUUID();
-  } catch {
-    return `req_${Date.now().toString(36)}_${Math.random()
-      .toString(36)
-      .slice(2, 10)}`;
-  }
-};
+/** @deprecated Prefer importing from `@/lib/request-context`. */
+export { correlationId } from '@/lib/request-context';
 
 const serialize = (value: unknown): unknown => {
   if (value instanceof Error) {
@@ -35,6 +29,12 @@ const emit = (level: LogLevel, message: string, meta?: LogMeta): void => {
     message,
     time: new Date().toISOString(),
   };
+
+  const contextRequestId = getRequestId();
+  if (contextRequestId && meta?.requestId === undefined) {
+    entry.requestId = contextRequestId;
+  }
+
   if (meta) {
     for (const [key, value] of Object.entries(meta)) {
       entry[key] = serialize(value);

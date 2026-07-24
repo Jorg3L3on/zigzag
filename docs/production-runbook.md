@@ -40,7 +40,7 @@ Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so inco
 
 ## Incident Response
 
-1. Check Vercel logs for request errors and `[HEALTH_CHECK]`, `[auth]`, or route-specific log prefixes.
+1. Check Vercel logs for request errors and `[HEALTH_CHECK]`, `[auth]`, or route-specific log prefixes. Grep by `requestId` / `x-request-id` (see [observability.md](observability.md)); `/api/health` returns the id in JSON for smoke tests.
 2. Check Neon availability, connection limits, and recent migration history.
 3. Disable affected credentials or users if auth abuse is suspected.
 4. Preserve ticket/payment audit data; do not edit or delete `TicketAuditEvent` rows during triage.

@@ -74,6 +74,11 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - Server actions should use `handleServerActionError()` or the established `{ success, data?, error?, errorType? }` shape.
 - User-facing codes: `src/lib/error-catalog.ts` (55 codes).
 
+### Observability
+- `src/proxy.ts` sets `x-request-id` on app and API requests/responses (generated if absent).
+- `requireActionAuth` / `requireSession` bind the id into request context so `logger` and `captureException` include `requestId` automatically.
+- `/api/health` returns `requestId` in JSON for smoke-test correlation. See [docs/observability.md](docs/observability.md).
+
 ### Production constraints
 - Drizzle is the only schema, migration, and seed workflow.
 - PDF files are generated on demand from ticket data; production routes must not accept uploaded PDFs.
