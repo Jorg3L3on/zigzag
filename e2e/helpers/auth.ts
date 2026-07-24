@@ -1,5 +1,8 @@
 import { expect, type Page } from '@playwright/test';
-import { DEMO_COMPANY_NAME } from '../../src/lib/demo-company';
+import {
+  DEMO_COMPANY_NAME,
+  DEMO_VIEWER_EMAIL,
+} from '../../src/lib/demo-company';
 
 export const e2eEmail = process.env.E2E_EMAIL;
 export const e2ePassword = process.env.E2E_PASSWORD;
@@ -8,7 +11,8 @@ export const e2eSystemEmail = process.env.E2E_SYSTEM_EMAIL ?? 'jorge@jorge.com';
 export const e2eSystemPassword =
   process.env.E2E_SYSTEM_PASSWORD ?? process.env.E2E_PASSWORD;
 
-export const e2eViewerEmail = process.env.E2E_VIEWER_EMAIL ?? 'viewer@test.com';
+/** Must match `e2e/global-setup.ts` (defaults to DEMO_VIEWER_EMAIL). */
+export const e2eViewerEmail = process.env.E2E_VIEWER_EMAIL ?? DEMO_VIEWER_EMAIL;
 export const e2eViewerPassword =
   process.env.E2E_VIEWER_PASSWORD ?? process.env.E2E_PASSWORD;
 
@@ -33,6 +37,9 @@ export const loginAs = async (
   password: string,
   expectedLandingPath: RegExp = /\/dashboard/,
 ) => {
+  // Drop any prior session so /login always shows the form (needed when a
+  // suite logs in as tenant admin then switches to system/viewer).
+  await page.context().clearCookies();
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
   await page.locator('#email').waitFor({ state: 'visible', timeout: 30_000 });
   await page

@@ -30,9 +30,10 @@ test.describe('Mobile dashboard redesign', () => {
     await page.goto('/clients/new');
 
     await expect(visibleMobileAppBar(page).getByText('Nuevo cliente')).toBeVisible();
-    await expect(page.getByText('Información del cliente')).toBeVisible();
-    await expect(page.getByLabel('Nombre')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Crear' })).toBeVisible();
+    // Responsive layouts may mount duplicate section titles; scope to first.
+    await expect(page.getByText('Información del cliente').first()).toBeVisible();
+    await expect(page.getByLabel('Nombre').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Crear' }).first()).toBeVisible();
   });
 
   test('shows mobile-first admin list controls', async ({ page }) => {
@@ -45,10 +46,10 @@ test.describe('Mobile dashboard redesign', () => {
 
     await expect(visiblePageHeader(page).getByText('Usuarios')).toBeVisible();
     await expect(
-      page.getByPlaceholder('Buscar por nombre, correo, empresa, rol o ID...'),
+      page.getByRole('textbox', { name: 'Buscar usuarios' }).first(),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /Filtrar correo:/i })).toHaveCount(3);
-    await expect(page.getByText(/de \d+ usuarios/)).toBeVisible();
+    await expect(page.getByText(/de \d+ usuarios/).first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 
@@ -56,7 +57,7 @@ test.describe('Mobile dashboard redesign', () => {
     await page.goto('/account');
 
     await expect(visibleMobileAppBar(page).getByText('Mi cuenta')).toBeVisible();
-    await expect(page.getByText('Perfil y empresa')).toBeVisible();
-    await expect(page.getByText('Empresa', { exact: true })).toBeVisible();
+    await expect(page.getByText('Perfil y empresa').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible();
   });
 });
