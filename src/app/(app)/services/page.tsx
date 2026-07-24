@@ -37,15 +37,19 @@ export default async function ServicesPage() {
           icon={<Wrench className="size-5" aria-hidden />}
           action={
             canWriteServices ? (
-              <Link
-                href="/services/new"
-                className="w-full shrink-0 sm:w-auto sm:self-start"
+              <Button
+                asChild
+                className="min-h-11 w-full gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold shadow-sm hover:bg-primary/90 sm:w-auto sm:self-start"
               >
-                <Button className="min-h-11 w-full gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold shadow-sm hover:bg-primary/90 sm:w-auto">
-                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                <Link href="/services/new">
+                  <Plus
+                    className="h-4 w-4 shrink-0"
+                    aria-hidden
+                    data-icon="inline-start"
+                  />
                   Nuevo servicio
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             ) : null
           }
         >

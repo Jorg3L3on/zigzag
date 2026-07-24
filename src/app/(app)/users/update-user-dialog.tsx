@@ -215,7 +215,7 @@ export function UpdateUserDialog({
                 <FormItem>
                   <FormLabel>Nombre</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} autoComplete="name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -228,7 +228,7 @@ export function UpdateUserDialog({
                 <FormItem>
                   <FormLabel>Correo Electrónico</FormLabel>
                   <FormControl>
-                    <Input {...field} type="email" />
+                    <Input {...field} type="email" autoComplete="email" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -243,6 +243,7 @@ export function UpdateUserDialog({
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      aria-label="Cambiar Contraseña"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
@@ -296,7 +297,7 @@ export function UpdateUserDialog({
                     value={field.value ? field.value.toString() : undefined}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Empresa">
                         <SelectValue placeholder="Selecciona una empresa" />
                       </SelectTrigger>
                     </FormControl>
@@ -329,7 +330,7 @@ export function UpdateUserDialog({
                     disabled={!form.getValues('company_id')}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Rol">
                         <SelectValue placeholder="Selecciona un rol" />
                       </SelectTrigger>
                     </FormControl>

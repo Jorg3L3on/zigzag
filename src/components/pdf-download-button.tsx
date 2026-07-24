@@ -84,9 +84,9 @@ export function PDFDownloadButton({
             )}
           >
             {isGenerating ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden data-icon="inline-start"/>
             ) : (
-              <Download className="h-4 w-4 shrink-0" aria-hidden />
+              <Download className="h-4 w-4 shrink-0" aria-hidden  data-icon="inline-start" />
             )}
           </Button>
         </TooltipTrigger>

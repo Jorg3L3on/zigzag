@@ -337,7 +337,7 @@ export function RolesList() {
                 onClick={handleClearFilters}
                 aria-label="Limpiar filtros de roles"
               >
-                <X className="mr-2 h-4 w-4" aria-hidden />
+                <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
                 Limpiar filtros
               </Button>
             ) : null}
@@ -453,7 +453,9 @@ export function RolesList() {
                         </p>
                       </div>
                       {canWriteRoles ? (
-                        <div onClick={(event) => event.stopPropagation()}>
+                        <div
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
                         <RoleActionsMenu
                           onEditRequest={() => openEdit(roleRow)}
                           onDeleteRequest={() => setDeleteRole(roleRow)}

@@ -28,10 +28,10 @@ export const RoleActionsMenu = ({
           variant="ghost"
           className="h-8 w-8 p-0"
           aria-label={label}
-          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
         >
           <span className="sr-only">{label}</span>
-          <MoreHorizontal className="h-4 w-4" aria-hidden />
+          <MoreHorizontal className="h-4 w-4" aria-hidden  data-icon="inline-start" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -41,7 +41,7 @@ export const RoleActionsMenu = ({
             onEditRequest();
           }}
         >
-          <Pencil className="mr-2 h-4 w-4" aria-hidden />
+          <Pencil className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
           Editar
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -51,7 +51,7 @@ export const RoleActionsMenu = ({
             onDeleteRequest();
           }}
         >
-          <Trash2 className="mr-2 h-4 w-4" aria-hidden />
+          <Trash2 className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
           Eliminar
         </DropdownMenuItem>
       </DropdownMenuContent>

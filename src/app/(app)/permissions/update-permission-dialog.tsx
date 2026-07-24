@@ -144,27 +144,32 @@ export function UpdatePermissionDialog({
               name="company_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Empresa</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value ? field.value.toString() : undefined}
-                    >
-                      <SelectTrigger>
+                  <FormLabel htmlFor="update-permission-company">
+                    Empresa
+                  </FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value ? field.value.toString() : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger
+                        id="update-permission-company"
+                        aria-label="Empresa"
+                      >
                         <SelectValue placeholder="Selecciona una empresa" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem
-                            key={company.id}
-                            value={company.id.toString()}
-                          >
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                    </FormControl>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem
+                          key={company.id}
+                          value={company.id.toString()}
+                        >
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

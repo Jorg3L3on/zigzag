@@ -160,9 +160,10 @@ export const TripledMobileAppBar = ({
               size="icon"
               className="h-11 w-11 rounded-full bg-background shadow-sm"
               asChild
+              aria-label={backLabel}
             >
               <Link href={backHref} aria-label={backLabel}>
-                <ArrowLeft className="h-4 w-4" aria-hidden />
+                <ArrowLeft className="h-4 w-4" aria-hidden data-icon="inline-start"/>
               </Link>
             </Button>
           ) : (

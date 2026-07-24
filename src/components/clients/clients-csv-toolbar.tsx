@@ -13,39 +13,23 @@ import {
   FormItem,
   FormMessage,
 } from '@/components/ui/form';
+import { CLIENT_CSV_HEADERS } from '@/lib/csv-schemas';
 import { parseCsvRecords, toCsv } from '@/lib/csv';
+import { bulkImportClients, getClientsForExport } from '@/actions/clients';
 
-type CsvRecord = Record<string, string>;
-
-type ExportResult = {
-  success: boolean;
-  data?: CsvRecord[];
-  error?: string;
-};
-
-type ImportResult = {
-  success: boolean;
-  data?: { inserted: number; failed: number; errors: string[] };
-  error?: string;
+type ClientsCsvToolbarProps = {
+  canImport: boolean;
 };
 
 type ImportFormValues = {
   file: string;
 };
 
-interface CsvToolbarProps {
-  headers: readonly string[];
-  filename: string;
-  exportAction: () => Promise<ExportResult>;
-  importAction?: (records: CsvRecord[]) => Promise<ImportResult>;
-}
-
-export const CsvToolbar = ({
-  headers,
-  filename,
-  exportAction,
-  importAction,
-}: CsvToolbarProps) => {
+/**
+ * Clients CSV import/export with FormMessage field-error UI bound to
+ * `bulkImportClients` validation failures.
+ */
+export const ClientsCsvToolbar = ({ canImport }: ClientsCsvToolbarProps) => {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputId = React.useId();
@@ -57,19 +41,19 @@ export const CsvToolbar = ({
   const handleExport = async () => {
     setBusy(true);
     try {
-      const result = await exportAction();
+      const result = await getClientsForExport();
       if (!result.success || !result.data) {
         toast.error(result.error || 'No se pudo exportar');
         return;
       }
-      const csv = toCsv([...headers], result.data);
+      const csv = toCsv([...CLIENT_CSV_HEADERS], result.data);
       const blob = new Blob([`\ufeff${csv}`], {
         type: 'text/csv;charset=utf-8;',
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename;
+      link.download = 'clientes.csv';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -85,7 +69,7 @@ export const CsvToolbar = ({
   ) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !importAction) {
+    if (!file || !canImport) {
       return;
     }
 
@@ -102,7 +86,7 @@ export const CsvToolbar = ({
         return;
       }
 
-      const result = await importAction(records);
+      const result = await bulkImportClients(records);
       if (!result.success || !result.data) {
         form.setError('file', {
           message: result.error || 'No se pudo importar el archivo',
@@ -145,7 +129,7 @@ export const CsvToolbar = ({
             Exportar CSV
           </Button>
 
-          {importAction ? (
+          {canImport ? (
             <FormField
               control={form.control}
               name="file"

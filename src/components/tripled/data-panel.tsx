@@ -57,6 +57,7 @@ export const TripledDataPanel = ({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Buscar..."
             className="pl-9"
+            aria-label="Buscar"
           />
         </div>
       </CardHeader>

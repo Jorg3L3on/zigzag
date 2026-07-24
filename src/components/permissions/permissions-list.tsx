@@ -267,7 +267,7 @@ export function PermissionsList() {
                 onClick={handleClearFilters}
                 aria-label="Limpiar filtros de permisos"
               >
-                <X className="mr-2 h-4 w-4" aria-hidden />
+                <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
                 Limpiar filtros
               </Button>
             ) : null}
@@ -384,7 +384,9 @@ export function PermissionsList() {
                         </p>
                       </div>
                       {canWritePermissions ? (
-                        <div onClick={(event) => event.stopPropagation()}>
+                        <div
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
                         <PermissionActionsMenu
                           onEditRequest={() => openEdit(permRow)}
                           onDeleteRequest={() => setDeletePermission(permRow)}

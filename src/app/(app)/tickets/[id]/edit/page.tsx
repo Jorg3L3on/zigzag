@@ -518,9 +518,9 @@ export default function EditTicketPage({
                           aria-label="Descargar PDF del ticket"
                         >
                           {isGeneratingPdf ? (
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden data-icon="inline-start"/>
                           ) : (
-                            <Download className="h-4 w-4" aria-hidden />
+                            <Download className="h-4 w-4" aria-hidden data-icon="inline-start"/>
                           )}
                           <span className="sr-only">Descargar PDF</span>
                         </Button>
@@ -577,6 +577,7 @@ export default function EditTicketPage({
                             <PopoverTrigger asChild>
                               <FormControl>
                                 <Button
+                                  type="button"
                                   variant="outline"
                                   className={cn(
                                     'w-full h-12 pl-10 text-left font-normal hover:border-primary transition-colors relative',
@@ -586,7 +587,7 @@ export default function EditTicketPage({
                                   )}
                                   disabled={isFinished}
                                 >
-                                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" data-icon="inline-start"/>
                                   {field.value &&
                                   !isNaN(field.value.getTime()) ? (
                                     format(field.value, 'PPP', { locale: es })
@@ -645,12 +646,12 @@ export default function EditTicketPage({
                       >
                         {form.formState.isSubmitting ? (
                           <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" data-icon="inline-start"/>
                             Actualizando ticket...
                           </>
                         ) : (
                           <>
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            <CheckCircle2 className="mr-2 h-4 w-4" data-icon="inline-start"/>
                             Guardar cambios
                           </>
                         )}
@@ -684,7 +685,10 @@ export default function EditTicketPage({
                       )
                     }
                   >
-                    <PlusCircle className="mr-2 h-4 w-4" />
+                    <PlusCircle
+                      className="mr-2 h-4 w-4"
+                      data-icon="inline-start"
+                    />
                     Gestionar servicios
                   </Button>
                 )}
@@ -812,7 +816,7 @@ export default function EditTicketPage({
                                 }
                                 aria-label="Reducir monto pagado"
                               >
-                                <Minus className="h-4 w-4" />
+                                <Minus className="h-4 w-4" data-icon="inline-start"/>
                               </Button>
                               <input
                                 id="paid-amount"
@@ -843,7 +847,7 @@ export default function EditTicketPage({
                                 }
                                 aria-label="Aumentar monto pagado"
                               >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-4 w-4" data-icon="inline-start"/>
                               </Button>
                             </div>
                             {parsePaidInput(paidAmountInput) >
@@ -869,12 +873,12 @@ export default function EditTicketPage({
                       >
                         {isGeneratingPdf ? (
                           <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" data-icon="inline-start"/>
                             Guardando...
                           </>
                         ) : (
                           <>
-                            <FileText className="mr-2 h-4 w-4" />
+                            <FileText className="mr-2 h-4 w-4" data-icon="inline-start"/>
                             Guardar y generar PDF
                           </>
                         )}

@@ -41,51 +41,71 @@ const RevenueChartDataTable = ({
   rows,
 }: {
   rows: RevenueByMonthPoint[];
-}) => (
-  <table className="sr-only">
-    <caption>Ingresos por mes (datos numéricos)</caption>
-    <thead>
-      <tr>
-        <th scope="col">Mes</th>
-        <th scope="col">Ingresos</th>
-      </tr>
-    </thead>
-    <tbody>
-      {rows.map((row) => (
-        <tr key={row.monthKey}>
-          <td>{row.label}</td>
-          <td>{formatMxCurrency(row.revenue)}</td>
+}) => {
+  if (rows.length === 0) {
+    return (
+      <p role="status" className="sr-only">
+        No hay datos de ingresos por mes.
+      </p>
+    );
+  }
+
+  return (
+    <table className="sr-only">
+      <caption>Ingresos por mes (datos numéricos)</caption>
+      <thead>
+        <tr>
+          <th scope="col">Mes</th>
+          <th scope="col">Ingresos</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
-);
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.monthKey}>
+            <td>{row.label}</td>
+            <td>{formatMxCurrency(row.revenue)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
 
 const PaymentStatusDataTable = ({
   rows,
 }: {
   rows: PaymentStatusBreakdownItem[];
-}) => (
-  <table className="sr-only">
-    <caption>Estado de cobro de tickets</caption>
-    <thead>
-      <tr>
-        <th scope="col">Estado</th>
-        <th scope="col">Tickets</th>
-        <th scope="col">Monto</th>
-      </tr>
-    </thead>
-    <tbody>
-      {rows.map((row) => (
-        <tr key={row.status}>
-          <td>{row.label}</td>
-          <td>{row.count}</td>
-          <td>{formatMxCurrency(row.amount)}</td>
+}) => {
+  if (rows.length === 0) {
+    return (
+      <p role="status" className="sr-only">
+        No hay datos de estado de cobro.
+      </p>
+    );
+  }
+
+  return (
+    <table className="sr-only">
+      <caption>Estado de cobro de tickets</caption>
+      <thead>
+        <tr>
+          <th scope="col">Estado</th>
+          <th scope="col">Tickets</th>
+          <th scope="col">Monto</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
-);
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.status}>
+            <td>{row.label}</td>
+            <td>{row.count}</td>
+            <td>{formatMxCurrency(row.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
 
 const revenueChartConfig = {
   revenue: {

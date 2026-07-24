@@ -107,7 +107,7 @@ export function CreatePermissionDialog({
     >
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-4 w-4" data-icon="inline-start" />
           Crear permiso
         </Button>
       </DialogTrigger>
@@ -135,27 +135,32 @@ export function CreatePermissionDialog({
               name="company_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Empresa</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value ? field.value.toString() : undefined}
-                    >
-                      <SelectTrigger>
+                  <FormLabel htmlFor="create-permission-company">
+                    Empresa
+                  </FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value ? field.value.toString() : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger
+                        id="create-permission-company"
+                        aria-label="Empresa"
+                      >
                         <SelectValue placeholder="Selecciona una empresa" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem
-                            key={company.id}
-                            value={company.id.toString()}
-                          >
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                    </FormControl>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem
+                          key={company.id}
+                          value={company.id.toString()}
+                        >
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

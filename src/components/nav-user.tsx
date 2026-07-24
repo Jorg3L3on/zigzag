@@ -96,13 +96,13 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => router.push('/account')}>
-                <BadgeCheck className="mr-2 h-4 w-4" />
+                <BadgeCheck className="mr-2 h-4 w-4" data-icon="inline-start" />
                 Cuenta
               </DropdownMenuItem>
               {isSystemUser ? (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <BookOpen className="mr-2 h-4 w-4" />
+                    <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
                     Guías
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -120,14 +120,14 @@ export function NavUser() {
                 <DropdownMenuItem
                   onClick={() => openOnboardingGuide(EMPRESA_GUIDE_LINK.href)}
                 >
-                  <BookOpen className="mr-2 h-4 w-4" />
+                  <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
                   Guías
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className="mr-2 h-4 w-4" data-icon="inline-start" />
               Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>

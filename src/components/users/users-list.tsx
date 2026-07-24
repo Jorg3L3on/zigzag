@@ -189,7 +189,7 @@ export function UsersList() {
           canWriteUsers ? (
           <div
             className="flex justify-end"
-            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
           >
             <UserActionsMenu
@@ -383,7 +383,7 @@ export function UsersList() {
                     onClick={handleClearFilters}
                     aria-label="Limpiar filtros de usuarios"
                   >
-                    <X className="mr-2 h-4 w-4" aria-hidden />
+                    <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
                     Limpiar filtros
                   </Button>
                 ) : null}
@@ -493,7 +493,7 @@ export function UsersList() {
                           </div>
                         </div>
                         {canWriteUsers ? (
-                          <div onClick={(event) => event.stopPropagation()}>
+                          <div onPointerDown={(event) => event.stopPropagation()}>
                           <UserActionsMenu
                             onEditRequest={() => setEditUser(u)}
                             onDeleteRequest={() => setDeleteUser(u)}

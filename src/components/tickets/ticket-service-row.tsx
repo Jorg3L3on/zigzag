@@ -41,7 +41,12 @@ export const TicketServiceRow = ({
       </p>
       <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
         <div>
-          <Label className="text-sm font-medium text-foreground">Cantidad</Label>
+          <Label
+            htmlFor={`ticket-service-quantity-${serviceTicket.id}`}
+            className="text-sm font-medium text-foreground"
+          >
+            Cantidad
+          </Label>
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -57,9 +62,10 @@ export const TicketServiceRow = ({
               }
               aria-label="Reducir cantidad del servicio"
             >
-              <Minus className="h-4 w-4" />
+              <Minus className="h-4 w-4" data-icon="inline-start"/>
             </Button>
             <Input
+              id={`ticket-service-quantity-${serviceTicket.id}`}
               type="number"
               min="1"
               inputMode="numeric"
@@ -73,6 +79,7 @@ export const TicketServiceRow = ({
                 )
               }
               className="w-full text-center sm:w-24"
+              aria-label="Cantidad del servicio"
             />
             <Button
               type="button"
@@ -88,12 +95,17 @@ export const TicketServiceRow = ({
               }
               aria-label="Aumentar cantidad del servicio"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" data-icon="inline-start"/>
             </Button>
           </div>
         </div>
         <div>
-          <Label className="text-sm font-medium text-foreground">Precio</Label>
+          <Label
+            htmlFor={`ticket-service-price-${serviceTicket.id}`}
+            className="text-sm font-medium text-foreground"
+          >
+            Precio
+          </Label>
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -109,13 +121,14 @@ export const TicketServiceRow = ({
               }
               aria-label="Reducir precio del servicio"
             >
-              <Minus className="h-4 w-4" />
+              <Minus className="h-4 w-4" data-icon="inline-start"/>
             </Button>
             <div className="relative w-full sm:w-40">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                 $
               </span>
               <Input
+                id={`ticket-service-price-${serviceTicket.id}`}
                 type="number"
                 step="0.01"
                 min="0"
@@ -129,6 +142,7 @@ export const TicketServiceRow = ({
                   )
                 }
                 className="w-full pl-8 text-center"
+                aria-label="Precio del servicio"
               />
             </div>
             <Button
@@ -145,7 +159,7 @@ export const TicketServiceRow = ({
               }
               aria-label="Aumentar precio del servicio"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" data-icon="inline-start"/>
             </Button>
           </div>
         </div>

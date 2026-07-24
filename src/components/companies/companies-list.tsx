@@ -252,7 +252,7 @@ export function CompaniesList() {
                 router.push(`/companies/${companyRow.id}/edit`);
               }}
             >
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-4 w-4"  data-icon="inline-start" />
             </Button>
             <Button
               variant="ghost"
@@ -263,7 +263,7 @@ export function CompaniesList() {
                 openDeleteDialog(companyRow);
               }}
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
+              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
             </Button>
             </>
           ) : null,
@@ -406,7 +406,7 @@ export function CompaniesList() {
               onClick={handleClearFilters}
               aria-label="Limpiar filtros de empresas"
             >
-              <X className="mr-2 h-4 w-4" aria-hidden />
+              <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
               Limpiar filtros
             </Button>
           ) : null}
@@ -451,7 +451,7 @@ export function CompaniesList() {
                   type="button"
                   onClick={() => router.push('/companies/new')}
                 >
-                  <Plus className="mr-2 h-4 w-4" aria-hidden />
+                  <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
                   Nueva empresa
                 </Button>
               ) : null
@@ -554,7 +554,7 @@ export function CompaniesList() {
                             );
                           }}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4"  data-icon="inline-start" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -565,7 +565,7 @@ export function CompaniesList() {
                             openDeleteDialog(companyRow);
                           }}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
                         </Button>
                         </div>
                       ) : null}

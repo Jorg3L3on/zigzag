@@ -180,7 +180,7 @@ export function CreateRoleDialog({
     >
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-4 w-4" data-icon="inline-start" />
           Crear rol
         </Button>
       </DialogTrigger>
@@ -223,26 +223,29 @@ export function CreateRoleDialog({
                       />
                     </FormControl>
                   ) : (
-                    <FormControl>
-                      <Select
-                        onValueChange={(value) => field.onChange(Number(value))}
-                        value={field.value ? field.value.toString() : undefined}
-                      >
-                        <SelectTrigger>
+                    <Select
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      value={field.value ? field.value.toString() : undefined}
+                    >
+                      <FormControl>
+                        <SelectTrigger
+                          id="create-role-company"
+                          aria-label="Empresa"
+                        >
                           <SelectValue placeholder="Selecciona una empresa" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem
-                              key={company.id}
-                              value={company.id.toString()}
-                            >
-                              {company.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
+                      </FormControl>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem
+                            key={company.id}
+                            value={company.id.toString()}
+                          >
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                   <FormMessage />
                 </FormItem>
@@ -270,7 +273,10 @@ export function CreateRoleDialog({
                   <FormControl>
                     <div className="space-y-4">
                       <Select onValueChange={handlePermissionSelect}>
-                        <SelectTrigger>
+                        <SelectTrigger
+                          id="create-role-permissions"
+                          aria-label="Permisos"
+                        >
                           <SelectValue placeholder="Selecciona permisos" />
                         </SelectTrigger>
                         <SelectContent>

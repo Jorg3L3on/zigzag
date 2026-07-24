@@ -17,6 +17,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { toast } from 'sonner';
 import { updateOwnAccount } from '@/actions/users';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect } from 'react';
 import { Resolver } from 'react-hook-form';
 import { useSession } from 'next-auth/react';
@@ -138,8 +139,17 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
   }
 
   if (isLoading) {
-    return <div>Cargando...</div>;
+    return (
+      <div className="space-y-4" aria-busy="true" aria-live="polite">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-32" />
+        <span className="sr-only">Cargando información de la cuenta…</span>
+      </div>
+    );
   }
+
+  const isSubmitting = form.formState.isSubmitting;
 
   return (
     <Form {...form}>
@@ -151,7 +161,7 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
             <FormItem>
               <FormLabel>Nombre</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} autoComplete="name" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -164,7 +174,7 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
             <FormItem>
               <FormLabel>Correo Electrónico</FormLabel>
               <FormControl>
-                <Input {...field} type="email" />
+                <Input {...field} type="email" autoComplete="email" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -194,6 +204,7 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
                 <Checkbox
                   checked={field.value}
                   onCheckedChange={field.onChange}
+                  aria-label="Cambiar Contraseña"
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
@@ -234,9 +245,10 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
         )}
         <Button
           type="submit"
+          disabled={isSubmitting}
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-600"
         >
-          Guardar Cambios
+          {isSubmitting ? 'Guardando…' : 'Guardar Cambios'}
         </Button>
       </form>
     </Form>

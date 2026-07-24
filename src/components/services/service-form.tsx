@@ -206,12 +206,12 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" data-icon="inline-start"/>
                 {isEditing ? 'Actualizando...' : 'Creando...'}
               </>
             ) : (
               <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
+                <CheckCircle2 className="mr-2 h-4 w-4" data-icon="inline-start"/>
                 {isEditing ? 'Actualizar servicio' : 'Crear servicio'}
               </>
             )}

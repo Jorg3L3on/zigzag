@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
+import { ThemeProvider } from '@/components/theme-provider';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import { AppSerwistProvider } from '@/components/serwist-provider';
 import './globals.css';
@@ -29,6 +30,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'ZigZag',
   description: 'Gestión de tickets de servicio multi-empresa',
+  robots: {
+    index: false,
+    follow: false,
+  },
   appleWebApp: {
     capable: true,
     title: 'ZigZag',
@@ -59,21 +64,28 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <CompanyProvider>
-            <Providers>
-              <AppSerwistProvider>
-                <NetworkStatusBanner />
-                {children}
-                <AppToaster />
-              </AppSerwistProvider>
-            </Providers>
-          </CompanyProvider>
-        </NextIntlClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <CompanyProvider>
+              <Providers>
+                <AppSerwistProvider>
+                  <NetworkStatusBanner />
+                  {children}
+                  <AppToaster />
+                </AppSerwistProvider>
+              </Providers>
+            </CompanyProvider>
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

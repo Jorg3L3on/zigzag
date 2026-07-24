@@ -51,7 +51,7 @@ export function DeleteTicketButton({ id, onDelete }: DeleteTicketButtonProps) {
       className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
       onClick={handleDelete}
     >
-      <Trash2 className="h-4 w-4" />
+      <Trash2 className="h-4 w-4" data-icon="inline-start" />
       <span className="ml-2">Eliminar</span>
     </Button>
   );

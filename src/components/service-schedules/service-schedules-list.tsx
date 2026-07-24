@@ -274,7 +274,7 @@ export const ServiceSchedulesList = () => {
             className="min-h-11 gap-1.5 rounded-xl"
             onClick={handleAdd}
           >
-            <Plus className="h-4 w-4" aria-hidden />
+            <Plus className="h-4 w-4" aria-hidden  data-icon="inline-start" />
             Nuevo recordatorio
           </Button>
         ) : null}
@@ -334,7 +334,7 @@ export const ServiceSchedulesList = () => {
                 className="rounded-xl"
                 onClick={handleAdd}
               >
-                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
                 Nuevo recordatorio
               </Button>
             ) : null

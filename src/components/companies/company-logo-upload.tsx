@@ -166,9 +166,9 @@ export const CompanyLogoUpload = ({
             onClick={() => inputRef.current?.click()}
           >
             {isUploading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+              <Loader2 className="mr-2 size-4 animate-spin" aria-hidden data-icon="inline-start"/>
             ) : (
-              <Upload className="mr-2 size-4" aria-hidden />
+              <Upload className="mr-2 size-4" aria-hidden  data-icon="inline-start" />
             )}
             {displayUrl ? 'Reemplazar logo' : 'Subir logo'}
           </Button>
@@ -180,9 +180,9 @@ export const CompanyLogoUpload = ({
               onClick={handleRemove}
             >
               {isRemoving ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden data-icon="inline-start"/>
               ) : (
-                <Trash2 className="mr-2 size-4" aria-hidden />
+                <Trash2 className="mr-2 size-4" aria-hidden  data-icon="inline-start" />
               )}
               Quitar logo
             </Button>

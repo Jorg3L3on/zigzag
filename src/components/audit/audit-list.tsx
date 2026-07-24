@@ -80,7 +80,7 @@ const AuditResourceLabel = ({ event }: { event: AuditEventRow }) => {
     <Link
       href={link.href}
       className="font-medium text-primary underline-offset-4 hover:underline"
-      onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
     >
       {link.label}
     </Link>

@@ -127,7 +127,7 @@ export const CompanyPortabilityPanel = ({
           onClick={handleExport}
           aria-label="Descargar exportación JSON de la empresa"
         >
-          <Download className="mr-2 size-4" aria-hidden />
+          <Download className="mr-2 size-4" aria-hidden  data-icon="inline-start" />
           {isExporting ? 'Generando exportación…' : 'Exportar datos (JSON)'}
         </Button>
 
@@ -140,7 +140,7 @@ export const CompanyPortabilityPanel = ({
               disabled={!offboardingEligibility.allowed || isOffboarding}
               aria-label="Archivar empresa e iniciar offboarding"
             >
-              <Archive className="mr-2 size-4" aria-hidden />
+              <Archive className="mr-2 size-4" aria-hidden data-icon="inline-start"/>
               {isOffboarding ? 'Archivando…' : 'Iniciar offboarding'}
             </Button>
           </AlertDialogTrigger>
