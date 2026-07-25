@@ -33,15 +33,19 @@ export const MarketingShell = ({
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-0 -z-10 marketing-zigzag-grid opacity-[0.45]"
+        className="pointer-events-none absolute inset-0 -z-10 marketing-mesh"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(ellipse_at_12%_-10%,rgba(29,111,232,0.12),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 -z-10 marketing-zigzag-grid opacity-[0.35]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 marketing-grain"
         aria-hidden
       />
 
-      <header className="sticky top-0 z-40 border-b border-[var(--mkt-line)] bg-[color-mix(in_srgb,var(--mkt-mist)_82%,white)] backdrop-blur-md motion-safe:transition-[box-shadow] motion-safe:duration-300">
+      <header className="sticky top-0 z-40 border-b border-[var(--mkt-line)] bg-[color-mix(in_srgb,var(--mkt-mist)_78%,white)]/90 backdrop-blur-xl supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--mkt-mist)_70%,white)]/75">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <Link
             href="/"

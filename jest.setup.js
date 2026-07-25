@@ -84,3 +84,26 @@ process.env.NEXTAUTH_URL = 'http://localhost:3000';
 // pure-logic tests stay offline. Tests that hit the DB mock `@/lib/db`.
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/zigzag_test';
+
+// Framer Motion `whileInView` / `useScroll` need observers that jsdom lacks.
+class MockIntersectionObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+}
+
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+if (typeof globalThis.IntersectionObserver === 'undefined') {
+  globalThis.IntersectionObserver = MockIntersectionObserver;
+}
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = MockResizeObserver;
+}

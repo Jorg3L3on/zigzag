@@ -65,6 +65,14 @@ export const LANDING_FLOW_STEPS = [
   },
 ] as const;
 
+export const LANDING_FLOW_MARQUEE = [
+  'Cliente',
+  'Ticket',
+  'Servicios',
+  'Cobro',
+  'Factura PDF',
+] as const;
+
 export const LANDING_CAPABILITIES = [
   {
     title: 'Multi-empresa nativo',
