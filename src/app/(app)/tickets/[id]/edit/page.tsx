@@ -495,12 +495,12 @@ export default function EditTicketPage({
                 </CardDescription>
               </div>
               {isFinished && (
-                <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
                   <div>
-                    <p className="text-sm font-medium text-emerald-700">
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-100">
                       Ticket finalizado
                     </p>
-                    <p className="text-xs text-emerald-600">
+                    <p className="text-xs text-emerald-600 dark:text-emerald-300">
                       Este ticket ya fue finalizado. Puedes descargar el PDF cuando
                       lo necesites.
                     </p>
@@ -512,7 +512,7 @@ export default function EditTicketPage({
                           type="button"
                           size="icon"
                           variant="outline"
-                          className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                          className="border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-background dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                           onClick={downloadTicketPdf}
                           disabled={isGeneratingPdf}
                           aria-label="Descargar PDF del ticket"
@@ -703,25 +703,25 @@ export default function EditTicketPage({
                         <h3 className="font-medium break-words">
                           {serviceTicket.service.name}
                         </h3>
-                        <p className="text-sm text-gray-500 break-words">
+                        <p className="text-sm text-muted-foreground break-words">
                           {serviceTicket.service.description}
                         </p>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-md border bg-gray-50 p-3">
-                          <p className="text-sm text-gray-500">Cantidad</p>
+                        <div className="rounded-md border bg-muted/40 p-3">
+                          <p className="text-sm text-muted-foreground">Cantidad</p>
                           <p className="font-medium break-all">
                             {serviceTicket.quantity}
                           </p>
                         </div>
-                        <div className="rounded-md border bg-gray-50 p-3">
-                          <p className="text-sm text-gray-500">Precio</p>
+                        <div className="rounded-md border bg-muted/40 p-3">
+                          <p className="text-sm text-muted-foreground">Precio</p>
                           <p className="font-medium break-all">
                             {formatCurrency(serviceTicket.price)}
                           </p>
                         </div>
-                        <div className="rounded-md border bg-gray-50 p-3">
-                          <p className="text-sm text-gray-500">Subtotal</p>
+                        <div className="rounded-md border bg-muted/40 p-3">
+                          <p className="text-sm text-muted-foreground">Subtotal</p>
                           <p className="font-medium break-all">
                             {formatCurrency(
                               serviceTicket.quantity * serviceTicket.price,
@@ -734,7 +734,7 @@ export default function EditTicketPage({
                 ))}
 
                 {ticketServices.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="py-8 text-center text-muted-foreground">
                     No hay servicios asignados a este ticket
                   </div>
                 )}
@@ -755,7 +755,7 @@ export default function EditTicketPage({
                         Al guardar, se genera el PDF y el ticket quedará en modo
                         solo lectura con el estado de pago seleccionado.
                       </p>
-                      <div className="space-y-3 rounded-md border bg-white p-3">
+                      <div className="space-y-3 rounded-md border bg-card p-3">
                         <p className="text-sm font-medium text-foreground">
                           Pago del ticket
                         </p>
@@ -765,7 +765,7 @@ export default function EditTicketPage({
                             className={cn(
                               'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
                               isFullyPaid
-                                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200'
                                 : 'border-border bg-background hover:bg-muted/50',
                             )}
                             onClick={() => setIsFullyPaid(true)}
@@ -782,7 +782,7 @@ export default function EditTicketPage({
                             className={cn(
                               'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
                               !isFullyPaid
-                                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200'
                                 : 'border-border bg-background hover:bg-muted/50',
                             )}
                             onClick={() => setIsFullyPaid(false)}

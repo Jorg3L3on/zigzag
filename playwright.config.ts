@@ -9,7 +9,8 @@ const prodBaseUrl = 'http://127.0.0.1:3070';
 const useProdServer = process.env.PLAYWRIGHT_USE_DEV !== '1';
 
 const mobileSpecPattern = /(?:^|\/)mobile-.*\.spec\.ts$|(?:^|\/)tickets-mobile\.spec\.ts$/;
-const visualSpecPattern = /(?:^|\/)tickets-visual\.spec\.ts$/;
+const visualSpecPattern =
+  /(?:^|\/)(?:tickets-visual|theme-dark)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './e2e',

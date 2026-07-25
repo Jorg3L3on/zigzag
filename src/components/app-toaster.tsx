@@ -1,6 +1,7 @@
 'use client';
 
 import { Toaster } from 'sonner';
+import { useTheme } from 'next-themes';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 /**
@@ -10,9 +11,11 @@ import { useIsMobile } from '@/hooks/use-mobile';
  */
 export const AppToaster = () => {
   const isMobile = useIsMobile();
+  const { resolvedTheme } = useTheme();
 
   return (
     <Toaster
+      theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
       position={isMobile ? 'top-center' : 'bottom-center'}
       offset={16}
       mobileOffset={

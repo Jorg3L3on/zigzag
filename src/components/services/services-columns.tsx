@@ -94,7 +94,7 @@ export const createServicesColumns = ({
         className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
           row.original.deleted_at
             ? 'bg-destructive/10 text-destructive'
-            : 'bg-emerald-100 text-emerald-700'
+            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
         }`}
       >
         {row.original.deleted_at ? 'Eliminado' : 'Activo'}

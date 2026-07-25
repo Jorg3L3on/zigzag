@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useTheme } from 'next-themes';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) {
@@ -50,7 +51,11 @@ export const ThemeHotkey = () => {
   return null;
 };
 
-export const ModeToggle = () => {
+type ModeToggleProps = {
+  className?: string;
+};
+
+export const ModeToggle = ({ className }: ModeToggleProps) => {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -65,12 +70,18 @@ export const ModeToggle = () => {
       type="button"
       variant="ghost"
       size="icon"
-      className="ml-auto h-11 w-11"
+      className={cn('h-11 w-11 shrink-0', className)}
       aria-label={isDark ? 'Activar modo claro' : 'Activar modo oscuro'}
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
     >
-      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" data-icon="inline-start"/>
-      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" data-icon="inline-start"/>
+      <Sun
+        className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
+        data-icon="inline-start"
+      />
+      <Moon
+        className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
+        data-icon="inline-start"
+      />
       <span className="sr-only">Cambiar tema</span>
     </Button>
   );

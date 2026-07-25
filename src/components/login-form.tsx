@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ModeToggle } from '@/components/mode-toggle';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import {
   openOnboardingGuide,
@@ -67,7 +68,10 @@ export function LoginForm({
   }
 
   return (
-    <div className={cn('flex flex-col gap-6', className)} {...props}>
+    <div className={cn('relative flex flex-col gap-6', className)} {...props}>
+      <div className="absolute -top-2 right-0 z-10 sm:-top-1 sm:-right-1">
+        <ModeToggle />
+      </div>
       <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
         <Card className="border-border/60 shadow-md">
         <CardHeader className="items-center text-center">
@@ -119,7 +123,7 @@ export function LoginForm({
               <div
                 role="alert"
                 aria-live="assertive"
-                className="text-sm text-red-500"
+                className="text-sm text-destructive"
               >
                 {error}
               </div>
@@ -127,7 +131,7 @@ export function LoginForm({
             <Button
               type="submit"
               size="lg"
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}

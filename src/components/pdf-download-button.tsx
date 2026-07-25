@@ -106,7 +106,7 @@ export function PDFDownloadButton({
             disabled={isGenerating}
             aria-label={ariaLabel}
             className={cn(
-              'shrink-0 border-blue-200 bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:bg-background',
+              'shrink-0 border-blue-200 bg-white text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:bg-background dark:text-blue-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200',
               className,
             )}
           >

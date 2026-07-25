@@ -61,7 +61,7 @@ export function NetworkStatusBanner() {
         role="status"
         aria-live="assertive"
         aria-atomic="true"
-        className={`${bannerShellClassName} border-amber-300 bg-amber-100 text-amber-900`}
+        className={`${bannerShellClassName} border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-100`}
       >
         <div className="mx-auto flex max-w-7xl items-center gap-2">
           <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -77,7 +77,7 @@ export function NetworkStatusBanner() {
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className={`${bannerShellClassName} border-emerald-300 bg-emerald-100 text-emerald-900`}
+        className={`${bannerShellClassName} border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-100`}
       >
         <div className="mx-auto flex max-w-7xl items-center gap-2">
           <Wifi className="h-4 w-4 shrink-0" aria-hidden="true" />

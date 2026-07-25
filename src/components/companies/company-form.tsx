@@ -488,7 +488,7 @@ export const CompanyForm = ({
         </div>
 
         <Button
-          className="min-h-11 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 sm:w-auto"
+          className="min-h-11 w-full sm:w-auto"
           type="submit"
           disabled={isSubmitting}
         >

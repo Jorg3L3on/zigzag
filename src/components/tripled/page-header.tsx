@@ -29,7 +29,7 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
     <header
       data-testid="page-header"
       className={cn(
-        'sticky top-[var(--network-status-banner-offset,0px)] z-40 shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80',
+        'sticky top-[var(--network-status-banner-offset,0px)] z-40 flex w-full shrink-0 flex-col border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80',
         className,
       )}
     >
@@ -37,7 +37,7 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
         variants={tripledFadeInUp}
         initial="hidden"
         animate="visible"
-        className="flex h-16 items-center gap-2 pr-4"
+        className="flex h-16 w-full min-w-0 items-center justify-between gap-2 pr-4"
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />

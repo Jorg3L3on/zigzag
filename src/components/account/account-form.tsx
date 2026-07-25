@@ -246,7 +246,6 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-600"
         >
           {isSubmitting ? 'Guardando…' : 'Guardar Cambios'}
         </Button>

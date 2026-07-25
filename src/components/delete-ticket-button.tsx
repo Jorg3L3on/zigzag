@@ -48,7 +48,7 @@ export function DeleteTicketButton({ id, onDelete }: DeleteTicketButtonProps) {
   return (
     <Button
       variant="ghost"
-      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+      className="w-full justify-start p-2 text-red-600 hover:bg-destructive/10 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
       onClick={handleDelete}
     >
       <Trash2 className="h-4 w-4" data-icon="inline-start" />

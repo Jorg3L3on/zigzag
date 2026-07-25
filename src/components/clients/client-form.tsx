@@ -405,7 +405,7 @@ export function ClientForm({
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="min-h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 sm:min-h-10"
+          className="min-h-11 w-full sm:min-h-10"
           >
             {isSubmitting ? 'Guardando...' : client ? 'Actualizar' : 'Crear'}
           </Button>

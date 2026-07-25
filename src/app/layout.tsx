@@ -5,6 +5,7 @@ import { getLocale, getMessages } from 'next-intl/server';
 import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeColorMeta } from '@/components/theme-color-meta';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import { AppSerwistProvider } from '@/components/serwist-provider';
 import './globals.css';
@@ -74,6 +75,7 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ThemeColorMeta />
           <NextIntlClientProvider locale={locale} messages={messages}>
             <CompanyProvider>
               <Providers>

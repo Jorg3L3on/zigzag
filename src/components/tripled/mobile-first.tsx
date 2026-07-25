@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
+import { ModeToggle } from '@/components/mode-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -175,7 +176,7 @@ export const TripledMobileAppBar = ({
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
-          {endSlot ?? <div className="h-11 w-11" aria-hidden />}
+          {endSlot ?? <ModeToggle />}
         </div>
       </header>
       <div aria-hidden="true" style={{ height: MOBILE_APP_BAR_HEIGHT }} />
