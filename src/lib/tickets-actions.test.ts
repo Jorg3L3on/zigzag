@@ -24,6 +24,9 @@ jest.mock('@/lib/db', () => ({
       ticket: {
         findFirst: jest.fn(),
       },
+      client: {
+        findFirst: jest.fn(),
+      },
     },
     transaction: jest.fn(),
   },
@@ -57,6 +60,9 @@ jest.mock('@/lib/ticket-financials', () => ({
 const mockDb = db as unknown as {
   query: {
     ticket: {
+      findFirst: jest.Mock;
+    };
+    client: {
       findFirst: jest.Mock;
     };
   };
@@ -394,6 +400,108 @@ describe('cross-tenant IDOR — ticket actions', () => {
 
     expect(result.success).toBe(false);
     expect(mockRequireTicketWrite).toHaveBeenCalledWith(IDOR_COMPANY_A.id);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('ticket actions — client tenant assert (TCI-01)', () => {
+  const basePayload = {
+    client_id: 7,
+    client_name: 'Cliente Local',
+    client_tel: '5551234567',
+    email: 'cliente@example.com',
+    document: 'DOC-1',
+    ticket_date: new Date('2026-01-01T00:00:00.000Z'),
+    services: [] as Array<{ service_id: number; quantity: number; price: number }>,
+    company_id: 10,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireTicketWrite.mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+    mockRecordTicketAudit.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('createTicket rejects client_id from another company', async () => {
+    mockDb.query.client.findFirst.mockResolvedValueOnce(undefined);
+
+    const result = await createTicket(basePayload);
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('auth');
+    expect(mockDb.query.client.findFirst).toHaveBeenCalled();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('createTicket rejects soft-deleted clients', async () => {
+    // Helper filters deleted_at IS NULL — missing row means unavailable.
+    mockDb.query.client.findFirst.mockResolvedValueOnce(undefined);
+
+    const result = await createTicket({ ...basePayload, client_id: 99 });
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('auth');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('createTicket succeeds with a valid same-company client', async () => {
+    mockDb.query.client.findFirst.mockResolvedValueOnce({ id: 7 });
+    const createdRow = {
+      id: 100n,
+      client_id: 7,
+      client_name: 'Cliente Local',
+      company_id: 10,
+    };
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn(() => ({
+          values: jest.fn(() => ({
+            returning: jest.fn(async () => [createdRow]),
+          })),
+        })),
+      };
+      return callback(tx);
+    });
+
+    const result = await createTicket(basePayload);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual(createdRow);
+    expect(mockDb.query.client.findFirst).toHaveBeenCalled();
+    expect(mockRecordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      authContext,
+      createdRow.id,
+      createdRow.company_id,
+      'created',
+      expect.objectContaining({ ticket: createdRow }),
+    );
+  });
+
+  it('updateTicket rejects soft-deleted or foreign client_id', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValueOnce({
+      id: 42n,
+      company_id: 10,
+      deleted_at: null,
+    });
+    mockDb.query.client.findFirst.mockResolvedValueOnce(undefined);
+
+    const result = await updateTicket(42, {
+      client_id: 99,
+      client_name: 'Hijacked',
+      company_id: 10,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('auth');
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

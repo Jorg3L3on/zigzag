@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, inArray, count, ilike, or } from 'drizzle-orm';
 import {
+  client,
   service,
   servicesTickets,
   ticket,
@@ -183,6 +184,29 @@ const assertServicesBelongToCompany = async (
   }
 };
 
+/** Active client must belong to the ticket company (TCI-01). */
+const assertClientBelongsToCompany = async (
+  clientId: number | undefined,
+  companyId: number,
+): Promise<void> => {
+  if (clientId == null) {
+    return;
+  }
+
+  const clientRow = await db.query.client.findFirst({
+    where: and(
+      eq(client.id, clientId),
+      eq(client.company_id, companyId),
+      isNull(client.deleted_at),
+    ),
+    columns: { id: true },
+  });
+
+  if (!clientRow) {
+    throw new AuthorizationError('Client not found for this company');
+  }
+};
+
 export async function createTicket(
   data: CreateTicketInput,
 ): Promise<{
@@ -198,6 +222,10 @@ export async function createTicket(
     );
 
     await assertCompanyProductionReady(effectiveCompanyId);
+    await assertClientBelongsToCompany(
+      validatedData.client_id,
+      effectiveCompanyId,
+    );
 
     const values = {
       client_id: validatedData.client_id,
@@ -450,6 +478,10 @@ export async function updateTicket(
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
+    if (data.client_id != null) {
+      await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
+    }
+
     const servicesToSync = Array.isArray(data.services) ? data.services : null;
     const hasServicesUpdate = servicesToSync !== null;
     const totalFromServices = hasServicesUpdate
@@ -501,6 +533,7 @@ export async function updateTicket(
       }
 
       const ticketUpdateData: {
+        client_id?: number;
         client_name?: string;
         client_tel?: string;
         email?: string;
@@ -514,6 +547,10 @@ export async function updateTicket(
         document: data.document,
         ticket_date: data.ticket_date,
       };
+
+      if (data.client_id != null) {
+        ticketUpdateData.client_id = data.client_id;
+      }
 
       if (totalFromServices !== undefined) {
         ticketUpdateData.total = totalFromServices;
