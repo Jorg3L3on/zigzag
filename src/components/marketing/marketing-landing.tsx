@@ -16,7 +16,7 @@ export const MarketingLanding = () => {
   return (
     <div className="pb-10">
       <section
-        className="relative isolate min-h-[min(92svh,56rem)] overflow-hidden border-b border-[var(--mkt-line)]"
+        className="relative isolate min-h-[min(88svh,52rem)] overflow-hidden border-b border-[var(--mkt-line)]"
         aria-labelledby="landing-hero-heading"
       >
         <div className="absolute inset-0 -z-10">
@@ -34,8 +34,8 @@ export const MarketingLanding = () => {
           />
         </div>
 
-        <div className="mx-auto flex min-h-[min(92svh,56rem)] max-w-6xl items-end px-4 pb-14 pt-16 sm:items-center sm:px-6 sm:pb-20 sm:pt-20">
-          <div className="max-w-2xl space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700 sm:space-y-6">
+        <div className="mx-auto flex min-h-[min(88svh,52rem)] max-w-6xl items-end px-4 pb-16 pt-20 sm:px-6 sm:pb-24 sm:pt-24">
+          <div className="max-w-xl space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700 sm:space-y-6">
             <p className="font-[family-name:var(--font-marketing-display)] text-[clamp(3.5rem,13vw,7.75rem)] font-extrabold leading-[0.88] tracking-[-0.04em] text-[var(--mkt-ink)]">
               {LANDING_HERO.brand}
             </p>
