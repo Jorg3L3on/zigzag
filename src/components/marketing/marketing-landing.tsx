@@ -16,12 +16,31 @@ export const MarketingLanding = () => {
   return (
     <div className="pb-10">
       <section
-        className="relative"
+        className="relative isolate min-h-[min(92svh,56rem)] overflow-hidden border-b border-[var(--mkt-line)]"
         aria-labelledby="landing-hero-heading"
       >
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-14 lg:gap-10 lg:pt-16">
-          <div className="max-w-4xl space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700">
-            <p className="font-[family-name:var(--font-marketing-display)] text-[clamp(3.25rem,12vw,7.5rem)] font-extrabold leading-[0.9] tracking-[-0.04em] text-[var(--mkt-ink)]">
+        <div className="absolute inset-0 -z-10">
+          <Image
+            src={LANDING_HERO.heroImage.src}
+            alt={LANDING_HERO.heroImage.alt}
+            fill
+            sizes="100vw"
+            className="marketing-hero-pan object-cover object-[center_12%]"
+            priority
+          />
+          <div
+            className="absolute inset-0 bg-[linear-gradient(100deg,var(--mkt-mist)_0%,var(--mkt-mist)_34%,rgba(231,238,246,0.82)_48%,rgba(231,238,246,0.28)_68%,rgba(11,31,51,0.22)_100%)]"
+            aria-hidden
+          />
+          <div
+            className="absolute inset-y-0 left-0 w-full max-w-3xl bg-[radial-gradient(ellipse_at_left,var(--mkt-mist)_0%,rgba(231,238,246,0.92)_45%,transparent_72%)]"
+            aria-hidden
+          />
+        </div>
+
+        <div className="mx-auto flex min-h-[min(92svh,56rem)] max-w-6xl items-end px-4 pb-14 pt-16 sm:items-center sm:px-6 sm:pb-20 sm:pt-20">
+          <div className="max-w-2xl space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700 sm:space-y-6">
+            <p className="font-[family-name:var(--font-marketing-display)] text-[clamp(3.5rem,13vw,7.75rem)] font-extrabold leading-[0.88] tracking-[-0.04em] text-[var(--mkt-ink)]">
               {LANDING_HERO.brand}
             </p>
             <svg
@@ -40,11 +59,11 @@ export const MarketingLanding = () => {
             </svg>
             <h1
               id="landing-hero-heading"
-              className="max-w-3xl font-[family-name:var(--font-marketing-display)] text-[clamp(1.75rem,4.2vw,2.75rem)] font-semibold leading-[1.15] tracking-tight text-[var(--mkt-ink)]"
+              className="max-w-xl font-[family-name:var(--font-marketing-display)] text-[clamp(1.7rem,3.8vw,2.55rem)] font-semibold leading-[1.15] tracking-tight text-[var(--mkt-ink)]"
             >
               {LANDING_HERO.headline}
             </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl">
+            <p className="max-w-lg text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl">
               {LANDING_HERO.support}
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
@@ -56,27 +75,12 @@ export const MarketingLanding = () => {
               </Link>
               <a
                 href={LANDING_HERO.secondaryCta.href}
-                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-transparent px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-white/55 px-5 text-sm font-semibold text-[var(--mkt-ink)] backdrop-blur-[2px] transition-colors hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
               >
                 {LANDING_HERO.secondaryCta.label}
               </a>
             </div>
           </div>
-        </div>
-
-        <div className="relative w-full overflow-hidden border-y border-[var(--mkt-line)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-1000 motion-safe:delay-150">
-          <div
-            className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-[var(--mkt-mist)] via-transparent to-[var(--mkt-mist)] opacity-80"
-            aria-hidden
-          />
-          <Image
-            src={LANDING_HERO.heroImage.src}
-            alt={LANDING_HERO.heroImage.alt}
-            width={1400}
-            height={900}
-            className="marketing-hero-pan h-auto min-h-[14rem] w-full object-cover object-top sm:min-h-[18rem] lg:min-h-[22rem]"
-            priority
-          />
         </div>
       </section>
 

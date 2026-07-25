@@ -84,7 +84,7 @@ export const MarketingShell = ({
             {showSectionNav ? (
               <a
                 href="#como-funciona"
-                className="inline-flex min-h-10 items-center rounded-md bg-[var(--mkt-signal)] px-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)]"
+                className="hidden min-h-10 items-center rounded-md bg-[var(--mkt-signal)] px-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] sm:inline-flex"
               >
                 Ver cómo funciona
               </a>
