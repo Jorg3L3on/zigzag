@@ -10,53 +10,71 @@ import {
 } from '@/components/marketing/marketing-landing-content';
 
 const sectionClass =
-  'mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 scroll-mt-24';
-
-const fadeInClass =
-  'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700';
+  'mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 scroll-mt-24';
 
 export const MarketingLanding = () => {
   return (
-    <div className="pb-8">
+    <div className="pb-10">
       <section
-        className={`${sectionClass} grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] ${fadeInClass}`}
+        className="relative"
         aria-labelledby="landing-hero-heading"
       >
-        <div className="space-y-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-            {LANDING_HERO.brand}
-          </p>
-          <h1
-            id="landing-hero-heading"
-            className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]"
-          >
-            {LANDING_HERO.headline}
-          </h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
-            {LANDING_HERO.support}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={LANDING_HERO.primaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-8 pt-10 sm:px-6 sm:pb-10 sm:pt-14 lg:gap-10 lg:pt-16">
+          <div className="max-w-4xl space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-700">
+            <p className="font-[family-name:var(--font-marketing-display)] text-[clamp(3.25rem,12vw,7.5rem)] font-extrabold leading-[0.9] tracking-[-0.04em] text-[var(--mkt-ink)]">
+              {LANDING_HERO.brand}
+            </p>
+            <svg
+              className="marketing-zigzag-stroke h-3 w-40 text-[var(--mkt-signal)] sm:w-56"
+              viewBox="0 0 220 12"
+              fill="none"
+              aria-hidden
             >
-              {LANDING_HERO.primaryCta.label}
-            </Link>
-            <a
-              href={LANDING_HERO.secondaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-background/80 px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <path
+                d="M1 10 L28 2 L55 10 L82 2 L109 10 L136 2 L163 10 L190 2 L219 10"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="square"
+                strokeLinejoin="miter"
+              />
+            </svg>
+            <h1
+              id="landing-hero-heading"
+              className="max-w-3xl font-[family-name:var(--font-marketing-display)] text-[clamp(1.75rem,4.2vw,2.75rem)] font-semibold leading-[1.15] tracking-tight text-[var(--mkt-ink)]"
             >
-              {LANDING_HERO.secondaryCta.label}
-            </a>
+              {LANDING_HERO.headline}
+            </h1>
+            <p className="max-w-xl text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl">
+              {LANDING_HERO.support}
+            </p>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link
+                href={LANDING_HERO.primaryCta.href}
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-colors hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+              >
+                {LANDING_HERO.primaryCta.label}
+              </Link>
+              <a
+                href={LANDING_HERO.secondaryCta.href}
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-transparent px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+              >
+                {LANDING_HERO.secondaryCta.label}
+              </a>
+            </div>
           </div>
         </div>
-        <div className="relative -mx-4 overflow-hidden border-y border-border/70 bg-card shadow-[0_28px_80px_-36px_rgba(37,99,235,0.55)] sm:mx-0 sm:rounded-2xl sm:border">
+
+        <div className="relative w-full overflow-hidden border-y border-[var(--mkt-line)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-1000 motion-safe:delay-150">
+          <div
+            className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-[var(--mkt-mist)] via-transparent to-[var(--mkt-mist)] opacity-80"
+            aria-hidden
+          />
           <Image
             src={LANDING_HERO.heroImage.src}
             alt={LANDING_HERO.heroImage.alt}
             width={1400}
             height={900}
-            className="h-auto w-full object-cover"
+            className="marketing-hero-pan h-auto min-h-[14rem] w-full object-cover object-top sm:min-h-[18rem] lg:min-h-[22rem]"
             priority
           />
         </div>
@@ -64,55 +82,59 @@ export const MarketingLanding = () => {
 
       <section
         id={LANDING_PROBLEM.id}
-        className={`${sectionClass} max-w-3xl ${fadeInClass}`}
+        className={`${sectionClass} max-w-3xl motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700`}
         aria-labelledby="problema-heading"
       >
         <h2
           id="problema-heading"
-          className="text-3xl font-semibold tracking-tight"
+          className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-4xl"
         >
           {LANDING_PROBLEM.title}
         </h2>
-        <p className="mt-4 text-lg text-muted-foreground">{LANDING_PROBLEM.body}</p>
+        <p className="mt-5 text-lg leading-relaxed text-[var(--mkt-muted)]">
+          {LANDING_PROBLEM.body}
+        </p>
       </section>
 
       <section
         id="como-funciona"
-        className={`${sectionClass} space-y-10 ${fadeInClass}`}
+        className={`${sectionClass} space-y-12`}
         aria-labelledby="como-funciona-heading"
       >
         <div className="max-w-3xl space-y-3">
           <h2
             id="como-funciona-heading"
-            className="text-3xl font-semibold tracking-tight"
+            className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-4xl"
           >
             Cómo funciona
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-[var(--mkt-muted)]">
             Un solo flujo operativo:{' '}
-            <span className="font-medium text-foreground">
+            <span className="font-semibold text-[var(--mkt-ink)]">
               Cliente → Ticket → Servicios → Cobro → Factura PDF
             </span>
             .
           </p>
         </div>
-        <ol className="grid gap-8">
+        <ol className="grid gap-14">
           {LANDING_FLOW_STEPS.map((step, index) => (
             <li
               key={step.key}
-              className="grid items-center gap-6 md:grid-cols-2 md:gap-10"
+              className="grid items-center gap-6 md:grid-cols-2 md:gap-12"
             >
               <div className={index % 2 === 1 ? 'md:order-2' : undefined}>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--mkt-signal)]">
                   Paso {index + 1}
                 </p>
-                <h3 className="mt-2 text-2xl font-semibold tracking-tight">
+                <h3 className="mt-2 font-[family-name:var(--font-marketing-display)] text-2xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-3xl">
                   {step.title}
                 </h3>
-                <p className="mt-3 text-muted-foreground">{step.body}</p>
+                <p className="mt-3 text-[var(--mkt-muted)] leading-relaxed">
+                  {step.body}
+                </p>
               </div>
               <div
-                className={`overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm ${
+                className={`overflow-hidden border border-[var(--mkt-line)] bg-white/50 ${
                   index % 2 === 1 ? 'md:order-1' : ''
                 }`}
               >
@@ -132,27 +154,32 @@ export const MarketingLanding = () => {
 
       <section
         id="capacidades"
-        className={`${sectionClass} space-y-8 ${fadeInClass}`}
+        className={`${sectionClass} space-y-10`}
         aria-labelledby="capacidades-heading"
       >
         <div className="max-w-3xl space-y-3">
           <h2
             id="capacidades-heading"
-            className="text-3xl font-semibold tracking-tight"
+            className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-4xl"
           >
             Capacidades
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-[var(--mkt-muted)]">
             Lo esencial para operar servicios en LATAM sin fragmentar tu stack.
           </p>
         </div>
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {LANDING_CAPABILITIES.map((capability) => (
-            <li key={capability.title} className="space-y-2">
-              <h3 className="text-lg font-semibold tracking-tight">
+            <li
+              key={capability.title}
+              className="border-t border-[var(--mkt-line-strong)] pt-4"
+            >
+              <h3 className="font-[family-name:var(--font-marketing-display)] text-lg font-semibold tracking-tight text-[var(--mkt-ink)]">
                 {capability.title}
               </h3>
-              <p className="text-muted-foreground">{capability.body}</p>
+              <p className="mt-2 text-[var(--mkt-muted)] leading-relaxed">
+                {capability.body}
+              </p>
             </li>
           ))}
         </ul>
@@ -160,23 +187,28 @@ export const MarketingLanding = () => {
 
       <section
         id={LANDING_DEMO.id}
-        className={`${sectionClass} space-y-8 ${fadeInClass}`}
+        className={`${sectionClass} space-y-10`}
         aria-labelledby="demo-heading"
       >
         <div className="max-w-3xl space-y-3">
-          <h2 id="demo-heading" className="text-3xl font-semibold tracking-tight">
+          <h2
+            id="demo-heading"
+            className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-4xl"
+          >
             {LANDING_DEMO.title}
           </h2>
-          <p className="text-lg text-muted-foreground">{LANDING_DEMO.body}</p>
+          <p className="text-lg text-[var(--mkt-muted)]">{LANDING_DEMO.body}</p>
         </div>
-        <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {LANDING_DEMO.stats.map((stat) => (
-            <div key={stat.label}>
-              <dt className="text-3xl font-semibold tracking-tight text-primary">
+            <div key={stat.label} className="border-l-2 border-[var(--mkt-signal)] pl-4">
+              <dt className="font-[family-name:var(--font-marketing-display)] text-3xl font-bold tracking-tight text-[var(--mkt-ink)]">
                 {stat.value}
               </dt>
-              <dd className="mt-1 font-medium text-foreground">{stat.label}</dd>
-              <p className="mt-1 text-sm text-muted-foreground">{stat.detail}</p>
+              <dd className="mt-1 font-semibold text-[var(--mkt-ink)]">
+                {stat.label}
+              </dd>
+              <p className="mt-1 text-sm text-[var(--mkt-muted)]">{stat.detail}</p>
             </div>
           ))}
         </dl>
@@ -184,7 +216,7 @@ export const MarketingLanding = () => {
           {LANDING_DEMO.images.map((image) => (
             <div
               key={image.src}
-              className="overflow-hidden rounded-xl border border-border/70 bg-card"
+              className="overflow-hidden border border-[var(--mkt-line)] bg-white/40"
             >
               <Image
                 src={image.src}
@@ -200,29 +232,33 @@ export const MarketingLanding = () => {
       </section>
 
       <section
-        className={`${sectionClass} ${fadeInClass}`}
+        className={`${sectionClass}`}
         aria-labelledby="cta-final-heading"
       >
-        <div className="rounded-2xl bg-primary px-6 py-10 text-primary-foreground sm:px-10">
+        <div className="relative overflow-hidden bg-[var(--mkt-ink)] px-6 py-12 text-white sm:px-12 sm:py-14">
+          <div
+            className="pointer-events-none absolute inset-0 marketing-zigzag-grid opacity-[0.12]"
+            aria-hidden
+          />
           <h2
             id="cta-final-heading"
-            className="text-3xl font-semibold tracking-tight"
+            className="relative font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight sm:text-4xl"
           >
             {LANDING_FINAL_CTA.title}
           </h2>
-          <p className="mt-3 max-w-2xl text-primary-foreground/90">
+          <p className="relative mt-4 max-w-2xl text-white/80">
             {LANDING_FINAL_CTA.body}
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="relative mt-8 flex flex-wrap gap-3">
             <Link
               href={LANDING_FINAL_CTA.primaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-background px-5 text-sm font-semibold text-foreground transition-colors hover:bg-background/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               {LANDING_FINAL_CTA.primaryCta.label}
             </Link>
             <a
               href={LANDING_FINAL_CTA.secondaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-primary-foreground/40 px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/35 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               {LANDING_FINAL_CTA.secondaryCta.label}
             </a>

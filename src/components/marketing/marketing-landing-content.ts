@@ -1,8 +1,8 @@
 export const LANDING_HERO = {
   brand: 'ZigZag',
-  headline: 'Tickets, cobranza y facturas PDF para empresas de servicios',
+  headline: 'Del ticket al cobro, en un solo flujo',
   support:
-    'Deja atrás hojas de cálculo y WhatsApp. Opera clientes, servicios y cobros en una sola plataforma multi-empresa, lista para móvil.',
+    'Opera clientes, servicios, pagos y facturas PDF en una plataforma multi-empresa lista para móvil.',
   primaryCta: { href: '/login', label: 'Iniciar sesión' },
   secondaryCta: { href: '#como-funciona', label: 'Ver cómo funciona' },
   heroImage: {
@@ -13,8 +13,8 @@ export const LANDING_HERO = {
 
 export const LANDING_PROBLEM = {
   id: 'problema',
-  title: 'El problema',
-  body: 'HVAC, mantenimiento e instalaciones viven en herramientas fragmentadas: Excel, chats y facturas manuales. Pierdes visibilidad de cobros, no hay trazabilidad entre sucursales y el equipo improvisa cada día.',
+  title: 'El trabajo ya existe. La operación no.',
+  body: 'HVAC, mantenimiento e instalaciones viven repartidos entre Excel, WhatsApp y facturas a mano. Sin una sola fuente de verdad, el cobro se atrasa y cada sucursal improvisa.',
 } as const;
 
 export const LANDING_FLOW_STEPS = [
@@ -94,8 +94,8 @@ export const LANDING_CAPABILITIES = [
 
 export const LANDING_DEMO = {
   id: 'demo',
-  title: 'Datos de evaluación — ClimaTotal Demo',
-  body: 'Un tenant de demostración con datos realistas para evaluar el producto. No son testimonios inventados: es el entorno de evaluación de ZigZag.',
+  title: 'Evalúa con datos reales de demo',
+  body: 'ClimaTotal Demo es un tenant de evaluación con historial operativo — no testimonios inventados.',
   stats: [
     { value: '53', label: 'Tickets', detail: 'Activos, finalizados y con pagos parciales' },
     { value: '21', label: 'Clientes', detail: 'Hoteles, clínicas, comercios y más' },
@@ -115,8 +115,8 @@ export const LANDING_DEMO = {
 } as const;
 
 export const LANDING_FINAL_CTA = {
-  title: '¿Listo para ver ZigZag en acción?',
-  body: 'Entra a la plataforma o recorre el flujo completo en esta página.',
+  title: 'Entra y recorre el flujo completo',
+  body: 'Inicia sesión o sigue la secuencia Cliente → Ticket → Cobro → Factura en esta página.',
   primaryCta: { href: '/login', label: 'Iniciar sesión' },
   secondaryCta: { href: '#como-funciona', label: 'Ver cómo funciona' },
 } as const;

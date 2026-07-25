@@ -132,3 +132,65 @@
       0 10px 20px -2px rgba(0, 0, 0, 0.25);
   }
 }
+
+/* Marketing landing surface — scoped brand tokens + motion */
+.marketing-surface {
+  --mkt-mist: #e7eef6;
+  --mkt-ink: #0b1f33;
+  --mkt-muted: #4a5d72;
+  --mkt-signal: #1d6fe8;
+  --mkt-signal-deep: #1557b8;
+  --mkt-line: rgba(11, 31, 51, 0.1);
+  --mkt-line-strong: rgba(11, 31, 51, 0.18);
+  --mkt-teal: #0f766e;
+  color-scheme: light;
+}
+
+.marketing-zigzag-grid {
+  background-image:
+    linear-gradient(
+      135deg,
+      transparent 48%,
+      rgba(29, 111, 232, 0.07) 48%,
+      rgba(29, 111, 232, 0.07) 52%,
+      transparent 52%
+    ),
+    linear-gradient(
+      45deg,
+      transparent 48%,
+      rgba(11, 31, 51, 0.04) 48%,
+      rgba(11, 31, 51, 0.04) 52%,
+      transparent 52%
+    );
+  background-size: 28px 28px;
+}
+
+.marketing-zigzag-stroke path {
+  stroke-dasharray: 320;
+  stroke-dashoffset: 320;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .marketing-zigzag-stroke path {
+    animation: marketing-stroke-draw 1.1s ease-out 0.25s forwards;
+  }
+
+  .marketing-hero-pan {
+    animation: marketing-hero-pan 18s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes marketing-stroke-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes marketing-hero-pan {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.06) translate3d(0, -1.5%, 0);
+  }
+}
