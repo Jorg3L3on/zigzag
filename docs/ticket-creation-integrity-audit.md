@@ -35,8 +35,8 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 
 | Surface | Tenant check | Soft-delete | Runtime validation | Money source | Audit | Cache invalidate | Test evidence | Status |
 | ------- | ------------ | ----------- | ------------------ | ------------ | ----- | ---------------- | ------------- | ------ |
-| `createTicket` | 🟡 company via write RBAC; **no client_id company check** | 🟡 ticket ok; **client not checked** | 🟡 zod on shell fields; `services` validated then discarded | ⏭️ no total set | ✅ `created` | ✅ dashboard | IDOR company deny only; **no success / client-tenant tests** | ❌ open |
-| `updateTicket` | 🟡 ticket company; client_id same gap if present | 🟡 ticket | 🟡 same zod family | ⏭️ | ✅ `updated` | ✅ | partial | ❌ open (client) |
+| `createTicket` | ✅ company via write RBAC + **client_id company/soft-delete check** | ✅ ticket + client | 🟡 zod on shell fields; `services` validated then discarded | ⏭️ no total set | ✅ `created` | ✅ dashboard | IDOR company deny + **TCI-01 client assert** (`tickets-actions.test.ts`) | ✅ TCI-01 |
+| `updateTicket` | ✅ ticket company + **client_id assert when provided** | ✅ ticket + client | 🟡 same zod family | ⏭️ | ✅ `updated` | ✅ | TCI-01 client assert on update | ✅ TCI-01 |
 | `createServiceTicket` | ✅ ticket + service company | ✅ service not deleted | ❌ TS interface only (qty/price unchecked) | ✅ `syncTicketTotal` | ❌ none | ❌ path only | IDOR deny; **no qty/price / success sync tests** | ❌ open |
 | `updateServiceTicket` | ✅ line under ticket | ✅ | ❌ same | ✅ sync | ❌ | ❌ path only | IDOR deny | ❌ open |
 | `deleteServiceTicket` | ✅ | soft-delete line | ⏭️ | ✅ sync | ❌ | ❌ path only | IDOR deny | ❌ open |
@@ -59,7 +59,7 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 
 | ID | Finding | Evidence | Recommended fix direction |
 | -- | ------- | -------- | ------------------------- |
-| TCI-01 | `createTicket` does not verify `client_id` belongs to the ticket `company_id` or is non-deleted. Cross-tenant client attachment is possible via a forged action payload. | `src/actions/tickets.ts` `createTicket` inserts parsed `client_id` with no client lookup | Add `assertClientBelongsToCompany(clientId, companyId)` (active only) before insert/update |
+| TCI-01 | `createTicket` does not verify `client_id` belongs to the ticket `company_id` or is non-deleted. Cross-tenant client attachment is possible via a forged action payload. | `src/actions/tickets.ts` `createTicket` inserts parsed `client_id` with no client lookup | **Closed in #255** — `assertClientBelongsToCompany` on create/update; tests in `src/lib/tickets-actions.test.ts` |
 | TCI-02 | Service line `quantity` / `price` have no runtime zod. Negative, NaN, or non-finite values can write and corrupt totals/KPIs. | `src/actions/ticket-services.ts` `CreateServiceTicketData` / `UpdateServiceTicketData` are TypeScript-only | Shared zod: quantity ≥ 1 (finite), price ≥ 0 (finite); reject before insert |
 | TCI-03 | `finishTicket` race: `finished` checked outside the transaction; UPDATE does not require `finished = false`. Concurrent finishes can double-insert `TicketPayment` and `finished` audit rows. | `finishTicket` vs `applyTicketPayment` (advisory lock) | Advisory lock + `AND finished = false` in UPDATE; treat 0-row update as already finished |
 | TCI-04 | Server can finalize an empty ticket (synced total `0`, paid `0`) if called directly. UI disables the button only. | UI gate in services/edit client; `finishTicket` has no “≥1 active line” rule | Reject finish when active line count is 0 |
