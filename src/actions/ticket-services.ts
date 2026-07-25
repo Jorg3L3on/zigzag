@@ -1,6 +1,7 @@
 'use server';
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { service, servicesTickets, ticket } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -10,7 +11,10 @@ import {
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
+import type { ActionAuthContext } from '@/lib/authz-context';
+import { invalidateCompanyCache } from '@/lib/cache';
 import { requireActionPermission } from '@/lib/security';
+import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { revalidatePath } from 'next/cache';
 
@@ -22,16 +26,18 @@ export interface ServiceTicket {
   service: Service;
 }
 
-export interface CreateServiceTicketData {
-  service_id: number;
-  quantity: number;
-  price: number;
-}
+/** Runtime money-line rules (TCI-02). Quantity ≥ 1, price ≥ 0, both finite. */
+export const serviceLineMoneySchema = z.object({
+  quantity: z.number().finite().min(1),
+  price: z.number().finite().min(0),
+});
 
-export interface UpdateServiceTicketData {
-  quantity: number;
-  price: number;
-}
+export const createServiceTicketSchema = serviceLineMoneySchema.extend({
+  service_id: z.number().int().positive(),
+});
+
+export type CreateServiceTicketData = z.infer<typeof createServiceTicketSchema>;
+export type UpdateServiceTicketData = z.infer<typeof serviceLineMoneySchema>;
 
 const ticketIdBigInt = (ticketId: string) => BigInt(ticketId);
 
@@ -86,8 +92,8 @@ const sleep = (ms: number) =>
 const assertTicketAccess = async (
   ticketId: bigint,
   permissionKey: string,
-): Promise<number> => {
-  const { companyId: effectiveCompanyId } =
+): Promise<{ companyId: number; context: ActionAuthContext }> => {
+  const { context, companyId: effectiveCompanyId } =
     await requireActionPermission(permissionKey);
 
   const ticketRow = await db.query.ticket.findFirst({
@@ -102,7 +108,7 @@ const assertTicketAccess = async (
     throw new AuthorizationError('Access denied to this ticket');
   }
 
-  return effectiveCompanyId;
+  return { companyId: effectiveCompanyId, context };
 };
 
 const assertServiceAvailable = async (serviceId: number, companyId: number) => {
@@ -155,16 +161,18 @@ export async function createServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const companyId = await assertTicketAccess(
-      ticketIdBigInt(ticketId),
+    const validated = createServiceTicketSchema.parse(data);
+    const ticketIdValue = ticketIdBigInt(ticketId);
+    const { companyId, context } = await assertTicketAccess(
+      ticketIdValue,
       'tickets.write',
     );
-    await assertServiceAvailable(data.service_id, companyId);
+    await assertServiceAvailable(validated.service_id, companyId);
     const values = {
-      ticket_id: ticketIdBigInt(ticketId),
-      service_id: data.service_id,
-      quantity: data.quantity,
-      price: data.price,
+      ticket_id: ticketIdValue,
+      service_id: validated.service_id,
+      quantity: validated.quantity,
+      price: validated.price,
     };
 
     const serviceTicket = await db.transaction(async (tx) => {
@@ -184,7 +192,12 @@ export async function createServiceTicket(
         return undefined;
       }
 
-      await syncTicketTotal(tx, ticketIdBigInt(ticketId));
+      const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
+      await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
+        serviceLine: 'created',
+        line: createdRow,
+        syncedTotal,
+      });
       return createdRow;
     });
 
@@ -201,8 +214,12 @@ export async function createServiceTicket(
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
+    invalidateCompanyCache(companyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return buildActionError('TS006', error, 'validation');
+    }
     return handleCodedServerActionError('ticket-services.create', 'TS002', error);
   }
 }
@@ -218,15 +235,19 @@ export async function updateServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
+    const validated = serviceLineMoneySchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
+    const { companyId, context } = await assertTicketAccess(
+      ticketIdValue,
+      'tickets.write',
+    );
     const runUpdate = async () =>
       db.transaction(async (tx) => {
         const [updatedRow] = await tx
           .update(servicesTickets)
           .set({
-            quantity: data.quantity,
-            price: data.price,
+            quantity: validated.quantity,
+            price: validated.price,
             updated_at: new Date(),
           })
           .where(
@@ -242,7 +263,12 @@ export async function updateServiceTicket(
           return undefined;
         }
 
-        await syncTicketTotal(tx, ticketIdValue);
+        const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
+        await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
+          serviceLine: 'updated',
+          line: updatedRow,
+          syncedTotal,
+        });
         return updatedRow;
       });
 
@@ -271,8 +297,12 @@ export async function updateServiceTicket(
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
+    invalidateCompanyCache(companyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return buildActionError('TS006', error, 'validation');
+    }
     return handleCodedServerActionError('ticket-services.update', 'TS003', error);
   }
 }
@@ -282,22 +312,35 @@ export async function deleteServiceTicket(
   serviceTicketId: number,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
-    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
+    const ticketIdValue = ticketIdBigInt(ticketId);
+    const { companyId, context } = await assertTicketAccess(
+      ticketIdValue,
+      'tickets.write',
+    );
     await db.transaction(async (tx) => {
-      await tx
+      const [deletedRow] = await tx
         .update(servicesTickets)
         .set({ deleted_at: new Date(), updated_at: new Date() })
         .where(
           and(
             eq(servicesTickets.id, serviceTicketId),
-            eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
+            eq(servicesTickets.ticket_id, ticketIdValue),
             isNull(servicesTickets.deleted_at),
           ),
-        );
-      await syncTicketTotal(tx, ticketIdBigInt(ticketId));
+        )
+        .returning();
+      const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
+      if (deletedRow) {
+        await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
+          serviceLine: 'deleted',
+          line: deletedRow,
+          syncedTotal,
+        });
+      }
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
+    invalidateCompanyCache(companyId, 'dashboard');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('ticket-services.delete', 'TS004', error);

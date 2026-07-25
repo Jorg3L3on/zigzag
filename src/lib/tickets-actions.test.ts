@@ -24,6 +24,9 @@ jest.mock('@/lib/db', () => ({
       ticket: {
         findFirst: jest.fn(),
       },
+      client: {
+        findFirst: jest.fn(),
+      },
     },
     transaction: jest.fn(),
   },
@@ -57,6 +60,9 @@ jest.mock('@/lib/ticket-financials', () => ({
 const mockDb = db as unknown as {
   query: {
     ticket: {
+      findFirst: jest.Mock;
+    };
+    client: {
       findFirst: jest.Mock;
     };
   };
@@ -235,6 +241,14 @@ describe('ticket actions — payments', () => {
 
       mockDb.transaction.mockImplementation(async (callback) => {
         const tx = {
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
           update: jest.fn(() => ({
             set: jest.fn(() => ({
               where: jest.fn(() => ({
@@ -281,12 +295,99 @@ describe('ticket actions — payments', () => {
         });
       mockSyncTicketTotal.mockResolvedValueOnce(100);
 
-      mockDb.transaction.mockImplementation(async (callback) => callback({}));
+      mockDb.transaction.mockImplementation(async (callback) =>
+        callback({
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
+        }),
+      );
 
       const result = await finishTicket(42, 100, 150);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('TC009');
+    });
+
+    it('rejects finishing a ticket with zero active service lines', async () => {
+      mockDb.query.ticket.findFirst
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        })
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        });
+
+      mockDb.transaction.mockImplementation(async (callback) =>
+        callback({
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => []),
+              })),
+            })),
+          })),
+        }),
+      );
+
+      const result = await finishTicket(42, 0, 0);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('TC009');
+      expect(mockSyncTicketTotal).not.toHaveBeenCalled();
+    });
+
+    it('treats concurrent finish (0-row update) as already finished', async () => {
+      mockDb.query.ticket.findFirst
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        })
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        });
+      mockSyncTicketTotal.mockResolvedValueOnce(100);
+
+      const insertMock = jest.fn(() => ({
+        values: jest.fn(async () => []),
+      }));
+
+      mockDb.transaction.mockImplementation(async (callback) =>
+        callback({
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
+          update: jest.fn(() => ({
+            set: jest.fn(() => ({
+              where: jest.fn(() => ({
+                returning: jest.fn(async () => []),
+              })),
+            })),
+          })),
+          insert: insertMock,
+        }),
+      );
+
+      const result = await finishTicket(42, 100, 25);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('TC006');
+      expect(insertMock).not.toHaveBeenCalled();
+      expect(mockRecordTicketAudit).not.toHaveBeenCalled();
     });
   });
 });
@@ -394,6 +495,132 @@ describe('cross-tenant IDOR — ticket actions', () => {
 
     expect(result.success).toBe(false);
     expect(mockRequireTicketWrite).toHaveBeenCalledWith(IDOR_COMPANY_A.id);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('ticket actions — client tenant assert (TCI-01)', () => {
+  const basePayload = {
+    client_id: 7,
+    client_name: 'Cliente Local',
+    client_tel: '5551234567',
+    email: 'cliente@example.com',
+    document: 'DOC-1',
+    ticket_date: new Date('2026-01-01T00:00:00.000Z'),
+    services: [] as Array<{ service_id: number; quantity: number; price: number }>,
+    company_id: 10,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireTicketWrite.mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+    mockRecordTicketAudit.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('createTicket rejects client_id from another company', async () => {
+    mockDb.query.client.findFirst.mockResolvedValueOnce(undefined);
+
+    const result = await createTicket(basePayload);
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('auth');
+    expect(mockDb.query.client.findFirst).toHaveBeenCalled();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('createTicket rejects soft-deleted clients', async () => {
+    // Helper filters deleted_at IS NULL — missing row means unavailable.
+    mockDb.query.client.findFirst.mockResolvedValueOnce(undefined);
+
+    const result = await createTicket({ ...basePayload, client_id: 99 });
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('auth');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('createTicket succeeds with a valid same-company client', async () => {
+    mockDb.query.client.findFirst.mockResolvedValueOnce({ id: 7 });
+    const createdRow = {
+      id: 100n,
+      client_id: 7,
+      client_name: 'Cliente Local',
+      company_id: 10,
+    };
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn(() => ({
+          values: jest.fn(() => ({
+            returning: jest.fn(async () => [createdRow]),
+          })),
+        })),
+      };
+      return callback(tx);
+    });
+
+    const result = await createTicket(basePayload);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual(createdRow);
+    expect(mockDb.query.client.findFirst).toHaveBeenCalled();
+    expect(mockRecordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      authContext,
+      createdRow.id,
+      createdRow.company_id,
+      'created',
+      expect.objectContaining({ ticket: createdRow }),
+    );
+  });
+
+  it('createTicket succeeds with a 20-char phone matching Client.phone', async () => {
+    mockDb.query.client.findFirst.mockResolvedValueOnce({ id: 7 });
+    const longTel = '12345678901234567890';
+    const createdRow = {
+      id: 101n,
+      client_id: 7,
+      client_tel: longTel,
+      company_id: 10,
+    };
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn(() => ({
+          values: jest.fn((values) => {
+            expect(values.client_tel).toBe(longTel);
+            return {
+              returning: jest.fn(async () => [createdRow]),
+            };
+          }),
+        })),
+      };
+      return callback(tx);
+    });
+
+    const result = await createTicket({
+      ...basePayload,
+      client_tel: longTel,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual(createdRow);
+  });
+
+  it('createTicket rejects client_tel longer than 20', async () => {
+    const result = await createTicket({
+      ...basePayload,
+      client_tel: '123456789012345678901',
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockDb.query.client.findFirst).not.toHaveBeenCalled();
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

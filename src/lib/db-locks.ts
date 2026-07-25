@@ -19,6 +19,8 @@ export type AdvisoryLockExecutor = {
  */
 export const ADVISORY_LOCK_NAMESPACE = {
   ticketPayment: 1,
+  /** Serialize finish + payment money mutations on the same ticket. */
+  ticketFinish: 2,
 } as const;
 
 export type AdvisoryLockNamespace =

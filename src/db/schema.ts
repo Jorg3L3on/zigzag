@@ -213,7 +213,7 @@ export const ticket = pgTable(
     id: bigserial('id', { mode: 'bigint' }).primaryKey(),
     client_id: integer('client_id'),
     client_name: varchar('client_name', { length: 100 }),
-    client_tel: varchar('client_tel', { length: 10 }),
+    client_tel: varchar('client_tel', { length: 20 }),
     ticket_date: timestamp('ticket_date', { precision: 3, mode: 'date' }),
     total: money('total'),
     paid: money('paid'),

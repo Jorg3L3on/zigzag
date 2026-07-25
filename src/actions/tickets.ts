@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, inArray, count, ilike, or } from 'drizzle-orm';
 import {
+  client,
   service,
   servicesTickets,
   ticket,
@@ -46,28 +47,32 @@ import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
 
+const ticketServiceLineSchema = z.object({
+  service_id: z.number(),
+  quantity: z.number().finite().min(1),
+  price: z.number().finite().min(0),
+});
+
+/** Shell fields only — service lines attach via ticket-services actions (TCI-06). */
 const ticketSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre del cliente es obligatorio'),
-  client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio'),
+  client_name: z.string().min(1, 'El nombre del cliente es obligatorio').max(100),
+  client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio').max(20),
   email: z
     .string()
     .email('El correo electrónico no es válido')
+    .max(40)
     .optional()
     .or(z.literal('')),
-  document: z.string().optional(),
+  document: z.string().max(100).optional(),
   ticket_date: z.date(),
-  services: z.array(
-    z.object({
-      service_id: z.number(),
-      quantity: z.number().min(1),
-      price: z.number().min(0),
-    }),
-  ),
   company_id: z.number(),
 });
 
-export type CreateTicketInput = z.infer<typeof ticketSchema>;
+export type CreateTicketInput = z.infer<typeof ticketSchema> & {
+  /** Optional replace-all lines on update only; ignored by createTicket. */
+  services?: Array<z.infer<typeof ticketServiceLineSchema>>;
+};
 
 export type Ticket = {
   id: bigint;
@@ -158,6 +163,20 @@ class FinishPaidExceedsTotalError extends Error {
   }
 }
 
+class EmptyTicketFinishError extends Error {
+  constructor() {
+    super('Cannot finish a ticket with no active service lines');
+    this.name = 'EmptyTicketFinishError';
+  }
+}
+
+class TicketAlreadyFinishedError extends Error {
+  constructor() {
+    super('Ticket already finished');
+    this.name = 'TicketAlreadyFinishedError';
+  }
+}
+
 const assertServicesBelongToCompany = async (
   serviceIds: number[],
   companyId: number,
@@ -183,6 +202,29 @@ const assertServicesBelongToCompany = async (
   }
 };
 
+/** Active client must belong to the ticket company (TCI-01). */
+const assertClientBelongsToCompany = async (
+  clientId: number | undefined,
+  companyId: number,
+): Promise<void> => {
+  if (clientId == null) {
+    return;
+  }
+
+  const clientRow = await db.query.client.findFirst({
+    where: and(
+      eq(client.id, clientId),
+      eq(client.company_id, companyId),
+      isNull(client.deleted_at),
+    ),
+    columns: { id: true },
+  });
+
+  if (!clientRow) {
+    throw new AuthorizationError('Client not found for this company');
+  }
+};
+
 export async function createTicket(
   data: CreateTicketInput,
 ): Promise<{
@@ -198,6 +240,10 @@ export async function createTicket(
     );
 
     await assertCompanyProductionReady(effectiveCompanyId);
+    await assertClientBelongsToCompany(
+      validatedData.client_id,
+      effectiveCompanyId,
+    );
 
     const values = {
       client_id: validatedData.client_id,
@@ -450,8 +496,15 @@ export async function updateTicket(
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
 
+    if (data.client_id != null) {
+      await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
+    }
+
     const servicesToSync = Array.isArray(data.services) ? data.services : null;
     const hasServicesUpdate = servicesToSync !== null;
+    if (hasServicesUpdate) {
+      z.array(ticketServiceLineSchema).parse(servicesToSync);
+    }
     const totalFromServices = hasServicesUpdate
       ? calculateTicketTotal(servicesToSync)
       : undefined;
@@ -501,6 +554,7 @@ export async function updateTicket(
       }
 
       const ticketUpdateData: {
+        client_id?: number;
         client_name?: string;
         client_tel?: string;
         email?: string;
@@ -514,6 +568,10 @@ export async function updateTicket(
         document: data.document,
         ticket_date: data.ticket_date,
       };
+
+      if (data.client_id != null) {
+        ticketUpdateData.client_id = data.client_id;
+      }
 
       if (totalFromServices !== undefined) {
         ticketUpdateData.total = totalFromServices;
@@ -654,6 +712,27 @@ export async function finishTicket(
     const paidAmount = roundMoney(paid);
 
     const updated = await db.transaction(async (tx) => {
+      await acquireAdvisoryLock(
+        tx,
+        ADVISORY_LOCK_NAMESPACE.ticketFinish,
+        ticketId,
+      );
+
+      const activeLines = await tx
+        .select({ id: servicesTickets.id })
+        .from(servicesTickets)
+        .where(
+          and(
+            eq(servicesTickets.ticket_id, ticketId),
+            isNull(servicesTickets.deleted_at),
+          ),
+        )
+        .limit(1);
+
+      if (activeLines.length === 0) {
+        throw new EmptyTicketFinishError();
+      }
+
       // Authoritative total comes from active service lines, never the client.
       const totalAmount = await syncTicketTotal(tx, ticketId);
 
@@ -673,11 +752,17 @@ export async function finishTicket(
             eq(ticket.id, ticketId),
             eq(ticket.company_id, effectiveCompanyId),
             isNull(ticket.deleted_at),
+            eq(ticket.finished, false),
           ),
         )
         .returning();
 
-      if (row && paidAmount > AMOUNT_TOLERANCE) {
+      if (!row) {
+        // Concurrent finish won the race; do not insert payment/audit again.
+        throw new TicketAlreadyFinishedError();
+      }
+
+      if (paidAmount > AMOUNT_TOLERANCE) {
         await tx.insert(ticketPayment).values({
           ticket_id: ticketId,
           amount: paidAmount,
@@ -685,22 +770,20 @@ export async function finishTicket(
         });
       }
 
-      if (row) {
-        await recordTicketAudit(
-          tx,
-          context,
-          ticketId,
-          effectiveCompanyId,
-          'finished',
-          {
-            before: prior,
-            after: row,
-            initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
-            syncedTotal: totalAmount,
-            ignoredClientTotal: _clientTotal,
-          },
-        );
-      }
+      await recordTicketAudit(
+        tx,
+        context,
+        ticketId,
+        effectiveCompanyId,
+        'finished',
+        {
+          before: prior,
+          after: row,
+          initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
+          syncedTotal: totalAmount,
+          ignoredClientTotal: _clientTotal,
+        },
+      );
 
       return row;
     });
@@ -711,6 +794,12 @@ export async function finishTicket(
   } catch (e) {
     if (e instanceof FinishPaidExceedsTotalError) {
       return buildActionError('TC009', undefined, 'validation');
+    }
+    if (e instanceof EmptyTicketFinishError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
+    if (e instanceof TicketAlreadyFinishedError) {
+      return buildActionError('TC006', undefined, 'validation');
     }
     return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }

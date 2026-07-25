@@ -81,16 +81,16 @@ import {
 
 const formSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre es obligatorio'),
-  client_tel: z.string().min(1, 'El teléfono es obligatorio'),
-  email: z.string().email('Correo inválido').optional(),
-  document: z.string().optional(),
+  client_name: z.string().min(1, 'El nombre es obligatorio').max(100),
+  client_tel: z.string().min(1, 'El teléfono es obligatorio').max(20),
+  email: z.string().email('Correo inválido').max(40).optional(),
+  document: z.string().max(100).optional(),
   ticket_date: z.date(),
   services: z.array(
     z.object({
       service_id: z.number(),
-      quantity: z.number().min(1),
-      price: z.number().min(0),
+      quantity: z.number().finite().min(1),
+      price: z.number().finite().min(0),
     }),
   ),
 });
