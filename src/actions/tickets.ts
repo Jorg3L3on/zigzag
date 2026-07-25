@@ -159,6 +159,20 @@ class FinishPaidExceedsTotalError extends Error {
   }
 }
 
+class EmptyTicketFinishError extends Error {
+  constructor() {
+    super('Cannot finish a ticket with no active service lines');
+    this.name = 'EmptyTicketFinishError';
+  }
+}
+
+class TicketAlreadyFinishedError extends Error {
+  constructor() {
+    super('Ticket already finished');
+    this.name = 'TicketAlreadyFinishedError';
+  }
+}
+
 const assertServicesBelongToCompany = async (
   serviceIds: number[],
   companyId: number,
@@ -691,6 +705,27 @@ export async function finishTicket(
     const paidAmount = roundMoney(paid);
 
     const updated = await db.transaction(async (tx) => {
+      await acquireAdvisoryLock(
+        tx,
+        ADVISORY_LOCK_NAMESPACE.ticketFinish,
+        ticketId,
+      );
+
+      const activeLines = await tx
+        .select({ id: servicesTickets.id })
+        .from(servicesTickets)
+        .where(
+          and(
+            eq(servicesTickets.ticket_id, ticketId),
+            isNull(servicesTickets.deleted_at),
+          ),
+        )
+        .limit(1);
+
+      if (activeLines.length === 0) {
+        throw new EmptyTicketFinishError();
+      }
+
       // Authoritative total comes from active service lines, never the client.
       const totalAmount = await syncTicketTotal(tx, ticketId);
 
@@ -710,11 +745,17 @@ export async function finishTicket(
             eq(ticket.id, ticketId),
             eq(ticket.company_id, effectiveCompanyId),
             isNull(ticket.deleted_at),
+            eq(ticket.finished, false),
           ),
         )
         .returning();
 
-      if (row && paidAmount > AMOUNT_TOLERANCE) {
+      if (!row) {
+        // Concurrent finish won the race; do not insert payment/audit again.
+        throw new TicketAlreadyFinishedError();
+      }
+
+      if (paidAmount > AMOUNT_TOLERANCE) {
         await tx.insert(ticketPayment).values({
           ticket_id: ticketId,
           amount: paidAmount,
@@ -722,22 +763,20 @@ export async function finishTicket(
         });
       }
 
-      if (row) {
-        await recordTicketAudit(
-          tx,
-          context,
-          ticketId,
-          effectiveCompanyId,
-          'finished',
-          {
-            before: prior,
-            after: row,
-            initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
-            syncedTotal: totalAmount,
-            ignoredClientTotal: _clientTotal,
-          },
-        );
-      }
+      await recordTicketAudit(
+        tx,
+        context,
+        ticketId,
+        effectiveCompanyId,
+        'finished',
+        {
+          before: prior,
+          after: row,
+          initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
+          syncedTotal: totalAmount,
+          ignoredClientTotal: _clientTotal,
+        },
+      );
 
       return row;
     });
@@ -748,6 +787,12 @@ export async function finishTicket(
   } catch (e) {
     if (e instanceof FinishPaidExceedsTotalError) {
       return buildActionError('TC009', undefined, 'validation');
+    }
+    if (e instanceof EmptyTicketFinishError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
+    if (e instanceof TicketAlreadyFinishedError) {
+      return buildActionError('TC006', undefined, 'validation');
     }
     return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }

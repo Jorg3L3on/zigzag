@@ -241,6 +241,14 @@ describe('ticket actions — payments', () => {
 
       mockDb.transaction.mockImplementation(async (callback) => {
         const tx = {
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
           update: jest.fn(() => ({
             set: jest.fn(() => ({
               where: jest.fn(() => ({
@@ -287,12 +295,99 @@ describe('ticket actions — payments', () => {
         });
       mockSyncTicketTotal.mockResolvedValueOnce(100);
 
-      mockDb.transaction.mockImplementation(async (callback) => callback({}));
+      mockDb.transaction.mockImplementation(async (callback) =>
+        callback({
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
+        }),
+      );
 
       const result = await finishTicket(42, 100, 150);
 
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('TC009');
+    });
+
+    it('rejects finishing a ticket with zero active service lines', async () => {
+      mockDb.query.ticket.findFirst
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        })
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        });
+
+      mockDb.transaction.mockImplementation(async (callback) =>
+        callback({
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => []),
+              })),
+            })),
+          })),
+        }),
+      );
+
+      const result = await finishTicket(42, 0, 0);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('TC009');
+      expect(mockSyncTicketTotal).not.toHaveBeenCalled();
+    });
+
+    it('treats concurrent finish (0-row update) as already finished', async () => {
+      mockDb.query.ticket.findFirst
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        })
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        });
+      mockSyncTicketTotal.mockResolvedValueOnce(100);
+
+      const insertMock = jest.fn(() => ({
+        values: jest.fn(async () => []),
+      }));
+
+      mockDb.transaction.mockImplementation(async (callback) =>
+        callback({
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
+          update: jest.fn(() => ({
+            set: jest.fn(() => ({
+              where: jest.fn(() => ({
+                returning: jest.fn(async () => []),
+              })),
+            })),
+          })),
+          insert: insertMock,
+        }),
+      );
+
+      const result = await finishTicket(42, 100, 25);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('TC006');
+      expect(insertMock).not.toHaveBeenCalled();
+      expect(mockRecordTicketAudit).not.toHaveBeenCalled();
     });
   });
 });

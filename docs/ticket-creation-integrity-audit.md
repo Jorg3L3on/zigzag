@@ -40,7 +40,7 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 | `createServiceTicket` | ✅ ticket + service company | ✅ service not deleted | ✅ zod qty/price finite (TCI-02) | ✅ `syncTicketTotal` | ❌ none | ❌ path only | IDOR deny + **TCI-02 validation** | ✅ TCI-02 |
 | `updateServiceTicket` | ✅ line under ticket | ✅ | ✅ zod qty/price finite (TCI-02) | ✅ sync | ❌ | ❌ path only | IDOR deny + TCI-02 | ✅ TCI-02 |
 | `deleteServiceTicket` | ✅ | soft-delete line | ⏭️ | ✅ sync | ❌ | ❌ path only | IDOR deny | ❌ open |
-| `finishTicket` | ✅ ticket company | ✅ | 🟡 paid vs synced total; **no min lines**; **race** | ✅ sync in tx; client total ignored | ✅ `finished` | ✅ | finish ignores wrong client total; paid>total; **no race / empty-finish** | 🟡 partial |
+| `finishTicket` | ✅ ticket company | ✅ | ✅ paid vs synced total; **≥1 active line**; **advisory lock + finished=false** | ✅ sync in tx; client total ignored | ✅ `finished` | ✅ | empty finish + concurrent finish + RG-01 | ✅ TCI-03/04 |
 | `applyTicketPayment` | ✅ | ✅ | ✅ finite positive + advisory lock | balance vs total | ✅ | ✅ | covered | ✅ |
 | Invoice `GET …/invoice` | ✅ | ✅ active lines | ⏭️ | payload from DB | ⏭️ | ⏭️ | soft-deleted lines excluded | ✅ |
 
@@ -61,8 +61,8 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 | -- | ------- | -------- | ------------------------- |
 | TCI-01 | `createTicket` does not verify `client_id` belongs to the ticket `company_id` or is non-deleted. Cross-tenant client attachment is possible via a forged action payload. | `src/actions/tickets.ts` `createTicket` inserts parsed `client_id` with no client lookup | **Closed in #255** — `assertClientBelongsToCompany` on create/update; tests in `src/lib/tickets-actions.test.ts` |
 | TCI-02 | Service line `quantity` / `price` have no runtime zod. Negative, NaN, or non-finite values can write and corrupt totals/KPIs. | `src/actions/ticket-services.ts` `CreateServiceTicketData` / `UpdateServiceTicketData` are TypeScript-only | **Closed in #256** — `serviceLineMoneySchema` / `createServiceTicketSchema`; `TS006`; tests in `ticket-services-actions.test.ts` |
-| TCI-03 | `finishTicket` race: `finished` checked outside the transaction; UPDATE does not require `finished = false`. Concurrent finishes can double-insert `TicketPayment` and `finished` audit rows. | `finishTicket` vs `applyTicketPayment` (advisory lock) | Advisory lock + `AND finished = false` in UPDATE; treat 0-row update as already finished |
-| TCI-04 | Server can finalize an empty ticket (synced total `0`, paid `0`) if called directly. UI disables the button only. | UI gate in services/edit client; `finishTicket` has no “≥1 active line” rule | Reject finish when active line count is 0 |
+| TCI-03 | `finishTicket` race: `finished` checked outside the transaction; UPDATE does not require `finished = false`. Concurrent finishes can double-insert `TicketPayment` and `finished` audit rows. | `finishTicket` vs `applyTicketPayment` (advisory lock) | **Closed in #257** — `ticketFinish` advisory lock + `finished = false` UPDATE; 0-row → TC006 |
+| TCI-04 | Server can finalize an empty ticket (synced total `0`, paid `0`) if called directly. UI disables the button only. | UI gate in services/edit client; `finishTicket` has no “≥1 active line” rule | **Closed in #257** — reject zero active lines (TC009) |
 
 ### P1 — schema / contract drift
 
