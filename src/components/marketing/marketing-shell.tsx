@@ -37,7 +37,7 @@ export const MarketingShell = ({
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(ellipse_at_20%_0%,rgba(29,111,232,0.18),transparent_55%),radial-gradient(ellipse_at_90%_10%,rgba(15,118,110,0.12),transparent_50%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] bg-[radial-gradient(ellipse_at_12%_-10%,rgba(29,111,232,0.12),transparent_55%)]"
         aria-hidden
       />
 

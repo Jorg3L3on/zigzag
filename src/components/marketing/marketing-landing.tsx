@@ -25,15 +25,11 @@ export const MarketingLanding = () => {
             alt={LANDING_HERO.heroImage.alt}
             fill
             sizes="100vw"
-            className="marketing-hero-pan object-cover object-[center_12%]"
+            className="marketing-hero-pan object-cover object-[72%_10%]"
             priority
           />
           <div
-            className="absolute inset-0 bg-[linear-gradient(100deg,var(--mkt-mist)_0%,var(--mkt-mist)_34%,rgba(231,238,246,0.82)_48%,rgba(231,238,246,0.28)_68%,rgba(11,31,51,0.22)_100%)]"
-            aria-hidden
-          />
-          <div
-            className="absolute inset-y-0 left-0 w-full max-w-3xl bg-[radial-gradient(ellipse_at_left,var(--mkt-mist)_0%,rgba(231,238,246,0.92)_45%,transparent_72%)]"
+            className="absolute inset-0 bg-[linear-gradient(90deg,var(--mkt-mist)_0%,var(--mkt-mist)_42%,rgba(231,238,246,0.88)_54%,rgba(231,238,246,0.35)_72%,rgba(231,238,246,0.12)_100%)]"
             aria-hidden
           />
         </div>
@@ -75,7 +71,7 @@ export const MarketingLanding = () => {
               </Link>
               <a
                 href={LANDING_HERO.secondaryCta.href}
-                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-white/55 px-5 text-sm font-semibold text-[var(--mkt-ink)] backdrop-blur-[2px] transition-colors hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-white/80 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
               >
                 {LANDING_HERO.secondaryCta.label}
               </a>
