@@ -78,22 +78,16 @@ const CREATE_TICKET_FORM_ID = 'create-ticket-form';
 const formSchema = z
   .object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre es obligatorio'),
-  client_tel: z.string().min(1, 'El teléfono es obligatorio'),
+  client_name: z.string().min(1, 'El nombre es obligatorio').max(100),
+  client_tel: z.string().min(1, 'El teléfono es obligatorio').max(20),
   email: z
     .string()
     .email('Correo inválido')
+    .max(40)
     .optional()
     .or(z.literal('')),
-  document: z.string().optional(),
+  document: z.string().max(100).optional(),
   ticket_date: z.date(),
-  services: z.array(
-    z.object({
-      service_id: z.number(),
-      quantity: z.number().min(1),
-      price: z.number().min(0),
-    }),
-  ),
   company_id: z.number(),
 })
   .refine((data) => data.client_id != null && data.client_id > 0, {
@@ -128,7 +122,6 @@ const CreateTicketPageContent = () => {
       email: '',
       document: '',
       ticket_date: new Date(),
-      services: [],
       company_id: selectedCompany?.id ?? 0,
     },
   });
