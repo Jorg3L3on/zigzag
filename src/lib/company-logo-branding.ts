@@ -8,4 +8,5 @@ export {
 export {
   COMPANY_LOGO_FETCH_TIMEOUT_MS,
   loadCompanyLogoImageDataUrl,
+  prepareCompanyLogoForPdf,
 } from '@/lib/company-logo-branding-server';

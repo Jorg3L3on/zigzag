@@ -47,6 +47,7 @@ next-env.d.ts
 .DS_Store
 /src/generated/prisma
 /public/pdfs
+/public/company-logos
 
 # Local PRD drafts from the `prd` skill (uncomment to keep out of git)
 # /tasks/prd-*.md

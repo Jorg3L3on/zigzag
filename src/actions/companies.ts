@@ -28,7 +28,6 @@ import {
   AppError,
   buildActionError,
   handleCodedServerActionError,
-  ValidationError,
   type ActionErrorType,
 } from '@/lib/errors';
 import {
@@ -425,7 +424,12 @@ export async function uploadCompanyLogo(
   errorType?: ActionErrorType;
 }> {
   try {
-    const loaded = await loadWritableCompany(companyId);
+    const id = Number(companyId);
+    if (!Number.isInteger(id) || id <= 0) {
+      return buildActionError('CO006');
+    }
+
+    const loaded = await loadWritableCompany(id);
     if (!loaded) {
       return buildActionError('CO006');
     }
@@ -438,7 +442,7 @@ export async function uploadCompanyLogo(
 
     const parsed = await parseCompanyLogoFile(file);
     const logoUrl = await uploadCompanyLogoBlob(
-      companyId,
+      id,
       parsed.buffer,
       parsed.contentType,
     );
@@ -450,25 +454,30 @@ export async function uploadCompanyLogo(
     const [updated] = await db
       .update(company)
       .set({ logo: logoUrl, updated_at: new Date() })
-      .where(and(eq(company.id, companyId), isNull(company.deleted_at)))
+      .where(and(eq(company.id, id), isNull(company.deleted_at)))
       .returning();
 
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(authContext),
       resourceType: 'company',
-      resourceId: companyId,
-      targetCompanyId: companyId,
+      resourceId: id,
+      targetCompanyId: id,
       eventType: 'logo_uploaded',
       before: { logo: existing.logo },
       after: { logo: updated.logo },
     });
 
     revalidatePath('/companies');
-    revalidatePath(`/companies/${companyId}/edit`);
+    revalidatePath(`/companies/${id}/edit`);
+    revalidatePath('/company');
     return { success: true, data: updated };
   } catch (e) {
-    if (e instanceof ValidationError || e instanceof AppError) {
-      return handleCodedServerActionError('companies.logo.upload', 'CO010', e);
+    if (e instanceof AppError && e.errorCode) {
+      return handleCodedServerActionError(
+        'companies.logo.upload',
+        e.errorCode,
+        e,
+      );
     }
     return handleCodedServerActionError('companies.logo.upload', 'CO010', e);
   }
@@ -481,7 +490,12 @@ export async function removeCompanyLogo(companyId: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    const loaded = await loadWritableCompany(companyId);
+    const id = Number(companyId);
+    if (!Number.isInteger(id) || id <= 0) {
+      return buildActionError('CO006');
+    }
+
+    const loaded = await loadWritableCompany(id);
     if (!loaded) {
       return buildActionError('CO006');
     }
@@ -494,21 +508,22 @@ export async function removeCompanyLogo(companyId: number): Promise<{
     const [updated] = await db
       .update(company)
       .set({ logo: null, updated_at: new Date() })
-      .where(and(eq(company.id, companyId), isNull(company.deleted_at)))
+      .where(and(eq(company.id, id), isNull(company.deleted_at)))
       .returning();
 
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(authContext),
       resourceType: 'company',
-      resourceId: companyId,
-      targetCompanyId: companyId,
+      resourceId: id,
+      targetCompanyId: id,
       eventType: 'logo_removed',
       before: { logo: existing.logo },
       after: { logo: null },
     });
 
     revalidatePath('/companies');
-    revalidatePath(`/companies/${companyId}/edit`);
+    revalidatePath(`/companies/${id}/edit`);
+    revalidatePath('/company');
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('companies.logo.remove', 'CO004', e);

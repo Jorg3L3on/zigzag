@@ -27,7 +27,7 @@ const BLOB_HOST_SUFFIXES = [
   '.public.blob.vercel-storage.com',
 ] as const;
 
-const LEGACY_STATIC_LOGO_PREFIXES = ['/icons/'] as const;
+const LEGACY_STATIC_LOGO_PREFIXES = ['/icons/', '/company-logos/'] as const;
 
 export const validateCompanyLogoUpload = (
   input: CompanyLogoValidationInput,

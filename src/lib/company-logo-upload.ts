@@ -3,7 +3,7 @@ import {
   type CompanyLogoContentType,
   validateCompanyLogoUpload,
 } from '@/lib/company-logo-storage';
-import { ValidationError } from '@/lib/errors';
+import { AppError } from '@/lib/errors';
 
 export type ParsedCompanyLogoFile = {
   buffer: Buffer;
@@ -16,7 +16,7 @@ export const parseCompanyLogoFile = async (
   file: File,
 ): Promise<ParsedCompanyLogoFile> => {
   if (!(file instanceof File) || file.size === 0) {
-    throw new ValidationError('Selecciona un archivo de imagen.');
+    throw new AppError('Selecciona un archivo de imagen.', 400, true, 'CO010');
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -32,7 +32,7 @@ export const parseCompanyLogoFile = async (
   });
 
   if (!validation.ok) {
-    throw new ValidationError(validation.reason);
+    throw new AppError(validation.reason, 400, true, 'CO010');
   }
 
   return {

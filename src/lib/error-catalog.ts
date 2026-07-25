@@ -182,6 +182,14 @@ export const ERROR_CATALOG = {
       'No se puede archivar esta empresa con su estado actual o ya fue dada de baja.',
     type: 'validation',
   },
+  CO014: {
+    code: 'CO014',
+    module: 'companies',
+    title: 'Almacenamiento de logos no configurado',
+    message:
+      'El almacenamiento de logos no está configurado. Define BLOB_READ_WRITE_TOKEN en el entorno.',
+    type: 'server',
+  },
   DB001: {
     code: 'DB001',
     module: 'dashboard',

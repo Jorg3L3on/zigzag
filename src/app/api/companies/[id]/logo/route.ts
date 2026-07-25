@@ -7,7 +7,7 @@ import {
   uploadCompanyLogoBlob,
 } from '@/lib/company-logo-blob';
 import { db } from '@/lib/db';
-import { ValidationError } from '@/lib/errors';
+import { AppError, ValidationError } from '@/lib/errors';
 import {
   recordGovernanceAudit,
   sessionUserToGovernanceActor,
@@ -102,6 +102,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     return ok(updated);
   } catch (error) {
     if (error instanceof ValidationError) {
+      return fail('CO010', 400, 'validation');
+    }
+    if (error instanceof AppError && error.errorCode === 'CO014') {
+      return fail('CO014', 503, 'server');
+    }
+    if (error instanceof AppError && error.errorCode === 'CO010') {
       return fail('CO010', 400, 'validation');
     }
     console.error(error);

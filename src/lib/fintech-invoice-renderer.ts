@@ -16,7 +16,8 @@ const CONTINUATION_PAGE_MAX_ROWS = 12;
 const ROW_STEP = 50;
 const TYPOGRAPHY_SCALE = 0.82;
 const ICON_SCALE = 0.82;
-const HEADER_H = 90;
+const HEADER_H = 128;
+const ISSUER_LOGO_PLATE = 60;
 const META_STRIP_H = 24;
 const CLIENT_STRIP_H = 28;
 
@@ -228,9 +229,9 @@ export function renderFintechInvoicePdf(
   };
 
   const drawLogoPlaceholder = (x: number, y: number, size = 34) => {
-    gradientRect(x, y, size, size, 10);
+    gradientRect(x, y, size, size, Math.max(6, size * 0.22));
     doc.setDrawColor(COLORS.white);
-    doc.setLineWidth(2.6);
+    doc.setLineWidth(Math.max(1.8, size * 0.07));
     const top = yTop(y, size);
     doc.lines(
       [
@@ -243,7 +244,24 @@ export function renderFintechInvoicePdf(
     );
   };
 
-  const drawIssuerLogo = (x: number, y: number, size = 34) => {
+  const drawIssuerLogo = (
+    x: number,
+    y: number,
+    size = ISSUER_LOGO_PLATE,
+  ) => {
+    const corner = size / 2;
+    const ring = 2.2;
+    const imageSize = size - ring * 2;
+    const imageX = x + ring;
+    const imageY = y + ring;
+
+    // Layered circular badge: indigo shadow, white ring plate, logo disc.
+    rr(x + 2, y - 2.8, size, size, corner, '#312E81', null);
+    rr(x, y, size, size, corner, COLORS.white, null);
+    setStroke('#C7D2FE');
+    doc.setLineWidth(1.5);
+    doc.roundedRect(x, yTop(y, size), size, size, corner, corner, 'S');
+
     if (issuerLogoDataUrl) {
       const format = detectPdfImageFormat(issuerLogoDataUrl);
       if (format) {
@@ -251,10 +269,10 @@ export function renderFintechInvoicePdf(
           doc.addImage(
             issuerLogoDataUrl,
             format,
-            x,
-            yTop(y, size),
-            size,
-            size,
+            imageX,
+            yTop(imageY, imageSize),
+            imageSize,
+            imageSize,
             undefined,
             'FAST',
           );
@@ -265,7 +283,7 @@ export function renderFintechInvoicePdf(
       }
     }
 
-    drawLogoPlaceholder(x, y, size);
+    drawLogoPlaceholder(imageX, imageY, imageSize);
   };
 
   const wrapText = (
@@ -631,46 +649,53 @@ export function renderFintechInvoicePdf(
     doc.discardPath();
     doc.restoreGraphicsState();
 
-    const badgeW = 76;
-    const badgeH = 20;
+    const logoSize = ISSUER_LOGO_PLATE;
+    const logoX = margin + 16;
+    const logoTopPad = 16;
+    const logoY = headerY + headerH - logoTopPad - logoSize;
+
+    const badgeW = 80;
+    const badgeH = 22;
     const badgeX = margin + contentW - badgeW - 16;
-    const badgeY = headerY + headerH - 28;
+    const badgeY = logoY + logoSize - badgeH;
     const badgeFill = isPaid ? COLORS.green : COLORS.amber;
     const badgeTextColor = isPaid ? COLORS.white : COLORS.ink;
-    rr(badgeX, badgeY, badgeW, badgeH, 6, badgeFill, null);
+    rr(badgeX, badgeY, badgeW, badgeH, 7, badgeFill, null);
     text(
       payload.statusLabel,
       badgeX + badgeW / 2,
-      badgeY + 7,
+      badgeY + 8,
       8,
       badgeTextColor,
       'bold',
       'center',
     );
 
-    const logoSize = 20;
-    const logoX = margin + 18;
-    const logoY = headerY + headerH - 28;
-    const issuerTextX = logoX + logoSize + 10;
-    const issuerTextW = badgeX - issuerTextX - 12;
+    const issuerTextX = logoX + logoSize + 14;
+    const issuerTextW = badgeX - issuerTextX - 14;
+    const issuerNameSize = 15;
+    const issuerAddressSize = 7.5;
+    const issuerNameLineH = 16;
+    const issuerBlockH = issuerNameLineH + issuerAddressSize + 6;
+    const issuerBlockY = logoY + (logoSize - issuerBlockH) / 2;
 
     drawIssuerLogo(logoX, logoY, logoSize);
     wrapText(
       payload.issuer.name,
       issuerTextX,
-      logoY + logoSize - 5,
+      issuerBlockY + issuerBlockH - 6,
       issuerTextW,
-      12,
+      issuerNameSize,
       COLORS.white,
       'bold',
-      13,
+      issuerNameLineH,
       1,
     );
     text(
       payload.issuer.address,
       issuerTextX,
-      logoY + 2,
-      6.5,
+      issuerBlockY + 2,
+      issuerAddressSize,
       '#CBD5E1',
       'normal',
       'left',
@@ -683,12 +708,12 @@ export function renderFintechInvoicePdf(
     );
     const amountLeft = margin + 18;
     const amountMaxW = contentW - 36;
-    label(payload.balanceLabel, amountLeft, headerY + 52, '#94A3B8');
-    text(amountValue, amountLeft, headerY + 28, 28, COLORS.white, 'bold', 'left', amountMaxW);
+    label(payload.balanceLabel, amountLeft, headerY + 46, '#94A3B8');
+    text(amountValue, amountLeft, headerY + 24, 28, COLORS.white, 'bold', 'left', amountMaxW);
     text(
       `${money(currencyCode, payload.paid)} / ${money(currencyCode, payload.total)}`,
       amountLeft,
-      headerY + 12,
+      headerY + 10,
       7,
       '#94A3B8',
       'normal',
@@ -697,7 +722,7 @@ export function renderFintechInvoicePdf(
     );
     progressBar(
       margin + contentW - 120,
-      headerY + 14,
+      headerY + 12,
       100,
       4,
       payload.paymentProgress,
@@ -705,7 +730,7 @@ export function renderFintechInvoicePdf(
     text(
       payload.paymentProgressLabel,
       margin + contentW - 20,
-      headerY + 24,
+      headerY + 22,
       7,
       isPaid ? COLORS.green : '#94A3B8',
       'bold',

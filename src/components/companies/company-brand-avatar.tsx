@@ -34,15 +34,22 @@ export const CompanyBrandAvatar = ({
 
   if (showImage && trustedUrl) {
     return (
-      <Image
-        src={trustedUrl}
-        alt={`Logo de ${name}`}
-        width={24}
-        height={24}
-        className={cn('size-6 rounded-sm object-contain', imageClassName, className)}
-        unoptimized={trustedUrl.startsWith('/')}
-        onError={() => setImageFailed(true)}
-      />
+      <span
+        className={cn(
+          'relative inline-flex size-6 overflow-hidden rounded-sm',
+          className,
+        )}
+      >
+        <Image
+          src={trustedUrl}
+          alt={`Logo de ${name}`}
+          fill
+          sizes="24px"
+          className={cn('object-contain', imageClassName)}
+          unoptimized={trustedUrl.startsWith('/')}
+          onError={() => setImageFailed(true)}
+        />
+      </span>
     );
   }
 

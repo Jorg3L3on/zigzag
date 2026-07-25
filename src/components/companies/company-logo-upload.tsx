@@ -133,14 +133,14 @@ export const CompanyLogoUpload = ({
       </p>
 
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+        <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
           {displayUrl ? (
             <Image
               src={displayUrl}
               alt="Logo actual de la empresa"
-              width={80}
-              height={80}
-              className="size-full object-contain"
+              fill
+              sizes="80px"
+              className="object-contain p-1"
               unoptimized={displayUrl.startsWith('/')}
             />
           ) : (

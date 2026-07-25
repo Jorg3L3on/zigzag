@@ -37,13 +37,16 @@ describe('company logo storage', () => {
     ).toBe(false);
   });
 
-  it('trusts vercel blob hosts and legacy icon paths only', () => {
+  it('trusts vercel blob hosts, legacy icons, and local company-logo paths', () => {
     expect(
       isTrustedCompanyLogoUrl(
         'https://abc.public.blob.vercel-storage.com/company-logos/1/logo-abc.png',
       ),
     ).toBe(true);
     expect(isTrustedCompanyLogoUrl('/icons/icon-192.png')).toBe(true);
+    expect(
+      isTrustedCompanyLogoUrl('/company-logos/1/logo-abc123.png'),
+    ).toBe(true);
     expect(isTrustedCompanyLogoUrl('https://evil.example/logo.png')).toBe(false);
     expect(resolveCompanyLogoUrl('https://evil.example/logo.png')).toBeNull();
   });
