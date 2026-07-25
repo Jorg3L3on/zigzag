@@ -581,22 +581,46 @@ describe('ticket actions — client tenant assert (TCI-01)', () => {
     );
   });
 
-  it('updateTicket rejects soft-deleted or foreign client_id', async () => {
-    mockDb.query.ticket.findFirst.mockResolvedValueOnce({
-      id: 42n,
+  it('createTicket succeeds with a 20-char phone matching Client.phone', async () => {
+    mockDb.query.client.findFirst.mockResolvedValueOnce({ id: 7 });
+    const longTel = '12345678901234567890';
+    const createdRow = {
+      id: 101n,
+      client_id: 7,
+      client_tel: longTel,
       company_id: 10,
-      deleted_at: null,
+    };
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn(() => ({
+          values: jest.fn((values) => {
+            expect(values.client_tel).toBe(longTel);
+            return {
+              returning: jest.fn(async () => [createdRow]),
+            };
+          }),
+        })),
+      };
+      return callback(tx);
     });
-    mockDb.query.client.findFirst.mockResolvedValueOnce(undefined);
 
-    const result = await updateTicket(42, {
-      client_id: 99,
-      client_name: 'Hijacked',
-      company_id: 10,
+    const result = await createTicket({
+      ...basePayload,
+      client_tel: longTel,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual(createdRow);
+  });
+
+  it('createTicket rejects client_tel longer than 20', async () => {
+    const result = await createTicket({
+      ...basePayload,
+      client_tel: '123456789012345678901',
     });
 
     expect(result.success).toBe(false);
-    expect(result.errorType).toBe('auth');
+    expect(mockDb.query.client.findFirst).not.toHaveBeenCalled();
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

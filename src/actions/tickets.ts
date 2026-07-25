@@ -47,28 +47,32 @@ import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { z } from 'zod';
 
+const ticketServiceLineSchema = z.object({
+  service_id: z.number(),
+  quantity: z.number().finite().min(1),
+  price: z.number().finite().min(0),
+});
+
+/** Shell fields only — service lines attach via ticket-services actions (TCI-06). */
 const ticketSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre del cliente es obligatorio'),
-  client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio'),
+  client_name: z.string().min(1, 'El nombre del cliente es obligatorio').max(100),
+  client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio').max(20),
   email: z
     .string()
     .email('El correo electrónico no es válido')
+    .max(40)
     .optional()
     .or(z.literal('')),
-  document: z.string().optional(),
+  document: z.string().max(100).optional(),
   ticket_date: z.date(),
-  services: z.array(
-    z.object({
-      service_id: z.number(),
-      quantity: z.number().min(1),
-      price: z.number().min(0),
-    }),
-  ),
   company_id: z.number(),
 });
 
-export type CreateTicketInput = z.infer<typeof ticketSchema>;
+export type CreateTicketInput = z.infer<typeof ticketSchema> & {
+  /** Optional replace-all lines on update only; ignored by createTicket. */
+  services?: Array<z.infer<typeof ticketServiceLineSchema>>;
+};
 
 export type Ticket = {
   id: bigint;
@@ -498,6 +502,9 @@ export async function updateTicket(
 
     const servicesToSync = Array.isArray(data.services) ? data.services : null;
     const hasServicesUpdate = servicesToSync !== null;
+    if (hasServicesUpdate) {
+      z.array(ticketServiceLineSchema).parse(servicesToSync);
+    }
     const totalFromServices = hasServicesUpdate
       ? calculateTicketTotal(servicesToSync)
       : undefined;

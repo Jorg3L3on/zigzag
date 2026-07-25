@@ -68,9 +68,9 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 
 | ID | Finding | Evidence | Recommended fix direction |
 | -- | ------- | -------- | ------------------------- |
-| TCI-05 | `Client.phone` is up to 20 chars; `Ticket.client_tel` is `varchar(10)`. Creating a ticket from a valid long phone can fail at DB length. | `src/db/schema.ts` | Widen `client_tel` to match Client (migration) + zod max length |
-| TCI-06 | `ticketSchema.services` is validated then discarded; create never attaches lines or sets total. Shell tickets with `total = null` are the happy path of a two-step wizard — but the schema lies about accepting services. | `ticketSchema` vs `createTicket` insert | Drop unused `services` from create schema **or** document two-step wizard explicitly and stop validating a dead field |
-| TCI-07 | UI vs server vs DB rule drift (dates, phone, email lengths). | Create page form vs `ticketSchema` vs column lengths | Align zod with DB column limits; keep UI ≤ server rules |
+| TCI-05 | `Client.phone` is up to 20 chars; `Ticket.client_tel` is `varchar(10)`. Creating a ticket from a valid long phone can fail at DB length. | `src/db/schema.ts` | **Closed in #258** — migration `0024_ticket_client_tel_length`; zod max 20 |
+| TCI-06 | `ticketSchema.services` is validated then discarded; create never attaches lines or sets total. Shell tickets with `total = null` are the happy path of a two-step wizard — but the schema lies about accepting services. | `ticketSchema` vs `createTicket` insert | **Closed in #258** — create schema is shell-only; services optional on update only |
+| TCI-07 | UI vs server vs DB rule drift (dates, phone, email lengths). | Create page form vs `ticketSchema` vs column lengths | **Partially closed in #258** — phone/email/name/document max aligned; date bounds residual |
 | TCI-08 | Service-line mutations do not write ticket/unified audit. Coverage matrix still documents deleted REST ticket-service routes. | `ticket-services.ts`; `docs/audit-coverage-matrix.md` | Record audit on create/update/delete line; fix matrix to Server Actions |
 
 ### P2 — operational / UX integrity
