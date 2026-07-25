@@ -27,7 +27,9 @@ export const formatRelativeActivityTime = (
   }
 
   const hours = differenceInHours(now, date);
-  if (hours < 24 && !isYesterday(date)) {
+  // Prefer hour wording for sub-24h windows so TZ/calendar midnight
+  // does not flip a 2-hour-old event to "Ayer".
+  if (hours < 24) {
     return hours === 1 ? 'Hace 1 hora' : `Hace ${hours} horas`;
   }
 

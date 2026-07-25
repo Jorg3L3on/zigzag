@@ -1,5 +1,9 @@
 import nextJest from 'next/jest.js';
 
+// Pin timezone so date-fns calendar helpers (isYesterday, differenceInCalendarDays)
+// are stable in CI across runner locales.
+process.env.TZ = 'UTC';
+
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files
   dir: './',
