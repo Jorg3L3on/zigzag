@@ -152,4 +152,8 @@ Good tests assert external behavior (status codes, redirect targets, visible con
 - Agreed in planning interview (grill-me → lock): demo-led conversion is the long-term intent; v1 ships login + scroll only until lead intake is designed (DB + System company CRUD, no email service yet).
 - Existing Spanish assets to leverage: executive summary narrative and `public/guides/images/empresa/*` screenshots.
 - Suggested feature slug for later shipping: `spanish-landing` (`feat/spanish-landing`).
-- After this parent PRD is published, decompose with `to-issues` into slices such as: public route gate + SEO policy; landing UI/content/media; legal pages; test/e2e updates.
+- Slice issues (`to-issues`, Jul 2026):
+  - [#249](https://github.com/Jorg3L3on/zigzag/issues/249) Public marketing route gate + SEO allowlist
+  - [#250](https://github.com/Jorg3L3on/zigzag/issues/250) Spanish landing composition (content, media, motion) — blocked by #249
+  - [#251](https://github.com/Jorg3L3on/zigzag/issues/251) Aviso de privacidad and Términos y condiciones pages — blocked by #249
+  - [#252](https://github.com/Jorg3L3on/zigzag/issues/252) E2E: public root vs protected app auth redirects — blocked by #249–#251
