@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { MarketingLandingSkeleton } from '@/components/marketing/marketing-landing-skeleton';
+import { MarketingLanding } from '@/components/marketing/marketing-landing';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { auth } from '@/lib/auth';
-import { MARKETING_INDEXABLE_METADATA } from '@/lib/marketing-routes';
+import {
+  getMarketingSiteOrigin,
+  MARKETING_INDEXABLE_METADATA,
+} from '@/lib/marketing-routes';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getMarketingSiteOrigin()),
   title: 'ZigZag — Gestión de tickets y facturación para empresas de servicios',
   description:
     'Plataforma multi-empresa en español para tickets de servicio, cobranza y facturas PDF. Lista para móvil.',
@@ -29,8 +33,8 @@ export default async function HomePage() {
   }
 
   return (
-    <MarketingShell>
-      <MarketingLandingSkeleton />
+    <MarketingShell showSectionNav>
+      <MarketingLanding />
     </MarketingShell>
   );
 }
