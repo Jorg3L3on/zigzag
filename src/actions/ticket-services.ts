@@ -1,6 +1,7 @@
 'use server';
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { service, servicesTickets, ticket } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -22,16 +23,18 @@ export interface ServiceTicket {
   service: Service;
 }
 
-export interface CreateServiceTicketData {
-  service_id: number;
-  quantity: number;
-  price: number;
-}
+/** Runtime money-line rules (TCI-02). Quantity ≥ 1, price ≥ 0, both finite. */
+export const serviceLineMoneySchema = z.object({
+  quantity: z.number().finite().min(1),
+  price: z.number().finite().min(0),
+});
 
-export interface UpdateServiceTicketData {
-  quantity: number;
-  price: number;
-}
+export const createServiceTicketSchema = serviceLineMoneySchema.extend({
+  service_id: z.number().int().positive(),
+});
+
+export type CreateServiceTicketData = z.infer<typeof createServiceTicketSchema>;
+export type UpdateServiceTicketData = z.infer<typeof serviceLineMoneySchema>;
 
 const ticketIdBigInt = (ticketId: string) => BigInt(ticketId);
 
@@ -155,16 +158,17 @@ export async function createServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
+    const validated = createServiceTicketSchema.parse(data);
     const companyId = await assertTicketAccess(
       ticketIdBigInt(ticketId),
       'tickets.write',
     );
-    await assertServiceAvailable(data.service_id, companyId);
+    await assertServiceAvailable(validated.service_id, companyId);
     const values = {
       ticket_id: ticketIdBigInt(ticketId),
-      service_id: data.service_id,
-      quantity: data.quantity,
-      price: data.price,
+      service_id: validated.service_id,
+      quantity: validated.quantity,
+      price: validated.price,
     };
 
     const serviceTicket = await db.transaction(async (tx) => {
@@ -203,6 +207,9 @@ export async function createServiceTicket(
     revalidatePath(`/tickets/${ticketId}/services`);
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return buildActionError('TS006', error, 'validation');
+    }
     return handleCodedServerActionError('ticket-services.create', 'TS002', error);
   }
 }
@@ -218,6 +225,7 @@ export async function updateServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
+    const validated = serviceLineMoneySchema.parse(data);
     await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.write');
     const ticketIdValue = ticketIdBigInt(ticketId);
     const runUpdate = async () =>
@@ -225,8 +233,8 @@ export async function updateServiceTicket(
         const [updatedRow] = await tx
           .update(servicesTickets)
           .set({
-            quantity: data.quantity,
-            price: data.price,
+            quantity: validated.quantity,
+            price: validated.price,
             updated_at: new Date(),
           })
           .where(
@@ -273,6 +281,9 @@ export async function updateServiceTicket(
     revalidatePath(`/tickets/${ticketId}/services`);
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return buildActionError('TS006', error, 'validation');
+    }
     return handleCodedServerActionError('ticket-services.update', 'TS003', error);
   }
 }
