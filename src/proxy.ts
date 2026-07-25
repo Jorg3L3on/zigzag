@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isPublicMarketingPath } from '@/lib/marketing-routes';
 import {
   REQUEST_ID_HEADER,
   resolveRequestId,
@@ -69,10 +70,15 @@ export function proxy(request: NextRequest) {
   const isOnProtectedAppRoute = PROTECTED_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
-  const isOnRoot = pathname === '/';
   const isLoggedIn = hasSessionCookie(request);
 
-  if ((isOnProtectedAppRoute || isOnRoot) && !isLoggedIn) {
+  // Public marketing/legal paths: guests may browse; logged-in home redirect
+  // is handled in the `/` page via session (dashboard vs operator-console).
+  if (isPublicMarketingPath(pathname)) {
+    return nextWithRequestId(request, requestId);
+  }
+
+  if (isOnProtectedAppRoute && !isLoggedIn) {
     return withRequestIdHeaders(
       requestId,
       NextResponse.redirect(new URL(LOGIN_PATH, request.url)),
