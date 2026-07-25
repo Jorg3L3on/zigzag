@@ -6,6 +6,16 @@ import { proxy } from '@/proxy';
 import { REQUEST_ID_HEADER } from '@/lib/request-context';
 
 describe('proxy request correlation', () => {
+  it('allows unauthenticated guests on public marketing paths', () => {
+    for (const path of ['/', '/aviso-de-privacidad', '/terminos-y-condiciones']) {
+      const request = new NextRequest(`http://localhost:3069${path}`);
+      const response = proxy(request);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
+    }
+  });
+
   it('redirects unauthenticated /dashboard to /login', () => {
     const request = new NextRequest('http://localhost:3069/dashboard');
     const response = proxy(request);
@@ -32,6 +42,18 @@ describe('proxy request correlation', () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe('http://localhost:3069/login');
+  });
+
+  it('allows logged-in users through public marketing paths without login redirect', () => {
+    const request = new NextRequest('http://localhost:3069/aviso-de-privacidad', {
+      headers: {
+        cookie: 'zigzag.session-token=test-session',
+      },
+    });
+    const response = proxy(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
   });
 
   it('mints x-request-id on redirects when absent', () => {
