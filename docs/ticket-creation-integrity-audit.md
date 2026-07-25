@@ -37,9 +37,9 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 | ------- | ------------ | ----------- | ------------------ | ------------ | ----- | ---------------- | ------------- | ------ |
 | `createTicket` | ✅ company via write RBAC + **client_id company/soft-delete check** | ✅ ticket + client | 🟡 zod on shell fields; `services` validated then discarded | ⏭️ no total set | ✅ `created` | ✅ dashboard | IDOR company deny + **TCI-01 client assert** (`tickets-actions.test.ts`) | ✅ TCI-01 |
 | `updateTicket` | ✅ ticket company + **client_id assert when provided** | ✅ ticket + client | 🟡 same zod family | ⏭️ | ✅ `updated` | ✅ | TCI-01 client assert on update | ✅ TCI-01 |
-| `createServiceTicket` | ✅ ticket + service company | ✅ service not deleted | ✅ zod qty/price finite (TCI-02) | ✅ `syncTicketTotal` | ❌ none | ❌ path only | IDOR deny + **TCI-02 validation** | ✅ TCI-02 |
-| `updateServiceTicket` | ✅ line under ticket | ✅ | ✅ zod qty/price finite (TCI-02) | ✅ sync | ❌ | ❌ path only | IDOR deny + TCI-02 | ✅ TCI-02 |
-| `deleteServiceTicket` | ✅ | soft-delete line | ⏭️ | ✅ sync | ❌ | ❌ path only | IDOR deny | ❌ open |
+| `createServiceTicket` | ✅ ticket + service company | ✅ service not deleted | ✅ zod qty/price finite (TCI-02) | ✅ `syncTicketTotal` | ✅ `updated` (serviceLine) | ✅ dashboard | IDOR + TCI-02 + TCI-08/10 | ✅ |
+| `updateServiceTicket` | ✅ line under ticket | ✅ | ✅ zod qty/price finite (TCI-02) | ✅ sync | ✅ `updated` | ✅ dashboard | IDOR + TCI-02 + TCI-08/10 | ✅ |
+| `deleteServiceTicket` | ✅ | soft-delete line | ⏭️ | ✅ sync | ✅ `updated` | ✅ dashboard | TCI-08/10 | ✅ |
 | `finishTicket` | ✅ ticket company | ✅ | ✅ paid vs synced total; **≥1 active line**; **advisory lock + finished=false** | ✅ sync in tx; client total ignored | ✅ `finished` | ✅ | empty finish + concurrent finish + RG-01 | ✅ TCI-03/04 |
 | `applyTicketPayment` | ✅ | ✅ | ✅ finite positive + advisory lock | balance vs total | ✅ | ✅ | covered | ✅ |
 | Invoice `GET …/invoice` | ✅ | ✅ active lines | ⏭️ | payload from DB | ⏭️ | ⏭️ | soft-deleted lines excluded | ✅ |
