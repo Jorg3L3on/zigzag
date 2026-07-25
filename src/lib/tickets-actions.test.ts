@@ -11,6 +11,7 @@ import {
 import { db } from '@/lib/db';
 import { AuthorizationError } from '@/lib/errors';
 import { recordTicketAudit } from '@/lib/ticket-audit';
+import { syncTicketTotal } from '@/lib/ticket-financials';
 import {
   requireTicketRead,
   requireTicketWrite,
@@ -46,6 +47,13 @@ jest.mock('@/lib/company-production-guard', () => ({
   CompanyProductionBlockedError: class CompanyProductionBlockedError extends Error {},
 }));
 
+jest.mock('@/lib/ticket-financials', () => ({
+  calculateTicketTotal: jest.fn((lines: Array<{ quantity: number; price: number }>) =>
+    lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
+  ),
+  syncTicketTotal: jest.fn(async () => 100),
+}));
+
 const mockDb = db as unknown as {
   query: {
     ticket: {
@@ -63,6 +71,9 @@ const mockRequireTicketRead = requireTicketRead as jest.MockedFunction<
 >;
 const mockRecordTicketAudit = recordTicketAudit as jest.MockedFunction<
   typeof recordTicketAudit
+>;
+const mockSyncTicketTotal = syncTicketTotal as jest.MockedFunction<
+  typeof syncTicketTotal
 >;
 
 const authContext = {
@@ -213,6 +224,7 @@ describe('ticket actions — payments', () => {
           ...writableTicket,
           finished: false,
         });
+      mockSyncTicketTotal.mockResolvedValueOnce(100);
 
       const finishedRow = {
         ...writableTicket,
@@ -237,10 +249,12 @@ describe('ticket actions — payments', () => {
         return callback(tx);
       });
 
-      const result = await finishTicket(42, 100, 25);
+      // Client total is intentionally wrong; server must sync from active lines.
+      const result = await finishTicket(42, 999, 25);
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(finishedRow);
+      expect(mockSyncTicketTotal).toHaveBeenCalled();
       expect(mockRecordTicketAudit).toHaveBeenCalledWith(
         expect.anything(),
         authContext,
@@ -249,8 +263,30 @@ describe('ticket actions — payments', () => {
         'finished',
         expect.objectContaining({
           initialPayment: 25,
+          syncedTotal: 100,
+          ignoredClientTotal: 999,
         }),
       );
+    });
+
+    it('rejects when paid exceeds the synced active-line total', async () => {
+      mockDb.query.ticket.findFirst
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        })
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        });
+      mockSyncTicketTotal.mockResolvedValueOnce(100);
+
+      mockDb.transaction.mockImplementation(async (callback) => callback({}));
+
+      const result = await finishTicket(42, 100, 150);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('TC009');
     });
   });
 });

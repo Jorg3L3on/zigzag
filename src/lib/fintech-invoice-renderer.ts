@@ -11,11 +11,14 @@ export type FintechInvoiceRenderOptions = {
 
 const W = 595.2756;
 const H = 841.8898;
-const MAIN_PAGE_MAX_ROWS = 4;
+const MAIN_PAGE_MAX_ROWS = 6;
 const CONTINUATION_PAGE_MAX_ROWS = 12;
-const ROW_STEP = 42;
+const ROW_STEP = 50;
 const TYPOGRAPHY_SCALE = 0.82;
 const ICON_SCALE = 0.82;
+const HEADER_H = 90;
+const META_STRIP_H = 24;
+const CLIENT_STRIP_H = 28;
 
 const COLORS = {
   blue: '#2563EB',
@@ -33,7 +36,9 @@ const COLORS = {
   tableHead: '#EEF4FF',
   green: '#10B981',
   greenSoft: '#EAFDF4',
+  amber: '#F59E0B',
   white: '#FFFFFF',
+  dotGrid: '#E8EDF5',
 };
 
 type Align = 'left' | 'center' | 'right';
@@ -306,20 +311,13 @@ export function renderFintechInvoicePdf(
   const drawBackground = () => {
     setFill(COLORS.white);
     doc.rect(0, 0, W, H, 'F');
-    setStroke('#EEF2FF');
-    doc.setLineWidth(0.55);
-    for (let i = -6; i < 22; i += 1) {
-      const x = i * 34;
-      doc.line(x, textY(H - 35), x + 115, textY(H - 210));
+    setFill(COLORS.dotGrid);
+    const spacing = 18;
+    for (let x = spacing; x < W; x += spacing) {
+      for (let y = spacing; y < H; y += spacing) {
+        doc.circle(x, y, 0.55, 'F');
+      }
     }
-    for (let i = 0; i < 10; i += 1) {
-      const y = H - 35 - i * 22;
-      doc.line(34, textY(y), 560, textY(y - 82));
-    }
-    setFill('#F2F0FF');
-    doc.circle(W - 78, textY(H - 110), 58, 'F');
-    setFill('#EAF1FF');
-    doc.circle(W - 155, textY(H - 56), 42, 'F');
   };
 
   const drawFooter = () => {
@@ -387,19 +385,20 @@ export function renderFintechInvoicePdf(
         return;
       }
 
-      doc.circle(centerX, textY(y + iconScale), 7 * iconScale, 'S');
-      doc.circle(centerX, textY(y + iconScale), 2 * iconScale, 'S');
-      doc.line(
-        centerX - 5 * iconScale,
-        textY(y - 4 * iconScale),
+      // Location pin: filled head + triangular stem.
+      setFill(COLORS.blue);
+      doc.circle(centerX, textY(y + 3 * iconScale), 5.5 * iconScale, 'F');
+      setFill(COLORS.white);
+      doc.circle(centerX, textY(y + 3 * iconScale), 2.2 * iconScale, 'F');
+      setFill(COLORS.blue);
+      doc.triangle(
+        centerX - 4.5 * iconScale,
+        textY(y + 1 * iconScale),
+        centerX + 4.5 * iconScale,
+        textY(y + 1 * iconScale),
         centerX,
-        textY(y - 10 * iconScale),
-      );
-      doc.line(
-        centerX + 5 * iconScale,
-        textY(y - 4 * iconScale),
-        centerX,
-        textY(y - 10 * iconScale),
+        textY(y - 8 * iconScale),
+        'F',
       );
     };
 
@@ -446,15 +445,20 @@ export function renderFintechInvoicePdf(
     const nameLineHeight = 12;
     const descSize = 7.5;
     const descLineHeight = 9;
+    const visibleItems = items.slice(0, maxRows);
 
-    items.slice(0, maxRows).forEach((item, index) => {
+    visibleItems.forEach((item, index) => {
       const rowTop = firstRowY - index * ROW_STEP;
-      const rowBottom = rowTop - ROW_STEP + 8;
       const rowCenter = rowTop - ROW_STEP / 2 + 2;
+      const isLastRow = index === visibleItems.length - 1;
 
-      setStroke('#EEF2F7');
-      doc.setLineWidth(0.8);
-      doc.line(margin + 18, textY(rowBottom), margin + contentW - 18, textY(rowBottom));
+      // Keep clear padding between row content and the separator.
+      if (!isLastRow) {
+        const dividerY = rowTop - ROW_STEP + 10;
+        setStroke('#EEF2F7');
+        doc.setLineWidth(0.8);
+        doc.line(margin + 18, textY(dividerY), margin + contentW - 18, textY(dividerY));
+      }
 
       const nameLineCount = countWrappedLines(
         item.name,
@@ -463,7 +467,7 @@ export function renderFintechInvoicePdf(
         'bold',
         2,
       );
-      const nameBaseline = rowTop - 8;
+      const nameBaseline = rowTop - 12;
       wrapText(
         item.name,
         layout.serviceX,
@@ -478,7 +482,7 @@ export function renderFintechInvoicePdf(
 
       if (item.description) {
         const descBaseline =
-          nameBaseline - nameLineCount * nameLineHeight * TYPOGRAPHY_SCALE - 3;
+          nameBaseline - nameLineCount * nameLineHeight * TYPOGRAPHY_SCALE - 4;
         wrapText(
           item.description,
           layout.serviceX,
@@ -492,11 +496,11 @@ export function renderFintechInvoicePdf(
         );
       }
 
-      text(String(item.quantity), layout.qtyX, rowCenter - 3, 9, COLORS.ink, 'normal', 'center');
+      text(String(item.quantity), layout.qtyX, rowCenter - 2, 9, COLORS.ink, 'normal', 'center');
       text(
         money(currencyCode, item.unitPrice),
         layout.priceRightX,
-        rowCenter - 3,
+        rowCenter - 2,
         9,
         COLORS.ink2,
         'normal',
@@ -505,7 +509,7 @@ export function renderFintechInvoicePdf(
       text(
         money(currencyCode, item.total),
         layout.amountRightX,
-        rowCenter - 3,
+        rowCenter - 2,
         9,
         COLORS.ink,
         'bold',
@@ -523,46 +527,56 @@ export function renderFintechInvoicePdf(
     fill = COLORS.white,
   ) => {
     shadowCard(x, y, width, height, 16, fill);
-    text(title, x + 16, y + height - 24, 10.5, COLORS.ink, 'bold');
+    text(title, x + 16, y + height - 22, 10.5, COLORS.ink, 'bold');
 
     if (payload.hasAdjustment) {
-      text('Subtotal', x + 16, y + height - 44, 8.5, COLORS.muted);
+      const adjustmentSign = payload.adjustmentAmount >= 0 ? '+' : '\u2212';
+      const adjustmentColor =
+        payload.adjustmentAmount >= 0 ? COLORS.amber : COLORS.green;
+      const adjustmentAmountText = `${adjustmentSign}${money(
+        currencyCode,
+        Math.abs(payload.adjustmentAmount),
+      )}`;
+
+      text('Subtotal', x + 16, y + height - 46, 8.5, COLORS.muted);
       text(
         money(currencyCode, payload.subtotal),
         x + width - 16,
-        y + height - 44,
+        y + height - 46,
         8.5,
         COLORS.ink2,
         'normal',
         'right',
       );
-      text('Ajuste', x + 16, y + height - 60, 8.5, COLORS.muted);
+      text('Ajuste', x + 16, y + height - 64, 8.5, adjustmentColor, 'bold');
       text(
-        money(currencyCode, payload.adjustmentAmount),
+        adjustmentAmountText,
         x + width - 16,
-        y + height - 60,
+        y + height - 64,
         8.5,
-        COLORS.ink2,
-        'normal',
+        adjustmentColor,
+        'bold',
         'right',
       );
-      text('Total', x + 16, y + height - 78, 8.5, COLORS.ink, 'bold');
+      text('Ajuste aplicado', x + 16, y + height - 78, 6.5, COLORS.muted2);
+      text('Total', x + 16, y + height - 98, 8.5, COLORS.ink, 'bold');
       text(
         money(currencyCode, payload.total),
         x + width - 16,
-        y + height - 78,
+        y + height - 98,
         8.5,
         COLORS.ink,
         'bold',
         'right',
       );
       setStroke('#EEF2F7');
-      doc.line(x + 16, textY(y + 14), x + width - 16, textY(y + 14));
-      text('Pagado', x + 16, y + 8, 8.5, COLORS.muted);
+      doc.setLineWidth(0.8);
+      doc.line(x + 16, textY(y + 36), x + width - 16, textY(y + 36));
+      text('Pagado', x + 16, y + 16, 8.5, COLORS.muted);
       text(
         money(currencyCode, payload.paid),
         x + width - 16,
-        y + 8,
+        y + 16,
         8.5,
         COLORS.ink2,
         'normal',
@@ -571,23 +585,24 @@ export function renderFintechInvoicePdf(
       return;
     }
 
-    text('Total', x + 16, y + height - 44, 8.5, COLORS.ink, 'bold');
+    text('Total', x + 16, y + height - 48, 8.5, COLORS.ink, 'bold');
     text(
       money(currencyCode, payload.total),
       x + width - 16,
-      y + height - 44,
+      y + height - 48,
       8.5,
       COLORS.ink,
       'bold',
       'right',
     );
     setStroke('#EEF2F7');
-    doc.line(x + 16, textY(y + 28), x + width - 16, textY(y + 28));
-    text('Pagado', x + 16, y + 8, 8.5, COLORS.muted);
+    doc.setLineWidth(0.8);
+    doc.line(x + 16, textY(y + 40), x + width - 16, textY(y + 40));
+    text('Pagado', x + 16, y + 18, 8.5, COLORS.muted);
     text(
       money(currencyCode, payload.paid),
       x + width - 16,
-      y + 8,
+      y + 18,
       8.5,
       COLORS.ink2,
       'normal',
@@ -600,7 +615,7 @@ export function renderFintechInvoicePdf(
 
     const margin = 42;
     const contentW = W - 2 * margin;
-    const headerH = 138;
+    const headerH = HEADER_H;
     const headerY = H - margin - headerH;
     shadowCard(margin, headerY, contentW, headerH, 20, COLORS.navy, '#1E293B');
     gradientRect(margin, headerY, contentW, headerH, 20, COLORS.navy, '#312E81');
@@ -611,119 +626,155 @@ export function renderFintechInvoicePdf(
     for (let index = 0; index < 8; index += 1) {
       doc.setDrawColor('#4A4A7A');
       doc.setLineWidth(1);
-      doc.circle(margin + contentW - 110, textY(headerY + 72), 16 + index * 14, 'S');
+      doc.circle(margin + contentW - 90, textY(headerY + 48), 12 + index * 12, 'S');
     }
     doc.discardPath();
     doc.restoreGraphicsState();
 
-    const balanceW = 180;
-    const balanceH = 66;
-    const balanceX = margin + contentW - balanceW - 20;
-    const balanceY = headerY + 30;
-    const logoSize = 23;
-    const logoX = margin + 20;
-    const logoY = headerY + headerH - 42;
+    const badgeW = 76;
+    const badgeH = 20;
+    const badgeX = margin + contentW - badgeW - 16;
+    const badgeY = headerY + headerH - 28;
+    const badgeFill = isPaid ? COLORS.green : COLORS.amber;
+    const badgeTextColor = isPaid ? COLORS.white : COLORS.ink;
+    rr(badgeX, badgeY, badgeW, badgeH, 6, badgeFill, null);
+    text(
+      payload.statusLabel,
+      badgeX + badgeW / 2,
+      badgeY + 7,
+      8,
+      badgeTextColor,
+      'bold',
+      'center',
+    );
+
+    const logoSize = 20;
+    const logoX = margin + 18;
+    const logoY = headerY + headerH - 28;
     const issuerTextX = logoX + logoSize + 10;
-    const issuerTextW = balanceX - issuerTextX - 14;
+    const issuerTextW = badgeX - issuerTextX - 12;
 
     drawIssuerLogo(logoX, logoY, logoSize);
     wrapText(
       payload.issuer.name,
       issuerTextX,
-      logoY + logoSize - 6,
+      logoY + logoSize - 5,
       issuerTextW,
-      13,
+      12,
       COLORS.white,
       'bold',
-      15,
-      2,
+      13,
+      1,
     );
-    text(payload.issuer.address, issuerTextX, logoY + 2, 7.5, '#CBD5E1', 'normal', 'left', issuerTextW);
     text(
-      `Tel. ${payload.issuer.phone || 'Sin teléfono'}`,
+      payload.issuer.address,
       issuerTextX,
-      logoY - 10,
-      7.5,
+      logoY + 2,
+      6.5,
       '#CBD5E1',
       'normal',
       'left',
       issuerTextW,
     );
 
-    text(`Ticket No. ${payload.ticketNumber}`, margin + 22, headerY + 30, 8.5, '#CBD5E1', 'bold');
-    text(`Fecha: ${payload.issueDate}`, margin + 22, headerY + 16, 8.5, '#CBD5E1');
-
-    gradientRect(margin + contentW - 92, headerY + headerH - 38, 62, 15, 7.5);
-    text(payload.statusLabel, margin + contentW - 61, headerY + headerH - 31.5, 6.5, COLORS.white, 'bold', 'center');
-
-    rr(balanceX, balanceY, balanceW, balanceH, 14, COLORS.white, COLORS.white);
-    label(payload.balanceLabel, balanceX + 12, balanceY + 52);
-    text(
-      money(
-        currencyCode,
-        payload.balanceDue > 0 ? payload.balanceDue : payload.total,
-      ),
-      balanceX + 12,
-      balanceY + 32,
-      17,
-      COLORS.ink,
-      'bold',
-      'left',
-      balanceW - 24,
+    const amountValue = money(
+      currencyCode,
+      payload.balanceDue > 0 ? payload.balanceDue : payload.total,
     );
-    wrapText(
+    const amountLeft = margin + 18;
+    const amountMaxW = contentW - 36;
+    label(payload.balanceLabel, amountLeft, headerY + 52, '#94A3B8');
+    text(amountValue, amountLeft, headerY + 28, 28, COLORS.white, 'bold', 'left', amountMaxW);
+    text(
       `${money(currencyCode, payload.paid)} / ${money(currencyCode, payload.total)}`,
-      balanceX + 12,
-      balanceY + 17,
-      balanceW - 24,
-      7.5,
+      amountLeft,
+      headerY + 12,
+      7,
+      '#94A3B8',
+      'normal',
+      'left',
+      amountMaxW * 0.62,
+    );
+    progressBar(
+      margin + contentW - 120,
+      headerY + 14,
+      100,
+      4,
+      payload.paymentProgress,
+    );
+    text(
+      payload.paymentProgressLabel,
+      margin + contentW - 20,
+      headerY + 24,
+      7,
+      isPaid ? COLORS.green : '#94A3B8',
+      'bold',
+      'right',
+    );
+
+    const metaStripY = headerY - META_STRIP_H;
+    setFill(COLORS.white);
+    doc.rect(margin, yTop(metaStripY, META_STRIP_H), contentW, META_STRIP_H, 'F');
+    setStroke(COLORS.line);
+    doc.setLineWidth(0.8);
+    doc.line(margin, textY(metaStripY), margin + contentW, textY(metaStripY));
+    text(
+      `Ticket No. ${payload.ticketNumber}`,
+      margin + 16,
+      metaStripY + 9,
+      8,
+      COLORS.ink2,
+      'bold',
+    );
+    text(
+      `Fecha: ${payload.issueDate}`,
+      margin + contentW - 16,
+      metaStripY + 9,
+      8,
       COLORS.muted,
       'normal',
-      9,
-      2,
+      'right',
     );
-    progressBar(balanceX + 12, balanceY + 7, balanceW - 24, 3, payload.paymentProgress);
 
-    const bodyTop = headerY - 16;
-    const clientCardH = 72;
-    const clientCardY = bodyTop - clientCardH;
-
-    shadowCard(margin, clientCardY, contentW, clientCardH, 16);
-    label('Cliente', margin + 16, bodyTop - 18);
-    wrapText(
-      payload.client.name,
-      margin + 16,
-      bodyTop - 38,
-      contentW - 32,
-      13,
-      COLORS.ink,
-      'bold',
-      15,
-      2,
-    );
+    const bodyTop = metaStripY - 10;
+    const clientStripY = bodyTop - CLIENT_STRIP_H;
+    setStroke(COLORS.line);
+    doc.setLineWidth(0.8);
+    doc.line(margin, textY(bodyTop), margin + contentW, textY(bodyTop));
+    label('Cliente', margin + 4, bodyTop - 8);
+    text(payload.client.name, margin + 52, bodyTop - 8, 10, COLORS.ink, 'bold');
     const clientMeta = payload.client.country
       ? `${payload.client.phone} · ${payload.client.country}`
       : payload.client.phone;
-    text(clientMeta, margin + 16, bodyTop - 58, 8.5, COLORS.muted);
+    text(clientMeta, margin + contentW - 4, bodyTop - 8, 8, COLORS.muted, 'normal', 'right');
 
     const rowsOnPage = Math.min(payload.items.length, MAIN_PAGE_MAX_ROWS);
     const hasMoreItems = payload.items.length > MAIN_PAGE_MAX_ROWS;
     const continuationReserve = hasMoreItems ? 22 : 10;
     const itemsH = 52 + 30 + rowsOnPage * ROW_STEP + continuationReserve;
-    const itemsY = clientCardY - 14 - itemsH;
+    const itemsY = clientStripY - 10 - itemsH;
 
     shadowCard(margin, itemsY, contentW, itemsH, 16);
-    text('Detalle de servicios', margin + 16, itemsY + itemsH - 26, 11, COLORS.ink, 'bold');
-    text(payload.serviceCountLabel, margin + contentW - 16, itemsY + itemsH - 24, 7.5, COLORS.muted, 'normal', 'right');
-    const headerRowY = itemsY + itemsH - 58;
-    rr(margin + 14, headerRowY, contentW - 28, 30, 10, COLORS.tableHead, null);
-    label('Servicio', margin + 22, headerRowY + 11);
-    label('Cant.', margin + contentW - 248, headerRowY + 11);
-    label('Precio', margin + contentW - 160, headerRowY + 11);
-    label('Importe', margin + contentW - 74, headerRowY + 11);
+    const sectionTitleY = itemsY + itemsH - 22;
+    text('Detalle de servicios', margin + 16, sectionTitleY, 11, COLORS.ink, 'bold');
+    text(
+      payload.serviceCountLabel,
+      margin + contentW - 16,
+      sectionTitleY,
+      8,
+      COLORS.muted2,
+      'normal',
+      'right',
+    );
+    const headerRowY = itemsY + itemsH - 56;
+    rr(margin + 14, headerRowY, contentW - 28, 28, 10, COLORS.tableHead, null);
+    label('Servicio', margin + 22, headerRowY + 10);
+    label('Cant.', margin + contentW - 248, headerRowY + 10);
+    label('Precio', margin + contentW - 160, headerRowY + 10);
+    label('Importe', margin + contentW - 74, headerRowY + 10);
     drawServiceRows(
       payload.items,
-      headerRowY - 8,
+      headerRowY - 12,
       contentW,
       margin,
       MAIN_PAGE_MAX_ROWS,
@@ -738,43 +789,9 @@ export function renderFintechInvoicePdf(
       );
     }
 
-    const summaryH = payload.hasAdjustment ? 106 : 92;
+    const summaryH = payload.hasAdjustment ? 128 : 104;
     const summaryY = itemsY - 12 - summaryH;
-    const summaryW = 236;
-    drawPaymentSummary(
-      margin + contentW - summaryW,
-      summaryY,
-      summaryW,
-      summaryH,
-      'Resumen de pago',
-    );
-
-    const progressW = contentW - summaryW - 14;
-    const progressH = summaryH;
-    shadowCard(margin, summaryY, progressW, progressH, 16, '#FBFDFF');
-    text('Progreso de pago', margin + 16, summaryY + progressH - 24, 10.5, COLORS.ink, 'bold');
-    text(
-      payload.paymentProgressLabel,
-      margin + progressW - 16,
-      summaryY + progressH - 24,
-      8,
-      COLORS.blue,
-      'bold',
-      'right',
-    );
-    progressBar(margin + 16, summaryY + progressH - 44, progressW - 32, 6, payload.paymentProgress);
-    if (!isPaid) {
-      text(`${money(currencyCode, payload.paid)} pagado`, margin + 16, summaryY + 24, 7.8, COLORS.muted);
-      text(
-        `${money(currencyCode, payload.balanceDue)} pendiente`,
-        margin + progressW - 16,
-        summaryY + 24,
-        7.8,
-        COLORS.muted,
-        'normal',
-        'right',
-      );
-    }
+    drawPaymentSummary(margin, summaryY, contentW, summaryH, 'Resumen de pago');
 
     if (!isPaid) {
       const bannerH = 46;
@@ -812,10 +829,11 @@ export function renderFintechInvoicePdf(
 
     const startNum = startIndex + 1;
     const endNum = startIndex + items.length;
+    const sectionTitleY = cardY + cardH - 22;
     text(
       'Detalle de servicios (continuación)',
       margin + 16,
-      cardY + cardH - 26,
+      sectionTitleY,
       11,
       COLORS.ink,
       'bold',
@@ -823,27 +841,27 @@ export function renderFintechInvoicePdf(
     text(
       `Conceptos ${startNum}–${endNum} de ${totalItems}`,
       margin + contentW - 16,
-      cardY + cardH - 24,
-      7.5,
-      COLORS.muted,
+      sectionTitleY,
+      8,
+      COLORS.muted2,
       'normal',
       'right',
     );
     text(
       `${payload.client.name} · Ticket #${payload.ticketNumber} · ${payload.issueDate}`,
       margin + 16,
-      cardY + cardH - 44,
+      cardY + cardH - 42,
       7.5,
       COLORS.muted,
     );
 
-    const headerRowY = cardY + cardH - 72;
-    rr(margin + 14, headerRowY, contentW - 28, 30, 10, COLORS.tableHead, null);
-    label('Servicio', margin + 22, headerRowY + 11);
-    label('Cant.', margin + contentW - 248, headerRowY + 11);
-    label('Precio', margin + contentW - 160, headerRowY + 11);
-    label('Importe', margin + contentW - 74, headerRowY + 11);
-    drawServiceRows(items, headerRowY - 8, contentW, margin, items.length);
+    const headerRowY = cardY + cardH - 70;
+    rr(margin + 14, headerRowY, contentW - 28, 28, 10, COLORS.tableHead, null);
+    label('Servicio', margin + 22, headerRowY + 10);
+    label('Cant.', margin + contentW - 248, headerRowY + 10);
+    label('Precio', margin + contentW - 160, headerRowY + 10);
+    label('Importe', margin + contentW - 74, headerRowY + 10);
+    drawServiceRows(items, headerRowY - 12, contentW, margin, items.length);
     drawFooter();
   };
 

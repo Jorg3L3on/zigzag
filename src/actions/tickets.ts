@@ -28,7 +28,7 @@ import {
   handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
-import { calculateTicketTotal } from '@/lib/ticket-financials';
+import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
 import { roundMoney, subtractMoney } from '@/lib/money';
 import { TICKET_CSV_HEADERS } from '@/lib/csv-schemas';
 import {
@@ -151,6 +151,13 @@ const assertTicketWritable = async (
   }
 };
 
+class FinishPaidExceedsTotalError extends Error {
+  constructor() {
+    super('Paid amount exceeds ticket total');
+    this.name = 'FinishPaidExceedsTotalError';
+  }
+}
+
 const assertServicesBelongToCompany = async (
   serviceIds: number[],
   companyId: number,
@@ -263,6 +270,7 @@ export async function getTickets(
       ),
       with: {
         services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
           },
@@ -405,6 +413,7 @@ export async function getTicketById(
           },
         },
         services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
           },
@@ -549,6 +558,7 @@ export async function updateTicket(
       ),
       with: {
         services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
           },
@@ -616,7 +626,7 @@ export async function deleteTicket(id: number): Promise<{
 
 export async function finishTicket(
   id: number,
-  total: number,
+  _clientTotal: number,
   paid: number,
 ): Promise<{
   success: boolean;
@@ -641,10 +651,16 @@ export async function finishTicket(
       return buildActionError('TC006', undefined, 'validation');
     }
 
-    const totalAmount = roundMoney(total);
     const paidAmount = roundMoney(paid);
 
     const updated = await db.transaction(async (tx) => {
+      // Authoritative total comes from active service lines, never the client.
+      const totalAmount = await syncTicketTotal(tx, ticketId);
+
+      if (paidAmount - totalAmount > AMOUNT_TOLERANCE) {
+        throw new FinishPaidExceedsTotalError();
+      }
+
       const [row] = await tx
         .update(ticket)
         .set({
@@ -680,6 +696,8 @@ export async function finishTicket(
             before: prior,
             after: row,
             initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
+            syncedTotal: totalAmount,
+            ignoredClientTotal: _clientTotal,
           },
         );
       }
@@ -691,6 +709,9 @@ export async function finishTicket(
 
     return { success: true, data: updated };
   } catch (e) {
+    if (e instanceof FinishPaidExceedsTotalError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
     return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }
 }

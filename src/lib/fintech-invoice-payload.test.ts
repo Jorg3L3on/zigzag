@@ -101,6 +101,104 @@ describe('fintech invoice payload', () => {
     expect(payload.hasAdjustment).toBe(false);
   });
 
+  it('excludes soft-deleted service lines from invoice items', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        total: 500_882.97,
+        paid: 500_882.97,
+        services_tickets: [
+          {
+            id: 1,
+            service_id: 10,
+            ticket_id: 2n,
+            quantity: 1,
+            price: 500_000,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: {
+              id: 10,
+              name: 'Limpieza juego de salas',
+              description: 'Limpieza profunda',
+              price: 500_000,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+          {
+            id: 2,
+            service_id: 11,
+            ticket_id: 2n,
+            quantity: 1,
+            price: 700,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: {
+              id: 11,
+              name: 'Mantenimiento A/C',
+              description: 'Desc',
+              price: 700,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+          {
+            id: 3,
+            service_id: 12,
+            ticket_id: 2n,
+            quantity: 3,
+            price: 60.99,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: {
+              id: 12,
+              name: 'Limpiar alfombras',
+              description: 'Alfombras',
+              price: 60.99,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+          {
+            id: 4,
+            service_id: 13,
+            ticket_id: 2n,
+            quantity: 1,
+            price: 100_000,
+            created_at: new Date(),
+            updated_at: new Date(),
+            deleted_at: new Date('2026-07-13T05:43:16.794Z'),
+            service: {
+              id: 13,
+              name: 'MAntenimiento de aires a condicionados',
+              description: 'Deleted line',
+              price: 100_000,
+              created_at: new Date(),
+              updated_at: null,
+              deleted_at: null,
+              company_id: 1,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(payload.items).toHaveLength(3);
+    expect(payload.items.map((item) => item.name)).not.toContain(
+      'MAntenimiento de aires a condicionados',
+    );
+    expect(payload.subtotal).toBe(500_882.97);
+    expect(payload.hasAdjustment).toBe(false);
+  });
+
   it('exposes adjustment when ticket total differs from line items', () => {
     const payload = buildFintechInvoicePayload(
       baseTicket({
