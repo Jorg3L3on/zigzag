@@ -427,6 +427,13 @@ export const ERROR_CATALOG = {
     message: 'El servicio solicitado no existe o ya no está disponible.',
     type: 'validation',
   },
+  TS006: {
+    code: 'TS006',
+    module: 'ticket-services',
+    title: 'Datos del servicio inválidos',
+    message: 'Revisa cantidad y precio e intenta de nuevo.',
+    type: 'validation',
+  },
   US001: {
     code: 'US001',
     module: 'users',
