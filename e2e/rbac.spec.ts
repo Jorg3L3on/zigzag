@@ -49,12 +49,20 @@ test.describe('RBAC browser specs', () => {
     await expect(page.getByRole('region', { name: 'Acciones rápidas' })).toHaveCount(0);
   });
 
-  test('viewer clients list hides new client CTA', async ({ page }) => {
+  test('viewer clients list hides new client CTA', async () => {
     test.skip(!hasE2eViewerCredentials, e2eViewerCredentialsSkipReason);
 
     await page.setViewportSize({ width: 768, height: 900 });
     await loginAsViewer(page);
     await page.goto('/clients');
     await expect(page.getByRole('link', { name: /Nuevo cliente/i })).toHaveCount(0);
+  });
+
+  test('viewer direct /tickets/create is forbidden', async ({ page }) => {
+    test.skip(!hasE2eViewerCredentials, e2eViewerCredentialsSkipReason);
+
+    await loginAsViewer(page);
+    await page.goto('/tickets/create');
+    await expect(page).toHaveURL(/\/forbidden/);
   });
 });
