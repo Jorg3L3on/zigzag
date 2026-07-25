@@ -4,8 +4,10 @@ import {
   getTicketServices,
   updateServiceTicket,
 } from '@/actions/ticket-services';
+import { invalidateCompanyCache } from '@/lib/cache';
 import { db } from '@/lib/db';
 import { requireActionPermission } from '@/lib/security';
+import { recordTicketAudit } from '@/lib/ticket-audit';
 import {
   IDOR_RESOURCES_A,
   mockActionCrossTenantDenied,
@@ -13,6 +15,14 @@ import {
 
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
+}));
+
+jest.mock('@/lib/ticket-audit', () => ({
+  recordTicketAudit: jest.fn(async () => undefined),
+}));
+
+jest.mock('@/lib/cache', () => ({
+  invalidateCompanyCache: jest.fn(),
 }));
 
 jest.mock('@/lib/db', () => ({
@@ -249,5 +259,14 @@ describe('ticket-services money validation (TCI-02)', () => {
     expect(result.success).toBe(true);
     expect(result.data?.quantity).toBe(2);
     expect(mockDb.transaction).toHaveBeenCalled();
+    expect(recordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: '1', companyId: 10 }),
+      42n,
+      10,
+      'updated',
+      expect.objectContaining({ serviceLine: 'created' }),
+    );
+    expect(invalidateCompanyCache).toHaveBeenCalledWith(10, 'dashboard');
   });
 });
