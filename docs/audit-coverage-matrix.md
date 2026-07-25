@@ -34,9 +34,10 @@ transition; new Ticket service API mutations dual-write Ticket history where not
 | `ticket` | `deleted` | `success` | `action` | Ticket soft-delete Server Action | Ticket + unified | `src/lib/audit-dual-write.test.ts` |
 | `ticket` | `finished` | `success` | `action` | Ticket finalize Server Action | Ticket + unified | `src/lib/audit-dual-write.test.ts` |
 | `ticket` | `payment_collected` | `success` | `action` | Payment collect Server Action | Ticket + unified | `src/lib/audit-dual-write.test.ts` |
-| `ticket` | `created` | `success` | `api` | `POST /api/tickets/[id]/services` | Ticket + unified | `src/lib/ticket-service-api-audit.test.ts` |
-| `ticket` | `updated` | `success` | `api` | `PUT /api/tickets/[id]/services/[serviceId]` | Ticket + unified | `src/lib/ticket-service-api-audit.test.ts` |
-| `ticket` | `deleted` | `success` | `api` | `DELETE /api/tickets/[id]/services/[serviceId]` | Ticket + unified | `src/lib/ticket-service-api-audit.test.ts` |
+| `ticket` | service line create/update/delete | — | `action` | Ticket-services Server Actions (`createServiceTicket`, `updateServiceTicket`, `deleteServiceTicket`) | **gap** — not instrumented today | See [ticket-creation-integrity-audit.md](./ticket-creation-integrity-audit.md) TCI-08 |
+| `ticket` | `created` | `success` | `api` | ~~`POST /api/tickets/[id]/services`~~ **stale** — REST CRUD removed; do not treat as live coverage | Ticket + unified (historical) | `src/lib/ticket-service-api-audit.test.ts` (legacy) |
+| `ticket` | `updated` | `success` | `api` | ~~`PUT /api/tickets/[id]/services/[serviceId]`~~ **stale** — REST CRUD removed | Ticket + unified (historical) | `src/lib/ticket-service-api-audit.test.ts` (legacy) |
+| `ticket` | `deleted` | `success` | `api` | ~~`DELETE /api/tickets/[id]/services/[serviceId]`~~ **stale** — REST CRUD removed | Ticket + unified (historical) | `src/lib/ticket-service-api-audit.test.ts` (legacy) |
 
 ## Tenant resource mutations
 
