@@ -119,3 +119,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 - **Last updated:** slice #191 — CI gate and epic sign-off
 - **Known leaks:** none identified across audited surfaces
 - **Reviewer sign-off:** automated matrix + IDOR test suite green in CI
+
+## Related: ticket creation integrity
+
+Cross-tenant denial for tickets is covered above. Money/contract holes on the create → services → finish path (client_id ownership on create, service-line qty/price validation, finish races, schema drift) are tracked separately in [ticket-creation-integrity-audit.md](./ticket-creation-integrity-audit.md) and `tasks/prd-ticket-creation-integrity.md`.
