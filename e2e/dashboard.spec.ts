@@ -6,7 +6,9 @@ import {
 } from './helpers/auth';
 
 test.describe('Dashboard', () => {
-  test('redirects unauthenticated visitors to login', async ({ page }) => {
+  test('redirects unauthenticated /dashboard visitors to login', async ({
+    page,
+  }) => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
   });
