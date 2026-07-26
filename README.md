@@ -236,7 +236,7 @@ Pre-merge locally: `npm run lint`, `npm test`, `npm run build` (and `npm run tes
 | Logo upload **CO014** | Set `BLOB_READ_WRITE_TOKEN` in Vercel Production and redeploy |
 | Logo upload **CO010** / private store | Blob store must be **public**; recreate/link a public store and update the token |
 | Cron notifications | `CRON_SECRET` set; schedule is in `vercel.json` |
-| Unexpected preview deploy | Confirm `git.deploymentEnabled` in `vercel.json` (only `main`) |
+| Unexpected preview deploy | Set **Ignored Build Step** in Vercel → Settings → Git (see [deployment.md](docs/agents/deployment.md)); `vercel.json` alone does not affect old PR branches |
 | Build | `rm -rf .next` and reinstall `node_modules` if needed |
 | Migrations | Run `npm run migrate:deploy` with `DIRECT_URL` set |
 

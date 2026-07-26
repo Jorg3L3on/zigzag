@@ -71,7 +71,21 @@ Keep **Production Branch = `main`**. No separate `production` branch required.
 
 ### Git deploys (main only)
 
-`vercel.json` disables automatic deployments for every branch except `main`:
+Two layers (needed because open PRs may not include the latest `vercel.json` yet):
+
+1. **`vercel.json`** — `git.deploymentEnabled` + `ignoreCommand` (only `main` builds).
+2. **Project Ignored Build Step (required for immediate effect)** — Vercel Dashboard → Project **zigzag** → **Settings** → **Git** → **Ignored Build Step** → **Custom**:
+
+```bash
+if [ "$VERCEL_GIT_COMMIT_REF" != "main" ]; then exit 0; else exit 1; fi
+```
+
+- Exit `0` = skip the build  
+- Exit `1` = continue building  
+
+This project setting applies to **every** branch/PR, including older Cursor branches that still lack the updated `vercel.json`. Without it, those PRs keep creating Preview deployments.
+
+`vercel.json` snippet:
 
 ```json
 "git": {
@@ -79,10 +93,11 @@ Keep **Production Branch = `main`**. No separate `production` branch required.
     "*": false,
     "main": true
   }
-}
+},
+"ignoreCommand": "bash -c 'if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ]; then exit 1; else exit 0; fi'"
 ```
 
-Pushes to `feat/*`, other branches, and PR preview deployments do **not** run. To re-enable previews later, remove or adjust `git.deploymentEnabled` and update this doc.
+To re-enable previews later, clear the Ignored Build Step and remove/adjust these fields.
 
 ### Production env (high level)
 
