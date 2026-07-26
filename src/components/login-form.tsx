@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 
 export function LoginForm({
   className,
@@ -202,6 +203,8 @@ export function LoginForm({
               </button>
             </form>
           </div>
+
+          <LoginTicketGuideStub />
         </div>
       </div>
     </div>
