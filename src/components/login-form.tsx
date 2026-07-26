@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
@@ -14,6 +15,7 @@ export function LoginForm({
   ...props
 }: React.ComponentPropsWithoutRef<'div'>) {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -56,13 +58,15 @@ export function LoginForm({
         return;
       }
 
-      setIsStamped(true);
-      if (stampTimeoutRef.current) {
-        clearTimeout(stampTimeoutRef.current);
+      if (!reduceMotion) {
+        setIsStamped(true);
+        if (stampTimeoutRef.current) {
+          clearTimeout(stampTimeoutRef.current);
+        }
+        stampTimeoutRef.current = setTimeout(() => {
+          setIsStamped(false);
+        }, 1100);
       }
-      stampTimeoutRef.current = setTimeout(() => {
-        setIsStamped(false);
-      }, 1100);
 
       const session = await getSession();
       const destination = session?.user?.company_is_system
@@ -190,7 +194,7 @@ export function LoginForm({
                 type="submit"
                 disabled={isLoading}
                 data-stamped={isStamped ? 'true' : 'false'}
-                className="login-stamp-btn mt-1.5 w-full rounded-lg px-0 py-3.5 font-[family-name:var(--font-login-display)] text-[15px] font-semibold tracking-[0.01em] transition-[transform,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--login-ticket-a)] disabled:cursor-not-allowed disabled:opacity-80"
+                className="login-stamp-btn mt-1.5 min-h-11 w-full rounded-lg px-0 py-3.5 font-[family-name:var(--font-login-display)] text-[15px] font-semibold tracking-[0.01em] transition-[transform,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--login-ticket-a)] disabled:cursor-not-allowed disabled:opacity-80"
               >
                 <span className="login-stamp-label transition-opacity duration-200">
                   {isLoading && !isStamped
