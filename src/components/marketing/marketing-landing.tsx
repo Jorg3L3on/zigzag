@@ -75,7 +75,7 @@ const BrandMark = () => {
 
   if (reduceMotion) {
     return (
-      <p className="font-[family-name:var(--font-marketing-display)] text-[clamp(3.75rem,14vw,8rem)] font-extrabold leading-[0.86] tracking-[-0.045em] text-[var(--mkt-ink)]">
+      <p className="whitespace-nowrap font-[family-name:var(--font-marketing-display)] text-[clamp(3.25rem,12vw,8rem)] font-extrabold leading-[0.86] tracking-[-0.045em] text-[var(--mkt-ink)]">
         {LANDING_HERO.brand}
       </p>
     );
@@ -83,7 +83,7 @@ const BrandMark = () => {
 
   return (
     <p
-      className="font-[family-name:var(--font-marketing-display)] text-[clamp(3.75rem,14vw,8rem)] font-extrabold leading-[0.86] tracking-[-0.045em] text-[var(--mkt-ink)]"
+      className="flex flex-nowrap whitespace-nowrap font-[family-name:var(--font-marketing-display)] text-[clamp(3.25rem,12vw,8rem)] font-extrabold leading-[0.86] tracking-[-0.045em] text-[var(--mkt-ink)]"
       aria-label={LANDING_HERO.brand}
     >
       {letters.map((letter, index) => (
