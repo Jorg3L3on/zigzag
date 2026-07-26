@@ -262,11 +262,11 @@
 .marketing-hero-scrim-mobile {
   background: linear-gradient(
     180deg,
-    rgba(230, 238, 247, 0.05) 0%,
-    rgba(230, 238, 247, 0.12) 32%,
-    rgba(230, 238, 247, 0.55) 48%,
-    rgba(230, 238, 247, 0.92) 58%,
-    var(--mkt-mist) 68%
+    transparent 0%,
+    transparent 40%,
+    rgba(230, 238, 247, 0.35) 50%,
+    rgba(230, 238, 247, 0.88) 58%,
+    var(--mkt-mist) 66%
   );
 }
 

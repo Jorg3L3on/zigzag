@@ -290,11 +290,11 @@ export const MarketingLanding = () => {
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-0 marketing-mesh opacity-50 mix-blend-multiply"
+            className="pointer-events-none absolute inset-0 hidden marketing-mesh opacity-50 mix-blend-multiply md:block"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-0 marketing-grain opacity-70"
+            className="pointer-events-none absolute inset-0 hidden marketing-grain opacity-70 md:block"
             aria-hidden
           />
         </div>
