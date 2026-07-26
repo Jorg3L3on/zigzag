@@ -6,7 +6,8 @@ export const LANDING_HERO = {
   primaryCta: { href: '/login', label: 'Iniciar sesión' },
   secondaryCta: { href: '#como-funciona', label: 'Ver cómo funciona' },
   heroImage: {
-    src: '/guides/images/empresa/01-dashboard.webp',
+    desktopSrc: '/marketing/hero-desktop.webp',
+    mobileSrc: '/marketing/hero-mobile.webp',
     alt: 'Dashboard de ZigZag con métricas de ingresos y tickets',
   },
 } as const;

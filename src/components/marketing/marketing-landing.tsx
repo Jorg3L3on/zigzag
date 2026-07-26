@@ -95,7 +95,7 @@ const ZigZagStroke = () => {
 
   return (
     <svg
-      className="h-3.5 w-48 text-[var(--mkt-signal)] sm:w-64"
+      className="h-3 w-40 text-[var(--mkt-signal)] sm:h-3.5 sm:w-64"
       viewBox="0 0 240 14"
       fill="none"
       aria-hidden
@@ -145,7 +145,7 @@ const HeroZigZagCut = () => {
 
       {/* Mobile horizontal cut edge — sits at mist transition, above copy */}
       <svg
-        className="pointer-events-none absolute inset-x-0 top-[48%] z-[1] h-8 w-full text-[var(--mkt-signal)] md:hidden"
+        className="pointer-events-none absolute inset-x-0 top-[40%] z-[1] h-8 w-full text-[var(--mkt-signal)] md:hidden"
         viewBox="0 0 400 32"
         preserveAspectRatio="none"
         aria-hidden
@@ -271,15 +271,22 @@ export const MarketingLanding = () => {
                   }
             }
           >
-            {/* Native img avoids next/image fill hydration races in the hero. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={LANDING_HERO.heroImage.src}
-              alt={LANDING_HERO.heroImage.alt}
-              className="absolute inset-0 h-full w-full object-cover object-[72%_12%] sm:object-[78%_10%] md:object-[84%_8%]"
-              decoding="async"
-              fetchPriority="high"
-            />
+            <picture>
+              <source
+                media="(min-width: 768px)"
+                srcSet={LANDING_HERO.heroImage.desktopSrc}
+                type="image/webp"
+              />
+              {/* Native img avoids next/image fill hydration races in the hero. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={LANDING_HERO.heroImage.mobileSrc}
+                alt={LANDING_HERO.heroImage.alt}
+                className="absolute inset-0 h-full w-full object-cover object-[center_18%] md:object-[center_12%]"
+                decoding="async"
+                fetchPriority="high"
+              />
+            </picture>
           </motion.div>
 
           {/* Mobile: product stays visible up top; mist locks under the cut */}
@@ -305,13 +312,13 @@ export const MarketingLanding = () => {
 
         <HeroZigZagCut />
 
-        <div className="marketing-hero-copy relative z-10 mx-auto max-w-6xl px-4 pb-14 pt-28 sm:px-6 sm:pb-16 md:pb-24 md:pt-24">
-          <div className="max-w-xl space-y-5 sm:space-y-6">
+        <div className="marketing-hero-copy relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="marketing-hero-copy-stack">
             <BrandMark />
             <ZigZagStroke />
             <motion.h1
               id="landing-hero-heading"
-              className="marketing-display max-w-xl text-[1.7rem] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)] sm:text-[2.1rem] md:text-[2.6rem]"
+              className="marketing-display max-w-xl text-[1.55rem] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)] sm:text-[2rem] md:text-[2.55rem]"
               initial={
                 reduceMotion ? false : { opacity: 0, y: 22, filter: 'blur(8px)' }
               }
@@ -321,7 +328,7 @@ export const MarketingLanding = () => {
               {LANDING_HERO.headline}
             </motion.h1>
             <motion.p
-              className="max-w-lg text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl"
+              className="max-w-lg text-base leading-relaxed text-[var(--mkt-muted)] sm:text-lg md:text-xl"
               initial={reduceMotion ? false : { opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.65, ease: easeOut }}
@@ -329,7 +336,7 @@ export const MarketingLanding = () => {
               {LANDING_HERO.support}
             </motion.p>
             <motion.div
-              className="flex flex-wrap gap-3 pt-1"
+              className="flex flex-wrap gap-3 pt-0.5"
               initial={reduceMotion ? false : { opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.8, ease: easeOut }}
