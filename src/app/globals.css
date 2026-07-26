@@ -230,3 +230,138 @@
     transform: translateX(120%);
   }
 }
+
+.marketing-hero {
+  min-height: min(100svh, 58rem);
+}
+
+.marketing-hero-copy {
+  display: flex;
+  align-items: flex-end;
+  min-height: min(100svh, 58rem);
+}
+
+@media (min-width: 768px) {
+  .marketing-hero-copy {
+    align-items: center;
+  }
+}
+
+.marketing-brand {
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+  font-family: var(--font-marketing-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(2.85rem, 10.5vw, 7.25rem);
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.045em;
+  color: var(--mkt-ink);
+}
+
+.marketing-hero-scrim-mobile {
+  background: linear-gradient(
+    180deg,
+    rgba(230, 238, 247, 0.05) 0%,
+    rgba(230, 238, 247, 0.12) 32%,
+    rgba(230, 238, 247, 0.55) 48%,
+    rgba(230, 238, 247, 0.92) 58%,
+    var(--mkt-mist) 68%
+  );
+}
+
+.marketing-display {
+  font-family: var(--font-marketing-display), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Zigzag-edged mist panel — desktop hero signature cut */
+.marketing-hero-cut {
+  clip-path: polygon(
+    0% 0%,
+    62% 0%,
+    56% 5%,
+    62% 10%,
+    56% 15%,
+    62% 20%,
+    56% 25%,
+    62% 30%,
+    56% 35%,
+    62% 40%,
+    56% 45%,
+    62% 50%,
+    56% 55%,
+    62% 60%,
+    56% 65%,
+    62% 70%,
+    56% 75%,
+    62% 80%,
+    56% 85%,
+    62% 90%,
+    56% 95%,
+    62% 100%,
+    0% 100%
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .marketing-hero-cut {
+    animation: marketing-cut-reveal 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes marketing-cut-reveal {
+  from {
+    clip-path: polygon(
+      0% 0%,
+      100% 0%,
+      100% 5%,
+      100% 10%,
+      100% 15%,
+      100% 20%,
+      100% 25%,
+      100% 30%,
+      100% 35%,
+      100% 40%,
+      100% 45%,
+      100% 50%,
+      100% 55%,
+      100% 60%,
+      100% 65%,
+      100% 70%,
+      100% 75%,
+      100% 80%,
+      100% 85%,
+      100% 90%,
+      100% 95%,
+      100% 100%,
+      0% 100%
+    );
+  }
+  to {
+    clip-path: polygon(
+      0% 0%,
+      62% 0%,
+      56% 5%,
+      62% 10%,
+      56% 15%,
+      62% 20%,
+      56% 25%,
+      62% 30%,
+      56% 35%,
+      62% 40%,
+      56% 45%,
+      62% 50%,
+      56% 55%,
+      62% 60%,
+      56% 65%,
+      62% 70%,
+      56% 75%,
+      62% 80%,
+      56% 85%,
+      62% 90%,
+      56% 95%,
+      62% 100%,
+      0% 100%
+    );
+  }
+}

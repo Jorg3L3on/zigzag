@@ -69,63 +69,99 @@ const Reveal = ({
   );
 };
 
+/** Whole-word reveal — never wraps mid-name like per-letter spans can. */
 const BrandMark = () => {
   const reduceMotion = useReducedMotion();
-  const letters = LANDING_HERO.brand.split('');
-
-  if (reduceMotion) {
-    return (
-      <p className="whitespace-nowrap font-[family-name:var(--font-marketing-display)] text-[clamp(3.25rem,12vw,8rem)] font-extrabold leading-[0.86] tracking-[-0.045em] text-[var(--mkt-ink)]">
-        {LANDING_HERO.brand}
-      </p>
-    );
-  }
 
   return (
-    <p
-      className="flex flex-nowrap whitespace-nowrap font-[family-name:var(--font-marketing-display)] text-[clamp(3.25rem,12vw,8rem)] font-extrabold leading-[0.86] tracking-[-0.045em] text-[var(--mkt-ink)]"
-      aria-label={LANDING_HERO.brand}
+    <motion.p
+      className="marketing-brand"
+      initial={
+        reduceMotion
+          ? false
+          : { clipPath: 'inset(0 100% 0 0)', opacity: 0.35 }
+      }
+      animate={{ clipPath: 'inset(0 0% 0 0)', opacity: 1 }}
+      transition={{ duration: 0.9, delay: 0.12, ease: easeOut }}
     >
-      {letters.map((letter, index) => (
-        <motion.span
-          key={`${letter}-${index}`}
-          className="inline-block"
-          initial={{ opacity: 0, y: 36, rotate: -4 }}
-          animate={{ opacity: 1, y: 0, rotate: 0 }}
-          transition={{
-            duration: 0.65,
-            delay: 0.08 + index * 0.05,
-            ease: easeOut,
-          }}
-        >
-          {letter}
-        </motion.span>
-      ))}
-    </p>
+      {LANDING_HERO.brand}
+    </motion.p>
   );
 };
 
+/** Signature brand stroke that rides under the wordmark. */
 const ZigZagStroke = () => {
   const reduceMotion = useReducedMotion();
 
   return (
     <svg
-      className="h-3 w-44 text-[var(--mkt-signal)] sm:w-60"
-      viewBox="0 0 220 12"
+      className="h-3.5 w-48 text-[var(--mkt-signal)] sm:w-64"
+      viewBox="0 0 240 14"
       fill="none"
       aria-hidden
     >
       <motion.path
-        d="M1 10 L28 2 L55 10 L82 2 L109 10 L136 2 L163 10 L190 2 L219 10"
+        d="M2 11 L32 3 L62 11 L92 3 L122 11 L152 3 L182 11 L212 3 L238 11"
         stroke="currentColor"
-        strokeWidth="2.75"
+        strokeWidth="3"
         strokeLinecap="square"
         strokeLinejoin="miter"
-        initial={reduceMotion ? false : { pathLength: 0, opacity: 0.3 }}
+        initial={reduceMotion ? false : { pathLength: 0, opacity: 0.25 }}
         animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ duration: 1.05, delay: 0.45, ease: easeOut }}
+        transition={{ duration: 1.1, delay: 0.55, ease: easeOut }}
       />
     </svg>
+  );
+};
+
+/**
+ * Large structural zigzag that cuts the hero — the brand gesture.
+ * Desktop: vertical cut between copy mist and product.
+ * Mobile: horizontal cut between product top and copy bottom.
+ */
+const HeroZigZagCut = () => {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <>
+      {/* Desktop vertical cut edge — past the brand column */}
+      <svg
+        className="pointer-events-none absolute inset-y-0 left-[58%] z-[1] hidden h-full w-[14%] text-[var(--mkt-signal)] md:block"
+        viewBox="0 0 80 1000"
+        preserveAspectRatio="none"
+        aria-hidden
+      >
+        <motion.path
+          d="M40 0 L12 70 L52 140 L12 210 L52 280 L12 350 L52 420 L12 490 L52 560 L12 630 L52 700 L12 770 L52 840 L12 910 L40 1000"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          vectorEffect="non-scaling-stroke"
+          initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 0.85 }}
+          transition={{ duration: 1.4, delay: 0.35, ease: easeOut }}
+        />
+      </svg>
+
+      {/* Mobile horizontal cut edge — sits at mist transition, above copy */}
+      <svg
+        className="pointer-events-none absolute inset-x-0 top-[48%] z-[1] h-8 w-full text-[var(--mkt-signal)] md:hidden"
+        viewBox="0 0 400 32"
+        preserveAspectRatio="none"
+        aria-hidden
+      >
+        <motion.path
+          d="M0 20 L28 6 L56 20 L84 6 L112 20 L140 6 L168 20 L196 6 L224 20 L252 6 L280 20 L308 6 L336 20 L364 6 L400 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          vectorEffect="non-scaling-stroke"
+          initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 0.9 }}
+          transition={{ duration: 1.15, delay: 0.3, ease: easeOut }}
+        />
+      </svg>
+    </>
   );
 };
 
@@ -165,7 +201,8 @@ const AnimatedStat = ({
   const inView = useInView(ref, { once: true, amount: 0.6 });
   const reduceMotion = useReducedMotion();
   const numeric = Number(value.replace(/[^\d]/g, ''));
-  const isNumeric = Number.isFinite(numeric) && /^\d+$/.test(value.replace('+', ''));
+  const isNumeric =
+    Number.isFinite(numeric) && /^\d+$/.test(value.replace('+', ''));
   const [display, setDisplay] = useState(value);
 
   useEffect(() => {
@@ -181,9 +218,7 @@ const AnimatedStat = ({
       const progress = Math.min(1, frame / frames);
       const eased = 1 - (1 - progress) ** 3;
       const current = Math.round(numeric * eased);
-      setDisplay(
-        value.includes('+') ? `${current}+` : String(current),
-      );
+      setDisplay(value.includes('+') ? `${current}+` : String(current));
       if (progress < 1) {
         requestAnimationFrame(tick);
       }
@@ -210,112 +245,104 @@ export const MarketingLanding = () => {
     target: heroRef,
     offset: ['start start', 'end start'],
   });
-  const imageY = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
+  const imageY = useTransform(scrollYProgress, [0, 1], ['0%', '10%']);
   const imageScale = useSpring(
-    useTransform(scrollYProgress, [0, 1], [1.08, 1.18]),
-    { stiffness: 60, damping: 22 },
+    useTransform(scrollYProgress, [0, 1], [1.06, 1.14]),
+    { stiffness: 55, damping: 24 },
   );
 
   return (
     <div className="pb-12">
       <section
         ref={heroRef}
-        className="relative isolate overflow-hidden"
+        className="marketing-hero relative isolate overflow-hidden"
         aria-labelledby="landing-hero-heading"
       >
-        {/* Explicit product plane: always visible on mobile as its own full-bleed band */}
-        <div className="relative overflow-hidden md:absolute md:inset-0 md:min-h-[min(100svh,58rem)]">
-          {/* Mobile: intrinsic image band — avoids fill/transform collapse quirks */}
-          <div className="relative md:hidden">
-            <Image
-              src={LANDING_HERO.heroImage.src}
-              alt={LANDING_HERO.heroImage.alt}
-              width={1400}
-              height={900}
-              className="h-[min(44svh,20rem)] w-full object-cover object-[72%_14%]"
-              priority
-            />
-            <div
-              className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(230,238,247,0.35)_100%)]"
-              aria-hidden
-            />
-          </div>
-
-          {/* Desktop: full-bleed parallax plane */}
+        {/* Full-bleed product plane — one composition on every breakpoint */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
           <motion.div
-            className="absolute inset-0 hidden md:block"
-            style={
-              reduceMotion
-                ? undefined
-                : { y: imageY, scale: imageScale }
-            }
+            className="absolute inset-0"
+            style={reduceMotion ? undefined : { y: imageY, scale: imageScale }}
           >
             <Image
               src={LANDING_HERO.heroImage.src}
-              alt=""
+              alt={LANDING_HERO.heroImage.alt}
               fill
               sizes="100vw"
-              className="object-cover object-[82%_8%]"
+              className="object-cover object-[68%_8%] sm:object-[75%_8%] md:object-[82%_7%]"
               priority
-              aria-hidden
             />
           </motion.div>
+
+          {/* Mobile: product stays visible up top; mist locks under the cut */}
           <div
-            className="absolute inset-0 hidden bg-[linear-gradient(92deg,var(--mkt-mist)_0%,var(--mkt-mist)_38%,rgba(230,238,247,0.9)_50%,rgba(230,238,247,0.35)_68%,rgba(230,238,247,0.08)_100%)] md:block"
+            className="marketing-hero-scrim-mobile absolute inset-0 md:hidden"
+            aria-hidden
+          />
+
+          {/* Desktop: zigzag-edged mist panel — purpose-built crop reveal */}
+          <div
+            className="marketing-hero-cut absolute inset-0 hidden bg-[var(--mkt-mist)] md:block"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-0 hidden marketing-mesh opacity-60 mix-blend-multiply md:block"
+            className="absolute inset-0 hidden bg-[linear-gradient(90deg,transparent_48%,rgba(230,238,247,0.18)_62%,transparent_78%)] md:block"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-0 hidden marketing-grain opacity-80 md:block"
+            className="pointer-events-none absolute inset-0 marketing-mesh opacity-50 mix-blend-multiply"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 marketing-grain opacity-70"
             aria-hidden
           />
         </div>
 
-        <div className="relative bg-[var(--mkt-mist)] md:bg-transparent">
-          <div className="mx-auto flex min-h-[min(54svh,28rem)] max-w-6xl items-end px-4 pb-12 pt-8 sm:px-6 sm:pb-14 md:min-h-[min(100svh,58rem)] md:items-center md:pb-24 md:pt-24">
-            <div className="max-w-xl space-y-5 sm:space-y-6">
-              <BrandMark />
-              <ZigZagStroke />
-              <motion.h1
-                id="landing-hero-heading"
-                className="max-w-xl font-[family-name:var(--font-marketing-display)] text-[clamp(1.8rem,4vw,2.7rem)] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)]"
-                initial={reduceMotion ? false : { opacity: 0, y: 22, filter: 'blur(8px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ duration: 0.75, delay: 0.55, ease: easeOut }}
+        <HeroZigZagCut />
+
+        <div className="marketing-hero-copy relative mx-auto max-w-6xl px-4 pb-14 pt-28 sm:px-6 sm:pb-16 md:pb-24 md:pt-24">
+          <div className="max-w-xl space-y-5 sm:space-y-6">
+            <BrandMark />
+            <ZigZagStroke />
+            <motion.h1
+              id="landing-hero-heading"
+              className="marketing-display max-w-xl text-[1.7rem] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)] sm:text-[2.1rem] md:text-[2.6rem]"
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 22, filter: 'blur(8px)' }
+              }
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 0.75, delay: 0.5, ease: easeOut }}
+            >
+              {LANDING_HERO.headline}
+            </motion.h1>
+            <motion.p
+              className="max-w-lg text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl"
+              initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.65, ease: easeOut }}
+            >
+              {LANDING_HERO.support}
+            </motion.p>
+            <motion.div
+              className="flex flex-wrap gap-3 pt-1"
+              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8, ease: easeOut }}
+            >
+              <Link
+                href={LANDING_HERO.primaryCta.href}
+                className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
               >
-                {LANDING_HERO.headline}
-              </motion.h1>
-              <motion.p
-                className="max-w-lg text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl"
-                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.7, ease: easeOut }}
+                {LANDING_HERO.primaryCta.label}
+              </Link>
+              <a
+                href={LANDING_HERO.secondaryCta.href}
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)]/90 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
               >
-                {LANDING_HERO.support}
-              </motion.p>
-              <motion.div
-                className="flex flex-wrap gap-3 pt-1"
-                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.85, ease: easeOut }}
-              >
-                <Link
-                  href={LANDING_HERO.primaryCta.href}
-                  className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
-                >
-                  {LANDING_HERO.primaryCta.label}
-                </Link>
-                <a
-                  href={LANDING_HERO.secondaryCta.href}
-                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)]/85 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
-                >
-                  {LANDING_HERO.secondaryCta.label}
-                </a>
-              </motion.div>
-            </div>
+                {LANDING_HERO.secondaryCta.label}
+              </a>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -383,10 +410,14 @@ export const MarketingLanding = () => {
                 </p>
               </div>
               <div
-                className={`group overflow-hidden border border-[var(--mkt-line)] bg-white/60 ${
+                className={`group relative overflow-hidden border border-[var(--mkt-line)] bg-white/60 ${
                   index % 2 === 1 ? 'md:order-1' : ''
                 }`}
               >
+                <div
+                  className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-1 bg-[var(--mkt-signal)] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  aria-hidden
+                />
                 <Image
                   src={step.image.src}
                   alt={step.image.alt}
@@ -414,7 +445,8 @@ export const MarketingLanding = () => {
             Capacidades
           </h2>
           <p className="text-lg text-[var(--mkt-muted)] sm:text-xl">
-            Lo esencial para operar servicios en LATAM sin fragmentar tu operación.
+            Lo esencial para operar servicios en LATAM sin fragmentar tu
+            operación.
           </p>
         </Reveal>
         <motion.ul
@@ -475,7 +507,11 @@ export const MarketingLanding = () => {
               initial={reduceMotion ? false : { opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.65, delay: index * 0.08, ease: easeOut }}
+              transition={{
+                duration: 0.65,
+                delay: index * 0.08,
+                ease: easeOut,
+              }}
             >
               <Image
                 src={image.src}
@@ -502,10 +538,20 @@ export const MarketingLanding = () => {
             className="pointer-events-none absolute inset-0 marketing-zigzag-grid opacity-[0.14]"
             aria-hidden
           />
-          <div
-            className="pointer-events-none absolute -left-10 top-0 h-full w-40 bg-[linear-gradient(90deg,rgba(26,106,239,0.35),transparent)]"
+          <svg
+            className="pointer-events-none absolute -right-4 top-6 h-24 w-40 text-[var(--mkt-signal)] opacity-70 sm:h-28 sm:w-52"
+            viewBox="0 0 220 60"
+            fill="none"
             aria-hidden
-          />
+          >
+            <path
+              d="M4 48 L34 12 L64 48 L94 12 L124 48 L154 12 L184 48 L214 12"
+              stroke="currentColor"
+              strokeWidth="4"
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+            />
+          </svg>
           <h2
             id="cta-final-heading"
             className="relative font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight sm:text-5xl"
