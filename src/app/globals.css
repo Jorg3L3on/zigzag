@@ -252,7 +252,7 @@
   max-width: 100%;
   white-space: nowrap;
   font-family: var(--font-marketing-display), ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(2.85rem, 10.5vw, 7.25rem);
+  font-size: clamp(2.6rem, 9vw, 6.25rem);
   font-weight: 800;
   line-height: 0.88;
   letter-spacing: -0.045em;

@@ -259,18 +259,26 @@ export const MarketingLanding = () => {
         aria-labelledby="landing-hero-heading"
       >
         {/* Full-bleed product plane — one composition on every breakpoint */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <motion.div
             className="absolute inset-0"
-            style={reduceMotion ? undefined : { y: imageY, scale: imageScale }}
+            style={
+              reduceMotion
+                ? undefined
+                : {
+                    y: imageY,
+                    scale: imageScale,
+                  }
+            }
           >
-            <Image
+            {/* Native img avoids next/image fill hydration races in the hero. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={LANDING_HERO.heroImage.src}
               alt={LANDING_HERO.heroImage.alt}
-              fill
-              sizes="100vw"
-              className="object-cover object-[68%_8%] sm:object-[75%_8%] md:object-[82%_7%]"
-              priority
+              className="absolute inset-0 h-full w-full object-cover object-[72%_12%] sm:object-[78%_10%] md:object-[84%_8%]"
+              decoding="async"
+              fetchPriority="high"
             />
           </motion.div>
 
@@ -286,10 +294,6 @@ export const MarketingLanding = () => {
             aria-hidden
           />
           <div
-            className="absolute inset-0 hidden bg-[linear-gradient(90deg,transparent_48%,rgba(230,238,247,0.18)_62%,transparent_78%)] md:block"
-            aria-hidden
-          />
-          <div
             className="pointer-events-none absolute inset-0 hidden marketing-mesh opacity-50 mix-blend-multiply md:block"
             aria-hidden
           />
@@ -301,7 +305,7 @@ export const MarketingLanding = () => {
 
         <HeroZigZagCut />
 
-        <div className="marketing-hero-copy relative mx-auto max-w-6xl px-4 pb-14 pt-28 sm:px-6 sm:pb-16 md:pb-24 md:pt-24">
+        <div className="marketing-hero-copy relative z-10 mx-auto max-w-6xl px-4 pb-14 pt-28 sm:px-6 sm:pb-16 md:pb-24 md:pt-24">
           <div className="max-w-xl space-y-5 sm:space-y-6">
             <BrandMark />
             <ZigZagStroke />
