@@ -97,5 +97,7 @@ describe('buildDashboardReportPayload', () => {
     expect(payload.kpis[0].valueLabel).toContain('MXN');
     expect(payload.recentTicketRows[0].clientName).toBe('Cliente A');
     expect(payload.periodLabel).toMatch(/mayo/i);
+    expect(payload.issuer.address).not.toMatch(/Tel\./i);
+    expect(payload.issuer.phone).toBe('555-0100');
   });
 });

@@ -57,9 +57,10 @@ export const buildDashboardReportPayload = (
   const issuerData = invoiceIssuerFromCompany(company);
   const currencyCode = issuerData.currencyCode || 'MXN';
   const issuerName = issuerData.nameLines.join(' ');
+  // Prefer one-line street address; phone is a separate field on the PDF header.
   const issuerAddress =
-    issuerData.detailLines.filter(Boolean).join(', ') ||
-    issuerData.footerAddress;
+    issuerData.footerAddress ||
+    issuerData.detailLines.filter((line) => !/^Tel\./i.test(line)).join(', ');
 
   const kpis = metrics.kpis.map((kpi) => ({
     label: kpi.label,
