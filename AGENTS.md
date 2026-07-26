@@ -120,7 +120,7 @@ Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-r
 
 ### Deployment (Vercel)
 
-**`main` = production.** Slice PRs merge to **`feat/<feature-slug>`** (previews). One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).
+**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). Slice PRs merge to **`feat/<feature-slug>`** with **no preview deploy** — verify locally. One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).
 
 ## Cursor Cloud specific instructions
 

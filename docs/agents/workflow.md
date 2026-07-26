@@ -14,7 +14,7 @@ Idea → PRD → Issues → feat/<slug> slices → one PR feat/<slug> → main (
 | 2. Decompose | GitHub slice issues | **`to-issues`** (auto by default) |
 | 3. Validate | Fixed labels/links | **`validate-issues`** |
 | 4. Implement + PR | Merge-ready PR into `feat/<slug>` | **`implement-issue`** (+ babysit) |
-| 5. **Merge slice PR → `feat/<slug>`** | Integration branch | **Manual** (Vercel **preview**) |
+| 5. **Merge slice PR → `feat/<slug>`** | Integration branch | **Manual** (no Vercel preview; verify locally) |
 | 6. **Ship feature → `main`** | Production deploy | **Manual** (**once per PRD**) |
 | 7. Document | Version history | **CHANGELOG.md** + Git tag |
 

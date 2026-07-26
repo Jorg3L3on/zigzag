@@ -10,17 +10,23 @@ ZigZag deploys to Vercel with Neon PostgreSQL. Drizzle is the only supported sch
 - `DIRECT_URL`: Neon direct connection string for migrations.
 - `NEXTAUTH_URL`: deployed app URL.
 - `NEXTAUTH_SECRET` or `AUTH_SECRET`: secure random secret.
+- `BLOB_READ_WRITE_TOKEN`: Vercel Blob **read/write** token from a **public** store (company logo uploads). Private stores fail when the app uploads with public access (CO010 / Blob SDK error).
+- `CRON_SECRET`: Bearer secret for `/api/cron/notifications` (Vercel Cron).
 - `NODE_ENV=production`.
+
+Optional: `SENTRY_DSN`, PostHog keys — see [`.env.production.example`](../.env.production.example).
 
 ## Git branches and Vercel
 
 **Production Branch = `main`** (default). Merging to `main` deploys production.
 
-Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so incomplete PRDs do not hit prod. See [agents/deployment.md](agents/deployment.md).
+**Only `main` is built on Vercel.** `vercel.json` sets `git.deploymentEnabled` so other branches and PRs do not create preview deployments. Verify work locally before merging to `main`.
+
+Slice work still uses a **feature integration branch** (`feat/<feature-slug>`) so incomplete PRDs do not hit prod. See [agents/deployment.md](agents/deployment.md).
 
 | Branch | Role |
 | ------ | ---- |
-| `feat/<feature-slug>` | Slice PRs merge here (Vercel previews) |
+| `feat/<feature-slug>` | Slice PRs merge here (no Vercel deploy) |
 | `main` | Production; merge the feature branch when the PRD is complete |
 
 ## Deploy Sequence (production)
@@ -30,7 +36,7 @@ Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so inco
 3. Vercel production build runs **`migrate:deploy` automatically** (`scripts/vercel-build.mjs`) before `next build`. Ensure `DATABASE_URL` and `DIRECT_URL` are set in Vercel Production env.
 4. Optional: trigger **Actions → Production migrations** if you need to apply migrations without redeploying (requires GitHub secrets).
 5. Visit production `/api/health`, `/login`, and `/dashboard`.
-6. Run one CRUD smoke test for clients, services, and tickets.
+6. Run one CRUD smoke test for clients, services, and tickets. If branding is in scope, upload a company logo (requires public Blob + `BLOB_READ_WRITE_TOKEN`).
 
 ## Rollback
 
@@ -45,3 +51,4 @@ Slice work uses a **feature integration branch** (`feat/<feature-slug>`) so inco
 3. Disable affected credentials or users if auth abuse is suspected.
 4. Preserve ticket/payment audit data; do not edit or delete `TicketAuditEvent` rows during triage.
 5. For **Company tenant** onboarding, lifecycle, entitlements, export, or offboarding incidents, follow [company-tenant-runbook.md](company-tenant-runbook.md). First-client launch gates: [company-go-live-checklist.md](company-go-live-checklist.md).
+6. Logo upload failures: confirm Blob store is **public** and `BLOB_READ_WRITE_TOKEN` is set for Production, then redeploy.

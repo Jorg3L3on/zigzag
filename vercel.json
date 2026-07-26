@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run vercel-build",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "main": true
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/notifications",

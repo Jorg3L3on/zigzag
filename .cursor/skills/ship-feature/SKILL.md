@@ -14,7 +14,7 @@ End-to-end automation for a feature PRD.
 
 **Human gates (only):**
 
-1. **Merge** each slice PR into `feat/<feature-slug>` (preview).
+1. **Merge** each slice PR into `feat/<feature-slug>` (no Vercel preview; verify locally).
 2. **Merge** the final PR **`feat/<slug>` → `main`** (production) — agent opens this PR; you merge it.
 
 Agents **never** `gh pr merge` or push to `main`.
@@ -118,7 +118,7 @@ Part of #P
 
 ## Before merge (human)
 
-- [ ] Review diff on preview deployment for `feat/<slug>`
+- [ ] Review diff locally (or on production after merge to `main`); Vercel does not build non-`main` branches
 - [ ] `npm run migrate:deploy` if schema changed
 - [ ] Update CHANGELOG [Unreleased]
 

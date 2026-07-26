@@ -1,6 +1,34 @@
 # ZigZag — Ticket Management System
 
+[![CI](https://github.com/Jorg3L3on/zigzag/actions/workflows/ci.yml/badge.svg)](https://github.com/Jorg3L3on/zigzag/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/Jorg3L3on/zigzag)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Drizzle](https://img.shields.io/badge/ORM-Drizzle-C5F74F)](https://orm.drizzle.team/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+
+<p align="center">
+  <img src="public/logo.png" alt="ZigZag logo" width="72" height="72" />
+</p>
+
 Multi-tenant ticket management built with **Next.js 16**, **Drizzle ORM**, and **PostgreSQL**.
+
+**[Live demo](https://zigzag-hazel.vercel.app)** · [Product guides](https://zigzag-hazel.vercel.app/guides/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+
+<p align="center">
+  <img src="docs/guides/images/empresa/01-dashboard.webp" alt="ZigZag dashboard with ticket metrics" width="880" />
+</p>
+
+## Screenshots
+
+| Tickets | Ticket detail | Mobile |
+| :-----: | :-----------: | :----: |
+| <img src="docs/guides/images/empresa/02-tickets.webp" alt="Tickets list" width="280" /> | <img src="docs/guides/images/empresa/06-detalle-ticket.webp" alt="Ticket detail" width="280" /> | <img src="docs/guides/images/empresa/12-mobile-tickets.webp" alt="Mobile tickets" width="160" /> |
+
+| Login | Invoice PDF | Service reminders |
+| :---: | :---------: | :---------------: |
+| <img src="docs/guides/images/empresa/00-login.webp" alt="Login" width="280" /> | <img src="docs/guides/images/empresa/10-factura-pdf.webp" alt="Server-generated invoice PDF" width="280" /> | <img src="docs/guides/images/empresa/07-recordatorios.webp" alt="Service reminders" width="280" /> |
+
+More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel.vercel.app/guides/) · source under [`docs/guides/`](docs/guides/).
 
 ## Features
 
@@ -182,17 +210,22 @@ Before a mobile release, use the manual checklist: [tasks/mobile-release-checkli
 
 ## Deployment (Vercel + Neon)
 
-Use [`.env.production.example`](.env.production.example) for production variables. Full checklist, rollback, and incidents: **[docs/production-runbook.md](docs/production-runbook.md)**.
+Use [`.env.production.example`](.env.production.example) for production variables. Full checklist, rollback, and incidents: **[docs/production-runbook.md](docs/production-runbook.md)**. Branch strategy: **[docs/agents/deployment.md](docs/agents/deployment.md)**.
+
+**Only `main` deploys.** `vercel.json` sets `git.deploymentEnabled` so pushes and PRs from other branches do **not** create Vercel preview builds. Smoke-test locally (`npm run build` / Playwright) before merging to `main`.
 
 Summary:
 
-1. Set `DATABASE_URL` (pooled), `DIRECT_URL` (direct), `NEXTAUTH_URL`, and `NEXTAUTH_SECRET` / `AUTH_SECRET` in Vercel.
-2. Run `npm run migrate:deploy` against the target database before or as part of first deploy.
-3. Optionally run `npm run db:prod:setup` once for seed data.
-4. Deploy; `vercel.json` uses `npm run vercel-build` (`next build`).
-5. Smoke-test `/api/health`, login, and a clients/services/tickets flow.
+1. In Vercel **Production** env, set at least:
+   - `DATABASE_URL` (pooled), `DIRECT_URL` (direct)
+   - `NEXTAUTH_URL`, `NEXTAUTH_SECRET` / `AUTH_SECRET`
+   - `BLOB_READ_WRITE_TOKEN` — from a **public** Vercel Blob store (required for company logo uploads; private stores fail with public `access`)
+   - `CRON_SECRET` — for `/api/cron/notifications` (see `vercel.json` crons)
+2. Production builds run `npm run vercel-build` (`migrate:deploy` then `next build`).
+3. Optionally run `npm run db:prod:setup` once for seed data on a fresh database.
+4. Merge to `main` (or deploy Production); smoke-test `/api/health`, login, and a clients/services/tickets flow. Try a logo upload if branding matters.
 
-Pre-deploy locally: `npm run lint`, `npm test`, `npm run build`.
+Pre-merge locally: `npm run lint`, `npm test`, `npm run build` (and `npm run test:e2e` when touching UI).
 
 ## Troubleshooting
 
@@ -200,6 +233,10 @@ Pre-deploy locally: `npm run lint`, `npm test`, `npm run build`.
 |-------|--------|
 | DB connection | `DATABASE_URL`, Postgres running, database `zigzag` exists |
 | Auth / redirects | `NEXTAUTH_URL` matches deployed URL; secret is set |
+| Logo upload **CO014** | Set `BLOB_READ_WRITE_TOKEN` in Vercel Production and redeploy |
+| Logo upload **CO010** / private store | Blob store must be **public**; recreate/link a public store and update the token |
+| Cron notifications | `CRON_SECRET` set; schedule is in `vercel.json` |
+| Unexpected preview deploy | Confirm `git.deploymentEnabled` in `vercel.json` (only `main`) |
 | Build | `rm -rf .next` and reinstall `node_modules` if needed |
 | Migrations | Run `npm run migrate:deploy` with `DIRECT_URL` set |
 

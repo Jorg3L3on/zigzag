@@ -98,7 +98,7 @@ Hard delete (`deleteCompany` / soft delete) is **not** the default offboarding p
 
 ## Database migrations (Company platform)
 
-Apply on preview/production after merging integration branch:
+Apply on production after merging the integration branch to `main` (or locally against a staging DB):
 
 ```bash
 npm run migrate:deploy

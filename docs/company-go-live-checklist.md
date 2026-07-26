@@ -10,7 +10,7 @@ Operator runbook: [company-tenant-runbook.md](company-tenant-runbook.md).
 - [ ] `npm test -- --runInBand` passes
 - [ ] `npm run build` passes
 - [ ] Pending migrations applied to production (`npm run migrate:deploy`), including `0007` and `0008`
-- [ ] Vercel preview smoke-tested on integration branch
+- [ ] Integration branch smoke-tested locally (`lint`, `test`, `build`; Playwright as needed) — Vercel previews are disabled for non-`main` branches
 - [ ] Final PR `feat/company-tenant-platform` → `main` reviewed and merged by a human
 
 ## 1. Bootstrap and RBAC (#89)
@@ -33,7 +33,7 @@ Operator runbook: [company-tenant-runbook.md](company-tenant-runbook.md).
 - [ ] Logo upload accepts valid PNG/JPEG/WebP within size/dimension limits (CO010 on invalid)
 - [ ] Logo appears in sidebar company context
 - [ ] Ticket invoice PDF shows logo or vector initials fallback
-- [ ] `BLOB_READ_WRITE_TOKEN` configured in production
+- [ ] Public Vercel Blob store linked; `BLOB_READ_WRITE_TOKEN` configured in Production (private stores break logo upload)
 
 ## 4. Plan entitlements (#93)
 

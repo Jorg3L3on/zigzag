@@ -78,7 +78,7 @@ Follow **babysit** skill. Rebase/merge latest `<integration-branch>` if needed â
 ### 9. Hand off
 
 ```text
-PR ready: merge into <integration-branch> (preview). Not main / not production.
+PR ready: merge into <integration-branch> (no Vercel preview; verify locally). Not main / not production.
 ```
 
 If this was the last slice for the feature, remind user: one PR **`<integration-branch>` â†’ `main`** when the PRD is complete.

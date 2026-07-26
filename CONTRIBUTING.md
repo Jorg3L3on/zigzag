@@ -27,7 +27,7 @@ We use a standard path so humans and Cursor agents stay aligned. Details: [docs/
 
 Skills live under `.cursor/skills/` (`prd`, `to-prd`, `to-issues`, `implement-issue`, `ship-feature`, `setup-matt-pocock-skills`).
 
-**Automated delivery:** `/ship-feature tasks/prd-….md` publishes a **parent PRD issue**, slice issues, **`feat/<slug>`** work, and opens a final PR **`feat/…` → `main`**. You only **merge** PRs (slices + one release to `main`). See [docs/agents/deployment.md](docs/agents/deployment.md).
+**Automated delivery:** `/ship-feature tasks/prd-….md` publishes a **parent PRD issue**, slice issues, **`feat/<slug>`** work, and opens a final PR **`feat/…` → `main`**. You only **merge** PRs (slices + one release to `main`). Vercel builds **only `main`** (no branch/PR previews). See [docs/agents/deployment.md](docs/agents/deployment.md).
 
 ## Before you open a PR
 
