@@ -6,6 +6,7 @@ import {
   LANDING_PROBLEM,
 } from '@/components/marketing/marketing-landing-content';
 import { PRIVACY_PATH, TERMS_PATH } from '@/lib/marketing-routes';
+import { ONBOARDING_GUIDE_PATHS } from '@/lib/onboarding-guides';
 
 describe('MarketingLanding', () => {
   it('renders key sections, CTAs, and footer legal links', () => {
@@ -44,6 +45,6 @@ describe('MarketingLanding', () => {
     ).toHaveAttribute('href', TERMS_PATH);
     expect(
       screen.getByRole('link', { name: 'Guías de producto' }),
-    ).toHaveAttribute('href', '/guides');
+    ).toHaveAttribute('href', ONBOARDING_GUIDE_PATHS.index);
   });
 });

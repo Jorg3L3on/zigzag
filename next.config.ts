@@ -30,6 +30,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // `/guides` serves public/guides/index.html without a directory URL base, so
+  // relative assets (guides.css, assets/logo.png) resolve to the site root and 404.
+  async redirects() {
+    return [
+      {
+        source: '/guides',
+        destination: '/guides/index.html',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
