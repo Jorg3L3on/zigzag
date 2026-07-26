@@ -220,12 +220,30 @@ export const MarketingLanding = () => {
     <div className="pb-12">
       <section
         ref={heroRef}
-        className="relative isolate min-h-[min(100svh,58rem)] overflow-hidden"
+        className="relative isolate overflow-hidden"
         aria-labelledby="landing-hero-heading"
       >
-        <div className="absolute inset-0 -z-10 overflow-hidden">
+        {/* Explicit product plane: always visible on mobile as its own full-bleed band */}
+        <div className="relative overflow-hidden md:absolute md:inset-0 md:min-h-[min(100svh,58rem)]">
+          {/* Mobile: intrinsic image band — avoids fill/transform collapse quirks */}
+          <div className="relative md:hidden">
+            <Image
+              src={LANDING_HERO.heroImage.src}
+              alt={LANDING_HERO.heroImage.alt}
+              width={1400}
+              height={900}
+              className="h-[min(44svh,20rem)] w-full object-cover object-[72%_14%]"
+              priority
+            />
+            <div
+              className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(230,238,247,0.35)_100%)]"
+              aria-hidden
+            />
+          </div>
+
+          {/* Desktop: full-bleed parallax plane */}
           <motion.div
-            className="absolute inset-0"
+            className="absolute inset-0 hidden md:block"
             style={
               reduceMotion
                 ? undefined
@@ -234,70 +252,70 @@ export const MarketingLanding = () => {
           >
             <Image
               src={LANDING_HERO.heroImage.src}
-              alt={LANDING_HERO.heroImage.alt}
+              alt=""
               fill
               sizes="100vw"
-              className="object-cover object-[center_6%] md:object-[82%_8%]"
+              className="object-cover object-[82%_8%]"
               priority
+              aria-hidden
             />
           </motion.div>
-          {/* Mobile: keep product visible up top, solid mist under copy */}
-          <div
-            className="absolute inset-0 bg-[linear-gradient(180deg,rgba(230,238,247,0.18)_0%,rgba(230,238,247,0.42)_38%,rgba(230,238,247,0.88)_62%,var(--mkt-mist)_78%)] md:hidden"
-            aria-hidden
-          />
-          {/* Desktop: crop-friendly left scrim, product dominates the right */}
           <div
             className="absolute inset-0 hidden bg-[linear-gradient(92deg,var(--mkt-mist)_0%,var(--mkt-mist)_38%,rgba(230,238,247,0.9)_50%,rgba(230,238,247,0.35)_68%,rgba(230,238,247,0.08)_100%)] md:block"
             aria-hidden
           />
           <div
-            className="absolute inset-0 marketing-mesh opacity-70 mix-blend-multiply"
+            className="pointer-events-none absolute inset-0 hidden marketing-mesh opacity-60 mix-blend-multiply md:block"
             aria-hidden
           />
-          <div className="absolute inset-0 marketing-grain" aria-hidden />
+          <div
+            className="pointer-events-none absolute inset-0 hidden marketing-grain opacity-80 md:block"
+            aria-hidden
+          />
         </div>
 
-        <div className="mx-auto flex min-h-[min(100svh,58rem)] max-w-6xl items-end px-4 pb-16 pt-28 sm:px-6 sm:pb-20 md:items-center md:pb-24 md:pt-24">
-          <div className="max-w-xl space-y-5 sm:space-y-6">
-            <BrandMark />
-            <ZigZagStroke />
-            <motion.h1
-              id="landing-hero-heading"
-              className="max-w-xl font-[family-name:var(--font-marketing-display)] text-[clamp(1.8rem,4vw,2.7rem)] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)]"
-              initial={reduceMotion ? false : { opacity: 0, y: 22, filter: 'blur(8px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 0.75, delay: 0.55, ease: easeOut }}
-            >
-              {LANDING_HERO.headline}
-            </motion.h1>
-            <motion.p
-              className="max-w-lg text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl"
-              initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, delay: 0.7, ease: easeOut }}
-            >
-              {LANDING_HERO.support}
-            </motion.p>
-            <motion.div
-              className="flex flex-wrap gap-3 pt-1"
-              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.85, ease: easeOut }}
-            >
-              <Link
-                href={LANDING_HERO.primaryCta.href}
-                className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+        <div className="relative bg-[var(--mkt-mist)] md:bg-transparent">
+          <div className="mx-auto flex min-h-[min(54svh,28rem)] max-w-6xl items-end px-4 pb-12 pt-8 sm:px-6 sm:pb-14 md:min-h-[min(100svh,58rem)] md:items-center md:pb-24 md:pt-24">
+            <div className="max-w-xl space-y-5 sm:space-y-6">
+              <BrandMark />
+              <ZigZagStroke />
+              <motion.h1
+                id="landing-hero-heading"
+                className="max-w-xl font-[family-name:var(--font-marketing-display)] text-[clamp(1.8rem,4vw,2.7rem)] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)]"
+                initial={reduceMotion ? false : { opacity: 0, y: 22, filter: 'blur(8px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{ duration: 0.75, delay: 0.55, ease: easeOut }}
               >
-                {LANDING_HERO.primaryCta.label}
-              </Link>
-              <a
-                href={LANDING_HERO.secondaryCta.href}
-                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)]/85 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                {LANDING_HERO.headline}
+              </motion.h1>
+              <motion.p
+                className="max-w-lg text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl"
+                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.7, ease: easeOut }}
               >
-                {LANDING_HERO.secondaryCta.label}
-              </a>
-            </motion.div>
+                {LANDING_HERO.support}
+              </motion.p>
+              <motion.div
+                className="flex flex-wrap gap-3 pt-1"
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.85, ease: easeOut }}
+              >
+                <Link
+                  href={LANDING_HERO.primaryCta.href}
+                  className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                >
+                  {LANDING_HERO.primaryCta.label}
+                </Link>
+                <a
+                  href={LANDING_HERO.secondaryCta.href}
+                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)]/85 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                >
+                  {LANDING_HERO.secondaryCta.label}
+                </a>
+              </motion.div>
+            </div>
           </div>
         </div>
       </section>
