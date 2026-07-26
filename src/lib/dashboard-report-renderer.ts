@@ -1,7 +1,11 @@
 import { jsPDF } from 'jspdf';
 import type { DashboardReportPayload } from '@/lib/dashboard-report-payload';
 import type { TicketPaymentStatus } from '@/lib/ticket-payment-status';
-import { detectPdfImageFormat } from '@/lib/company-logo-branding-shared';
+import {
+  detectPdfImageFormat,
+  getCompanyBrandFallbackHue,
+  getCompanyBrandInitials,
+} from '@/lib/company-logo-branding-shared';
 
 export type DashboardReportRenderOptions = {
   issuerLogoDataUrl?: string | null;
@@ -59,6 +63,20 @@ type JsPdfWithGraphics = jsPDF & {
 /** Y is measured from the bottom of the page (same convention as invoice renderer). */
 const yTop = (y: number, height = 0): number => H - y - height;
 const textY = (y: number): number => H - y;
+
+const hslToHex = (h: number, s: number, l: number): string => {
+  const sat = s / 100;
+  const light = l / 100;
+  const a = sat * Math.min(light, 1 - light);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = light - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
 
 export function renderDashboardReportPdf(
   payload: DashboardReportPayload,
@@ -190,57 +208,51 @@ export function renderDashboardReportPdf(
   };
 
   const drawLogoPlaceholder = (x: number, y: number, size: number) => {
-    doc.setFillColor(COLORS.blue);
-    doc.roundedRect(x, yTop(y, size), size, size, size * 0.22, size * 0.22, 'F');
-    doc.setDrawColor(COLORS.white);
-    doc.setLineWidth(Math.max(1.6, size * 0.07));
-    const top = yTop(y, size);
-    doc.lines(
-      [
-        [size * 0.15, size * 0.23],
-        [size * 0.15, -size * 0.24],
-        [size * 0.2, size * 0.29],
-      ],
-      x + size * 0.24,
-      top + size * 0.4,
+    const initials = getCompanyBrandInitials(payload.issuer.name);
+    const hue = getCompanyBrandFallbackHue(payload.issuer.name);
+    const fontSize = initials.length > 1 ? size * 0.36 : size * 0.44;
+    const radius = Math.max(6, size * 0.16);
+    // Match CompanyBrandAvatar: solid brand tile + white initials (no nested frame).
+    doc.setFillColor(hslToHex(hue, 65, 42));
+    doc.roundedRect(x, yTop(y, size), size, size, radius, radius, 'F');
+    text(
+      initials,
+      x + size / 2,
+      y + size / 2 - fontSize * 0.32,
+      fontSize,
+      COLORS.white,
+      'bold',
+      'center',
     );
   };
 
   const drawIssuerLogo = (x: number, y: number, size = LOGO_SIZE) => {
-    const corner = size / 2;
-    const ring = 2.2;
-    const imageSize = size - ring * 2;
-    const imageX = x + ring;
-    const imageY = y + ring;
-
-    rr(x + 2, y - 2.5, size, size, corner, '#1E3A8A', null);
-    rr(x, y, size, size, corner, COLORS.white, null);
-    doc.setDrawColor('#C7D2FE');
-    doc.setLineWidth(1.4);
-    doc.roundedRect(x, yTop(y, size), size, size, corner, corner, 'S');
+    const radius = Math.max(6, size * 0.16);
 
     if (issuerLogoDataUrl) {
       const format = detectPdfImageFormat(issuerLogoDataUrl);
       if (format) {
         try {
+          doc.setFillColor(COLORS.white);
+          doc.roundedRect(x, yTop(y, size), size, size, radius, radius, 'F');
           doc.saveGraphicsState();
           doc.roundedRect(
-            imageX,
-            yTop(imageY, imageSize),
-            imageSize,
-            imageSize,
-            imageSize / 2,
-            imageSize / 2,
+            x,
+            yTop(y, size),
+            size,
+            size,
+            radius,
+            radius,
             null,
           );
           doc.clip();
           doc.addImage(
             issuerLogoDataUrl,
             format,
-            imageX,
-            yTop(imageY, imageSize),
-            imageSize,
-            imageSize,
+            x,
+            yTop(y, size),
+            size,
+            size,
             undefined,
             'FAST',
           );
@@ -248,12 +260,12 @@ export function renderDashboardReportPdf(
           doc.restoreGraphicsState();
           return;
         } catch {
-          // Fall through to placeholder.
+          // Fall through to initials placeholder.
         }
       }
     }
 
-    drawLogoPlaceholder(imageX, imageY, imageSize);
+    drawLogoPlaceholder(x, y, size);
   };
 
   // Soft page atmosphere
@@ -269,13 +281,9 @@ export function renderDashboardReportPdf(
   // --- Header ---
   const headerH = 96;
   const headerY = H - MARGIN - headerH;
-  shadowCard(MARGIN, headerY, CONTENT_W, headerH, COLORS.navy, null);
-  doc.setFillColor(COLORS.blue);
-  doc.roundedRect(MARGIN, yTop(headerY + headerH - 5, 5), CONTENT_W, 5, 2, 2, 'F');
-  doc.setFillColor(COLORS.navy);
-  doc.rect(MARGIN, yTop(headerY + headerH - 5, 5), CONTENT_W, 3, 'F');
+  rr(MARGIN, headerY, CONTENT_W, headerH, COLORS.navy, null, 12);
 
-  const logoX = MARGIN + 16;
+  const logoX = MARGIN + 18;
   const logoY = headerY + (headerH - LOGO_SIZE) / 2;
   drawIssuerLogo(logoX, logoY, LOGO_SIZE);
 
@@ -329,11 +337,11 @@ export function renderDashboardReportPdf(
     'right',
   );
 
-  let cursorTop = headerY - GAP - 2;
+  let cursorTop = headerY - 18;
 
   // --- KPI cards with sparklines ---
   const kpiW = (CONTENT_W - GAP) / 2;
-  const kpiH = 70;
+  const kpiH = 76;
   payload.kpis.slice(0, 4).forEach((kpi, index) => {
     const col = index % 2;
     const row = Math.floor(index / 2);
@@ -341,27 +349,22 @@ export function renderDashboardReportPdf(
     const cardTop = cursorTop - row * (kpiH + GAP);
     const cardY = cardTop - kpiH;
 
-    shadowCard(x, cardY, kpiW, kpiH, COLORS.white, COLORS.blueLine);
-    const accent =
-      kpi.deltaPercent !== null && kpi.deltaPercent < 0
-        ? COLORS.negative
-        : COLORS.blue;
-    doc.setFillColor(accent);
-    doc.roundedRect(x, yTop(cardY, kpiH), 4, kpiH, 2, 2, 'F');
+    rr(x, cardY, kpiW, kpiH, COLORS.white, COLORS.line, 10);
 
+    // Top → label, value, delta chip. Extra top pad avoids a cramped first-card look.
     text(
       truncateText(kpi.label.toUpperCase(), kpiW - 90, 6.5, 'bold'),
-      x + 16,
-      cardY + kpiH - 16,
+      x + 14,
+      cardY + kpiH - 20,
       6.5,
       COLORS.muted,
       'bold',
     );
     text(
-      truncateText(kpi.valueLabel, kpiW - 90, 13, 'bold'),
-      x + 16,
-      cardY + kpiH - 36,
-      13,
+      truncateText(kpi.valueLabel, kpiW - 90, 14, 'bold'),
+      x + 14,
+      cardY + kpiH - 42,
+      14,
       COLORS.ink,
       'bold',
     );
@@ -384,12 +387,12 @@ export function renderDashboardReportPdf(
             ? COLORS.negative
             : COLORS.muted;
     const deltaW = Math.min(kpiW - 28, measure(kpi.deltaLabel, 6.5, 'bold') + 12);
-    rr(x + 16, cardY + 12, deltaW, 13, deltaFill, null, 6);
-    text(kpi.deltaLabel, x + 16 + 6, cardY + 15.5, 6.5, deltaText, 'bold');
+    rr(x + 14, cardY + 12, deltaW, 14, deltaFill, null, 7);
+    text(kpi.deltaLabel, x + 14 + 6, cardY + 16, 6.5, deltaText, 'bold');
 
     const sparkColor =
       delta !== null && delta < 0 ? COLORS.negative : COLORS.blue;
-    drawSparkline(kpi.sparkline, x + kpiW - 78, cardY + 28, 58, 22, sparkColor);
+    drawSparkline(kpi.sparkline, x + kpiW - 78, cardY + 30, 58, 24, sparkColor);
   });
 
   cursorTop -= 2 * (kpiH + GAP) + 4;
