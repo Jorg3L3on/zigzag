@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { BookOpen } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
 import {
   openOnboardingGuide,
   PUBLIC_ONBOARDING_GUIDE_LINKS,
@@ -25,6 +26,7 @@ export const LoginTicketGuideStub = ({
   onOpenGuide = openOnboardingGuide,
 }: LoginTicketGuideStubProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const reduceMotion = useReducedMotion();
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -67,7 +69,7 @@ export const LoginTicketGuideStub = ({
         <button
           ref={triggerRef}
           type="button"
-          className="mb-1 w-full rounded-md py-2 text-left font-[family-name:var(--font-login-mono)] text-[10.5px] tracking-[0.08em] text-[color:var(--login-ink-faint)] uppercase transition-colors hover:text-[color:var(--login-ink-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+          className="mb-1 min-h-11 w-full rounded-md py-2.5 text-left font-[family-name:var(--font-login-mono)] text-[10.5px] tracking-[0.08em] text-[color:var(--login-ink-faint)] uppercase transition-colors hover:text-[color:var(--login-ink-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
           aria-expanded={isExpanded}
           aria-controls={panelId}
           onClick={handleToggle}
@@ -83,10 +85,16 @@ export const LoginTicketGuideStub = ({
           ref={panelRef}
           role="region"
           aria-label="Guías de inicio"
-          hidden={!isExpanded}
+          aria-hidden={!isExpanded}
+          inert={!isExpanded ? true : undefined}
           className={cn(
-            'overflow-hidden transition-[max-height,opacity] duration-300 ease-out',
-            isExpanded ? 'max-h-[480px] opacity-100' : 'max-h-0 opacity-0',
+            'overflow-hidden',
+            reduceMotion
+              ? null
+              : 'transition-[max-height,opacity] duration-300 ease-out',
+            isExpanded
+              ? 'max-h-[480px] opacity-100'
+              : 'pointer-events-none max-h-0 opacity-0',
           )}
         >
           <ul className="grid gap-1.5 pt-2">
@@ -94,8 +102,9 @@ export const LoginTicketGuideStub = ({
               <li key={guide.href}>
                 <button
                   type="button"
+                  tabIndex={isExpanded ? 0 : -1}
                   onClick={() => onOpenGuide(guide.href)}
-                  className="group flex w-full items-start gap-3 rounded-[10px] px-2.5 py-3 text-left transition-colors hover:bg-[color:var(--login-field-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+                  className="group flex min-h-11 w-full items-start gap-3 rounded-[10px] px-2.5 py-3 text-left transition-colors hover:bg-[color:var(--login-field-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
                 >
                   <span
                     className="login-guide-icon mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-white"

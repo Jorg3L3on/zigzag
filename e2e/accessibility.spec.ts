@@ -10,6 +10,10 @@ test.describe('Accessibility (axe-core)', () => {
   test('login page has no serious or critical violations', async ({ page }) => {
     await page.goto('/login');
     await expect(page.getByRole('button', { name: /iniciar sesión/i })).toBeVisible();
+    await expect(page.getByTestId('login-ticket')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /primera vez en zigzag/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa'])
