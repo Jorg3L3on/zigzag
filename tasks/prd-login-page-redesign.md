@@ -1,6 +1,7 @@
 # PRD: Login page visual redesign
 
 **Status:** Ready for agent  
+**GitHub:** [#276](https://github.com/Jorg3L3on/zigzag/issues/276)  
 **Prototype reference:** `zigzag-login-redesign.html` (stakeholder HTML mock; attach to the parent GitHub issue and/or place under `tasks/prototypes/` before implementation)  
 **Brand asset (locked):** existing product logo at `/logo.png` (gradient “Z”), not any placeholder mark from the HTML mock
 
