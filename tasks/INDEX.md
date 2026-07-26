@@ -6,7 +6,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Status | File | Kind |
 |--------|------|------|
-| 📋 | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276)) | Public `/login` visual redesign + clever guides disclosure |
+| 📋 | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
 | 📋 | [prd-mobile-program-decisions.md](./prd-mobile-program-decisions.md) | Locked Q&A for all mobile PRDs |
 | ✅ | [prd-mobile-ui-ux.md](./prd-mobile-ui-ux.md) | v1 epic |
 | ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
