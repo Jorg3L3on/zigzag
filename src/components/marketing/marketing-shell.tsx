@@ -10,6 +10,7 @@ import {
   PRIVACY_PATH,
   TERMS_PATH,
 } from '@/lib/marketing-routes';
+import { ONBOARDING_GUIDE_PATHS } from '@/lib/onboarding-guides';
 
 type MarketingShellProps = {
   children: ReactNode;
@@ -124,12 +125,12 @@ export const MarketingShell = ({
               </Link>
             </li>
             <li>
-              <Link
-                href="/guides"
+              <a
+                href={ONBOARDING_GUIDE_PATHS.index}
                 className="underline-offset-4 hover:text-[var(--mkt-ink)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)]"
               >
                 Guías de producto
-              </Link>
+              </a>
             </li>
           </ul>
         </div>
