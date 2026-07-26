@@ -1,15 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
 import Image from 'next/image';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { PasswordInput } from '@/components/ui/password-input';
 
 export function LoginForm({
   className,
@@ -18,16 +15,29 @@ export function LoginForm({
   const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isStamped, setIsStamped] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
+    return () => {
+      if (stampTimeoutRef.current) {
+        clearTimeout(stampTimeoutRef.current);
+      }
+    };
   }, []);
+
+  const handleTogglePassword = () => {
+    setShowPassword((prev) => !prev);
+  };
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
+    setIsStamped(false);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
@@ -44,6 +54,14 @@ export function LoginForm({
         setError('Correo o contraseña incorrectos. Código: AU001');
         return;
       }
+
+      setIsStamped(true);
+      if (stampTimeoutRef.current) {
+        clearTimeout(stampTimeoutRef.current);
+      }
+      stampTimeoutRef.current = setTimeout(() => {
+        setIsStamped(false);
+      }, 1100);
 
       const session = await getSession();
       const destination = session?.user?.company_is_system
@@ -100,38 +118,63 @@ export function LoginForm({
               className="space-y-5"
               data-hydrated={isHydrated ? 'true' : 'false'}
             >
-              <div className="grid gap-2">
-                <Label
+              <div className="field mb-5">
+                <label
                   htmlFor="email"
-                  className="text-[color:var(--login-ink)]"
+                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
                 >
                   Correo electrónico
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="m@ejemplo.com"
-                  className="h-11 border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] text-[color:var(--login-ink)]"
-                  required
-                />
+                </label>
+                <div className="login-input-line">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="m@ejemplo.com"
+                    required
+                    className="w-full border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label
+
+              <div className="field mb-5">
+                <label
                   htmlFor="password"
-                  className="text-[color:var(--login-ink)]"
+                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
                 >
                   Contraseña
-                </Label>
-                <PasswordInput
-                  id="password"
-                  name="password"
-                  autoComplete="current-password"
-                  className="h-11 border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] text-[color:var(--login-ink)]"
-                  required
-                />
+                </label>
+                <div className="login-input-line">
+                  <div className="flex items-center">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      className="w-full flex-1 border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTogglePassword}
+                      className="mb-0.5 p-1.5 text-[color:var(--login-ink-faint)] transition-colors hover:text-[color:var(--login-ink)] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+                      aria-label={
+                        showPassword
+                          ? 'Ocultar contraseña'
+                          : 'Mostrar contraseña'
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-[17px]" aria-hidden />
+                      ) : (
+                        <Eye className="size-[17px]" aria-hidden />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
+
               {error ? (
                 <div
                   role="alert"
@@ -141,14 +184,22 @@ export function LoginForm({
                   {error}
                 </div>
               ) : null}
-              <Button
+
+              <button
                 type="submit"
-                size="lg"
-                className="w-full"
                 disabled={isLoading}
+                data-stamped={isStamped ? 'true' : 'false'}
+                className="login-stamp-btn mt-1.5 w-full rounded-lg px-0 py-3.5 font-[family-name:var(--font-login-display)] text-[15px] font-semibold tracking-[0.01em] transition-[transform,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--login-ticket-a)] disabled:cursor-not-allowed disabled:opacity-80"
               >
-                {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
-              </Button>
+                <span className="login-stamp-label transition-opacity duration-200">
+                  {isLoading && !isStamped
+                    ? 'Iniciando sesión...'
+                    : 'Iniciar sesión'}
+                </span>
+                <span className="login-stamp-mark" aria-hidden>
+                  ✓ &nbsp;VALIDADO
+                </span>
+              </button>
             </form>
           </div>
         </div>
