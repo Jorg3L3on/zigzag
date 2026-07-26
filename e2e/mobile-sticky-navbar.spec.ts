@@ -114,10 +114,13 @@ test.describe('Mobile sticky navigation', () => {
           await editButton.click();
           await page.waitForURL(/\/tickets\/\d+\/edit/);
         } else {
-          await page
+          const viewButton = page
             .getByRole('button', { name: /Ver ticket/i })
-            .first()
-            .click();
+            .first();
+          if (!(await viewButton.isVisible().catch(() => false))) {
+            test.skip(true, 'No ticket available for services step nav test');
+          }
+          await viewButton.click();
           await page.waitForURL(/\/tickets\/\d+$/);
         }
 

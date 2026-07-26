@@ -19,12 +19,8 @@ import { syncTicketTotal } from '@/lib/ticket-financials';
 import {
   createServiceTicketSchema,
   serviceLineMoneySchema,
-  type CreateServiceTicketData,
-  type UpdateServiceTicketData,
 } from '@/lib/ticket-service-line-schema';
 import { revalidatePath } from 'next/cache';
-
-export type { CreateServiceTicketData, UpdateServiceTicketData };
 
 export interface ServiceTicket {
   id: number;
@@ -33,6 +29,9 @@ export interface ServiceTicket {
   price: number;
   service: Service;
 }
+
+type CreateServiceTicketData = import('@/lib/ticket-service-line-schema').CreateServiceTicketData;
+type UpdateServiceTicketData = import('@/lib/ticket-service-line-schema').UpdateServiceTicketData;
 
 const ticketIdBigInt = (ticketId: string) => BigInt(ticketId);
 
