@@ -39,11 +39,6 @@ const nextConfig: NextConfig = {
         destination: '/guides/index.html',
         permanent: true,
       },
-      {
-        source: '/guides/',
-        destination: '/guides/index.html',
-        permanent: true,
-      },
     ];
   },
   async headers() {
