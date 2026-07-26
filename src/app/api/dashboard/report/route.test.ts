@@ -48,6 +48,10 @@ jest.mock('@/lib/dashboard-report-renderer', () => ({
   renderDashboardReportPdf: jest.fn(() => Buffer.from('pdf')),
 }));
 
+jest.mock('@/lib/company-logo-branding-server', () => ({
+  loadCompanyLogoImageDataUrl: jest.fn(async () => null),
+}));
+
 jest.mock('@/lib/resource-audit', () => ({
   recordDocumentGeneratedAudit: jest.fn(),
 }));

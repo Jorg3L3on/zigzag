@@ -6,12 +6,15 @@ import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import {
   getTicketPaymentStatus,
   TICKET_PAYMENT_STATUS_LABEL,
+  type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
 
 export type DashboardReportKpi = {
   label: string;
   valueLabel: string;
   deltaLabel: string;
+  deltaPercent: number | null;
+  sparkline: number[];
 };
 
 export type DashboardReportPayload = {
@@ -25,12 +28,24 @@ export type DashboardReportPayload = {
   periodLabel: string;
   generatedAtLabel: string;
   kpis: DashboardReportKpi[];
-  revenueRows: Array<{ label: string; amountLabel: string }>;
-  paymentRows: Array<{ label: string; count: number; amountLabel: string }>;
+  revenueRows: Array<{
+    label: string;
+    shortLabel: string;
+    amount: number;
+    amountLabel: string;
+  }>;
+  paymentRows: Array<{
+    status: TicketPaymentStatus;
+    label: string;
+    count: number;
+    amount: number;
+    amountLabel: string;
+  }>;
   recentTicketRows: Array<{
     clientName: string;
     totalLabel: string;
     dateLabel: string;
+    status: TicketPaymentStatus;
     statusLabel: string;
   }>;
 };
@@ -49,6 +64,11 @@ const formatMoney = (currencyCode: string, value: number): string =>
     maximumFractionDigits: 2,
   })}`;
 
+const shortMonthLabel = (label: string): string => {
+  const first = label.trim().split(/\s+/)[0] ?? label;
+  return first.slice(0, 3);
+};
+
 export const buildDashboardReportPayload = (
   company: Company,
   metrics: DashboardMetrics,
@@ -57,9 +77,10 @@ export const buildDashboardReportPayload = (
   const issuerData = invoiceIssuerFromCompany(company);
   const currencyCode = issuerData.currencyCode || 'MXN';
   const issuerName = issuerData.nameLines.join(' ');
+  // Prefer one-line street address; phone is a separate field on the PDF header.
   const issuerAddress =
-    issuerData.detailLines.filter(Boolean).join(', ') ||
-    issuerData.footerAddress;
+    issuerData.footerAddress ||
+    issuerData.detailLines.filter((line) => !/^Tel\./i.test(line)).join(', ');
 
   const kpis = metrics.kpis.map((kpi) => ({
     label: kpi.label,
@@ -68,6 +89,8 @@ export const buildDashboardReportPayload = (
         ? formatMoney(currencyCode, kpi.value)
         : kpi.value.toLocaleString('es-MX'),
     deltaLabel: formatDeltaLabel(kpi.deltaPercent),
+    deltaPercent: kpi.deltaPercent,
+    sparkline: kpi.sparkline.map((point) => point.value),
   }));
 
   return {
@@ -85,23 +108,26 @@ export const buildDashboardReportPayload = (
     kpis,
     revenueRows: metrics.revenueByMonth.map((row) => ({
       label: row.label,
+      shortLabel: shortMonthLabel(row.label),
+      amount: row.revenue,
       amountLabel: formatMoney(currencyCode, row.revenue),
     })),
     paymentRows: metrics.paymentStatusBreakdown.map((row) => ({
+      status: row.status,
       label: row.label,
       count: row.count,
+      amount: row.amount,
       amountLabel: formatMoney(currencyCode, row.amount),
     })),
     recentTicketRows: metrics.recentTickets.map((ticket) => {
       const ref = ticket.ticketDate ?? ticket.createdAt;
+      const status = getTicketPaymentStatus(ticket.total, ticket.paid);
       return {
         clientName: ticket.clientName,
         totalLabel: formatMoney(currencyCode, ticket.total ?? 0),
         dateLabel: format(ref, 'd MMM yyyy', { locale: es }),
-        statusLabel:
-          TICKET_PAYMENT_STATUS_LABEL[
-            getTicketPaymentStatus(ticket.total, ticket.paid)
-          ],
+        status,
+        statusLabel: TICKET_PAYMENT_STATUS_LABEL[status],
       };
     }),
   };

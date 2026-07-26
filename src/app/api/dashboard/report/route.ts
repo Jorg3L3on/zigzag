@@ -9,6 +9,7 @@ import {
   buildDashboardReportPayload,
 } from '@/lib/dashboard-report-payload';
 import { renderDashboardReportPdf } from '@/lib/dashboard-report-renderer';
+import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
 import { parseDashboardMonthCount } from '@/lib/dashboard-metrics';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 import { toCsv } from '@/lib/csv';
@@ -125,7 +126,10 @@ export async function GET(request: Request) {
       });
     }
 
-    const pdf = renderDashboardReportPdf(payload);
+    const issuerLogoDataUrl = await loadCompanyLogoImageDataUrl(
+      companyRow.logo,
+    );
+    const pdf = renderDashboardReportPdf(payload, { issuerLogoDataUrl });
     const filename = buildDashboardReportFileName(generatedAt);
 
     return new NextResponse(pdf, {
