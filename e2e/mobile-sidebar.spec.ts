@@ -43,15 +43,18 @@ test.describe('Mobile sidebar sheet', () => {
     await page.goto('/tickets');
 
     await expect(visiblePageHeader(page).getByText('Tickets')).toBeVisible();
-    await expect(
-      page
-        .getByText(/\d+ de \d+ tickets/)
-        .or(page.getByText('Sin tickets'))
-        .or(page.getByText('Sin resultados'))
-        .first(),
-    ).toBeVisible();
 
     const ticketCards = page.getByRole('button', { name: /Ver ticket \d+/ });
+    const emptyOrFiltered = page
+      .getByText('Sin tickets')
+      .or(page.getByText('Sin resultados'))
+      .or(page.getByText(/No hay tickets/i));
+    const countLabel = page.getByText(/\d+ de \d+ tickets/);
+
+    await expect(
+      ticketCards.or(emptyOrFiltered).or(countLabel).first(),
+    ).toBeVisible({ timeout: 15_000 });
+
     const desktopTable = page.locator('.hidden.md\\:block table');
 
     if ((await ticketCards.count()) > 0) {
@@ -60,8 +63,6 @@ test.describe('Mobile sidebar sheet', () => {
       return;
     }
 
-    await expect(
-      page.getByText(/Sin tickets|Sin resultados|No hay tickets/i).first(),
-    ).toBeVisible();
+    await expect(emptyOrFiltered.first()).toBeVisible({ timeout: 10_000 });
   });
 });

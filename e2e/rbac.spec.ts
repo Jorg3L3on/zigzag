@@ -49,7 +49,7 @@ test.describe('RBAC browser specs', () => {
     await expect(page.getByRole('region', { name: 'Acciones rápidas' })).toHaveCount(0);
   });
 
-  test('viewer clients list hides new client CTA', async () => {
+  test('viewer clients list hides new client CTA', async ({ page }) => {
     test.skip(!hasE2eViewerCredentials, e2eViewerCredentialsSkipReason);
 
     await page.setViewportSize({ width: 768, height: 900 });

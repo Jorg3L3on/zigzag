@@ -1,7 +1,7 @@
 'use server';
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { z } from 'zod';
+import { ZodError } from 'zod';
 import { service, servicesTickets, ticket } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -16,7 +16,15 @@ import { invalidateCompanyCache } from '@/lib/cache';
 import { requireActionPermission } from '@/lib/security';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
+import {
+  createServiceTicketSchema,
+  serviceLineMoneySchema,
+  type CreateServiceTicketData,
+  type UpdateServiceTicketData,
+} from '@/lib/ticket-service-line-schema';
 import { revalidatePath } from 'next/cache';
+
+export type { CreateServiceTicketData, UpdateServiceTicketData };
 
 export interface ServiceTicket {
   id: number;
@@ -25,19 +33,6 @@ export interface ServiceTicket {
   price: number;
   service: Service;
 }
-
-/** Runtime money-line rules (TCI-02). Quantity ≥ 1, price ≥ 0, both finite. */
-export const serviceLineMoneySchema = z.object({
-  quantity: z.number().finite().min(1),
-  price: z.number().finite().min(0),
-});
-
-export const createServiceTicketSchema = serviceLineMoneySchema.extend({
-  service_id: z.number().int().positive(),
-});
-
-export type CreateServiceTicketData = z.infer<typeof createServiceTicketSchema>;
-export type UpdateServiceTicketData = z.infer<typeof serviceLineMoneySchema>;
 
 const ticketIdBigInt = (ticketId: string) => BigInt(ticketId);
 
@@ -217,7 +212,7 @@ export async function createServiceTicket(
     invalidateCompanyCache(companyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return buildActionError('TS006', error, 'validation');
     }
     return handleCodedServerActionError('ticket-services.create', 'TS002', error);
@@ -300,7 +295,7 @@ export async function updateServiceTicket(
     invalidateCompanyCache(companyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof ZodError) {
       return buildActionError('TS006', error, 'validation');
     }
     return handleCodedServerActionError('ticket-services.update', 'TS003', error);
