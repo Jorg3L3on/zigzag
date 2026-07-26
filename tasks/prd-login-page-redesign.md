@@ -1,6 +1,6 @@
 # PRD: Login page visual redesign
 
-**Status:** Ready for agent  
+**Status:** Shipped — merged to `main` via [#286](https://github.com/Jorg3L3on/zigzag/pull/286) (Jul 2026)  
 **GitHub:** [#276](https://github.com/Jorg3L3on/zigzag/issues/276)  
 **Slices:** [#278](https://github.com/Jorg3L3on/zigzag/issues/278) stage shell → [#279](https://github.com/Jorg3L3on/zigzag/issues/279) stamp form · [#280](https://github.com/Jorg3L3on/zigzag/issues/280) guide stub → [#281](https://github.com/Jorg3L3on/zigzag/issues/281) motion/a11y/E2E  
 **Prototype (canonical visual source of truth):** [`tasks/prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html)  
