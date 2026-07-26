@@ -1,20 +1,26 @@
 import { jsPDF } from 'jspdf';
 import type { DashboardReportPayload } from '@/lib/dashboard-report-payload';
 import type { TicketPaymentStatus } from '@/lib/ticket-payment-status';
+import { detectPdfImageFormat } from '@/lib/company-logo-branding-shared';
+
+export type DashboardReportRenderOptions = {
+  issuerLogoDataUrl?: string | null;
+};
 
 const W = 595.2756;
 const H = 841.8898;
-const MARGIN = 40;
+const MARGIN = 38;
 const CONTENT_W = W - MARGIN * 2;
 const GAP = 10;
-const FOOTER_RESERVE = 34;
+const FOOTER_RESERVE = 32;
+const LOGO_SIZE = 52;
 
 const COLORS = {
   blue: '#2563EB',
   blueSoft: '#EFF4FF',
   blueLine: '#D6E1FF',
+  blueDeep: '#1D4ED8',
   navy: '#0F172A',
-  navyDeep: '#111827',
   ink: '#0B1220',
   ink2: '#334155',
   muted: '#64748B',
@@ -43,6 +49,12 @@ const STATUS_STYLE: Record<
 };
 
 type Align = 'left' | 'center' | 'right';
+type JsPdfWithGraphics = jsPDF & {
+  clip: () => jsPDF;
+  discardPath: () => jsPDF;
+  saveGraphicsState: () => jsPDF;
+  restoreGraphicsState: () => jsPDF;
+};
 
 /** Y is measured from the bottom of the page (same convention as invoice renderer). */
 const yTop = (y: number, height = 0): number => H - y - height;
@@ -50,14 +62,15 @@ const textY = (y: number): number => H - y;
 
 export function renderDashboardReportPdf(
   payload: DashboardReportPayload,
+  options: DashboardReportRenderOptions = {},
 ): ArrayBuffer {
+  const issuerLogoDataUrl = options.issuerLogoDataUrl ?? null;
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
     format: 'a4',
-    // Uncompressed streams keep text extractable for unit tests and small reports.
-    compress: false,
-  });
+    compress: true,
+  }) as JsPdfWithGraphics;
 
   const text = (
     value: string,
@@ -144,55 +157,154 @@ export function renderDashboardReportPdf(
     const pillW = labelW + padX * 2;
     rr(x, y, pillW, pillH, style.fill, null, 7);
     text(label, x + pillW / 2, y + 4, 6.5, style.text, 'bold', 'center');
-    return pillW;
   };
 
-  // Soft page atmosphere (aligned with invoice renderer)
+  const drawSparkline = (
+    values: number[],
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    color: string,
+  ) => {
+    if (values.length < 2) return;
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
+    const range = Math.max(max - min, 1);
+    const step = width / (values.length - 1);
+    doc.setDrawColor(color);
+    doc.setLineWidth(1.4);
+    doc.setLineJoin('round');
+    let prevX = x;
+    let prevY = y + ((values[0]! - min) / range) * height;
+    for (let i = 1; i < values.length; i += 1) {
+      const nextX = x + i * step;
+      const nextY = y + ((values[i]! - min) / range) * height;
+      doc.line(prevX, textY(prevY), nextX, textY(nextY));
+      prevX = nextX;
+      prevY = nextY;
+    }
+    // End dot
+    doc.setFillColor(color);
+    doc.circle(prevX, textY(prevY), 2, 'F');
+  };
+
+  const drawLogoPlaceholder = (x: number, y: number, size: number) => {
+    doc.setFillColor(COLORS.blue);
+    doc.roundedRect(x, yTop(y, size), size, size, size * 0.22, size * 0.22, 'F');
+    doc.setDrawColor(COLORS.white);
+    doc.setLineWidth(Math.max(1.6, size * 0.07));
+    const top = yTop(y, size);
+    doc.lines(
+      [
+        [size * 0.15, size * 0.23],
+        [size * 0.15, -size * 0.24],
+        [size * 0.2, size * 0.29],
+      ],
+      x + size * 0.24,
+      top + size * 0.4,
+    );
+  };
+
+  const drawIssuerLogo = (x: number, y: number, size = LOGO_SIZE) => {
+    const corner = size / 2;
+    const ring = 2.2;
+    const imageSize = size - ring * 2;
+    const imageX = x + ring;
+    const imageY = y + ring;
+
+    rr(x + 2, y - 2.5, size, size, corner, '#1E3A8A', null);
+    rr(x, y, size, size, corner, COLORS.white, null);
+    doc.setDrawColor('#C7D2FE');
+    doc.setLineWidth(1.4);
+    doc.roundedRect(x, yTop(y, size), size, size, corner, corner, 'S');
+
+    if (issuerLogoDataUrl) {
+      const format = detectPdfImageFormat(issuerLogoDataUrl);
+      if (format) {
+        try {
+          doc.saveGraphicsState();
+          doc.roundedRect(
+            imageX,
+            yTop(imageY, imageSize),
+            imageSize,
+            imageSize,
+            imageSize / 2,
+            imageSize / 2,
+            null,
+          );
+          doc.clip();
+          doc.addImage(
+            issuerLogoDataUrl,
+            format,
+            imageX,
+            yTop(imageY, imageSize),
+            imageSize,
+            imageSize,
+            undefined,
+            'FAST',
+          );
+          doc.discardPath();
+          doc.restoreGraphicsState();
+          return;
+        } catch {
+          // Fall through to placeholder.
+        }
+      }
+    }
+
+    drawLogoPlaceholder(imageX, imageY, imageSize);
+  };
+
+  // Soft page atmosphere
   doc.setFillColor(COLORS.white);
   doc.rect(0, 0, W, H, 'F');
   doc.setFillColor(COLORS.dotGrid);
   for (let x = 16; x < W; x += 18) {
     for (let y = 16; y < H; y += 18) {
-      doc.circle(x, y, 0.5, 'F');
+      doc.circle(x, y, 0.45, 'F');
     }
   }
 
   // --- Header ---
-  const headerH = 92;
+  const headerH = 96;
   const headerY = H - MARGIN - headerH;
   shadowCard(MARGIN, headerY, CONTENT_W, headerH, COLORS.navy, null);
-  // Accent rail at the top of the header card
   doc.setFillColor(COLORS.blue);
   doc.roundedRect(MARGIN, yTop(headerY + headerH - 5, 5), CONTENT_W, 5, 2, 2, 'F');
   doc.setFillColor(COLORS.navy);
   doc.rect(MARGIN, yTop(headerY + headerH - 5, 5), CONTENT_W, 3, 'F');
 
-  text('RESUMEN', MARGIN + 20, headerY + headerH - 18, 7, '#93C5FD', 'bold');
+  const logoX = MARGIN + 16;
+  const logoY = headerY + (headerH - LOGO_SIZE) / 2;
+  drawIssuerLogo(logoX, logoY, LOGO_SIZE);
+
+  const textLeft = logoX + LOGO_SIZE + 14;
+  text('RESUMEN', textLeft, headerY + headerH - 22, 7, '#93C5FD', 'bold');
   text(
-    truncateText(payload.issuer.name, CONTENT_W * 0.52, 15, 'bold'),
-    MARGIN + 20,
-    headerY + headerH - 38,
+    truncateText(payload.issuer.name, CONTENT_W * 0.48, 15, 'bold'),
+    textLeft,
+    headerY + headerH - 42,
     15,
     COLORS.white,
     'bold',
   );
-
   const addressParts = [
     payload.issuer.address,
     payload.issuer.phone ? `Tel. ${payload.issuer.phone}` : '',
   ].filter(Boolean);
   text(
-    truncateText(addressParts.join(' · '), CONTENT_W * 0.58, 8),
-    MARGIN + 20,
-    headerY + headerH - 56,
-    8,
+    truncateText(addressParts.join(' · '), CONTENT_W * 0.5, 7.5),
+    textLeft,
+    headerY + headerH - 60,
+    7.5,
     '#CBD5E1',
   );
 
   text(
     payload.title,
-    MARGIN + CONTENT_W - 20,
-    headerY + headerH - 28,
+    MARGIN + CONTENT_W - 18,
+    headerY + headerH - 30,
     11,
     COLORS.white,
     'bold',
@@ -200,8 +312,8 @@ export function renderDashboardReportPdf(
   );
   text(
     `Periodo: ${payload.periodLabel}`,
-    MARGIN + CONTENT_W - 20,
-    headerY + headerH - 46,
+    MARGIN + CONTENT_W - 18,
+    headerY + headerH - 48,
     8.5,
     '#BFDBFE',
     'normal',
@@ -209,8 +321,8 @@ export function renderDashboardReportPdf(
   );
   text(
     payload.generatedAtLabel,
-    MARGIN + CONTENT_W - 20,
-    headerY + headerH - 62,
+    MARGIN + CONTENT_W - 18,
+    headerY + headerH - 64,
     7.5,
     '#94A3B8',
     'normal',
@@ -219,9 +331,9 @@ export function renderDashboardReportPdf(
 
   let cursorTop = headerY - GAP - 2;
 
-  // --- KPI cards ---
+  // --- KPI cards with sparklines ---
   const kpiW = (CONTENT_W - GAP) / 2;
-  const kpiH = 62;
+  const kpiH = 70;
   payload.kpis.slice(0, 4).forEach((kpi, index) => {
     const col = index % 2;
     const row = Math.floor(index / 2);
@@ -230,12 +342,15 @@ export function renderDashboardReportPdf(
     const cardY = cardTop - kpiH;
 
     shadowCard(x, cardY, kpiW, kpiH, COLORS.white, COLORS.blueLine);
-    // Left accent
-    doc.setFillColor(COLORS.blue);
+    const accent =
+      kpi.deltaPercent !== null && kpi.deltaPercent < 0
+        ? COLORS.negative
+        : COLORS.blue;
+    doc.setFillColor(accent);
     doc.roundedRect(x, yTop(cardY, kpiH), 4, kpiH, 2, 2, 'F');
 
     text(
-      truncateText(kpi.label.toUpperCase(), kpiW - 28, 6.5, 'bold'),
+      truncateText(kpi.label.toUpperCase(), kpiW - 90, 6.5, 'bold'),
       x + 16,
       cardY + kpiH - 16,
       6.5,
@@ -243,10 +358,10 @@ export function renderDashboardReportPdf(
       'bold',
     );
     text(
-      truncateText(kpi.valueLabel, kpiW - 28, 14, 'bold'),
+      truncateText(kpi.valueLabel, kpiW - 90, 13, 'bold'),
       x + 16,
       cardY + kpiH - 36,
-      14,
+      13,
       COLORS.ink,
       'bold',
     );
@@ -268,149 +383,158 @@ export function renderDashboardReportPdf(
           : delta < 0
             ? COLORS.negative
             : COLORS.muted;
-    const deltaW = Math.min(kpiW - 28, measure(kpi.deltaLabel, 7, 'bold') + 14);
-    rr(x + 16, cardY + 10, deltaW, 14, deltaFill, null, 7);
-    text(kpi.deltaLabel, x + 16 + 7, cardY + 14, 7, deltaText, 'bold');
+    const deltaW = Math.min(kpiW - 28, measure(kpi.deltaLabel, 6.5, 'bold') + 12);
+    rr(x + 16, cardY + 12, deltaW, 13, deltaFill, null, 6);
+    text(kpi.deltaLabel, x + 16 + 6, cardY + 15.5, 6.5, deltaText, 'bold');
+
+    const sparkColor =
+      delta !== null && delta < 0 ? COLORS.negative : COLORS.blue;
+    drawSparkline(kpi.sparkline, x + kpiW - 78, cardY + 28, 58, 22, sparkColor);
   });
 
-  cursorTop -= 2 * (kpiH + GAP) + 6;
+  cursorTop -= 2 * (kpiH + GAP) + 4;
 
-  // --- Side-by-side: Ingresos (with bars) | Estado de cobro ---
-  const colW = (CONTENT_W - GAP) / 2;
-  const sectionTitleGap = 18;
-  const tablePad = 12;
-  const headH = 22;
-  const bodyRowH = 26;
-
+  // --- Revenue vertical bar chart (full width) ---
   const revenueRows = payload.revenueRows.slice(-8);
-  const paymentRows = payload.paymentRows;
-  const leftRows = Math.max(revenueRows.length, 1);
-  const rightRows = Math.max(paymentRows.length, 1);
-  const splitRows = Math.max(leftRows, rightRows);
-  const splitH = tablePad + headH + splitRows * bodyRowH + 10;
-  const splitY = cursorTop - sectionTitleGap - splitH;
-
-  text('Ingresos por mes', MARGIN, cursorTop - 4, 10.5, COLORS.ink, 'bold');
-  text(
-    'Estado de cobro',
-    MARGIN + colW + GAP,
-    cursorTop - 4,
-    10.5,
-    COLORS.ink,
-    'bold',
-  );
-
-  shadowCard(MARGIN, splitY, colW, splitH);
-  shadowCard(MARGIN + colW + GAP, splitY, colW, splitH);
-
-  const leftTableTop = splitY + splitH - tablePad;
-  const rightTableTop = leftTableTop;
-
-  rr(MARGIN + 10, leftTableTop - headH, colW - 20, headH, COLORS.tableHead, null, 6);
-  text('Periodo', MARGIN + 18, leftTableTop - 8, 7, COLORS.muted, 'bold');
-  text('Monto', MARGIN + colW - 18, leftTableTop - 8, 7, COLORS.muted, 'bold', 'right');
-
-  rr(
-    MARGIN + colW + GAP + 10,
-    rightTableTop - headH,
-    colW - 20,
-    headH,
-    COLORS.tableHead,
-    null,
-    6,
-  );
-  text('Estado', MARGIN + colW + GAP + 18, rightTableTop - 8, 7, COLORS.muted, 'bold');
-  text(
-    'Monto',
-    MARGIN + colW + GAP + colW - 18,
-    rightTableTop - 8,
-    7,
-    COLORS.muted,
-    'bold',
-    'right',
-  );
-
-  const maxRevenue = Math.max(1, ...revenueRows.map((row) => row.amount));
-  if (revenueRows.length === 0) {
-    text('Sin datos', MARGIN + 18, leftTableTop - headH - 14, 8, COLORS.muted);
-  } else {
-    revenueRows.forEach((row, index) => {
-      const baseline = leftTableTop - headH - 12 - index * bodyRowH;
-      const barTrackW = colW - 36;
-      const barW = Math.max(3, (row.amount / maxRevenue) * barTrackW);
-      text(
-        truncateText(row.label, colW * 0.42, 8),
-        MARGIN + 18,
-        baseline + 6,
-        8,
-        COLORS.ink,
-      );
-      text(
-        truncateText(row.amountLabel, colW * 0.48, 8, 'bold'),
-        MARGIN + colW - 18,
-        baseline + 6,
-        8,
-        COLORS.ink,
-        'bold',
-        'right',
-      );
-      doc.setFillColor(COLORS.blueSoft);
-      doc.roundedRect(MARGIN + 18, yTop(baseline - 6, 5), barTrackW, 5, 2.5, 2.5, 'F');
-      doc.setFillColor(COLORS.blue);
-      doc.roundedRect(MARGIN + 18, yTop(baseline - 6, 5), barW, 5, 2.5, 2.5, 'F');
-    });
-  }
-
-  const maxPayment = Math.max(1, ...paymentRows.map((row) => row.amount));
-  if (paymentRows.length === 0) {
+  const chartH = 148;
+  const chartTitleGap = 16;
+  const chartY = cursorTop - chartTitleGap - chartH;
+  text('Ingresos por mes', MARGIN, cursorTop - 3, 10.5, COLORS.ink, 'bold');
+  if (revenueRows.length > 0) {
+    const latest = revenueRows[revenueRows.length - 1]!;
     text(
-      'Sin datos',
-      MARGIN + colW + GAP + 18,
-      rightTableTop - headH - 14,
-      8,
-      COLORS.muted,
+      latest.amountLabel,
+      MARGIN + CONTENT_W,
+      cursorTop - 3,
+      9,
+      COLORS.ink2,
+      'bold',
+      'right',
     );
+  }
+  shadowCard(MARGIN, chartY, CONTENT_W, chartH);
+
+  const plotPadX = 36;
+  const plotPadTop = 18;
+  const plotPadBottom = 28;
+  const plotX = MARGIN + plotPadX;
+  const plotW = CONTENT_W - plotPadX * 2;
+  const plotBottom = chartY + plotPadBottom;
+  const plotTop = chartY + chartH - plotPadTop;
+  const plotH = plotTop - plotBottom;
+  const maxRevenue = Math.max(1, ...revenueRows.map((row) => row.amount));
+
+  // Horizontal guide lines
+  for (let g = 0; g <= 3; g += 1) {
+    const gy = plotBottom + (plotH * g) / 3;
+    doc.setDrawColor(COLORS.line);
+    doc.setLineWidth(0.5);
+    doc.line(plotX, textY(gy), plotX + plotW, textY(gy));
+    const guideValue = (maxRevenue * g) / 3;
+    text(
+      guideValue >= 1000
+        ? `${(guideValue / 1000).toFixed(g === 0 ? 0 : 1)}k`
+        : guideValue.toFixed(0),
+      plotX - 6,
+      gy - 2,
+      6,
+      COLORS.muted2,
+      'normal',
+      'right',
+    );
+  }
+
+  if (revenueRows.length === 0) {
+    text('Sin datos de ingresos', MARGIN + CONTENT_W / 2, chartY + chartH / 2, 9, COLORS.muted, 'normal', 'center');
   } else {
-    paymentRows.forEach((row, index) => {
-      const baseline = rightTableTop - headH - 12 - index * bodyRowH;
-      const x0 = MARGIN + colW + GAP;
-      const style = STATUS_STYLE[row.status];
-      doc.setFillColor(style.bar);
-      doc.circle(x0 + 22, textY(baseline + 8), 3.2, 'F');
+    const slotW = plotW / revenueRows.length;
+    const barW = Math.min(28, slotW * 0.55);
+    revenueRows.forEach((row, index) => {
+      const centerX = plotX + slotW * index + slotW / 2;
+      const barH = Math.max(3, (row.amount / maxRevenue) * plotH);
+      const barX = centerX - barW / 2;
+      const barY = plotBottom;
+      const isLast = index === revenueRows.length - 1;
+      doc.setFillColor(isLast ? COLORS.blue : COLORS.blueSoft);
+      doc.roundedRect(barX, yTop(barY, barH), barW, barH, 4, 4, 'F');
+      if (isLast) {
+        doc.setFillColor(COLORS.blueDeep);
+        doc.roundedRect(barX, yTop(barY + barH - 4, 4), barW, 4, 2, 2, 'F');
+      }
       text(
-        truncateText(`${row.label} · ${row.count}`, colW * 0.48, 8, 'bold'),
-        x0 + 30,
-        baseline + 6,
-        8,
-        COLORS.ink,
-        'bold',
+        row.shortLabel,
+        centerX,
+        chartY + 10,
+        7,
+        isLast ? COLORS.ink : COLORS.muted,
+        isLast ? 'bold' : 'normal',
+        'center',
       );
-      text(
-        truncateText(row.amountLabel, colW * 0.4, 8, 'bold'),
-        x0 + colW - 18,
-        baseline + 6,
-        8,
-        COLORS.ink,
-        'bold',
-        'right',
-      );
-      const trackW = colW - 48;
-      const fillW = Math.max(3, (row.amount / maxPayment) * trackW);
-      doc.setFillColor('#F1F5F9');
-      doc.roundedRect(x0 + 30, yTop(baseline - 6, 5), trackW, 5, 2.5, 2.5, 'F');
-      doc.setFillColor(style.bar);
-      doc.roundedRect(x0 + 30, yTop(baseline - 6, 5), fillW, 5, 2.5, 2.5, 'F');
     });
   }
 
-  cursorTop = splitY - GAP - 4;
+  cursorTop = chartY - GAP - 2;
+
+  // --- Payment status: stacked bar + detail cards ---
+  const paymentRows = payload.paymentRows;
+  const paymentH = 86;
+  const paymentTitleGap = 16;
+  const paymentY = cursorTop - paymentTitleGap - paymentH;
+  text('Estado de cobro', MARGIN, cursorTop - 3, 10.5, COLORS.ink, 'bold');
+  shadowCard(MARGIN, paymentY, CONTENT_W, paymentH);
+
+  const totalPaymentAmount = paymentRows.reduce((sum, row) => sum + row.amount, 0);
+  const stackX = MARGIN + 18;
+  const stackY = paymentY + paymentH - 28;
+  const stackW = CONTENT_W - 36;
+  const stackH = 12;
+  doc.setFillColor('#F1F5F9');
+  doc.roundedRect(stackX, yTop(stackY, stackH), stackW, stackH, 6, 6, 'F');
+
+  if (totalPaymentAmount > 0) {
+    let cursorX = stackX;
+    paymentRows.forEach((row) => {
+      const segW = (row.amount / totalPaymentAmount) * stackW;
+      if (segW <= 0) return;
+      doc.setFillColor(STATUS_STYLE[row.status].bar);
+      doc.roundedRect(cursorX, yTop(stackY, stackH), Math.max(segW, 2), stackH, 4, 4, 'F');
+      cursorX += segW;
+    });
+  }
+
+  const cardGap = 8;
+  const statusCardW = (CONTENT_W - 36 - cardGap * 2) / 3;
+  paymentRows.slice(0, 3).forEach((row, index) => {
+    const x = MARGIN + 18 + index * (statusCardW + cardGap);
+    const y = paymentY + 14;
+    const style = STATUS_STYLE[row.status];
+    rr(x, y, statusCardW, 40, style.fill, null, 8);
+    doc.setFillColor(style.bar);
+    doc.circle(x + 12, textY(y + 28), 3.2, 'F');
+    text(row.label, x + 20, y + 26, 7.5, style.text, 'bold');
+    text(`${row.count} tickets`, x + 20, y + 12, 6.5, COLORS.muted);
+    text(
+      truncateText(row.amountLabel, statusCardW - 16, 8, 'bold'),
+      x + statusCardW - 8,
+      y + 18,
+      8,
+      COLORS.ink,
+      'bold',
+      'right',
+    );
+  });
+  if (paymentRows.length === 0) {
+    text('Sin desglose de cobro', MARGIN + CONTENT_W / 2, paymentY + paymentH / 2, 8, COLORS.muted, 'normal', 'center');
+  }
+
+  cursorTop = paymentY - GAP - 2;
 
   // --- Tickets recientes ---
   const ticketRows = payload.recentTicketRows.slice(0, 10);
-  const ticketRowH = 24;
-  const ticketHeadH = 24;
-  const ticketPad = 12;
-  const ticketsTitleGap = 18;
+  const ticketRowH = 23;
+  const ticketHeadH = 22;
+  const ticketPad = 10;
+  const ticketsTitleGap = 16;
   const available = cursorTop - ticketsTitleGap - (MARGIN + FOOTER_RESERVE);
   const desiredRows = Math.max(ticketRows.length, 1);
   const maxFitRows = Math.max(
@@ -421,12 +545,12 @@ export function renderDashboardReportPdf(
   const ticketsH = ticketPad + ticketHeadH + shownRows * ticketRowH + 8;
   const ticketsY = cursorTop - ticketsTitleGap - ticketsH;
 
-  text('Tickets recientes', MARGIN, cursorTop - 4, 10.5, COLORS.ink, 'bold');
+  text('Tickets recientes', MARGIN, cursorTop - 3, 10.5, COLORS.ink, 'bold');
   if (ticketRows.length > shownRows) {
     text(
       `Mostrando ${shownRows} de ${ticketRows.length}`,
       MARGIN + CONTENT_W,
-      cursorTop - 4,
+      cursorTop - 3,
       7.5,
       COLORS.muted2,
       'normal',
@@ -435,7 +559,6 @@ export function renderDashboardReportPdf(
   }
 
   shadowCard(MARGIN, ticketsY, CONTENT_W, ticketsH);
-
   const ticketsTableTop = ticketsY + ticketsH - ticketPad;
   rr(
     MARGIN + 10,
@@ -446,36 +569,28 @@ export function renderDashboardReportPdf(
     null,
     6,
   );
-  text('Cliente', MARGIN + 20, ticketsTableTop - 8, 7, COLORS.muted, 'bold');
+  text('Cliente', MARGIN + 18, ticketsTableTop - 8, 7, COLORS.muted, 'bold');
   text('Fecha', MARGIN + CONTENT_W * 0.46, ticketsTableTop - 8, 7, COLORS.muted, 'bold');
   text('Estado', MARGIN + CONTENT_W * 0.64, ticketsTableTop - 8, 7, COLORS.muted, 'bold');
-  text(
-    'Total',
-    MARGIN + CONTENT_W - 20,
-    ticketsTableTop - 8,
-    7,
-    COLORS.muted,
-    'bold',
-    'right',
-  );
+  text('Total', MARGIN + CONTENT_W - 18, ticketsTableTop - 8, 7, COLORS.muted, 'bold', 'right');
 
   if (ticketRows.length === 0) {
     text(
       'Sin tickets recientes',
-      MARGIN + 20,
-      ticketsTableTop - ticketHeadH - 14,
+      MARGIN + 18,
+      ticketsTableTop - ticketHeadH - 12,
       8,
       COLORS.muted,
     );
   } else {
-    const clientMaxW = CONTENT_W * 0.38 - 16;
+    const clientMaxW = CONTENT_W * 0.38 - 14;
     ticketRows.slice(0, shownRows).forEach((row, index) => {
-      const baseline = ticketsTableTop - ticketHeadH - 15 - index * ticketRowH;
+      const baseline = ticketsTableTop - ticketHeadH - 14 - index * ticketRowH;
       if (index % 2 === 1) {
         doc.setFillColor(COLORS.zebra);
         doc.rect(
           MARGIN + 10,
-          yTop(baseline - 7, ticketRowH),
+          yTop(baseline - 6, ticketRowH),
           CONTENT_W - 20,
           ticketRowH,
           'F',
@@ -483,7 +598,7 @@ export function renderDashboardReportPdf(
       }
       text(
         truncateText(row.clientName, clientMaxW, 8.5, 'bold'),
-        MARGIN + 20,
+        MARGIN + 18,
         baseline,
         8.5,
         COLORS.ink,
@@ -493,7 +608,7 @@ export function renderDashboardReportPdf(
       statusPill(row.statusLabel, row.status, MARGIN + CONTENT_W * 0.64, baseline - 3);
       text(
         row.totalLabel,
-        MARGIN + CONTENT_W - 20,
+        MARGIN + CONTENT_W - 18,
         baseline,
         8.5,
         COLORS.ink,
@@ -506,16 +621,16 @@ export function renderDashboardReportPdf(
   // --- Footer ---
   doc.setDrawColor(COLORS.line);
   doc.setLineWidth(0.7);
-  doc.line(MARGIN, textY(MARGIN + 22), MARGIN + CONTENT_W, textY(MARGIN + 22));
-  text('Powered by', MARGIN, MARGIN + 6, 7, COLORS.muted2, 'normal');
-  text('zigzag', MARGIN + 42, MARGIN + 6, 7, COLORS.ink2, 'bold');
+  doc.line(MARGIN, textY(MARGIN + 20), MARGIN + CONTENT_W, textY(MARGIN + 20));
+  text('Powered by', MARGIN, MARGIN + 5, 7, COLORS.muted2);
+  text('zigzag', MARGIN + 42, MARGIN + 5, 7, COLORS.ink2, 'bold');
   doc.setDrawColor(COLORS.ink2);
   doc.setLineWidth(0.4);
-  doc.line(MARGIN + 42, textY(MARGIN + 5), MARGIN + 62, textY(MARGIN + 5));
+  doc.line(MARGIN + 42, textY(MARGIN + 4), MARGIN + 62, textY(MARGIN + 4));
   text(
     payload.generatedAtLabel,
     MARGIN + CONTENT_W,
-    MARGIN + 6,
+    MARGIN + 5,
     7,
     COLORS.muted2,
     'normal',

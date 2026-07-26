@@ -14,6 +14,7 @@ export type DashboardReportKpi = {
   valueLabel: string;
   deltaLabel: string;
   deltaPercent: number | null;
+  sparkline: number[];
 };
 
 export type DashboardReportPayload = {
@@ -27,7 +28,12 @@ export type DashboardReportPayload = {
   periodLabel: string;
   generatedAtLabel: string;
   kpis: DashboardReportKpi[];
-  revenueRows: Array<{ label: string; amount: number; amountLabel: string }>;
+  revenueRows: Array<{
+    label: string;
+    shortLabel: string;
+    amount: number;
+    amountLabel: string;
+  }>;
   paymentRows: Array<{
     status: TicketPaymentStatus;
     label: string;
@@ -58,6 +64,11 @@ const formatMoney = (currencyCode: string, value: number): string =>
     maximumFractionDigits: 2,
   })}`;
 
+const shortMonthLabel = (label: string): string => {
+  const first = label.trim().split(/\s+/)[0] ?? label;
+  return first.slice(0, 3);
+};
+
 export const buildDashboardReportPayload = (
   company: Company,
   metrics: DashboardMetrics,
@@ -79,6 +90,7 @@ export const buildDashboardReportPayload = (
         : kpi.value.toLocaleString('es-MX'),
     deltaLabel: formatDeltaLabel(kpi.deltaPercent),
     deltaPercent: kpi.deltaPercent,
+    sparkline: kpi.sparkline.map((point) => point.value),
   }));
 
   return {
@@ -96,6 +108,7 @@ export const buildDashboardReportPayload = (
     kpis,
     revenueRows: metrics.revenueByMonth.map((row) => ({
       label: row.label,
+      shortLabel: shortMonthLabel(row.label),
       amount: row.revenue,
       amountLabel: formatMoney(currencyCode, row.revenue),
     })),

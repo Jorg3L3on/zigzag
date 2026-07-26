@@ -31,7 +31,11 @@ const metrics: DashboardMetrics = {
       label: 'Ingresos del periodo',
       value: 1000,
       deltaPercent: 10,
-      sparkline: [],
+      sparkline: [
+        { monthKey: '2026-03', label: 'mar', value: 800 },
+        { monthKey: '2026-04', label: 'abr', value: 900 },
+        { monthKey: '2026-05', label: 'may', value: 1000 },
+      ],
       format: 'currency',
     },
     {
@@ -100,7 +104,9 @@ describe('buildDashboardReportPayload', () => {
     expect(payload.issuer.address).not.toMatch(/Tel\./i);
     expect(payload.issuer.phone).toBe('555-0100');
     expect(payload.kpis[0].deltaPercent).toBe(10);
+    expect(payload.kpis[0].sparkline).toEqual([800, 900, 1000]);
     expect(payload.revenueRows[0].amount).toBe(1000);
+    expect(payload.revenueRows[0].shortLabel).toBe('may');
     expect(payload.paymentRows[0].status).toBe('pending');
     expect(payload.recentTicketRows[0].status).toBe('pending');
   });

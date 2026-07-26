@@ -1,3 +1,4 @@
+import { inflateSync } from 'zlib';
 import { TextDecoder, TextEncoder } from 'util';
 import { buildDashboardReportPayload } from '@/lib/dashboard-report-payload';
 import type { DashboardMetrics } from '@/actions/dashboard';
@@ -32,7 +33,11 @@ const metrics = {
       label: 'Ingresos del periodo',
       value: 100,
       deltaPercent: 12.4,
-      sparkline: [],
+      sparkline: [
+        { monthKey: '2026-05', label: 'may', value: 70 },
+        { monthKey: '2026-06', label: 'jun', value: 80 },
+        { monthKey: '2026-07', label: 'jul', value: 100 },
+      ],
       format: 'currency',
     },
     {
@@ -40,7 +45,11 @@ const metrics = {
       label: 'Efectivo cobrado',
       value: 80,
       deltaPercent: 8.1,
-      sparkline: [],
+      sparkline: [
+        { monthKey: '2026-05', label: 'may', value: 60 },
+        { monthKey: '2026-06', label: 'jun', value: 70 },
+        { monthKey: '2026-07', label: 'jul', value: 80 },
+      ],
       format: 'currency',
     },
     {
@@ -48,7 +57,11 @@ const metrics = {
       label: 'Saldo por cobrar',
       value: 20,
       deltaPercent: -3.2,
-      sparkline: [],
+      sparkline: [
+        { monthKey: '2026-05', label: 'may', value: 30 },
+        { monthKey: '2026-06', label: 'jun', value: 25 },
+        { monthKey: '2026-07', label: 'jul', value: 20 },
+      ],
       format: 'currency',
     },
     {
@@ -56,7 +69,11 @@ const metrics = {
       label: 'Tickets activos',
       value: 1,
       deltaPercent: 5,
-      sparkline: [],
+      sparkline: [
+        { monthKey: '2026-05', label: 'may', value: 1 },
+        { monthKey: '2026-06', label: 'jun', value: 1 },
+        { monthKey: '2026-07', label: 'jul', value: 1 },
+      ],
       format: 'number',
     },
   ],
@@ -97,23 +114,48 @@ const metrics = {
   clientMetrics: [],
 } satisfies DashboardMetrics;
 
+const unescapePdfString = (value: string): string =>
+  value
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')')
+    .replace(/\\\\/g, '\\');
+
+const extractStringsFromContent = (content: string): string[] => {
+  const chunks: string[] = [];
+  const parenRe = /\((?:\\.|[^\\)])*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = parenRe.exec(content)) !== null) {
+    const decoded = unescapePdfString(match[0].slice(1, -1));
+    if (decoded.trim()) chunks.push(decoded);
+  }
+  return chunks;
+};
+
 const extractPdfText = (buffer: ArrayBuffer): string => {
   const bytes = Buffer.from(buffer);
   const raw = bytes.toString('latin1');
   const chunks: string[] = [];
-  const parenRe = /\((?:\\.|[^\\)])*\)/g;
-  let match: RegExpExecArray | null;
-  while ((match = parenRe.exec(raw)) !== null) {
-    const inner = match[0].slice(1, -1);
-    const decoded = inner
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '')
-      .replace(/\\t/g, '\t')
-      .replace(/\\\(/g, '(')
-      .replace(/\\\)/g, ')')
-      .replace(/\\\\/g, '\\');
-    if (decoded.trim()) chunks.push(decoded);
+
+  // Prefer inflated content streams (compress: true).
+  const streamRe = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let streamMatch: RegExpExecArray | null;
+  while ((streamMatch = streamRe.exec(raw)) !== null) {
+    const payload = Buffer.from(streamMatch[1]!, 'binary');
+    try {
+      const inflated = inflateSync(payload).toString('latin1');
+      chunks.push(...extractStringsFromContent(inflated));
+    } catch {
+      chunks.push(...extractStringsFromContent(payload.toString('latin1')));
+    }
   }
+
+  if (chunks.length === 0) {
+    chunks.push(...extractStringsFromContent(raw));
+  }
+
   return chunks.join('\n');
 };
 
@@ -190,5 +232,30 @@ describe('renderDashboardReportPdf', () => {
     const text = extractPdfText(renderDashboardReportPdf(payload));
     const phoneMatches = text.match(/Tel\. 555-0100/g) ?? [];
     expect(phoneMatches.length).toBe(1);
+  });
+
+  it('renders valid PDF when issuer logo data is missing or invalid', async () => {
+    const { renderDashboardReportPdf } = await import(
+      '@/lib/dashboard-report-renderer'
+    );
+    const payload = buildDashboardReportPayload(
+      company,
+      metrics,
+      new Date('2026-07-26T10:30:00'),
+    );
+
+    const withoutLogo = renderDashboardReportPdf(payload, {
+      issuerLogoDataUrl: null,
+    });
+    expect(Buffer.from(withoutLogo).subarray(0, 5).toString('ascii')).toBe(
+      '%PDF-',
+    );
+
+    const withBadLogo = renderDashboardReportPdf(payload, {
+      issuerLogoDataUrl: 'data:text/plain;base64,YQ==',
+    });
+    expect(Buffer.from(withBadLogo).subarray(0, 5).toString('ascii')).toBe(
+      '%PDF-',
+    );
   });
 });
