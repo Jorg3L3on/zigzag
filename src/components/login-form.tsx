@@ -1,41 +1,46 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
 import Image from 'next/image';
-import { BookOpen } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { PasswordInput } from '@/components/ui/password-input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ModeToggle } from '@/components/mode-toggle';
-import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
-import {
-  openOnboardingGuide,
-  PUBLIC_ONBOARDING_GUIDE_LINKS,
-} from '@/lib/onboarding-guides';
+import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<'div'>) {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isStamped, setIsStamped] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
+    return () => {
+      if (stampTimeoutRef.current) {
+        clearTimeout(stampTimeoutRef.current);
+      }
+    };
   }, []);
+
+  const handleTogglePassword = () => {
+    setShowPassword((prev) => !prev);
+  };
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
+    setIsStamped(false);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
@@ -53,6 +58,16 @@ export function LoginForm({
         return;
       }
 
+      if (!reduceMotion) {
+        setIsStamped(true);
+        if (stampTimeoutRef.current) {
+          clearTimeout(stampTimeoutRef.current);
+        }
+        stampTimeoutRef.current = setTimeout(() => {
+          setIsStamped(false);
+        }, 1100);
+      }
+
       const session = await getSession();
       const destination = session?.user?.company_is_system
         ? '/operator-console'
@@ -68,115 +83,134 @@ export function LoginForm({
   }
 
   return (
-    <div className={cn('relative flex flex-col gap-6', className)} {...props}>
-      <div className="absolute -top-2 right-0 z-10 sm:-top-1 sm:-right-1">
-        <ModeToggle />
-      </div>
-      <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
-        <Card className="border-border/60 shadow-md">
-        <CardHeader className="items-center text-center">
-          <a href="#" className="flex flex-col items-center gap-2 font-medium">
-            <div className="flex h-20 w-20 items-center justify-center rounded-md">
-              <Image
-                src="/logo.png?v=provided-icon"
-                alt="Logo de ZigZag"
-                width={80}
-                height={80}
-                className="size-20 object-contain"
-                unoptimized
-              />
-            </div>
-            <span className="sr-only">zigzag</span>
-          </a>
-          <CardTitle>Bienvenido a zigzag</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={onSubmit}
-            method="post"
-            className="space-y-5"
-            data-hydrated={isHydrated ? 'true' : 'false'}
-          >
-            <div className="grid gap-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="m@ejemplo.com"
-                className="h-11"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <PasswordInput
-                id="password"
-                name="password"
-                autoComplete="current-password"
-                className="h-11"
-                required
-              />
-            </div>
-            {error ? (
-              <div
-                role="alert"
-                aria-live="assertive"
-                className="text-sm text-destructive"
-              >
-                {error}
-              </div>
-            ) : null}
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
-            </Button>
-          </form>
-        </CardContent>
-        </Card>
-      </TripledMotionDiv>
-      <nav
-        className="rounded-xl border border-border/60 bg-card/80 p-4 shadow-sm backdrop-blur-sm"
-        aria-label="Guías de inicio"
-      >
-        <p className="mb-3 text-center text-sm font-medium text-muted-foreground">
-          ¿Primera vez en ZigZag? Elige tu guía
-        </p>
-        <ul className="grid gap-2">
-          {PUBLIC_ONBOARDING_GUIDE_LINKS.map((guide) => (
-            <li key={guide.href}>
-              <button
-                type="button"
-                onClick={() => openOnboardingGuide(guide.href)}
-                className="flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:border-primary/20 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <BookOpen
-                  className="mt-0.5 size-4 shrink-0 text-primary"
-                  aria-hidden
+    <div className={cn('w-full', className)} {...props}>
+      <div className="login-ticket-shadow w-full">
+        <div className="login-ticket" data-testid="login-ticket">
+          <div className="login-ticket-section">
+            <div className="mb-[22px] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <Image
+                  src="/logo.png"
+                  alt=""
+                  width={36}
+                  height={36}
+                  className="size-[30px] object-contain sm:size-9"
+                  unoptimized
+                  priority
                 />
-                <span>
-                  <span className="block text-sm font-medium text-foreground">
-                    {guide.label}
-                  </span>
-                  {guide.audienceLabel ? (
-                    <span className="mt-0.5 block text-xs font-medium text-primary">
-                      {guide.audienceLabel}
-                    </span>
-                  ) : null}
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {guide.description}
-                  </span>
+                <span className="font-[family-name:var(--font-login-display)] text-[17px] font-bold tracking-[-0.01em] text-[color:var(--login-ink)]">
+                  zigzag
+                </span>
+              </div>
+              <span
+                className="rounded border border-[color:var(--login-line)] px-2.5 py-1 font-[family-name:var(--font-login-mono)] text-[11px] tracking-[0.05em] text-[color:var(--login-ink-faint)]"
+                aria-hidden
+              >
+                N.º 000001
+              </span>
+            </div>
+
+            <h1 className="mb-1.5 font-[family-name:var(--font-login-display)] text-[22px] font-semibold tracking-[-0.015em] text-[color:var(--login-ink)] sm:text-[25px]">
+              Bienvenido a ZigZag
+            </h1>
+            <p className="mb-[26px] text-[13.5px] leading-normal text-[color:var(--login-ink-muted)]">
+              Ingresa tus datos para ver tus tickets de hoy.
+            </p>
+
+            <form
+              onSubmit={onSubmit}
+              method="post"
+              className="space-y-5"
+              data-hydrated={isHydrated ? 'true' : 'false'}
+            >
+              <div className="field mb-5">
+                <label
+                  htmlFor="email"
+                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
+                >
+                  Correo electrónico
+                </label>
+                <div className="login-input-line">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="m@ejemplo.com"
+                    required
+                    className="w-full border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="field mb-5">
+                <label
+                  htmlFor="password"
+                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
+                >
+                  Contraseña
+                </label>
+                <div className="login-input-line">
+                  <div className="flex items-center">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      className="w-full flex-1 border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTogglePassword}
+                      className="mb-0.5 p-1.5 text-[color:var(--login-ink-faint)] transition-colors hover:text-[color:var(--login-ink)] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+                      aria-label={
+                        showPassword
+                          ? 'Ocultar contraseña'
+                          : 'Mostrar contraseña'
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-[17px]" aria-hidden />
+                      ) : (
+                        <Eye className="size-[17px]" aria-hidden />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {error ? (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="text-sm text-destructive"
+                >
+                  {error}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                data-stamped={isStamped ? 'true' : 'false'}
+                className="login-stamp-btn mt-1.5 min-h-11 w-full rounded-lg px-0 py-3.5 font-[family-name:var(--font-login-display)] text-[15px] font-semibold tracking-[0.01em] transition-[transform,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--login-ticket-a)] disabled:cursor-not-allowed disabled:opacity-80"
+              >
+                <span className="login-stamp-label transition-opacity duration-200">
+                  {isLoading && !isStamped
+                    ? 'Iniciando sesión...'
+                    : 'Iniciar sesión'}
+                </span>
+                <span className="login-stamp-mark" aria-hidden>
+                  ✓ &nbsp;VALIDADO
                 </span>
               </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+            </form>
+          </div>
+
+          <LoginTicketGuideStub />
+        </div>
+      </div>
     </div>
   );
 }

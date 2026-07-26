@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZigZag — Iniciar sesión</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root,
+  [data-theme="dark"] {
+    --page-bg: #0b0d14;
+    --ticket-a: #12141d;
+    --ticket-b: #171a28;
+    --ink: #f1f0ec;
+    --ink-muted: #9298ab;
+    --ink-faint: #565c72;
+    --line: rgba(255,255,255,0.09);
+    --line-strong: rgba(255,255,255,0.16);
+    --accent-blue: #5b7cfa;
+    --accent-violet: #b565f3;
+    --stamp: #f2b441;
+    --stamp-ink: #2c1c02;
+    --field-bg: rgba(255,255,255,0.03);
+    --shadow-color: rgba(0,0,0,0.6);
+    --grain-op: 0.4;
+  }
+
+  [data-theme="light"] {
+    --page-bg: #ece5d3;
+    --ticket-a: #fbf8f0;
+    --ticket-b: #f4eede;
+    --ink: #221f19;
+    --ink-muted: #6c6656;
+    --ink-faint: #a89f89;
+    --line: rgba(34,27,10,0.13);
+    --line-strong: rgba(34,27,10,0.22);
+    --accent-blue: #3454d1;
+    --accent-violet: #8b3fd1;
+    --stamp: #dd8f22;
+    --stamp-ink: #2c1c02;
+    --field-bg: rgba(0,0,0,0.02);
+    --shadow-color: rgba(60,45,20,0.28);
+    --grain-op: 0.25;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--page-bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+    position: relative;
+    overflow-x: hidden;
+    transition: background 0.5s ease;
+  }
+
+  /* ── Ambient background ── */
+  .ambient { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .blob {
+    position: absolute; border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.35;
+    animation: drift 22s ease-in-out infinite alternate;
+  }
+  .blob-a { width: 420px; height: 420px; background: var(--accent-blue); top: -140px; left: -120px; }
+  .blob-b { width: 380px; height: 380px; background: var(--accent-violet); bottom: -160px; right: -100px; animation-delay: -6s; }
+  @keyframes drift {
+    0%   { transform: translate(0,0) scale(1); }
+    100% { transform: translate(30px,40px) scale(1.08); }
+  }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 3px 3px;
+    opacity: var(--grain-op);
+    mix-blend-mode: overlay;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .blob { animation: none; }
+  }
+
+  /* ── Theme toggle ── */
+  .theme-toggle {
+    position: fixed; top: 24px; right: 24px; z-index: 10;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--field-bg);
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: border-color .2s, color .2s, transform .2s;
+  }
+  .theme-toggle:hover { color: var(--ink); border-color: var(--line-strong); transform: rotate(-8deg); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+  .theme-toggle svg { width: 18px; height: 18px; }
+  .theme-toggle .icon-sun { display: none; }
+  [data-theme="light"] .theme-toggle .icon-moon { display: none; }
+  [data-theme="light"] .theme-toggle .icon-sun { display: block; }
+
+  /* ── Stage ── */
+  .stage { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 18px; width: 100%; max-width: 420px; }
+
+  /* ── Ticket shadow wrapper ── */
+  .ticket-shadow {
+    width: 100%;
+    filter: drop-shadow(0 30px 70px var(--shadow-color)) drop-shadow(0 6px 18px var(--shadow-color));
+  }
+
+  /* ── The ticket itself — zigzag die-cut card ── */
+  .ticket {
+    width: 100%;
+    background: linear-gradient(160deg, var(--ticket-a), var(--ticket-b));
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    clip-path: polygon(
+      0% 11px, 9.09% 0, 18.18% 11px, 27.27% 0, 36.36% 11px, 45.45% 0,
+      54.54% 11px, 63.63% 0, 72.72% 11px, 81.81% 0, 90.9% 11px, 100% 0,
+      100% calc(100% - 11px), 90.9% 100%, 81.81% calc(100% - 11px), 72.72% 100%,
+      63.63% calc(100% - 11px), 54.54% 100%, 45.45% calc(100% - 11px), 36.36% 100%,
+      27.27% calc(100% - 11px), 18.18% 100%, 9.09% calc(100% - 11px), 0% 100%
+    );
+    padding: 30px 0 26px;
+  }
+
+  .section { padding: 0 30px; }
+
+  /* ── Brand row ── */
+  .brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .logo-mark { display: flex; align-items: center; gap: 10px; }
+  .logo-mark svg { width: 30px; height: 30px; }
+  .logo-word { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .folio {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    padding: 4px 9px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 25px; font-weight: 600; letter-spacing: -0.015em;
+    line-height: 1.2; margin-bottom: 6px;
+  }
+  .sub { font-size: 13.5px; color: var(--ink-muted); margin-bottom: 26px; line-height: 1.5; }
+
+  /* ── Fields ── */
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .input-line { position: relative; }
+  .input-line input {
+    width: 100%;
+    background: var(--field-bg);
+    border: none;
+    border-bottom: 1.5px solid var(--line-strong);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    padding: 10px 4px 10px 2px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .input-line input::placeholder { color: var(--ink-faint); }
+  .input-line input:focus { border-color: transparent; }
+  .input-line::after {
+    content: '';
+    position: absolute; left: 0; bottom: 0; height: 1.5px; width: 100%;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-violet));
+    transform: scaleX(0); transform-origin: left;
+    transition: transform .3s ease;
+  }
+  .input-line:focus-within::after { transform: scaleX(1); }
+
+  .pw-row { display: flex; align-items: center; }
+  .pw-row input { flex: 1; }
+  .pw-toggle {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-faint); padding: 6px; margin-bottom: 2px;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .2s;
+  }
+  .pw-toggle:hover { color: var(--ink); }
+  .pw-toggle:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 4px; }
+  .pw-toggle svg { width: 17px; height: 17px; }
+
+  /* ── Stamp button ── */
+  .stamp-btn {
+    position: relative;
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px 0;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--stamp), #d99420);
+    color: var(--stamp-ink);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600; font-size: 15px;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform .15s ease, box-shadow .2s ease;
+    box-shadow: 0 8px 20px rgba(242,180,65,0.25);
+  }
+  .stamp-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(242,180,65,0.35); }
+  .stamp-btn:active { transform: translateY(0) scale(0.98); }
+  .stamp-btn:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 3px; }
+
+  .stamp-mark {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--stamp), #d99420);
+    opacity: 0; transform: scale(0.7) rotate(-6deg);
+    transition: opacity .25s ease, transform .25s ease;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600; letter-spacing: 0.08em; font-size: 13px;
+  }
+  .stamp-btn.stamped .stamp-mark { opacity: 1; transform: scale(1) rotate(-6deg); }
+  .stamp-btn.stamped .stamp-btn-label { opacity: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stamp-btn, .stamp-mark, .theme-toggle { transition: none; }
+  }
+
+  /* ── Perforation divider ── */
+  .perforation {
+    position: relative;
+    margin: 28px 30px 22px;
+    border-top: 2px dashed var(--line-strong);
+  }
+  .perforation .hole {
+    position: absolute; top: -8px;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--page-bg);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.35);
+    transition: background .5s ease;
+  }
+  .perforation .hole-left { left: -6px; }
+  .perforation .hole-right { right: -6px; }
+
+  /* ── Guide section ── */
+  .guide-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 16px;
+  }
+  .guide-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    text-decoration: none; color: inherit;
+    padding: 12px 10px;
+    margin: 0 -10px 6px;
+    border-radius: 10px;
+    transition: background .15s ease;
+  }
+  .guide-row:hover { background: var(--field-bg); }
+  .guide-row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+  .guide-icon {
+    flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-violet));
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  .guide-icon svg { width: 16px; height: 16px; color: #fff; }
+  .guide-copy { flex: 1; min-width: 0; }
+  .guide-title { display: block; font-size: 14px; font-weight: 600; margin-bottom: 1px; }
+  .guide-link {
+    display: block; font-size: 12.5px; font-weight: 500;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-violet));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-bottom: 3px;
+  }
+  .guide-desc { display: block; font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
+  .guide-arrow { flex-shrink: 0; color: var(--ink-faint); font-size: 15px; margin-top: 6px; transition: transform .15s ease; }
+  .guide-row:hover .guide-arrow { transform: translateX(3px); color: var(--ink); }
+
+  /* ── Footnote ── */
+  .footnote {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .footnote strong { color: var(--ink-muted); font-weight: 600; }
+
+  @media (max-width: 400px) {
+    h1 { font-size: 22px; }
+    .section { padding: 0 22px; }
+    .perforation { margin-left: 22px; margin-right: 22px; }
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+  <div class="ambient">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+  </div>
+  <div class="grain"></div>
+
+  <button class="theme-toggle" id="themeToggle" aria-label="Cambiar a modo día">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  </button>
+
+  <div class="stage">
+    <div class="ticket-shadow">
+      <div class="ticket">
+
+        <!-- Login stub -->
+        <div class="section">
+          <div class="brand-row">
+            <div class="logo-mark">
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="zgrad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#5B7CFA"/>
+                    <stop offset="1" stop-color="#B565F3"/>
+                  </linearGradient>
+                </defs>
+                <path d="M6 8H26L10 24H26" stroke="url(#zgrad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="logo-word">zigzag</span>
+            </div>
+            <span class="folio">N.º 000001</span>
+          </div>
+
+          <h1>Bienvenido a ZigZag</h1>
+          <p class="sub">Ingresa tus datos para ver tus tickets de hoy.</p>
+
+          <form id="loginForm">
+            <div class="field">
+              <label for="email">Correo electrónico</label>
+              <div class="input-line">
+                <input type="email" id="email" value="jorge@jorge.com" autocomplete="email">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="password">Contraseña</label>
+              <div class="input-line">
+                <div class="pw-row">
+                  <input type="password" id="password" value="contraseñasegura" autocomplete="current-password">
+                  <button type="button" class="pw-toggle" id="pwToggle" aria-label="Mostrar contraseña">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="stamp-btn" id="stampBtn">
+              <span class="stamp-btn-label">Iniciar sesión</span>
+              <span class="stamp-mark">✓ &nbsp;VALIDADO</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Perforation -->
+        <div class="perforation">
+          <span class="hole hole-left"></span>
+          <span class="hole hole-right"></span>
+        </div>
+
+        <!-- Guide stub -->
+        <div class="section">
+          <p class="guide-eyebrow">¿Primera vez en ZigZag? Elige tu guía</p>
+
+          <a class="guide-row" href="#">
+            <span class="guide-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+            </span>
+            <span class="guide-copy">
+              <span class="guide-title">Resumen ejecutivo</span>
+              <span class="guide-link">Evalúo invertir o asociarme</span>
+              <span class="guide-desc">Visión del producto para inversores y socios estratégicos.</span>
+            </span>
+            <span class="guide-arrow">→</span>
+          </a>
+
+          <a class="guide-row" href="#">
+            <span class="guide-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+            </span>
+            <span class="guide-copy">
+              <span class="guide-title">Guía para empresas</span>
+              <span class="guide-link">Opero una empresa</span>
+              <span class="guide-desc">Tickets, clientes, servicios, PDF y recordatorios.</span>
+            </span>
+            <span class="guide-arrow">→</span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="footnote">Powered by <strong>zigzag</strong></p>
+  </div>
+
+  <script>
+    // Theme toggle — night ink / day paper
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      const body = document.body;
+      const isDark = body.getAttribute('data-theme') === 'dark';
+      body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      themeToggle.setAttribute('aria-label', isDark ? 'Cambiar a modo noche' : 'Cambiar a modo día');
+    });
+
+    // Password visibility toggle
+    const pwInput = document.getElementById('password');
+    const pwToggle = document.getElementById('pwToggle');
+    pwToggle.addEventListener('click', () => {
+      const isPw = pwInput.type === 'password';
+      pwInput.type = isPw ? 'text' : 'password';
+      pwToggle.setAttribute('aria-label', isPw ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    });
+
+    // Stamp animation on submit
+    const form = document.getElementById('loginForm');
+    const stampBtn = document.getElementById('stampBtn');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (stampBtn.classList.contains('stamped')) return;
+      stampBtn.classList.add('stamped');
+      setTimeout(() => stampBtn.classList.remove('stamped'), 1100);
+    });
+  </script>
+
+</body>
+</html>
