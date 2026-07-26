@@ -99,5 +99,9 @@ describe('buildDashboardReportPayload', () => {
     expect(payload.periodLabel).toMatch(/mayo/i);
     expect(payload.issuer.address).not.toMatch(/Tel\./i);
     expect(payload.issuer.phone).toBe('555-0100');
+    expect(payload.kpis[0].deltaPercent).toBe(10);
+    expect(payload.revenueRows[0].amount).toBe(1000);
+    expect(payload.paymentRows[0].status).toBe('pending');
+    expect(payload.recentTicketRows[0].status).toBe('pending');
   });
 });

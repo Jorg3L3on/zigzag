@@ -171,6 +171,9 @@ describe('renderDashboardReportPdf', () => {
     expect(text).toContain('Cliente Beta');
     expect(text).toContain('+12.4% vs mes anterior');
     expect(text).toContain('-3.2% vs mes anterior');
+    expect(text).toContain('RESUMEN');
+    expect(text).toContain('Powered by');
+    expect(text).toContain('zigzag');
   });
 
   it('keeps issuer phone once in the header address line', async () => {
