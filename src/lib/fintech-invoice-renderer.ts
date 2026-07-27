@@ -13,7 +13,8 @@ const W = 595.2756;
 const H = 841.8898;
 const MAIN_PAGE_MAX_ROWS = 6;
 const CONTINUATION_PAGE_MAX_ROWS = 12;
-const ROW_STEP = 50;
+const ROW_STEP = 42;
+const TABLE_HEADER_H = 34;
 const TYPOGRAPHY_SCALE = 0.82;
 const ICON_SCALE = 0.82;
 const HEADER_H = 78;
@@ -527,6 +528,21 @@ export function renderFintechInvoicePdf(
     });
   };
 
+  const drawServiceTableHeaders = (
+    headerRowY: number,
+    contentW: number,
+    margin: number,
+  ) => {
+    const layout = serviceTableLayout(margin, contentW);
+    rr(margin + 14, headerRowY, contentW - 28, TABLE_HEADER_H, 10, COLORS.tableHead, null);
+    const headerTextY = headerRowY + TABLE_HEADER_H / 2 - 3;
+    const headerSize = 9;
+    text('SERVICIO', layout.serviceX, headerTextY, headerSize, COLORS.ink2, 'bold');
+    text('CANT.', layout.qtyX, headerTextY, headerSize, COLORS.ink2, 'bold', 'center');
+    text('PRECIO', layout.priceRightX, headerTextY, headerSize, COLORS.ink2, 'bold', 'right');
+    text('IMPORTE', layout.amountRightX, headerTextY, headerSize, COLORS.ink2, 'bold', 'right');
+  };
+
   const drawPaymentSummary = (
     x: number,
     y: number,
@@ -767,7 +783,7 @@ export function renderFintechInvoicePdf(
     const rowsOnPage = Math.min(payload.items.length, MAIN_PAGE_MAX_ROWS);
     const hasMoreItems = payload.items.length > MAIN_PAGE_MAX_ROWS;
     const continuationReserve = hasMoreItems ? 22 : 10;
-    const itemsH = 52 + 30 + rowsOnPage * ROW_STEP + continuationReserve;
+    const itemsH = 52 + TABLE_HEADER_H + 8 + rowsOnPage * ROW_STEP + continuationReserve;
     const itemsY = clientCardY - 12 - itemsH;
 
     shadowCard(margin, itemsY, contentW, itemsH, 16);
@@ -782,15 +798,11 @@ export function renderFintechInvoicePdf(
       'normal',
       'right',
     );
-    const headerRowY = itemsY + itemsH - 56;
-    rr(margin + 14, headerRowY, contentW - 28, 28, 10, COLORS.tableHead, null);
-    label('Servicio', margin + 22, headerRowY + 10);
-    label('Cant.', margin + contentW - 248, headerRowY + 10);
-    label('Precio', margin + contentW - 160, headerRowY + 10);
-    label('Importe', margin + contentW - 74, headerRowY + 10);
+    const headerRowY = itemsY + itemsH - 52 - TABLE_HEADER_H;
+    drawServiceTableHeaders(headerRowY, contentW, margin);
     drawServiceRows(
       payload.items,
-      headerRowY - 12,
+      headerRowY - 8,
       contentW,
       margin,
       MAIN_PAGE_MAX_ROWS,
@@ -839,7 +851,7 @@ export function renderFintechInvoicePdf(
     const margin = 42;
     const contentW = W - 2 * margin;
     const contextH = 28;
-    const cardH = 52 + contextH + 30 + items.length * ROW_STEP + 18;
+    const cardH = 52 + contextH + TABLE_HEADER_H + 8 + items.length * ROW_STEP + 18;
     const cardY = 128;
     shadowCard(margin, cardY, contentW, cardH, 16);
 
@@ -871,13 +883,9 @@ export function renderFintechInvoicePdf(
       COLORS.muted,
     );
 
-    const headerRowY = cardY + cardH - 70;
-    rr(margin + 14, headerRowY, contentW - 28, 28, 10, COLORS.tableHead, null);
-    label('Servicio', margin + 22, headerRowY + 10);
-    label('Cant.', margin + contentW - 248, headerRowY + 10);
-    label('Precio', margin + contentW - 160, headerRowY + 10);
-    label('Importe', margin + contentW - 74, headerRowY + 10);
-    drawServiceRows(items, headerRowY - 12, contentW, margin, items.length);
+    const headerRowY = cardY + cardH - 66 - TABLE_HEADER_H;
+    drawServiceTableHeaders(headerRowY, contentW, margin);
+    drawServiceRows(items, headerRowY - 8, contentW, margin, items.length);
     drawFooter();
   };
 
