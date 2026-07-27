@@ -7,6 +7,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
+import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { getTicketPaymentStatusSortRank } from '@/lib/ticket-payment-status';
@@ -50,12 +51,14 @@ function TicketSortableHeader<TData>({
 
 export type TicketsColumnsOptions = {
   onDelete: (id: number) => void;
+  onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
 };
 
 export const createTicketsColumns = ({
   onDelete,
+  onPaymentApplied,
   canWrite = true,
   companyId,
 }: TicketsColumnsOptions): ColumnDef<Ticket>[] => [
@@ -154,6 +157,7 @@ export const createTicketsColumns = ({
         <TicketRowActions
           ticket={row.original}
           onDelete={onDelete}
+          onPaymentApplied={onPaymentApplied}
           canWrite={canWrite}
           companyId={companyId}
         />

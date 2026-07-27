@@ -12,9 +12,14 @@ import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2 } from 'lucide-r
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketButton } from '@/components/delete-ticket-button';
+import {
+  TicketListCollectPaymentDialog,
+  type TicketListCollectPaymentResult,
+} from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
 import { buildTicketInvoiceDownloadUrl } from '@/lib/ticket-invoice-url';
 import {
+  canCollectTicketPayment,
   canDownloadTicketInvoice,
 } from '@/lib/tickets-rbac';
 import {
@@ -35,6 +40,7 @@ interface Ticket {
 interface TicketRowActionsProps {
   ticket: Ticket;
   onDelete?: (id: number) => void;
+  onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
 }
@@ -52,17 +58,22 @@ const buildListTicketPdfFileName = (ticket: Ticket): string => {
 export function TicketRowActions({
   ticket,
   onDelete,
+  onPaymentApplied,
   canWrite = true,
   companyId,
 }: TicketRowActionsProps) {
   const { can } = usePermissions();
   const canDownload = canDownloadTicketInvoice(can);
+  const canCollect = canCollectTicketPayment(can);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [collectOpen, setCollectOpen] = useState(false);
 
-  const showCollectLink =
+  const paymentStatus = getTicketPaymentStatus(ticket.total, ticket.paid);
+  const showCollectAction =
     canWrite &&
+    canCollect &&
     ticket.finished &&
-    getTicketPaymentStatus(ticket.total, ticket.paid) === 'partial';
+    paymentStatus !== 'paid';
 
   const handleDownloadTicket = async (event: Event) => {
     event.preventDefault();
@@ -108,61 +119,77 @@ export function TicketRowActions({
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Más acciones del ticket ${ticket.id.toString()}`}
-        >
-          <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start"/>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <Link href={`/tickets/${ticket.id}`}>
-          <DropdownMenuItem>
-            <Eye className="mr-2 h-4 w-4" data-icon="inline-start" />
-            Ver detalles
-          </DropdownMenuItem>
-        </Link>
-        {showCollectLink && (
-          <Link href={`/tickets/${ticket.id}#cobranza`}>
-            <DropdownMenuItem>
-              <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Cobrar saldo
-            </DropdownMenuItem>
-          </Link>
-        )}
-        {canWrite && !ticket.finished && (
-          <Link href={`/tickets/${ticket.id}/edit`}>
-            <DropdownMenuItem>
-              <Pencil className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Editar
-            </DropdownMenuItem>
-          </Link>
-        )}
-        {canDownload ? (
-          <DropdownMenuItem
-            disabled={isDownloading}
-            onSelect={handleDownloadTicket}
-            aria-label={`Descargar ticket ${ticket.id.toString()}`}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Más acciones del ticket ${ticket.id.toString()}`}
           >
-            {isDownloading ? (
-              <Loader2
-                className="mr-2 h-4 w-4 animate-spin"
-                aria-hidden
-                data-icon="inline-start"
-              />
-            ) : (
-              <FileDown className="mr-2 h-4 w-4" data-icon="inline-start" />
-            )}
-            {isDownloading ? 'Generando…' : 'Descargar ticket'}
-          </DropdownMenuItem>
-        ) : null}
-        {canWrite ? (
-          <DeleteTicketButton id={Number(ticket.id)} onDelete={onDelete} />
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start"/>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <Link href={`/tickets/${ticket.id}`}>
+            <DropdownMenuItem>
+              <Eye className="mr-2 h-4 w-4" data-icon="inline-start" />
+              Ver detalles
+            </DropdownMenuItem>
+          </Link>
+          {showCollectAction ? (
+            <DropdownMenuItem
+              onSelect={() => setCollectOpen(true)}
+              aria-label={`Registrar pago del ticket ${ticket.id.toString()}`}
+            >
+              <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
+              Registrar pago
+            </DropdownMenuItem>
+          ) : null}
+          {canWrite && !ticket.finished && (
+            <Link href={`/tickets/${ticket.id}/edit`}>
+              <DropdownMenuItem>
+                <Pencil className="mr-2 h-4 w-4" data-icon="inline-start" />
+                Editar
+              </DropdownMenuItem>
+            </Link>
+          )}
+          {canDownload ? (
+            <DropdownMenuItem
+              disabled={isDownloading}
+              onSelect={handleDownloadTicket}
+              aria-label={`Descargar ticket ${ticket.id.toString()}`}
+            >
+              {isDownloading ? (
+                <Loader2
+                  className="mr-2 h-4 w-4 animate-spin"
+                  aria-hidden
+                  data-icon="inline-start"
+                />
+              ) : (
+                <FileDown className="mr-2 h-4 w-4" data-icon="inline-start" />
+              )}
+              {isDownloading ? 'Generando…' : 'Descargar ticket'}
+            </DropdownMenuItem>
+          ) : null}
+          {canWrite ? (
+            <DeleteTicketButton id={Number(ticket.id)} onDelete={onDelete} />
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {showCollectAction ? (
+        <TicketListCollectPaymentDialog
+          open={collectOpen}
+          onOpenChange={setCollectOpen}
+          ticketId={Number(ticket.id)}
+          total={ticket.total}
+          paid={ticket.paid}
+          onPaymentApplied={(result) => {
+            onPaymentApplied?.(result);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

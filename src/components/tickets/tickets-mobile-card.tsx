@@ -2,6 +2,7 @@ import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
+import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { TripledMobileRecordCard } from '@/components/tripled';
@@ -12,6 +13,7 @@ type TicketsMobileCardProps = {
   ticket: Ticket;
   canWrite: boolean;
   onDelete: (id: number) => void;
+  onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   companyId?: number | null;
 };
 
@@ -19,6 +21,7 @@ export const TicketsMobileCard = ({
   ticket,
   canWrite,
   onDelete,
+  onPaymentApplied,
   companyId,
 }: TicketsMobileCardProps) => {
   const router = useRouter();
@@ -67,6 +70,7 @@ export const TicketsMobileCard = ({
           <TicketRowActions
             ticket={ticket}
             onDelete={onDelete}
+            onPaymentApplied={onPaymentApplied}
             canWrite={canWrite}
             companyId={companyId}
           />

@@ -156,14 +156,28 @@ export default function TicketsList() {
     );
   }, []);
 
+  const handlePaymentApplied = React.useCallback(
+    (result: { ticketId: number; paid: number; total: number | null }) => {
+      setTickets((prevTickets) =>
+        prevTickets.map((ticket) =>
+          Number(ticket.id) === result.ticketId
+            ? { ...ticket, paid: result.paid, total: result.total }
+            : ticket,
+        ),
+      );
+    },
+    [],
+  );
+
   const columns = React.useMemo(
     () =>
       createTicketsColumns({
         onDelete: handleDelete,
+        onPaymentApplied: handlePaymentApplied,
         canWrite,
         companyId: selectedCompany?.id,
       }),
-    [handleDelete, canWrite, selectedCompany?.id],
+    [handleDelete, handlePaymentApplied, canWrite, selectedCompany?.id],
   );
 
   const filteredTickets = React.useMemo(
@@ -302,6 +316,7 @@ export default function TicketsList() {
                 ticket={row.original}
                 canWrite={canWrite}
                 onDelete={handleDelete}
+                onPaymentApplied={handlePaymentApplied}
                 companyId={selectedCompany?.id}
               />
             ))}

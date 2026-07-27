@@ -12,6 +12,10 @@ jest.mock('sonner', () => ({
   },
 }));
 
+jest.mock('@/actions/tickets', () => ({
+  applyTicketPayment: jest.fn(),
+}));
+
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
     can: () => true,
@@ -80,5 +84,43 @@ describe('TicketRowActions', () => {
       );
       expect(mockToastSuccess).toHaveBeenCalled();
     });
+  });
+
+  it('shows Registrar pago for finished unpaid tickets and opens the dialog', async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketRowActions
+        ticket={{ ...ticket, paid: 25, finished: true }}
+        companyId={1}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: /más acciones del ticket 7/i }),
+    );
+    expect(screen.queryByText('Cobrar saldo')).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('menuitem', { name: /registrar pago del ticket 7/i }),
+    );
+    expect(
+      screen.getByRole('heading', { name: /registrar pago/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides Registrar pago for saldado tickets', async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketRowActions
+        ticket={{ ...ticket, paid: 100, finished: true }}
+        companyId={1}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: /más acciones del ticket 7/i }),
+    );
+    expect(
+      screen.queryByRole('menuitem', { name: /registrar pago/i }),
+    ).not.toBeInTheDocument();
   });
 });
