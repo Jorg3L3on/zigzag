@@ -86,7 +86,7 @@ describe('fintech invoice payload', () => {
     expect(payload.paymentProgress).toBeCloseTo(0.4, 5);
     expect(payload.paymentProgressLabel).toBe('40% pagado');
     expect(payload.balanceDue).toBe(150);
-    expect(payload.serviceCountLabel).toBe('1 concepto facturado');
+    expect(payload.serviceCountLabel).toBe('1 concepto');
   });
 
   it('marks paid or overpaid tickets as covered without negative balance', () => {
