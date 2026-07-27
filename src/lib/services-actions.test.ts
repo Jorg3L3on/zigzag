@@ -5,6 +5,7 @@ import {
   getService,
   getServices,
   getServicesForExport,
+  previewServiceCsvImport,
   updateService,
 } from '@/actions/services';
 import { db } from '@/lib/db';
@@ -136,5 +137,30 @@ describe('cross-tenant IDOR — service actions', () => {
     expect(result.success).toBe(false);
     expect(result.errorType).toBe('validation');
     expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('previewServiceCsvImport denies cross-tenant write context', async () => {
+    mockActionCrossTenantDenied(mockRequireActionPermission);
+
+    const result = await previewServiceCsvImport([
+      { nombre: 'S', descripción: 'D', precio: '1' },
+    ]);
+
+    expect(result.success).toBe(false);
+    expect(mockDb.select).not.toHaveBeenCalled();
+  });
+
+  it('previewServiceCsvImport classifies without inserting', async () => {
+    mockActionAuthorized(mockRequireActionPermission);
+    mockDb.select.mockReturnValue(mockSelectChain([{ name: 'Existente' }]));
+
+    const result = await previewServiceCsvImport([
+      { nombre: 'Nuevo', descripción: 'Desc', precio: '10' },
+      { nombre: 'Existente', descripción: 'Dup', precio: '5' },
+    ]);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.summary).toEqual({ ok: 1, skipped: 1, failed: 0 });
+    expect(mockDb.insert).not.toHaveBeenCalled();
   });
 });
