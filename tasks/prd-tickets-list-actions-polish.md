@@ -138,3 +138,14 @@ Polish the Tickets list so unpaid tickets show payment progress (circular ring w
 
 - Locked product decisions from design interview: unpaid = `Pendiente` + `Pago parcial`; Estado column enrichment with ring (no percent number); PDF on-demand for all tickets + rename; remove PDF filter; collect dialog without history for finished unpaid only; local row update after pay including hiding collect when saldado; delete confirmation + fix false TC008; epic delivery via PRD/issues on `feat/tickets-list-actions-polish`.
 - Suggested slice breakdown for `to-issues`: (1) payment summary + progress ring in list/mobile, (2) Descargar ticket + remove PDF filter, (3) Registrar pago dialog + row action, (4) delete confirmation + TC008 fix.
+
+### Published slices (parent #290)
+
+| Issue | Title | Blocked by |
+| ----- | ----- | ---------- |
+| #292 | Tickets list: payment summary + progress ring for unpaid tickets | None |
+| #293 | Tickets list: Descargar ticket on-demand and remove PDF filter | None |
+| #294 | Tickets list: Registrar pago dialog for finished unpaid tickets | #293 (serialize row actions; #292 optional UX) |
+| #295 | Tickets list: confirm delete and fix false TC008 toast | #294 |
+
+> Note: creating agent could not apply GitHub labels (`ready-for-agent` / `type:*`) due to token permissions — apply manually if missing.
