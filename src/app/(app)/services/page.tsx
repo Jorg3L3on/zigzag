@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Plus, Wrench } from 'lucide-react';
+import { Plus, Upload, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { ServicesListClient } from '@/components/services/services-list-client';
 import {
@@ -12,7 +12,7 @@ import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
 import { CsvToolbar } from '@/components/data-portability/csv-toolbar';
 import { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
-import { bulkImportServices, getServicesForExport } from '@/actions/services';
+import { getServicesForExport } from '@/actions/services';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -53,13 +53,24 @@ export default async function ServicesPage() {
             ) : null
           }
         >
-          <div className="mb-4">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <CsvToolbar
               headers={SERVICE_CSV_HEADERS}
               filename="servicios.csv"
               exportAction={getServicesForExport}
-              importAction={canWriteServices ? bulkImportServices : undefined}
             />
+            {canWriteServices ? (
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link href="/services/import">
+                  <Upload
+                    className="size-4"
+                    aria-hidden
+                    data-icon="inline-start"
+                  />
+                  Importar CSV
+                </Link>
+              </Button>
+            ) : null}
           </div>
           <ServicesListClient />
         </TripledResourceCard>

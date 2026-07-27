@@ -38,7 +38,7 @@ const previewRowSchema = z.object({
     .min(1, 'descripción requerida')
     .max(SERVICE_DESCRIPTION_MAX_LENGTH, SERVICE_DESCRIPTION_MAX_MESSAGE),
   price: z.coerce
-    .number({ invalid_type_error: 'precio inválido' })
+    .number({ error: 'precio inválido' })
     .nonnegative('precio inválido'),
 });
 

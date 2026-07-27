@@ -21,7 +21,7 @@ import {
   type ServiceCsvPreviewResult,
   type ServiceCsvPreviewRow,
 } from '@/lib/service-csv-preview';
-import { serviceWriteSchema } from '@/lib/service-description';
+import { serviceWriteSchema, SERVICE_DESCRIPTION_MAX_MESSAGE } from '@/lib/service-description';
 import { AppError } from '@/lib/errors';
 import type { CsvImportCommitSummary } from '@/lib/csv-import-types';
 import { emptyCsvImportCommitSummary } from '@/lib/csv-import-types';

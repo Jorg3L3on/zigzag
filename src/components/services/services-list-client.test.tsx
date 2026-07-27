@@ -5,6 +5,14 @@ import { getServices } from '@/actions/services';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 jest.mock('@/actions/services', () => ({
   deleteService: jest.fn(),
   getServices: jest.fn(),
