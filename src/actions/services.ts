@@ -17,10 +17,20 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { roundMoney } from '@/lib/money';
 import { SERVICE_CSV_HEADERS } from '@/lib/csv-schemas';
+import {
+  SERVICE_DESCRIPTION_MAX_LENGTH,
+  SERVICE_DESCRIPTION_MAX_MESSAGE,
+  serviceWriteSchema,
+} from '@/lib/service-description';
+import { AppError } from '@/lib/errors';
 
 const importServiceSchema = z.object({
   name: z.string().trim().min(1),
-  description: z.string().trim().min(1),
+  description: z
+    .string()
+    .trim()
+    .min(1)
+    .max(SERVICE_DESCRIPTION_MAX_LENGTH, SERVICE_DESCRIPTION_MAX_MESSAGE),
   price: z.coerce.number().nonnegative(),
 });
 
@@ -124,12 +134,27 @@ export async function createService(
       data.company_id,
     );
 
+    const parsed = serviceWriteSchema.safeParse({
+      name: data.name,
+      description: data.description,
+      price: data.price,
+    });
+    if (!parsed.success) {
+      const message =
+        parsed.error.issues[0]?.message ?? SERVICE_DESCRIPTION_MAX_MESSAGE;
+      return buildActionError(
+        'SV002',
+        new AppError(message, 400, true, 'SV002'),
+        'validation',
+      );
+    }
+
     const [created] = await db
       .insert(service)
       .values({
-        name: data.name,
-        description: data.description,
-        price: data.price,
+        name: parsed.data.name,
+        description: parsed.data.description,
+        price: parsed.data.price,
         company_id: effectiveCompanyId,
       })
       .returning();
@@ -165,6 +190,54 @@ export async function updateService(
       'services.write',
       updateData.company_id ?? undefined,
     );
+
+    if (
+      updateData.name !== undefined ||
+      updateData.description !== undefined ||
+      updateData.price !== undefined
+    ) {
+      if (updateData.description !== undefined) {
+        const descOnly = serviceWriteSchema.shape.description.safeParse(
+          updateData.description,
+        );
+        if (!descOnly.success) {
+          const message =
+            descOnly.error.issues[0]?.message ?? SERVICE_DESCRIPTION_MAX_MESSAGE;
+          return buildActionError(
+            'SV003',
+            new AppError(message, 400, true, 'SV003'),
+            'validation',
+          );
+        }
+        updateData.description = descOnly.data;
+      }
+      if (updateData.name !== undefined) {
+        const nameOnly = serviceWriteSchema.shape.name.safeParse(updateData.name);
+        if (!nameOnly.success) {
+          const message = nameOnly.error.issues[0]?.message ?? 'El nombre es obligatorio';
+          return buildActionError(
+            'SV003',
+            new AppError(message, 400, true, 'SV003'),
+            'validation',
+          );
+        }
+        updateData.name = nameOnly.data;
+      }
+      if (updateData.price !== undefined) {
+        const priceOnly = serviceWriteSchema.shape.price.safeParse(updateData.price);
+        if (!priceOnly.success) {
+          const message =
+            priceOnly.error.issues[0]?.message ?? 'El precio debe ser un número válido';
+          return buildActionError(
+            'SV003',
+            new AppError(message, 400, true, 'SV003'),
+            'validation',
+          );
+        }
+        updateData.price = priceOnly.data;
+      }
+    }
+
     const existing = await db.query.service.findFirst({
       where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
     });

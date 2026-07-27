@@ -110,4 +110,31 @@ describe('cross-tenant IDOR — service actions', () => {
     expect(result.success).toBe(false);
     expect(mockDb.insert).not.toHaveBeenCalled();
   });
+
+  it('createService rejects description longer than 120 characters', async () => {
+    mockActionAuthorized(mockRequireActionPermission);
+
+    const result = await createService({
+      ...servicePayload,
+      description: 'x'.repeat(121),
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('validation');
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('updateService rejects description longer than 120 characters', async () => {
+    mockActionAuthorized(mockRequireActionPermission);
+
+    const result = await updateService({
+      id: IDOR_RESOURCES_A.serviceId,
+      description: 'y'.repeat(121),
+      company_id: IDOR_COMPANY_A.id,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('validation');
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
 });

@@ -24,10 +24,17 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { Loader2, CheckCircle2 } from 'lucide-react';
+import {
+  SERVICE_DESCRIPTION_MAX_LENGTH,
+  SERVICE_DESCRIPTION_MAX_MESSAGE,
+} from '@/lib/service-description';
 
 const serviceSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
-  description: z.string().min(1, 'La descripción es obligatoria'),
+  description: z
+    .string()
+    .min(1, 'La descripción es obligatoria')
+    .max(SERVICE_DESCRIPTION_MAX_LENGTH, SERVICE_DESCRIPTION_MAX_MESSAGE),
   price: z
     .string()
     .min(1, 'El precio es obligatorio')
@@ -148,21 +155,38 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
         <FormField
           control={form.control}
           name="description"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-sm font-medium text-foreground">
-                Descripción
-              </FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe el servicio..."
-                  className="min-h-[88px] border-2 focus:border-primary transition-colors"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const length = field.value?.length ?? 0;
+            const overLimit = length > SERVICE_DESCRIPTION_MAX_LENGTH;
+            return (
+              <FormItem className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <FormLabel className="text-sm font-medium text-foreground">
+                    Descripción
+                  </FormLabel>
+                  <span
+                    className={
+                      overLimit
+                        ? 'text-xs font-medium text-destructive'
+                        : 'text-xs text-muted-foreground'
+                    }
+                    aria-live="polite"
+                  >
+                    {length}/{SERVICE_DESCRIPTION_MAX_LENGTH}
+                  </span>
+                </div>
+                <FormControl>
+                  <Textarea
+                    placeholder="Describe el servicio..."
+                    className="min-h-[88px] border-2 focus:border-primary transition-colors"
+                    aria-invalid={overLimit || undefined}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
         <FormField
