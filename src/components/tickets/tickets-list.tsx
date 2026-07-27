@@ -26,7 +26,6 @@ import { createTicketsColumns } from '@/components/tickets/tickets-columns';
 import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
 import type {
   FinishedFilterValue,
-  PdfFilterValue,
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
@@ -74,7 +73,6 @@ export default function TicketsList() {
   const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(() =>
     parseStatusFilter(searchParams.get('status')),
   );
-  const [pdfFilter, setPdfFilter] = React.useState<PdfFilterValue>('all');
   const [finishedFilter, setFinishedFilter] =
     React.useState<FinishedFilterValue>(() =>
       parseFinishedFilter(searchParams.get('finished')),
@@ -159,8 +157,13 @@ export default function TicketsList() {
   }, []);
 
   const columns = React.useMemo(
-    () => createTicketsColumns({ onDelete: handleDelete, canWrite }),
-    [handleDelete, canWrite],
+    () =>
+      createTicketsColumns({
+        onDelete: handleDelete,
+        canWrite,
+        companyId: selectedCompany?.id,
+      }),
+    [handleDelete, canWrite, selectedCompany?.id],
   );
 
   const filteredTickets = React.useMemo(
@@ -168,16 +171,15 @@ export default function TicketsList() {
       filterTickets(tickets, {
         searchValue,
         statusFilter,
-        pdfFilter,
         finishedFilter,
         dateRange,
       }),
-    [tickets, searchValue, statusFilter, pdfFilter, finishedFilter, dateRange],
+    [tickets, searchValue, statusFilter, finishedFilter, dateRange],
   );
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [searchValue, statusFilter, pdfFilter, finishedFilter, dateRange]);
+  }, [searchValue, statusFilter, finishedFilter, dateRange]);
 
   const table = useReactTable({
     data: filteredTickets,
@@ -193,7 +195,6 @@ export default function TicketsList() {
   const filterState = {
     searchValue,
     statusFilter,
-    pdfFilter,
     finishedFilter,
     dateRange,
   };
@@ -215,7 +216,6 @@ export default function TicketsList() {
   const handleClearFilters = () => {
     setSearchValue('');
     setStatusFilter('all');
-    setPdfFilter('all');
     setFinishedFilter('all');
     setDateRange(undefined);
     setSorting(DEFAULT_TICKET_SORTING);
@@ -238,8 +238,6 @@ export default function TicketsList() {
         onSearchChange={setSearchValue}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
-        pdfFilter={pdfFilter}
-        onPdfFilterChange={setPdfFilter}
         finishedFilter={finishedFilter}
         onFinishedFilterChange={setFinishedFilter}
         dateRange={dateRange}
@@ -304,6 +302,7 @@ export default function TicketsList() {
                 ticket={row.original}
                 canWrite={canWrite}
                 onDelete={handleDelete}
+                companyId={selectedCompany?.id}
               />
             ))}
           </div>

@@ -8,8 +8,6 @@ const baseProps = {
   onSearchChange: jest.fn(),
   statusFilter: 'all' as const,
   onStatusFilterChange: jest.fn(),
-  pdfFilter: 'all' as const,
-  onPdfFilterChange: jest.fn(),
   finishedFilter: 'all' as const,
   onFinishedFilterChange: jest.fn(),
   dateRange: undefined,
@@ -70,5 +68,16 @@ describe('TicketsFilterBar', () => {
 
     await user.click(screen.getByRole('button', { name: /limpiar filtros/i }));
     expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render Con PDF / Sin PDF filter controls', async () => {
+    const user = userEvent.setup();
+    render(<TicketsFilterBar {...baseProps} />);
+
+    expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Con PDF')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /abrir filtros/i }));
+    expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
   });
 });

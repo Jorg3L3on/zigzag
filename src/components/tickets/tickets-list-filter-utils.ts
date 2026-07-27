@@ -8,7 +8,6 @@ import {
 } from '@/lib/ticket-payment-status';
 import type {
   FinishedFilterValue,
-  PdfFilterValue,
   StatusFilterValue,
   TicketsFilterState,
 } from '@/components/tickets/tickets-list-types';
@@ -43,11 +42,7 @@ export const filterTickets = (
   tickets: Ticket[],
   filters: Pick<
     TicketsFilterState,
-    | 'searchValue'
-    | 'statusFilter'
-    | 'pdfFilter'
-    | 'finishedFilter'
-    | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
   >,
 ): Ticket[] => {
   const search = filters.searchValue.toLowerCase().trim();
@@ -69,13 +64,6 @@ export const filterTickets = (
       }
     }
 
-    if (filters.pdfFilter === 'with' && !ticket.document) {
-      return false;
-    }
-    if (filters.pdfFilter === 'without' && ticket.document) {
-      return false;
-    }
-
     if (filters.finishedFilter === 'yes' && !ticket.finished) {
       return false;
     }
@@ -94,11 +82,7 @@ export const filterTickets = (
 export const countActiveFilters = (
   filters: Pick<
     TicketsFilterState,
-    | 'searchValue'
-    | 'statusFilter'
-    | 'pdfFilter'
-    | 'finishedFilter'
-    | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
   >,
 ): number => {
   let n = 0;
@@ -106,9 +90,6 @@ export const countActiveFilters = (
     n += 1;
   }
   if (filters.statusFilter !== 'all') {
-    n += 1;
-  }
-  if (filters.pdfFilter !== 'all') {
     n += 1;
   }
   if (filters.finishedFilter !== 'all') {
@@ -123,11 +104,7 @@ export const countActiveFilters = (
 export const hasActiveTicketFilters = (
   filters: Pick<
     TicketsFilterState,
-    | 'searchValue'
-    | 'statusFilter'
-    | 'pdfFilter'
-    | 'finishedFilter'
-    | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
   >,
 ): boolean => countActiveFilters(filters) > 0;
 
@@ -136,11 +113,7 @@ export const buildTicketFilterChips = (
   filteredCount: number,
   filters: Pick<
     TicketsFilterState,
-    | 'searchValue'
-    | 'statusFilter'
-    | 'pdfFilter'
-    | 'finishedFilter'
-    | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
   >,
 ) => [
   {
@@ -161,14 +134,6 @@ export const buildTicketFilterChips = (
         {
           key: 'finished',
           label: filters.finishedFilter === 'yes' ? 'Finalizados' : 'En proceso',
-        },
-      ]
-    : []),
-  ...(filters.pdfFilter !== 'all'
-    ? [
-        {
-          key: 'pdf',
-          label: filters.pdfFilter === 'with' ? 'Con PDF' : 'Sin PDF',
         },
       ]
     : []),
@@ -193,7 +158,6 @@ export const buildTicketFilterChips = (
 export type TicketFilterSetters = {
   setSearchValue: (value: string) => void;
   setStatusFilter: (value: StatusFilterValue) => void;
-  setPdfFilter: (value: PdfFilterValue) => void;
   setFinishedFilter: (value: FinishedFilterValue) => void;
   setDateRange: (value: DateRange | undefined) => void;
 };

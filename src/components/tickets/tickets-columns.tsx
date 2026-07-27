@@ -51,11 +51,13 @@ function TicketSortableHeader<TData>({
 export type TicketsColumnsOptions = {
   onDelete: (id: number) => void;
   canWrite?: boolean;
+  companyId?: number | null;
 };
 
 export const createTicketsColumns = ({
   onDelete,
   canWrite = true,
+  companyId,
 }: TicketsColumnsOptions): ColumnDef<Ticket>[] => [
   {
     id: 'id',
@@ -153,6 +155,7 @@ export const createTicketsColumns = ({
           ticket={row.original}
           onDelete={onDelete}
           canWrite={canWrite}
+          companyId={companyId}
         />
       </div>
     ),
