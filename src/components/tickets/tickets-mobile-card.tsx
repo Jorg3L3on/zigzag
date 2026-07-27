@@ -2,7 +2,8 @@ import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
-import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
+import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
+import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { TripledMobileRecordCard } from '@/components/tripled';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
@@ -12,12 +13,18 @@ type TicketsMobileCardProps = {
   ticket: Ticket;
   canWrite: boolean;
   onDelete: (id: number) => void;
+  onDeleteFailed?: (id: number) => void;
+  onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
+  companyId?: number | null;
 };
 
 export const TicketsMobileCard = ({
   ticket,
   canWrite,
   onDelete,
+  onDeleteFailed,
+  onPaymentApplied,
+  companyId,
 }: TicketsMobileCardProps) => {
   const router = useRouter();
   const href = hrefForTicketListRow(ticket, canWrite);
@@ -53,10 +60,11 @@ export const TicketsMobileCard = ({
           <p className="truncate text-lg font-semibold leading-tight">
             {ticket.client_name || 'Cliente sin nombre'}
           </p>
-          <TicketPaymentBadge total={ticket.total} paid={ticket.paid} />
+          <TicketListPaymentSummary total={ticket.total} paid={ticket.paid} />
         </div>
         <div
           className="flex shrink-0 items-start gap-1"
+          onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
           <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold tabular-nums text-muted-foreground">
@@ -65,7 +73,10 @@ export const TicketsMobileCard = ({
           <TicketRowActions
             ticket={ticket}
             onDelete={onDelete}
+            onDeleteFailed={onDeleteFailed}
+            onPaymentApplied={onPaymentApplied}
             canWrite={canWrite}
+            companyId={companyId}
           />
         </div>
       </div>

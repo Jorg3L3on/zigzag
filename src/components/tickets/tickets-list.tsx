@@ -26,7 +26,6 @@ import { createTicketsColumns } from '@/components/tickets/tickets-columns';
 import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
 import type {
   FinishedFilterValue,
-  PdfFilterValue,
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
@@ -74,7 +73,6 @@ export default function TicketsList() {
   const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(() =>
     parseStatusFilter(searchParams.get('status')),
   );
-  const [pdfFilter, setPdfFilter] = React.useState<PdfFilterValue>('all');
   const [finishedFilter, setFinishedFilter] =
     React.useState<FinishedFilterValue>(() =>
       parseFinishedFilter(searchParams.get('finished')),
@@ -152,15 +150,59 @@ export default function TicketsList() {
     fetchTickets();
   }, [fetchTickets]);
 
+  const pendingDeleteRef = React.useRef<Map<number, Ticket>>(new Map());
+
   const handleDelete = React.useCallback((id: number) => {
-    setTickets((prevTickets) =>
-      prevTickets.filter((ticket) => Number(ticket.id) !== id),
-    );
+    setTickets((prevTickets) => {
+      const found = prevTickets.find((ticket) => Number(ticket.id) === id);
+      if (found) {
+        pendingDeleteRef.current.set(id, found);
+      }
+      return prevTickets.filter((ticket) => Number(ticket.id) !== id);
+    });
   }, []);
 
+  const handleDeleteFailed = React.useCallback((id: number) => {
+    const restored = pendingDeleteRef.current.get(id);
+    pendingDeleteRef.current.delete(id);
+    if (!restored) return;
+    setTickets((prevTickets) => {
+      if (prevTickets.some((ticket) => Number(ticket.id) === id)) {
+        return prevTickets;
+      }
+      return [...prevTickets, restored];
+    });
+  }, []);
+
+  const handlePaymentApplied = React.useCallback(
+    (result: { ticketId: number; paid: number; total: number | null }) => {
+      setTickets((prevTickets) =>
+        prevTickets.map((ticket) =>
+          Number(ticket.id) === result.ticketId
+            ? { ...ticket, paid: result.paid, total: result.total }
+            : ticket,
+        ),
+      );
+    },
+    [],
+  );
+
   const columns = React.useMemo(
-    () => createTicketsColumns({ onDelete: handleDelete, canWrite }),
-    [handleDelete, canWrite],
+    () =>
+      createTicketsColumns({
+        onDelete: handleDelete,
+        onDeleteFailed: handleDeleteFailed,
+        onPaymentApplied: handlePaymentApplied,
+        canWrite,
+        companyId: selectedCompany?.id,
+      }),
+    [
+      handleDelete,
+      handleDeleteFailed,
+      handlePaymentApplied,
+      canWrite,
+      selectedCompany?.id,
+    ],
   );
 
   const filteredTickets = React.useMemo(
@@ -168,16 +210,15 @@ export default function TicketsList() {
       filterTickets(tickets, {
         searchValue,
         statusFilter,
-        pdfFilter,
         finishedFilter,
         dateRange,
       }),
-    [tickets, searchValue, statusFilter, pdfFilter, finishedFilter, dateRange],
+    [tickets, searchValue, statusFilter, finishedFilter, dateRange],
   );
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [searchValue, statusFilter, pdfFilter, finishedFilter, dateRange]);
+  }, [searchValue, statusFilter, finishedFilter, dateRange]);
 
   const table = useReactTable({
     data: filteredTickets,
@@ -193,7 +234,6 @@ export default function TicketsList() {
   const filterState = {
     searchValue,
     statusFilter,
-    pdfFilter,
     finishedFilter,
     dateRange,
   };
@@ -215,7 +255,6 @@ export default function TicketsList() {
   const handleClearFilters = () => {
     setSearchValue('');
     setStatusFilter('all');
-    setPdfFilter('all');
     setFinishedFilter('all');
     setDateRange(undefined);
     setSorting(DEFAULT_TICKET_SORTING);
@@ -238,8 +277,6 @@ export default function TicketsList() {
         onSearchChange={setSearchValue}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
-        pdfFilter={pdfFilter}
-        onPdfFilterChange={setPdfFilter}
         finishedFilter={finishedFilter}
         onFinishedFilterChange={setFinishedFilter}
         dateRange={dateRange}
@@ -304,6 +341,9 @@ export default function TicketsList() {
                 ticket={row.original}
                 canWrite={canWrite}
                 onDelete={handleDelete}
+                onDeleteFailed={handleDeleteFailed}
+                onPaymentApplied={handlePaymentApplied}
+                companyId={selectedCompany?.id}
               />
             ))}
           </div>

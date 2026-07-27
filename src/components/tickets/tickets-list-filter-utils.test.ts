@@ -27,7 +27,7 @@ const makeTicket = (overrides: Partial<Ticket> = {}): Ticket => ({
 });
 
 describe('tickets-list-filter-utils', () => {
-  it('filters tickets by search, status, pdf, finished, and date range', () => {
+  it('filters tickets by search, status, finished, and date range', () => {
     const tickets = [
       makeTicket({ id: BigInt(1), client_name: 'Alfa', document: 'pdf-1' }),
       makeTicket({
@@ -43,7 +43,6 @@ describe('tickets-list-filter-utils', () => {
     const filtered = filterTickets(tickets, {
       searchValue: 'alfa',
       statusFilter: 'all',
-      pdfFilter: 'with',
       finishedFilter: 'no',
       dateRange: {
         from: new Date('2026-05-01T00:00:00Z'),
@@ -55,11 +54,10 @@ describe('tickets-list-filter-utils', () => {
     expect(filtered[0]?.client_name).toBe('Alfa');
   });
 
-  it('counts active filters and builds chips', () => {
+  it('counts active filters and builds chips without PDF filter', () => {
     const filters = {
       searchValue: 'alfa',
       statusFilter: 'paid' as const,
-      pdfFilter: 'all' as const,
       finishedFilter: 'yes' as const,
       dateRange: {
         from: new Date('2026-05-01T00:00:00Z'),
@@ -75,6 +73,7 @@ describe('tickets-list-filter-utils', () => {
     expect(chips.some((chip) => chip.key === 'status')).toBe(true);
     expect(chips.some((chip) => chip.key === 'finished')).toBe(true);
     expect(chips.some((chip) => chip.key === 'date')).toBe(true);
+    expect(chips.some((chip) => chip.key === 'pdf')).toBe(false);
   });
 
   it('formats date range labels and matches ticket dates', () => {
