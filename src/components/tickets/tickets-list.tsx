@@ -150,10 +150,28 @@ export default function TicketsList() {
     fetchTickets();
   }, [fetchTickets]);
 
+  const pendingDeleteRef = React.useRef<Map<number, Ticket>>(new Map());
+
   const handleDelete = React.useCallback((id: number) => {
-    setTickets((prevTickets) =>
-      prevTickets.filter((ticket) => Number(ticket.id) !== id),
-    );
+    setTickets((prevTickets) => {
+      const found = prevTickets.find((ticket) => Number(ticket.id) === id);
+      if (found) {
+        pendingDeleteRef.current.set(id, found);
+      }
+      return prevTickets.filter((ticket) => Number(ticket.id) !== id);
+    });
+  }, []);
+
+  const handleDeleteFailed = React.useCallback((id: number) => {
+    const restored = pendingDeleteRef.current.get(id);
+    pendingDeleteRef.current.delete(id);
+    if (!restored) return;
+    setTickets((prevTickets) => {
+      if (prevTickets.some((ticket) => Number(ticket.id) === id)) {
+        return prevTickets;
+      }
+      return [...prevTickets, restored];
+    });
   }, []);
 
   const handlePaymentApplied = React.useCallback(
@@ -173,11 +191,18 @@ export default function TicketsList() {
     () =>
       createTicketsColumns({
         onDelete: handleDelete,
+        onDeleteFailed: handleDeleteFailed,
         onPaymentApplied: handlePaymentApplied,
         canWrite,
         companyId: selectedCompany?.id,
       }),
-    [handleDelete, handlePaymentApplied, canWrite, selectedCompany?.id],
+    [
+      handleDelete,
+      handleDeleteFailed,
+      handlePaymentApplied,
+      canWrite,
+      selectedCompany?.id,
+    ],
   );
 
   const filteredTickets = React.useMemo(
@@ -316,6 +341,7 @@ export default function TicketsList() {
                 ticket={row.original}
                 canWrite={canWrite}
                 onDelete={handleDelete}
+                onDeleteFailed={handleDeleteFailed}
                 onPaymentApplied={handlePaymentApplied}
                 companyId={selectedCompany?.id}
               />

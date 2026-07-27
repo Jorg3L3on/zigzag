@@ -51,6 +51,7 @@ function TicketSortableHeader<TData>({
 
 export type TicketsColumnsOptions = {
   onDelete: (id: number) => void;
+  onDeleteFailed?: (id: number) => void;
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
@@ -58,6 +59,7 @@ export type TicketsColumnsOptions = {
 
 export const createTicketsColumns = ({
   onDelete,
+  onDeleteFailed,
   onPaymentApplied,
   canWrite = true,
   companyId,
@@ -152,11 +154,13 @@ export const createTicketsColumns = ({
     cell: ({ row }) => (
       <div
         className="flex justify-end"
+        onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
         <TicketRowActions
           ticket={row.original}
           onDelete={onDelete}
+          onDeleteFailed={onDeleteFailed}
           onPaymentApplied={onPaymentApplied}
           canWrite={canWrite}
           companyId={companyId}
