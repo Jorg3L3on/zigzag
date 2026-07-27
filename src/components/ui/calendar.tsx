@@ -15,9 +15,11 @@ import { buttonVariants } from "@/components/ui/button"
 
 export type CalendarProps = DayPickerProps
 
+type CalendarSelected = Date | Date[] | { from?: Date; to?: Date } | undefined
+
 /** Resolve a Date to seed the visible month from DayPicker selection props. */
 export const resolveCalendarSelectedMonth = (
-  selected: DayPickerProps["selected"],
+  selected: CalendarSelected,
 ): Date | undefined => {
   if (selected instanceof Date) {
     return selected
@@ -27,15 +29,15 @@ export const resolveCalendarSelectedMonth = (
     return first
   }
   if (selected && typeof selected === "object" && "from" in selected) {
-    const from = (selected as { from?: Date }).from
+    const from = selected.from
     return from instanceof Date ? from : undefined
   }
   return undefined
 }
 
 export const calendarClassNames = (
-  mode: DayPickerProps["mode"],
-  overrides?: DayPickerProps["classNames"],
+  mode: DayPickerProps["mode"] | undefined,
+  overrides?: Partial<NonNullable<DayPickerProps["classNames"]>>,
 ) => ({
   months: "flex flex-col gap-4 sm:flex-row sm:gap-4",
   month: "space-y-4",
@@ -83,10 +85,9 @@ function Calendar({
   showOutsideDays = true,
   defaultMonth,
   month,
-  selected,
-  mode,
   ...props
 }: CalendarProps) {
+  const selected = "selected" in props ? (props.selected as CalendarSelected) : undefined
   const selectedMonth = resolveCalendarSelectedMonth(selected)
   const resolvedDefaultMonth = defaultMonth ?? month ?? selectedMonth
 
@@ -95,11 +96,12 @@ function Calendar({
       locale={es}
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
-      mode={mode}
-      selected={selected}
       month={month}
       defaultMonth={resolvedDefaultMonth}
-      classNames={calendarClassNames(mode, classNames)}
+      classNames={calendarClassNames(
+        "mode" in props ? props.mode : undefined,
+        classNames,
+      )}
       components={{
         Chevron: ({ className, orientation, ...chevronProps }) => {
           const shared = { className: cn("h-4 w-4", className), ...chevronProps }
