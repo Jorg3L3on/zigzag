@@ -14,20 +14,29 @@ import { pauseSchedulesForService } from '@/lib/client-service-schedule-lifecycl
 import { requireActionPermission } from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import { roundMoney } from '@/lib/money';
-import { SERVICE_CSV_HEADERS } from '@/lib/csv-schemas';
-
-const importServiceSchema = z.object({
-  name: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-  price: z.coerce.number().nonnegative(),
-});
+import { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
+import {
+  planServiceCsvImport,
+  type ServiceCsvPreviewResult,
+  type ServiceCsvPreviewRow,
+} from '@/lib/service-csv-preview';
+import { serviceWriteSchema, SERVICE_DESCRIPTION_MAX_MESSAGE } from '@/lib/service-description';
+import { AppError } from '@/lib/errors';
+import type { CsvImportCommitSummary } from '@/lib/csv-import-types';
+import { emptyCsvImportCommitSummary } from '@/lib/csv-import-types';
 
 export type ServiceBulkImportSummary = {
   inserted: number;
   failed: number;
+  skipped?: number;
   errors: string[];
+};
+
+export type ServiceCsvCommitRow = {
+  name: string;
+  description: string;
+  price: number;
 };
 
 export interface CreateServiceData {
@@ -124,12 +133,27 @@ export async function createService(
       data.company_id,
     );
 
+    const parsed = serviceWriteSchema.safeParse({
+      name: data.name,
+      description: data.description,
+      price: data.price,
+    });
+    if (!parsed.success) {
+      const message =
+        parsed.error.issues[0]?.message ?? SERVICE_DESCRIPTION_MAX_MESSAGE;
+      return buildActionError(
+        'SV002',
+        new AppError(message, 400, true, 'SV002'),
+        'validation',
+      );
+    }
+
     const [created] = await db
       .insert(service)
       .values({
-        name: data.name,
-        description: data.description,
-        price: data.price,
+        name: parsed.data.name,
+        description: parsed.data.description,
+        price: parsed.data.price,
         company_id: effectiveCompanyId,
       })
       .returning();
@@ -165,6 +189,54 @@ export async function updateService(
       'services.write',
       updateData.company_id ?? undefined,
     );
+
+    if (
+      updateData.name !== undefined ||
+      updateData.description !== undefined ||
+      updateData.price !== undefined
+    ) {
+      if (updateData.description !== undefined) {
+        const descOnly = serviceWriteSchema.shape.description.safeParse(
+          updateData.description,
+        );
+        if (!descOnly.success) {
+          const message =
+            descOnly.error.issues[0]?.message ?? SERVICE_DESCRIPTION_MAX_MESSAGE;
+          return buildActionError(
+            'SV003',
+            new AppError(message, 400, true, 'SV003'),
+            'validation',
+          );
+        }
+        updateData.description = descOnly.data;
+      }
+      if (updateData.name !== undefined) {
+        const nameOnly = serviceWriteSchema.shape.name.safeParse(updateData.name);
+        if (!nameOnly.success) {
+          const message = nameOnly.error.issues[0]?.message ?? 'El nombre es obligatorio';
+          return buildActionError(
+            'SV003',
+            new AppError(message, 400, true, 'SV003'),
+            'validation',
+          );
+        }
+        updateData.name = nameOnly.data;
+      }
+      if (updateData.price !== undefined) {
+        const priceOnly = serviceWriteSchema.shape.price.safeParse(updateData.price);
+        if (!priceOnly.success) {
+          const message =
+            priceOnly.error.issues[0]?.message ?? 'El precio debe ser un número válido';
+          return buildActionError(
+            'SV003',
+            new AppError(message, 400, true, 'SV003'),
+            'validation',
+          );
+        }
+        updateData.price = priceOnly.data;
+      }
+    }
+
     const existing = await db.query.service.findFirst({
       where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
     });
@@ -256,9 +328,9 @@ export async function getServicesForExport(): Promise<{
     return {
       success: true,
       data: rows.map((row) => ({
-        name: row.name,
-        description: row.description,
-        price: String(row.price),
+        nombre: row.name,
+        descripción: row.description,
+        precio: String(row.price),
       })),
     };
   } catch (error) {
@@ -267,8 +339,130 @@ export async function getServicesForExport(): Promise<{
 }
 
 /**
- * Bulk-create services from parsed CSV records. Validates each row and rounds
- * prices to cents.
+ * Dry-run Service CSV import: classify rows without writing.
+ */
+export async function previewServiceCsvImport(
+  records: Array<Record<string, string>>,
+): Promise<{
+  success: boolean;
+  data?: ServiceCsvPreviewResult;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('services.write');
+    const active = await db
+      .select({ name: service.name })
+      .from(service)
+      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .orderBy(desc(service.created_at));
+
+    const planned = planServiceCsvImport(
+      records,
+      active.map((row) => row.name),
+    );
+    if (!planned.success) {
+      return buildActionError(
+        'SV002',
+        new AppError(planned.error, 400, true, 'SV002'),
+        'validation',
+      );
+    }
+
+    return { success: true, data: planned.data };
+  } catch (error) {
+    return handleCodedServerActionError('services.importPreview', 'SV002', error);
+  }
+}
+
+/**
+ * Commit one chunk of already-validated Service CSV rows.
+ * Re-checks active name duplicates (safe retry) and skips matches.
+ */
+export async function commitServiceCsvImportChunk(
+  rows: ServiceCsvCommitRow[],
+): Promise<{
+  success: boolean;
+  data?: CsvImportCommitSummary;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { context, companyId } = await requireActionPermission('services.write');
+    const summary = emptyCsvImportCommitSummary();
+
+    const active = await db
+      .select({ name: service.name })
+      .from(service)
+      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .orderBy(desc(service.created_at));
+    const activeNames = new Set(
+      active.map((row) => row.name.trim().toLowerCase()).filter(Boolean),
+    );
+
+    for (const row of rows) {
+      const parsed = serviceWriteSchema.safeParse(row);
+      if (!parsed.success) {
+        summary.failed += 1;
+        const reason =
+          parsed.error.issues[0]?.message ?? 'datos inválidos';
+        summary.errors = [...summary.errors, reason];
+        summary.reportRows = [
+          ...summary.reportRows,
+          { rowNumber: 0, status: 'error', reason, name: row.name },
+        ];
+        continue;
+      }
+
+      const nameKey = parsed.data.name.trim().toLowerCase();
+      if (activeNames.has(nameKey)) {
+        summary.skipped += 1;
+        summary.reportRows = [
+          ...summary.reportRows,
+          {
+            rowNumber: 0,
+            status: 'skip',
+            reason: 'nombre duplicado (activo en catálogo)',
+            name: parsed.data.name,
+          },
+        ];
+        continue;
+      }
+
+      const [created] = await db
+        .insert(service)
+        .values({
+          name: parsed.data.name,
+          description: parsed.data.description,
+          price: roundMoney(parsed.data.price),
+          company_id: companyId,
+        })
+        .returning();
+
+      await recordResourceAudit(db, {
+        actor: context,
+        resourceType: 'service',
+        resourceId: created.id,
+        targetCompanyId: companyId,
+        action: 'created',
+        after: created,
+        source: 'action',
+      });
+
+      activeNames.add(nameKey);
+      summary.inserted += 1;
+    }
+
+    revalidatePath('/services');
+    return { success: true, data: summary };
+  } catch (error) {
+    return handleCodedServerActionError('services.importChunk', 'SV002', error);
+  }
+}
+
+/**
+ * Bulk-create services from parsed CSV records. Validates each row, skips
+ * active duplicates, and rounds prices to cents.
  */
 export async function bulkImportServices(
   records: Array<Record<string, string>>,
@@ -281,31 +475,44 @@ export async function bulkImportServices(
   try {
     const { context, companyId } = await requireActionPermission('services.write');
 
+    const active = await db
+      .select({ name: service.name })
+      .from(service)
+      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .orderBy(desc(service.created_at));
+
+    const planned = planServiceCsvImport(
+      records,
+      active.map((row) => row.name),
+    );
+    if (!planned.success) {
+      return buildActionError(
+        'SV002',
+        new AppError(planned.error, 400, true, 'SV002'),
+        'validation',
+      );
+    }
+
     const summary: ServiceBulkImportSummary = {
       inserted: 0,
-      failed: 0,
-      errors: [],
+      failed: planned.data.summary.failed,
+      skipped: planned.data.summary.skipped,
+      errors: planned.data.rows
+        .filter((row) => row.status === 'error' || row.status === 'skip')
+        .map((row) => `Fila ${row.rowNumber}: ${row.reason ?? row.status}`),
     };
 
-    for (let index = 0; index < records.length; index += 1) {
-      const rowNumber = index + 2;
-      const parsed = importServiceSchema.safeParse(records[index]);
-      if (!parsed.success) {
-        summary.failed += 1;
-        summary.errors = [
-          ...summary.errors,
-          `Fila ${rowNumber}: nombre, descripción y precio válido requeridos`,
-        ];
-        continue;
-      }
+    const okRows = planned.data.rows.filter(
+      (row): row is ServiceCsvPreviewRow & { status: 'ok' } => row.status === 'ok',
+    );
 
-      const value = parsed.data;
+    for (const row of okRows) {
       const [created] = await db
         .insert(service)
         .values({
-          name: value.name,
-          description: value.description,
-          price: roundMoney(value.price),
+          name: row.name!,
+          description: row.description!,
+          price: roundMoney(row.price!),
           company_id: companyId,
         })
         .returning();
