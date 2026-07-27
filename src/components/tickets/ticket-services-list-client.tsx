@@ -64,7 +64,7 @@ export function TicketServicesListClient({
         className="hidden md:flex"
         items={[
           { label: 'Tickets', href: '/tickets' },
-          { label: `Ticket #${ticketId}`, href: `/tickets/${ticketId}/edit` },
+          { label: `Ticket #${ticketId}`, href: `/tickets/${ticketId}` },
           { label: 'Servicios' },
         ]}
       />
@@ -73,7 +73,7 @@ export function TicketServicesListClient({
         <TripledMobileAppBar
           title={`Ticket #${ticketId}`}
           subtitle="Servicios"
-          backHref={`/tickets/${ticketId}/edit`}
+          backHref={`/tickets/${ticketId}`}
           className="mb-3"
         />
         <div className="space-y-4">
