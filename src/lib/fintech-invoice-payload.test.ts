@@ -304,6 +304,69 @@ describe('fintech invoice payload', () => {
     expect(payload.client.country).toBe('Puerto Rico');
   });
 
+  it('includes client address without repeating country', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        client: {
+          id: 7,
+          name: 'TELMEX 1',
+          email: null,
+          phone: '9613151559',
+          document: null,
+          address: null,
+          street: 'Calle Sol',
+          exterior_number: '10',
+          interior_number: null,
+          neighborhood: 'Centro',
+          city: 'Tuxtla',
+          state: 'Chiapas',
+          postal_code: '29000',
+          country: 'México',
+          created_at: new Date(),
+          updated_at: null,
+          deleted_at: null,
+          company_id: 1,
+        },
+      }),
+    );
+
+    expect(payload.client.country).toBe('México');
+    expect(payload.client.address).toBe(
+      'Calle Sol #10, Centro, Tuxtla, Chiapas, CP 29000',
+    );
+    expect(payload.client.address).not.toContain('México');
+  });
+
+  it('omits client address when linked client has no address data', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        client: {
+          id: 7,
+          name: 'TELMEX 1',
+          email: null,
+          phone: null,
+          document: null,
+          address: null,
+          street: null,
+          exterior_number: null,
+          interior_number: null,
+          neighborhood: null,
+          city: null,
+          state: null,
+          postal_code: null,
+          country: null,
+          created_at: new Date(),
+          updated_at: null,
+          deleted_at: null,
+          company_id: 1,
+        },
+      }),
+    );
+
+    expect(payload.client.address).toBeNull();
+    expect(payload.client.country).toBeNull();
+  });
+
   it('falls back cleanly when optional company, client, and service data is missing', () => {
     const payload = buildFintechInvoicePayload(
       baseTicket({
@@ -330,8 +393,9 @@ describe('fintech invoice payload', () => {
     );
 
     expect(payload.client.name).toBe('Cliente');
-    expect(payload.client.phone).toBe('Sin teléfono');
+    expect(payload.client.phone).toBeNull();
     expect(payload.client.country).toBeNull();
+    expect(payload.client.address).toBeNull();
     expect(payload.issuer.name).toBe('SOLUCIONES CHANO');
     expect(payload.issuer.logoUrl).toBeNull();
     expect(payload.total).toBe(100);

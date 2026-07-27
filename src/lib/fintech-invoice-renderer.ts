@@ -18,7 +18,6 @@ const TYPOGRAPHY_SCALE = 0.82;
 const ICON_SCALE = 0.82;
 const HEADER_H = 78;
 const ISSUER_LOGO_PLATE = 48;
-const CLIENT_STRIP_H = 28;
 
 const COLORS = {
   blue: '#2563EB',
@@ -702,22 +701,74 @@ export function renderFintechInvoicePdf(
     );
 
     const bodyTop = headerY - 10;
-    const clientStripY = bodyTop - CLIENT_STRIP_H;
-    setStroke(COLORS.line);
-    doc.setLineWidth(0.8);
-    doc.line(margin, textY(bodyTop), margin + contentW, textY(bodyTop));
-    label('Cliente', margin + 4, bodyTop - 8);
-    text(payload.client.name, margin + 52, bodyTop - 8, 10, COLORS.ink, 'bold');
-    const clientMeta = payload.client.country
-      ? `${payload.client.phone} · ${payload.client.country}`
-      : payload.client.phone;
-    text(clientMeta, margin + contentW - 4, bodyTop - 8, 8, COLORS.muted, 'normal', 'right');
+
+    const clientLines: Array<{ label?: string; value: string; size: number; font: 'normal' | 'bold'; color: string }> = [
+      { value: payload.client.name, size: 13, font: 'bold', color: COLORS.ink },
+    ];
+    if (payload.client.phone) {
+      clientLines.push({
+        label: 'Teléfono',
+        value: payload.client.phone,
+        size: 9.5,
+        font: 'normal',
+        color: COLORS.ink2,
+      });
+    }
+    if (payload.client.country) {
+      clientLines.push({
+        label: 'País',
+        value: payload.client.country,
+        size: 9.5,
+        font: 'normal',
+        color: COLORS.ink2,
+      });
+    }
+    if (payload.client.address) {
+      clientLines.push({
+        label: 'Dirección',
+        value: payload.client.address,
+        size: 9,
+        font: 'normal',
+        color: COLORS.ink2,
+      });
+    }
+
+    const clientPadTop = 18;
+    const clientPadBottom = 14;
+    const clientLabelH = 12;
+    const clientLineGap = 8;
+    const clientExtraLineH = 16;
+    const clientNameH = 18;
+    const clientContentH =
+      clientLabelH +
+      clientNameH +
+      Math.max(0, clientLines.length - 1) * (clientExtraLineH + clientLineGap);
+    const clientCardH = clientPadTop + clientPadBottom + clientContentH;
+    const clientCardY = bodyTop - 8 - clientCardH;
+    shadowCard(margin, clientCardY, contentW, clientCardH, 16, COLORS.surfaceBlue);
+    label('Cliente', margin + 16, clientCardY + clientCardH - 16);
+
+    let lineY = clientCardY + clientCardH - clientPadTop - clientLabelH - 4;
+    clientLines.forEach((line, index) => {
+      if (index === 0) {
+        text(line.value, margin + 16, lineY, line.size, line.color, line.font);
+        lineY -= clientNameH + 2;
+        return;
+      }
+      if (line.label) {
+        text(line.label, margin + 16, lineY, 7, COLORS.muted, 'bold');
+        text(line.value, margin + 78, lineY, line.size, line.color, line.font, 'left', contentW - 100);
+      } else {
+        text(line.value, margin + 16, lineY, line.size, line.color, line.font);
+      }
+      lineY -= clientExtraLineH + clientLineGap;
+    });
 
     const rowsOnPage = Math.min(payload.items.length, MAIN_PAGE_MAX_ROWS);
     const hasMoreItems = payload.items.length > MAIN_PAGE_MAX_ROWS;
     const continuationReserve = hasMoreItems ? 22 : 10;
     const itemsH = 52 + 30 + rowsOnPage * ROW_STEP + continuationReserve;
-    const itemsY = clientStripY - 10 - itemsH;
+    const itemsY = clientCardY - 12 - itemsH;
 
     shadowCard(margin, itemsY, contentW, itemsH, 16);
     const sectionTitleY = itemsY + itemsH - 22;
