@@ -11,7 +11,8 @@ export const CLIENT_CSV_HEADERS = [
   'document',
 ] as const;
 
-export const SERVICE_CSV_HEADERS = ['name', 'description', 'price'] as const;
+/** @deprecated Prefer importing from `@/lib/service-csv` (Spanish canonical). */
+export { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
 
 export const TICKET_CSV_HEADERS = [
   'id',
