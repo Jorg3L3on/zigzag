@@ -277,7 +277,7 @@ export default function EditTicketPage({
       const result = await updateTicket(Number(resolvedParams.id), values);
       if (result.success) {
         toast.success('Ticket actualizado correctamente');
-        router.push('/tickets');
+        router.push(`/tickets/${resolvedParams.id}`);
       } else {
         const errorType = classifyClientError(null, undefined, result.errorType);
         toast.error(
@@ -461,6 +461,10 @@ export default function EditTicketPage({
         className="hidden md:flex"
         items={[
           { label: 'Tickets', href: '/tickets' },
+          {
+            label: `Ticket #${resolvedParams.id}`,
+            href: `/tickets/${resolvedParams.id}`,
+          },
           { label: 'Editar Ticket' },
         ]}
       />
@@ -469,7 +473,7 @@ export default function EditTicketPage({
           <TripledMobileAppBar
             title={`Ticket #${resolvedParams.id}`}
             subtitle="Editar ticket"
-            backHref="/tickets"
+            backHref={`/tickets/${resolvedParams.id}`}
             className="mb-3"
           />
           <TripledStepper
@@ -636,30 +640,45 @@ export default function EditTicketPage({
                     />
                   </div>
 
-                  {!isFinished && isDirty && (
+                  {!isFinished && (
                     <div className="flex flex-col gap-4 pt-6">
+                      {isDirty ? (
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          className="h-12 w-full border border-border hover:bg-muted"
+                          disabled={form.formState.isSubmitting}
+                        >
+                          {form.formState.isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" data-icon="inline-start"/>
+                              Actualizando ticket...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="mr-2 h-4 w-4" data-icon="inline-start"/>
+                              Guardar cambios
+                            </>
+                          )}
+                        </Button>
+                      ) : null}
+
                       <Button
-                        type="submit"
-                        variant="ghost"
-                        className="h-12 w-full border border-border hover:bg-muted"
-                        disabled={form.formState.isSubmitting}
+                        type="button"
+                        variant="outline"
+                        className="h-12 w-full"
+                        onClick={() =>
+                          router.push(`/tickets/${resolvedParams.id}`)
+                        }
                       >
-                        {form.formState.isSubmitting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" data-icon="inline-start"/>
-                            Actualizando ticket...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="mr-2 h-4 w-4" data-icon="inline-start"/>
-                            Guardar cambios
-                          </>
-                        )}
+                        Ver ticket
                       </Button>
 
-                      <p className="text-center text-xs text-muted-foreground">
-                        Guarda cambios si ajustaste la fecha antes de finalizar.
-                      </p>
+                      {isDirty ? (
+                        <p className="text-center text-xs text-muted-foreground">
+                          Guarda cambios si ajustaste la fecha antes de finalizar.
+                        </p>
+                      ) : null}
                     </div>
                   )}
                 </form>
