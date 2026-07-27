@@ -117,6 +117,19 @@ const assertServiceAvailable = async (serviceId: number, companyId: number) => {
   if (!serviceRow) {
     throw new AuthorizationError('Service not found for this company');
   }
+
+  return serviceRow;
+};
+
+const resolveServiceNameById = async (
+  serviceId: number,
+  companyId: number,
+): Promise<string | null> => {
+  const serviceRow = await db.query.service.findFirst({
+    where: and(eq(service.id, serviceId), eq(service.company_id, companyId)),
+    columns: { name: true },
+  });
+  return serviceRow?.name?.trim() || null;
 };
 
 export async function getTicketServices(
@@ -161,7 +174,10 @@ export async function createServiceTicket(
       ticketIdValue,
       'tickets.write',
     );
-    await assertServiceAvailable(validated.service_id, companyId);
+    const serviceRow = await assertServiceAvailable(
+      validated.service_id,
+      companyId,
+    );
     const values = {
       ticket_id: ticketIdValue,
       service_id: validated.service_id,
@@ -190,6 +206,7 @@ export async function createServiceTicket(
       await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
         serviceLine: 'created',
         line: createdRow,
+        serviceName: serviceRow.name,
         syncedTotal,
       });
       return createdRow;
@@ -258,9 +275,14 @@ export async function updateServiceTicket(
         }
 
         const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
+        const serviceName = await resolveServiceNameById(
+          updatedRow.service_id,
+          companyId,
+        );
         await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
           serviceLine: 'updated',
           line: updatedRow,
+          serviceName: serviceName ?? undefined,
           syncedTotal,
         });
         return updatedRow;
@@ -325,9 +347,14 @@ export async function deleteServiceTicket(
         .returning();
       const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
       if (deletedRow) {
+        const serviceName = await resolveServiceNameById(
+          deletedRow.service_id,
+          companyId,
+        );
         await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
           serviceLine: 'deleted',
           line: deletedRow,
+          serviceName: serviceName ?? undefined,
           syncedTotal,
         });
       }
