@@ -11,7 +11,7 @@ import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
 import { CsvToolbar } from '@/components/data-portability/csv-toolbar';
-import { SERVICE_CSV_HEADERS } from '@/lib/csv-schemas';
+import { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
 import { bulkImportServices, getServicesForExport } from '@/actions/services';
 
 export const dynamic = 'force-dynamic';

@@ -16,7 +16,7 @@ import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { roundMoney } from '@/lib/money';
-import { SERVICE_CSV_HEADERS } from '@/lib/csv-schemas';
+import { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
 import {
   SERVICE_DESCRIPTION_MAX_LENGTH,
   SERVICE_DESCRIPTION_MAX_MESSAGE,
@@ -329,9 +329,9 @@ export async function getServicesForExport(): Promise<{
     return {
       success: true,
       data: rows.map((row) => ({
-        name: row.name,
-        description: row.description,
-        price: String(row.price),
+        nombre: row.name,
+        descripción: row.description,
+        precio: String(row.price),
       })),
     };
   } catch (error) {
