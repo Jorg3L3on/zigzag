@@ -8,6 +8,7 @@ import type {
   TicketRow,
 } from '@/db/schema';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
+import { formatClientAddressOneLine } from '@/lib/client-address';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -45,8 +46,9 @@ export type FintechInvoicePayload = {
   };
   client: {
     name: string;
-    phone: string;
+    phone: string | null;
     country: string | null;
+    address: string | null;
   };
   ticketNumber: string;
   issueDate: string;
@@ -79,8 +81,22 @@ const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 const resolveClientCountry = (ticket: FintechInvoiceTicket): string | null => {
   const fromClient = ticket.client?.country?.trim();
   if (fromClient) return fromClient;
-  const fromCompany = ticket.company?.country?.trim();
-  if (fromCompany) return fromCompany;
+  return null;
+};
+
+const resolveClientAddress = (ticket: FintechInvoiceTicket): string | null => {
+  if (!ticket.client) return null;
+  const formatted = formatClientAddressOneLine(ticket.client, {
+    includeCountry: false,
+  }).trim();
+  return formatted || null;
+};
+
+const resolveClientPhone = (ticket: FintechInvoiceTicket): string | null => {
+  const fromTicket = ticket.client_tel?.trim();
+  if (fromTicket) return fromTicket;
+  const fromClient = ticket.client?.phone?.trim();
+  if (fromClient) return fromClient;
   return null;
 };
 
@@ -133,8 +149,9 @@ export const buildFintechInvoicePayload = (
     },
     client: {
       name: ticket.client_name?.trim() || 'Cliente',
-      phone: ticket.client_tel?.trim() || 'Sin teléfono',
+      phone: resolveClientPhone(ticket),
       country: resolveClientCountry(ticket),
+      address: resolveClientAddress(ticket),
     },
     ticketNumber: formatTicketNumber(ticket.id),
     issueDate: ticket.ticket_date
