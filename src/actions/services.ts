@@ -18,6 +18,10 @@ import { z } from 'zod';
 import { roundMoney } from '@/lib/money';
 import { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
 import {
+  planServiceCsvImport,
+  type ServiceCsvPreviewResult,
+} from '@/lib/service-csv-preview';
+import {
   SERVICE_DESCRIPTION_MAX_LENGTH,
   SERVICE_DESCRIPTION_MAX_MESSAGE,
   serviceWriteSchema,
@@ -336,6 +340,43 @@ export async function getServicesForExport(): Promise<{
     };
   } catch (error) {
     return handleCodedServerActionError('services.export', 'SV001', error);
+  }
+}
+
+/**
+ * Dry-run Service CSV import: classify rows without writing.
+ */
+export async function previewServiceCsvImport(
+  records: Array<Record<string, string>>,
+): Promise<{
+  success: boolean;
+  data?: ServiceCsvPreviewResult;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId } = await requireActionPermission('services.write');
+    const active = await db
+      .select({ name: service.name })
+      .from(service)
+      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .orderBy(desc(service.created_at));
+
+    const planned = planServiceCsvImport(
+      records,
+      active.map((row) => row.name),
+    );
+    if (!planned.success) {
+      return buildActionError(
+        'SV002',
+        new AppError(planned.error, 400, true, 'SV002'),
+        'validation',
+      );
+    }
+
+    return { success: true, data: planned.data };
+  } catch (error) {
+    return handleCodedServerActionError('services.importPreview', 'SV002', error);
   }
 }
 
