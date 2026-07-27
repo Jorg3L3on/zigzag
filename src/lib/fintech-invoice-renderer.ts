@@ -16,9 +16,8 @@ const CONTINUATION_PAGE_MAX_ROWS = 12;
 const ROW_STEP = 50;
 const TYPOGRAPHY_SCALE = 0.82;
 const ICON_SCALE = 0.82;
-const HEADER_H = 128;
-const ISSUER_LOGO_PLATE = 60;
-const META_STRIP_H = 24;
+const HEADER_H = 78;
+const ISSUER_LOGO_PLATE = 48;
 const CLIENT_STRIP_H = 28;
 
 const COLORS = {
@@ -218,13 +217,6 @@ export function renderFintechInvoicePdf(
         height,
         'F',
       );
-    }
-  };
-
-  const progressBar = (x: number, y: number, width: number, height: number, pct: number) => {
-    rr(x, y, width, height, height / 2, '#E8EEFF', null);
-    if (pct > 0) {
-      gradientRect(x, y, Math.max(height, width * pct), height, height / 2);
     }
   };
 
@@ -650,14 +642,14 @@ export function renderFintechInvoicePdf(
     doc.restoreGraphicsState();
 
     const logoSize = ISSUER_LOGO_PLATE;
-    const logoX = margin + 16;
-    const logoTopPad = 16;
+    const logoX = margin + 14;
+    const logoTopPad = 12;
     const logoY = headerY + headerH - logoTopPad - logoSize;
 
     const badgeW = 80;
     const badgeH = 22;
-    const badgeX = margin + contentW - badgeW - 16;
-    const badgeY = logoY + logoSize - badgeH;
+    const badgeX = margin + contentW - badgeW - 14;
+    const badgeY = logoY + (logoSize - badgeH) / 2;
     const badgeFill = isPaid ? COLORS.green : COLORS.amber;
     const badgeTextColor = isPaid ? COLORS.white : COLORS.ink;
     rr(badgeX, badgeY, badgeW, badgeH, 7, badgeFill, null);
@@ -671,19 +663,17 @@ export function renderFintechInvoicePdf(
       'center',
     );
 
-    const issuerTextX = logoX + logoSize + 14;
-    const issuerTextW = badgeX - issuerTextX - 14;
+    const issuerTextX = logoX + logoSize + 12;
+    const issuerTextW = badgeX - issuerTextX - 12;
     const issuerNameSize = 15;
-    const issuerAddressSize = 7.5;
     const issuerNameLineH = 16;
-    const issuerBlockH = issuerNameLineH + issuerAddressSize + 6;
-    const issuerBlockY = logoY + (logoSize - issuerBlockH) / 2;
+    const issuerNameY = logoY + (logoSize - issuerNameSize) / 2 + 2;
 
     drawIssuerLogo(logoX, logoY, logoSize);
     wrapText(
       payload.issuer.name,
       issuerTextX,
-      issuerBlockY + issuerBlockH - 6,
+      issuerNameY + 4,
       issuerTextW,
       issuerNameSize,
       COLORS.white,
@@ -691,77 +681,27 @@ export function renderFintechInvoicePdf(
       issuerNameLineH,
       1,
     );
-    text(
-      payload.issuer.address,
-      issuerTextX,
-      issuerBlockY + 2,
-      issuerAddressSize,
-      '#CBD5E1',
-      'normal',
-      'left',
-      issuerTextW,
-    );
 
-    const amountValue = money(
-      currencyCode,
-      payload.balanceDue > 0 ? payload.balanceDue : payload.total,
-    );
-    const amountLeft = margin + 18;
-    const amountMaxW = contentW - 36;
-    label(payload.balanceLabel, amountLeft, headerY + 46, '#94A3B8');
-    text(amountValue, amountLeft, headerY + 24, 28, COLORS.white, 'bold', 'left', amountMaxW);
-    text(
-      `${money(currencyCode, payload.paid)} / ${money(currencyCode, payload.total)}`,
-      amountLeft,
-      headerY + 10,
-      7,
-      '#94A3B8',
-      'normal',
-      'left',
-      amountMaxW * 0.62,
-    );
-    progressBar(
-      margin + contentW - 120,
-      headerY + 12,
-      100,
-      4,
-      payload.paymentProgress,
-    );
-    text(
-      payload.paymentProgressLabel,
-      margin + contentW - 20,
-      headerY + 22,
-      7,
-      isPaid ? COLORS.green : '#94A3B8',
-      'bold',
-      'right',
-    );
-
-    const metaStripY = headerY - META_STRIP_H;
-    setFill(COLORS.white);
-    doc.rect(margin, yTop(metaStripY, META_STRIP_H), contentW, META_STRIP_H, 'F');
-    setStroke(COLORS.line);
-    doc.setLineWidth(0.8);
-    doc.line(margin, textY(metaStripY), margin + contentW, textY(metaStripY));
+    const metaY = headerY + 14;
     text(
       `Ticket No. ${payload.ticketNumber}`,
       margin + 16,
-      metaStripY + 9,
+      metaY,
       8,
-      COLORS.ink2,
+      '#CBD5E1',
       'bold',
     );
     text(
       `Fecha: ${payload.issueDate}`,
       margin + contentW - 16,
-      metaStripY + 9,
+      metaY,
       8,
-      COLORS.muted,
+      '#94A3B8',
       'normal',
       'right',
     );
 
-    const bodyTop = metaStripY - 10;
+    const bodyTop = headerY - 10;
     const clientStripY = bodyTop - CLIENT_STRIP_H;
     setStroke(COLORS.line);
     doc.setLineWidth(0.8);
