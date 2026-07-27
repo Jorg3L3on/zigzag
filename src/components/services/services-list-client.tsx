@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -85,6 +85,8 @@ export function ServicesListClient() {
   const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>('active');
   const [sorting, setSorting] = useState<SortingState>(DEFAULT_SERVICE_SORTING);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const importedFlag = searchParams.get('imported');
 
   const filterOptions: Array<{ value: ServiceStatusFilter; label: string }> = [
     { value: 'active', label: 'Activos' },
@@ -158,6 +160,14 @@ export function ServicesListClient() {
   React.useEffect(() => {
     void fetchServices();
   }, [fetchServices]);
+
+  React.useEffect(() => {
+    if (!importedFlag) {
+      return;
+    }
+    void fetchServices();
+    router.replace('/services');
+  }, [importedFlag, fetchServices, router]);
 
   const filteredServices = useMemo(() => {
     const search = debouncedSearch.toLowerCase();
