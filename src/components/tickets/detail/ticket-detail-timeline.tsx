@@ -65,6 +65,13 @@ export const TicketDetailTimeline = ({ entries }: TicketDetailTimelineProps) => 
                     <p className="text-sm font-medium leading-snug text-foreground">
                       {formatted.title}
                     </p>
+                    {formatted.details.length > 0 ? (
+                      <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                        {formatted.details.map((detail) => (
+                          <li key={detail}>{detail}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <p className="text-xs text-muted-foreground">
                       {entry.actorName?.trim() || 'Sistema'}
                     </p>
