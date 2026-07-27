@@ -17,12 +17,10 @@ import {
 import {
   TicketDateRangeFilter,
   TicketFinishedFilter,
-  TicketPdfFilter,
   TicketStatusFilter,
 } from '@/components/tickets/tickets-filter-fields';
 import type {
   FinishedFilterValue,
-  PdfFilterValue,
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
@@ -33,8 +31,6 @@ type TicketsFilterBarProps = {
   onSearchChange: (value: string) => void;
   statusFilter: StatusFilterValue;
   onStatusFilterChange: (value: StatusFilterValue) => void;
-  pdfFilter: PdfFilterValue;
-  onPdfFilterChange: (value: PdfFilterValue) => void;
   finishedFilter: FinishedFilterValue;
   onFinishedFilterChange: (value: FinishedFilterValue) => void;
   dateRange: DateRange | undefined;
@@ -56,8 +52,6 @@ export const TicketsFilterBar = ({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  pdfFilter,
-  onPdfFilterChange,
   finishedFilter,
   onFinishedFilterChange,
   dateRange,
@@ -124,7 +118,7 @@ export const TicketsFilterBar = ({
               Filtros
             </SheetTitle>
             <SheetDescription>
-              Estado de cobro, PDF, finalización, fechas y orden de la lista.
+              Estado de cobro, finalización, fechas y orden de la lista.
             </SheetDescription>
           </SheetHeader>
 
@@ -133,11 +127,6 @@ export const TicketsFilterBar = ({
               layout="sheet"
               value={statusFilter}
               onChange={onStatusFilterChange}
-            />
-            <TicketPdfFilter
-              layout="sheet"
-              value={pdfFilter}
-              onChange={onPdfFilterChange}
             />
             <TicketFinishedFilter
               layout="sheet"
@@ -185,11 +174,6 @@ export const TicketsFilterBar = ({
         layout="desktop"
         value={statusFilter}
         onChange={onStatusFilterChange}
-      />
-      <TicketPdfFilter
-        layout="desktop"
-        value={pdfFilter}
-        onChange={onPdfFilterChange}
       />
       <TicketFinishedFilter
         layout="desktop"

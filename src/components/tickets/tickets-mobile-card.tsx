@@ -12,12 +12,14 @@ type TicketsMobileCardProps = {
   ticket: Ticket;
   canWrite: boolean;
   onDelete: (id: number) => void;
+  companyId?: number | null;
 };
 
 export const TicketsMobileCard = ({
   ticket,
   canWrite,
   onDelete,
+  companyId,
 }: TicketsMobileCardProps) => {
   const router = useRouter();
   const href = hrefForTicketListRow(ticket, canWrite);
@@ -66,6 +68,7 @@ export const TicketsMobileCard = ({
             ticket={ticket}
             onDelete={onDelete}
             canWrite={canWrite}
+            companyId={companyId}
           />
         </div>
       </div>

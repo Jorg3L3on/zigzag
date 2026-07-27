@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
 import { formatDateRangeLabel } from '@/components/tickets/tickets-list-filter-utils';
 import type {
   FinishedFilterValue,
-  PdfFilterValue,
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 
@@ -28,11 +27,6 @@ type FilterFieldLayout = 'desktop' | 'sheet';
 const statusTriggerClass = (layout: FilterFieldLayout) =>
   layout === 'desktop'
     ? 'h-10 min-w-[12rem] max-w-[15rem] shrink-0'
-    : 'h-11 w-full';
-
-const pdfTriggerClass = (layout: FilterFieldLayout) =>
-  layout === 'desktop'
-    ? 'h-10 min-w-[9rem] max-w-[12rem] shrink-0'
     : 'h-11 w-full';
 
 const finishedTriggerClass = (layout: FilterFieldLayout) =>
@@ -84,50 +78,6 @@ export const TicketStatusFilter = ({
     <div className="space-y-2">
       <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
         Estado de cobro
-      </label>
-      {field}
-    </div>
-  );
-};
-
-type TicketPdfFilterProps = {
-  layout: FilterFieldLayout;
-  value: PdfFilterValue;
-  onChange: (value: PdfFilterValue) => void;
-};
-
-export const TicketPdfFilter = ({
-  layout,
-  value,
-  onChange,
-}: TicketPdfFilterProps) => {
-  const id = layout === 'sheet' ? 'ticket-filter-pdf-sheet' : 'ticket-filter-pdf';
-
-  const field = (
-    <Select value={value} onValueChange={(next) => onChange(next as PdfFilterValue)}>
-      <SelectTrigger
-        id={id}
-        className={pdfTriggerClass(layout)}
-        aria-label="Filtrar por PDF"
-      >
-        <SelectValue placeholder="PDF" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">PDF (todos)</SelectItem>
-        <SelectItem value="with">Con PDF</SelectItem>
-        <SelectItem value="without">Sin PDF</SelectItem>
-      </SelectContent>
-    </Select>
-  );
-
-  if (layout === 'desktop') {
-    return field;
-  }
-
-  return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
-        PDF
       </label>
       {field}
     </div>
