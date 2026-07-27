@@ -206,7 +206,7 @@ Before a mobile release, use the manual checklist: [tasks/mobile-release-checkli
 
 **English:** Ticket PDFs are generated on the server in v1. If download fails on iOS, retry on Wi‑Fi or contact your administrator.
 
-**Español:** Las facturas PDF se generan en el servidor en v1. Si la descarga falla en iOS, reintenta con Wi‑Fi o contacta al administrador.
+**Español:** Los recibos PDF se generan en el servidor en v1. Si la descarga falla en iOS, reintenta con Wi‑Fi o contacta al administrador.
 
 ## Deployment (Vercel + Neon)
 

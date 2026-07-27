@@ -40,7 +40,7 @@ export const TicketDetailInvoiceSection = ({
     <TicketDetailSectionCard aria-labelledby="ticket-invoice-heading">
       <TicketDetailSectionHeading
         id="ticket-invoice-heading"
-        title="Factura"
+        title="Recibo"
         description="PDF generado bajo demanda a partir de los datos del ticket"
       />
 
@@ -53,8 +53,8 @@ export const TicketDetailInvoiceSection = ({
             <p className="text-sm font-medium text-foreground">{statusLabel}</p>
             <p className="text-xs text-muted-foreground">
               {finished
-                ? 'Descarga o imprime la factura con el estado actual de pagos.'
-                : 'Finaliza el ticket para habilitar la factura PDF.'}
+                ? 'Descarga o imprime el recibo con el estado actual de pagos.'
+                : 'Finaliza el ticket para habilitar el recibo PDF.'}
             </p>
           </div>
         </div>

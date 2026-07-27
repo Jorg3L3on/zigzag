@@ -703,7 +703,7 @@ export function renderFintechInvoicePdf(
 
     const metaY = headerY + 14;
     text(
-      `Ticket No. ${payload.ticketNumber}`,
+      `Recibo No. ${payload.ticketNumber}`,
       margin + 16,
       metaY,
       8,

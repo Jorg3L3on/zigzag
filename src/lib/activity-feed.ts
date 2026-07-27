@@ -218,7 +218,7 @@ const buildSingleTitle = (event: ActivityFeedEventInput): string => {
   }
 
   if (event.resourceType === 'invoice' && event.action === 'generated') {
-    return `${who} generó la factura del ticket ${ticketRef}`;
+    return `${who} generó el recibo del ticket ${ticketRef}`;
   }
 
   if (event.resourceType === 'client') {
@@ -343,7 +343,7 @@ const pluralResource = (resourceType: string, count: number): string => {
     case 'company':
       return count === 1 ? 'empresa' : 'empresas';
     case 'invoice':
-      return count === 1 ? 'factura' : 'facturas';
+      return count === 1 ? 'recibo' : 'recibos';
     default:
       return count === 1 ? 'evento' : 'eventos';
   }

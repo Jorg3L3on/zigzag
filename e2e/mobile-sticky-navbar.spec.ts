@@ -60,11 +60,8 @@ test.describe('Mobile sticky navigation', () => {
         page,
       }) => {
         await page.goto('/tickets');
-        await page
-          .getByRole('button', { name: /Ver ticket|Editar ticket/i })
-          .first()
-          .click();
-        await page.waitForURL(/\/tickets\/\d+/);
+        await page.getByRole('button', { name: /Ver ticket/i }).first().click();
+        await page.waitForURL(/\/tickets\/\d+$/);
 
         const appBar = visibleMobileAppBar(page);
         await expect(appBar).toBeVisible();
@@ -73,6 +70,24 @@ test.describe('Mobile sticky navigation', () => {
 
         await appBar.getByRole('link', { name: 'Volver' }).click();
         await expect(page).toHaveURL(/\/tickets$/);
+      });
+
+      test('ticket edit back returns to ticket detail', async ({ page }) => {
+        await page.goto('/tickets');
+        const editButton = page
+          .getByRole('button', { name: /Editar ticket/i })
+          .first();
+        if (!(await editButton.isVisible().catch(() => false))) {
+          test.skip();
+          return;
+        }
+        await editButton.click();
+        await page.waitForURL(/\/tickets\/\d+\/edit/);
+
+        const appBar = visibleMobileAppBar(page);
+        await expect(appBar).toBeVisible();
+        await appBar.getByRole('link', { name: 'Volver' }).click();
+        await expect(page).toHaveURL(/\/tickets\/\d+$/);
       });
 
       test('ticket edit keeps mobile app bar fixed while scrolling', async ({

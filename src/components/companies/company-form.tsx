@@ -476,7 +476,7 @@ export const CompanyForm = ({
               name="settings.invoice_footer_note"
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
-                  <FormLabel>Notas al pie de factura</FormLabel>
+                  <FormLabel>Notas al pie de recibo</FormLabel>
                   <FormControl>
                     <Textarea {...field} rows={3} />
                   </FormControl>

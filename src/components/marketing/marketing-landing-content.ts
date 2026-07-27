@@ -2,7 +2,7 @@ export const LANDING_HERO = {
   brand: 'ZigZag',
   headline: 'Del ticket al cobro, en un solo flujo',
   support:
-    'Opera clientes, servicios, pagos y facturas PDF en una plataforma multi-empresa lista para móvil.',
+    'Opera clientes, servicios, pagos y recibos PDF en una plataforma multi-empresa lista para móvil.',
   primaryCta: { href: '/login', label: 'Iniciar sesión' },
   secondaryCta: { href: '#como-funciona', label: 'Ver cómo funciona' },
   heroImage: {
@@ -15,7 +15,7 @@ export const LANDING_HERO = {
 export const LANDING_PROBLEM = {
   id: 'problema',
   title: 'El trabajo ya existe. La operación no.',
-  body: 'HVAC, mantenimiento e instalaciones viven repartidos entre Excel, WhatsApp y facturas a mano. Sin una sola fuente de verdad, el cobro se atrasa y cada sucursal improvisa.',
+  body: 'HVAC, mantenimiento e instalaciones viven repartidos entre Excel, WhatsApp y recibos a mano. Sin una sola fuente de verdad, el cobro se atrasa y cada sucursal improvisa.',
 } as const;
 
 export const LANDING_FLOW_STEPS = [
@@ -56,12 +56,12 @@ export const LANDING_FLOW_STEPS = [
     },
   },
   {
-    key: 'factura',
-    title: 'Factura PDF',
-    body: 'Descarga la factura generada en el servidor, con logo y RFC.',
+    key: 'recibo',
+    title: 'Recibo PDF',
+    body: 'Descarga el recibo generado en el servidor, con logo y RFC.',
     image: {
       src: '/guides/images/empresa/10-factura-pdf.webp',
-      alt: 'Factura PDF generada por ZigZag',
+      alt: 'Recibo PDF generado por ZigZag',
     },
   },
 ] as const;
@@ -71,7 +71,7 @@ export const LANDING_FLOW_MARQUEE = [
   'Ticket',
   'Servicios',
   'Cobro',
-  'Factura PDF',
+  'Recibo PDF',
 ] as const;
 
 export const LANDING_CAPABILITIES = [
@@ -80,7 +80,7 @@ export const LANDING_CAPABILITIES = [
     body: 'Aislamiento por Company y consola para operar varios tenants.',
   },
   {
-    title: 'Factura PDF en servidor',
+    title: 'Recibo PDF en servidor',
     body: 'Sin subir archivos: el PDF se genera al momento desde el ticket.',
   },
   {
@@ -125,7 +125,7 @@ export const LANDING_DEMO = {
 
 export const LANDING_FINAL_CTA = {
   title: 'Entra y recorre el flujo completo',
-  body: 'Inicia sesión o sigue la secuencia Cliente → Ticket → Cobro → Factura en esta página.',
+  body: 'Inicia sesión o sigue la secuencia Cliente → Ticket → Cobro → Recibo en esta página.',
   primaryCta: { href: '/login', label: 'Iniciar sesión' },
   secondaryCta: { href: '#como-funciona', label: 'Ver cómo funciona' },
 } as const;

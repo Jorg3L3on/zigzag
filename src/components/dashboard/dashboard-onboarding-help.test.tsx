@@ -52,7 +52,7 @@ describe('DashboardOnboardingHelp', () => {
     expect(screen.getByText('1. Configura Mi empresa')).toBeInTheDocument();
     expect(screen.getByText('4. Crea tu primer ticket')).toBeInTheDocument();
     expect(screen.getByText('5. Invita a tu equipo')).toBeInTheDocument();
-    expect(screen.getByText('6. Factura PDF y recordatorios')).toBeInTheDocument();
+    expect(screen.getByText('6. Recibo PDF y recordatorios')).toBeInTheDocument();
     expect(screen.getByText('0 de 6')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Mi empresa/i })).toHaveAttribute(
       'href',
