@@ -393,7 +393,7 @@ export const MarketingLanding = () => {
           <p className="text-lg text-[var(--mkt-muted)] sm:text-xl">
             Un solo flujo operativo:{' '}
             <span className="font-semibold text-[var(--mkt-ink)]">
-              Cliente → Ticket → Servicios → Cobro → Factura PDF
+              Cliente → Ticket → Servicios → Cobro → Recibo PDF
             </span>
             .
           </p>

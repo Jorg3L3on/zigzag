@@ -31,7 +31,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: '3. Finalidades del tratamiento',
     paragraphs: [
-      'Tratamos datos para: (i) prestar el servicio SaaS multi-empresa de tickets, clientes, servicios y facturación; (ii) autenticar usuarios y aplicar roles/permisos; (iii) generar facturas PDF y registros de auditoría; (iv) atender solicitudes de soporte; y (v) cumplir obligaciones legales aplicables.',
+      'Tratamos datos para: (i) prestar el servicio SaaS multi-empresa de tickets, clientes, servicios y emisión de recibos; (ii) autenticar usuarios y aplicar roles/permisos; (iii) generar recibos PDF y registros de auditoría; (iv) atender solicitudes de soporte; y (v) cumplir obligaciones legales aplicables.',
       'Las páginas públicas de marketing no incluyen formulario de captación de leads en esta versión.',
     ],
   },
@@ -88,7 +88,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: '2. Descripción del servicio',
     paragraphs: [
-      'ZigZag es una plataforma SaaS multi-empresa para gestionar clientes, servicios, tickets, cobranza y facturas PDF generadas en servidor, con roles, permisos y auditoría.',
+      'ZigZag es una plataforma SaaS multi-empresa para gestionar clientes, servicios, tickets, cobranza y recibos PDF generados en servidor, con roles, permisos y auditoría.',
       'El proveedor del servicio es ${LEGAL_PLACEHOLDERS.responsable}, con domicilio en ${LEGAL_PLACEHOLDERS.domicilio}.',
     ],
   },
@@ -113,10 +113,10 @@ export const TERMS_SECTIONS: LegalSection[] = [
     ],
   },
   {
-    title: '6. Facturación PDF y contenido del cliente',
+    title: '6. Recibos PDF y contenido del cliente',
     paragraphs: [
-      'Las facturas PDF se generan a partir de los datos que captura tu Company. Eres responsable de la exactitud fiscal y comercial de esa información (incluyendo RFC, dirección y montos).',
-      'ZigZag no recibe PDFs cargados por el usuario como fuente de verdad de la factura en producción.',
+      'Los recibos PDF se generan a partir de los datos que captura tu Company. Eres responsable de la exactitud fiscal y comercial de esa información (incluyendo RFC, dirección y montos).',
+      'ZigZag no recibe PDFs cargados por el usuario como fuente de verdad del recibo en producción.',
     ],
   },
   {

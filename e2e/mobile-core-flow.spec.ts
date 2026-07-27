@@ -155,7 +155,7 @@ const settleRemainingBalance = async (page: Page) => {
 
 const downloadInvoicePdf = async (page: Page, ticketId: string) => {
   const downloadButton = page
-    .getByRole('button', { name: /Descargar \/ imprimir|Generar factura/ })
+    .getByRole('button', { name: /Descargar \/ imprimir|Generar recibo/ })
     .first();
   await expect(downloadButton).toBeVisible({ timeout: 15_000 });
 

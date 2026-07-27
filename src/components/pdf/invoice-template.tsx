@@ -128,7 +128,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
         <div className="flex shrink-0 flex-col items-end gap-[1.5mm] text-right">
           <div className="space-y-[1mm] text-[10px] leading-snug text-neutral-700">
             <p>
-              <span className="font-bold text-neutral-950">Ticket No.: </span>
+              <span className="font-bold text-neutral-950">Recibo No.: </span>
               <span className="font-bold tabular-nums text-neutral-950">
                 {data.ticketNumber}
               </span>

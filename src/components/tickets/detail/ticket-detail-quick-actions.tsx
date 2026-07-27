@@ -123,7 +123,7 @@ export const TicketDetailQuickActions = ({
           <PDFDownloadButton
             ticketId={ticketId}
             downloadFileName={downloadFileName}
-            label="Generar factura"
+            label="Generar recibo"
             className="h-10"
           />
         ) : null}

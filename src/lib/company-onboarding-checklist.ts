@@ -61,7 +61,7 @@ const CHECKLIST_STEP_DEFINITIONS: ChecklistStepDefinition[] = [
   {
     key: 'company_profile',
     title: '1. Configura Mi empresa',
-    description: 'Logo, RFC y moneda antes de emitir facturas.',
+    description: 'Logo, RFC y moneda antes de emitir recibos.',
     href: '/company',
     actionLabel: 'Mi empresa',
     guideHref: OPERATOR_GUIDE_ANCHORS.miEmpresa,
@@ -113,7 +113,7 @@ const CHECKLIST_STEP_DEFINITIONS: ChecklistStepDefinition[] = [
   },
   {
     key: 'billing_followup',
-    title: '6. Factura PDF y recordatorios',
+    title: '6. Recibo PDF y recordatorios',
     description: 'Finaliza un ticket y programa un servicio recurrente.',
     href: '/tickets',
     actionLabel: 'Ver tickets',

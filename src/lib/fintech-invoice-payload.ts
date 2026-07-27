@@ -161,8 +161,8 @@ export const buildFintechInvoicePayload = (
     balanceLabel: balanceDue > 0 ? 'SALDO PENDIENTE' : 'TOTAL DEL TICKET',
     serviceCountLabel:
       items.length === 1
-        ? '1 concepto facturado'
-        : `${items.length} conceptos facturados`,
+        ? '1 concepto'
+        : `${items.length} conceptos`,
     items,
     subtotal,
     adjustmentAmount,

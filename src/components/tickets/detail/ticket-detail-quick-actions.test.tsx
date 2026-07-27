@@ -43,7 +43,7 @@ describe('TicketDetailQuickActions', () => {
     expect(
       screen.getByRole('link', { name: /registrar pago/i }),
     ).toHaveAttribute('href', '/tickets/12/edit');
-    expect(screen.queryByText('Generar factura')).not.toBeInTheDocument();
+    expect(screen.queryByText('Generar recibo')).not.toBeInTheDocument();
   });
 
   it('shows cobranza anchor and invoice when finished with partial payment', () => {
@@ -61,7 +61,7 @@ describe('TicketDetailQuickActions', () => {
     expect(
       screen.getByRole('link', { name: /registrar pago/i }),
     ).toHaveAttribute('href', '#cobranza');
-    expect(screen.getByText('Generar factura')).toBeInTheDocument();
+    expect(screen.getByText('Generar recibo')).toBeInTheDocument();
   });
 
   it('hides actions when the user lacks permissions', () => {
