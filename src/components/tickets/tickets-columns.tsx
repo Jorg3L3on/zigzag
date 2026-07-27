@@ -7,7 +7,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
-import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
+import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { getTicketPaymentStatusSortRank } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
@@ -119,7 +119,10 @@ export const createTicketsColumns = ({
       <TicketSortableHeader column={column} label="Estado" />
     ),
     cell: ({ row }) => (
-      <TicketPaymentBadge total={row.original.total} paid={row.original.paid} />
+      <TicketListPaymentSummary
+        total={row.original.total}
+        paid={row.original.paid}
+      />
     ),
   },
   {

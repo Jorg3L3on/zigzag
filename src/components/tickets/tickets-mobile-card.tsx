@@ -2,7 +2,7 @@ import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
-import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
+import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { TripledMobileRecordCard } from '@/components/tripled';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
@@ -53,7 +53,7 @@ export const TicketsMobileCard = ({
           <p className="truncate text-lg font-semibold leading-tight">
             {ticket.client_name || 'Cliente sin nombre'}
           </p>
-          <TicketPaymentBadge total={ticket.total} paid={ticket.paid} />
+          <TicketListPaymentSummary total={ticket.total} paid={ticket.paid} />
         </div>
         <div
           className="flex shrink-0 items-start gap-1"
