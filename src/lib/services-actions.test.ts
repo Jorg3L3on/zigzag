@@ -1,5 +1,6 @@
 import {
   bulkImportServices,
+  commitServiceCsvImportChunk,
   createService,
   deleteService,
   getService,
@@ -162,5 +163,43 @@ describe('cross-tenant IDOR — service actions', () => {
     expect(result.success).toBe(true);
     expect(result.data?.summary).toEqual({ ok: 1, skipped: 1, failed: 0 });
     expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('commitServiceCsvImportChunk denies cross-tenant write context', async () => {
+    mockActionCrossTenantDenied(mockRequireActionPermission);
+
+    const result = await commitServiceCsvImportChunk([
+      { name: 'S', description: 'D', price: 1 },
+    ]);
+
+    expect(result.success).toBe(false);
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('commitServiceCsvImportChunk skips active duplicates and inserts others', async () => {
+    mockActionAuthorized(mockRequireActionPermission);
+    mockDb.select.mockReturnValue(mockSelectChain([{ name: 'Existente' }]));
+    const returning = jest.fn(async () => [
+      {
+        id: 9,
+        name: 'Nuevo',
+        description: 'Desc',
+        price: 10,
+        company_id: IDOR_COMPANY_A.id,
+      },
+    ]);
+    mockDb.insert.mockReturnValue({
+      values: jest.fn(() => ({ returning })),
+    });
+
+    const result = await commitServiceCsvImportChunk([
+      { name: 'Existente', description: 'Dup', price: 5 },
+      { name: 'Nuevo', description: 'Desc', price: 10 },
+    ]);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.inserted).toBe(1);
+    expect(result.data?.skipped).toBe(1);
+    expect(mockDb.insert).toHaveBeenCalledTimes(1);
   });
 });
