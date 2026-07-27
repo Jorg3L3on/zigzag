@@ -548,91 +548,95 @@ export function renderFintechInvoicePdf(
     y: number,
     width: number,
     height: number,
-    title: string,
-    fill = COLORS.white,
   ) => {
-    shadowCard(x, y, width, height, 16, fill);
-    text(title, x + 16, y + height - 22, 10.5, COLORS.ink, 'bold');
+    shadowCard(x, y, width, height, 16, COLORS.white);
+    text('Resumen de pago', x + 16, y + height - 22, 10.5, COLORS.ink, 'bold');
+
+    type SummaryRow = {
+      label: string;
+      amount: string;
+      labelColor: string;
+      amountColor: string;
+      bold: boolean;
+      note?: string;
+    };
+
+    const rows: SummaryRow[] = [];
 
     if (payload.hasAdjustment) {
       const adjustmentSign = payload.adjustmentAmount >= 0 ? '+' : '\u2212';
       const adjustmentColor =
         payload.adjustmentAmount >= 0 ? COLORS.amber : COLORS.green;
-      const adjustmentAmountText = `${adjustmentSign}${money(
-        currencyCode,
-        Math.abs(payload.adjustmentAmount),
-      )}`;
-
-      text('Subtotal', x + 16, y + height - 46, 8.5, COLORS.muted);
-      text(
-        money(currencyCode, payload.subtotal),
-        x + width - 16,
-        y + height - 46,
-        8.5,
-        COLORS.ink2,
-        'normal',
-        'right',
-      );
-      text('Ajuste', x + 16, y + height - 64, 8.5, adjustmentColor, 'bold');
-      text(
-        adjustmentAmountText,
-        x + width - 16,
-        y + height - 64,
-        8.5,
-        adjustmentColor,
-        'bold',
-        'right',
-      );
-      text('Ajuste aplicado', x + 16, y + height - 78, 6.5, COLORS.muted2);
-      text('Total', x + 16, y + height - 98, 8.5, COLORS.ink, 'bold');
-      text(
-        money(currencyCode, payload.total),
-        x + width - 16,
-        y + height - 98,
-        8.5,
-        COLORS.ink,
-        'bold',
-        'right',
-      );
-      setStroke('#EEF2F7');
-      doc.setLineWidth(0.8);
-      doc.line(x + 16, textY(y + 36), x + width - 16, textY(y + 36));
-      text('Pagado', x + 16, y + 16, 8.5, COLORS.muted);
-      text(
-        money(currencyCode, payload.paid),
-        x + width - 16,
-        y + 16,
-        8.5,
-        COLORS.ink2,
-        'normal',
-        'right',
-      );
-      return;
+      rows.push({
+        label: 'Subtotal',
+        amount: money(currencyCode, payload.subtotal),
+        labelColor: COLORS.muted,
+        amountColor: COLORS.ink2,
+        bold: false,
+      });
+      rows.push({
+        label: 'Ajuste',
+        amount: `${adjustmentSign}${money(currencyCode, Math.abs(payload.adjustmentAmount))}`,
+        labelColor: adjustmentColor,
+        amountColor: adjustmentColor,
+        bold: true,
+        note: 'Ajuste aplicado',
+      });
     }
 
-    text('Total', x + 16, y + height - 48, 8.5, COLORS.ink, 'bold');
-    text(
-      money(currencyCode, payload.total),
-      x + width - 16,
-      y + height - 48,
-      8.5,
-      COLORS.ink,
-      'bold',
-      'right',
-    );
-    setStroke('#EEF2F7');
-    doc.setLineWidth(0.8);
-    doc.line(x + 16, textY(y + 40), x + width - 16, textY(y + 40));
-    text('Pagado', x + 16, y + 18, 8.5, COLORS.muted);
-    text(
-      money(currencyCode, payload.paid),
-      x + width - 16,
-      y + 18,
-      8.5,
-      COLORS.ink2,
-      'normal',
-      'right',
-    );
+    rows.push({
+      label: 'Total',
+      amount: money(currencyCode, payload.total),
+      labelColor: COLORS.ink,
+      amountColor: COLORS.ink,
+      bold: true,
+    });
+    rows.push({
+      label: 'Pagado',
+      amount: money(currencyCode, payload.paid),
+      labelColor: COLORS.muted,
+      amountColor: COLORS.ink2,
+      bold: false,
+    });
+
+    const showBalanceDue = payload.balanceDue > 0;
+    if (showBalanceDue) {
+      rows.push({
+        label: 'Por pagar',
+        amount: money(currencyCode, payload.balanceDue),
+        labelColor: COLORS.ink,
+        amountColor: COLORS.ink,
+        bold: true,
+      });
+    }
+
+    let cursorY = y + height - 46;
+    rows.forEach((row, index) => {
+      const isPorPagar = row.label === 'Por pagar';
+      if (isPorPagar) {
+        setStroke('#EEF2F7');
+        doc.setLineWidth(0.8);
+        doc.line(x + 16, textY(cursorY + 10), x + width - 16, textY(cursorY + 10));
+        cursorY -= 6;
+      }
+
+      const font: 'normal' | 'bold' = row.bold ? 'bold' : 'normal';
+      text(row.label, x + 16, cursorY, 8.5, row.labelColor, font);
+      text(row.amount, x + width - 16, cursorY, 8.5, row.amountColor, font, 'right');
+      cursorY -= 18;
+      if (row.note) {
+        text(row.note, x + 16, cursorY + 4, 6.5, COLORS.muted2);
+        cursorY -= 12;
+      }
+
+      // Keep a soft divider after Total when Pagado follows and Por pagar is absent.
+      if (row.label === 'Total' && !showBalanceDue && index < rows.length - 1) {
+        setStroke('#EEF2F7');
+        doc.setLineWidth(0.8);
+        doc.line(x + 16, textY(cursorY + 8), x + width - 16, textY(cursorY + 8));
+        cursorY -= 4;
+      }
+    });
   };
 
   const drawMainPage = () => {
@@ -817,25 +821,12 @@ export function renderFintechInvoicePdf(
       );
     }
 
-    const summaryH = payload.hasAdjustment ? 128 : 104;
+    const showBalanceDue = payload.balanceDue > 0;
+    let summaryH = 88;
+    if (payload.hasAdjustment) summaryH += 36;
+    if (showBalanceDue) summaryH += 28;
     const summaryY = itemsY - 12 - summaryH;
-    drawPaymentSummary(margin, summaryY, contentW, summaryH, 'Resumen de pago');
-
-    if (!isPaid) {
-      const bannerH = 46;
-      const bannerY = summaryY - 12 - bannerH;
-      gradientRect(margin, bannerY, contentW, bannerH, 16);
-      text(payload.balanceLabel, margin + 20, bannerY + 28, 8, '#E0E7FF', 'bold');
-      text(
-        money(currencyCode, payload.balanceDue),
-        margin + 20,
-        bannerY + 10,
-        14,
-        COLORS.white,
-        'bold',
-      );
-      text(payload.dueText, margin + contentW - 20, bannerY + 16, 7.5, '#E0E7FF', 'normal', 'right');
-    }
+    drawPaymentSummary(margin, summaryY, contentW, summaryH);
 
     drawFooter();
   };
