@@ -52,6 +52,32 @@ export const getTicketPaymentStatusSortRank = (
   return 2;
 };
 
+/** Ratio pagado/total clamped to [0, 1] for progress UI. */
+export const getTicketPaymentProgressRatio = (
+  total: number | null | undefined,
+  paid: number | null | undefined,
+): number => {
+  const totalAmount = total ?? 0;
+  if (totalAmount <= 0) return 0;
+  const paidAmount = Math.max(0, paid ?? 0);
+  return Math.min(1, Math.max(0, paidAmount / totalAmount));
+};
+
+/**
+ * Compact money for dense list cells: whole pesos when the amount has no cents,
+ * otherwise two decimals (es-MX grouping).
+ */
+export const formatTicketListAmount = (
+  amount: number | null | undefined,
+): string => {
+  if (amount == null) return 'Sin total';
+  const hasCents = Math.abs(amount - Math.round(amount)) >= AMOUNT_TOLERANCE;
+  return `$${amount.toLocaleString('es-MX', {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: hasCents ? 2 : 0,
+  })}`;
+};
+
 /** Etiquetas cortas para UI */
 export const TICKET_PAYMENT_STATUS_LABEL: Record<TicketPaymentStatus, string> =
   {
@@ -59,3 +85,13 @@ export const TICKET_PAYMENT_STATUS_LABEL: Record<TicketPaymentStatus, string> =
     partial: 'Pago parcial',
     pending: 'Pendiente',
   };
+
+/** Shared accent colors for payment status indicators (dot / bar). */
+export const TICKET_PAYMENT_STATUS_ACCENT_CLASS: Record<
+  TicketPaymentStatus,
+  string
+> = {
+  paid: 'bg-emerald-500 dark:bg-emerald-400',
+  partial: 'bg-amber-500 dark:bg-amber-400',
+  pending: 'bg-slate-500 dark:bg-slate-400',
+};

@@ -1,8 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import {
-  getTicketPaymentProgressRatio,
-  TicketPaymentProgressBar,
-} from '@/components/tickets/ticket-payment-progress-bar';
+import { TicketPaymentProgressBar } from '@/components/tickets/ticket-payment-progress-bar';
+import { getTicketPaymentProgressRatio } from '@/lib/ticket-payment-status';
 
 describe('getTicketPaymentProgressRatio', () => {
   it('returns 0 when total is zero or missing', () => {
@@ -18,7 +16,7 @@ describe('getTicketPaymentProgressRatio', () => {
 });
 
 describe('TicketPaymentProgressBar', () => {
-  it('renders an accessible bar for unpaid tickets', () => {
+  it('renders an accessible bar without visible percent text', () => {
     render(<TicketPaymentProgressBar total={200} paid={50} />);
 
     const bar = screen.getByRole('progressbar', {
@@ -29,10 +27,12 @@ describe('TicketPaymentProgressBar', () => {
     expect(screen.queryByText('25%')).not.toBeInTheDocument();
   });
 
-  it('renders nothing for saldado tickets', () => {
-    const { container } = render(
-      <TicketPaymentProgressBar total={100} paid={100} />,
-    );
-    expect(container).toBeEmptyDOMElement();
+  it('renders a full bar for saldado tickets', () => {
+    render(<TicketPaymentProgressBar total={100} paid={100} />);
+
+    const bar = screen.getByRole('progressbar', {
+      name: /progreso de pago 100 por ciento/i,
+    });
+    expect(bar).toHaveAttribute('aria-valuenow', '100');
   });
 });
