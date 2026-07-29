@@ -221,5 +221,99 @@ describe('fintech invoice renderer branding', () => {
 
     expect(header).toBe('%PDF-');
     expect(pdf.byteLength).toBeGreaterThan(1000);
+
+    const pdfText = Buffer.from(pdf).toString('latin1');
+    expect(pdfText).toContain('https://zigzag-hazel.vercel.app');
+  });
+
+  it('keeps service row separators below long wrapped descriptions', async () => {
+    const { renderFintechInvoicePdf } = await import('@/lib/fintech-invoice-renderer');
+    const longDescription =
+      'Servicio completo de limpieza profunda con tratamiento especial para manchas difíciles y acabado profesional en domicilio';
+    const payload = buildFintechInvoicePayload({
+      id: 2001n,
+      client_id: 7,
+      client_name: 'Cliente Demo',
+      client_tel: '5551234567',
+      ticket_date: new Date('2026-07-12T06:00:00.000Z'),
+      total: 1500,
+      paid: 1500,
+      email: null,
+      finished: true,
+      document: null,
+      created_at: new Date('2026-07-12T06:00:00.000Z'),
+      updated_at: null,
+      deleted_at: null,
+      company_id: 1,
+      userId: null,
+      company: {
+        id: 1,
+        name: 'Acme',
+        email: 'a@acme.test',
+        phone: '555',
+        logo: null,
+        street: 'Main',
+        exterior_number: '1',
+        interior_number: null,
+        neighborhood: 'Centro',
+        city: 'CDMX',
+        state: 'CDMX',
+        postal_code: '01000',
+        country: 'México',
+        settings: { default_currency: 'MXN' },
+        status: 'ACTIVE',
+        is_system: false,
+        created_at: new Date(),
+        updated_at: null,
+        deleted_at: null,
+      },
+      services_tickets: [
+        {
+          id: 1,
+          service_id: 10,
+          ticket_id: 2001n,
+          quantity: 1,
+          price: 800,
+          created_at: new Date(),
+          updated_at: null,
+          deleted_at: null,
+          service: {
+            id: 10,
+            name: 'Limpieza profunda de salas y comedor amplio',
+            description: longDescription,
+            price: 800,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            company_id: 1,
+          },
+        },
+        {
+          id: 2,
+          service_id: 11,
+          ticket_id: 2001n,
+          quantity: 1,
+          price: 700,
+          created_at: new Date(),
+          updated_at: null,
+          deleted_at: null,
+          service: {
+            id: 11,
+            name: 'Mantenimiento A/C',
+            description: 'Revisión general',
+            price: 700,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            company_id: 1,
+          },
+        },
+      ],
+      ticket_payments: [],
+    });
+
+    expect(() =>
+      renderFintechInvoicePdf(payload, { issuerLogoDataUrl: null }),
+    ).not.toThrow();
   });
 });

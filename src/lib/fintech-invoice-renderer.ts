@@ -13,7 +13,8 @@ const W = 595.2756;
 const H = 841.8898;
 const MAIN_PAGE_MAX_ROWS = 6;
 const CONTINUATION_PAGE_MAX_ROWS = 12;
-const ROW_STEP = 42;
+const ROW_STEP = 52;
+const ZIGZAG_SITE_URL = 'https://zigzag-hazel.vercel.app';
 const TABLE_HEADER_H = 34;
 const TYPOGRAPHY_SCALE = 0.82;
 const ICON_SCALE = 0.82;
@@ -177,7 +178,7 @@ export function renderFintechInvoicePdf(
     fill = COLORS.white,
     stroke = COLORS.lineBlue,
   ) => {
-    rr(x, y - 3, width, height, radius, '#CBD5E1', null);
+    // Flat card — no drop shadow so separators and stacked cards stay crisp.
     rr(x, y, width, height, radius, fill, stroke, 0.75);
   };
 
@@ -437,10 +438,18 @@ export function renderFintechInvoicePdf(
     });
 
     text('Powered by', W / 2 - 15, 28, 6.5, COLORS.muted2, 'normal', 'right');
-    text('zigzag', W / 2 - 11, 28, 6.5, COLORS.ink2, 'bold');
+    doc.setTextColor(COLORS.ink2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5 * TYPOGRAPHY_SCALE);
+    const zigzagX = W / 2 - 11;
+    const zigzagBaseline = textY(28);
+    doc.textWithLink('zigzag', zigzagX, zigzagBaseline, {
+      url: ZIGZAG_SITE_URL,
+    });
     setStroke(COLORS.ink2);
     doc.setLineWidth(0.4);
-    doc.line(W / 2 - 11, textY(27), W / 2 + 10, textY(27));
+    const zigzagWidth = doc.getTextWidth('zigzag');
+    doc.line(zigzagX, textY(27), zigzagX + zigzagWidth, textY(27));
   };
 
   const drawServiceRows = (
@@ -462,14 +471,6 @@ export function renderFintechInvoicePdf(
       const rowCenter = rowTop - ROW_STEP / 2 + 2;
       const isLastRow = index === visibleItems.length - 1;
 
-      // Keep clear padding between row content and the separator.
-      if (!isLastRow) {
-        const dividerY = rowTop - ROW_STEP + 10;
-        setStroke('#EEF2F7');
-        doc.setLineWidth(0.8);
-        doc.line(margin + 18, textY(dividerY), margin + contentW - 18, textY(dividerY));
-      }
-
       const nameLineCount = countWrappedLines(
         item.name,
         layout.serviceW,
@@ -490,7 +491,15 @@ export function renderFintechInvoicePdf(
         2,
       );
 
+      let contentBottom = nameBaseline - (nameLineCount - 1) * nameLineHeight * TYPOGRAPHY_SCALE;
       if (item.description) {
+        const descLineCount = countWrappedLines(
+          item.description,
+          layout.serviceW,
+          descSize,
+          'normal',
+          2,
+        );
         const descBaseline =
           nameBaseline - nameLineCount * nameLineHeight * TYPOGRAPHY_SCALE - 4;
         wrapText(
@@ -504,6 +513,17 @@ export function renderFintechInvoicePdf(
           descLineHeight,
           2,
         );
+        contentBottom =
+          descBaseline - (descLineCount - 1) * descLineHeight * TYPOGRAPHY_SCALE;
+      }
+
+      // Draw the separator below the row content so long descriptions never sit on top of it.
+      if (!isLastRow) {
+        const nextRowTop = rowTop - ROW_STEP;
+        const dividerY = Math.min(contentBottom - 5, nextRowTop + 3);
+        setStroke('#EEF2F7');
+        doc.setLineWidth(0.8);
+        doc.line(margin + 18, textY(dividerY), margin + contentW - 18, textY(dividerY));
       }
 
       text(String(item.quantity), layout.qtyX, rowCenter - 2, 9, COLORS.ink, 'normal', 'center');
@@ -701,7 +721,8 @@ export function renderFintechInvoicePdf(
       1,
     );
 
-    const metaY = headerY + 14;
+    // Sit below the logo plate so the receipt number does not crowd the badge.
+    const metaY = headerY + 8;
     text(
       `Recibo No. ${payload.ticketNumber}`,
       margin + 16,
@@ -753,12 +774,12 @@ export function renderFintechInvoicePdf(
       });
     }
 
-    const clientPadTop = 18;
-    const clientPadBottom = 14;
+    const clientPadTop = 12;
+    const clientPadBottom = 10;
     const clientLabelH = 12;
-    const clientLineGap = 8;
-    const clientExtraLineH = 16;
-    const clientNameH = 18;
+    const clientLineGap = 6;
+    const clientExtraLineH = 14;
+    const clientNameH = 16;
     const clientContentH =
       clientLabelH +
       clientNameH +
@@ -766,9 +787,9 @@ export function renderFintechInvoicePdf(
     const clientCardH = clientPadTop + clientPadBottom + clientContentH;
     const clientCardY = bodyTop - 8 - clientCardH;
     shadowCard(margin, clientCardY, contentW, clientCardH, 16, COLORS.surfaceBlue);
-    label('Cliente', margin + 16, clientCardY + clientCardH - 16);
+    label('Cliente', margin + 16, clientCardY + clientCardH - 12);
 
-    let lineY = clientCardY + clientCardH - clientPadTop - clientLabelH - 4;
+    let lineY = clientCardY + clientCardH - clientPadTop - clientLabelH - 2;
     clientLines.forEach((line, index) => {
       if (index === 0) {
         text(line.value, margin + 16, lineY, line.size, line.color, line.font);
