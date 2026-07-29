@@ -42,11 +42,14 @@ describe('TicketsMobileCard', () => {
     expect(screen.getByText('#42')).toBeInTheDocument();
     expect(screen.getByText('5551234567')).toBeInTheDocument();
     expect(screen.getByText('Pago parcial')).toBeInTheDocument();
-    expect(screen.getByText('Pagado')).toBeInTheDocument();
-    expect(screen.getByText('Por pagar')).toBeInTheDocument();
     expect(
-      screen.getByRole('img', { name: /progreso de pago 40 por ciento/i }),
+      screen.getByRole('progressbar', {
+        name: /progreso de pago 40 por ciento/i,
+      }),
     ).toBeInTheDocument();
+    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getAllByText('$250.00').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('40%')).toBeInTheDocument();
 
     await screen.getByRole('button', { name: /editar ticket 42/i }).click();
     expect(mockPush).toHaveBeenCalled();

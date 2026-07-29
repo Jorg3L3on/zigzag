@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import {
   getTicketPaymentProgressRatio,
-  TicketPaymentProgressRing,
-} from '@/components/tickets/ticket-payment-progress-ring';
+  TicketPaymentProgressBar,
+} from '@/components/tickets/ticket-payment-progress-bar';
 
 describe('getTicketPaymentProgressRatio', () => {
   it('returns 0 when total is zero or missing', () => {
@@ -17,22 +17,21 @@ describe('getTicketPaymentProgressRatio', () => {
   });
 });
 
-describe('TicketPaymentProgressRing', () => {
-  it('renders an accessible ring without numeric percent text for unpaid tickets', () => {
-    render(<TicketPaymentProgressRing total={200} paid={50} />);
+describe('TicketPaymentProgressBar', () => {
+  it('renders an accessible bar for unpaid tickets', () => {
+    render(<TicketPaymentProgressBar total={200} paid={50} />);
 
-    const ring = screen.getByRole('img', {
+    const bar = screen.getByRole('progressbar', {
       name: /progreso de pago 25 por ciento/i,
     });
-    expect(ring).toBeInTheDocument();
-    expect(ring.textContent).toBe('');
-    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(bar).toBeInTheDocument();
+    expect(bar).toHaveAttribute('aria-valuenow', '25');
     expect(screen.queryByText('25%')).not.toBeInTheDocument();
   });
 
   it('renders nothing for saldado tickets', () => {
     const { container } = render(
-      <TicketPaymentProgressRing total={100} paid={100} />,
+      <TicketPaymentProgressBar total={100} paid={100} />,
     );
     expect(container).toBeEmptyDOMElement();
   });
