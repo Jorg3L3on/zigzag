@@ -1,11 +1,11 @@
 'use client';
 
-import { FormattedCurrency } from '@/components/formatted-currency';
-import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
-import { TicketPaymentProgressRing } from '@/components/tickets/ticket-payment-progress-ring';
+import { TicketPaymentProgressBar } from '@/components/tickets/ticket-payment-progress-bar';
 import {
-  getTicketBalanceDue,
+  formatTicketListAmount,
   getTicketPaymentStatus,
+  TICKET_PAYMENT_STATUS_ACCENT_CLASS,
+  TICKET_PAYMENT_STATUS_LABEL,
 } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
 
@@ -21,33 +21,31 @@ export const TicketListPaymentSummary = ({
   className,
 }: TicketListPaymentSummaryProps) => {
   const status = getTicketPaymentStatus(total, paid);
-  const showBreakdown = status !== 'paid';
-  const balanceDue = getTicketBalanceDue(total, paid);
 
   return (
-    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <TicketPaymentBadge total={total} paid={paid} />
-        {showBreakdown ? (
-          <TicketPaymentProgressRing total={total} paid={paid} />
-        ) : null}
+    <div
+      className={cn('flex min-w-[8.5rem] max-w-[12rem] flex-col gap-1.5', className)}
+      data-testid="ticket-payment-summary"
+      data-payment-status={status}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          className={cn(
+            'size-2 shrink-0 rounded-full',
+            TICKET_PAYMENT_STATUS_ACCENT_CLASS[status],
+          )}
+          aria-hidden
+        />
+        <span className="truncate text-sm font-medium leading-none text-foreground">
+          {TICKET_PAYMENT_STATUS_LABEL[status]}
+        </span>
       </div>
-      {showBreakdown ? (
-        <dl className="grid gap-0.5 text-xs leading-snug text-muted-foreground">
-          <div className="flex min-w-0 items-baseline justify-between gap-3">
-            <dt>Pagado</dt>
-            <dd className="tabular-nums font-medium text-foreground">
-              <FormattedCurrency amount={paid ?? 0} />
-            </dd>
-          </div>
-          <div className="flex min-w-0 items-baseline justify-between gap-3">
-            <dt>Por pagar</dt>
-            <dd className="tabular-nums font-medium text-foreground">
-              <FormattedCurrency amount={balanceDue} />
-            </dd>
-          </div>
-        </dl>
-      ) : null}
+      <TicketPaymentProgressBar total={total} paid={paid} />
+      <p className="truncate text-xs leading-snug text-muted-foreground tabular-nums">
+        <span>{formatTicketListAmount(paid ?? 0)}</span>
+        <span className="font-normal text-muted-foreground/80"> de </span>
+        <span>{formatTicketListAmount(total)}</span>
+      </p>
     </div>
   );
 };

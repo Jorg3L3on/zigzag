@@ -122,6 +122,8 @@ export const createTicketsColumns = ({
     id: 'paymentRank',
     accessorFn: (row) =>
       getTicketPaymentStatusSortRank(row.total, row.paid),
+    size: 180,
+    minSize: 150,
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Estado" />
     ),
@@ -135,11 +137,18 @@ export const createTicketsColumns = ({
   {
     id: 'total',
     accessorFn: (row) => row.total ?? NaN,
+    size: 110,
     header: ({ column }) => (
-      <TicketSortableHeader column={column} label="Total" />
+      <TicketSortableHeader
+        column={column}
+        label="Total"
+        className="justify-end"
+      />
     ),
     cell: ({ row }) => (
-      <FormattedCurrency amount={row.original.total} />
+      <div className="text-right font-medium tabular-nums">
+        <FormattedCurrency amount={row.original.total} />
+      </div>
     ),
     sortingFn: (rowA, rowB) => {
       const a = rowA.original.total ?? -Infinity;
@@ -150,6 +159,7 @@ export const createTicketsColumns = ({
   {
     id: 'actions',
     enableSorting: false,
+    size: 56,
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div
