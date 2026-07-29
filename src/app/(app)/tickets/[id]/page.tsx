@@ -21,7 +21,6 @@ import { TicketDetailQuickActions } from '@/components/tickets/detail/ticket-det
 import { TicketDetailCustomerSection } from '@/components/tickets/detail/ticket-detail-customer-section';
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
-import { TicketDetailInvoiceSection } from '@/components/tickets/detail/ticket-detail-invoice-section';
 import { TicketDetailMetaSummary } from '@/components/tickets/detail/ticket-detail-meta-summary';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
 
@@ -123,14 +122,6 @@ export default async function TicketDetailsPage({
                 paid={ticket.paid}
                 finished={ticket.finished}
                 payments={payments}
-              />
-
-              <TicketDetailInvoiceSection
-                ticketId={ticket.id}
-                finished={ticket.finished}
-                total={ticket.total}
-                paid={ticket.paid}
-                downloadFileName={downloadFileName}
               />
 
               <div className="lg:hidden">
