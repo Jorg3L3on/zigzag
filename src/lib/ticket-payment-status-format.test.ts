@@ -1,6 +1,7 @@
 import {
   formatTicketListAmount,
   getTicketPaymentProgressRatio,
+  isTicketFullyPaid,
 } from '@/lib/ticket-payment-status';
 
 describe('formatTicketListAmount', () => {
@@ -21,5 +22,19 @@ describe('formatTicketListAmount', () => {
 describe('getTicketPaymentProgressRatio', () => {
   it('is exported from payment status helpers', () => {
     expect(getTicketPaymentProgressRatio(200, 50)).toBeCloseTo(0.25);
+  });
+});
+
+describe('isTicketFullyPaid', () => {
+  it('is true when paid covers total', () => {
+    expect(isTicketFullyPaid(100, 100)).toBe(true);
+    expect(isTicketFullyPaid(100, 100.005)).toBe(true);
+  });
+
+  it('is false for pending, partial, or zero-total tickets', () => {
+    expect(isTicketFullyPaid(100, 0)).toBe(false);
+    expect(isTicketFullyPaid(100, 40)).toBe(false);
+    expect(isTicketFullyPaid(0, 0)).toBe(false);
+    expect(isTicketFullyPaid(null, null)).toBe(false);
   });
 });

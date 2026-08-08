@@ -35,8 +35,12 @@ import {
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import { getCompanies } from '@/actions/companies';
-import type { Company as CompanyRow } from '@/db/schema';
+import { getCompanies, getOwnCompany } from '@/actions/companies';
+import {
+  companyBrandFromSession,
+  resolveSidebarCompanyLoadMode,
+  type SidebarCompanyBrand,
+} from '@/lib/sidebar-company-brand';
 import { PERMISSIONS } from '@/lib/permissions';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -151,37 +155,104 @@ const getLongestMatchingHref = (pathname: string, hrefs: string[]): string | nul
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { can } = usePermissions();
-  const [companies, setCompanies] = React.useState<CompanyRow[]>([]);
+  const { can, loading: permissionsLoading, isSystem } = usePermissions();
+  const [companies, setCompanies] = React.useState<SidebarCompanyBrand[]>([]);
+
+  // Seed brand from the JWT session so tenant users never sit on "Ninguna empresa"
+  // while permissions resolve (tenant roles intentionally lack companies.read).
+  React.useEffect(() => {
+    const brand = companyBrandFromSession(session?.user);
+    if (!brand) {
+      return;
+    }
+    setCompanies((prev) => (prev.length > 0 ? prev : [brand]));
+  }, [
+    session?.user?.company_id,
+    session?.user?.company_name,
+    session?.user?.company_is_system,
+  ]);
 
   React.useEffect(() => {
+    const mode = resolveSidebarCompanyLoadMode({
+      permissionsLoading,
+      isSystem,
+      canReadCompanies: can(PERMISSIONS.companies.read),
+      canManageCompany: can(PERMISSIONS.company.manage),
+    });
+
+    if (mode === 'wait' || mode === 'session') {
+      return;
+    }
+
+    let cancelled = false;
+
     const fetchCompanies = async () => {
       try {
-        const result = await getCompanies();
-        if (result.success) {
-          setCompanies(result.data ?? []);
+        if (mode === 'list') {
+          const result = await getCompanies();
+          if (cancelled) {
+            return;
+          }
+          if (result.success) {
+            setCompanies(
+              (result.data ?? []).map((row) => ({
+                id: row.id,
+                name: row.name,
+                logo: row.logo,
+                is_system: row.is_system,
+              })),
+            );
+            return;
+          }
+
+          const errorType = classifyClientError(null, undefined, result.errorType);
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              result.error || 'No se pudieron cargar las empresas',
+            ),
+          );
           return;
         }
 
-        setCompanies([]);
-        const errorType = classifyClientError(null, undefined, result.errorType);
-        toast.error(
-          getErrorMessageByType(
-            errorType,
-            result.error || 'No se pudieron cargar las empresas',
-          ),
-        );
+        const result = await getOwnCompany();
+        if (cancelled) {
+          return;
+        }
+        if (result.success && result.data) {
+          setCompanies([
+            {
+              id: result.data.id,
+              name: result.data.name,
+              logo: result.data.logo,
+              is_system: result.data.is_system,
+            },
+          ]);
+        }
+        // Keep session seed on failure — do not toast CO001 for tenant self-load.
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
         console.error('Error fetching companies:', error);
-        const errorType = classifyClientError(error);
-        toast.error(
-          getErrorMessageByType(errorType, 'No se pudieron cargar las empresas'),
-        );
+        if (mode === 'list') {
+          const errorType = classifyClientError(error);
+          toast.error(
+            getErrorMessageByType(
+              errorType,
+              'No se pudieron cargar las empresas',
+            ),
+          );
+        }
       }
     };
 
-    fetchCompanies();
-  }, []);
+    void fetchCompanies();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [permissionsLoading, isSystem, can]);
 
   const canAccess = React.useCallback(
     (requiredPermission?: string) => can(requiredPermission),

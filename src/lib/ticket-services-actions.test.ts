@@ -221,6 +221,8 @@ describe('ticket-services money validation (TCI-02)', () => {
     mockDb.query.ticket.findFirst.mockResolvedValue({
       id: 42n,
       company_id: 10,
+      total: 100,
+      paid: 0,
       deleted_at: null,
     });
     mockDb.query.service.findFirst.mockResolvedValue({
@@ -268,5 +270,34 @@ describe('ticket-services money validation (TCI-02)', () => {
       expect.objectContaining({ serviceLine: 'created' }),
     );
     expect(invalidateCompanyCache).toHaveBeenCalledWith(10, 'dashboard');
+  });
+
+  it('rejects service mutations on saldado tickets', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({
+      id: 42n,
+      company_id: 10,
+      total: 100,
+      paid: 100,
+      deleted_at: null,
+    });
+
+    const createResult = await createServiceTicket('42', {
+      service_id: 5,
+      quantity: 1,
+      price: 10,
+    });
+    const updateResult = await updateServiceTicket('42', 1, {
+      quantity: 2,
+      price: 10,
+    });
+    const deleteResult = await deleteServiceTicket('42', 1);
+
+    expect(createResult.success).toBe(false);
+    expect(createResult.errorCode).toBe('TC010');
+    expect(updateResult.success).toBe(false);
+    expect(updateResult.errorCode).toBe('TC010');
+    expect(deleteResult.success).toBe(false);
+    expect(deleteResult.errorCode).toBe('TC010');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

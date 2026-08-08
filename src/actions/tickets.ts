@@ -36,6 +36,7 @@ import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
   getTicketPaymentStatus,
+  isTicketFullyPaid,
   TICKET_PAYMENT_STATUS_LABEL,
 } from '@/lib/ticket-payment-status';
 import { format as formatDate } from 'date-fns';
@@ -176,6 +177,38 @@ class TicketAlreadyFinishedError extends Error {
     this.name = 'TicketAlreadyFinishedError';
   }
 }
+
+class TicketAlreadyPaidError extends Error {
+  constructor() {
+    super('Ticket already fully paid');
+    this.name = 'TicketAlreadyPaidError';
+  }
+}
+
+const assertTicketNotFullyPaid = async (
+  ticketId: bigint,
+  companyId: number,
+): Promise<void> => {
+  const ticketRow = await db.query.ticket.findFirst({
+    where: and(
+      eq(ticket.id, ticketId),
+      eq(ticket.company_id, companyId),
+      isNull(ticket.deleted_at),
+    ),
+    columns: {
+      total: true,
+      paid: true,
+    },
+  });
+
+  if (!ticketRow) {
+    throw new AuthorizationError('Ticket not found');
+  }
+
+  if (isTicketFullyPaid(ticketRow.total, ticketRow.paid)) {
+    throw new TicketAlreadyPaidError();
+  }
+};
 
 const assertServicesBelongToCompany = async (
   serviceIds: number[],
@@ -495,6 +528,7 @@ export async function updateTicket(
     );
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
+    await assertTicketNotFullyPaid(ticketId, effectiveCompanyId);
 
     if (data.client_id != null) {
       await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
@@ -628,6 +662,9 @@ export async function updateTicket(
 
     return { success: true, data: full ?? updated };
   } catch (e) {
+    if (e instanceof TicketAlreadyPaidError) {
+      return buildActionError('TC010', undefined, 'validation');
+    }
     return handleCodedServerActionError('tickets.update', 'TC004', e);
   }
 }
