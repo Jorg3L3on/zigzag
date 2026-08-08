@@ -400,23 +400,23 @@
   }
 }
 
-/* Login ticket surface — night ink / day paper (tasks/prototypes/zigzag-login-redesign.html) */
+/* Login ticket surface — aligned to marketing mist/ink/signal */
 .login-surface {
-  --login-page-bg: #ece5d3;
-  --login-ticket-a: #fbf8f0;
-  --login-ticket-b: #f4eede;
-  --login-ink: #221f19;
-  --login-ink-muted: #6c6656;
-  --login-ink-faint: #a89f89;
-  --login-line: rgba(34, 27, 10, 0.13);
-  --login-line-strong: rgba(34, 27, 10, 0.22);
-  --login-accent-blue: #3454d1;
-  --login-accent-violet: #8b3fd1;
-  --login-stamp: #dd8f22;
-  --login-stamp-ink: #2c1c02;
-  --login-field-bg: rgba(0, 0, 0, 0.02);
-  --login-shadow: rgba(60, 45, 20, 0.28);
-  --login-grain-op: 0.25;
+  --login-page-bg: #e6eef7;
+  --login-ticket-a: #f4f8fc;
+  --login-ticket-b: #eef4fa;
+  --login-ink: #07182a;
+  --login-ink-muted: #486074;
+  --login-ink-faint: #7a8fa3;
+  --login-line: rgba(7, 24, 42, 0.1);
+  --login-line-strong: rgba(7, 24, 42, 0.18);
+  --login-accent-blue: #1a6aef;
+  --login-accent-teal: #0f766e;
+  --login-stamp: #1a6aef;
+  --login-stamp-ink: #ffffff;
+  --login-field-bg: rgba(7, 24, 42, 0.03);
+  --login-shadow: rgba(7, 24, 42, 0.22);
+  --login-grain-op: 0.22;
   color: var(--login-ink);
   background: var(--login-page-bg);
   font-family: var(--font-login-sans), ui-sans-serif, system-ui, sans-serif;
@@ -424,21 +424,21 @@
 }
 
 .dark .login-surface {
-  --login-page-bg: #0b0d14;
-  --login-ticket-a: #12141d;
-  --login-ticket-b: #171a28;
-  --login-ink: #f1f0ec;
-  --login-ink-muted: #9298ab;
-  --login-ink-faint: #565c72;
-  --login-line: rgba(255, 255, 255, 0.09);
-  --login-line-strong: rgba(255, 255, 255, 0.16);
-  --login-accent-blue: #5b7cfa;
-  --login-accent-violet: #b565f3;
-  --login-stamp: #f2b441;
-  --login-stamp-ink: #2c1c02;
-  --login-field-bg: rgba(255, 255, 255, 0.03);
-  --login-shadow: rgba(0, 0, 0, 0.6);
-  --login-grain-op: 0.4;
+  --login-page-bg: #07182a;
+  --login-ticket-a: #0d2238;
+  --login-ticket-b: #102a44;
+  --login-ink: #f4f8fc;
+  --login-ink-muted: #9bb0c4;
+  --login-ink-faint: #6b8299;
+  --login-line: rgba(244, 248, 252, 0.1);
+  --login-line-strong: rgba(244, 248, 252, 0.18);
+  --login-accent-blue: #3b82f6;
+  --login-accent-teal: #14b8a6;
+  --login-stamp: #1a6aef;
+  --login-stamp-ink: #ffffff;
+  --login-field-bg: rgba(255, 255, 255, 0.04);
+  --login-shadow: rgba(0, 0, 0, 0.55);
+  --login-grain-op: 0.35;
 }
 
 .login-ambient-blob {
@@ -539,7 +539,7 @@
   background: linear-gradient(
     90deg,
     var(--login-accent-blue),
-    var(--login-accent-violet)
+    var(--login-accent-teal)
   );
   transform: scaleX(0);
   transform-origin: left;
@@ -559,14 +559,14 @@
 .login-stamp-btn {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--login-stamp), #d99420);
+  background: linear-gradient(135deg, var(--login-stamp), #134fba);
   color: var(--login-stamp-ink);
-  box-shadow: 0 8px 20px rgba(242, 180, 65, 0.25);
+  box-shadow: 0 8px 20px rgba(26, 106, 239, 0.28);
 }
 
 .login-stamp-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 26px rgba(242, 180, 65, 0.35);
+  box-shadow: 0 10px 26px rgba(26, 106, 239, 0.38);
 }
 
 .login-stamp-btn:active:not(:disabled) {
@@ -580,7 +580,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, var(--login-stamp), #d99420);
+  background: linear-gradient(135deg, var(--login-stamp), #134fba);
   opacity: 0;
   transform: scale(0.7) rotate(-6deg);
   transition:
@@ -641,7 +641,7 @@
   background: linear-gradient(
     90deg,
     var(--login-accent-blue),
-    var(--login-accent-violet)
+    var(--login-accent-teal)
   );
   -webkit-background-clip: text;
   background-clip: text;
@@ -652,6 +652,6 @@
   background: linear-gradient(
     135deg,
     var(--login-accent-blue),
-    var(--login-accent-violet)
+    var(--login-accent-teal)
   );
 }

@@ -99,7 +99,7 @@ export function LoginForm({
                   priority
                 />
                 <span className="font-[family-name:var(--font-login-display)] text-[17px] font-bold tracking-[-0.01em] text-[color:var(--login-ink)]">
-                  zigzag
+                  ZigZag
                 </span>
               </div>
               <span

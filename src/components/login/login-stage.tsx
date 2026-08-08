@@ -45,7 +45,7 @@ export const LoginStage = ({ children, className }: LoginStageProps) => {
           style={{
             width: 380,
             height: 380,
-            background: 'var(--login-accent-violet)',
+            background: 'var(--login-accent-teal)',
             bottom: -160,
             right: -100,
           }}
@@ -64,7 +64,7 @@ export const LoginStage = ({ children, className }: LoginStageProps) => {
         >
           Powered by{' '}
           <strong className="font-semibold text-[color:var(--login-ink-muted)]">
-            zigzag
+            ZigZag
           </strong>
         </p>
       </div>
