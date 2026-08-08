@@ -59,8 +59,32 @@ describe('TicketDetailQuickActions', () => {
 
     expect(screen.queryByRole('link', { name: /editar ticket/i })).not.toBeInTheDocument();
     expect(
+      screen.getByRole('link', { name: /administrar servicios/i }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole('link', { name: /registrar pago/i }),
     ).toHaveAttribute('href', '#cobranza');
+    expect(screen.getByText('Generar recibo')).toBeInTheDocument();
+  });
+
+  it('hides edit and services for saldado tickets and keeps invoice', () => {
+    render(
+      <TicketDetailQuickActions
+        ticketId={12}
+        finished
+        total={100}
+        paid={100}
+        downloadFileName="ticket.pdf"
+      />,
+    );
+
+    expect(screen.queryByRole('link', { name: /editar ticket/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /administrar servicios/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /registrar pago/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Generar recibo')).toBeInTheDocument();
   });
 

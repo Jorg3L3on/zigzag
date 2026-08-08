@@ -41,6 +41,12 @@ export const getTicketPaymentStatus = (
   return 'pending';
 };
 
+/** True when cobro is fully covered (Saldado). Content edits must be blocked. */
+export const isTicketFullyPaid = (
+  total: number | null | undefined,
+  paid: number | null | undefined,
+): boolean => getTicketPaymentStatus(total, paid) === 'paid';
+
 /** Para ordenar columnas: menor = más “pagado”. */
 export const getTicketPaymentStatusSortRank = (
   total: number | null | undefined,

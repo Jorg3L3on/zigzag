@@ -400,6 +400,13 @@ export const ERROR_CATALOG = {
     message: 'Revisa los campos marcados e intenta de nuevo.',
     type: 'validation',
   },
+  TC010: {
+    code: 'TC010',
+    module: 'tickets',
+    title: 'Ticket saldado',
+    message: 'Este ticket ya está saldado y no se puede editar.',
+    type: 'validation',
+  },
   TS001: {
     code: 'TS001',
     module: 'ticket-services',

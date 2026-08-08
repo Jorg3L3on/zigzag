@@ -24,6 +24,10 @@ export type DashboardUrgentSchedulesState = {
   reload: () => void;
 };
 
+type LoadSignal = {
+  cancelled: boolean;
+};
+
 export const useDashboardUrgentSchedules = (): DashboardUrgentSchedulesState => {
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
@@ -40,66 +44,83 @@ export const useDashboardUrgentSchedules = (): DashboardUrgentSchedulesState => 
   const [atrasados, setAtrasados] = React.useState<ClientServiceScheduleListItem[]>(
     [],
   );
-  const mountedRef = React.useRef(true);
+
+  const loadSchedules = React.useCallback(
+    async (signal?: LoadSignal) => {
+      if (permissionsLoading) {
+        return;
+      }
+
+      if (!canRead) {
+        if (signal?.cancelled) {
+          return;
+        }
+        setLoading(false);
+        setError(null);
+        setProximos([]);
+        setAtrasados([]);
+        return;
+      }
+
+      if (missingCompany) {
+        if (signal?.cancelled) {
+          return;
+        }
+        setLoading(false);
+        setError(null);
+        setProximos([]);
+        setAtrasados([]);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      const companyId = selectedCompany?.id ?? null;
+
+      try {
+        const [proximosRes, atrasadosRes] = await Promise.all([
+          listClientServiceSchedules({ companyId, filter: 'proximos' }),
+          listClientServiceSchedules({ companyId, filter: 'atrasados' }),
+        ]);
+
+        if (signal?.cancelled) {
+          return;
+        }
+
+        if (!proximosRes.success || !atrasadosRes.success) {
+          setError(
+            getErrorDisplayMessage(
+              proximosRes.success ? atrasadosRes : proximosRes,
+              'No se pudieron cargar los recordatorios',
+            ),
+          );
+          return;
+        }
+
+        setProximos(proximosRes.data ?? []);
+        setAtrasados(atrasadosRes.data ?? []);
+      } catch {
+        if (signal?.cancelled) {
+          return;
+        }
+        setError('No se pudieron cargar los recordatorios');
+      } finally {
+        if (!signal?.cancelled) {
+          setLoading(false);
+        }
+      }
+    },
+    [canRead, missingCompany, permissionsLoading, selectedCompany?.id],
+  );
 
   React.useEffect(() => {
+    // Per-effect cancel token (not a persistent ref): React Strict Mode remounts
+    // must not permanently ignore successful fetches and leave the widget spinning.
+    const signal: LoadSignal = { cancelled: false };
+    void loadSchedules(signal);
     return () => {
-      mountedRef.current = false;
+      signal.cancelled = true;
     };
-  }, []);
-
-  const loadSchedules = React.useCallback(async () => {
-    if (permissionsLoading) {
-      return;
-    }
-
-    if (!canRead) {
-      setLoading(false);
-      setError(null);
-      setProximos([]);
-      setAtrasados([]);
-      return;
-    }
-
-    if (missingCompany) {
-      setLoading(false);
-      setError(null);
-      setProximos([]);
-      setAtrasados([]);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    const companyId = selectedCompany?.id ?? null;
-
-    const [proximosRes, atrasadosRes] = await Promise.all([
-      listClientServiceSchedules({ companyId, filter: 'proximos' }),
-      listClientServiceSchedules({ companyId, filter: 'atrasados' }),
-    ]);
-
-    if (!mountedRef.current) {
-      return;
-    }
-
-    setLoading(false);
-
-    if (!proximosRes.success || !atrasadosRes.success) {
-      setError(
-        getErrorDisplayMessage(
-          proximosRes.success ? atrasadosRes : proximosRes,
-          'No se pudieron cargar los recordatorios',
-        ),
-      );
-      return;
-    }
-
-    setProximos(proximosRes.data ?? []);
-    setAtrasados(atrasadosRes.data ?? []);
-  }, [canRead, missingCompany, permissionsLoading, selectedCompany?.id]);
-
-  React.useEffect(() => {
-    void loadSchedules();
   }, [loadSchedules]);
 
   const reload = React.useCallback(() => {

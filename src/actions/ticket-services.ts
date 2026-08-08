@@ -16,6 +16,7 @@ import { invalidateCompanyCache } from '@/lib/cache';
 import { requireActionPermission } from '@/lib/security';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
+import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
 import {
   createServiceTicketSchema,
   serviceLineMoneySchema,
@@ -86,12 +87,22 @@ const sleep = (ms: number) =>
 const assertTicketAccess = async (
   ticketId: bigint,
   permissionKey: string,
-): Promise<{ companyId: number; context: ActionAuthContext }> => {
+): Promise<{
+  companyId: number;
+  context: ActionAuthContext;
+  total: number | null;
+  paid: number | null;
+}> => {
   const { context, companyId: effectiveCompanyId } =
     await requireActionPermission(permissionKey);
 
   const ticketRow = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
+    columns: {
+      company_id: true,
+      total: true,
+      paid: true,
+    },
   });
 
   if (!ticketRow) {
@@ -102,7 +113,25 @@ const assertTicketAccess = async (
     throw new AuthorizationError('Access denied to this ticket');
   }
 
-  return { companyId: effectiveCompanyId, context };
+  return {
+    companyId: effectiveCompanyId,
+    context,
+    total: ticketRow.total,
+    paid: ticketRow.paid,
+  };
+};
+
+class TicketAlreadyPaidError extends Error {
+  constructor() {
+    super('Ticket already fully paid');
+    this.name = 'TicketAlreadyPaidError';
+  }
+}
+
+const assertTicketNotFullyPaid = (total: number | null, paid: number | null) => {
+  if (isTicketFullyPaid(total, paid)) {
+    throw new TicketAlreadyPaidError();
+  }
 };
 
 const assertServiceAvailable = async (serviceId: number, companyId: number) => {
@@ -170,10 +199,11 @@ export async function createServiceTicket(
   try {
     const validated = createServiceTicketSchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
-    const { companyId, context } = await assertTicketAccess(
+    const { companyId, context, total, paid } = await assertTicketAccess(
       ticketIdValue,
       'tickets.write',
     );
+    assertTicketNotFullyPaid(total, paid);
     const serviceRow = await assertServiceAvailable(
       validated.service_id,
       companyId,
@@ -228,6 +258,9 @@ export async function createServiceTicket(
     invalidateCompanyCache(companyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
+    if (error instanceof TicketAlreadyPaidError) {
+      return buildActionError('TC010', undefined, 'validation');
+    }
     if (error instanceof ZodError) {
       return buildActionError('TS006', error, 'validation');
     }
@@ -248,10 +281,11 @@ export async function updateServiceTicket(
   try {
     const validated = serviceLineMoneySchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
-    const { companyId, context } = await assertTicketAccess(
+    const { companyId, context, total, paid } = await assertTicketAccess(
       ticketIdValue,
       'tickets.write',
     );
+    assertTicketNotFullyPaid(total, paid);
     const runUpdate = async () =>
       db.transaction(async (tx) => {
         const [updatedRow] = await tx
@@ -316,6 +350,9 @@ export async function updateServiceTicket(
     invalidateCompanyCache(companyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
+    if (error instanceof TicketAlreadyPaidError) {
+      return buildActionError('TC010', undefined, 'validation');
+    }
     if (error instanceof ZodError) {
       return buildActionError('TS006', error, 'validation');
     }
@@ -329,10 +366,11 @@ export async function deleteServiceTicket(
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
     const ticketIdValue = ticketIdBigInt(ticketId);
-    const { companyId, context } = await assertTicketAccess(
+    const { companyId, context, total, paid } = await assertTicketAccess(
       ticketIdValue,
       'tickets.write',
     );
+    assertTicketNotFullyPaid(total, paid);
     await db.transaction(async (tx) => {
       const [deletedRow] = await tx
         .update(servicesTickets)
@@ -364,6 +402,9 @@ export async function deleteServiceTicket(
     invalidateCompanyCache(companyId, 'dashboard');
     return { success: true };
   } catch (error) {
+    if (error instanceof TicketAlreadyPaidError) {
+      return buildActionError('TC010', undefined, 'validation');
+    }
     return handleCodedServerActionError('ticket-services.delete', 'TS004', error);
   }
 }
