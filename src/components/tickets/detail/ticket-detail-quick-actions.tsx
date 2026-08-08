@@ -19,6 +19,7 @@ import {
 } from '@/lib/tickets-rbac';
 import {
   getTicketPaymentStatus,
+  isTicketFullyPaid,
 } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
 
@@ -42,13 +43,15 @@ export const TicketDetailQuickActions = ({
   const { can } = usePermissions();
   const id = Number(ticketId);
   const paymentStatus = getTicketPaymentStatus(total, paid);
-  const canEdit = canEditTicket(can) && !finished;
-  const canServices = canAssignTicketServices(can);
+  const saldado = isTicketFullyPaid(total, paid);
+  const canEdit = canEditTicket(can) && !finished && !saldado;
+  const canServices = canAssignTicketServices(can) && !saldado;
   const canCollect = canCollectTicketPayment(can);
   const canInvoice = canDownloadTicketInvoice(can) && finished;
 
   const showRegisterPayment =
     canCollect &&
+    !saldado &&
     ((finished && paymentStatus === 'partial') || !finished);
 
   const paymentHref =

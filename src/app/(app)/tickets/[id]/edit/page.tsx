@@ -72,6 +72,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
 import {
   Tooltip,
   TooltipContent,
@@ -196,6 +197,14 @@ export default function EditTicketPage({
           } else {
             setIsFullyPaid(true);
             setPaidAmountInput('');
+          }
+
+          if (isTicketFullyPaid(totalFromTicket, paidFromTicket)) {
+            toast.error('Este ticket ya está saldado y no se puede editar', {
+              description: 'Código: TC010',
+            });
+            router.replace(`/tickets/${resolvedParams.id}`);
+            return;
           }
 
           if (data.client_id) {

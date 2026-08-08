@@ -1,6 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { getTicketById } from '@/actions/tickets';
 import { useCompany } from '@/contexts/company-context';
 import {
   TripledDashboardShell,
@@ -18,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
 
 export function TicketServicesListClient({
   ticketId,
@@ -28,6 +32,7 @@ export function TicketServicesListClient({
 }) {
   const router = useRouter();
   const { selectedCompany } = useCompany();
+  const [isLocked, setIsLocked] = useState(false);
   const {
     services,
     ticketServices,
@@ -57,6 +62,40 @@ export function TicketServicesListClient({
     companyId: selectedCompany?.id,
     prefillServiceId,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const guardSaldadoTicket = async () => {
+      const result = await getTicketById(
+        Number(ticketId),
+        selectedCompany?.id,
+      );
+      if (cancelled) return;
+
+      if (
+        result.success &&
+        result.data &&
+        isTicketFullyPaid(result.data.total, result.data.paid)
+      ) {
+        setIsLocked(true);
+        toast.error('Este ticket ya está saldado y no se puede editar', {
+          description: 'Código: TC010',
+        });
+        router.replace(`/tickets/${ticketId}`);
+      }
+    };
+
+    void guardSaldadoTicket();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketId, selectedCompany?.id, router]);
+
+  if (isLocked) {
+    return null;
+  }
 
   return (
     <>

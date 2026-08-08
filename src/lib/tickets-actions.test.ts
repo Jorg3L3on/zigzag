@@ -624,3 +624,43 @@ describe('ticket actions — client tenant assert (TCI-01)', () => {
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });
+
+describe('ticket actions — saldado lock', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireTicketWrite.mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('updateTicket rejects fully paid tickets', async () => {
+    mockDb.query.ticket.findFirst
+      .mockResolvedValueOnce({
+        id: 42n,
+        company_id: 10,
+        finished: true,
+        total: 100,
+        paid: 100,
+        deleted_at: null,
+      })
+      .mockResolvedValueOnce({
+        total: 100,
+        paid: 100,
+      });
+
+    const result = await updateTicket(42, {
+      client_name: 'No debería guardar',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe('TC010');
+    expect(result.errorType).toBe('validation');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+});
