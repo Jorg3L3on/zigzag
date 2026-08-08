@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'ZigZag — Gestión de tickets de servicio multi-empresa';
+export const alt = 'ZigZag - Gestión de tickets de servicio multi-empresa';
 export const size = {
   width: 1200,
   height: 630,

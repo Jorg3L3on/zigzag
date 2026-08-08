@@ -104,7 +104,7 @@ export const LANDING_CAPABILITIES = [
 export const LANDING_DEMO = {
   id: 'demo',
   title: 'Evalúa con datos reales de demo',
-  body: 'ClimaTotal Demo es un tenant de evaluación con historial operativo — no testimonios inventados.',
+  body: 'ClimaTotal Demo es un tenant de evaluación con historial operativo, no testimonios inventados.',
   stats: [
     { value: '53', label: 'Tickets', detail: 'Activos, finalizados y con pagos parciales' },
     { value: '21', label: 'Clientes', detail: 'Hoteles, clínicas, comercios y más' },

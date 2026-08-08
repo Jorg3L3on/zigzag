@@ -23,7 +23,7 @@ import {
 } from '@/components/marketing/marketing-landing-content';
 
 const sectionClass =
-  'mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 scroll-mt-24';
+  'mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28 scroll-mt-24';
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
 
@@ -69,7 +69,7 @@ const Reveal = ({
   );
 };
 
-/** Whole-word reveal — never wraps mid-name like per-letter spans can. */
+/** Whole-word reveal so the brand never wraps mid-name like per-letter spans can. */
 const BrandMark = () => {
   const reduceMotion = useReducedMotion();
 
@@ -115,7 +115,7 @@ const ZigZagStroke = () => {
 };
 
 /**
- * Large structural zigzag that cuts the hero — the brand gesture.
+ * Large structural zigzag that cuts the hero: the brand gesture.
  * Desktop: vertical cut between copy mist and product.
  * Mobile: horizontal cut between product top and copy bottom.
  */
@@ -124,7 +124,7 @@ const HeroZigZagCut = () => {
 
   return (
     <>
-      {/* Desktop vertical cut edge — past the brand column */}
+      {/* Desktop vertical cut edge past the brand column */}
       <svg
         className="pointer-events-none absolute inset-y-0 left-[58%] z-[1] hidden h-full w-[14%] text-[var(--mkt-signal)] md:block"
         viewBox="0 0 80 1000"
@@ -143,7 +143,7 @@ const HeroZigZagCut = () => {
         />
       </svg>
 
-      {/* Mobile horizontal cut edge — sits at mist transition, above copy */}
+      {/* Mobile horizontal cut edge at mist transition, above copy */}
       <svg
         className="pointer-events-none absolute inset-x-0 top-[40%] z-[1] h-8 w-full text-[var(--mkt-signal)] md:hidden"
         viewBox="0 0 400 32"
@@ -238,6 +238,19 @@ const AnimatedStat = ({
   );
 };
 
+const FLOW_FEATURED = LANDING_FLOW_STEPS.slice(0, 2);
+const FLOW_GRID = LANDING_FLOW_STEPS.slice(2);
+
+/** Tint accents for capability cells so the grid is not cream-on-cream text only. */
+const CAPABILITY_SURFACES = [
+  'bg-[var(--mkt-foam)]/90 border-[var(--mkt-line)]',
+  'bg-white/70 border-[var(--mkt-line)]',
+  'bg-[color-mix(in_srgb,var(--mkt-signal)_8%,white)] border-[color-mix(in_srgb,var(--mkt-signal)_22%,transparent)]',
+  'bg-white/70 border-[var(--mkt-line)]',
+  'bg-[color-mix(in_srgb,var(--mkt-teal)_10%,white)] border-[color-mix(in_srgb,var(--mkt-teal)_24%,transparent)]',
+  'bg-[var(--mkt-foam)]/90 border-[var(--mkt-line)]',
+] as const;
+
 export const MarketingLanding = () => {
   const reduceMotion = useReducedMotion();
   const heroRef = useRef<HTMLElement>(null);
@@ -258,7 +271,7 @@ export const MarketingLanding = () => {
         className="marketing-hero relative isolate overflow-hidden"
         aria-labelledby="landing-hero-heading"
       >
-        {/* Full-bleed product plane — one composition on every breakpoint */}
+        {/* Full-bleed product plane: one composition on every breakpoint */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <motion.div
             className="absolute inset-0"
@@ -295,7 +308,7 @@ export const MarketingLanding = () => {
             aria-hidden
           />
 
-          {/* Desktop: zigzag-edged mist panel — purpose-built crop reveal */}
+          {/* Desktop: zigzag-edged mist panel for the crop reveal */}
           <div
             className="marketing-hero-cut absolute inset-0 hidden bg-[var(--mkt-mist)] md:block"
             aria-hidden
@@ -318,17 +331,17 @@ export const MarketingLanding = () => {
             <ZigZagStroke />
             <motion.h1
               id="landing-hero-heading"
-              className="marketing-display max-w-xl text-[1.55rem] font-semibold leading-[1.12] tracking-tight text-[var(--mkt-ink)] sm:text-[2rem] md:text-[2.55rem]"
+              className="marketing-display max-w-xl text-[1.55rem] font-semibold leading-[1.15] tracking-tight text-[var(--mkt-ink)] sm:text-[2rem] md:text-[2.55rem]"
               initial={
-                reduceMotion ? false : { opacity: 0, y: 22, filter: 'blur(8px)' }
+                reduceMotion ? false : { opacity: 0, y: 22 }
               }
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.75, delay: 0.5, ease: easeOut }}
             >
               {LANDING_HERO.headline}
             </motion.h1>
             <motion.p
-              className="max-w-lg text-base leading-relaxed text-[var(--mkt-muted)] sm:text-lg md:text-xl"
+              className="max-w-[36ch] text-base leading-relaxed text-[var(--mkt-muted)] sm:max-w-lg sm:text-lg md:text-xl"
               initial={reduceMotion ? false : { opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.65, ease: easeOut }}
@@ -343,13 +356,13 @@ export const MarketingLanding = () => {
             >
               <Link
                 href={LANDING_HERO.primaryCta.href}
-                className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--mkt-signal)] px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.98] hover:bg-[var(--mkt-signal-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
               >
                 {LANDING_HERO.primaryCta.label}
               </Link>
               <a
                 href={LANDING_HERO.secondaryCta.href}
-                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)]/90 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)]/90 px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.98] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)] focus-visible:ring-offset-2"
               >
                 {LANDING_HERO.secondaryCta.label}
               </a>
@@ -370,7 +383,7 @@ export const MarketingLanding = () => {
           >
             {LANDING_PROBLEM.title}
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl">
+          <p className="mt-6 max-w-[65ch] text-lg leading-relaxed text-[var(--mkt-muted)] sm:text-xl">
             {LANDING_PROBLEM.body}
           </p>
         </section>
@@ -380,17 +393,17 @@ export const MarketingLanding = () => {
 
       <section
         id="como-funciona"
-        className={`${sectionClass} space-y-14`}
+        className={`${sectionClass} space-y-16`}
         aria-labelledby="como-funciona-heading"
       >
-        <Reveal className="max-w-3xl space-y-3">
+        <Reveal className="max-w-3xl space-y-4">
           <h2
             id="como-funciona-heading"
             className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-5xl"
           >
             Cómo funciona
           </h2>
-          <p className="text-lg text-[var(--mkt-muted)] sm:text-xl">
+          <p className="max-w-[65ch] text-lg text-[var(--mkt-muted)] sm:text-xl">
             Un solo flujo operativo:{' '}
             <span className="font-semibold text-[var(--mkt-ink)]">
               Cliente → Ticket → Servicios → Cobro → Recibo PDF
@@ -399,8 +412,9 @@ export const MarketingLanding = () => {
           </p>
         </Reveal>
 
+        {/* Max 2 zigzag image/text splits, then a different layout family */}
         <ol className="grid gap-16">
-          {LANDING_FLOW_STEPS.map((step, index) => (
+          {FLOW_FEATURED.map((step, index) => (
             <motion.li
               key={step.key}
               className="grid items-center gap-6 md:grid-cols-2 md:gap-14"
@@ -410,10 +424,7 @@ export const MarketingLanding = () => {
               transition={{ duration: 0.7, ease: easeOut }}
             >
               <div className={index % 2 === 1 ? 'md:order-2' : undefined}>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--mkt-signal)]">
-                  Paso {String(index + 1).padStart(2, '0')}
-                </p>
-                <h3 className="mt-3 font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)]">
+                <h3 className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)]">
                   {step.title}
                 </h3>
                 <p className="mt-3 max-w-md text-[var(--mkt-muted)] leading-relaxed">
@@ -421,7 +432,7 @@ export const MarketingLanding = () => {
                 </p>
               </div>
               <div
-                className={`group relative overflow-hidden border border-[var(--mkt-line)] bg-white/60 ${
+                className={`group relative overflow-hidden rounded-md border border-[var(--mkt-line)] bg-white/60 ${
                   index % 2 === 1 ? 'md:order-1' : ''
                 }`}
               >
@@ -441,6 +452,39 @@ export const MarketingLanding = () => {
             </motion.li>
           ))}
         </ol>
+
+        <motion.ul
+          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+          variants={reduceMotion ? undefined : stagger}
+          initial={reduceMotion ? false : 'hidden'}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          {FLOW_GRID.map((step) => (
+            <motion.li
+              key={step.key}
+              className="overflow-hidden rounded-md border border-[var(--mkt-line)] bg-white/70"
+              variants={fadeUp}
+            >
+              <Image
+                src={step.image.src}
+                alt={step.image.alt}
+                width={1200}
+                height={750}
+                className="h-auto w-full object-cover"
+                loading="lazy"
+              />
+              <div className="space-y-2 border-t border-[var(--mkt-line)] px-4 py-4">
+                <h3 className="font-[family-name:var(--font-marketing-display)] text-xl font-semibold tracking-tight text-[var(--mkt-ink)]">
+                  {step.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-[var(--mkt-muted)]">
+                  {step.body}
+                </p>
+              </div>
+            </motion.li>
+          ))}
+        </motion.ul>
       </section>
 
       <section
@@ -448,39 +492,48 @@ export const MarketingLanding = () => {
         className={`${sectionClass} space-y-12`}
         aria-labelledby="capacidades-heading"
       >
-        <Reveal className="max-w-3xl space-y-3">
+        <Reveal className="max-w-3xl space-y-4">
           <h2
             id="capacidades-heading"
             className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-5xl"
           >
             Capacidades
           </h2>
-          <p className="text-lg text-[var(--mkt-muted)] sm:text-xl">
+          <p className="max-w-[65ch] text-lg text-[var(--mkt-muted)] sm:text-xl">
             Lo esencial para operar servicios en LATAM sin fragmentar tu
             operación.
           </p>
         </Reveal>
         <motion.ul
-          className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-4 md:grid-cols-6"
           variants={reduceMotion ? undefined : stagger}
           initial={reduceMotion ? false : 'hidden'}
           whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
         >
-          {LANDING_CAPABILITIES.map((capability) => (
-            <motion.li
-              key={capability.title}
-              className="border-t border-[var(--mkt-line-strong)] pt-5 transition-colors hover:border-[var(--mkt-signal)]"
-              variants={fadeUp}
-            >
-              <h3 className="font-[family-name:var(--font-marketing-display)] text-lg font-semibold tracking-tight text-[var(--mkt-ink)]">
-                {capability.title}
-              </h3>
-              <p className="mt-2 text-[var(--mkt-muted)] leading-relaxed">
-                {capability.body}
-              </p>
-            </motion.li>
-          ))}
+          {LANDING_CAPABILITIES.map((capability, index) => {
+            const spanClass =
+              index === 0
+                ? 'md:col-span-3'
+                : index === 1
+                  ? 'md:col-span-3'
+                  : 'md:col-span-2';
+
+            return (
+              <motion.li
+                key={capability.title}
+                className={`rounded-md border p-5 transition-colors hover:border-[var(--mkt-signal)] ${CAPABILITY_SURFACES[index]} ${spanClass}`}
+                variants={fadeUp}
+              >
+                <h3 className="font-[family-name:var(--font-marketing-display)] text-lg font-semibold tracking-tight text-[var(--mkt-ink)]">
+                  {capability.title}
+                </h3>
+                <p className="mt-2 text-[var(--mkt-muted)] leading-relaxed">
+                  {capability.body}
+                </p>
+              </motion.li>
+            );
+          })}
         </motion.ul>
       </section>
 
@@ -489,14 +542,14 @@ export const MarketingLanding = () => {
         className={`${sectionClass} space-y-12`}
         aria-labelledby="demo-heading"
       >
-        <Reveal className="max-w-3xl space-y-3">
+        <Reveal className="max-w-3xl space-y-4">
           <h2
             id="demo-heading"
             className="font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight text-[var(--mkt-ink)] sm:text-5xl"
           >
             {LANDING_DEMO.title}
           </h2>
-          <p className="text-lg text-[var(--mkt-muted)] sm:text-xl">
+          <p className="max-w-[65ch] text-lg text-[var(--mkt-muted)] sm:text-xl">
             {LANDING_DEMO.body}
           </p>
         </Reveal>
@@ -514,7 +567,7 @@ export const MarketingLanding = () => {
           {LANDING_DEMO.images.map((image, index) => (
             <motion.div
               key={image.src}
-              className="overflow-hidden border border-[var(--mkt-line)] bg-white/50"
+              className="overflow-hidden rounded-md border border-[var(--mkt-line)] bg-white/50"
               initial={reduceMotion ? false : { opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
@@ -539,7 +592,7 @@ export const MarketingLanding = () => {
 
       <section className={sectionClass} aria-labelledby="cta-final-heading">
         <motion.div
-          className="relative overflow-hidden bg-[var(--mkt-ink)] px-6 py-14 text-white sm:px-12 sm:py-16"
+          className="relative overflow-hidden rounded-md bg-[var(--mkt-ink)] px-6 py-14 text-white sm:px-12 sm:py-16"
           initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, amount: 0.4 }}
@@ -575,13 +628,13 @@ export const MarketingLanding = () => {
           <div className="relative mt-8 flex flex-wrap gap-3">
             <Link
               href={LANDING_FINAL_CTA.primaryCta.href}
-              className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="marketing-cta-shine inline-flex min-h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-[var(--mkt-ink)] transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.98] hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               {LANDING_FINAL_CTA.primaryCta.label}
             </Link>
             <a
               href={LANDING_FINAL_CTA.secondaryCta.href}
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/35 px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/35 px-5 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.98] hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               {LANDING_FINAL_CTA.secondaryCta.label}
             </a>

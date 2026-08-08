@@ -10,12 +10,12 @@ import {
 
 export const metadata: Metadata = {
   metadataBase: new URL(getMarketingSiteOrigin()),
-  title: 'ZigZag — Del ticket al cobro, en un solo flujo',
+  title: 'ZigZag - Del ticket al cobro, en un solo flujo',
   description:
     'Plataforma multi-empresa en español para tickets de servicio, cobranza y recibos PDF. Lista para móvil.',
   robots: MARKETING_INDEXABLE_METADATA,
   openGraph: {
-    title: 'ZigZag — Del ticket al cobro, en un solo flujo',
+    title: 'ZigZag - Del ticket al cobro, en un solo flujo',
     description:
       'Opera clientes, servicios, cobros y recibos PDF en una sola plataforma multi-empresa.',
     locale: 'es_MX',

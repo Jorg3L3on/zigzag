@@ -233,21 +233,21 @@
 
 .marketing-hero {
   /* Shorter mobile first viewport keeps brand + CTAs above the fold */
-  min-height: min(88svh, 48rem);
+  min-height: min(88dvh, 48rem);
 }
 
 @media (min-width: 768px) {
   .marketing-hero {
-    min-height: min(100svh, 58rem);
+    min-height: min(100dvh, 58rem);
   }
 }
 
 .marketing-hero-copy {
   display: flex;
-  /* Sit copy under the horizontal cut instead of dumping it at the bottom */
+  /* Sit copy under the horizontal cut; keep brand + CTAs in the first viewport */
   align-items: flex-start;
-  min-height: min(88svh, 48rem);
-  padding-top: max(10.5rem, 41svh);
+  min-height: min(88dvh, 48rem);
+  padding-top: clamp(6.5rem, 34svh, 9.5rem);
   padding-bottom: 1.5rem;
 }
 
@@ -260,9 +260,10 @@
 @media (min-width: 768px) {
   .marketing-hero-copy {
     align-items: center;
-    min-height: min(100svh, 58rem);
-    padding-top: 6rem;
-    padding-bottom: 6rem;
+    min-height: min(100dvh, 58rem);
+    /* Cap at ~pt-24 so hero content does not float mid-viewport */
+    padding-top: 5.5rem;
+    padding-bottom: 5.5rem;
   }
 }
 
@@ -293,13 +294,13 @@
 .marketing-hero-copy-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.65rem;
   max-width: 36rem;
 }
 
 @media (min-width: 640px) {
   .marketing-hero-copy-stack {
-    gap: 1.05rem;
+    gap: 0.95rem;
   }
 }
 
