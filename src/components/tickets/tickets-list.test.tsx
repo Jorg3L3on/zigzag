@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import TicketsList from '@/components/tickets/tickets-list';
 import { getTicketsList } from '@/actions/tickets';
 import { useCompany } from '@/contexts/company-context';
@@ -93,6 +93,26 @@ const arrange = ({
   mockGetTicketsList.mockResolvedValue(result);
 };
 
+const mockMobileViewport = () => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+  Object.defineProperty(window, 'scrollY', {
+    configurable: true,
+    value: 0,
+  });
+};
+
 describe('TicketsList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -133,6 +153,31 @@ describe('TicketsList', () => {
     });
   });
 
+  it('refreshes tickets from a mobile pull gesture', async () => {
+    mockMobileViewport();
+    arrange({
+      result: {
+        success: true,
+        data: [makeTicket()],
+      },
+    });
+
+    render(<TicketsList />);
+
+    await waitFor(() => {
+      expect(mockGetTicketsList).toHaveBeenCalledTimes(1);
+    });
+
+    const pullArea = screen.getByTestId('tickets-pull-to-refresh');
+    fireEvent.touchStart(pullArea, { touches: [{ clientY: 0 }] });
+    fireEvent.touchMove(pullArea, { touches: [{ clientY: 160 }] });
+    fireEvent.touchEnd(pullArea);
+
+    await waitFor(() => {
+      expect(mockGetTicketsList).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('shows a read-only offline snapshot on network load failure', async () => {
     const snapshotUpdatedAt = '2026-08-10T05:00:00.000Z';
     arrange({
@@ -153,9 +198,9 @@ describe('TicketsList', () => {
 
     render(<TicketsList />);
 
-    expect(
-      await screen.findByText(`Sin conexión — datos de ${snapshotUpdatedAt}`),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      `Sin conexión — datos de ${snapshotUpdatedAt}`,
+    );
     expect(screen.getAllByText('Cliente Snapshot').length).toBeGreaterThan(0);
     expect(screen.queryByText('Editar')).not.toBeInTheDocument();
   });
