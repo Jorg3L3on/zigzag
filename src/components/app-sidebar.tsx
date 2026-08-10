@@ -1,19 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Building,
-  Shield,
-  Home,
-  Package,
-  Ticket,
-  User,
-  Key,
-  CalendarClock,
-  ClipboardList,
-  Trash2,
-  type LucideIcon,
-} from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
@@ -42,114 +29,16 @@ import {
   type SidebarCompanyBrand,
 } from '@/lib/sidebar-company-brand';
 import { PERMISSIONS } from '@/lib/permissions';
-import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
+import {
+  getLongestMatchingHref,
+  NAV_MAIN_ITEMS,
+  NAV_SYSTEM_ITEMS,
+} from '@/lib/nav-items';
 import { usePermissions } from '@/hooks/use-permissions';
 
-
-type SidebarItem = {
-  title: string;
-  url: string;
-  icon?: LucideIcon;
-  requiredPermission?: string;
-  systemOnly?: boolean;
-  items?: {
-    title: string;
-    url: string;
-    requiredPermission?: string;
-  }[];
-};
-
-const data: { navMain: SidebarItem[]; system: SidebarItem[] } = {
-  navMain: [
-    {
-      title: 'Inicio',
-      url: '/dashboard',
-      icon: Home,
-    },
-    {
-      title: 'Tickets',
-      url: '/tickets',
-      icon: Ticket,
-      requiredPermission: PERMISSIONS.tickets.read,
-    },
-    {
-      title: 'Recordatorios de servicio',
-      url: '/service-schedules',
-      icon: CalendarClock,
-      requiredPermission: SERVICE_SCHEDULES_READ_PERMISSION,
-    },
-    {
-      title: 'Servicios',
-      url: '/services',
-      icon: Package,
-      requiredPermission: PERMISSIONS.services.read,
-    },
-    {
-      title: 'Clientes',
-      url: '/clients',
-      icon: User,
-      requiredPermission: PERMISSIONS.clients.read,
-    },
-    {
-      title: 'Mi empresa',
-      url: '/company',
-      icon: Building,
-      requiredPermission: PERMISSIONS.company.manage,
-    },
-  ],
-  system: [
-    {
-      title: 'Consola operadora',
-      url: '/operator-console',
-      icon: Building,
-      systemOnly: true,
-    },
-    {
-      title: 'Usuarios',
-      url: '/users',
-      icon: User,
-      requiredPermission: PERMISSIONS.users.read,
-    },
-    {
-      title: 'Empresas',
-      url: '/companies',
-      icon: Building,
-      requiredPermission: PERMISSIONS.companies.read,
-      systemOnly: true,
-    },
-    {
-      title: 'Roles',
-      url: '/roles',
-      icon: Shield,
-      requiredPermission: PERMISSIONS.roles.read,
-    },
-    {
-      title: 'Permisos',
-      url: '/permissions',
-      icon: Key,
-      requiredPermission: PERMISSIONS.permissions.read,
-    },
-    {
-      title: 'Auditoría',
-      url: '/audit',
-      icon: ClipboardList,
-      systemOnly: true,
-    },
-    {
-      title: 'Papelera',
-      url: '/trash',
-      icon: Trash2,
-      systemOnly: true,
-    },
-  ],
-};
-
-const getLongestMatchingHref = (pathname: string, hrefs: string[]): string | null => {
-  const matching = hrefs.filter((h) => pathname === h || pathname.startsWith(`${h}/`));
-  if (matching.length === 0) {
-    return null;
-  }
-  return matching.reduce((a, b) => (a.length >= b.length ? a : b));
+const data = {
+  navMain: NAV_MAIN_ITEMS,
+  system: NAV_SYSTEM_ITEMS,
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

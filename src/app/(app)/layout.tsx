@@ -1,3 +1,4 @@
+import { AppMobileChrome } from '@/components/app-mobile-chrome';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { requireActionAuth } from '@/lib/security';
@@ -21,7 +22,7 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="bg-gradient-to-b from-background to-muted/20">
-        {children}
+        <AppMobileChrome>{children}</AppMobileChrome>
       </SidebarInset>
     </SidebarProvider>
   );
