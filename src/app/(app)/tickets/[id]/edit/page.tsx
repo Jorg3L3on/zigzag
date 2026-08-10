@@ -63,6 +63,7 @@ import { useCompany } from '@/contexts/company-context';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
+  TripledMobileStickyActionBar,
   TripledPageHeader,
   TripledStepper,
 } from '@/components/tripled';
@@ -79,6 +80,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+
+const EDIT_TICKET_FORM_ID = 'edit-ticket-form';
 
 const formSchema = z.object({
   client_id: z.number().optional(),
@@ -478,7 +481,10 @@ export default function EditTicketPage({
         ]}
       />
 
-      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+      <TripledDashboardShell
+        maxWidthClassName="max-w-2xl"
+        hasMobileStickyAction={!isFinished}
+      >
           <TripledMobileAppBar
             title={`Ticket #${resolvedParams.id}`}
             subtitle="Editar ticket"
@@ -574,6 +580,7 @@ export default function EditTicketPage({
 
               <Form {...form}>
                 <form
+                  id={EDIT_TICKET_FORM_ID}
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-8"
                 >
@@ -650,7 +657,7 @@ export default function EditTicketPage({
                   </div>
 
                   {!isFinished && (
-                    <div className="flex flex-col gap-4 pt-6">
+                    <div className="hidden flex-col gap-4 pt-6 md:flex">
                       {isDirty ? (
                         <Button
                           type="submit"
@@ -924,6 +931,35 @@ export default function EditTicketPage({
             </CardContent>
           </Card>
       </TripledDashboardShell>
+
+      {!isFinished && (
+        <TripledMobileStickyActionBar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">
+              {isDirty ? 'Cambios pendientes' : 'Sin cambios pendientes'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              Ticket #{resolvedParams.id}
+            </p>
+          </div>
+          <Button
+            type="submit"
+            form={EDIT_TICKET_FORM_ID}
+            className="h-12 shrink-0 rounded-xl bg-primary px-5 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+            disabled={form.formState.isSubmitting || !isDirty}
+          >
+            {form.formState.isSubmitting ? (
+              <Loader2
+                className="h-4 w-4 animate-spin"
+                aria-hidden
+                data-icon="inline-start"
+              />
+            ) : (
+              'Guardar'
+            )}
+          </Button>
+        </TripledMobileStickyActionBar>
+      )}
 
       <TicketFinishSchedulesDialog
         open={schedulesDialogOpen}
