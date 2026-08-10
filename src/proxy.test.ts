@@ -21,7 +21,9 @@ describe('proxy request correlation', () => {
     const response = proxy(request);
 
     expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('http://localhost:3069/login');
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3069/login?reason=expired&callbackUrl=%2Fdashboard',
+    );
   });
 
   it('redirects legacy nested dashboard routes to canonical top-level routes', () => {
@@ -36,12 +38,14 @@ describe('proxy request correlation', () => {
     );
   });
 
-  it('redirects unauthenticated app routes to /login', () => {
-    const request = new NextRequest('http://localhost:3069/tickets');
+  it('redirects unauthenticated app routes to expired login with callback', () => {
+    const request = new NextRequest('http://localhost:3069/tickets?status=open');
     const response = proxy(request);
 
     expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toBe('http://localhost:3069/login');
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3069/login?reason=expired&callbackUrl=%2Ftickets%3Fstatus%3Dopen',
+    );
   });
 
   it('allows logged-in users through public marketing paths without login redirect', () => {
