@@ -66,10 +66,13 @@ jest.mock('@serwist/turbopack/react', () => ({
 
 // Mock NextAuth
 jest.mock('next-auth/react', () => ({
+  getSession: jest.fn(),
+  SessionProvider: ({ children }) => children,
   useSession() {
     return {
       data: null,
       status: 'unauthenticated',
+      update: jest.fn(),
     };
   },
   signIn: jest.fn(),

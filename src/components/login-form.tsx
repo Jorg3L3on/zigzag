@@ -9,11 +9,17 @@ import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
+import { getSafeAppRedirectPath } from '@/lib/login-redirect';
 
 export function LoginForm({
   className,
+  callbackUrl,
+  sessionExpired = false,
   ...props
-}: React.ComponentPropsWithoutRef<'div'>) {
+}: React.ComponentPropsWithoutRef<'div'> & {
+  callbackUrl?: string;
+  sessionExpired?: boolean;
+}) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [isHydrated, setIsHydrated] = useState(false);
@@ -69,9 +75,11 @@ export function LoginForm({
       }
 
       const session = await getSession();
-      const destination = session?.user?.company_is_system
+      const fallbackDestination = session?.user?.company_is_system
         ? '/operator-console'
         : '/dashboard';
+      const destination =
+        getSafeAppRedirectPath(callbackUrl) ?? fallbackDestination;
       router.push(destination);
       router.refresh();
     } catch (e) {
@@ -116,6 +124,19 @@ export function LoginForm({
             <p className="mb-[26px] text-[13.5px] leading-normal text-[color:var(--login-ink-muted)]">
               Ingresa tus datos para ver tus tickets de hoy.
             </p>
+
+            {sessionExpired ? (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="mb-5 rounded-lg border border-[color:var(--login-line)] bg-[color:var(--login-field-bg)] p-3 text-sm text-[color:var(--login-ink)]"
+              >
+                <p className="font-semibold">Sesión expirada</p>
+                <p className="mt-1 text-[13px] leading-normal text-[color:var(--login-ink-muted)]">
+                  Vuelve a iniciar sesión para continuar en ZigZag.
+                </p>
+              </div>
+            ) : null}
 
             <form
               onSubmit={onSubmit}

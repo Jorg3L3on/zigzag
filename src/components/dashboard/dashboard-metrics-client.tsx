@@ -46,6 +46,7 @@ import {
   buildDashboardComposition,
   buildDashboardIntroSubtitle,
 } from '@/lib/dashboard-composition';
+import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
@@ -126,7 +127,11 @@ export const DashboardMetricsClient = () => {
       return;
     }
     if (!session?.user?.company_id) {
-      router.replace('/login');
+      const callbackPath =
+        typeof window === 'undefined'
+          ? undefined
+          : `${window.location.pathname}${window.location.search}`;
+      router.replace(getExpiredLoginPath(callbackPath));
       return;
     }
 
