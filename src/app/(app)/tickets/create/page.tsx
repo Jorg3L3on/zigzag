@@ -13,7 +13,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { createTicket } from '@/actions/tickets';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Popover,
@@ -58,6 +58,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { ClientPhoneLink } from '@/components/client-phone-link';
 import { ClientForm } from '@/components/clients/client-form';
 import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
 import {
@@ -72,8 +73,17 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import {
+  buildTicketDraftStorageKey,
+  clearTicketFormDraft,
+  readTicketFormDraft,
+  writeTicketFormDraft,
+} from '@/lib/ticket-form-drafts';
+import { vibrateSuccess } from '@/lib/vibrate-success';
 
 const CREATE_TICKET_FORM_ID = 'create-ticket-form';
+const CREATE_TICKET_RETRY_GUIDANCE =
+  'Conservamos los datos del formulario. Revisa tu conexión y vuelve a intentar crear el ticket.';
 
 const formSchema = z
   .object({
@@ -100,10 +110,12 @@ type FormValues = z.infer<typeof formSchema>;
 const CreateTicketPageContent = () => {
   const { selectedCompany } = useCompany();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const prefillClientId = searchParams.get('clientId');
   const prefillServiceId = searchParams.get('serviceId');
   const prefillAppliedRef = React.useRef(false);
+  const restoredDraftKeyRef = React.useRef<string | null>(null);
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -126,11 +138,54 @@ const CreateTicketPageContent = () => {
     },
   });
 
+  const draftKey = React.useMemo(
+    () =>
+      buildTicketDraftStorageKey({
+        route: pathname,
+        companyId: selectedCompany?.id,
+      }),
+    [pathname, selectedCompany?.id],
+  );
+
   React.useEffect(() => {
     if (selectedCompany?.id && selectedCompany?.name !== 'System') {
       form.setValue('company_id', selectedCompany.id);
     }
   }, [selectedCompany?.id, selectedCompany?.name, form]);
+
+  React.useEffect(() => {
+    if (restoredDraftKeyRef.current === draftKey) return;
+    restoredDraftKeyRef.current = draftKey;
+
+    const draft = readTicketFormDraft(draftKey);
+    if (!draft) return;
+
+    form.reset({
+      client_id: draft.client_id,
+      client_name: draft.client_name ?? '',
+      client_tel: draft.client_tel ?? '',
+      email: draft.email ?? '',
+      document: draft.document ?? '',
+      ticket_date: draft.ticket_date ? new Date(draft.ticket_date) : new Date(),
+      company_id: selectedCompany?.id ?? draft.company_id ?? 0,
+    });
+  }, [draftKey, form, selectedCompany?.id]);
+
+  React.useEffect(() => {
+    const subscription = form.watch((values) => {
+      writeTicketFormDraft(draftKey, {
+        client_id: values.client_id,
+        client_name: values.client_name,
+        client_tel: values.client_tel,
+        email: values.email,
+        document: values.document,
+        ticket_date: values.ticket_date,
+        company_id: selectedCompany?.id ?? values.company_id,
+      });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [draftKey, form, selectedCompany?.id]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -190,6 +245,20 @@ const CreateTicketPageContent = () => {
     }
   };
 
+  const selectedClientId = form.watch('client_id');
+
+  React.useEffect(() => {
+    if (!selectedClientId) {
+      setSelectedClient(null);
+      return;
+    }
+
+    const client = clients.find((item) => item.id === selectedClientId);
+    if (client) {
+      setSelectedClient(client);
+    }
+  }, [clients, selectedClientId]);
+
   React.useEffect(() => {
     if (prefillAppliedRef.current || !prefillClientId || clients.length === 0) {
       return;
@@ -213,6 +282,8 @@ const CreateTicketPageContent = () => {
       });
       if (result.success && result.data) {
         toast.success('Ticket creado correctamente');
+        vibrateSuccess();
+        clearTicketFormDraft(draftKey);
         const servicesPath = prefillServiceId
           ? `/tickets/${result.data.id}/services?serviceId=${prefillServiceId}`
           : `/tickets/${result.data.id}/services`;
@@ -223,15 +294,25 @@ const CreateTicketPageContent = () => {
           'No se pudo crear el ticket',
         );
         toast.error(errorContent.title, {
-          description: errorContent.description,
+          description:
+            errorContent.errorType === 'network'
+              ? `${errorContent.description} ${CREATE_TICKET_RETRY_GUIDANCE}`
+              : errorContent.description,
         });
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
       const errorType = classifyClientError(error);
-      toast.error(
-        getErrorMessageByType(errorType, 'Ocurrió un error al crear el ticket'),
+      const description = getErrorMessageByType(
+        errorType,
+        'Ocurrió un error al crear el ticket',
       );
+      toast.error(errorType === 'network' ? 'Sin conexión' : description, {
+        description:
+          errorType === 'network'
+            ? `${description} ${CREATE_TICKET_RETRY_GUIDANCE}`
+            : undefined,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -473,9 +554,11 @@ const CreateTicketPageContent = () => {
                               className="h-4 w-4 shrink-0 text-muted-foreground"
                               aria-hidden
                             />
-                            <span className="tabular-nums leading-snug">
-                              {selectedClient.phone}
-                            </span>
+                            <ClientPhoneLink
+                              phone={selectedClient.phone}
+                              className="tabular-nums leading-snug underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              textClassName="tabular-nums leading-snug"
+                            />
                           </div>
                           {selectedClient.email && (
                             <div className="flex min-w-0 items-start gap-2.5">

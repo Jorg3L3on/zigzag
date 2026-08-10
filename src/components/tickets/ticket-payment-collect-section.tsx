@@ -24,6 +24,7 @@ import { FormattedDate } from '@/components/formatted-date';
 import { usePermissions } from '@/hooks/use-permissions';
 import { canCollectTicketPayment } from '@/lib/tickets-rbac';
 import { getErrorMessageByType } from '@/lib/network-awareness';
+import { vibrateSuccess } from '@/lib/vibrate-success';
 import { TripledEmptyState } from '@/components/tripled';
 
 type TicketPaymentHistoryRow = {
@@ -78,6 +79,7 @@ export const TicketPaymentCollectSection = ({
     startTransition(async () => {
       const result = await applyTicketPayment(ticketId, additional);
       if (result.success) {
+        vibrateSuccess();
         toast.success('Cobro registrado correctamente');
         setAmountInput('');
         router.refresh();
@@ -98,6 +100,7 @@ export const TicketPaymentCollectSection = ({
     startTransition(async () => {
       const result = await applyTicketPayment(ticketId, balanceDue);
       if (result.success) {
+        vibrateSuccess();
         toast.success('Ticket saldado');
         setAmountInput('');
         router.refresh();

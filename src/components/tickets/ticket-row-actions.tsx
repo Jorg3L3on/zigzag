@@ -17,7 +17,7 @@ import {
   type TicketListCollectPaymentResult,
 } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
-import { buildTicketInvoiceDownloadUrl } from '@/lib/ticket-invoice-url';
+import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
   canCollectTicketPayment,
   canDownloadTicketInvoice,
@@ -25,8 +25,6 @@ import {
 import {
   getTicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
-
-const PDF_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 interface Ticket {
   id: bigint;
@@ -81,41 +79,23 @@ export function TicketRowActions({
     event.preventDefault();
     if (isDownloading) return;
 
-    const abortController = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => abortController.abort(),
-      PDF_DOWNLOAD_TIMEOUT_MS,
-    );
-
     try {
       setIsDownloading(true);
-      const response = await fetch(
-        buildTicketInvoiceDownloadUrl(ticket.id, companyId),
-        {
-          cache: 'no-store',
-          signal: abortController.signal,
-        },
-      );
+      const result = await fetchAndDeliverTicketInvoice({
+        ticketId: ticket.id,
+        companyId,
+        downloadFileName: buildListTicketPdfFileName(ticket),
+      });
 
-      if (!response.ok) {
-        throw new Error(`PDF request failed with status ${response.status}`);
+      if (result === 'shared') {
+        toast.success('PDF compartido correctamente');
+      } else if (result === 'downloaded') {
+        toast.success('PDF descargado correctamente');
       }
-
-      const pdf = await response.blob();
-      const pdfUrl = URL.createObjectURL(pdf);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = pdfUrl;
-      downloadLink.download = buildListTicketPdfFileName(ticket);
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-      URL.revokeObjectURL(pdfUrl);
-      toast.success('PDF descargado correctamente');
     } catch (error) {
       console.error('Error generating ticket PDF:', error);
       toast.error('No se pudo generar el PDF. Código: PDF001');
     } finally {
-      window.clearTimeout(timeoutId);
       setIsDownloading(false);
     }
   };

@@ -68,3 +68,13 @@ Mobile performance PRs must at least verify:
 - No critical Lighthouse regression vs this baseline on the same environment (local prod or preview).
 
 **Note:** PRD target `/login` Performance ≥90 is not met on local prod (79). Acceptable for v1 with documented baseline; re-measure on Vercel preview before treating as a release blocker.
+
+## Native-feel follow-up (2026-08-10)
+
+Shipped on `feat/native-feel-pwa` before full Lighthouse re-measure:
+
+- Route loading skeletons for `/dashboard`, `/tickets`, `/clients`
+- Conservative mobile idle prefetch of the three tab routes
+- Light optimistic UI for notification mark-read
+
+**Action for #355:** Re-run `npm run lighthouse:mobile` against a local prod build with E2E credentials and append scores to the Baseline Runs table above before the feature PR merges to `main`.
