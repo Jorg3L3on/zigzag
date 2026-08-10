@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientList } from '@/components/clients/client-list';
 import { getClientsList } from '@/actions/clients';
@@ -104,6 +104,26 @@ const arrange = ({
   mockGetClientsList.mockResolvedValue(result);
 };
 
+const mockMobileViewport = () => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+  Object.defineProperty(window, 'scrollY', {
+    configurable: true,
+    value: 0,
+  });
+};
+
 describe('ClientList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -188,6 +208,27 @@ describe('ClientList', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: /Reintentar/i }));
+
+    await waitFor(() => {
+      expect(mockGetClientsList).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('refreshes clients from a mobile pull gesture', async () => {
+    mockMobileViewport();
+    arrange({ result: { success: true, data: [makeClient()] } });
+
+    render(<ClientList />);
+
+    await waitFor(() => {
+      expect(mockGetClientsList).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findAllByText('Cliente Alfa')).not.toHaveLength(0);
+
+    const pullArea = screen.getByTestId('clients-pull-to-refresh');
+    fireEvent.touchStart(pullArea, { touches: [{ clientY: 0 }] });
+    fireEvent.touchMove(pullArea, { touches: [{ clientY: 160 }] });
+    fireEvent.touchEnd(pullArea);
 
     await waitFor(() => {
       expect(mockGetClientsList).toHaveBeenCalledTimes(2);
