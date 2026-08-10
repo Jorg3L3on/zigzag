@@ -7,7 +7,7 @@ describe('web app manifest', () => {
     expect(result.start_url).toBe('/dashboard');
     expect(result.orientation).toBe('any');
     expect(result.display).toBe('standalone');
-    expect(result.theme_color).toBe('#2563eb');
+    expect(result.theme_color).toBe('#ffffff');
     expect(result.scope).toBe('/');
   });
 });
