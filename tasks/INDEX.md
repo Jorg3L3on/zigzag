@@ -7,6 +7,15 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | Status | File | Kind |
 |--------|------|------|
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
+| ❌ | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — native-feel PWA polish (items 2, 4–10) |
+| ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
+| ❌ | [prd-native-feel-theme-splash.md](./prd-native-feel-theme-splash.md) ([#343](https://github.com/Jorg3L3on/zigzag/issues/343)–[#344](https://github.com/Jorg3L3on/zigzag/issues/344)) | Slice — theme / splash continuity |
+| ❌ | [prd-native-feel-thumb-forms.md](./prd-native-feel-thumb-forms.md) ([#345](https://github.com/Jorg3L3on/zigzag/issues/345)) | Slice — sticky CTA on ticket edit |
+| ❌ | [prd-native-feel-share-pdf.md](./prd-native-feel-share-pdf.md) ([#346](https://github.com/Jorg3L3on/zigzag/issues/346)–[#347](https://github.com/Jorg3L3on/zigzag/issues/347)) | Slice — Web Share for invoice PDF |
+| ❌ | [prd-native-feel-chrome-motion.md](./prd-native-feel-chrome-motion.md) ([#348](https://github.com/Jorg3L3on/zigzag/issues/348)–[#351](https://github.com/Jorg3L3on/zigzag/issues/351)) | Slice — chrome, motion, pull-to-refresh |
+| ❌ | [prd-native-feel-performance.md](./prd-native-feel-performance.md) ([#352](https://github.com/Jorg3L3on/zigzag/issues/352)–[#355](https://github.com/Jorg3L3on/zigzag/issues/355)) | Slice — skeletons, idle prefetch |
+| ❌ | [prd-native-feel-session.md](./prd-native-feel-session.md) ([#356](https://github.com/Jorg3L3on/zigzag/issues/356)–[#357](https://github.com/Jorg3L3on/zigzag/issues/357)) | Slice — session keep-alive / expiry UX |
+| ❌ | [prd-native-feel-offline-snapshots.md](./prd-native-feel-offline-snapshots.md) ([#358](https://github.com/Jorg3L3on/zigzag/issues/358)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Slice — IndexedDB list snapshots + drafts |
 | 📋 | [prd-mobile-program-decisions.md](./prd-mobile-program-decisions.md) | Locked Q&A for all mobile PRDs |
 | ✅ | [prd-mobile-ui-ux.md](./prd-mobile-ui-ux.md) | v1 epic |
 | ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
@@ -23,6 +32,18 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-rbac-enforcement-and-system-admin.md](./prd-rbac-enforcement-and-system-admin.md) | RBAC/system-admin hardening |
 
 **Suggested implementation order** (from program decisions): UI/UX → Functionality → Architecture → Performance → PWA install → Testing → Accessibility → Documentation.
+
+---
+
+## ❌ prd-native-feel-pwa.md
+
+**Status:** Not applied (parent epic)
+
+**GitHub:** [#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)
+
+**TL;DR:** Make the mobile web + installed PWA feel closer to native without native binaries or new paid vendors. Audience = standalone and in-browser mobile. Tabs = Inicio / Tickets / Clientes / Más. Offline = IndexedDB read-only list snapshots. Sticky CTA = ticket edit only. Slice PRDs listed in the parent file.
+
+**Suggested order:** bottom-tabs → theme-splash → thumb-forms → share-pdf → chrome-motion → performance → session → offline-snapshots.
 
 ---
 
