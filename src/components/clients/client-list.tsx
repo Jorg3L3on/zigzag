@@ -52,7 +52,13 @@ import {
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
+import { MobilePullToRefresh } from '@/components/mobile-pull-to-refresh';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import {
+  formatOfflineSnapshotBanner,
+  readOfflineSnapshot,
+  writeOfflineSnapshot,
+} from '@/lib/offline-snapshot';
 import { createClientsColumns } from '@/components/clients/clients-columns';
 import {
   CLIENTS_MOBILE_SORT_OPTIONS,
@@ -66,8 +72,11 @@ import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { formatClientAddressOneLine } from '@/lib/client-address';
 import { resolveResourceListState } from '@/lib/resource-list-state';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ClientPhoneLink } from '@/components/client-phone-link';
 
 type ContactFilter = 'all' | 'with' | 'without';
+type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
 const hasMeaningfulText = (value: string | null | undefined): boolean =>
   Boolean(value && value.trim().length > 0);
@@ -85,6 +94,9 @@ export function ClientList() {
   const [loading, setLoading] = React.useState(false);
   const [loadingClients, setLoadingClients] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [snapshotUpdatedAt, setSnapshotUpdatedAt] = React.useState<string | null>(
+    null,
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [clientToDelete, setClientToDelete] = React.useState<number | null>(null);
   const [searchValue, setSearchValue] = React.useState('');
@@ -97,6 +109,11 @@ export function ClientList() {
     pageIndex: 0,
     pageSize: 12,
   });
+  const clientsRef = React.useRef<Client[]>([]);
+
+  React.useEffect(() => {
+    clientsRef.current = clients;
+  }, [clients]);
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -105,32 +122,91 @@ export function ClientList() {
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
 
-  const fetchClients = React.useCallback(async () => {
-    if (missingCompany) {
-      setClients([]);
-      setLoadError(null);
-      setLoadingClients(false);
-      return;
-    }
+  const fetchClients = React.useCallback(
+    async ({
+      showLoading = true,
+    }: { showLoading?: boolean } = {}): Promise<FetchClientsOutcome> => {
+      if (missingCompany) {
+        setClients([]);
+        setLoadError(null);
+        setSnapshotUpdatedAt(null);
+        setLoadingClients(false);
+        return { ok: true };
+      }
 
-    setLoadingClients(true);
-    setLoadError(null);
-    const result = await getClientsList({
-      companyId: selectedCompany?.id ?? null,
-    });
-    if (result.success && result.data) {
-      setClients(result.data);
-    } else {
-      const errorType = classifyClientError(null, undefined, result.errorType);
-      setLoadError(
-        getErrorMessageByType(
+      const companyId = selectedCompany?.id ?? null;
+      const showOfflineSnapshot = async (): Promise<boolean> => {
+        try {
+          const snapshot = await readOfflineSnapshot<Client[]>('clients', companyId);
+          if (!snapshot) return false;
+
+          setClients(snapshot.data);
+          clientsRef.current = snapshot.data;
+          setSnapshotUpdatedAt(snapshot.updatedAt);
+          setLoadError(null);
+          return true;
+        } catch (snapshotError) {
+          console.warn('Unable to read clients offline snapshot:', snapshotError);
+          return false;
+        }
+      };
+
+      if (showLoading) {
+        setLoadingClients(true);
+        setLoadError(null);
+      }
+
+      try {
+        const result = await getClientsList({
+          companyId,
+        });
+        if (result.success && result.data) {
+          setClients(result.data);
+          clientsRef.current = result.data;
+          setSnapshotUpdatedAt(null);
+          setLoadError(null);
+          void writeOfflineSnapshot('clients', companyId, result.data).catch(
+            (snapshotError) => {
+              console.warn('Unable to write clients offline snapshot:', snapshotError);
+            },
+          );
+          return { ok: true };
+        }
+
+        const errorType = classifyClientError(null, undefined, result.errorType);
+        if (errorType === 'network' && (await showOfflineSnapshot())) {
+          return { ok: true };
+        }
+
+        const message = getErrorMessageByType(
           errorType,
           result.error || 'No se pudieron cargar los clientes',
-        ),
-      );
-    }
-    setLoadingClients(false);
-  }, [missingCompany, selectedCompany?.id]);
+        );
+        setSnapshotUpdatedAt(null);
+        setLoadError(!showLoading && clientsRef.current.length > 0 ? null : message);
+        return { ok: false, message };
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        const errorType = classifyClientError(error);
+        if (errorType === 'network' && (await showOfflineSnapshot())) {
+          return { ok: true };
+        }
+
+        const message = getErrorMessageByType(
+          errorType,
+          'No se pudieron cargar los clientes',
+        );
+        setSnapshotUpdatedAt(null);
+        setLoadError(!showLoading && clientsRef.current.length > 0 ? null : message);
+        return { ok: false, message };
+      } finally {
+        if (showLoading) {
+          setLoadingClients(false);
+        }
+      }
+    },
+    [missingCompany, selectedCompany?.id],
+  );
 
   React.useEffect(() => {
     void fetchClients();
@@ -184,7 +260,7 @@ export function ClientList() {
     () =>
       createClientsColumns({
         renderActions: (clientRow) =>
-          canWrite ? (
+          canWrite && snapshotUpdatedAt == null ? (
             <>
             <Button
               variant="ghost"
@@ -211,7 +287,7 @@ export function ClientList() {
             </>
           ) : null,
       }),
-    [router, openDeleteDialog, canWrite],
+    [router, openDeleteDialog, canWrite, snapshotUpdatedAt],
   );
 
   const table = useReactTable({
@@ -229,6 +305,7 @@ export function ClientList() {
   const isBusy = loading || loadingClients;
   const hasActiveFilters =
     debouncedSearch !== '' || emailFilter !== 'all' || phoneFilter !== 'all';
+  const effectiveCanWrite = canWrite && snapshotUpdatedAt == null;
 
   const emailFilterOptions: Array<{ value: ContactFilter; label: string }> = [
     { value: 'all', label: 'Todas' },
@@ -280,6 +357,13 @@ export function ClientList() {
     setPhoneFilter('all');
     setSorting(DEFAULT_CLIENT_SORTING);
   };
+
+  const handlePullToRefresh = React.useCallback(async () => {
+    const result = await fetchClients({ showLoading: false });
+    if (!result.ok) {
+      toast.error(result.message);
+    }
+  }, [fetchClients]);
 
   const filterChips = [
     {
@@ -414,73 +498,90 @@ export function ClientList() {
             </Button>
           ) : null}
         </div>
+
+        {snapshotUpdatedAt ? (
+          <Alert
+            role="status"
+            className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            <AlertDescription>
+              {formatOfflineSnapshotBanner(snapshotUpdatedAt)}
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </div>
 
-      {listState.kind === 'loading' ? (
-        <TripledListLoadingState
-          label="Cargando lista de clientes"
-          desktopColumns={5}
-          desktopRows={6}
-          mobileCards={4}
-        />
-      ) : listState.kind === 'error' ? (
+      <MobilePullToRefresh
+        label="Desliza para actualizar clientes"
+        onRefresh={handlePullToRefresh}
+        disabled={isBusy}
+        testId="clients-pull-to-refresh"
+      >
+        {listState.kind === 'loading' ? (
+          <TripledListLoadingState
+            label="Cargando lista de clientes"
+            desktopColumns={5}
+            desktopRows={6}
+            mobileCards={4}
+          />
+        ) : listState.kind === 'error' ? (
+            <TripledEmptyState
+              icon={<Users className="h-4 w-4" />}
+              title="Error de carga"
+              description={listState.message}
+              role="alert"
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void fetchClients();
+                  }}
+                >
+                  Reintentar
+                </Button>
+              }
+            />
+        ) : listState.kind === 'filtered-empty' ? (
           <TripledEmptyState
             icon={<Users className="h-4 w-4" />}
-            title="Error de carga"
-            description={listState.message}
-            role="alert"
+            title="Sin resultados"
+            description="No hay clientes que coincidan con la búsqueda o los filtros seleccionados."
             action={
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  void fetchClients();
-                }}
+                onClick={handleClearFilters}
+                aria-label="Limpiar filtros de clientes"
               >
-                Reintentar
+                <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                Limpiar filtros
               </Button>
             }
           />
-      ) : listState.kind === 'filtered-empty' ? (
-        <TripledEmptyState
-          icon={<Users className="h-4 w-4" />}
-          title="Sin resultados"
-          description="No hay clientes que coincidan con la búsqueda o los filtros seleccionados."
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClearFilters}
-              aria-label="Limpiar filtros de clientes"
-            >
-              <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-              Limpiar filtros
-            </Button>
-          }
-        />
-      ) : listState.kind === 'empty' ? (
-        <TripledEmptyState
-          icon={<UserPlus className="h-4 w-4" />}
-          title="Sin clientes"
-          description={
-            canWrite
-              ? 'Agrega el primer cliente para registrar sus datos de contacto y crear tickets con mayor rapidez.'
-              : 'No hay clientes registrados para esta empresa todavía.'
-          }
-          action={
-            canWrite ? (
-              <Button
-                type="button"
-                onClick={() => router.push('/clients/new')}
-              >
-                <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                Nuevo cliente
-              </Button>
-            ) : null
-          }
-        />
-      ) : (
-        <>
+        ) : listState.kind === 'empty' ? (
+          <TripledEmptyState
+            icon={<UserPlus className="h-4 w-4" />}
+            title="Sin clientes"
+            description={
+              effectiveCanWrite
+                ? 'Agrega el primer cliente para registrar sus datos de contacto y crear tickets con mayor rapidez.'
+                : 'No hay clientes registrados para esta empresa todavía.'
+            }
+            action={
+              effectiveCanWrite ? (
+                <Button
+                  type="button"
+                  onClick={() => router.push('/clients/new')}
+                >
+                  <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                  Nuevo cliente
+                </Button>
+              ) : null
+            }
+          />
+        ) : (
+          <>
           <div className="space-y-3 md:hidden">
             {table.getRowModel().rows.map((row) => {
               const clientRow = row.original;
@@ -489,26 +590,26 @@ export function ClientList() {
                 <TripledMobileRecordCard
                   key={row.id}
                   role="button"
-                  tabIndex={canWrite ? 0 : -1}
+                  tabIndex={effectiveCanWrite ? 0 : -1}
                   aria-label={
-                    canWrite
+                    effectiveCanWrite
                       ? `Editar cliente ${clientRow.name}`
                       : `Cliente ${clientRow.name}`
                   }
-                  interactive={canWrite}
+                  interactive={effectiveCanWrite}
                   className={
-                    canWrite
+                    effectiveCanWrite
                       ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                       : undefined
                   }
                   onClick={() => {
-                    if (canWrite) {
+                    if (effectiveCanWrite) {
                       router.push(`/clients/${clientRow.id}/edit`);
                     }
                   }}
                   onKeyDown={(event) => {
                     if (
-                      canWrite &&
+                      effectiveCanWrite &&
                       (event.key === 'Enter' || event.key === ' ')
                     ) {
                       event.preventDefault();
@@ -520,7 +621,7 @@ export function ClientList() {
                     <h3 className="text-sm font-semibold text-foreground">
                       {clientRow.name}
                     </h3>
-                    {canWrite ? (
+                    {effectiveCanWrite ? (
                       <div className="flex shrink-0 gap-1">
                       <Button
                         variant="ghost"
@@ -551,8 +652,14 @@ export function ClientList() {
                   <dl className="mt-3 space-y-2 text-sm">
                     <div className="grid grid-cols-[88px_1fr] gap-2">
                       <dt className="text-muted-foreground">Teléfono</dt>
-                      <dd className="truncate tabular-nums">
-                        {clientRow.phone || '—'}
+                      <dd className="truncate">
+                        <ClientPhoneLink
+                          phone={clientRow.phone}
+                          className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          textClassName="tabular-nums"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        />
                       </dd>
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -600,16 +707,16 @@ export function ClientList() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={canWrite ? 'cursor-pointer' : undefined}
-                    tabIndex={canWrite ? 0 : -1}
+                    className={effectiveCanWrite ? 'cursor-pointer' : undefined}
+                    tabIndex={effectiveCanWrite ? 0 : -1}
                     onClick={() => {
-                      if (canWrite) {
+                      if (effectiveCanWrite) {
                         router.push(`/clients/${row.original.id}/edit`);
                       }
                     }}
                     onKeyDown={(event) => {
                       if (
-                        canWrite &&
+                        effectiveCanWrite &&
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();
@@ -659,8 +766,9 @@ export function ClientList() {
               </Button>
             </div>
           </div>
-        </>
-      )}
+          </>
+        )}
+      </MobilePullToRefresh>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

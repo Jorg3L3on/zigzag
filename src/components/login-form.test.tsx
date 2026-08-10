@@ -29,7 +29,7 @@ const submitLogin = () => {
   fireEvent.change(screen.getByLabelText(/correo electrónico/i), {
     target: { value: 'agent@example.com' },
   });
-  fireEvent.change(screen.getByLabelText(/contraseña/i), {
+  fireEvent.change(screen.getByLabelText(/^contraseña$/i), {
     target: { value: 'secret' },
   });
 

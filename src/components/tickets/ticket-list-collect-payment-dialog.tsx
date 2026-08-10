@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { getErrorMessageByType } from '@/lib/network-awareness';
+import { vibrateSuccess } from '@/lib/vibrate-success';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -90,6 +91,7 @@ export const TicketListCollectPaymentDialog = ({
         const row = result.data as { paid?: number | null } | undefined;
         const nextPaid =
           typeof row?.paid === 'number' ? row.paid : (paid ?? 0) + additional;
+        vibrateSuccess();
         toast.success('Cobro registrado correctamente');
         handleSuccess(nextPaid);
         return;
@@ -112,6 +114,7 @@ export const TicketListCollectPaymentDialog = ({
         const row = result.data as { paid?: number | null } | undefined;
         const nextPaid =
           typeof row?.paid === 'number' ? row.paid : (total ?? paid ?? 0);
+        vibrateSuccess();
         toast.success('Ticket saldado');
         handleSuccess(nextPaid);
         return;

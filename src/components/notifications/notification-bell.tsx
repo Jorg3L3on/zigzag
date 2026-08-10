@@ -18,6 +18,7 @@ import {
 } from '@/actions/notifications';
 import type { NotificationRow } from '@/db/schema';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
+import { toast } from 'sonner';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -90,26 +91,74 @@ export const NotificationBell = () => {
     ),
   );
 
-  const handleMarkRead = async (id: number) => {
+  const handleMarkRead = async (row: NotificationRow) => {
+    if (row.read_at !== null) {
+      return;
+    }
+
+    const readAt = new Date();
     setItems((prev) =>
-      prev.map((row) =>
-        row.id === id && row.read_at === null
-          ? { ...row, read_at: new Date() }
-          : row,
+      prev.map((item) =>
+        item.id === row.id && item.read_at === null
+          ? { ...item, read_at: readAt }
+          : item,
       ),
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
-    await markNotificationRead(id);
+
+    try {
+      const result = await markNotificationRead(row.id);
+      if (result.success) {
+        return;
+      }
+    } catch {
+      // Rollback below keeps the UI honest when the action throws.
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === row.id ? { ...item, read_at: row.read_at } : item,
+      ),
+    );
+    setUnreadCount((prev) => prev + 1);
+    toast.error('No se pudo marcar la notificación como leída.');
   };
 
   const handleMarkAll = async () => {
+    const unreadRows = items.filter((row) => row.read_at === null);
+    if (unreadRows.length === 0) {
+      return;
+    }
+
+    const previousReadAt = new Map(
+      unreadRows.map((row) => [row.id, row.read_at] as const),
+    );
+    const readAt = new Date();
     setItems((prev) =>
       prev.map((row) =>
-        row.read_at === null ? { ...row, read_at: new Date() } : row,
+        row.read_at === null ? { ...row, read_at: readAt } : row,
       ),
     );
     setUnreadCount(0);
-    await markAllNotificationsRead();
+
+    try {
+      const result = await markAllNotificationsRead();
+      if (result.success) {
+        return;
+      }
+    } catch {
+      // Rollback below keeps the UI honest when the action throws.
+    }
+
+    setItems((prev) =>
+      prev.map((row) =>
+        previousReadAt.has(row.id)
+          ? { ...row, read_at: previousReadAt.get(row.id) ?? null }
+          : row,
+      ),
+    );
+    setUnreadCount((prev) => prev + unreadRows.length);
+    toast.error('No se pudieron marcar las notificaciones como leídas.');
   };
 
   const badgeLabel = unreadCount > 9 ? '9+' : String(unreadCount);
@@ -191,7 +240,7 @@ export const NotificationBell = () => {
                 );
 
                 const handleClick = () => {
-                  void handleMarkRead(row.id);
+                  void handleMarkRead(row);
                   if (href) {
                     setOpen(false);
                   }

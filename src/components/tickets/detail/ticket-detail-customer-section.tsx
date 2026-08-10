@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Mail, Phone, IdCard } from 'lucide-react';
+import { ClientPhoneLink } from '@/components/client-phone-link';
 import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
@@ -58,14 +59,14 @@ export const TicketDetailCustomerSection = ({
               Teléfono
             </p>
             {phone ? (
-              <a
-                href={`tel:${phone}`}
+              <ClientPhoneLink
+                phone={phone}
                 className="mt-1 inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`Llamar a ${phone}`}
+                textClassName="mt-1 inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground"
               >
                 <Phone className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="truncate tabular-nums">{phone}</span>
-              </a>
+              </ClientPhoneLink>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">No especificado</p>
             )}

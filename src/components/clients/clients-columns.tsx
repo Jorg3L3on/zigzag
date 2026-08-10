@@ -5,6 +5,7 @@ import type { Column, ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ClientPhoneLink } from '@/components/client-phone-link';
 import { FormattedDate } from '@/components/formatted-date';
 import { cn } from '@/lib/utils';
 import { formatClientAddressOneLine } from '@/lib/client-address';
@@ -86,9 +87,13 @@ export const createClientsColumns = ({
       <ClientSortableHeader column={column} label="Teléfono" />
     ),
     cell: ({ row }) => (
-      <span className="line-clamp-1 max-w-[10rem] tabular-nums">
-        {row.original.phone || '—'}
-      </span>
+      <ClientPhoneLink
+        phone={row.original.phone}
+        className="line-clamp-1 max-w-[10rem] tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        textClassName="line-clamp-1 max-w-[10rem] tabular-nums"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      />
     ),
     sortingFn: (a, b) => {
       const na = a.original.phone ?? '';
