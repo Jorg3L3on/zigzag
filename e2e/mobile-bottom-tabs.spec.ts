@@ -40,6 +40,28 @@ test.describe('Mobile bottom tabs', () => {
     await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);
   });
 
+  test('hides tabs on ticket edit when sticky action bar is present', async ({
+    page,
+  }) => {
+    await page.goto('/tickets');
+
+    const editButton = page
+      .getByRole('button', { name: /Editar ticket/i })
+      .first();
+    if (!(await editButton.isVisible().catch(() => false))) {
+      test.skip(true, 'No editable ticket available for sticky action test');
+      return;
+    }
+
+    await editButton.click();
+    await page.waitForURL(/\/tickets\/\d+\/edit/, { timeout: 30_000 });
+
+    await expect(page.getByTestId('mobile-sticky-action-bar')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);
+  });
+
   test('Más opens the existing navigation sheet', async ({ page }) => {
     await page.goto('/dashboard');
 
