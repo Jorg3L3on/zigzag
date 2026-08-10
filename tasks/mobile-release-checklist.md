@@ -25,6 +25,7 @@ Core business flows on mobile (create ticket → add service / total → collect
 - [ ] Download ticket PDF on a finished ticket (Wi‑Fi); failure shows toast `PDF001`.
 - [ ] Toggle airplane mode — offline banner appears; shell may load from cache on cold start after prior online visit; no offline data sync.
 - [ ] **Share → Add to Home Screen** — icon installs; cold start opens **Dashboard** (`/dashboard`).
+- [ ] Installed app cold start shows a white splash/theme background and readable default iOS status bar.
 - [ ] Bottom tabs visible on Dashboard/Tickets; Más opens navigation sheet.
 
 ## Manual — Android Chrome
