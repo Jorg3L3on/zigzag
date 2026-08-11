@@ -82,8 +82,8 @@ export const buildDashboardAttentionItems = (
           : 'Tickets pendientes de pago',
       count: pendingCount,
       explanation: 'Sin abonos registrados — revisa cobros',
-      href: '/tickets?status=pending',
-      ctaLabel: 'Ver tickets',
+      href: '/cobranza?status=pending',
+      ctaLabel: 'Ver cobranza',
       tone: 'urgent',
     });
   }
@@ -96,8 +96,8 @@ export const buildDashboardAttentionItems = (
         partialCount === 1 ? 'Ticket con pago parcial' : 'Tickets con pago parcial',
       count: partialCount,
       explanation: 'Cobros incompletos que puedes cerrar',
-      href: '/tickets?status=partial',
-      ctaLabel: 'Ver tickets',
+      href: '/cobranza?status=partial',
+      ctaLabel: 'Ver cobranza',
       tone: 'default',
     });
   }
