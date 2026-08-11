@@ -6,6 +6,10 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Status | File | Kind |
 |--------|------|------|
+| ❌ | [prd-cobranza-queue.md](./prd-cobranza-queue.md) ([#370](https://github.com/Jorg3L3on/zigzag/issues/370)) | Business growth — Cobranza list + WhatsApp balance share |
+| ❌ | [prd-reminder-action-loop.md](./prd-reminder-action-loop.md) ([#371](https://github.com/Jorg3L3on/zigzag/issues/371)) | Business growth — reminder digests + one-tap crear ticket |
+| ❌ | [prd-technician-day-view.md](./prd-technician-day-view.md) ([#372](https://github.com/Jorg3L3on/zigzag/issues/372)) | Business growth — Trabajo de hoy on dashboard Inicio |
+| ❌ | [prd-presupuesto-to-ticket.md](./prd-presupuesto-to-ticket.md) ([#373](https://github.com/Jorg3L3on/zigzag/issues/373)) | Business growth — Presupuesto PDF → convert to Ticket |
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
 | ❌ | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — native-feel PWA polish (items 2, 4–10) |
 | ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
