@@ -37,6 +37,40 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 **Suggested implementation order** (from program decisions): UI/UX → Functionality → Architecture → Performance → PWA install → Testing → Accessibility → Documentation.
 
+**Business-growth PRDs (suggested):** Cobranza (#370) → Reminder action loop (#371) → Technician day view (#372) → Presupuesto → Ticket (#373). Prefer shared phone/WhatsApp helpers and an `isWorkTicket` predicate so later `document_kind` filtering does not rework Cobranza/day-view queries.
+
+---
+
+## ❌ prd-cobranza-queue.md
+
+**Status:** Not applied · **GitHub:** [#370](https://github.com/Jorg3L3on/zigzag/issues/370)
+
+**TL;DR:** Dedicated Cobranza list for Tickets with saldo > 0 (aging + urgency sort), reuse collect/PDF actions, client-side `wa.me` balance share. No WhatsApp Business API; no schema change.
+
+---
+
+## ❌ prd-reminder-action-loop.md
+
+**Status:** Not applied · **GitHub:** [#371](https://github.com/Jorg3L3on/zigzag/issues/371)
+
+**TL;DR:** Daily in-app digest for Próximos/Atrasados; Crear ticket on widget/notification entry points; tel/WhatsApp on schedule rows; optional 7-day snooze. Still no auto-create Tickets; no paid messaging vendors in v1.
+
+---
+
+## ❌ prd-technician-day-view.md
+
+**Status:** Not applied · **GitHub:** [#372](https://github.com/Jorg3L3on/zigzag/issues/372)
+
+**TL;DR:** Trabajo de hoy module on `/dashboard` (Inicio): today’s + overdue unfinished Tickets with field CTAs. Company-wide queue (no assignee). Makes bottom-tab Inicio useful for operators.
+
+---
+
+## ❌ prd-presupuesto-to-ticket.md
+
+**Status:** Not applied · **GitHub:** [#373](https://github.com/Jorg3L3on/zigzag/issues/373)
+
+**TL;DR:** `document_kind` on Ticket for Presupuesto vs trabajo; Presupuesto PDF; convert to unfinished Ticket with audit; exclude quotes from KPIs/Cobranza/day view. No client portal acceptance in v1.
+
 ---
 
 ## ❌ prd-native-feel-pwa.md
