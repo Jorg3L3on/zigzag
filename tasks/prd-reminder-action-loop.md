@@ -1,7 +1,7 @@
 # PRD: Service reminder action loop (digests + one-tap ticket)
 
 **Status:** ❌ Not applied  
-**GitHub:** [#371](https://github.com/Jorg3L3on/zigzag/issues/371)  
+**GitHub:** [#371](https://github.com/Jorg3L3on/zigzag/issues/371); slices [#379](https://github.com/Jorg3L3on/zigzag/issues/379)–[#382](https://github.com/Jorg3L3on/zigzag/issues/382)  
 **Depends on:** Existing Client service schedules + in-app Notification materialization  
 **Suggested order:** After Cobranza (or parallel if staffing allows)
 

@@ -1,7 +1,7 @@
 # PRD: Presupuesto to Ticket conversion
 
 **Status:** ❌ Not applied  
-**GitHub:** [#373](https://github.com/Jorg3L3on/zigzag/issues/373)  
+**GitHub:** [#373](https://github.com/Jorg3L3on/zigzag/issues/373); slices [#386](https://github.com/Jorg3L3on/zigzag/issues/386)–[#390](https://github.com/Jorg3L3on/zigzag/issues/390)  
 **Suggested order:** After Cobranza and day-view foundations; introduces a new commercial document state on Ticket
 
 ## Problem Statement

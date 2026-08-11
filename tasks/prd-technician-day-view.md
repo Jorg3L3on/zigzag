@@ -1,7 +1,7 @@
 # PRD: Technician day view (Día del técnico)
 
 **Status:** ❌ Not applied  
-**GitHub:** [#372](https://github.com/Jorg3L3on/zigzag/issues/372)  
+**GitHub:** [#372](https://github.com/Jorg3L3on/zigzag/issues/372); slices [#383](https://github.com/Jorg3L3on/zigzag/issues/383)–[#385](https://github.com/Jorg3L3on/zigzag/issues/385)  
 **Related:** [`prd-native-feel-bottom-tabs.md`](./prd-native-feel-bottom-tabs.md) (Inicio → `/dashboard`)  
 **Suggested order:** After or with bottom tabs; builds the “Inicio” value for field staff
 

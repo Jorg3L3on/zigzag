@@ -6,10 +6,10 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Status | File | Kind |
 |--------|------|------|
-| ❌ | [prd-cobranza-queue.md](./prd-cobranza-queue.md) ([#370](https://github.com/Jorg3L3on/zigzag/issues/370)) | Business growth — Cobranza list + WhatsApp balance share |
-| ❌ | [prd-reminder-action-loop.md](./prd-reminder-action-loop.md) ([#371](https://github.com/Jorg3L3on/zigzag/issues/371)) | Business growth — reminder digests + one-tap crear ticket |
-| ❌ | [prd-technician-day-view.md](./prd-technician-day-view.md) ([#372](https://github.com/Jorg3L3on/zigzag/issues/372)) | Business growth — Trabajo de hoy on dashboard Inicio |
-| ❌ | [prd-presupuesto-to-ticket.md](./prd-presupuesto-to-ticket.md) ([#373](https://github.com/Jorg3L3on/zigzag/issues/373)) | Business growth — Presupuesto PDF → convert to Ticket |
+| ❌ | [prd-cobranza-queue.md](./prd-cobranza-queue.md) ([#370](https://github.com/Jorg3L3on/zigzag/issues/370); slices [#375](https://github.com/Jorg3L3on/zigzag/issues/375)–[#378](https://github.com/Jorg3L3on/zigzag/issues/378)) | Business growth — Cobranza list + WhatsApp balance share |
+| ❌ | [prd-reminder-action-loop.md](./prd-reminder-action-loop.md) ([#371](https://github.com/Jorg3L3on/zigzag/issues/371); slices [#379](https://github.com/Jorg3L3on/zigzag/issues/379)–[#382](https://github.com/Jorg3L3on/zigzag/issues/382)) | Business growth — reminder digests + one-tap crear ticket |
+| ❌ | [prd-technician-day-view.md](./prd-technician-day-view.md) ([#372](https://github.com/Jorg3L3on/zigzag/issues/372); slices [#383](https://github.com/Jorg3L3on/zigzag/issues/383)–[#385](https://github.com/Jorg3L3on/zigzag/issues/385)) | Business growth — Trabajo de hoy on dashboard Inicio |
+| ❌ | [prd-presupuesto-to-ticket.md](./prd-presupuesto-to-ticket.md) ([#373](https://github.com/Jorg3L3on/zigzag/issues/373); slices [#386](https://github.com/Jorg3L3on/zigzag/issues/386)–[#390](https://github.com/Jorg3L3on/zigzag/issues/390)) | Business growth — Presupuesto PDF → convert to Ticket |
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
 | ❌ | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — native-feel PWA polish (items 2, 4–10) |
 | ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
@@ -43,33 +43,41 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ## ❌ prd-cobranza-queue.md
 
-**Status:** Not applied · **GitHub:** [#370](https://github.com/Jorg3L3on/zigzag/issues/370)
+**Status:** Not applied · **GitHub:** [#370](https://github.com/Jorg3L3on/zigzag/issues/370); slices [#375](https://github.com/Jorg3L3on/zigzag/issues/375)–[#378](https://github.com/Jorg3L3on/zigzag/issues/378)
 
 **TL;DR:** Dedicated Cobranza list for Tickets with saldo > 0 (aging + urgency sort), reuse collect/PDF actions, client-side `wa.me` balance share. No WhatsApp Business API; no schema change.
+
+**Slices:** #375 list → #376 actions / #377 WhatsApp helper / #378 dashboard links.
 
 ---
 
 ## ❌ prd-reminder-action-loop.md
 
-**Status:** Not applied · **GitHub:** [#371](https://github.com/Jorg3L3on/zigzag/issues/371)
+**Status:** Not applied · **GitHub:** [#371](https://github.com/Jorg3L3on/zigzag/issues/371); slices [#379](https://github.com/Jorg3L3on/zigzag/issues/379)–[#382](https://github.com/Jorg3L3on/zigzag/issues/382)
 
 **TL;DR:** Daily in-app digest for Próximos/Atrasados; Crear ticket on widget/notification entry points; tel/WhatsApp on schedule rows; optional 7-day snooze. Still no auto-create Tickets; no paid messaging vendors in v1.
+
+**Slices:** #379 digest · #380 crear ticket entry points · #381 tel/WhatsApp (after #377) · #382 snooze.
 
 ---
 
 ## ❌ prd-technician-day-view.md
 
-**Status:** Not applied · **GitHub:** [#372](https://github.com/Jorg3L3on/zigzag/issues/372)
+**Status:** Not applied · **GitHub:** [#372](https://github.com/Jorg3L3on/zigzag/issues/372); slices [#383](https://github.com/Jorg3L3on/zigzag/issues/383)–[#385](https://github.com/Jorg3L3on/zigzag/issues/385)
 
 **TL;DR:** Trabajo de hoy module on `/dashboard` (Inicio): today’s + overdue unfinished Tickets with field CTAs. Company-wide queue (no assignee). Makes bottom-tab Inicio useful for operators.
+
+**Slices:** #383 module → #384 CTAs (needs #377) · #385 por cobrar link (needs #375).
 
 ---
 
 ## ❌ prd-presupuesto-to-ticket.md
 
-**Status:** Not applied · **GitHub:** [#373](https://github.com/Jorg3L3on/zigzag/issues/373)
+**Status:** Not applied · **GitHub:** [#373](https://github.com/Jorg3L3on/zigzag/issues/373); slices [#386](https://github.com/Jorg3L3on/zigzag/issues/386)–[#390](https://github.com/Jorg3L3on/zigzag/issues/390)
 
 **TL;DR:** `document_kind` on Ticket for Presupuesto vs trabajo; Presupuesto PDF; convert to unfinished Ticket with audit; exclude quotes from KPIs/Cobranza/day view. No client portal acceptance in v1.
+
+**Slices:** #386 schema → #387 UI → #388 PDF / #389 convert · #390 exclusions.
 
 ---
 

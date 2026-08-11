@@ -1,7 +1,7 @@
 # PRD: Cobranza queue and WhatsApp balance share
 
 **Status:** ❌ Not applied  
-**GitHub:** [#370](https://github.com/Jorg3L3on/zigzag/issues/370)  
+**GitHub:** [#370](https://github.com/Jorg3L3on/zigzag/issues/370); slices [#375](https://github.com/Jorg3L3on/zigzag/issues/375)–[#378](https://github.com/Jorg3L3on/zigzag/issues/378)  
 **Suggested order:** First among business-growth PRDs (highest cash-flow ROI)
 
 ## Problem Statement
