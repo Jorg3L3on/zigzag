@@ -57,7 +57,7 @@ test.describe('Mobile sidebar sheet', () => {
       ticketCards.or(emptyOrFiltered).or(countLabel).first(),
     ).toBeVisible({ timeout: 15_000 });
 
-    const desktopTable = page.locator('.hidden.md\\:block table');
+    const desktopTable = page.locator('.hidden.md\\:block table').first();
 
     if ((await ticketCards.count()) > 0) {
       await expect(ticketCards.first()).toBeVisible();
