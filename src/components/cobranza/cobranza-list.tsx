@@ -16,6 +16,7 @@ import {
   cobranzaRowToTicketActions,
   createCobranzaColumns,
 } from '@/components/cobranza/cobranza-columns';
+import { CobranzaWhatsAppButton } from '@/components/cobranza/cobranza-whatsapp-button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import { Input } from '@/components/ui/input';
@@ -206,8 +207,9 @@ export const CobranzaList = () => {
         onPaymentApplied: handlePaymentApplied,
         canWrite,
         companyId: selectedCompany?.id ?? null,
+        companyName: selectedCompany?.name ?? null,
       }),
-    [canWrite, handlePaymentApplied, selectedCompany?.id],
+    [canWrite, handlePaymentApplied, selectedCompany?.id, selectedCompany?.name],
   );
 
   const table = useReactTable({
@@ -403,9 +405,14 @@ export const CobranzaList = () => {
                         </p>
                       </div>
                       <div
+                        className="flex items-center gap-0.5"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
+                        <CobranzaWhatsAppButton
+                          row={item}
+                          companyName={selectedCompany?.name ?? null}
+                        />
                         <TicketRowActions
                           ticket={cobranzaRowToTicketActions(item)}
                           onPaymentApplied={handlePaymentApplied}

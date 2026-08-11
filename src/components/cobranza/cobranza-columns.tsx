@@ -3,6 +3,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CobranzaRow } from '@/lib/cobranza';
 import { COBRANZA_AGING_LABEL } from '@/lib/cobranza';
+import { CobranzaWhatsAppButton } from '@/components/cobranza/cobranza-whatsapp-button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
@@ -13,6 +14,7 @@ export type CobranzaColumnsOptions = {
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
+  companyName?: string | null;
 };
 
 export const cobranzaRowToTicketActions = (row: CobranzaRow) => ({
@@ -28,6 +30,7 @@ export const createCobranzaColumns = ({
   onPaymentApplied,
   canWrite = false,
   companyId = null,
+  companyName = null,
 }: CobranzaColumnsOptions = {}): ColumnDef<CobranzaRow>[] => [
   {
     id: 'id',
@@ -101,10 +104,14 @@ export const createCobranzaColumns = ({
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div
-        className="flex justify-end"
+        className="flex items-center justify-end gap-0.5"
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}
       >
+        <CobranzaWhatsAppButton
+          row={row.original}
+          companyName={companyName}
+        />
         <TicketRowActions
           ticket={cobranzaRowToTicketActions(row.original)}
           onPaymentApplied={onPaymentApplied}
