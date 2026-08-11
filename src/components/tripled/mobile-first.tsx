@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import * as React from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
@@ -199,8 +201,21 @@ export const TripledMobileStickyActionBar = ({
   innerClassName,
 }: TripledMobileStickyActionBarProps) => {
   useRegisterMobileStickyAction();
+  const [portalHost, setPortalHost] = React.useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' ? document.body : null,
+  );
 
-  return (
+  React.useLayoutEffect(() => {
+    setPortalHost(document.body);
+  }, []);
+
+  // Portal to body so position:fixed is never trapped by animated ancestors
+  // (e.g. route enter transitions that use transform/opacity wrappers).
+  if (!portalHost) {
+    return null;
+  }
+
+  return createPortal(
     <div
       data-testid="mobile-sticky-action-bar"
       className={cn(
@@ -211,7 +226,8 @@ export const TripledMobileStickyActionBar = ({
       <div className={cn('mx-auto flex max-w-2xl items-center gap-3', innerClassName)}>
         {children}
       </div>
-    </div>
+    </div>,
+    portalHost,
   );
 };
 

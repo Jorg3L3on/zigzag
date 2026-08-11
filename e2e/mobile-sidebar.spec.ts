@@ -21,7 +21,9 @@ test.describe('Mobile sidebar sheet', () => {
 
     await expect(visiblePageHeader(page).getByText('Dashboard')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Abrir menú de navegación' }).click();
+    await visiblePageHeader(page)
+      .getByRole('button', { name: 'Abrir menú de navegación', exact: true })
+      .click();
 
     const navDialog = page.getByRole('dialog', { name: 'Menú de navegación' });
     await expect(navDialog).toBeVisible();
