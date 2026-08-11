@@ -5,6 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Column } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ClientPhoneLink } from '@/components/client-phone-link';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
@@ -94,7 +95,13 @@ export const createTicketsColumns = ({
       <TicketSortableHeader column={column} label="Teléfono" />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.client_tel ?? '—'}</span>
+      <ClientPhoneLink
+        phone={row.original.client_tel}
+        className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        textClassName="tabular-nums"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      />
     ),
     sortingFn: (a, b) => {
       const na = a.original.client_tel ?? '';

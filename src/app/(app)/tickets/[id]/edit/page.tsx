@@ -22,7 +22,7 @@ import {
   type TicketFinishScheduleLine,
 } from '@/components/service-schedules/ticket-finish-schedules-dialog';
 import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Popover,
@@ -63,15 +63,23 @@ import { useCompany } from '@/contexts/company-context';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
+  TripledMobileStickyActionBar,
   TripledPageHeader,
   TripledStepper,
 } from '@/components/tripled';
-import { buildTicketInvoiceDownloadUrl } from '@/lib/ticket-invoice-url';
+import { ClientPhoneLink } from '@/components/client-phone-link';
+import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
   buildToastErrorContent,
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import {
+  buildTicketDraftStorageKey,
+  clearTicketFormDraft,
+  readTicketFormDraft,
+  writeTicketFormDraft,
+} from '@/lib/ticket-form-drafts';
 import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
 import {
   Tooltip,
@@ -80,13 +88,15 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+const EDIT_TICKET_FORM_ID = 'edit-ticket-form';
+
 const formSchema = z.object({
   client_id: z.number().optional(),
   client_name: z.string().min(1, 'El nombre es obligatorio').max(100),
   client_tel: z.string().min(1, 'El teléfono es obligatorio').max(20),
   email: z.string().email('Correo inválido').max(40).optional(),
   document: z.string().max(100).optional(),
-  ticket_date: z.date(),
+  ticket_date: z.date().optional(),
   services: z.array(
     z.object({
       service_id: z.number(),
@@ -97,6 +107,8 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+const EDIT_TICKET_RETRY_GUIDANCE =
+  'Conservamos tus cambios en el formulario. Revisa tu conexión y vuelve a intentar guardar.';
 
 interface ServiceTicket {
   id: number;
@@ -119,6 +131,7 @@ export default function EditTicketPage({
   const resolvedParams = React.use(params);
   const resolvedSearchParams = React.use(searchParams);
   const router = useRouter();
+  const pathname = usePathname();
   const { selectedCompany } = useCompany();
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
   const [isFinished, setIsFinished] = useState(false);
@@ -127,6 +140,7 @@ export default function EditTicketPage({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isFullyPaid, setIsFullyPaid] = useState(true);
   const [paidAmountInput, setPaidAmountInput] = useState('');
+  const [hasLoadedTicket, setHasLoadedTicket] = useState(false);
   const [schedulesDialogOpen, setSchedulesDialogOpen] = useState(false);
   const [existingSchedules, setExistingSchedules] = useState<
     ClientServiceScheduleListItem[]
@@ -145,6 +159,15 @@ export default function EditTicketPage({
   });
 
   const { isDirty } = form.formState;
+  const draftKey = React.useMemo(
+    () =>
+      buildTicketDraftStorageKey({
+        route: pathname,
+        ticketId: resolvedParams.id,
+        companyId: selectedCompany?.id,
+      }),
+    [pathname, resolvedParams.id, selectedCompany?.id],
+  );
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -162,7 +185,7 @@ export default function EditTicketPage({
           const paidFromTicket =
             typeof data.paid === 'number' ? data.paid : null;
 
-          form.reset({
+          const serverValues: FormValues = {
             client_id: data.client_id ?? undefined,
             client_name: data.client_name ?? '',
             client_tel: data.client_tel ?? '',
@@ -176,7 +199,23 @@ export default function EditTicketPage({
               quantity: st.quantity,
               price: Number(st.price),
             })),
-          });
+          };
+          const draft = readTicketFormDraft(draftKey);
+          form.reset(
+            draft
+              ? {
+                  ...serverValues,
+                  client_id: draft.client_id ?? serverValues.client_id,
+                  client_name: draft.client_name ?? serverValues.client_name,
+                  client_tel: draft.client_tel ?? serverValues.client_tel,
+                  email: draft.email ?? serverValues.email,
+                  document: draft.document ?? serverValues.document,
+                  ticket_date: draft.ticket_date
+                    ? new Date(draft.ticket_date)
+                    : serverValues.ticket_date,
+                }
+              : serverValues,
+          );
           setTicketServices(
             data.services_tickets.map((st) => ({
               id: st.id,
@@ -192,12 +231,18 @@ export default function EditTicketPage({
           setIsFinished(data.finished);
           if (paidFromTicket !== null) {
             const normalizedPaid = Math.max(paidFromTicket, 0);
-            setIsFullyPaid(normalizedPaid >= totalFromTicket && totalFromTicket > 0);
-            setPaidAmountInput(normalizedPaid.toString());
+            setIsFullyPaid(
+              draft?.isFullyPaid ??
+                (normalizedPaid >= totalFromTicket && totalFromTicket > 0),
+            );
+            setPaidAmountInput(
+              draft?.paidAmountInput ?? normalizedPaid.toString(),
+            );
           } else {
-            setIsFullyPaid(true);
-            setPaidAmountInput('');
+            setIsFullyPaid(draft?.isFullyPaid ?? true);
+            setPaidAmountInput(draft?.paidAmountInput ?? '');
           }
+          setHasLoadedTicket(true);
 
           if (isTicketFullyPaid(totalFromTicket, paidFromTicket)) {
             toast.error('Este ticket ya está saldado y no se puede editar', {
@@ -244,7 +289,41 @@ export default function EditTicketPage({
     };
 
     fetchTicket();
-  }, [resolvedParams.id, form, router, selectedCompany?.id]);
+  }, [resolvedParams.id, draftKey, form, router, selectedCompany?.id]);
+
+  useEffect(() => {
+    if (!hasLoadedTicket || isFinished) return;
+
+    const subscription = form.watch((values) => {
+      writeTicketFormDraft(draftKey, {
+        client_id: values.client_id,
+        client_name: values.client_name,
+        client_tel: values.client_tel,
+        email: values.email,
+        document: values.document,
+        ticket_date: values.ticket_date,
+        isFullyPaid,
+        paidAmountInput,
+      });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [draftKey, form, hasLoadedTicket, isFinished, isFullyPaid, paidAmountInput]);
+
+  useEffect(() => {
+    if (!hasLoadedTicket || isFinished) return;
+
+    writeTicketFormDraft(draftKey, {
+      client_id: form.getValues('client_id'),
+      client_name: form.getValues('client_name'),
+      client_tel: form.getValues('client_tel'),
+      email: form.getValues('email'),
+      document: form.getValues('document'),
+      ticket_date: form.getValues('ticket_date'),
+      isFullyPaid,
+      paidAmountInput,
+    });
+  }, [draftKey, form, hasLoadedTicket, isFinished, isFullyPaid, paidAmountInput]);
 
   const calculateTotal = () => {
     return ticketServices.reduce(
@@ -286,6 +365,7 @@ export default function EditTicketPage({
       const result = await updateTicket(Number(resolvedParams.id), values);
       if (result.success) {
         toast.success('Ticket actualizado correctamente');
+        clearTicketFormDraft(draftKey);
         router.push(`/tickets/${resolvedParams.id}`);
       } else {
         const errorType = classifyClientError(null, undefined, result.errorType);
@@ -294,37 +374,33 @@ export default function EditTicketPage({
             errorType,
             result.error || 'No se pudo actualizar el ticket',
           ),
+          {
+            description:
+              errorType === 'network' ? EDIT_TICKET_RETRY_GUIDANCE : undefined,
+          },
         );
       }
     } catch (error) {
       const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
+      const description = getErrorMessageByType(errorType, 'Ocurrió un error');
+      toast.error(errorType === 'network' ? 'Sin conexión' : description, {
+        description:
+          errorType === 'network'
+            ? `${description} ${EDIT_TICKET_RETRY_GUIDANCE}`
+            : undefined,
+      });
     }
   }
 
   const buildTicketPdfFileName = () =>
     `${form.getValues('client_name')}_${format(new Date(), 'yyyy-MM-dd')}_${resolvedParams.id}.pdf`;
 
-  const downloadServerTicketPdf = async () => {
-    const response = await fetch(
-      buildTicketInvoiceDownloadUrl(resolvedParams.id, selectedCompany?.id),
-      { cache: 'no-store' },
-    );
-
-    if (!response.ok) {
-      throw new Error(`PDF request failed with status ${response.status}`);
-    }
-
-    const pdf = await response.blob();
-    const pdfUrl = URL.createObjectURL(pdf);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = pdfUrl;
-    downloadLink.download = buildTicketPdfFileName();
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-    URL.revokeObjectURL(pdfUrl);
-  };
+  const downloadServerTicketPdf = () =>
+    fetchAndDeliverTicketInvoice({
+      ticketId: resolvedParams.id,
+      companyId: selectedCompany?.id,
+      downloadFileName: buildTicketPdfFileName(),
+    });
 
   const distinctServiceLines = React.useMemo(() => {
     const byService = new Map<number, string>();
@@ -354,17 +430,31 @@ export default function EditTicketPage({
 
     if (!result.success) {
       const errorType = classifyClientError(null, undefined, result.errorType);
+      const description = getErrorMessageByType(
+        errorType,
+        result.error || 'No se pudo generar el PDF',
+      );
       toast.error(
-        getErrorMessageByType(
-          errorType,
-          result.error || 'No se pudo generar el PDF',
-        ),
+        errorType === 'network' ? 'Sin conexión' : description,
+        {
+          description:
+            errorType === 'network'
+              ? `${description} ${EDIT_TICKET_RETRY_GUIDANCE}`
+              : undefined,
+        },
       );
       return false;
     }
 
-    await downloadServerTicketPdf();
-    toast.success('PDF generado correctamente');
+    const deliveryResult = await downloadServerTicketPdf();
+    if (deliveryResult === 'shared') {
+      toast.success('PDF compartido correctamente');
+    } else if (deliveryResult === 'downloaded') {
+      toast.success('PDF generado correctamente');
+    } else {
+      toast.success('Ticket finalizado correctamente');
+    }
+    clearTicketFormDraft(draftKey);
     setIsFinished(true);
     router.replace(`/tickets/${resolvedParams.id}`);
     router.refresh();
@@ -390,9 +480,16 @@ export default function EditTicketPage({
     } catch (error) {
       console.error('Error preparing finish:', error);
       const errorType = classifyClientError(error);
-      toast.error(
-        getErrorMessageByType(errorType, 'Ocurrió un error al generar el PDF'),
+      const description = getErrorMessageByType(
+        errorType,
+        'Ocurrió un error al generar el PDF',
       );
+      toast.error(errorType === 'network' ? 'Sin conexión' : description, {
+        description:
+          errorType === 'network'
+            ? `${description} ${EDIT_TICKET_RETRY_GUIDANCE}`
+            : undefined,
+      });
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -454,11 +551,15 @@ export default function EditTicketPage({
   const downloadTicketPdf = async () => {
     try {
       setIsGeneratingPdf(true);
-      await downloadServerTicketPdf();
-      toast.success('PDF descargado correctamente');
+      const deliveryResult = await downloadServerTicketPdf();
+      if (deliveryResult === 'shared') {
+        toast.success('PDF compartido correctamente');
+      } else if (deliveryResult === 'downloaded') {
+        toast.success('PDF descargado correctamente');
+      }
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      toast.error('No se pudo descargar el PDF. Código: PDF002');
+      toast.error('No se pudo generar el PDF. Código: PDF001');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -478,7 +579,10 @@ export default function EditTicketPage({
         ]}
       />
 
-      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+      <TripledDashboardShell
+        maxWidthClassName="max-w-2xl"
+        hasMobileStickyAction={!isFinished}
+      >
           <TripledMobileAppBar
             title={`Ticket #${resolvedParams.id}`}
             subtitle="Editar ticket"
@@ -554,7 +658,10 @@ export default function EditTicketPage({
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedClient.phone}</span>
+                      <ClientPhoneLink
+                        phone={selectedClient.phone}
+                        className="underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
                     </div>
                     {selectedClient.email && (
                       <div className="flex items-center gap-2">
@@ -574,6 +681,7 @@ export default function EditTicketPage({
 
               <Form {...form}>
                 <form
+                  id={EDIT_TICKET_FORM_ID}
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-8"
                 >
@@ -650,7 +758,7 @@ export default function EditTicketPage({
                   </div>
 
                   {!isFinished && (
-                    <div className="flex flex-col gap-4 pt-6">
+                    <div className="hidden flex-col gap-4 pt-6 md:flex">
                       {isDirty ? (
                         <Button
                           type="submit"
@@ -924,6 +1032,35 @@ export default function EditTicketPage({
             </CardContent>
           </Card>
       </TripledDashboardShell>
+
+      {!isFinished && (
+        <TripledMobileStickyActionBar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">
+              {isDirty ? 'Cambios pendientes' : 'Sin cambios pendientes'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              Ticket #{resolvedParams.id}
+            </p>
+          </div>
+          <Button
+            type="submit"
+            form={EDIT_TICKET_FORM_ID}
+            className="h-12 shrink-0 rounded-xl bg-primary px-5 font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+            disabled={form.formState.isSubmitting || !isDirty}
+          >
+            {form.formState.isSubmitting ? (
+              <Loader2
+                className="h-4 w-4 animate-spin"
+                aria-hidden
+                data-icon="inline-start"
+              />
+            ) : (
+              'Guardar'
+            )}
+          </Button>
+        </TripledMobileStickyActionBar>
+      )}
 
       <TicketFinishSchedulesDialog
         open={schedulesDialogOpen}

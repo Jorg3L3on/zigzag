@@ -4,8 +4,8 @@ import {
   REQUEST_ID_HEADER,
   resolveRequestId,
 } from '@/lib/request-context';
+import { buildExpiredLoginUrl, LOGIN_PATH } from '@/lib/login-redirect';
 
-const LOGIN_PATH = '/login';
 const DASHBOARD_PATH = '/dashboard';
 const PROTECTED_PATH_PREFIXES = [
   DASHBOARD_PATH,
@@ -79,9 +79,12 @@ export function proxy(request: NextRequest) {
   }
 
   if (isOnProtectedAppRoute && !isLoggedIn) {
+    const callbackPath = `${pathname}${request.nextUrl.search}`;
     return withRequestIdHeaders(
       requestId,
-      NextResponse.redirect(new URL(LOGIN_PATH, request.url)),
+      NextResponse.redirect(
+        buildExpiredLoginUrl(new URL(request.url), callbackPath),
+      ),
     );
   }
 

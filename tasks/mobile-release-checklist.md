@@ -25,10 +25,14 @@ Core business flows on mobile (create ticket → add service / total → collect
 - [ ] Download ticket PDF on a finished ticket (Wi‑Fi); failure shows toast `PDF001`.
 - [ ] Toggle airplane mode — offline banner appears; shell may load from cache on cold start after prior online visit; no offline data sync.
 - [ ] **Share → Add to Home Screen** — icon installs; cold start opens **Dashboard** (`/dashboard`).
+- [ ] Installed app cold start shows a white splash/theme background and readable default iOS status bar.
+- [ ] Bottom tabs visible on Dashboard/Tickets; Más opens navigation sheet.
 
 ## Manual — Android Chrome
 
 - [ ] Login and open sidebar sheet from the menu button; navigation links work.
+- [ ] Bottom tabs (Inicio · Tickets · Clientes · Más) visible on list pages; Más opens the sidebar sheet.
+- [ ] Ticket create sticky save bar hides bottom tabs.
 - [ ] Tickets list cards and filters usable with touch targets.
 - [ ] Create-ticket flow: client step and services step scroll without layout break.
 - [ ] PDF download on finished ticket.

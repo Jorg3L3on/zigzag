@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
+import { ClientPhoneLink } from '@/components/client-phone-link';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
@@ -86,8 +87,14 @@ export const TicketsMobileCard = ({
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Teléfono
           </p>
-          <dd className="mt-1 truncate font-medium tabular-nums leading-snug">
-            {ticket.client_tel || '—'}
+          <dd className="mt-1 truncate font-medium leading-snug">
+            <ClientPhoneLink
+              phone={ticket.client_tel}
+              className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              textClassName="tabular-nums"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            />
           </dd>
         </div>
         <div className="min-w-0 rounded-xl bg-muted/35 p-3">

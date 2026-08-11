@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth';
+import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { redirect } from 'next/navigation';
 import {
   TripledDashboardShell,
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
   const session = await auth();
 
   if (!session?.user?.company_id) {
-    redirect('/login');
+    redirect(getExpiredLoginPath());
   }
   await requirePagePermission('tickets.read');
 

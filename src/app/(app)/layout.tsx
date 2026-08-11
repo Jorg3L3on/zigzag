@@ -1,5 +1,7 @@
+import { AppMobileChrome } from '@/components/app-mobile-chrome';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { requireActionAuth } from '@/lib/security';
 import { redirect } from 'next/navigation';
 
@@ -14,14 +16,14 @@ export default async function DashboardLayout({
   try {
     await requireActionAuth();
   } catch {
-    redirect('/login');
+    redirect(getExpiredLoginPath());
   }
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="bg-gradient-to-b from-background to-muted/20">
-        {children}
+        <AppMobileChrome>{children}</AppMobileChrome>
       </SidebarInset>
     </SidebarProvider>
   );

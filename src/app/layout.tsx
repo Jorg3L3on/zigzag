@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#2563eb',
+  themeColor: '#ffffff',
 };
 
 export const metadata: Metadata = {
@@ -38,6 +38,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: 'ZigZag',
+    // Keep solid browser chrome; safe-area headers are not verified for translucent iOS status bars yet.
     statusBarStyle: 'default',
   },
   icons: {

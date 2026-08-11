@@ -21,7 +21,9 @@ test.describe('Mobile sidebar sheet', () => {
 
     await expect(visiblePageHeader(page).getByText('Dashboard')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Abrir menú de navegación' }).click();
+    await visiblePageHeader(page)
+      .getByRole('button', { name: 'Abrir menú de navegación', exact: true })
+      .click();
 
     const navDialog = page.getByRole('dialog', { name: 'Menú de navegación' });
     await expect(navDialog).toBeVisible();
@@ -55,7 +57,7 @@ test.describe('Mobile sidebar sheet', () => {
       ticketCards.or(emptyOrFiltered).or(countLabel).first(),
     ).toBeVisible({ timeout: 15_000 });
 
-    const desktopTable = page.locator('.hidden.md\\:block table');
+    const desktopTable = page.locator('.hidden.md\\:block table').first();
 
     if ((await ticketCards.count()) > 0) {
       await expect(ticketCards.first()).toBeVisible();

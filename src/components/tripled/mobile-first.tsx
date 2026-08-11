@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import * as React from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 
@@ -12,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { useRegisterMobileStickyAction } from '@/contexts/mobile-chrome-context';
 import { cn } from '@/lib/utils';
 
 type TripledDashboardShellProps = {
@@ -195,17 +200,34 @@ export const TripledMobileStickyActionBar = ({
   className,
   innerClassName,
 }: TripledMobileStickyActionBarProps) => {
-  return (
+  useRegisterMobileStickyAction();
+  const [portalHost, setPortalHost] = React.useState<HTMLElement | null>(() =>
+    typeof document !== 'undefined' ? document.body : null,
+  );
+
+  React.useLayoutEffect(() => {
+    setPortalHost(document.body);
+  }, []);
+
+  // Portal to body so position:fixed is never trapped by animated ancestors
+  // (e.g. route enter transitions that use transform/opacity wrappers).
+  if (!portalHost) {
+    return null;
+  }
+
+  return createPortal(
     <div
+      data-testid="mobile-sticky-action-bar"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-24px_rgba(15,23,42,0.45)] backdrop-blur md:hidden',
+        'fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-24px_rgba(15,23,42,0.45)] backdrop-blur md:hidden',
         className,
       )}
     >
       <div className={cn('mx-auto flex max-w-2xl items-center gap-3', innerClassName)}>
         {children}
       </div>
-    </div>
+    </div>,
+    portalHost,
   );
 };
 

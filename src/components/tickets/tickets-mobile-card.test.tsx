@@ -40,7 +40,10 @@ describe('TicketsMobileCard', () => {
 
     expect(screen.getByText('Cliente Alfa')).toBeInTheDocument();
     expect(screen.getByText('#42')).toBeInTheDocument();
-    expect(screen.getByText('5551234567')).toBeInTheDocument();
+    const phoneLink = screen.getByRole('link', {
+      name: /llamar a 5551234567/i,
+    });
+    expect(phoneLink).toHaveAttribute('href', 'tel:5551234567');
     expect(screen.getByText('Pago parcial')).toBeInTheDocument();
     expect(
       screen.getByRole('progressbar', {
@@ -50,6 +53,9 @@ describe('TicketsMobileCard', () => {
     expect(screen.getByText('$100')).toBeInTheDocument();
     expect(screen.getAllByText('$250').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('40%')).not.toBeInTheDocument();
+
+    phoneLink.click();
+    expect(mockPush).not.toHaveBeenCalled();
 
     await screen.getByRole('button', { name: /editar ticket 42/i }).click();
     expect(mockPush).toHaveBeenCalled();
