@@ -64,7 +64,8 @@ test.describe('Mobile sticky navigation', () => {
         await page.waitForURL(/\/tickets\/\d+$/);
 
         const appBar = visibleMobileAppBar(page);
-        await expect(appBar).toBeVisible();
+        // Client navigations can paint tickets/loading.tsx before the detail shell.
+        await expect(appBar).toBeVisible({ timeout: 15_000 });
         await scrollPageDown(page);
         await expect(appBar).toBeVisible();
 
