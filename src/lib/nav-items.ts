@@ -1,4 +1,5 @@
 import {
+  Banknote,
   Building,
   CalendarClock,
   ClipboardList,
@@ -44,6 +45,12 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
     icon: Ticket,
     requiredPermission: PERMISSIONS.tickets.read,
     mobileTab: true,
+  },
+  {
+    title: 'Cobranza',
+    url: '/cobranza',
+    icon: Banknote,
+    requiredPermission: PERMISSIONS.tickets.read,
   },
   {
     title: 'Recordatorios de servicio',
