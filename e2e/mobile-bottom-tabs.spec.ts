@@ -5,6 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import { visibleMobileStickyActionBar } from './helpers/mobile-chrome';
 
 test.describe('Mobile bottom tabs', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,7 +35,7 @@ test.describe('Mobile bottom tabs', () => {
   }) => {
     await page.goto('/tickets/create');
 
-    await expect(page.getByTestId('mobile-sticky-action-bar')).toBeVisible({
+    await expect(visibleMobileStickyActionBar(page)).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);
@@ -56,7 +57,7 @@ test.describe('Mobile bottom tabs', () => {
     await editButton.click();
     await page.waitForURL(/\/tickets\/\d+\/edit/, { timeout: 30_000 });
 
-    await expect(page.getByTestId('mobile-sticky-action-bar')).toBeVisible({
+    await expect(visibleMobileStickyActionBar(page)).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);

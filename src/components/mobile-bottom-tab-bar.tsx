@@ -85,7 +85,7 @@ export const MobileBottomTabBar = () => {
         <li className="min-w-0 flex-1">
           <button
             type="button"
-            aria-label="Más — abrir menú de navegación"
+            aria-label="Más opciones de navegación"
             tabIndex={0}
             onClick={handleOpenMore}
             onKeyDown={handleMoreKeyDown}
