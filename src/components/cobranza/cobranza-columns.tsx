@@ -5,9 +5,30 @@ import type { CobranzaRow } from '@/lib/cobranza';
 import { COBRANZA_AGING_LABEL } from '@/lib/cobranza';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
+import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
+import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 
-export const createCobranzaColumns = (): ColumnDef<CobranzaRow>[] => [
+export type CobranzaColumnsOptions = {
+  onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
+  canWrite?: boolean;
+  companyId?: number | null;
+};
+
+export const cobranzaRowToTicketActions = (row: CobranzaRow) => ({
+  id: BigInt(row.id),
+  finished: row.finished,
+  total: row.total,
+  paid: row.paid,
+  client_name: row.client_name,
+  ticket_date: row.ticket_date ? new Date(row.ticket_date) : null,
+});
+
+export const createCobranzaColumns = ({
+  onPaymentApplied,
+  canWrite = false,
+  companyId = null,
+}: CobranzaColumnsOptions = {}): ColumnDef<CobranzaRow>[] => [
   {
     id: 'id',
     accessorFn: (row) => Number(row.id),
@@ -71,6 +92,25 @@ export const createCobranzaColumns = (): ColumnDef<CobranzaRow>[] => [
         <span className="text-xs text-muted-foreground">
           {COBRANZA_AGING_LABEL[row.original.agingBucket]}
         </span>
+      </div>
+    ),
+  },
+  {
+    id: 'actions',
+    enableSorting: false,
+    header: () => <span className="sr-only">Acciones</span>,
+    cell: ({ row }) => (
+      <div
+        className="flex justify-end"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        <TicketRowActions
+          ticket={cobranzaRowToTicketActions(row.original)}
+          onPaymentApplied={onPaymentApplied}
+          canWrite={canWrite}
+          companyId={companyId}
+        />
       </div>
     ),
   },

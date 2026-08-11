@@ -12,7 +12,10 @@ import { Banknote, Search } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { getCobranzaList } from '@/actions/cobranza';
-import { createCobranzaColumns } from '@/components/cobranza/cobranza-columns';
+import {
+  cobranzaRowToTicketActions,
+  createCobranzaColumns,
+} from '@/components/cobranza/cobranza-columns';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import { Input } from '@/components/ui/input';
@@ -24,7 +27,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
+import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import {
   TripledEmptyState,
   TripledListLoadingState,
@@ -34,6 +39,7 @@ import { SystemCompanyContextEmptyState } from '@/components/system-company-cont
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
+  applyCobranzaPaymentToRows,
   COBRANZA_AGING_LABEL,
   COBRANZA_STATUS_FILTER_LABEL,
   filterCobranzaRows,
@@ -51,6 +57,7 @@ import {
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
+import { canWriteTickets } from '@/lib/tickets-rbac';
 import { PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +68,7 @@ export const CobranzaList = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const canRead = permissions.can(PERMISSIONS.tickets.read);
+  const canWrite = canWriteTickets(permissions.can);
   const missingCompany = needsSelectedCompanyContext(
     permissions.isSystem,
     selectedCompany?.id,
@@ -185,7 +193,22 @@ export const CobranzaList = () => {
     [filteredRows],
   );
 
-  const columns = React.useMemo(() => createCobranzaColumns(), []);
+  const handlePaymentApplied = React.useCallback(
+    (result: TicketListCollectPaymentResult) => {
+      setRows((prev) => applyCobranzaPaymentToRows(prev, result));
+    },
+    [],
+  );
+
+  const columns = React.useMemo(
+    () =>
+      createCobranzaColumns({
+        onPaymentApplied: handlePaymentApplied,
+        canWrite,
+        companyId: selectedCompany?.id ?? null,
+      }),
+    [canWrite, handlePaymentApplied, selectedCompany?.id],
+  );
 
   const table = useReactTable({
     data: filteredRows,
@@ -370,13 +393,26 @@ export const CobranzaList = () => {
               return (
                 <TripledMobileRecordCard key={item.id}>
                   <div className="flex flex-col gap-3">
-                    <div>
-                      <p className="font-semibold leading-tight">
-                        {item.client_name ?? 'Sin cliente'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Ticket #{item.id}
-                      </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold leading-tight">
+                          {item.client_name ?? 'Sin cliente'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Ticket #{item.id}
+                        </p>
+                      </div>
+                      <div
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <TicketRowActions
+                          ticket={cobranzaRowToTicketActions(item)}
+                          onPaymentApplied={handlePaymentApplied}
+                          canWrite={canWrite}
+                          companyId={selectedCompany?.id ?? null}
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <FormattedDate

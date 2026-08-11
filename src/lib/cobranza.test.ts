@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  applyCobranzaPaymentToRows,
   buildCobranzaRows,
   compareCobranzaUrgency,
   filterCobranzaRows,
@@ -135,6 +136,36 @@ describe('cobranza helpers', () => {
     expect(summarizeCobranzaRows(rows)).toEqual({
       count: 2,
       balanceSum: 150,
+    });
+  });
+
+  it('removes fully paid tickets after payment and updates partials', () => {
+    const rows = buildCobranzaRows(
+      [
+        baseTicket({ id: 1, total: 100, paid: 0 }),
+        baseTicket({ id: 2, total: 80, paid: 20 }),
+      ],
+      now,
+    );
+
+    const afterFull = applyCobranzaPaymentToRows(
+      rows,
+      { ticketId: 1, paid: 100, total: 100 },
+      now,
+    );
+    expect(afterFull.map((row) => row.id)).toEqual(['2']);
+
+    const afterPartial = applyCobranzaPaymentToRows(
+      afterFull,
+      { ticketId: 2, paid: 50, total: 80 },
+      now,
+    );
+    expect(afterPartial).toHaveLength(1);
+    expect(afterPartial[0]).toMatchObject({
+      id: '2',
+      paid: 50,
+      balanceDue: 30,
+      paymentStatus: 'partial',
     });
   });
 });

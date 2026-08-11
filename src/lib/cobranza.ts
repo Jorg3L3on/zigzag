@@ -203,6 +203,43 @@ export const summarizeCobranzaRows = (
   return { count: rows.length, balanceSum };
 };
 
+/**
+ * Apply a collect-payment result to the Cobranza queue.
+ * Fully paid Tickets drop out; partials update paid/saldo/status.
+ */
+export const applyCobranzaPaymentToRows = (
+  rows: CobranzaRow[],
+  payment: { ticketId: number; paid: number; total: number | null },
+  now: Date = new Date(),
+): CobranzaRow[] => {
+  const next: CobranzaRow[] = [];
+  for (const row of rows) {
+    if (Number(row.id) !== payment.ticketId) {
+      next.push(row);
+      continue;
+    }
+    const updated = toCobranzaRow(
+      {
+        id: row.id,
+        client_name: row.client_name,
+        client_tel: row.client_tel,
+        ticket_date: row.ticket_date,
+        created_at: row.created_at,
+        total: payment.total,
+        paid: payment.paid,
+        finished: row.finished,
+        company_id: row.company_id,
+      },
+      now,
+    );
+    if (updated) {
+      next.push(updated);
+    }
+  }
+  next.sort(compareCobranzaUrgency);
+  return next;
+};
+
 export const COBRANZA_AGING_LABEL: Record<CobranzaAgingBucket, string> = {
   all: 'Todas las antigüedades',
   '0-14': '0–14 días',
