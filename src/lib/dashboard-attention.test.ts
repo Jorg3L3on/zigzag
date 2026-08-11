@@ -61,8 +61,13 @@ describe('dashboard-attention', () => {
     });
     expect(items[2]).toMatchObject({
       count: 12,
-      href: '/tickets?status=pending',
-      ctaLabel: 'Ver tickets',
+      href: '/cobranza?status=pending',
+      ctaLabel: 'Ver cobranza',
+    });
+    expect(items[3]).toMatchObject({
+      count: 3,
+      href: '/cobranza?status=partial',
+      ctaLabel: 'Ver cobranza',
     });
     expect(items[4]).toMatchObject({
       count: 5,
