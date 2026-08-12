@@ -20,12 +20,30 @@ import type { NotificationRow } from '@/db/schema';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import { toast } from 'sonner';
 
+import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
+
 const POLL_INTERVAL_MS = 60_000;
 
 const resourceHref = (row: NotificationRow): string | null => {
-  if (row.resource_type === 'client_service_schedule') {
-    return '/service-schedules';
+  if (row.type === SCHEDULE_DAILY_DIGEST_TYPE) {
+    const filter =
+      row.resource_id === 'atrasados' || row.resource_id === 'proximos'
+        ? row.resource_id
+        : 'proximos';
+    return `/service-schedules?filter=${filter}`;
   }
+
+  if (row.resource_type === 'client_service_schedule' && row.resource_id) {
+    const parts = row.resource_id.split(':');
+    if (parts.length === 3) {
+      const [, clientId, serviceId] = parts;
+      return `/tickets/create?clientId=${clientId}&serviceId=${serviceId}`;
+    }
+    return row.type === 'schedule_overdue'
+      ? '/service-schedules?filter=atrasados'
+      : '/service-schedules?filter=proximos';
+  }
+
   if (row.resource_type === 'ticket' && row.resource_id) {
     return `/tickets/${row.resource_id}`;
   }
