@@ -70,3 +70,44 @@ export const buildWhatsAppBalanceShare = (
     phone: input.phone,
     message: buildWhatsAppBalanceMessage(input),
   });
+
+export type WhatsAppVisitShareInput = {
+  phone: string | null | undefined;
+  clientName: string | null | undefined;
+  serviceName: string | null | undefined;
+  nextDueAt: Date | string;
+  companyName?: string | null;
+};
+
+export const buildWhatsAppVisitMessage = (
+  input: Omit<WhatsAppVisitShareInput, 'phone'>,
+): string => {
+  const client = (input.clientName ?? 'cliente').trim() || 'cliente';
+  const service = (input.serviceName ?? 'servicio').trim() || 'servicio';
+  const due = new Date(input.nextDueAt);
+  const dueLabel = Number.isNaN(due.getTime())
+    ? 'pronto'
+    : due.toLocaleDateString('es-MX', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+
+  return [
+    intro,
+    `Te recordamos tu próxima visita de ${service} (${client}) programada para el ${dueLabel}.`,
+    '¿Te confirma si podemos asistir? ¡Gracias!',
+  ].join(' ');
+};
+
+export const buildWhatsAppVisitShare = (
+  input: WhatsAppVisitShareInput,
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone: input.phone,
+    message: buildWhatsAppVisitMessage(input),
+  });

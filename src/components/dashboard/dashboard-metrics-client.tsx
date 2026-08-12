@@ -536,6 +536,7 @@ export const DashboardMetricsClient = () => {
             <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
               <DashboardServiceSchedulesWidget
                 canRead={urgentSchedules.canRead}
+                canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
                 missingCompany={urgentSchedules.missingCompany}
                 permissionsLoading={urgentSchedules.permissionsLoading}
                 loading={urgentSchedules.loading}
