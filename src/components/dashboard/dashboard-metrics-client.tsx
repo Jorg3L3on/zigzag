@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -484,13 +485,28 @@ export const DashboardMetricsClient = () => {
               initial="hidden"
               animate="visible"
             >
-              {visibleKpis.map((kpi) => (
-                <DashboardKpiCard
-                  key={kpi.key}
-                  kpi={kpi}
-                  icon={KPI_ICONS[kpi.key]}
-                />
-              ))}
+              {visibleKpis.map((kpi) => {
+                const card = (
+                  <DashboardKpiCard
+                    key={kpi.key}
+                    kpi={kpi}
+                    icon={KPI_ICONS[kpi.key]}
+                  />
+                );
+                if (kpi.key !== 'outstandingBalance') {
+                  return card;
+                }
+                return (
+                  <Link
+                    key={kpi.key}
+                    href="/cobranza"
+                    className="block h-full min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Ver cobranza: saldo por cobrar"
+                  >
+                    <DashboardKpiCard kpi={kpi} icon={KPI_ICONS[kpi.key]} />
+                  </Link>
+                );
+              })}
             </TripledMotionDiv>
           </section>
         );

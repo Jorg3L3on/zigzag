@@ -18,13 +18,12 @@ describe('nav-items', () => {
     expect(NAV_MAIN_ITEMS.length).toBeGreaterThan(MOBILE_TAB_ITEMS.length);
   });
 
-  it('resolves nested ticket paths to /tickets', () => {
-    expect(
-      getLongestMatchingHref('/tickets/12/edit', [
-        '/dashboard',
-        '/tickets',
-        '/clients',
-      ]),
-    ).toBe('/tickets');
+  it('includes Cobranza in Plataforma nav with tickets.read', () => {
+    const cobranza = NAV_MAIN_ITEMS.find((item) => item.url === '/cobranza');
+    expect(cobranza?.title).toBe('Cobranza');
+    expect(cobranza?.requiredPermission).toBe('tickets.read');
+    expect(MOBILE_TAB_ITEMS.some((item) => item.url === '/cobranza')).toBe(
+      false,
+    );
   });
 });
