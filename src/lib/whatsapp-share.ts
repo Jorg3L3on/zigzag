@@ -70,3 +70,35 @@ export const buildWhatsAppBalanceShare = (
     phone: input.phone,
     message: buildWhatsAppBalanceMessage(input),
   });
+
+export type WhatsAppDayVisitShareInput = {
+  phone: string | null | undefined;
+  clientName: string | null | undefined;
+  ticketId: string | number;
+  companyName?: string | null;
+};
+
+/** Field “visita de hoy / en camino” message for technician day view. */
+export const buildWhatsAppDayVisitMessage = (
+  input: Omit<WhatsAppDayVisitShareInput, 'phone'>,
+): string => {
+  const client = (input.clientName ?? 'cliente').trim() || 'cliente';
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+
+  return [
+    intro,
+    `Hoy tenemos programada tu visita (ticket #${input.ticketId}) a nombre de ${client}.`,
+    'Estamos en camino. ¡Gracias!',
+  ].join(' ');
+};
+
+export const buildWhatsAppDayVisitShare = (
+  input: WhatsAppDayVisitShareInput,
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone: input.phone,
+    message: buildWhatsAppDayVisitMessage(input),
+  });
