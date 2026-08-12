@@ -53,6 +53,12 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
     requiredPermission: PERMISSIONS.tickets.read,
   },
   {
+    title: 'Presupuestos',
+    url: '/presupuestos',
+    icon: ClipboardList,
+    requiredPermission: PERMISSIONS.tickets.read,
+  },
+  {
     title: 'Recordatorios de servicio',
     url: '/service-schedules',
     icon: CalendarClock,

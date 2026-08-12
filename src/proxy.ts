@@ -17,6 +17,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/forbidden',
   '/operator-console',
   '/permissions',
+  '/presupuestos',
   '/roles',
   '/service-schedules',
   '/services',

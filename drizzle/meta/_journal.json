@@ -169,6 +169,13 @@
       "when": 1781563200000,
       "tag": "0024_ticket_client_tel_length",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1781600000000,
+      "tag": "0025_ticket_document_kind",
+      "breakpoints": true
     }
   ]
 }

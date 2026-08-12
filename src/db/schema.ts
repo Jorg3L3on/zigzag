@@ -220,6 +220,20 @@ export const ticket = pgTable(
     email: varchar('email', { length: 40 }),
     finished: boolean('finished').notNull().default(false),
     document: varchar('document', { length: 100 }),
+    /** Work ticket vs quote (presupuesto). Default/backfill: ticket. */
+    document_kind: varchar('document_kind', { length: 20 })
+      .notNull()
+      .default('ticket'),
+    /** Quote expiry (presupuestos only). */
+    expires_at: timestamp('expires_at', { precision: 3, mode: 'date' }),
+    /** When set, presupuesto was canceled and leaves the open pipeline. */
+    canceled_at: timestamp('canceled_at', { precision: 3, mode: 'date' }),
+    /** Presupuesto → resulting work Ticket id after conversion. */
+    converted_to_ticket_id: bigint('converted_to_ticket_id', { mode: 'bigint' }),
+    /** Work Ticket ← source presupuesto id after conversion. */
+    converted_from_ticket_id: bigint('converted_from_ticket_id', {
+      mode: 'bigint',
+    }),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -240,6 +254,10 @@ export const ticket = pgTable(
     // Finished filter on active tickets (dashboard / list chips)
     index('Ticket_company_id_finished_active_idx')
       .on(t.company_id, t.finished)
+      .where(sql`${t.deleted_at} is null`),
+    // Document kind lists (tickets vs presupuestos)
+    index('Ticket_company_id_document_kind_active_idx')
+      .on(t.company_id, t.document_kind)
       .where(sql`${t.deleted_at} is null`),
   ],
 );

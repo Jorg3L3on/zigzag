@@ -26,4 +26,12 @@ describe('nav-items', () => {
       false,
     );
   });
+
+  it('includes Presupuestos in Plataforma nav with tickets.read', () => {
+    const presupuestos = NAV_MAIN_ITEMS.find(
+      (item) => item.url === '/presupuestos',
+    );
+    expect(presupuestos?.title).toBe('Presupuestos');
+    expect(presupuestos?.requiredPermission).toBe('tickets.read');
+  });
 });
