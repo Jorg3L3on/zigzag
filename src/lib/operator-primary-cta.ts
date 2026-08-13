@@ -1,4 +1,5 @@
 import type { CompanyLifecycleStatus } from '@/db/schema';
+import { operatorTenantHref } from '@/lib/operator-tenant-scope';
 
 export type OperatorPrimaryCtaKind =
   | 'complete_go_live'
@@ -25,12 +26,16 @@ export const resolveOperatorPrimaryCta = (
   input: OperatorPrimaryCtaInput,
 ): OperatorPrimaryCta => {
   const { companyId, lifecycle, productionReady, editHref } = input;
+  const scopedEditHref = operatorTenantHref(
+    editHref || `/companies/${companyId}/edit`,
+    companyId,
+  );
 
   if (lifecycle === 'SETUP' && !productionReady) {
     return {
       kind: 'complete_go_live',
       label: 'Completar go-live',
-      href: editHref,
+      href: scopedEditHref,
     };
   }
 
@@ -46,7 +51,7 @@ export const resolveOperatorPrimaryCta = (
     return {
       kind: 'open_dashboard',
       label: 'Abrir dashboard',
-      href: '/dashboard',
+      href: operatorTenantHref('/dashboard', companyId),
     };
   }
 
@@ -61,6 +66,6 @@ export const resolveOperatorPrimaryCta = (
   return {
     kind: 'edit_company',
     label: 'Editar empresa',
-    href: editHref || `/companies/${companyId}/edit`,
+    href: scopedEditHref,
   };
 };

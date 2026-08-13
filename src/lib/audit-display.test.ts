@@ -69,6 +69,15 @@ describe('audit display helpers', () => {
     });
   });
 
+  it('scopes resource links when tenantCompanyId is provided', () => {
+    expect(
+      resolveAuditResourceLink('ticket', '123', { tenantCompanyId: 42 }),
+    ).toEqual({
+      href: '/tickets/123?tenant_company_id=42',
+      label: 'Ticket #123',
+    });
+  });
+
   it('leaves unsafe or unsupported resources as plain labels', () => {
     expect(resolveAuditResourceLink('security', 'tickets.write')).toBeNull();
     expect(resolveAuditResourceLink('ticket', '../1')).toBeNull();

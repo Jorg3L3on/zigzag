@@ -117,7 +117,7 @@ describe('OperatorCompanyMetrics', () => {
 
     render(<OperatorCompanyMetrics />);
 
-    expect(await screen.findByText('Resumen')).toBeInTheDocument();
+    expect(await screen.findByText('Métricas')).toBeInTheDocument();
     await waitFor(() => {
       expect(mockFetchDashboardMetrics).toHaveBeenCalledWith({ companyId: 42 });
       expect(mockFetchOperatorUserSessions).toHaveBeenCalledWith(42);

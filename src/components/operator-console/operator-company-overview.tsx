@@ -15,6 +15,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import type { CompanyOperatorSummary } from '@/lib/company-operator-summary';
+import { operatorTenantHref } from '@/lib/operator-tenant-scope';
 import { Loader2, Building2, ListChecks } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 
@@ -33,19 +35,29 @@ const initialPanelState = <T,>(): PanelState<T> => ({
 type OperatorCompanyOverviewProps = {
   /** When true, omit the page-level title/CTA (owned by the detail header). */
   embedded?: boolean;
+  /**
+   * When provided by the detail shell, reuse that summary instead of
+   * fetching `getCompanyOperatorSummary` again.
+   */
+  sharedSummary?: {
+    data: CompanyOperatorSummary | null;
+    loading: boolean;
+    error: string | null;
+  };
 };
 
 export const OperatorCompanyOverview = ({
   embedded = false,
+  sharedSummary,
 }: OperatorCompanyOverviewProps) => {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
   const isSystemTenant = selectedCompany?.is_system === true;
+  const parentSummary = sharedSummary ?? null;
+  const useParentSummary = parentSummary != null;
 
   const [identity, setIdentity] = React.useState(
-    initialPanelState<Awaited<
-      ReturnType<typeof getCompanyOperatorSummary>
-    >['data']>(),
+    initialPanelState<CompanyOperatorSummary>(),
   );
   const [readiness, setReadiness] = React.useState(
     initialPanelState<Awaited<ReturnType<typeof getCompanyReadiness>>['data']>(),
@@ -53,6 +65,12 @@ export const OperatorCompanyOverview = ({
 
   React.useEffect(() => {
     if (!companyId || isSystemTenant) {
+      setIdentity(initialPanelState());
+      setReadiness(initialPanelState());
+      return;
+    }
+
+    if (useParentSummary) {
       setIdentity(initialPanelState());
       setReadiness(initialPanelState());
       return;
@@ -146,7 +164,7 @@ export const OperatorCompanyOverview = ({
     return () => {
       cancelled = true;
     };
-  }, [companyId, isSystemTenant]);
+  }, [companyId, isSystemTenant, useParentSummary]);
 
   if (!companyId) {
     return (
@@ -168,7 +186,18 @@ export const OperatorCompanyOverview = ({
     );
   }
 
-  const summary = identity.data;
+  const summary = useParentSummary ? parentSummary.data : identity.data;
+  const identityLoading = useParentSummary
+    ? parentSummary.loading
+    : identity.loading;
+  const identityError = useParentSummary ? parentSummary.error : identity.error;
+  const readinessData = useParentSummary
+    ? parentSummary.data?.readiness ?? null
+    : readiness.data;
+  const readinessLoading = useParentSummary
+    ? parentSummary.loading
+    : readiness.loading;
+  const readinessError = useParentSummary ? parentSummary.error : readiness.error;
 
   return (
     <div
@@ -188,7 +217,11 @@ export const OperatorCompanyOverview = ({
           </div>
           {summary ? (
             <Button asChild variant="outline" className="min-h-11 rounded-xl">
-              <Link href={summary.editHref}>Editar empresa</Link>
+              <Link
+                href={operatorTenantHref(summary.editHref, summary.companyId)}
+              >
+                Editar empresa
+              </Link>
             </Button>
           ) : null}
         </div>
@@ -204,13 +237,13 @@ export const OperatorCompanyOverview = ({
             <CardDescription>Estado operativo de la empresa</CardDescription>
           </CardHeader>
           <CardContent>
-            {identity.loading ? (
+            {identityLoading ? (
               <div className="flex h-24 items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : identity.error ? (
+            ) : identityError ? (
               <p className="text-sm text-destructive" role="alert">
-                {identity.error}
+                {identityError}
               </p>
             ) : summary ? (
               <dl className="space-y-2 text-sm">
@@ -255,23 +288,23 @@ export const OperatorCompanyOverview = ({
             <CardDescription>Requisitos antes de operar en producción</CardDescription>
           </CardHeader>
           <CardContent>
-            {readiness.loading ? (
+            {readinessLoading ? (
               <div className="flex h-24 items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : readiness.error ? (
+            ) : readinessError ? (
               <p className="text-sm text-destructive" role="alert">
-                {readiness.error}
+                {readinessError}
               </p>
-            ) : readiness.data ? (
+            ) : readinessData ? (
               <div className="space-y-3 text-sm">
-                {readiness.data.productionReady ? (
+                {readinessData.productionReady ? (
                   <Badge variant="default">Lista para operar</Badge>
                 ) : (
                   <>
                     <Badge variant="secondary">Pendientes de configuración</Badge>
                     <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-                      {readiness.data.missingLabels.map((label) => (
+                      {readinessData.missingLabels.map((label) => (
                         <li key={label}>{label}</li>
                       ))}
                     </ul>

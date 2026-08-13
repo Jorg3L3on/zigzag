@@ -86,8 +86,18 @@ const AuditJsonBlock = ({
   </section>
 );
 
-const AuditResourceLink = ({ event }: { event: AuditEventRow }) => {
-  const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
+const AuditResourceLink = ({
+  event,
+  tenantCompanyId,
+}: {
+  event: AuditEventRow;
+  tenantCompanyId?: number | null;
+}) => {
+  const link = resolveAuditResourceLink(
+    event.resource_type,
+    event.resource_id,
+    tenantCompanyId != null ? { tenantCompanyId } : undefined,
+  );
   const label = formatAuditResourceLabel(event.resource_type, event.resource_id, {
     actorName: event.actor_name,
   });
@@ -332,8 +342,9 @@ export const OperatorActivityPanel = () => {
         expandedId,
         onToggleExpand: handleToggleExpand,
         showIncidentColumn: hasIncidents,
+        tenantCompanyId: companyId ?? undefined,
       }),
-    [expandedId, handleToggleExpand, hasIncidents],
+    [companyId, expandedId, handleToggleExpand, hasIncidents],
   );
 
   const table = useReactTable({
@@ -483,7 +494,10 @@ export const OperatorActivityPanel = () => {
                         ) : null}
                       </div>
                       <p className="mt-2 text-sm">
-                        <AuditResourceLink event={event} />
+                        <AuditResourceLink
+                          event={event}
+                          tenantCompanyId={companyId}
+                        />
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Actor:{' '}

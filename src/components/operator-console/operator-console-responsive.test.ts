@@ -29,6 +29,24 @@ describe('operator console responsive surfaces', () => {
     expect(source).toContain('sticky top-0');
   });
 
+  it('keeps sticky company chrome in the detail shell', () => {
+    const source = read(
+      'src/components/operator-console/operator-console-detail.tsx',
+    );
+    expect(source).toContain('sticky top-0');
+    expect(source).toContain('Empresa actual');
+    expect(source).toContain('sharedSummary');
+  });
+
+  it('separates suspended and archived fleet filters', () => {
+    const source = read(
+      'src/components/operator-console/operator-company-fleet.tsx',
+    );
+    expect(source).toContain("value: 'suspended'");
+    expect(source).toContain("value: 'archived'");
+    expect(source).toContain('operatorConsoleCompanyHref');
+  });
+
   it('composes fleet then tabbed detail on the operator page', () => {
     const source = read('src/app/(app)/operator-console/page.tsx');
     const fleetIndex = source.indexOf('<OperatorCompanyFleet');

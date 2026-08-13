@@ -32,6 +32,8 @@ import {
   resolveOperatorPrimaryCta,
   type OperatorPrimaryCta,
 } from '@/lib/operator-primary-cta';
+import type { CompanyOperatorSummary } from '@/lib/company-operator-summary';
+import { operatorTenantHref } from '@/lib/operator-tenant-scope';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { operatorIncidentLabel } from '@/lib/operator-audit-incidents';
 import { Building2, Loader2 } from 'lucide-react';
@@ -70,6 +72,9 @@ export const OperatorConsoleDetail = () => {
   });
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [summary, setSummary] = React.useState<CompanyOperatorSummary | null>(
+    null,
+  );
   const [cta, setCta] = React.useState<OperatorPrimaryCta | null>(null);
   const [lifecycleLabel, setLifecycleLabel] = React.useState<string | null>(
     null,
@@ -98,6 +103,7 @@ export const OperatorConsoleDetail = () => {
     if (!companyId || isSystemTenant) {
       setLoading(false);
       setError(null);
+      setSummary(null);
       setCta(null);
       setLifecycleLabel(null);
       setAttention([]);
@@ -132,22 +138,26 @@ export const OperatorConsoleDetail = () => {
               summaryResult.error || 'No se pudo cargar el resumen',
             ),
           );
+          setSummary(null);
           setCta(null);
           setAttention([]);
           return;
         }
 
-        const summary = summaryResult.data;
-        setLifecycleLabel(summary.lifecycleLabel);
-        setProductionReady(summary.readiness.productionReady);
-        setMissingCount(summary.readiness.missing.length);
-        setEditHref(summary.editHref);
+        const nextSummary = summaryResult.data;
+        setSummary(nextSummary);
+        setLifecycleLabel(nextSummary.lifecycleLabel);
+        setProductionReady(nextSummary.readiness.productionReady);
+        setMissingCount(nextSummary.readiness.missing.length);
+        setEditHref(
+          operatorTenantHref(nextSummary.editHref, nextSummary.companyId),
+        );
         setCta(
           resolveOperatorPrimaryCta({
-            companyId: summary.companyId,
-            lifecycle: summary.lifecycle,
-            productionReady: summary.readiness.productionReady,
-            editHref: summary.editHref,
+            companyId: nextSummary.companyId,
+            lifecycle: nextSummary.lifecycle,
+            productionReady: nextSummary.readiness.productionReady,
+            editHref: nextSummary.editHref,
           }),
         );
 
@@ -172,10 +182,10 @@ export const OperatorConsoleDetail = () => {
 
         setAttention(
           buildOperatorAttentionSignals({
-            productionReady: summary.readiness.productionReady,
-            missingCount: summary.readiness.missing.length,
-            missingLabels: summary.readiness.missingLabels,
-            allowsAuthentication: summary.allowsAuthentication,
+            productionReady: nextSummary.readiness.productionReady,
+            missingCount: nextSummary.readiness.missing.length,
+            missingLabels: nextSummary.readiness.missingLabels,
+            allowsAuthentication: nextSummary.allowsAuthentication,
             lastIncidentAt,
             lastIncidentLabel,
           }),
@@ -286,83 +296,91 @@ export const OperatorConsoleDetail = () => {
   }
 
   return (
-    <div className="space-y-4 border-t border-border/60 pt-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">
-              {selectedCompany?.name}
-            </h2>
-            {lifecycleLabel ? (
-              <Badge variant="secondary">{lifecycleLabel}</Badge>
-            ) : null}
-            {productionReady ? (
-              <Badge variant="default">Lista</Badge>
-            ) : (
-              <Badge variant="secondary">
-                {missingCount > 0
-                  ? `${missingCount} pendientes`
-                  : 'Con pendientes'}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Contexto activo para operar esta empresa.
-          </p>
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Cargando resumen…
-            </div>
-          ) : null}
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
+    <div
+      id="operator-console-detail"
+      className="scroll-mt-4 space-y-4 border-t border-border/60 pt-6"
+    >
+      <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Empresa actual
             </p>
-          ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-foreground">
+                {selectedCompany?.name}
+              </h2>
+              {lifecycleLabel ? (
+                <Badge variant="secondary">{lifecycleLabel}</Badge>
+              ) : null}
+              {productionReady ? (
+                <Badge variant="default">Lista</Badge>
+              ) : (
+                <Badge variant="secondary">
+                  {missingCount > 0
+                    ? `${missingCount} pendientes`
+                    : 'Con pendientes'}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Contexto activo para operar esta empresa.
+            </p>
+            {loading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Cargando resumen…
+              </div>
+            ) : null}
+            {error ? (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {editHref ? (
+              <Button asChild variant="outline" className="min-h-11 rounded-xl">
+                <Link href={editHref}>Editar empresa</Link>
+              </Button>
+            ) : null}
+            {cta ? (
+              <Button
+                type="button"
+                className="min-h-11 rounded-xl"
+                onClick={() => void handlePrimaryClick()}
+                disabled={loading}
+              >
+                {cta.label}
+              </Button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {editHref ? (
-            <Button asChild variant="outline" className="min-h-11 rounded-xl">
-              <Link href={editHref}>Editar empresa</Link>
-            </Button>
-          ) : null}
-          {cta ? (
+        <div
+          role="tablist"
+          aria-label="Secciones de la empresa seleccionada"
+          className="flex flex-wrap gap-2"
+        >
+          {TABS.map((item, index) => (
             <Button
+              key={item.id}
               type="button"
+              role="tab"
+              id={`operator-tab-${item.id}`}
+              aria-selected={tab === item.id}
+              aria-controls={`operator-panel-${item.id}`}
+              tabIndex={tab === item.id ? 0 : -1}
+              variant={tab === item.id ? 'default' : 'outline'}
               className="min-h-11 rounded-xl"
-              onClick={() => void handlePrimaryClick()}
-              disabled={loading}
+              onClick={() => handleSelectTab(item.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
             >
-              {cta.label}
+              {item.label}
             </Button>
-          ) : null}
+          ))}
         </div>
-      </div>
-
-      <div
-        role="tablist"
-        aria-label="Secciones de la empresa seleccionada"
-        className="flex flex-wrap gap-2"
-      >
-        {TABS.map((item, index) => (
-          <Button
-            key={item.id}
-            type="button"
-            role="tab"
-            id={`operator-tab-${item.id}`}
-            aria-selected={tab === item.id}
-            aria-controls={`operator-panel-${item.id}`}
-            tabIndex={tab === item.id ? 0 : -1}
-            variant={tab === item.id ? 'default' : 'outline'}
-            className="min-h-11 rounded-xl"
-            onClick={() => handleSelectTab(item.id)}
-            onKeyDown={(event) => handleTabKeyDown(event, index)}
-          >
-            {item.label}
-          </Button>
-        ))}
       </div>
 
       <div
@@ -388,7 +406,14 @@ export const OperatorConsoleDetail = () => {
             ))}
           </div>
         ) : null}
-        <OperatorCompanyOverview embedded />
+        <OperatorCompanyOverview
+          embedded
+          sharedSummary={{
+            data: summary,
+            loading,
+            error,
+          }}
+        />
         <OperatorCompanyMetrics />
       </div>
 
