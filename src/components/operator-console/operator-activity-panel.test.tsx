@@ -101,7 +101,9 @@ describe('OperatorActivityPanel', () => {
       expect(global.fetch).toHaveBeenCalled();
     });
 
-    const search = screen.getByRole('textbox', { name: 'Buscar' });
+    const search = screen.getByRole('textbox', {
+      name: 'Buscar actividad de auditoría',
+    });
     fireEvent.change(search, { target: { value: 'factura' } });
     await jest.advanceTimersByTimeAsync(350);
 
