@@ -28,7 +28,7 @@ export default async function OperatorConsolePage() {
           desktopDescription="Busca, filtra y selecciona contexto de empresa para operaciones entre empresas."
           icon={<Building2 className="size-5" aria-hidden />}
         >
-          <CompaniesList />
+          <CompaniesList rowClickAction="select" />
           <OperatorCompanyOverview />
           <OperatorActivityPanel />
           <OperatorAccessPanel />

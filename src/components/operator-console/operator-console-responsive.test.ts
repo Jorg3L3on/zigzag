@@ -31,6 +31,11 @@ describe('operator console responsive surfaces', () => {
     expect(activityIndex).toBeLessThan(accessIndex);
   });
 
+  it('selects company context on row click in operator console', () => {
+    const source = read('src/app/(app)/operator-console/page.tsx');
+    expect(source).toContain('rowClickAction="select"');
+  });
+
   it('uses responsive layout in lifecycle actions', () => {
     const source = read(
       'src/components/operator-console/operator-lifecycle-panel.tsx',

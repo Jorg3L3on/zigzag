@@ -58,6 +58,16 @@ import { assessCompanyReadiness } from '@/lib/company-readiness';
 
 type StatusFilter = 'all' | 'setup' | 'active' | 'restricted';
 
+export type CompaniesListRowClickAction = 'edit' | 'select';
+
+type CompaniesListProps = {
+  /**
+   * Operator console should select company context on row activation.
+   * Companies admin page keeps the default edit navigation.
+   */
+  rowClickAction?: CompaniesListRowClickAction;
+};
+
 const statusLabel = (status: Company['status']) =>
   companyLifecycleLabel(status);
 
@@ -78,7 +88,9 @@ const matchesStatusFilter = (
   return true;
 };
 
-export function CompaniesList() {
+export function CompaniesList({
+  rowClickAction = 'edit',
+}: CompaniesListProps = {}) {
   const { selectedCompany, setSelectedCompany } = useCompany();
   const permissions = usePermissions();
   const canWriteCompanies =
@@ -99,6 +111,11 @@ export function CompaniesList() {
   const [companyToDelete, setCompanyToDelete] = React.useState<Company | null>(
     null,
   );
+
+  const selectOnRowClick = rowClickAction === 'select';
+  const rowIsInteractive = selectOnRowClick
+    ? permissions.isSystem
+    : canWriteCompanies;
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
@@ -220,6 +237,29 @@ export function CompaniesList() {
       setSelectedCompany(buildContextCompany(companyRow));
     },
     [buildContextCompany, setSelectedCompany],
+  );
+
+  const handleRowActivate = React.useCallback(
+    (companyRow: CompanyListRow) => {
+      if (selectOnRowClick) {
+        if (!permissions.isSystem) {
+          return;
+        }
+        handleSelectContext(companyRow);
+        return;
+      }
+      if (!canWriteCompanies) {
+        return;
+      }
+      router.push(`/companies/${companyRow.id}/edit`);
+    },
+    [
+      canWriteCompanies,
+      handleSelectContext,
+      permissions.isSystem,
+      router,
+      selectOnRowClick,
+    ],
   );
 
   const columns = React.useMemo(
@@ -476,33 +516,31 @@ export function CompaniesList() {
                 return (
                   <TripledMobileRecordCard
                     key={row.id}
-                    interactive={canWriteCompanies}
+                    interactive={rowIsInteractive}
                     className={
-                      canWriteCompanies
+                      rowIsInteractive
                         ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                         : undefined
                     }
-                    tabIndex={canWriteCompanies ? 0 : -1}
+                    tabIndex={rowIsInteractive ? 0 : -1}
                     role="button"
                     aria-label={
-                      canWriteCompanies
-                        ? `Editar empresa ${companyRow.name}`
-                        : `Empresa ${companyRow.name}`
+                      selectOnRowClick
+                        ? `Seleccionar contexto ${companyRow.name}`
+                        : canWriteCompanies
+                          ? `Editar empresa ${companyRow.name}`
+                          : `Empresa ${companyRow.name}`
                     }
                     onClick={() => {
-                      if (canWriteCompanies) {
-                        router.push(`/companies/${companyRow.id}/edit`);
-                      }
+                      handleRowActivate(companyRow);
                     }}
                     onKeyDown={(event) => {
                       if (
-                        canWriteCompanies &&
+                        rowIsInteractive &&
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();
-                        router.push(
-                          `/companies/${companyRow.id}/edit`,
-                        );
+                        handleRowActivate(companyRow);
                       }
                     }}
                   >
@@ -627,24 +665,25 @@ export function CompaniesList() {
                   {table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      className={canWriteCompanies ? 'cursor-pointer' : undefined}
-                      tabIndex={canWriteCompanies ? 0 : -1}
+                      className={rowIsInteractive ? 'cursor-pointer' : undefined}
+                      tabIndex={rowIsInteractive ? 0 : -1}
+                      aria-label={
+                        selectOnRowClick
+                          ? `Seleccionar contexto ${row.original.name}`
+                          : canWriteCompanies
+                            ? `Editar empresa ${row.original.name}`
+                            : undefined
+                      }
                       onClick={() => {
-                        if (canWriteCompanies) {
-                          router.push(
-                            `/companies/${row.original.id}/edit`,
-                          );
-                        }
+                        handleRowActivate(row.original);
                       }}
                       onKeyDown={(event) => {
                         if (
-                          canWriteCompanies &&
+                          rowIsInteractive &&
                           (event.key === 'Enter' || event.key === ' ')
                         ) {
                           event.preventDefault();
-                          router.push(
-                            `/companies/${row.original.id}/edit`,
-                          );
+                          handleRowActivate(row.original);
                         }
                       }}
                     >
