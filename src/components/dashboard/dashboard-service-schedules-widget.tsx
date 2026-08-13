@@ -43,6 +43,7 @@ const mergeUrgent = (
 
 export type DashboardServiceSchedulesWidgetProps = {
   canRead: boolean;
+  canCreateTicket?: boolean;
   missingCompany: boolean;
   permissionsLoading: boolean;
   loading: boolean;
@@ -54,6 +55,7 @@ export type DashboardServiceSchedulesWidgetProps = {
 
 export const DashboardServiceSchedulesWidget = ({
   canRead,
+  canCreateTicket = false,
   missingCompany,
   permissionsLoading,
   loading,
@@ -142,6 +144,20 @@ export const DashboardServiceSchedulesWidget = ({
                   <p className="truncate text-xs text-muted-foreground">
                     {row.serviceName}
                   </p>
+                  {canCreateTicket ? (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto px-0 py-1 text-xs"
+                      asChild
+                    >
+                      <Link
+                        href={`/tickets/create?clientId=${row.clientId}&serviceId=${row.serviceId}`}
+                      >
+                        Crear ticket
+                      </Link>
+                    </Button>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <Badge
