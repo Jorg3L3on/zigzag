@@ -1,4 +1,7 @@
-import type { AuditResourceType } from '@/lib/audit-catalog';
+import {
+  formatAuditResourceTypeLabel,
+  type AuditResourceType,
+} from '@/lib/audit-catalog';
 
 const REDACTED = '[REDACTED]';
 
@@ -61,7 +64,10 @@ export const resolveAuditResourceLink = (
       return { href: `/tickets/${resourceId}`, label: `Ticket #${resourceId}` };
     case 'invoice':
       // Invoice audits store the ticket id as resource_id.
-      return { href: `/tickets/${resourceId}`, label: `Ticket #${resourceId}` };
+      return {
+        href: `/tickets/${resourceId}`,
+        label: `Recibo (ticket #${resourceId})`,
+      };
     case 'client':
       return {
         href: `/clients/${resourceId}/edit`,
@@ -87,4 +93,7 @@ export const resolveAuditResourceLink = (
 export const formatAuditResourceLabel = (
   resourceType: string,
   resourceId: string | null | undefined,
-): string => `${resourceType}${resourceId ? `#${resourceId}` : ''}`;
+): string => {
+  const typeLabel = formatAuditResourceTypeLabel(resourceType);
+  return resourceId ? `${typeLabel} #${resourceId}` : typeLabel;
+};

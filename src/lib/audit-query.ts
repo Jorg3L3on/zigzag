@@ -7,6 +7,7 @@ import {
   inArray,
   lt,
   lte,
+  ne,
   or,
   sql,
   type SQL,
@@ -17,6 +18,7 @@ import {
   AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
+  resolveAuditSearchCatalogMatches,
 } from '@/lib/audit-catalog';
 
 export type AuditEventFilters = {
@@ -30,6 +32,8 @@ export type AuditEventFilters = {
   /** Optional multi-action filter. */
   actions?: string[];
   result?: string;
+  /** Security-oriented incident subset (failed auth, denials, plan limits). */
+  incidentsOnly?: boolean;
   from?: Date;
   to?: Date;
   cursor?: number;
@@ -66,6 +70,9 @@ const isKnownValue = <T extends string>(
 export const normalizeAuditLimit = (limit?: number): number =>
   Math.min(Math.max(limit ?? 50, 1), 100);
 
+export const normalizeAuditExportLimit = (limit?: number): number =>
+  Math.min(Math.max(limit ?? 1000, 1), 5000);
+
 export const normalizeAuditEventFilters = (
   filters: AuditEventFilters,
 ): NormalizedAuditEventFilters => {
@@ -87,7 +94,11 @@ export const normalizeAuditEventFilters = (
     invalid = true;
   }
 
-  if (filters.resourceTypes?.some((value) => !isKnownValue(AUDIT_RESOURCE_TYPES, value))) {
+  if (
+    filters.resourceTypes?.some(
+      (value) => !isKnownValue(AUDIT_RESOURCE_TYPES, value),
+    )
+  ) {
     invalid = true;
   }
 
@@ -109,6 +120,21 @@ export const normalizeAuditEventFilters = (
     invalid,
   };
 };
+
+const buildIncidentsCondition = (): SQL =>
+  or(
+    eq(auditEvent.action, 'sign_in_failed'),
+    eq(auditEvent.action, 'permission_denied'),
+    and(eq(auditEvent.resource_type, 'auth'), ne(auditEvent.result, 'success')),
+    and(
+      eq(auditEvent.resource_type, 'security'),
+      eq(auditEvent.result, 'denied'),
+    ),
+    sql`${auditEvent.payload}::text ILIKE ${'%co011%'}`,
+    sql`${auditEvent.payload}::text ILIKE ${'%límite del plan%'}`,
+    sql`${auditEvent.payload}::text ILIKE ${'%limite del plan%'}`,
+    sql`${auditEvent.payload}::text ILIKE ${'%plan limit%'}`,
+  ) as SQL;
 
 const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   const normalized = normalizeAuditEventFilters(filters);
@@ -143,6 +169,9 @@ const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   if (normalized.result) {
     conditions.push(eq(auditEvent.result, normalized.result));
   }
+  if (normalized.incidentsOnly) {
+    conditions.push(buildIncidentsCondition());
+  }
   if (normalized.from) {
     conditions.push(gte(auditEvent.occurred_at, normalized.from));
   }
@@ -156,13 +185,31 @@ const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   return conditions;
 };
 
-const buildAuditSearchCondition = (search: string): SQL | null => {
+/** Exported for unit tests covering Spanish label → enum search. */
+export const buildAuditSearchCondition = (search: string): SQL | null => {
   const trimmed = search.trim();
   if (!trimmed) {
     return null;
   }
 
   const term = `%${trimmed}%`;
+  const matches = resolveAuditSearchCatalogMatches(trimmed);
+  const catalogClauses: SQL[] = [];
+
+  if (matches.actions.length > 0) {
+    catalogClauses.push(inArray(auditEvent.action, matches.actions));
+  }
+  if (matches.results.length > 0) {
+    catalogClauses.push(inArray(auditEvent.result, matches.results));
+  }
+  if (matches.resourceTypes.length > 0) {
+    catalogClauses.push(
+      inArray(auditEvent.resource_type, matches.resourceTypes),
+    );
+  }
+  if (matches.sources.length > 0) {
+    catalogClauses.push(inArray(auditEvent.source, matches.sources));
+  }
 
   return or(
     ilike(auditEvent.resource_type, term),
@@ -172,6 +219,7 @@ const buildAuditSearchCondition = (search: string): SQL | null => {
     ilike(auditEvent.source, term),
     sql`${auditEvent.payload}::text ILIKE ${term}`,
     sql`${auditEvent.request_meta}::text ILIKE ${term}`,
+    ...catalogClauses,
   ) as SQL;
 };
 
@@ -316,4 +364,34 @@ export const searchAuditEvents = async (
     .limit(limit + 1);
 
   return toAuditPage(rows, limit);
+};
+
+/** Page through filtered audit events up to an export cap (System console CSV). */
+export const exportAuditEvents = async (
+  search: string,
+  filters: Omit<AuditEventFilters, 'cursor' | 'limit'>,
+  maxRows = 5000,
+): Promise<AuditEventListItem[]> => {
+  const cap = normalizeAuditExportLimit(maxRows);
+  const collected: AuditEventListItem[] = [];
+  let cursor: number | undefined;
+
+  while (collected.length < cap) {
+    const pageLimit = Math.min(100, cap - collected.length);
+    const page = search.trim()
+      ? await searchAuditEvents(search, {
+          ...filters,
+          cursor,
+          limit: pageLimit,
+        })
+      : await queryAuditEvents({ ...filters, cursor, limit: pageLimit });
+
+    collected.push(...page.items);
+    if (!page.nextCursor || page.items.length === 0) {
+      break;
+    }
+    cursor = page.nextCursor;
+  }
+
+  return collected.slice(0, cap);
 };

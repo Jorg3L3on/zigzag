@@ -109,3 +109,82 @@ export const formatAuditActionLabel = (action: string): string =>
 
 export const formatAuditResultLabel = (result: string): string =>
   isMember(AUDIT_RESULTS, result) ? AUDIT_RESULT_LABELS[result] : result;
+
+export const AUDIT_RESOURCE_LABELS: Record<AuditResourceType, string> = {
+  auth: 'Autenticación',
+  ticket: 'Ticket',
+  client: 'Cliente',
+  service: 'Servicio',
+  company: 'Empresa',
+  user: 'Usuario',
+  role: 'Rol',
+  permission: 'Permiso',
+  invoice: 'Recibo',
+  export: 'Exportación',
+  report: 'Informe',
+  security: 'Seguridad',
+};
+
+export const AUDIT_SOURCE_LABELS: Record<AuditSource, string> = {
+  auth: 'Auth',
+  action: 'Acción',
+  api: 'API',
+};
+
+export const formatAuditResourceTypeLabel = (resourceType: string): string =>
+  isMember(AUDIT_RESOURCE_TYPES, resourceType)
+    ? AUDIT_RESOURCE_LABELS[resourceType]
+    : resourceType;
+
+export const formatAuditSourceLabel = (source: string): string =>
+  isMember(AUDIT_SOURCES, source) ? AUDIT_SOURCE_LABELS[source] : source;
+
+const normalizeSearchTerm = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+export type AuditSearchCatalogMatches = {
+  actions: AuditAction[];
+  results: AuditResult[];
+  resourceTypes: AuditResourceType[];
+  sources: AuditSource[];
+};
+
+/** Map free-text (incl. Spanish labels) to catalog enum codes for search. */
+export const resolveAuditSearchCatalogMatches = (
+  search: string,
+): AuditSearchCatalogMatches => {
+  const normalized = normalizeSearchTerm(search);
+  if (!normalized) {
+    return { actions: [], results: [], resourceTypes: [], sources: [] };
+  }
+
+  const matchesLabelOrCode = (code: string, label: string): boolean => {
+    const codeNorm = normalizeSearchTerm(code);
+    const labelNorm = normalizeSearchTerm(label);
+    return (
+      codeNorm.includes(normalized) ||
+      labelNorm.includes(normalized) ||
+      normalized.includes(codeNorm) ||
+      normalized.includes(labelNorm)
+    );
+  };
+
+  return {
+    actions: AUDIT_ACTIONS.filter((action) =>
+      matchesLabelOrCode(action, AUDIT_ACTION_LABELS[action]),
+    ),
+    results: AUDIT_RESULTS.filter((result) =>
+      matchesLabelOrCode(result, AUDIT_RESULT_LABELS[result]),
+    ),
+    resourceTypes: AUDIT_RESOURCE_TYPES.filter((type) =>
+      matchesLabelOrCode(type, AUDIT_RESOURCE_LABELS[type]),
+    ),
+    sources: AUDIT_SOURCES.filter((source) =>
+      matchesLabelOrCode(source, AUDIT_SOURCE_LABELS[source]),
+    ),
+  };
+};

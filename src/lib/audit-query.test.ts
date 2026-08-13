@@ -10,7 +10,9 @@ jest.mock('@/lib/db', () => ({
 }));
 
 import {
+  buildAuditSearchCondition,
   normalizeAuditEventFilters,
+  normalizeAuditExportLimit,
   normalizeAuditLimit,
   queryAuditEvents,
 } from '@/lib/audit-query';
@@ -148,5 +150,23 @@ describe('audit query helpers', () => {
       action: 'signed_in',
     });
     expect(page.nextCursor).toBeNull();
+  });
+
+  it('builds Spanish-aware search conditions for catalog labels', () => {
+    const condition = buildAuditSearchCondition('Éxito');
+    expect(condition).not.toBeNull();
+
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'src/lib/audit-query.ts'),
+      'utf8',
+    );
+    expect(source).toContain('resolveAuditSearchCatalogMatches');
+    expect(source).toContain('incidentsOnly');
+  });
+
+  it('clamps export limits separately from page limits', () => {
+    expect(normalizeAuditExportLimit(0)).toBe(1);
+    expect(normalizeAuditExportLimit(2500)).toBe(2500);
+    expect(normalizeAuditExportLimit(9000)).toBe(5000);
   });
 });

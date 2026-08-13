@@ -4,11 +4,17 @@ import {
   assertAuditResult,
   AUDIT_ACTIONS,
   AUDIT_ACTION_LABELS,
+  AUDIT_RESOURCE_LABELS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
   AUDIT_RESULT_LABELS,
+  AUDIT_SOURCE_LABELS,
+  AUDIT_SOURCES,
   formatAuditActionLabel,
+  formatAuditResourceTypeLabel,
   formatAuditResultLabel,
+  formatAuditSourceLabel,
+  resolveAuditSearchCatalogMatches,
 } from '@/lib/audit-catalog';
 import {
   buildAuditPayload,
@@ -48,6 +54,28 @@ describe('audit-catalog', () => {
       expect(AUDIT_RESULT_LABELS[result]).toBeTruthy();
       expect(formatAuditResultLabel(result)).toBe(AUDIT_RESULT_LABELS[result]);
     }
+  });
+
+  it('maps every resource type and source to a Spanish label', () => {
+    for (const type of AUDIT_RESOURCE_TYPES) {
+      expect(AUDIT_RESOURCE_LABELS[type]).toBeTruthy();
+      expect(formatAuditResourceTypeLabel(type)).toBe(AUDIT_RESOURCE_LABELS[type]);
+    }
+    for (const source of AUDIT_SOURCES) {
+      expect(AUDIT_SOURCE_LABELS[source]).toBeTruthy();
+      expect(formatAuditSourceLabel(source)).toBe(AUDIT_SOURCE_LABELS[source]);
+    }
+  });
+
+  it('resolves Spanish search terms to catalog enum codes', () => {
+    expect(resolveAuditSearchCatalogMatches('Éxito').results).toContain('success');
+    expect(resolveAuditSearchCatalogMatches('Creación').actions).toContain(
+      'created',
+    );
+    expect(resolveAuditSearchCatalogMatches('Cliente').resourceTypes).toContain(
+      'client',
+    );
+    expect(resolveAuditSearchCatalogMatches('API').sources).toContain('api');
   });
 
   it('passes through unknown action and result codes', () => {

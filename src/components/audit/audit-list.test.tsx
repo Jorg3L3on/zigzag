@@ -93,6 +93,21 @@ describe('AuditList', () => {
     expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
   });
 
+  it('renders investigation presets and export control', async () => {
+    render(<AuditList />);
+
+    expect(
+      await screen.findByRole('group', { name: 'Presets de investigación' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hoy' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Solo incidentes' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Exportar auditoría a CSV' }),
+    ).toBeInTheDocument();
+  });
+
   it('shows recoverable load errors', async () => {
     global.fetch = jest.fn(async () => ({
       ok: false,
