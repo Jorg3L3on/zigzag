@@ -24,12 +24,18 @@ describe('operator console responsive surfaces', () => {
     expect(source).toContain('max-h-[calc(3rem+3.25rem*10)]');
   });
 
-  it('places activity before access and accounts on the operator page', () => {
+  it('places metrics after overview and before activity on the operator page', () => {
     const source = read('src/app/(app)/operator-console/page.tsx');
+    const overviewIndex = source.indexOf('<OperatorCompanyOverview');
+    const metricsIndex = source.indexOf('<OperatorCompanyMetrics');
     const activityIndex = source.indexOf('<OperatorActivityPanel');
     const accessIndex = source.indexOf('<OperatorAccessPanel');
+    expect(overviewIndex).toBeGreaterThan(-1);
+    expect(metricsIndex).toBeGreaterThan(-1);
     expect(activityIndex).toBeGreaterThan(-1);
     expect(accessIndex).toBeGreaterThan(-1);
+    expect(overviewIndex).toBeLessThan(metricsIndex);
+    expect(metricsIndex).toBeLessThan(activityIndex);
     expect(activityIndex).toBeLessThan(accessIndex);
   });
 

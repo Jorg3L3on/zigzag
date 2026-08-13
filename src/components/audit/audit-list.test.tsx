@@ -86,7 +86,7 @@ describe('AuditList', () => {
     expect(lastReplaceCall).toContain('to=2026-05-31');
   });
 
-  it('shows labeled date filters without a resource id filter on desktop', async () => {
+  it('shows labeled date filters without a resource id filter', async () => {
     render(<AuditList />);
 
     expect(await screen.findByLabelText('Desde')).toBeInTheDocument();
@@ -111,7 +111,9 @@ describe('AuditList', () => {
       await screen.findByRole('button', { name: /Abrir filtros/i }),
     );
 
-    expect(await screen.findByRole('heading', { name: 'Filtros' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Filtros' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Empresa, actor, recurso/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Listo' })).toBeInTheDocument();
   });

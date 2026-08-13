@@ -3,7 +3,6 @@ import type { DashboardPersona } from '@/lib/dashboard-persona';
 
 /** Ordered, reusable dashboard slots. Presentation stays in shared widgets. */
 export type DashboardWidgetId =
-  | 'onboarding'
   | 'platformHome'
   | 'needsAttention'
   | 'kpis'
@@ -32,7 +31,6 @@ export type DashboardComposition = {
 
 const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
   widgets: [
-    'onboarding',
     'needsAttention',
     'kpis',
     'charts',
@@ -58,7 +56,6 @@ const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 
 const OPERATOR_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
   widgets: [
-    'onboarding',
     'needsAttention',
     'operations',
     'kpis',
@@ -83,7 +80,7 @@ const OPERATOR_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 };
 
 const VIEWER_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
-  widgets: ['onboarding', 'kpis', 'charts', 'operations'],
+  widgets: ['kpis', 'charts', 'operations'],
   showExports: true,
   showQuickActions: false,
   kpiKeys: 'all',

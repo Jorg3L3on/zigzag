@@ -3,6 +3,7 @@ import { CompaniesList } from '@/components/companies/companies-list';
 import { OperatorLifecyclePanel } from '@/components/operator-console/operator-lifecycle-panel';
 import { OperatorAccessPanel } from '@/components/operator-console/operator-access-panel';
 import { OperatorActivityPanel } from '@/components/operator-console/operator-activity-panel';
+import { OperatorCompanyMetrics } from '@/components/operator-console/operator-company-metrics';
 import { OperatorCompanyOverview } from '@/components/operator-console/operator-company-overview';
 import {
   TripledDashboardShell,
@@ -24,12 +25,13 @@ export default async function OperatorConsolePage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Consola operadora"
-          description="Vista central para operar empresas del sistema."
-          desktopDescription="Busca, filtra y selecciona contexto de empresa para operaciones entre empresas."
+          description="Selecciona una empresa para ver su pulso de negocio y operarla."
+          desktopDescription="Busca y selecciona una empresa para ver métricas, actividad, acceso y ciclo de vida."
           icon={<Building2 className="size-5" aria-hidden />}
         >
           <CompaniesList rowClickAction="select" />
           <OperatorCompanyOverview />
+          <OperatorCompanyMetrics />
           <OperatorActivityPanel />
           <OperatorAccessPanel />
           <OperatorLifecyclePanel />
