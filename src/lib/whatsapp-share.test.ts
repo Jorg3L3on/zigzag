@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   buildWhatsAppBalanceShare,
+  buildWhatsAppDayVisitShare,
   buildWhatsAppHref,
   buildWhatsAppVisitShare,
   normalizePhoneForWhatsApp,
@@ -59,6 +60,19 @@ describe('whatsapp-share', () => {
     });
     expect(result?.message).toContain('Fumigación');
     expect(result?.message).toContain('Ana');
+    expect(result?.href.startsWith('https://wa.me/5512345678?text=')).toBe(true);
+  });
+
+  it('builds Spanish day-visit message for technician queue', () => {
+    const result = buildWhatsAppDayVisitShare({
+      phone: '5512345678',
+      clientName: 'Luis',
+      ticketId: 99,
+      companyName: 'ZigZag Demo',
+    });
+    expect(result?.message).toContain('ZigZag Demo');
+    expect(result?.message).toContain('ticket #99');
+    expect(result?.message).toContain('en camino');
     expect(result?.href.startsWith('https://wa.me/5512345678?text=')).toBe(true);
   });
 });

@@ -34,7 +34,9 @@ import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro'
 import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform-home';
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
+import { DashboardTechnicianDayWidget } from '@/components/dashboard/dashboard-technician-day-widget';
 import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
+import { useTechnicianDayQueue } from '@/hooks/use-technician-day-queue';
 import {
   buildCompanyOnboardingChecklist,
   type OnboardingChecklistSignals,
@@ -115,6 +117,7 @@ export const DashboardMetricsClient = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const urgentSchedules = useDashboardUrgentSchedules();
+  const technicianDay = useTechnicianDayQueue();
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
   const [onboardingSignals, setOnboardingSignals] =
@@ -533,23 +536,39 @@ export const DashboardMetricsClient = () => {
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {composition.sectionTitles.operations}
             </h2>
-            <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-              <DashboardServiceSchedulesWidget
-                canRead={urgentSchedules.canRead}
-                canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
-                missingCompany={urgentSchedules.missingCompany}
-                permissionsLoading={urgentSchedules.permissionsLoading}
-                loading={urgentSchedules.loading}
-                error={urgentSchedules.error}
-                proximos={urgentSchedules.proximos}
-                atrasados={urgentSchedules.atrasados}
-                onRetry={urgentSchedules.reload}
+            <div className="space-y-4">
+              <DashboardTechnicianDayWidget
+                canRead={technicianDay.canRead}
+                missingCompany={technicianDay.missingCompany}
+                permissionsLoading={technicianDay.permissionsLoading}
+                loading={technicianDay.loading}
+                error={technicianDay.error}
+                items={technicianDay.data?.items ?? []}
+                todayCount={technicianDay.data?.todayCount ?? 0}
+                overdueCount={technicianDay.data?.overdueCount ?? 0}
+                onRetry={technicianDay.reload}
+                onPaymentApplied={() => {
+                  technicianDay.reload();
+                }}
               />
-              <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
-                <DashboardActivityFeed
-                  emptyTitle={composition.emptyCopy.activityTitle}
-                  emptyDescription={composition.emptyCopy.activityDescription}
+              <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+                <DashboardServiceSchedulesWidget
+                  canRead={urgentSchedules.canRead}
+                  canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
+                  missingCompany={urgentSchedules.missingCompany}
+                  permissionsLoading={urgentSchedules.permissionsLoading}
+                  loading={urgentSchedules.loading}
+                  error={urgentSchedules.error}
+                  proximos={urgentSchedules.proximos}
+                  atrasados={urgentSchedules.atrasados}
+                  onRetry={urgentSchedules.reload}
                 />
+                <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
+                  <DashboardActivityFeed
+                    emptyTitle={composition.emptyCopy.activityTitle}
+                    emptyDescription={composition.emptyCopy.activityDescription}
+                  />
+                </div>
               </div>
             </div>
           </section>
