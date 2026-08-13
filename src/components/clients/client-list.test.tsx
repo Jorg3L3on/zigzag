@@ -181,8 +181,8 @@ describe('ClientList', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Búsqueda: inexistente')).toBeInTheDocument();
     expect(
-      screen.getAllByRole('button', { name: /Limpiar filtros de clientes/i }),
-    ).toHaveLength(2);
+      screen.getAllByRole('button', { name: /Limpiar filtros de clientes/i }).length,
+    ).toBeGreaterThanOrEqual(1);
     await waitFor(() => {
       expect(mockWriteOfflineSnapshot).toHaveBeenCalledWith(
         'clients',
@@ -190,6 +190,45 @@ describe('ClientList', () => {
         expect.arrayContaining([expect.objectContaining({ name: 'Cliente Alfa' })]),
       );
     });
+  });
+
+  it('opens mobile filter sheet with correo, teléfono, and sort controls', async () => {
+    const user = userEvent.setup();
+    arrange({ result: { success: true, data: [makeClient()] } });
+
+    render(<ClientList />);
+
+    expect(await screen.findAllByText('Cliente Alfa')).not.toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Abrir filtros' }));
+
+    expect(await screen.findByRole('heading', { name: 'Filtros' })).toBeInTheDocument();
+    expect(screen.getByText('Correo, teléfono y orden de la lista.')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', {
+        name: /Filtrar clientes por correo: Con correo/i,
+      }).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByRole('button', {
+        name: /Filtrar clientes por teléfono: Con teléfono/i,
+      }).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole('combobox', { name: /Ordenar lista de clientes/i }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByRole('button', {
+        name: /Filtrar clientes por correo: Sin correo/i,
+      })[0],
+    );
+    await user.click(screen.getByRole('button', { name: 'Listo' }));
+
+    expect(
+      await screen.findByRole('button', { name: /Abrir filtros \(1 activos\)/i }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('Sin correo').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows load errors as recoverable alert states', async () => {

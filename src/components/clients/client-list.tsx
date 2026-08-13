@@ -19,15 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Plus, Pencil, Trash2, Search, UserPlus, Users, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -48,7 +40,6 @@ import {
 import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
@@ -61,11 +52,10 @@ import {
 } from '@/lib/offline-snapshot';
 import { createClientsColumns } from '@/components/clients/clients-columns';
 import {
-  CLIENTS_MOBILE_SORT_OPTIONS,
-  DEFAULT_CLIENT_SORTING,
-  decodeSortingState,
-  encodeSortingState,
-} from '@/components/clients/clients-sort-presets';
+  ClientsFilterBar,
+  type ContactFilter,
+} from '@/components/clients/clients-filter-bar';
+import { DEFAULT_CLIENT_SORTING } from '@/components/clients/clients-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
 import { canWriteClients } from '@/lib/clients-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
@@ -75,7 +65,6 @@ import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ClientPhoneLink } from '@/components/client-phone-link';
 
-type ContactFilter = 'all' | 'with' | 'without';
 type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
 const hasMeaningfulText = (value: string | null | undefined): boolean =>
@@ -301,23 +290,14 @@ export function ClientList() {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  const mobileSortValue = encodeSortingState(sorting);
   const isBusy = loading || loadingClients;
   const hasActiveFilters =
     debouncedSearch !== '' || emailFilter !== 'all' || phoneFilter !== 'all';
+  const sheetFilterCount = [
+    emailFilter !== 'all',
+    phoneFilter !== 'all',
+  ].filter(Boolean).length;
   const effectiveCanWrite = canWrite && snapshotUpdatedAt == null;
-
-  const emailFilterOptions: Array<{ value: ContactFilter; label: string }> = [
-    { value: 'all', label: 'Todas' },
-    { value: 'with', label: 'Con correo' },
-    { value: 'without', label: 'Sin correo' },
-  ];
-
-  const phoneFilterOptions: Array<{ value: ContactFilter; label: string }> = [
-    { value: 'all', label: 'Todos' },
-    { value: 'with', label: 'Con teléfono' },
-    { value: 'without', label: 'Sin teléfono' },
-  ];
 
   const handleDelete = async (id: number) => {
     try {
@@ -412,92 +392,20 @@ export function ClientList() {
   return (
     <>
       <div className="space-y-4">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, teléfono, correo o documento..."
-            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
-            aria-label="Buscar clientes"
-          />
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Correo</p>
-            <div className="flex flex-wrap gap-2">
-              {emailFilterOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  type="button"
-                  variant={emailFilter === option.value ? 'default' : 'outline'}
-                  className="min-h-11 rounded-xl"
-                  onClick={() => setEmailFilter(option.value)}
-                  aria-label={`Filtrar clientes por correo: ${option.label}`}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Teléfono</p>
-            <div className="flex flex-wrap gap-2">
-              {phoneFilterOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  type="button"
-                  variant={phoneFilter === option.value ? 'default' : 'outline'}
-                  className="min-h-11 rounded-xl"
-                  onClick={() => setPhoneFilter(option.value)}
-                  aria-label={`Filtrar clientes por teléfono: ${option.label}`}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-          <div className="w-full sm:w-auto md:hidden">
-            <Select
-              value={mobileSortValue}
-              onValueChange={(value) => setSorting(decodeSortingState(value))}
-            >
-              <SelectTrigger
-                className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
-                aria-label="Ordenar lista de clientes"
-              >
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                {CLIENTS_MOBILE_SORT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TripledFilterChips chips={filterChips} />
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
-              onClick={handleClearFilters}
-              aria-label="Limpiar filtros de clientes"
-            >
-              <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-              Limpiar filtros
-            </Button>
-          ) : null}
-        </div>
+        <ClientsFilterBar
+          searchValue={searchValue}
+          onSearchChange={handleSearchChange}
+          emailFilter={emailFilter}
+          onEmailFilterChange={setEmailFilter}
+          phoneFilter={phoneFilter}
+          onPhoneFilterChange={setPhoneFilter}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          sheetFilterCount={sheetFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filterChips={filterChips}
+        />
 
         {snapshotUpdatedAt ? (
           <Alert
