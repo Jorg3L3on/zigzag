@@ -1,9 +1,6 @@
 import { Building2 } from 'lucide-react';
-import { CompaniesList } from '@/components/companies/companies-list';
-import { OperatorLifecyclePanel } from '@/components/operator-console/operator-lifecycle-panel';
-import { OperatorAccessPanel } from '@/components/operator-console/operator-access-panel';
-import { OperatorActivityPanel } from '@/components/operator-console/operator-activity-panel';
-import { OperatorCompanyOverview } from '@/components/operator-console/operator-company-overview';
+import { OperatorCompanyFleet } from '@/components/operator-console/operator-company-fleet';
+import { OperatorConsoleDetail } from '@/components/operator-console/operator-console-detail';
 import {
   TripledDashboardShell,
   TripledPageHeader,
@@ -24,15 +21,12 @@ export default async function OperatorConsolePage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Consola operadora"
-          description="Vista central para operar empresas del sistema."
-          desktopDescription="Busca, filtra y selecciona contexto de empresa para operaciones entre empresas."
+          description="Selecciona una empresa para ver su pulso de negocio y operarla."
+          desktopDescription="Flota de tenants, métricas, actividad, acceso y ciclo de vida en un solo lugar."
           icon={<Building2 className="size-5" aria-hidden />}
         >
-          <CompaniesList rowClickAction="select" />
-          <OperatorCompanyOverview />
-          <OperatorActivityPanel />
-          <OperatorAccessPanel />
-          <OperatorLifecyclePanel />
+          <OperatorCompanyFleet />
+          <OperatorConsoleDetail />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>

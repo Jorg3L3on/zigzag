@@ -30,7 +30,14 @@ const initialPanelState = <T,>(): PanelState<T> => ({
   data: null,
 });
 
-export const OperatorCompanyOverview = () => {
+type OperatorCompanyOverviewProps = {
+  /** When true, omit the page-level title/CTA (owned by the detail header). */
+  embedded?: boolean;
+};
+
+export const OperatorCompanyOverview = ({
+  embedded = false,
+}: OperatorCompanyOverviewProps) => {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
   const isSystemTenant = selectedCompany?.is_system === true;
@@ -164,22 +171,28 @@ export const OperatorCompanyOverview = () => {
   const summary = identity.data;
 
   return (
-    <div className="space-y-4 border-t border-border/60 pt-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">
-            Resumen: {selectedCompany?.name}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Contexto activo para operaciones entre empresas.
-          </p>
+    <div
+      className={
+        embedded ? 'space-y-4' : 'space-y-4 border-t border-border/60 pt-6'
+      }
+    >
+      {embedded ? null : (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">
+              Resumen: {selectedCompany?.name}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Contexto activo para operaciones entre empresas.
+            </p>
+          </div>
+          {summary ? (
+            <Button asChild variant="outline" className="min-h-11 rounded-xl">
+              <Link href={summary.editHref}>Editar empresa</Link>
+            </Button>
+          ) : null}
         </div>
-        {summary ? (
-          <Button asChild variant="outline" className="min-h-11 rounded-xl">
-            <Link href={summary.editHref}>Editar empresa</Link>
-          </Button>
-        ) : null}
-      </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-border/70 shadow-sm">
