@@ -23,6 +23,7 @@ const baseTicket = (
   paid: overrides.paid ?? 0,
   finished: overrides.finished ?? true,
   company_id: overrides.company_id ?? 1,
+  document_kind: overrides.document_kind ?? 'ticket',
 });
 
 describe('cobranza helpers', () => {
@@ -167,5 +168,19 @@ describe('cobranza helpers', () => {
       balanceDue: 30,
       paymentStatus: 'partial',
     });
+  });
+
+  it('excludes presupuestos from cobranza rows', () => {
+    expect(
+      toCobranzaRow(
+        baseTicket({
+          id: 99,
+          document_kind: 'presupuesto',
+          total: 200,
+          paid: 0,
+        }),
+        now,
+      ),
+    ).toBeNull();
   });
 });

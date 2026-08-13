@@ -1,29 +1,29 @@
 'use server';
 
 import { and, desc, eq, isNull } from 'drizzle-orm';
+import { servicesTickets, ticket } from '@/db/schema';
+import { db } from '@/lib/db';
 import {
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
-import { db } from '@/lib/db';
-import { ticket } from '@/db/schema';
 import { requireTicketRead } from '@/lib/tickets-rbac-server';
 import {
-  buildCobranzaRows,
-  summarizeCobranzaRows,
-  type CobranzaRow,
-} from '@/lib/cobranza';
+  buildTechnicianDayQueue,
+  type TechnicianDayTicket,
+} from '@/lib/technician-day-queue';
 
-export type CobranzaListData = {
-  rows: CobranzaRow[];
-  summary: { count: number; balanceSum: number };
+export type TechnicianDayQueueData = {
+  items: TechnicianDayTicket[];
+  todayCount: number;
+  overdueCount: number;
 };
 
-export async function getCobranzaList(
+export async function getTechnicianDayQueue(
   companyId: number | null,
 ): Promise<{
   success: boolean;
-  data?: CobranzaListData;
+  data?: TechnicianDayQueueData;
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -36,12 +36,21 @@ export async function getCobranzaList(
       where: and(
         eq(ticket.company_id, effectiveCompanyId),
         isNull(ticket.deleted_at),
+        eq(ticket.finished, false),
         eq(ticket.document_kind, 'ticket'),
       ),
-      orderBy: [desc(ticket.created_at)],
+      with: {
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: {
+            service: true,
+          },
+        },
+      },
+      orderBy: [desc(ticket.ticket_date), desc(ticket.created_at)],
     });
 
-    const rows = buildCobranzaRows(
+    const queue = buildTechnicianDayQueue(
       tickets.map((row) => ({
         id: row.id,
         client_name: row.client_name,
@@ -51,19 +60,19 @@ export async function getCobranzaList(
         total: row.total,
         paid: row.paid,
         finished: row.finished,
-        company_id: row.company_id,
         document_kind: row.document_kind,
+        serviceNames: row.services_tickets.map(
+          (line) => line.service?.name ?? null,
+        ),
       })),
     );
 
-    return {
-      success: true,
-      data: {
-        rows,
-        summary: summarizeCobranzaRows(rows),
-      },
-    };
+    return { success: true, data: queue };
   } catch (e) {
-    return handleCodedServerActionError('cobranza.list', 'TC002', e);
+    return handleCodedServerActionError(
+      'technicianDayQueue.list',
+      'TC002',
+      e,
+    );
   }
 }

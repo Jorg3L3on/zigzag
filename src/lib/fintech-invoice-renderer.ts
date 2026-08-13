@@ -724,7 +724,7 @@ export function renderFintechInvoicePdf(
     // Sit below the logo plate so the receipt number does not crowd the badge.
     const metaY = headerY + 8;
     text(
-      `Recibo No. ${payload.ticketNumber}`,
+      `${payload.documentTitle} No. ${payload.ticketNumber}`,
       margin + 16,
       metaY,
       8,

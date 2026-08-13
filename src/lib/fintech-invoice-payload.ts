@@ -13,6 +13,10 @@ import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
+import {
+  isPresupuestoTicket,
+  normalizeTicketDocumentKind,
+} from '@/lib/ticket-document-kind';
 
 type TicketServiceLine = ServicesTicketsRow & {
   service: Service | null;
@@ -52,6 +56,9 @@ export type FintechInvoicePayload = {
   };
   ticketNumber: string;
   issueDate: string;
+  /** Document heading: Recibo vs Presupuesto. */
+  documentTitle: string;
+  documentKind: 'ticket' | 'presupuesto';
   statusLabel: string;
   balanceLabel: string;
   serviceCountLabel: string;
@@ -136,6 +143,8 @@ export const buildFintechInvoicePayload = (
   const paymentProgress = total > 0 ? clamp(paid / total, 0, 1) : 0;
   const paymentStatus = getTicketPaymentStatus(total, paid);
   const paymentProgressPercent = Math.round(paymentProgress * 100);
+  const documentKind = normalizeTicketDocumentKind(ticket.document_kind);
+  const isQuote = isPresupuestoTicket(documentKind);
 
   return {
     issuer: {
@@ -157,8 +166,18 @@ export const buildFintechInvoicePayload = (
     issueDate: ticket.ticket_date
       ? format(new Date(ticket.ticket_date), 'dd/MM/yyyy')
       : format(new Date(), 'dd/MM/yyyy'),
-    statusLabel: paymentStatus === 'paid' ? 'SALDADO' : 'PENDIENTE',
-    balanceLabel: balanceDue > 0 ? 'SALDO PENDIENTE' : 'TOTAL DEL TICKET',
+    documentKind,
+    documentTitle: isQuote ? 'Presupuesto' : 'Recibo',
+    statusLabel: isQuote
+      ? 'PRESUPUESTO'
+      : paymentStatus === 'paid'
+        ? 'SALDADO'
+        : 'PENDIENTE',
+    balanceLabel: isQuote
+      ? 'TOTAL DEL PRESUPUESTO'
+      : balanceDue > 0
+        ? 'SALDO PENDIENTE'
+        : 'TOTAL DEL TICKET',
     serviceCountLabel:
       items.length === 1
         ? '1 concepto'
@@ -168,11 +187,16 @@ export const buildFintechInvoicePayload = (
     adjustmentAmount,
     hasAdjustment,
     total,
-    paid,
-    balanceDue,
-    paymentProgress,
-    paymentProgressLabel: `${paymentProgressPercent}% pagado`,
-    dueText:
-      balanceDue > 0 ? 'Vence al completar el pago' : 'Pago completado',
+    paid: isQuote ? 0 : paid,
+    balanceDue: isQuote ? total : balanceDue,
+    paymentProgress: isQuote ? 0 : paymentProgress,
+    paymentProgressLabel: isQuote
+      ? 'Cotización'
+      : `${paymentProgressPercent}% pagado`,
+    dueText: isQuote
+      ? 'Documento informativo — no es un recibo de pago'
+      : balanceDue > 0
+        ? 'Vence al completar el pago'
+        : 'Pago completado',
   };
 };

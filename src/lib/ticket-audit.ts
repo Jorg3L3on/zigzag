@@ -14,6 +14,8 @@ const TICKET_AUDIT_ACTIONS = [
   'deleted',
   'finished',
   'payment_collected',
+  'presupuesto_converted',
+  'presupuesto_canceled',
 ] as const;
 
 export type TicketAuditAction = (typeof TICKET_AUDIT_ACTIONS)[number];

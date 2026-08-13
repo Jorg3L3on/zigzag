@@ -9,6 +9,8 @@ export const TICKET_AUDIT_EVENT_LABELS: Record<string, string> = {
   deleted: 'Ticket eliminado',
   finished: 'Ticket finalizado',
   payment_collected: 'Pago registrado',
+  presupuesto_converted: 'Presupuesto convertido',
+  presupuesto_canceled: 'Presupuesto cancelado',
 };
 
 /** Icon keys aligned with the dashboard activity feed vocabulary. */

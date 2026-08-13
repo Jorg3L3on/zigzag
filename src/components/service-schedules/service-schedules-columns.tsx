@@ -2,11 +2,14 @@
 
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
+import { Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
+import { buildTelHref } from '@/lib/phone-links';
+import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
 
 type ScheduleRowBucket = Exclude<
@@ -42,18 +45,22 @@ const BUCKET_BADGE_CLASS: Partial<Record<ScheduleRowBucket, string>> = {
 export type ServiceSchedulesColumnsOptions = {
   canWrite: boolean;
   canCreateTicket: boolean;
+  companyName?: string | null;
   onEdit: (schedule: ClientServiceScheduleListItem) => void;
   onPause: (schedule: ClientServiceScheduleListItem) => void;
   onResume: (schedule: ClientServiceScheduleListItem) => void;
+  onSnooze: (schedule: ClientServiceScheduleListItem) => void;
   onDelete: (schedule: ClientServiceScheduleListItem) => void;
 };
 
 export const createServiceSchedulesColumns = ({
   canWrite,
   canCreateTicket,
+  companyName = null,
   onEdit,
   onPause,
   onResume,
+  onSnooze,
   onDelete,
 }: ServiceSchedulesColumnsOptions): ColumnDef<ClientServiceScheduleListItem>[] => [
   {
@@ -115,12 +122,62 @@ export const createServiceSchedulesColumns = ({
     cell: ({ row }) => {
       const schedule = row.original;
       const isPaused = Boolean(schedule.pausedAt);
+      const telHref = buildTelHref(schedule.clientPhone);
+      const whatsapp = buildWhatsAppVisitShare({
+        phone: schedule.clientPhone,
+        clientName: schedule.clientName,
+        serviceName: schedule.serviceName,
+        nextDueAt: schedule.nextDueAt,
+        companyName,
+      });
 
       return (
         <div
           className="flex flex-wrap justify-end gap-1"
           onPointerDown={(event) => event.stopPropagation()}
         >
+          {telHref ? (
+            <Button variant="outline" size="sm" className="rounded-lg" asChild>
+              <a href={telHref} aria-label={`Llamar a ${schedule.clientName}`}>
+                <Phone className="mr-1 h-3.5 w-3.5" aria-hidden />
+                Llamar
+              </a>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled
+              aria-label="Sin teléfono para llamar"
+            >
+              Llamar
+            </Button>
+          )}
+          {whatsapp ? (
+            <Button variant="outline" size="sm" className="rounded-lg" asChild>
+              <a
+                href={whatsapp.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`WhatsApp a ${schedule.clientName}`}
+              >
+                WhatsApp
+              </a>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled
+              aria-label="Sin teléfono para WhatsApp"
+            >
+              WhatsApp
+            </Button>
+          )}
           {canCreateTicket ? (
             <Button variant="outline" size="sm" className="rounded-lg" asChild>
               <Link
@@ -141,6 +198,17 @@ export const createServiceSchedulesColumns = ({
               >
                 Editar
               </Button>
+              {!isPaused ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => onSnooze(schedule)}
+                >
+                  Posponer
+                </Button>
+              ) : null}
               {isPaused ? (
                 <Button
                   type="button"
