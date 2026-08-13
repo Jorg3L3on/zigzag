@@ -17,6 +17,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useCompany } from '@/contexts/company-context';
+import {
+  resolveTeamSwitcherCompany,
+  teamSwitcherCompanyNeedsUpdate,
+} from '@/lib/resolve-team-switcher-company';
 import { useSession } from 'next-auth/react';
 
 interface Team {
@@ -34,20 +38,21 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
   const { selectedCompany, setSelectedCompany } = useCompany();
 
   React.useEffect(() => {
-    // Reset selected company when session changes
-    if (session?.user?.company_id) {
-      const userCompany = teams.find(
-        (team) => team.id === session.user.company_id,
-      );
-      if (userCompany) {
-        setSelectedCompany(userCompany);
-      } else {
-        setSelectedCompany(teams[0]);
-      }
-    } else if (teams.length > 0) {
-      setSelectedCompany(teams[0]);
+    const nextCompany = resolveTeamSwitcherCompany({
+      teams,
+      selectedCompany,
+      sessionCompanyId: session?.user?.company_id,
+    });
+    if (!teamSwitcherCompanyNeedsUpdate(selectedCompany, nextCompany)) {
+      return;
     }
-  }, [teams, session?.user?.company_id, setSelectedCompany]);
+    setSelectedCompany(nextCompany);
+  }, [
+    teams,
+    session?.user?.company_id,
+    selectedCompany,
+    setSelectedCompany,
+  ]);
 
   const handleCompanySelect = React.useCallback(
     (team: Team) => {
