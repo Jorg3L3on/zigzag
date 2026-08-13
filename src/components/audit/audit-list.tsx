@@ -203,7 +203,6 @@ const buildFilterQuery = (input: {
   targetCompanyId: string;
   actorUserId: string;
   resourceType: string;
-  resourceId: string;
   actionFilter: string;
   resultFilter: string;
   fromDate: string;
@@ -222,9 +221,6 @@ const buildFilterQuery = (input: {
   }
   if (input.resourceType !== 'all') {
     params.set('resource_type', input.resourceType);
-  }
-  if (input.resourceId.trim()) {
-    params.set('resource_id', input.resourceId.trim());
   }
   if (input.actionFilter !== 'all') {
     params.set('action', input.actionFilter);
@@ -266,9 +262,6 @@ export const AuditList = () => {
   );
   const [resourceType, setResourceType] = React.useState<string>(
     () => searchParams.get('resource_type') ?? 'all',
-  );
-  const [resourceId, setResourceId] = React.useState(
-    () => searchParams.get('resource_id') ?? '',
   );
   const [actionFilter, setActionFilter] = React.useState<string>(
     () => searchParams.get('action') ?? 'all',
@@ -399,7 +392,6 @@ export const AuditList = () => {
       targetCompanyId,
       actorUserId,
       resourceType,
-      resourceId,
       actionFilter,
       resultFilter,
       fromDate,
@@ -412,7 +404,6 @@ export const AuditList = () => {
       debouncedSearch,
       fromDate,
       incidentsOnly,
-      resourceId,
       resourceType,
       resultFilter,
       targetCompanyId,
@@ -533,7 +524,6 @@ export const AuditList = () => {
     targetCompanyId.trim() !== '' ||
     actorUserId.trim() !== '' ||
     resourceType !== 'all' ||
-    resourceId.trim() !== '' ||
     actionFilter !== 'all' ||
     resultFilter !== 'all' ||
     fromDate !== '' ||
@@ -553,7 +543,6 @@ export const AuditList = () => {
     setTargetCompanyId('');
     setActorUserId('');
     setResourceType('all');
-    setResourceId('');
     setActionFilter('all');
     setResultFilter('all');
     setFromDate('');
@@ -641,59 +630,73 @@ export const AuditList = () => {
         </Button>
       </div>
 
-      <div
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label="Presets de investigación"
-      >
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(isTodayPreset)}
-          aria-pressed={isTodayPreset}
-          onClick={handlePresetToday}
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Presets de investigación"
         >
-          Hoy
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(isSevenDayPreset)}
-          aria-pressed={isSevenDayPreset}
-          onClick={handlePresetSevenDays}
-        >
-          Últimos 7 días
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(resultFilter === 'denied')}
-          aria-pressed={resultFilter === 'denied'}
-          onClick={handlePresetDenied}
-        >
-          Solo denegados
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(resultFilter === 'failed')}
-          aria-pressed={resultFilter === 'failed'}
-          onClick={handlePresetFailed}
-        >
-          Solo fallidos
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(incidentsOnly)}
-          aria-pressed={incidentsOnly}
-          onClick={handlePresetIncidents}
-        >
-          Solo incidentes
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(isTodayPreset)}
+            aria-pressed={isTodayPreset}
+            onClick={handlePresetToday}
+          >
+            Hoy
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(isSevenDayPreset)}
+            aria-pressed={isSevenDayPreset}
+            onClick={handlePresetSevenDays}
+          >
+            Últimos 7 días
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(resultFilter === 'denied')}
+            aria-pressed={resultFilter === 'denied'}
+            onClick={handlePresetDenied}
+          >
+            Solo denegados
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(resultFilter === 'failed')}
+            aria-pressed={resultFilter === 'failed'}
+            onClick={handlePresetFailed}
+          >
+            Solo fallidos
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(incidentsOnly)}
+            aria-pressed={incidentsOnly}
+            onClick={handlePresetIncidents}
+          >
+            Solo incidentes
+          </Button>
+        </div>
+        {hasActiveFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={handleClearFilters}
+            aria-label="Limpiar todos los filtros"
+          >
+            Limpiar filtros
+          </Button>
+        ) : null}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <SearchableSelect
           value={targetCompanyId}
           onValueChange={handleTargetCompanyChange}
@@ -725,12 +728,6 @@ export const AuditList = () => {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          value={resourceId}
-          onChange={(event) => setResourceId(event.target.value)}
-          placeholder="ID de recurso"
-          aria-label="Filtrar por ID de recurso"
-        />
         <Select value={actionFilter} onValueChange={setActionFilter}>
           <SelectTrigger aria-label="Filtrar por acción">
             <SelectValue placeholder="Acción" />
@@ -749,7 +746,7 @@ export const AuditList = () => {
             <SelectValue placeholder="Resultado" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">Todos los estatus</SelectItem>
             {AUDIT_RESULTS.map((result) => (
               <SelectItem key={result} value={result}>
                 {formatAuditResultLabel(result)}
@@ -757,25 +754,29 @@ export const AuditList = () => {
             ))}
           </SelectContent>
         </Select>
-        <div className="space-y-1.5">
-          <Label htmlFor="audit-from-date">Desde</Label>
-          <Input
-            id="audit-from-date"
-            type="date"
-            value={fromDate}
-            onChange={(event) => setFromDate(event.target.value)}
-            aria-label="Filtrar desde fecha"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="audit-to-date">Hasta</Label>
-          <Input
-            id="audit-to-date"
-            type="date"
-            value={toDate}
-            onChange={(event) => setToDate(event.target.value)}
-            aria-label="Filtrar hasta fecha"
-          />
+        <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-1 lg:grid-cols-2">
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="audit-from-date">Desde</Label>
+            <Input
+              id="audit-from-date"
+              type="date"
+              value={fromDate}
+              onChange={(event) => setFromDate(event.target.value)}
+              aria-label="Filtrar desde fecha"
+              className="h-9 min-w-0"
+            />
+          </div>
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="audit-to-date">Hasta</Label>
+            <Input
+              id="audit-to-date"
+              type="date"
+              value={toDate}
+              onChange={(event) => setToDate(event.target.value)}
+              aria-label="Filtrar hasta fecha"
+              className="h-9 min-w-0"
+            />
+          </div>
         </div>
       </div>
 

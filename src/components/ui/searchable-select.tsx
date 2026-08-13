@@ -142,7 +142,7 @@ export const SearchableSelect = ({
           />
         </div>
         <ul
-          className="max-h-60 overflow-y-auto p-1"
+          className="max-h-[min(15rem,50vh)] overflow-y-auto overscroll-contain p-1"
           role="listbox"
           aria-label={ariaLabel}
         >

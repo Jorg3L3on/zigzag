@@ -11,7 +11,7 @@ jest.mock('next/navigation', () => ({
   }),
   useSearchParams: () =>
     new URLSearchParams(
-      'search=denied&target_company_id=2&actor_user_id=7&resource_type=ticket&resource_id=42&action=updated&result=denied&from=2026-05-01&to=2026-05-31',
+      'search=denied&target_company_id=2&actor_user_id=7&resource_type=ticket&action=updated&result=denied&from=2026-05-01&to=2026-05-31',
     ),
 }));
 
@@ -60,7 +60,7 @@ describe('AuditList', () => {
     expect(params.get('target_company_id')).toBe('2');
     expect(params.get('actor_user_id')).toBe('7');
     expect(params.get('resource_type')).toBe('ticket');
-    expect(params.get('resource_id')).toBe('42');
+    expect(params.get('resource_id')).toBeNull();
     expect(params.get('action')).toBe('updated');
     expect(params.get('result')).toBe('denied');
     expect(params.get('from')).toBe('2026-05-01');
@@ -79,18 +79,51 @@ describe('AuditList', () => {
     expect(lastReplaceCall).toContain('target_company_id=2');
     expect(lastReplaceCall).toContain('actor_user_id=7');
     expect(lastReplaceCall).toContain('resource_type=ticket');
-    expect(lastReplaceCall).toContain('resource_id=42');
+    expect(lastReplaceCall).not.toContain('resource_id=');
     expect(lastReplaceCall).toContain('action=updated');
     expect(lastReplaceCall).toContain('result=denied');
     expect(lastReplaceCall).toContain('from=2026-05-01');
     expect(lastReplaceCall).toContain('to=2026-05-31');
   });
 
-  it('shows labeled date filters', async () => {
+  it('shows labeled date filters without a resource id filter', async () => {
     render(<AuditList />);
 
     expect(await screen.findByLabelText('Desde')).toBeInTheDocument();
     expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Filtrar por ID de recurso'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows Todos los estatus and a clear-all control when filters are active', async () => {
+    render(<AuditList />);
+
+    expect(
+      await screen.findByRole('button', { name: 'Limpiar todos los filtros' }),
+    ).toBeInTheDocument();
+    // Selected result is "denied" from URL; open label text lives on the item.
+    // Assert the status select is present and the all-option copy is in the tree
+    // via the trigger placeholder wiring by clearing then checking.
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Limpiar todos los filtros' }),
+    );
+    expect(
+      await screen.findByText('Todos los estatus'),
+    ).toBeInTheDocument();
+  });
+
+  it('clears all filters when Limpiar filtros is pressed', async () => {
+    render(<AuditList />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Limpiar todos los filtros' }),
+    );
+
+    await waitFor(() => {
+      const lastReplaceCall = replace.mock.calls.at(-1)?.[0] as string;
+      expect(lastReplaceCall).toBe('/audit');
+    });
   });
 
   it('renders investigation presets and export control', async () => {
