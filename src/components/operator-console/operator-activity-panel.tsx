@@ -68,6 +68,9 @@ type AuditEventRow = AuditEventListItem;
 
 const PAGE_SIZE = 25;
 const DEFAULT_SORTING: SortingState = [{ id: 'occurred_at', desc: true }];
+/** Viewport for ~10 body rows + header (h-12 + ~3.25rem rows). */
+const ACTIVITY_TABLE_SCROLL_CLASS =
+  'max-h-[calc(3rem+3.25rem*10)] overflow-y-auto';
 
 const AuditJsonBlock = ({
   title,
@@ -463,7 +466,9 @@ export const OperatorActivityPanel = () => {
             />
           ) : (
             <>
-              <div className="space-y-3 md:hidden">
+              <div
+                className={cn('space-y-3 md:hidden', ACTIVITY_TABLE_SCROLL_CLASS)}
+              >
                 {table.getRowModel().rows.map((row) => {
                   const event = row.original;
                   const expanded = expandedId === event.id;
@@ -521,9 +526,14 @@ export const OperatorActivityPanel = () => {
                 })}
               </div>
 
-              <div className="hidden overflow-hidden rounded-xl border border-border/70 md:block">
+              <div
+                className={cn(
+                  'hidden rounded-xl border border-border/70 md:block',
+                  ACTIVITY_TABLE_SCROLL_CLASS,
+                )}
+              >
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_hsl(var(--border))]">
                     {table.getHeaderGroups().map((headerGroup) => (
                       <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header) => (
