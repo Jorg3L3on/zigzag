@@ -1,4 +1,15 @@
-import type { AuditAction, AuditResourceType, AuditResult } from '@/lib/audit-catalog';
+import type {
+  AuditAction,
+  AuditResourceType,
+  AuditResult,
+  AuditSource,
+} from '@/lib/audit-catalog';
+import {
+  AUDIT_ACTIONS,
+  AUDIT_RESOURCE_TYPES,
+  AUDIT_RESULTS,
+  AUDIT_SOURCES,
+} from '@/lib/audit-catalog';
 
 const ACTION_LABELS: Record<AuditAction, string> = {
   signed_in: 'Inicio de sesión',
@@ -43,6 +54,12 @@ const RESOURCE_TYPE_LABELS: Record<AuditResourceType, string> = {
   security: 'Seguridad',
 };
 
+const SOURCE_LABELS: Record<AuditSource, string> = {
+  auth: 'Auth',
+  action: 'Acción',
+  api: 'API',
+};
+
 export const formatAuditActionLabel = (action: string): string =>
   ACTION_LABELS[action as AuditAction] ?? action;
 
@@ -51,3 +68,56 @@ export const formatAuditResultLabel = (result: string): string =>
 
 export const formatAuditResourceTypeLabel = (resourceType: string): string =>
   RESOURCE_TYPE_LABELS[resourceType as AuditResourceType] ?? resourceType;
+
+export const formatAuditSourceLabel = (source: string): string =>
+  SOURCE_LABELS[source as AuditSource] ?? source;
+
+const normalizeSearchTerm = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+export type AuditSearchCatalogMatches = {
+  actions: AuditAction[];
+  results: AuditResult[];
+  resourceTypes: AuditResourceType[];
+  sources: AuditSource[];
+};
+
+/** Map free-text (incl. Spanish labels) to catalog enum codes for search. */
+export const resolveAuditSearchCatalogMatches = (
+  search: string,
+): AuditSearchCatalogMatches => {
+  const normalized = normalizeSearchTerm(search);
+  if (!normalized) {
+    return { actions: [], results: [], resourceTypes: [], sources: [] };
+  }
+
+  const matchesLabelOrCode = (code: string, label: string): boolean => {
+    const codeNorm = normalizeSearchTerm(code);
+    const labelNorm = normalizeSearchTerm(label);
+    return (
+      codeNorm.includes(normalized) ||
+      labelNorm.includes(normalized) ||
+      normalized.includes(codeNorm) ||
+      normalized.includes(labelNorm)
+    );
+  };
+
+  return {
+    actions: AUDIT_ACTIONS.filter((action) =>
+      matchesLabelOrCode(action, ACTION_LABELS[action]),
+    ),
+    results: AUDIT_RESULTS.filter((result) =>
+      matchesLabelOrCode(result, RESULT_LABELS[result]),
+    ),
+    resourceTypes: AUDIT_RESOURCE_TYPES.filter((type) =>
+      matchesLabelOrCode(type, RESOURCE_TYPE_LABELS[type]),
+    ),
+    sources: AUDIT_SOURCES.filter((source) =>
+      matchesLabelOrCode(source, SOURCE_LABELS[source]),
+    ),
+  };
+};

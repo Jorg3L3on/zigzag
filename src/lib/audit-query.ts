@@ -11,7 +11,7 @@ import {
   sql,
   type SQL,
 } from 'drizzle-orm';
-import { auditEvent } from '@/db/schema';
+import { auditEvent, company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { resolveActorNames } from '@/lib/audit-actor-names';
 import {
@@ -19,6 +19,7 @@ import {
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
 } from '@/lib/audit-catalog';
+import { resolveAuditSearchCatalogMatches } from '@/lib/audit-labels';
 import { buildOperatorIncidentSqlCondition } from '@/lib/operator-audit-incidents-sql';
 
 export type AuditEventFilters = {
@@ -51,7 +52,9 @@ export type AuditEventListItem = {
   /** Resolved from User.name when the actor still exists. */
   actor_name: string | null;
   actor_company_id: number | null;
+  actor_company_name: string | null;
   target_company_id: number | null;
+  target_company_name: string | null;
   resource_type: string;
   resource_id: string | null;
   action: string;
@@ -68,6 +71,9 @@ const isKnownValue = <T extends string>(
 
 export const normalizeAuditLimit = (limit?: number): number =>
   Math.min(Math.max(limit ?? 50, 1), 100);
+
+export const normalizeAuditExportLimit = (limit?: number): number =>
+  Math.min(Math.max(limit ?? 1000, 1), 5000);
 
 export const normalizeAuditEventFilters = (
   filters: AuditEventFilters,
@@ -90,7 +96,11 @@ export const normalizeAuditEventFilters = (
     invalid = true;
   }
 
-  if (filters.resourceTypes?.some((value) => !isKnownValue(AUDIT_RESOURCE_TYPES, value))) {
+  if (
+    filters.resourceTypes?.some(
+      (value) => !isKnownValue(AUDIT_RESOURCE_TYPES, value),
+    )
+  ) {
     invalid = true;
   }
 
@@ -162,13 +172,31 @@ const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   return conditions;
 };
 
-const buildAuditSearchCondition = (search: string): SQL | null => {
+/** Exported for unit tests covering Spanish label → enum search. */
+export const buildAuditSearchCondition = (search: string): SQL | null => {
   const trimmed = search.trim();
   if (!trimmed) {
     return null;
   }
 
   const term = `%${trimmed}%`;
+  const matches = resolveAuditSearchCatalogMatches(trimmed);
+  const catalogClauses: SQL[] = [];
+
+  if (matches.actions.length > 0) {
+    catalogClauses.push(inArray(auditEvent.action, matches.actions));
+  }
+  if (matches.results.length > 0) {
+    catalogClauses.push(inArray(auditEvent.result, matches.results));
+  }
+  if (matches.resourceTypes.length > 0) {
+    catalogClauses.push(
+      inArray(auditEvent.resource_type, matches.resourceTypes),
+    );
+  }
+  if (matches.sources.length > 0) {
+    catalogClauses.push(inArray(auditEvent.source, matches.sources));
+  }
 
   return or(
     ilike(auditEvent.resource_type, term),
@@ -178,12 +206,34 @@ const buildAuditSearchCondition = (search: string): SQL | null => {
     ilike(auditEvent.source, term),
     sql`${auditEvent.payload}::text ILIKE ${term}`,
     sql`${auditEvent.request_meta}::text ILIKE ${term}`,
+    ...catalogClauses,
   ) as SQL;
+};
+
+const resolveCompanyNames = async (
+  companyIds: number[],
+): Promise<Map<number, string>> => {
+  const unique = [...new Set(companyIds)];
+  const map = new Map<number, string>();
+  if (unique.length === 0) {
+    return map;
+  }
+
+  const rows = await db
+    .select({ id: company.id, name: company.name })
+    .from(company)
+    .where(inArray(company.id, unique));
+
+  for (const row of rows) {
+    map.set(row.id, row.name);
+  }
+  return map;
 };
 
 const mapAuditRows = (
   rows: (typeof auditEvent.$inferSelect)[],
-  actorNames: Map<string, string> = new Map(),
+  actorNames: Map<string, string>,
+  companyNames: Map<number, string>,
 ): AuditEventListItem[] =>
   rows.map((row) => {
     const actorUserId = row.actor_user_id?.toString() ?? null;
@@ -193,7 +243,15 @@ const mapAuditRows = (
       actor_user_id: actorUserId,
       actor_name: actorUserId ? (actorNames.get(actorUserId) ?? null) : null,
       actor_company_id: row.actor_company_id,
+      actor_company_name:
+        row.actor_company_id != null
+          ? (companyNames.get(row.actor_company_id) ?? null)
+          : null,
       target_company_id: row.target_company_id,
+      target_company_name:
+        row.target_company_id != null
+          ? (companyNames.get(row.target_company_id) ?? null)
+          : null,
       resource_type: row.resource_type,
       resource_id: row.resource_id,
       action: row.action,
@@ -213,9 +271,16 @@ const toAuditPage = async (
   const actorNames = await resolveActorNames(
     pageRows.map((row) => row.actor_user_id?.toString() ?? null),
   );
+  const companyNames = await resolveCompanyNames(
+    pageRows.flatMap((row) =>
+      [row.actor_company_id, row.target_company_id].filter(
+        (id): id is number => id != null,
+      ),
+    ),
+  );
 
   return {
-    items: mapAuditRows(pageRows, actorNames),
+    items: mapAuditRows(pageRows, actorNames, companyNames),
     nextCursor: hasMore ? pageRows[pageRows.length - 1]?.id ?? null : null,
   };
 };
@@ -256,4 +321,34 @@ export const searchAuditEvents = async (
     .limit(limit + 1);
 
   return toAuditPage(rows, limit);
+};
+
+/** Page through filtered audit events up to an export cap (System console CSV). */
+export const exportAuditEvents = async (
+  search: string,
+  filters: Omit<AuditEventFilters, 'cursor' | 'limit'>,
+  maxRows = 5000,
+): Promise<AuditEventListItem[]> => {
+  const cap = normalizeAuditExportLimit(maxRows);
+  const collected: AuditEventListItem[] = [];
+  let cursor: number | undefined;
+
+  while (collected.length < cap) {
+    const pageLimit = Math.min(100, cap - collected.length);
+    const page = search.trim()
+      ? await searchAuditEvents(search, {
+          ...filters,
+          cursor,
+          limit: pageLimit,
+        })
+      : await queryAuditEvents({ ...filters, cursor, limit: pageLimit });
+
+    collected.push(...page.items);
+    if (!page.nextCursor || page.items.length === 0) {
+      break;
+    }
+    cursor = page.nextCursor;
+  }
+
+  return collected.slice(0, cap);
 };

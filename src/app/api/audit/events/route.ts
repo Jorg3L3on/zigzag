@@ -1,23 +1,8 @@
 import { fail, ok, requireSession } from '@/lib/api-helpers';
+import { parseAuditListFilters } from '@/lib/audit-api-filters';
 import { queryAuditEvents, searchAuditEvents } from '@/lib/audit-query';
 
 export const dynamic = 'force-dynamic';
-
-const parseOptionalInt = (value: string | null): number | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? undefined : parsed;
-};
-
-const parseOptionalDate = (value: string | null): Date | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-};
 
 export async function GET(request: Request) {
   try {
@@ -31,24 +16,7 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const search = url.searchParams.get('search') ?? '';
-    const incidentsOnlyParam = url.searchParams.get('incidents_only');
-    const filters = {
-      targetCompanyId: parseOptionalInt(url.searchParams.get('target_company_id')),
-      actorUserId: url.searchParams.get('actor_user_id') ?? undefined,
-      resourceType: url.searchParams.get('resource_type') ?? undefined,
-      resourceId: url.searchParams.get('resource_id') ?? undefined,
-      action: url.searchParams.get('action') ?? undefined,
-      result: url.searchParams.get('result') ?? undefined,
-      incidentsOnly:
-        incidentsOnlyParam === '1' || incidentsOnlyParam === 'true'
-          ? true
-          : undefined,
-      from: parseOptionalDate(url.searchParams.get('from')),
-      to: parseOptionalDate(url.searchParams.get('to')),
-      cursor: parseOptionalInt(url.searchParams.get('cursor')),
-      limit: parseOptionalInt(url.searchParams.get('limit')),
-    };
+    const { search, filters } = parseAuditListFilters(url);
 
     const result = search.trim()
       ? await searchAuditEvents(search, filters)
