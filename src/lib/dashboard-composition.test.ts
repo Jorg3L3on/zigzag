@@ -83,6 +83,14 @@ describe('dashboard persona + composition', () => {
     expect(composition.widgets).toContain('charts');
   });
 
+  it('does not include the onboarding / inicio rapido widget', () => {
+    for (const persona of ['admin', 'operator', 'viewer', 'system'] as const) {
+      expect(buildDashboardComposition(persona).widgets).not.toContain(
+        'onboarding',
+      );
+    }
+  });
+
   it('builds attention-aware intro subtitles', () => {
     expect(
       buildDashboardIntroSubtitle({

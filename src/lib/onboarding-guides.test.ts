@@ -1,6 +1,5 @@
 import {
   EMPRESA_GUIDE_LINK,
-  EMPRESA_MAESTRA_GUIDE_LINK,
   EXECUTIVE_SUMMARY_LINK,
   getGuidesMenuHref,
   getOnboardingGuidesForUser,
@@ -10,21 +9,17 @@ import {
 } from './onboarding-guides';
 
 describe('onboarding-guides', () => {
-  it('exposes investor and tenant guides on login, not the platform guide', () => {
+  it('exposes investor and tenant guides on login', () => {
     expect(PUBLIC_ONBOARDING_GUIDE_LINKS).toEqual([
       EXECUTIVE_SUMMARY_LINK,
       EMPRESA_GUIDE_LINK,
     ]);
-    expect(PUBLIC_ONBOARDING_GUIDE_LINKS).not.toContain(
-      EMPRESA_MAESTRA_GUIDE_LINK,
-    );
   });
 
   it('scopes authenticated guides by company type', () => {
     expect(getOnboardingGuidesForUser(false)).toEqual([EMPRESA_GUIDE_LINK]);
     expect(getOnboardingGuidesForUser(true)).toEqual([
       EXECUTIVE_SUMMARY_LINK,
-      expect.objectContaining({ href: ONBOARDING_GUIDE_PATHS.empresaMaestra }),
       EMPRESA_GUIDE_LINK,
     ]);
   });

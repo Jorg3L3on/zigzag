@@ -35,12 +35,7 @@ import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardTechnicianDayWidget } from '@/components/dashboard/dashboard-technician-day-widget';
-import { DashboardOnboardingHelp } from '@/components/dashboard/dashboard-onboarding-help';
 import { useTechnicianDayQueue } from '@/hooks/use-technician-day-queue';
-import {
-  buildCompanyOnboardingChecklist,
-  type OnboardingChecklistSignals,
-} from '@/lib/company-onboarding-checklist';
 import {
   buildDashboardAttentionItems,
   countSchedulesDueToday,
@@ -57,13 +52,11 @@ import {
   fetchDashboardMetrics,
   type DashboardMetrics,
 } from '@/actions/dashboard';
-import { fetchOnboardingStatus, dismissOnboardingChecklist } from '@/actions/onboarding-status';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedules';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
-import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
 import { cn } from '@/lib/utils';
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
@@ -120,9 +113,6 @@ export const DashboardMetricsClient = () => {
   const technicianDay = useTechnicianDayQueue();
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
-  const [onboardingSignals, setOnboardingSignals] =
-    React.useState<OnboardingChecklistSignals | null>(null);
-  const [isDismissingChecklist, setIsDismissingChecklist] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -161,15 +151,10 @@ export const DashboardMetricsClient = () => {
         ? (selectedCompany?.id ?? session.user.company_id)
         : undefined;
 
-      const [res, onboardingRes] = await Promise.all([
-        fetchDashboardMetrics({
-          companyId: companyIdArg,
-          monthCount,
-        }),
-        fetchOnboardingStatus({
-          companyId: companyIdArg,
-        }),
-      ]);
+      const res = await fetchDashboardMetrics({
+        companyId: companyIdArg,
+        monthCount,
+      });
 
       if (cancelled) {
         return;
@@ -187,22 +172,6 @@ export const DashboardMetricsClient = () => {
       }
       setError(null);
       setMetrics(res.data);
-      setOnboardingSignals(
-        onboardingRes.success && onboardingRes.data
-          ? onboardingRes.data
-          : {
-              profileReady: false,
-              totalClients: res.data.totalClients,
-              totalServices: res.data.totalServices,
-              totalTickets: res.data.totalTickets,
-              totalServicesSold: res.data.totalServicesSold,
-              hasPaidOrFinishedTicket: false,
-              finishedTicketCount: 0,
-              totalUsers: 0,
-              totalServiceSchedules: 0,
-              dismissedAt: null,
-            },
-      );
     };
 
     void load();
@@ -224,80 +193,6 @@ export const DashboardMetricsClient = () => {
     can: permissions.can,
   });
   const composition = buildDashboardComposition(persona);
-
-  const onboardingPermissions = React.useMemo(
-    () => ({
-      canManageCompany: permissions.can(PERMISSIONS.company.manage),
-      canCreateClients: permissions.can(PERMISSIONS.clients.write),
-      canCreateServices: permissions.can(PERMISSIONS.services.write),
-      canCreateTickets: permissions.can(PERMISSIONS.tickets.write),
-      canCreateUsers: permissions.can(PERMISSIONS.users.write),
-      canViewTickets: permissions.can(PERMISSIONS.tickets.read),
-      canViewSchedules: canReadServiceSchedules(permissions.can),
-    }),
-    [permissions],
-  );
-
-  const onboardingChecklist = React.useMemo(() => {
-    const fallbackSignals = {
-      profileReady: false,
-      totalClients: metrics?.totalClients ?? 0,
-      totalServices: metrics?.totalServices ?? 0,
-      totalTickets: metrics?.totalTickets ?? 0,
-      totalServicesSold: metrics?.totalServicesSold ?? 0,
-      hasPaidOrFinishedTicket: false,
-      finishedTicketCount: 0,
-      totalUsers: 0,
-      totalServiceSchedules: 0,
-      dismissedAt: null,
-    };
-
-    return buildCompanyOnboardingChecklist({
-      signals: onboardingSignals ?? fallbackSignals,
-      permissions: onboardingPermissions,
-      needsCompanyContext,
-    });
-  }, [
-    metrics?.totalClients,
-    metrics?.totalServices,
-    metrics?.totalTickets,
-    metrics?.totalServicesSold,
-    needsCompanyContext,
-    onboardingPermissions,
-    onboardingSignals,
-  ]);
-
-  const handleDismissOnboardingChecklist = React.useCallback(async () => {
-    setIsDismissingChecklist(true);
-    const isSystem = session?.user.company_is_system;
-    const companyIdArg =
-      isSystem ? (selectedCompany?.id ?? session?.user.company_id) : undefined;
-
-    const result = await dismissOnboardingChecklist({
-      companyId: companyIdArg,
-    });
-    setIsDismissingChecklist(false);
-
-    if (!result.success) {
-      setError(
-        getErrorDisplayMessage(
-          result,
-          'No se pudo ocultar la guía de inicio',
-          result.errorType,
-        ),
-      );
-      return;
-    }
-
-    setOnboardingSignals((current) =>
-      current
-        ? {
-            ...current,
-            dismissedAt: new Date().toISOString(),
-          }
-        : current,
-    );
-  }, [selectedCompany?.id, session?.user.company_id, session?.user.company_is_system]);
 
   if (status === 'loading' || permissions.loading) {
     return <DashboardLoadingSkeleton />;
@@ -447,17 +342,6 @@ export const DashboardMetricsClient = () => {
 
   const renderWidget = (widgetId: (typeof composition.widgets)[number]) => {
     switch (widgetId) {
-      case 'onboarding':
-        return (
-          <DashboardOnboardingHelp
-            key={widgetId}
-            checklist={onboardingChecklist}
-            needsCompanyContext={needsCompanyContext}
-            canDismiss={permissions.can(PERMISSIONS.company.manage)}
-            isDismissing={isDismissingChecklist}
-            onDismiss={handleDismissOnboardingChecklist}
-          />
-        );
       case 'needsAttention':
         return (
           <DashboardNeedsAttention
