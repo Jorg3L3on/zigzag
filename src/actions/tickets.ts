@@ -697,14 +697,19 @@ export async function updateTicket(
   }
 }
 
-export async function deleteTicket(id: number): Promise<{
+export async function deleteTicket(
+  id: number,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireTicketWrite();
+      companyId == null
+        ? await requireTicketWrite()
+        : await requireTicketWrite(companyId);
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
     const prior = await db.query.ticket.findFirst({
@@ -743,6 +748,9 @@ export async function deleteTicket(id: number): Promise<{
 
     return { success: true };
   } catch (e) {
+    if (e instanceof AuthorizationError || e instanceof AuthenticationError) {
+      return handleServerActionError(e);
+    }
     return handleCodedServerActionError('tickets.delete', 'TC005', e);
   }
 }
@@ -751,6 +759,7 @@ export async function finishTicket(
   id: number,
   _clientTotal: number,
   paid: number,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: unknown;
@@ -759,7 +768,9 @@ export async function finishTicket(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireTicketWrite();
+      companyId == null
+        ? await requireTicketWrite()
+        : await requireTicketWrite(companyId);
     const ticketId = BigInt(id);
     const writable = await assertTicketWritable(ticketId, effectiveCompanyId);
     assertIsWorkTicketRow(writable);
@@ -854,6 +865,10 @@ export async function finishTicket(
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+    revalidatePath('/dashboard');
+    revalidatePath('/tickets');
+    revalidatePath('/cobranza');
+    revalidatePath(`/tickets/${id}`);
 
     return { success: true, data: updated };
   } catch (e) {
@@ -868,6 +883,9 @@ export async function finishTicket(
     }
     if (e instanceof PresupuestoMutationBlockedError) {
       return buildActionError('TC009', undefined, 'validation');
+    }
+    if (e instanceof AuthorizationError || e instanceof AuthenticationError) {
+      return handleServerActionError(e);
     }
     return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }

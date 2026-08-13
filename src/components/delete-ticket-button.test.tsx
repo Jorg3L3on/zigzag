@@ -41,7 +41,7 @@ describe('DeleteTicketButton', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith(42);
-      expect(mockDeleteTicket).toHaveBeenCalledWith(42);
+      expect(mockDeleteTicket).toHaveBeenCalledWith(42, null);
       expect(mockToastSuccess).toHaveBeenCalled();
       expect(mockToastError).not.toHaveBeenCalled();
     });
@@ -60,6 +60,7 @@ describe('DeleteTicketButton', () => {
     render(
       <DeleteTicketButton
         id={42}
+        companyId={10}
         onDelete={onDelete}
         onDeleteFailed={onDeleteFailed}
       />,
@@ -70,6 +71,7 @@ describe('DeleteTicketButton', () => {
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith(42);
+      expect(mockDeleteTicket).toHaveBeenCalledWith(42, 10);
       expect(onDeleteFailed).toHaveBeenCalledWith(42);
       expect(mockToastError).toHaveBeenCalledWith(
         expect.stringMatching(/TC005|eliminar/i),

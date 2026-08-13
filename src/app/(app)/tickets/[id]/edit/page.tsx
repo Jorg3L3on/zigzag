@@ -362,7 +362,10 @@ export default function EditTicketPage({
 
   async function onSubmit(values: FormValues) {
     try {
-      const result = await updateTicket(Number(resolvedParams.id), values);
+      const result = await updateTicket(Number(resolvedParams.id), {
+        ...values,
+        company_id: selectedCompany?.id ?? ticketCompany?.id ?? undefined,
+      });
       if (result.success) {
         toast.success('Ticket actualizado correctamente');
         clearTicketFormDraft(draftKey);
@@ -426,6 +429,7 @@ export default function EditTicketPage({
       Number(resolvedParams.id),
       total,
       finalPaidAmount,
+      selectedCompany?.id ?? ticketCompany?.id ?? null,
     );
 
     if (!result.success) {

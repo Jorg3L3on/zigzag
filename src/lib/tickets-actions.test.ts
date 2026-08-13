@@ -268,6 +268,67 @@ describe('ticket actions — payments', () => {
       expect(mockDb.transaction).not.toHaveBeenCalled();
     });
 
+    it('passes company context through to requireTicketWrite', async () => {
+      mockDb.query.ticket.findFirst
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        })
+        .mockResolvedValueOnce({
+          ...writableTicket,
+          finished: false,
+        });
+      mockSyncTicketTotal.mockResolvedValueOnce(100);
+
+      const finishedRow = {
+        ...writableTicket,
+        finished: true,
+        total: 100,
+        paid: 25,
+      };
+
+      mockDb.transaction.mockImplementation(async (callback) => {
+        const tx = {
+          execute: jest.fn(async () => ({ rows: [] })),
+          select: jest.fn(() => ({
+            from: jest.fn(() => ({
+              where: jest.fn(() => ({
+                limit: jest.fn(async () => [{ id: 1 }]),
+              })),
+            })),
+          })),
+          insert: jest.fn(() => ({
+            values: jest.fn(async () => []),
+          })),
+          update: jest.fn(() => ({
+            set: jest.fn(() => ({
+              where: jest.fn(() => ({
+                returning: jest.fn(async () => [finishedRow]),
+              })),
+            })),
+          })),
+        };
+        return callback(tx);
+      });
+
+      const result = await finishTicket(42, 100, 25, 10);
+
+      expect(result.success).toBe(true);
+      expect(mockRequireTicketWrite).toHaveBeenCalledWith(10);
+    });
+
+    it('maps authorization failures to AU002 instead of TC006', async () => {
+      mockRequireTicketWrite.mockRejectedValueOnce(
+        new AuthorizationError('Access denied to this ticket'),
+      );
+
+      const result = await finishTicket(42, 100, 25, 99);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('AU002');
+      expect(mockDb.transaction).not.toHaveBeenCalled();
+    });
+
     it('marks the ticket finished and records initial payment', async () => {
       mockDb.query.ticket.findFirst
         .mockResolvedValueOnce({

@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 
 interface DeleteTicketButtonProps {
   id: number;
+  companyId?: number | null;
   /** Optimistic remove from the list when delete is confirmed. */
   onDelete?: (id: number) => void;
   /** Restore the row if the server delete fails after optimistic remove. */
@@ -28,6 +29,7 @@ interface DeleteTicketButtonProps {
 
 export function DeleteTicketButton({
   id,
+  companyId = null,
   onDelete,
   onDeleteFailed,
 }: DeleteTicketButtonProps) {
@@ -43,7 +45,7 @@ export function DeleteTicketButton({
     onDelete?.(id);
 
     try {
-      const result = await deleteTicket(id);
+      const result = await deleteTicket(id, companyId);
       if (result.success) {
         toast.success('Ticket eliminado correctamente');
         setOpen(false);

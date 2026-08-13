@@ -157,6 +157,7 @@ export function TicketRowActions({
           {canWrite ? (
             <DeleteTicketButton
               id={Number(ticket.id)}
+              companyId={companyId}
               onDelete={onDelete}
               onDeleteFailed={onDeleteFailed}
             />
