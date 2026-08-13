@@ -75,3 +75,37 @@ export const assertAuditAction = (value: string): AuditAction => {
   }
   return value;
 };
+
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  signed_in: 'Inicio de sesión',
+  signed_out: 'Cierre de sesión',
+  sign_in_failed: 'Inicio de sesión fallido',
+  created: 'Creación',
+  updated: 'Actualización',
+  deleted: 'Eliminación',
+  finished: 'Finalización',
+  payment_collected: 'Cobro registrado',
+  presupuesto_converted: 'Presupuesto convertido',
+  presupuesto_canceled: 'Presupuesto cancelado',
+  logo_uploaded: 'Logo subido',
+  logo_removed: 'Logo eliminado',
+  permissions_changed: 'Permisos modificados',
+  permission_assigned: 'Permiso asignado',
+  permission_removed: 'Permiso eliminado',
+  export_generated: 'Exportación generada',
+  offboarded: 'Baja de empresa',
+  generated: 'Generación',
+  permission_denied: 'Permiso denegado',
+};
+
+export const AUDIT_RESULT_LABELS: Record<AuditResult, string> = {
+  success: 'Éxito',
+  denied: 'Denegado',
+  failed: 'Fallido',
+};
+
+export const formatAuditActionLabel = (action: string): string =>
+  isMember(AUDIT_ACTIONS, action) ? AUDIT_ACTION_LABELS[action] : action;
+
+export const formatAuditResultLabel = (result: string): string =>
+  isMember(AUDIT_RESULTS, result) ? AUDIT_RESULT_LABELS[result] : result;

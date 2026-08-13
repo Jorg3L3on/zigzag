@@ -15,6 +15,20 @@ jest.mock('next/navigation', () => ({
     ),
 }));
 
+jest.mock('@/actions/companies', () => ({
+  getCompanies: jest.fn(async () => ({
+    success: true,
+    data: [{ id: 2, name: 'Acme' }],
+  })),
+}));
+
+jest.mock('@/actions/users', () => ({
+  getUsers: jest.fn(async () => ({
+    success: true,
+    data: [{ id: BigInt(7), name: 'Jorge', company_id: 2 }],
+  })),
+}));
+
 describe('AuditList', () => {
   beforeEach(() => {
     replace.mockClear();
@@ -70,6 +84,13 @@ describe('AuditList', () => {
     expect(lastReplaceCall).toContain('result=denied');
     expect(lastReplaceCall).toContain('from=2026-05-01');
     expect(lastReplaceCall).toContain('to=2026-05-31');
+  });
+
+  it('shows labeled date filters', async () => {
+    render(<AuditList />);
+
+    expect(await screen.findByLabelText('Desde')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
   });
 
   it('shows recoverable load errors', async () => {

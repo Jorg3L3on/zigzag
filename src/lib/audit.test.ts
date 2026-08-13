@@ -3,8 +3,12 @@ import {
   assertAuditResourceType,
   assertAuditResult,
   AUDIT_ACTIONS,
+  AUDIT_ACTION_LABELS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
+  AUDIT_RESULT_LABELS,
+  formatAuditActionLabel,
+  formatAuditResultLabel,
 } from '@/lib/audit-catalog';
 import {
   buildAuditPayload,
@@ -33,6 +37,22 @@ describe('audit-catalog', () => {
     expect(AUDIT_RESOURCE_TYPES).toContain('security');
     expect(AUDIT_ACTIONS).toContain('permission_denied');
     expect(AUDIT_RESULTS).toEqual(['success', 'denied', 'failed']);
+  });
+
+  it('maps every catalog action and result to a Spanish label', () => {
+    for (const action of AUDIT_ACTIONS) {
+      expect(AUDIT_ACTION_LABELS[action]).toBeTruthy();
+      expect(formatAuditActionLabel(action)).toBe(AUDIT_ACTION_LABELS[action]);
+    }
+    for (const result of AUDIT_RESULTS) {
+      expect(AUDIT_RESULT_LABELS[result]).toBeTruthy();
+      expect(formatAuditResultLabel(result)).toBe(AUDIT_RESULT_LABELS[result]);
+    }
+  });
+
+  it('passes through unknown action and result codes', () => {
+    expect(formatAuditActionLabel('custom_action')).toBe('custom_action');
+    expect(formatAuditResultLabel('weird')).toBe('weird');
   });
 });
 

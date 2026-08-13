@@ -9,7 +9,10 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ClipboardList, Search } from 'lucide-react';
 import Link from 'next/link';
+import { getCompanies } from '@/actions/companies';
+import { getUsers } from '@/actions/users';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -17,6 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from '@/components/ui/searchable-select';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -34,6 +41,8 @@ import {
   AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
+  formatAuditActionLabel,
+  formatAuditResultLabel,
 } from '@/lib/audit-catalog';
 import {
   createAuditColumns,
@@ -45,6 +54,10 @@ import {
   redactAuditDisplayValue,
   resolveAuditResourceLink,
 } from '@/lib/audit-display';
+
+type ActorUserOption = SearchableSelectOption & {
+  companyId: number | null;
+};
 
 const AuditJsonBlock = ({
   title,
@@ -126,6 +139,12 @@ export const AuditList = () => {
   );
   const [expandedId, setExpandedId] = React.useState<number | null>(null);
   const [nextCursor, setNextCursor] = React.useState<number | null>(null);
+  const [companyOptions, setCompanyOptions] = React.useState<
+    SearchableSelectOption[]
+  >([]);
+  const [actorUserOptions, setActorUserOptions] = React.useState<
+    ActorUserOption[]
+  >([]);
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -133,6 +152,94 @@ export const AuditList = () => {
     }, 300);
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadFilterOptions = async () => {
+      const [companiesResult, usersResult] = await Promise.all([
+        getCompanies(),
+        getUsers(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (companiesResult.success && companiesResult.data) {
+        setCompanyOptions(
+          companiesResult.data.map((companyRow) => ({
+            value: String(companyRow.id),
+            label: companyRow.name,
+          })),
+        );
+      }
+
+      if (usersResult.success && usersResult.data) {
+        setActorUserOptions(
+          usersResult.data.map((userRow) => ({
+            value: String(userRow.id),
+            label: userRow.name,
+            companyId: userRow.company_id ?? null,
+          })),
+        );
+      }
+    };
+
+    void loadFilterOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredActorUserOptions = React.useMemo(() => {
+    if (!targetCompanyId.trim()) {
+      return actorUserOptions;
+    }
+    const selectedCompanyId = Number(targetCompanyId);
+    if (!Number.isFinite(selectedCompanyId)) {
+      return actorUserOptions;
+    }
+    return actorUserOptions.filter(
+      (option) => option.companyId === selectedCompanyId,
+    );
+  }, [actorUserOptions, targetCompanyId]);
+
+  React.useEffect(() => {
+    if (!targetCompanyId.trim() || !actorUserId || actorUserOptions.length === 0) {
+      return;
+    }
+    const selectedCompanyId = Number(targetCompanyId);
+    if (!Number.isFinite(selectedCompanyId)) {
+      return;
+    }
+    const actorStillValid = actorUserOptions.some(
+      (option) =>
+        option.value === actorUserId && option.companyId === selectedCompanyId,
+    );
+    if (!actorStillValid) {
+      setActorUserId('');
+    }
+  }, [actorUserId, actorUserOptions, targetCompanyId]);
+
+  const handleTargetCompanyChange = (nextCompanyId: string) => {
+    setTargetCompanyId(nextCompanyId);
+    if (!nextCompanyId) {
+      return;
+    }
+    const selectedCompanyId = Number(nextCompanyId);
+    if (!Number.isFinite(selectedCompanyId) || !actorUserId) {
+      return;
+    }
+    const actorStillValid = actorUserOptions.some(
+      (option) =>
+        option.value === actorUserId && option.companyId === selectedCompanyId,
+    );
+    if (!actorStillValid) {
+      setActorUserId('');
+    }
+  };
 
   React.useEffect(() => {
     const params = new URLSearchParams();
@@ -331,18 +438,22 @@ export const AuditList = () => {
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Input
+        <SearchableSelect
           value={targetCompanyId}
-          onChange={(event) => setTargetCompanyId(event.target.value)}
+          onValueChange={handleTargetCompanyChange}
+          options={companyOptions}
           placeholder="Empresa objetivo"
-          inputMode="numeric"
+          searchPlaceholder="Buscar empresa…"
+          emptyText="No hay empresas"
           aria-label="Filtrar por empresa objetivo"
         />
-        <Input
+        <SearchableSelect
           value={actorUserId}
-          onChange={(event) => setActorUserId(event.target.value)}
+          onValueChange={setActorUserId}
+          options={filteredActorUserOptions}
           placeholder="Actor usuario"
-          inputMode="numeric"
+          searchPlaceholder="Buscar usuario…"
+          emptyText="No hay usuarios"
           aria-label="Filtrar por actor usuario"
         />
         <Select value={resourceType} onValueChange={setResourceType}>
@@ -372,7 +483,7 @@ export const AuditList = () => {
             <SelectItem value="all">Todas las acciones</SelectItem>
             {AUDIT_ACTIONS.map((action) => (
               <SelectItem key={action} value={action}>
-                {action}
+                {formatAuditActionLabel(action)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -385,23 +496,31 @@ export const AuditList = () => {
             <SelectItem value="all">Todos</SelectItem>
             {AUDIT_RESULTS.map((result) => (
               <SelectItem key={result} value={result}>
-                {result}
+                {formatAuditResultLabel(result)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          value={fromDate}
-          onChange={(event) => setFromDate(event.target.value)}
-          aria-label="Filtrar desde fecha"
-        />
-        <Input
-          type="date"
-          value={toDate}
-          onChange={(event) => setToDate(event.target.value)}
-          aria-label="Filtrar hasta fecha"
-        />
+        <div className="space-y-1.5">
+          <Label htmlFor="audit-from-date">Desde</Label>
+          <Input
+            id="audit-from-date"
+            type="date"
+            value={fromDate}
+            onChange={(event) => setFromDate(event.target.value)}
+            aria-label="Filtrar desde fecha"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="audit-to-date">Hasta</Label>
+          <Input
+            id="audit-to-date"
+            type="date"
+            value={toDate}
+            onChange={(event) => setToDate(event.target.value)}
+            aria-label="Filtrar hasta fecha"
+          />
+        </div>
       </div>
 
       {listState.kind === 'loading' ? (
@@ -455,12 +574,13 @@ export const AuditList = () => {
                 }}
                 role="button"
                 tabIndex={0}
-                aria-label={`Evento ${event.action} en ${event.resource_type}`}
+                aria-label={`Evento ${formatAuditActionLabel(event.action)} en ${event.resource_type}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">
-                      <AuditResourceLabel event={event} /> · {event.action}
+                      <AuditResourceLabel event={event} /> ·{' '}
+                      {formatAuditActionLabel(event.action)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <FormattedDate
@@ -472,17 +592,26 @@ export const AuditList = () => {
                   <Badge
                     variant={event.result === 'denied' ? 'destructive' : 'secondary'}
                   >
-                    {event.result}
+                    {formatAuditResultLabel(event.result)}
                   </Badge>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <dt className="text-muted-foreground">Actor</dt>
-                    <dd>{event.actor_user_id ?? '—'}</dd>
+                    <dd>
+                      {event.actor_user_name?.trim() ||
+                        event.actor_user_id ||
+                        '—'}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Empresa</dt>
-                    <dd>{event.target_company_id ?? '—'}</dd>
+                    <dd>
+                      {event.target_company_name?.trim() ||
+                        (event.target_company_id != null
+                          ? String(event.target_company_id)
+                          : '—')}
+                    </dd>
                   </div>
                 </dl>
                 {expandedId === event.id ? (

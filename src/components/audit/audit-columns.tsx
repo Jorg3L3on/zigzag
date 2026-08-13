@@ -6,6 +6,10 @@ import type { AuditEventListItem } from '@/lib/audit-query';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import {
+  formatAuditActionLabel,
+  formatAuditResultLabel,
+} from '@/lib/audit-catalog';
+import {
   formatAuditResourceLabel,
   resolveAuditResourceLink,
 } from '@/lib/audit-display';
@@ -24,6 +28,9 @@ const resultVariant = (
   return 'secondary';
 };
 
+const displayName = (name: string | null, fallbackId: string | number | null) =>
+  name?.trim() || (fallbackId != null ? String(fallbackId) : '—');
+
 export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
     accessorKey: 'occurred_at',
@@ -38,17 +45,26 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
     accessorKey: 'actor_user_id',
     header: 'Actor',
-    cell: ({ row }) => row.original.actor_user_id ?? '—',
+    cell: ({ row }) =>
+      displayName(row.original.actor_user_name, row.original.actor_user_id),
   },
   {
     accessorKey: 'actor_company_id',
     header: 'Empresa actor',
-    cell: ({ row }) => row.original.actor_company_id ?? '—',
+    cell: ({ row }) =>
+      displayName(
+        row.original.actor_company_name,
+        row.original.actor_company_id,
+      ),
   },
   {
     accessorKey: 'target_company_id',
     header: 'Empresa objetivo',
-    cell: ({ row }) => row.original.target_company_id ?? '—',
+    cell: ({ row }) =>
+      displayName(
+        row.original.target_company_name,
+        row.original.target_company_id,
+      ),
   },
   {
     id: 'resource',
@@ -80,13 +96,14 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
     accessorKey: 'action',
     header: 'Acción',
+    cell: ({ row }) => formatAuditActionLabel(row.original.action),
   },
   {
     accessorKey: 'result',
     header: 'Resultado',
     cell: ({ row }) => (
       <Badge variant={resultVariant(row.original.result)}>
-        {row.original.result}
+        {formatAuditResultLabel(row.original.result)}
       </Badge>
     ),
   },
