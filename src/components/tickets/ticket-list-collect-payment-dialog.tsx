@@ -34,6 +34,7 @@ type TicketListCollectPaymentDialogProps = {
   ticketId: number;
   total: number | null;
   paid: number | null;
+  companyId?: number | null;
   onPaymentApplied: (result: TicketListCollectPaymentResult) => void;
 };
 
@@ -43,6 +44,7 @@ export const TicketListCollectPaymentDialog = ({
   ticketId,
   total,
   paid,
+  companyId = null,
   onPaymentApplied,
 }: TicketListCollectPaymentDialogProps) => {
   const [amountInput, setAmountInput] = React.useState('');
@@ -86,7 +88,7 @@ export const TicketListCollectPaymentDialog = ({
     }
 
     startTransition(async () => {
-      const result = await applyTicketPayment(ticketId, additional);
+      const result = await applyTicketPayment(ticketId, additional, companyId);
       if (result.success) {
         const row = result.data as { paid?: number | null } | undefined;
         const nextPaid =
@@ -109,7 +111,7 @@ export const TicketListCollectPaymentDialog = ({
     if (balanceDue <= 0) return;
 
     startTransition(async () => {
-      const result = await applyTicketPayment(ticketId, balanceDue);
+      const result = await applyTicketPayment(ticketId, balanceDue, companyId);
       if (result.success) {
         const row = result.data as { paid?: number | null } | undefined;
         const nextPaid =

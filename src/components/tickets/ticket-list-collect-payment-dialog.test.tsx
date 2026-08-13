@@ -76,7 +76,7 @@ describe('TicketListCollectPaymentDialog', () => {
     );
 
     await waitFor(() => {
-      expect(mockApplyTicketPayment).toHaveBeenCalledWith(7, 30);
+      expect(mockApplyTicketPayment).toHaveBeenCalledWith(7, 30, null);
       expect(onPaymentApplied).toHaveBeenCalledWith({
         ticketId: 7,
         paid: 50,
@@ -101,6 +101,7 @@ describe('TicketListCollectPaymentDialog', () => {
         ticketId={7}
         total={100}
         paid={40}
+        companyId={10}
         onPaymentApplied={onPaymentApplied}
       />,
     );
@@ -110,7 +111,7 @@ describe('TicketListCollectPaymentDialog', () => {
     );
 
     await waitFor(() => {
-      expect(mockApplyTicketPayment).toHaveBeenCalledWith(7, 60);
+      expect(mockApplyTicketPayment).toHaveBeenCalledWith(7, 60, 10);
       expect(onPaymentApplied).toHaveBeenCalledWith({
         ticketId: 7,
         paid: 100,

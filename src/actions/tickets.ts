@@ -23,6 +23,8 @@ import { recordTicketAudit } from '@/lib/ticket-audit';
 import { invalidateCompanyCache } from '@/lib/cache';
 import { acquireAdvisoryLock, ADVISORY_LOCK_NAMESPACE } from '@/lib/db-locks';
 import {
+  AppError,
+  AuthenticationError,
   AuthorizationError,
   buildActionError,
   handleCodedServerActionError,
@@ -30,7 +32,7 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
-import { roundMoney, subtractMoney } from '@/lib/money';
+import { addMoney, roundMoney, subtractMoney } from '@/lib/money';
 import { TICKET_CSV_HEADERS } from '@/lib/csv-schemas';
 import {
   AMOUNT_TOLERANCE,
@@ -874,6 +876,7 @@ export async function finishTicket(
 export async function applyTicketPayment(
   id: number,
   additionalPaid: number,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: unknown;
@@ -882,7 +885,9 @@ export async function applyTicketPayment(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireTicketWrite();
+      companyId == null
+        ? await requireTicketWrite()
+        : await requireTicketWrite(companyId);
     const ticketId = BigInt(id);
     const writable = await assertTicketWritable(ticketId, effectiveCompanyId);
     assertIsWorkTicketRow(writable);
@@ -901,17 +906,37 @@ export async function applyTicketPayment(
     }
 
     if (!ticketRow.finished) {
-      return buildActionError('TC007', undefined, 'validation');
+      return buildActionError(
+        'TC007',
+        new AppError(
+          'Finaliza el ticket antes de registrar un cobro.',
+          400,
+          true,
+          'TC007',
+        ),
+        'validation',
+      );
     }
 
     if (getTicketBalanceDue(ticketRow.total, ticketRow.paid) <= 0) {
-      return buildActionError('TC007', undefined, 'validation');
+      return buildActionError(
+        'TC007',
+        new AppError(
+          'Este ticket ya está saldado.',
+          400,
+          true,
+          'TC007',
+        ),
+        'validation',
+      );
     }
 
+    const currentPaid = roundMoney(Number(ticketRow.paid ?? 0));
+    const totalAmount = roundMoney(Number(ticketRow.total ?? 0));
     const previewPaid = roundMoney(
-      Math.min(ticketRow.total ?? 0, (ticketRow.paid ?? 0) + additionalPaid),
+      Math.min(totalAmount, addMoney(currentPaid, additionalPaid)),
     );
-    if (subtractMoney(previewPaid, ticketRow.paid ?? 0) <= AMOUNT_TOLERANCE) {
+    if (subtractMoney(previewPaid, currentPaid) <= AMOUNT_TOLERANCE) {
       return buildActionError('TC007', undefined, 'validation');
     }
 
@@ -932,12 +957,12 @@ export async function applyTicketPayment(
         return { status: 'invalid' as const };
       }
 
-      const totalAmount = fresh.total ?? 0;
-      const currentPaid = fresh.paid ?? 0;
+      const freshTotal = roundMoney(Number(fresh.total ?? 0));
+      const freshPaid = roundMoney(Number(fresh.paid ?? 0));
       const newPaid = roundMoney(
-        Math.min(totalAmount, currentPaid + additionalPaid),
+        Math.min(freshTotal, addMoney(freshPaid, additionalPaid)),
       );
-      const appliedAmount = subtractMoney(newPaid, currentPaid);
+      const appliedAmount = subtractMoney(newPaid, freshPaid);
 
       if (appliedAmount <= AMOUNT_TOLERANCE) {
         // A concurrent collection already covered this balance; no-op.
@@ -984,18 +1009,31 @@ export async function applyTicketPayment(
     });
 
     if (result.status === 'invalid') {
-      return buildActionError('TC007', undefined, 'validation');
+      return buildActionError(
+        'TC007',
+        new AppError(
+          'Finaliza el ticket antes de registrar un cobro.',
+          400,
+          true,
+          'TC007',
+        ),
+        'validation',
+      );
     }
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     revalidatePath('/dashboard');
     revalidatePath('/tickets');
+    revalidatePath('/cobranza');
     revalidatePath(`/tickets/${id}`);
 
     return { success: true, data: result.row };
   } catch (e) {
     if (e instanceof PresupuestoMutationBlockedError) {
       return buildActionError('TC009', undefined, 'validation');
+    }
+    if (e instanceof AuthorizationError || e instanceof AuthenticationError) {
+      return handleServerActionError(e);
     }
     return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
   }

@@ -57,11 +57,13 @@ export type DashboardTechnicianDayWidgetProps = {
 const TechnicianDayCard = ({
   item,
   canWrite,
+  companyId,
   companyName,
   onPaymentApplied,
 }: {
   item: TechnicianDayTicket;
   canWrite: boolean;
+  companyId?: number | null;
   companyName?: string | null;
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
 }) => {
@@ -224,6 +226,7 @@ const TechnicianDayCard = ({
           ticketId={Number(item.id)}
           total={item.total}
           paid={item.paid}
+          companyId={companyId}
           onPaymentApplied={(result) => {
             onPaymentApplied?.(result);
           }}
@@ -357,6 +360,7 @@ export const DashboardTechnicianDayWidget = ({
                 key={item.id}
                 item={item}
                 canWrite={canWrite}
+                companyId={selectedCompany?.id ?? null}
                 companyName={selectedCompany?.name}
                 onPaymentApplied={onPaymentApplied}
               />

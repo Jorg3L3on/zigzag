@@ -122,6 +122,7 @@ export default async function TicketDetailsPage({
                 paid={ticket.paid}
                 finished={ticket.finished}
                 payments={payments}
+                companyId={ticket.company_id}
               />
 
               <div className="lg:hidden">

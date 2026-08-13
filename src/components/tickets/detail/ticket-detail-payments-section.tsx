@@ -26,6 +26,7 @@ type TicketDetailPaymentsSectionProps = {
   paid: number | null;
   finished: boolean;
   payments: TicketPaymentHistoryRow[];
+  companyId?: number | null;
 };
 
 /**
@@ -38,6 +39,7 @@ export const TicketDetailPaymentsSection = ({
   paid,
   finished,
   payments,
+  companyId = null,
 }: TicketDetailPaymentsSectionProps) => {
   const balanceDue = getTicketBalanceDue(total, paid);
   const paymentStatus = getTicketPaymentStatus(total, paid);
@@ -108,6 +110,7 @@ export const TicketDetailPaymentsSection = ({
         paid={paid}
         finished={finished}
         payments={payments}
+        companyId={companyId}
       />
     </TicketDetailSectionCard>
   );

@@ -171,6 +171,7 @@ export function TicketRowActions({
           ticketId={Number(ticket.id)}
           total={ticket.total}
           paid={ticket.paid}
+          companyId={companyId}
           onPaymentApplied={(result) => {
             onPaymentApplied?.(result);
           }}
