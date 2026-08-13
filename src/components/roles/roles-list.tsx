@@ -11,11 +11,10 @@ import {
 import { getRoles } from '@/actions/roles';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
-import { Search, Shield, X } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,33 +26,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { CreateRoleDialog } from '@/app/(app)/roles/create-role-dialog';
 import { UpdateRoleDialog } from '@/app/(app)/roles/update-role-dialog';
 import { DeleteRoleDialog } from '@/app/(app)/roles/delete-role-dialog';
 import { createRolesColumns, type Role } from '@/components/roles/roles-columns';
 import { RoleActionsMenu } from '@/components/roles/role-actions-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { FormattedDate } from '@/components/formatted-date';
 import {
-  DEFAULT_ROLE_SORTING,
-  ROLES_MOBILE_SORT_OPTIONS,
-  decodeSortingState,
-  encodeSortingState,
-} from '@/components/roles/roles-sort-presets';
+  RolesFilterBar,
+  type CompanyScopeFilter,
+  type PermissionAssignmentFilter,
+} from '@/components/roles/roles-filter-bar';
+import { DEFAULT_ROLE_SORTING } from '@/components/roles/roles-sort-presets';
 import { useOperatorTenantCompany } from '@/hooks/use-operator-tenant-company';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
-
-type CompanyScopeFilter = 'all' | 'global' | 'company';
-type PermissionAssignmentFilter = 'all' | 'with' | 'without';
 
 const countAssignedPermissions = (role: Role) =>
   role.permissions.filter((p) => p.permission != null).length;
@@ -194,11 +182,13 @@ export function RolesList() {
     getRowId: (row) => String(row.id),
   });
 
-  const mobileSortValue = encodeSortingState(sorting);
   const hasActiveFilters =
     debouncedSearch !== '' ||
     companyScopeFilter !== 'all' ||
     permissionAssignmentFilter !== 'all';
+  const sheetFilterCount =
+    Number(companyScopeFilter !== 'all') +
+    Number(permissionAssignmentFilter !== 'all');
   const listState = resolveResourceListState({
     isLoading: loading,
     loadError,
@@ -206,22 +196,6 @@ export function RolesList() {
     visibleCount: filteredRoles.length,
     hasActiveFilters,
   });
-
-  const companyScopeOptions: Array<{ value: CompanyScopeFilter; label: string }> =
-    [
-      { value: 'all', label: 'Todas las empresas' },
-      { value: 'global', label: 'Sin empresa' },
-      { value: 'company', label: 'Por empresa' },
-    ];
-
-  const permissionFilterOptions: Array<{
-    value: PermissionAssignmentFilter;
-    label: string;
-  }> = [
-    { value: 'all', label: 'Todos los roles' },
-    { value: 'with', label: 'Con permisos' },
-    { value: 'without', label: 'Sin permisos' },
-  ];
 
   const handleClearFilters = () => {
     setSearchValue('');
@@ -245,9 +219,7 @@ export function RolesList() {
           {
             key: 'scope',
             label:
-              companyScopeOptions.find(
-                (option) => option.value === companyScopeFilter,
-              )?.label ?? 'Alcance',
+              companyScopeFilter === 'global' ? 'Sin empresa' : 'Por empresa',
           },
         ]
       : []),
@@ -256,9 +228,9 @@ export function RolesList() {
           {
             key: 'permissions',
             label:
-              permissionFilterOptions.find(
-                (option) => option.value === permissionAssignmentFilter,
-              )?.label ?? 'Permisos',
+              permissionAssignmentFilter === 'with'
+                ? 'Con permisos'
+                : 'Sin permisos',
           },
         ]
       : []),
@@ -277,93 +249,20 @@ export function RolesList() {
         ) : null}
       </div>
 
-      <div className="space-y-4">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por rol, descripción, empresa o permiso..."
-            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
-            aria-label="Buscar roles"
-          />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {companyScopeOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={
-                  companyScopeFilter === option.value ? 'default' : 'outline'
-                }
-                className="min-h-11 rounded-xl"
-                onClick={() => setCompanyScopeFilter(option.value)}
-                aria-label={`Filtrar por alcance: ${option.label.toLowerCase()}`}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {permissionFilterOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={
-                  permissionAssignmentFilter === option.value
-                    ? 'default'
-                    : 'outline'
-                }
-                className="min-h-11 rounded-xl"
-                onClick={() => setPermissionAssignmentFilter(option.value)}
-                aria-label={`Filtrar por permisos: ${option.label.toLowerCase()}`}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <TripledFilterChips chips={filterChips} />
-            {hasActiveFilters ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
-                onClick={handleClearFilters}
-                aria-label="Limpiar filtros de roles"
-              >
-                <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
-                Limpiar filtros
-              </Button>
-            ) : null}
-            <div className="w-full sm:w-auto md:hidden">
-              <Select
-                value={mobileSortValue}
-                onValueChange={(value) => setSorting(decodeSortingState(value))}
-              >
-                <SelectTrigger
-                  className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
-                  aria-label="Ordenar lista de roles"
-                >
-                  <SelectValue placeholder="Ordenar por" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES_MOBILE_SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </div>
+      <RolesFilterBar
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        companyScopeFilter={companyScopeFilter}
+        onCompanyScopeFilterChange={setCompanyScopeFilter}
+        permissionAssignmentFilter={permissionAssignmentFilter}
+        onPermissionAssignmentFilterChange={setPermissionAssignmentFilter}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        sheetFilterCount={sheetFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filterChips={filterChips}
+      />
 
         {listState.kind === 'loading' ? (
           <TripledListLoadingState

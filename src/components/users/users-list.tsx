@@ -11,16 +11,11 @@ import {
 import { getUsers } from '@/actions/users';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
-import {
-  Search,
-  Users as UsersIcon,
-  X,
-} from 'lucide-react';
+import { Users as UsersIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -30,14 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { CreateUserDialog } from '@/app/(app)/users/create-user-dialog';
 import { UpdateUserDialog } from '@/app/(app)/users/update-user-dialog';
 import { DeleteUserDialog } from '@/app/(app)/users/delete-user-dialog';
@@ -48,19 +35,16 @@ import {
   type UserWithRelations,
 } from '@/components/users/users-columns';
 import {
-  DEFAULT_USERS_SORTING,
-  USERS_MOBILE_SORT_OPTIONS,
-  decodeSortingState,
-  encodeSortingState,
-} from '@/components/users/users-sort-presets';
+  UsersFilterBar,
+  type CompanyAssignmentFilter,
+  type VerificationFilter,
+} from '@/components/users/users-filter-bar';
+import { DEFAULT_USERS_SORTING } from '@/components/users/users-sort-presets';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import { useOperatorTenantCompany } from '@/hooks/use-operator-tenant-company';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
-
-type VerificationFilter = 'all' | 'verified' | 'unverified';
-type CompanyAssignmentFilter = 'all' | 'assigned' | 'unassigned';
 
 export function UsersList() {
   const permissions = usePermissions();
@@ -211,11 +195,13 @@ export function UsersList() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const mobileSortValue = encodeSortingState(sorting);
   const hasActiveFilters =
     debouncedSearch !== '' ||
     verificationFilter !== 'all' ||
     companyAssignmentFilter !== 'all';
+  const sheetFilterCount =
+    Number(verificationFilter !== 'all') +
+    Number(companyAssignmentFilter !== 'all');
   const listState = resolveResourceListState({
     isLoading: loading,
     loadError,
@@ -223,24 +209,6 @@ export function UsersList() {
     visibleCount: filteredUsers.length,
     hasActiveFilters,
   });
-
-  const verificationOptions: Array<{
-    value: VerificationFilter;
-    label: string;
-  }> = [
-    { value: 'all', label: 'Todos' },
-    { value: 'verified', label: 'Verificados' },
-    { value: 'unverified', label: 'Sin verificar' },
-  ];
-
-  const companyOptions: Array<{
-    value: CompanyAssignmentFilter;
-    label: string;
-  }> = [
-    { value: 'all', label: 'Empresa: todas' },
-    { value: 'assigned', label: 'Con empresa' },
-    { value: 'unassigned', label: 'Sin empresa' },
-  ];
 
   const handleClearFilters = () => {
     setSearchValue('');
@@ -264,9 +232,9 @@ export function UsersList() {
           {
             key: 'verification',
             label:
-              verificationOptions.find(
-                (option) => option.value === verificationFilter,
-              )?.label ?? 'Correo',
+              verificationFilter === 'verified'
+                ? 'Verificados'
+                : 'Sin verificar',
           },
         ]
       : []),
@@ -275,9 +243,9 @@ export function UsersList() {
           {
             key: 'company',
             label:
-              companyOptions.find(
-                (option) => option.value === companyAssignmentFilter,
-              )?.label ?? 'Empresa',
+              companyAssignmentFilter === 'assigned'
+                ? 'Con empresa'
+                : 'Sin empresa',
           },
         ]
       : []),
@@ -296,100 +264,21 @@ export function UsersList() {
               />
             ) : null}
         </div>
-          <div className="space-y-4">
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                value={searchValue}
-                onChange={(event) => setSearchValue(event.target.value)}
-                placeholder="Buscar por nombre, correo, empresa, rol o ID..."
-                className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
-                aria-label="Buscar usuarios"
-              />
-            </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {verificationOptions.map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    variant={
-                      verificationFilter === option.value
-                        ? 'default'
-                        : 'outline'
-                    }
-                    className="min-h-11 rounded-xl"
-                    onClick={() => setVerificationFilter(option.value)}
-                    aria-label={`Filtrar correo: ${option.label.toLowerCase()}`}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {companyOptions.map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    variant={
-                      companyAssignmentFilter === option.value
-                        ? 'default'
-                        : 'outline'
-                    }
-                    className="min-h-11 rounded-xl"
-                    onClick={() => setCompanyAssignmentFilter(option.value)}
-                    aria-label={`Filtrar ${option.label.toLowerCase()}`}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="w-full sm:w-auto md:hidden">
-                <Select
-                  value={mobileSortValue}
-                  onValueChange={(value) =>
-                    setSorting(decodeSortingState(value))
-                  }
-                >
-                  <SelectTrigger
-                    className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
-                    aria-label="Ordenar lista de usuarios"
-                  >
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {USERS_MOBILE_SORT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {!loading && !loadError ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <TripledFilterChips chips={filterChips} />
-                {hasActiveFilters ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
-                    onClick={handleClearFilters}
-                    aria-label="Limpiar filtros de usuarios"
-                  >
-                    <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
-                    Limpiar filtros
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+        <UsersFilterBar
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          verificationFilter={verificationFilter}
+          onVerificationFilterChange={setVerificationFilter}
+          companyAssignmentFilter={companyAssignmentFilter}
+          onCompanyAssignmentFilterChange={setCompanyAssignmentFilter}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          sheetFilterCount={sheetFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filterChips={filterChips}
+        />
 
           {listState.kind === 'loading' ? (
             <TripledListLoadingState
