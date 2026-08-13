@@ -30,9 +30,9 @@ export default async function OperatorConsolePage() {
         >
           <CompaniesList />
           <OperatorCompanyOverview />
+          <OperatorActivityPanel />
           <OperatorAccessPanel />
           <OperatorLifecyclePanel />
-          <OperatorActivityPanel />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>
