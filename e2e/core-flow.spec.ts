@@ -90,18 +90,17 @@ test.describe('Core business flow smoke', () => {
       page.getByRole('heading', { name: serviceName! }),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Continuar a revisión' }).click();
-    await page.waitForURL(
-      new RegExp(`/tickets/${ticketId}/edit\\?step=review`),
-      { timeout: 30_000 },
-    );
+    await page.getByRole('button', { name: 'Continuar al detalle' }).click();
+    await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
+      timeout: 30_000,
+    });
 
     await expect(
-      page.getByRole('button', { name: 'Guardar y generar PDF' }),
+      page.getByRole('button', { name: 'Finalizar y generar recibo' }),
     ).toBeVisible();
 
     const finishButton = page.getByRole('button', {
-      name: 'Guardar y generar PDF',
+      name: 'Finalizar y generar recibo',
     });
     await finishButton.click();
 
@@ -114,9 +113,8 @@ test.describe('Core business flow smoke', () => {
     await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
       timeout: 60_000,
     });
-    await expect(
-      page.locator('[class*="bg-emerald"]').filter({ hasText: 'Finalizado' }),
-    ).toBeVisible();
+    // Status chip is always visible; mobile app bar subtitle is md:hidden on desktop.
+    await expect(page.getByText(/Finalizado ·/)).toBeVisible();
 
     const pdfCheck = await page.evaluate(async (id) => {
       const raw = localStorage.getItem('selectedCompany');

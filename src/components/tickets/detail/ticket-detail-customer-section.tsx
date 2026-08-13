@@ -8,7 +8,6 @@ import {
 
 type TicketDetailCustomerSectionProps = {
   clientId: number | null;
-  clientName: string | null;
   clientTel: string | null;
   email: string | null;
   document: string | null;
@@ -16,7 +15,6 @@ type TicketDetailCustomerSectionProps = {
 
 export const TicketDetailCustomerSection = ({
   clientId,
-  clientName,
   clientTel,
   email,
   document,
@@ -29,8 +27,7 @@ export const TicketDetailCustomerSection = ({
     <TicketDetailSectionCard aria-labelledby="ticket-customer-heading">
       <TicketDetailSectionHeading
         id="ticket-customer-heading"
-        title="Cliente"
-        description="Resumen de contacto del ticket"
+        title="Contacto"
         action={
           clientId ? (
             <Link
@@ -43,64 +40,44 @@ export const TicketDetailCustomerSection = ({
         }
       />
 
-      <div className="space-y-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Nombre
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2">
+        {phone ? (
+          <ClientPhoneLink
+            phone={phone}
+            className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            textClassName="inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground"
+          >
+            <Phone className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate tabular-nums">{phone}</span>
+          </ClientPhoneLink>
+        ) : (
+          <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <Phone className="h-4 w-4 shrink-0" aria-hidden />
+            Sin teléfono
           </p>
-          <p className="mt-1 text-sm font-medium text-foreground">
-            {clientName || 'No especificado'}
+        )}
+
+        {mail ? (
+          <a
+            href={`mailto:${mail}`}
+            className="inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Enviar correo a ${mail}`}
+          >
+            <Mail className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate break-all">{mail}</span>
+          </a>
+        ) : (
+          <p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-4 w-4 shrink-0" aria-hidden />
+            Sin correo
           </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Teléfono
-            </p>
-            {phone ? (
-              <ClientPhoneLink
-                phone={phone}
-                className="mt-1 inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                textClassName="mt-1 inline-flex min-w-0 max-w-full items-center gap-2 text-sm font-medium text-foreground"
-              >
-                <Phone className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="truncate tabular-nums">{phone}</span>
-              </ClientPhoneLink>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">No especificado</p>
-            )}
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Correo
-            </p>
-            {mail ? (
-              <a
-                href={`mailto:${mail}`}
-                className="mt-1 inline-flex min-w-0 max-w-full items-start gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`Enviar correo a ${mail}`}
-              >
-                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="break-all">{mail}</span>
-              </a>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">No especificado</p>
-            )}
-          </div>
-        </div>
+        )}
 
         {doc ? (
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Documento
-            </p>
-            <p className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-foreground">
-              <IdCard className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <span className="tabular-nums">{doc}</span>
-            </p>
-          </div>
+          <p className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+            <IdCard className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="tabular-nums">{doc}</span>
+          </p>
         ) : null}
       </div>
     </TicketDetailSectionCard>

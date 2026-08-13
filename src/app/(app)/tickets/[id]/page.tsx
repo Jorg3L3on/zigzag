@@ -17,11 +17,11 @@ import {
   TripledMobileAppBar,
 } from '@/components/tripled';
 import { TicketDetailHeader } from '@/components/tickets/detail/ticket-detail-header';
-import { TicketDetailQuickActions } from '@/components/tickets/detail/ticket-detail-quick-actions';
+import { TicketDetailPrimaryActions } from '@/components/tickets/detail/ticket-detail-primary-actions';
+import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-detail-finish-panel';
 import { TicketDetailCustomerSection } from '@/components/tickets/detail/ticket-detail-customer-section';
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
-import { TicketDetailMetaSummary } from '@/components/tickets/detail/ticket-detail-meta-summary';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +47,28 @@ export default async function TicketDetailsPage({
   const creatorName = ticket.User?.name?.trim() || null;
   const payments = ticket.ticket_payments ?? [];
 
+  const serviceLines = (() => {
+    const byService = new Map<number, string>();
+    for (const line of ticket.services_tickets) {
+      byService.set(line.service_id, line.service?.name ?? 'Servicio');
+    }
+    return Array.from(byService.entries()).map(([serviceId, serviceName]) => ({
+      serviceId,
+      serviceName,
+    }));
+  })();
+
+  const primaryActionProps = {
+    ticketId: ticket.id,
+    clientId: ticket.client_id,
+    finished: ticket.finished,
+    total: ticket.total,
+    paid: ticket.paid,
+    downloadFileName,
+  };
+
+  const showSticky = true;
+
   return (
     <>
       <header className="hidden h-16 shrink-0 items-center gap-2 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex">
@@ -69,7 +91,10 @@ export default async function TicketDetailsPage({
         </div>
       </header>
 
-      <TripledDashboardShell maxWidthClassName="max-w-6xl">
+      <TripledDashboardShell
+        maxWidthClassName="max-w-6xl"
+        hasMobileStickyAction={showSticky}
+      >
         <TripledMobileAppBar
           title={`Ticket #${ticket.id}`}
           subtitle={ticket.finished ? 'Finalizado' : 'En proceso'}
@@ -89,21 +114,35 @@ export default async function TicketDetailsPage({
             createdAt={ticket.created_at}
             updatedAt={ticket.updated_at}
             creatorName={creatorName}
+            actions={
+              <TicketDetailPrimaryActions
+                {...primaryActionProps}
+                placement="desktop"
+              />
+            }
           />
 
-          <TicketDetailQuickActions
-            ticketId={ticket.id}
-            finished={ticket.finished}
-            total={ticket.total}
-            paid={ticket.paid}
-            downloadFileName={downloadFileName}
+          <TicketDetailPrimaryActions
+            {...primaryActionProps}
+            placement="mobile-sticky"
           />
+
+          {!ticket.finished ? (
+            <TicketDetailFinishPanel
+              ticketId={ticket.id}
+              clientId={ticket.client_id}
+              clientName={ticket.client_name}
+              total={ticket.total}
+              ticketDate={ticket.ticket_date}
+              serviceLines={serviceLines}
+              downloadFileName={downloadFileName}
+            />
+          ) : null}
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] lg:items-start lg:gap-8">
             <div className="flex min-w-0 flex-col gap-6 md:gap-8">
               <TicketDetailCustomerSection
                 clientId={ticket.client_id}
-                clientName={ticket.client_name}
                 clientTel={ticket.client_tel}
                 email={ticket.email}
                 document={ticket.document}
@@ -129,21 +168,8 @@ export default async function TicketDetailsPage({
               </div>
             </div>
 
-            <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20">
-              <TicketDetailMetaSummary
-                finished={ticket.finished}
-                total={ticket.total}
-                paid={ticket.paid}
-                ticketDate={ticket.ticket_date}
-                createdAt={ticket.created_at}
-                updatedAt={ticket.updated_at}
-                creatorName={creatorName}
-                serviceCount={ticket.services_tickets.length}
-                paymentCount={payments.length}
-              />
-              <div className="hidden lg:block">
-                <TicketDetailTimeline entries={auditEntries} />
-              </div>
+            <aside className="hidden min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:flex">
+              <TicketDetailTimeline entries={auditEntries} />
             </aside>
           </div>
         </div>

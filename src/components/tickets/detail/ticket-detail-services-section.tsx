@@ -41,7 +41,7 @@ export const TicketDetailServicesSection = ({
       <TicketDetailSectionHeading
         id="ticket-services-heading"
         title="Servicios"
-        description="Líneas de servicio registradas en este ticket"
+        count={services.length}
         action={
           canManage ? (
             <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
