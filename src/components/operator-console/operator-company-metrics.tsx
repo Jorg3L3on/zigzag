@@ -137,7 +137,7 @@ export const OperatorCompanyMetrics = () => {
   }
 
   return (
-    <section className="space-y-4 border-t border-border/60 pt-6">
+    <section className="space-y-4 pt-2">
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           Pulso del negocio

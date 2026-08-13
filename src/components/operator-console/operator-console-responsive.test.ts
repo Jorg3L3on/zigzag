@@ -5,10 +5,13 @@ const read = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
 
 describe('operator console responsive surfaces', () => {
-  it('uses mobile cards and desktop tables in company list', () => {
-    const source = read('src/components/companies/companies-list.tsx');
+  it('uses mobile cards and desktop tables in the fleet list', () => {
+    const source = read(
+      'src/components/operator-console/operator-company-fleet.tsx',
+    );
     expect(source).toContain('md:hidden');
     expect(source).toContain('hidden overflow-hidden rounded-xl border');
+    expect(source).toContain('getOperatorCompanyFleet');
   });
 
   it('uses mobile cards and desktop tables in activity panel', () => {
@@ -24,24 +27,27 @@ describe('operator console responsive surfaces', () => {
     expect(source).toContain('max-h-[calc(3rem+3.25rem*10)]');
   });
 
-  it('places metrics after overview and before activity on the operator page', () => {
+  it('composes fleet then tabbed detail on the operator page', () => {
     const source = read('src/app/(app)/operator-console/page.tsx');
-    const overviewIndex = source.indexOf('<OperatorCompanyOverview');
-    const metricsIndex = source.indexOf('<OperatorCompanyMetrics');
-    const activityIndex = source.indexOf('<OperatorActivityPanel');
-    const accessIndex = source.indexOf('<OperatorAccessPanel');
-    expect(overviewIndex).toBeGreaterThan(-1);
-    expect(metricsIndex).toBeGreaterThan(-1);
-    expect(activityIndex).toBeGreaterThan(-1);
-    expect(accessIndex).toBeGreaterThan(-1);
-    expect(overviewIndex).toBeLessThan(metricsIndex);
-    expect(metricsIndex).toBeLessThan(activityIndex);
-    expect(activityIndex).toBeLessThan(accessIndex);
+    const fleetIndex = source.indexOf('<OperatorCompanyFleet');
+    const detailIndex = source.indexOf('<OperatorConsoleDetail');
+    expect(fleetIndex).toBeGreaterThan(-1);
+    expect(detailIndex).toBeGreaterThan(-1);
+    expect(fleetIndex).toBeLessThan(detailIndex);
+    expect(source).not.toContain('CompaniesList');
   });
 
-  it('selects company context on row click in operator console', () => {
-    const source = read('src/app/(app)/operator-console/page.tsx');
-    expect(source).toContain('rowClickAction="select"');
+  it('exposes pulso actividad acceso and ciclo tabs in detail', () => {
+    const source = read(
+      'src/components/operator-console/operator-console-detail.tsx',
+    );
+    expect(source).toContain("id: 'pulso'");
+    expect(source).toContain("id: 'actividad'");
+    expect(source).toContain("id: 'acceso'");
+    expect(source).toContain("id: 'ciclo'");
+    expect(source).toContain('OperatorCompanyMetrics');
+    expect(source).toContain('resolveOperatorPrimaryCta');
+    expect(source).toContain('buildOperatorAttentionSignals');
   });
 
   it('uses responsive layout in lifecycle actions', () => {
