@@ -3,7 +3,6 @@ export const GUIDE_VERSION = '2026.07';
 export const ONBOARDING_GUIDE_PATHS = {
   resumenEjecutivo: '/guides/resumen-ejecutivo.html',
   empresa: '/guides/guia-empresa.html',
-  empresaMaestra: '/guides/guia-empresa-maestra.html',
   index: '/guides/index.html',
 } as const;
 
@@ -11,7 +10,7 @@ export type OnboardingGuideLink = {
   href: string;
   label: string;
   description: string;
-  audience?: 'investor' | 'operator' | 'platform';
+  audience?: 'investor' | 'operator';
   audienceLabel?: string;
 };
 
@@ -31,14 +30,6 @@ export const EMPRESA_GUIDE_LINK: OnboardingGuideLink = {
   audienceLabel: 'Opero una empresa',
 };
 
-export const EMPRESA_MAESTRA_GUIDE_LINK: OnboardingGuideLink = {
-  href: ONBOARDING_GUIDE_PATHS.empresaMaestra,
-  label: 'Guía empresa maestra',
-  description: 'Consola operadora, auditoría y administración multi-tenant.',
-  audience: 'platform',
-  audienceLabel: 'Administro la plataforma',
-};
-
 /** Shown on the public login page (investors and tenant operators only). */
 export const PUBLIC_ONBOARDING_GUIDE_LINKS: OnboardingGuideLink[] = [
   EXECUTIVE_SUMMARY_LINK,
@@ -50,7 +41,7 @@ export const getOnboardingGuidesForUser = (
   isSystemUser: boolean,
 ): OnboardingGuideLink[] =>
   isSystemUser
-    ? [EXECUTIVE_SUMMARY_LINK, EMPRESA_MAESTRA_GUIDE_LINK, EMPRESA_GUIDE_LINK]
+    ? [EXECUTIVE_SUMMARY_LINK, EMPRESA_GUIDE_LINK]
     : [EMPRESA_GUIDE_LINK];
 
 export const getGuidesMenuHref = (isSystemUser: boolean): string =>

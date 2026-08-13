@@ -12,6 +12,7 @@ import { RateLimiter } from '@/lib/rate-limiter';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { recordPermissionDeniedAudit } from '@/lib/audit-security';
+import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
 
 jest.mock('@/lib/auth', () => ({
   auth: jest.fn(),
@@ -35,10 +36,22 @@ jest.mock('@/lib/audit-security', () => ({
   recordPermissionDeniedAudit: jest.fn(),
 }));
 
+jest.mock('@/lib/audit-request-meta', () => ({
+  buildAuditRequestMetaFromHeaders: jest.fn(async () => ({
+    ip: '203.0.113.50',
+    userAgent: 'JestActionAgent/1.0',
+    requestId: 'req-action-denial',
+  })),
+}));
+
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockRecordPermissionDeniedAudit =
   recordPermissionDeniedAudit as jest.MockedFunction<
     typeof recordPermissionDeniedAudit
+  >;
+const mockBuildAuditRequestMetaFromHeaders =
+  buildAuditRequestMetaFromHeaders as jest.MockedFunction<
+    typeof buildAuditRequestMetaFromHeaders
   >;
 const mockDb = db as unknown as {
   query: {
@@ -430,6 +443,11 @@ describe('security helpers', () => {
   describe('requireActionPermission', () => {
     beforeEach(() => {
       jest.clearAllMocks();
+      mockBuildAuditRequestMetaFromHeaders.mockResolvedValue({
+        ip: '203.0.113.50',
+        userAgent: 'JestActionAgent/1.0',
+        requestId: 'req-action-denial',
+      });
     });
 
     it('records denied audit rows for invalid Server Action company context', async () => {
@@ -467,10 +485,15 @@ describe('security helpers', () => {
         reason: 'invalid_company_context',
         actorCompanyId: 10,
         requestedCompanyId: 99,
+        requestMeta: {
+          ip: '203.0.113.50',
+          userAgent: 'JestActionAgent/1.0',
+          requestId: 'req-action-denial',
+        },
       });
     });
 
-    it('continues recording missing-permission denials', async () => {
+    it('continues recording missing-permission denials with request meta', async () => {
       mockAuth.mockResolvedValue({
         user: {
           id: '11',
@@ -502,6 +525,10 @@ describe('security helpers', () => {
           reason: 'missing_permission',
           actorCompanyId: 10,
           requestedCompanyId: 10,
+          requestMeta: expect.objectContaining({
+            ip: '203.0.113.50',
+            requestId: 'req-action-denial',
+          }),
         }),
       );
     });

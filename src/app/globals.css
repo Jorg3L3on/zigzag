@@ -79,6 +79,14 @@
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
   * {
     border-color: hsl(var(--border));
   }
@@ -87,6 +95,18 @@
     color: hsl(var(--foreground));
     /* Set by NetworkStatusBanner when offline/recovered banner is visible */
     padding-top: var(--network-status-banner-offset, 0px);
+  }
+
+  /* Native date inputs: keep chrome readable and sized in dark mode / mobile. */
+  input[type="date"] {
+    min-width: 0;
+    max-width: 100%;
+    color-scheme: inherit;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.7;
+    cursor: pointer;
   }
 }
 

@@ -12,6 +12,7 @@ import {
 } from './authz-context';
 import { recordPermissionDeniedAudit } from '@/lib/audit-security';
 import { bindRequestContextFromHeaders } from '@/lib/request-context';
+import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
 export {
   resolveWritableCompanyId,
   requireSystemUser,
@@ -170,6 +171,7 @@ export async function requireActionPermission(
   requestedCompanyId?: number | null,
 ): Promise<{ context: ActionAuthContext; companyId: number }> {
   const context = await requireActionAuth();
+  const requestMeta = await buildAuditRequestMetaFromHeaders();
   let companyId: number;
   try {
     companyId = resolveWritableCompanyId(context, requestedCompanyId);
@@ -182,6 +184,7 @@ export async function requireActionPermission(
       reason: 'invalid_company_context',
       actorCompanyId: context.companyId,
       requestedCompanyId: requestedCompanyId ?? null,
+      requestMeta,
     });
     throw error;
   }
@@ -197,6 +200,7 @@ export async function requireActionPermission(
       reason: 'missing_permission',
       actorCompanyId: context.companyId,
       requestedCompanyId: requestedCompanyId ?? companyId,
+      requestMeta,
     });
     throw new AuthorizationError(`Missing permission: ${permissionName}`);
   }
