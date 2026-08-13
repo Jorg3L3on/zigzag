@@ -8,6 +8,7 @@ import {
   getTicketPaymentStatus,
   type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
+import { isWorkTicket } from '@/lib/ticket-document-kind';
 
 export type TechnicianDayTicketInput = {
   id: bigint | string | number;
@@ -18,6 +19,7 @@ export type TechnicianDayTicketInput = {
   total: number | null;
   paid: number | null;
   finished: boolean;
+  document_kind?: string | null;
   /** Service names already resolved for the ticket (active line items). */
   serviceNames?: Array<string | null | undefined>;
 };
@@ -70,6 +72,7 @@ export const isTechnicianDayQueueTicket = (
   ticket: TechnicianDayTicketInput,
   today: Date = new Date(),
 ): boolean => {
+  if (!isWorkTicket(ticket.document_kind)) return false;
   if (ticket.finished) return false;
   const workDate = startOfDay(getTicketWorkDate(ticket.ticket_date, ticket.created_at));
   const todayStart = startOfDay(today);

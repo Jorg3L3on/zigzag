@@ -29,6 +29,8 @@ export const AUDIT_ACTIONS = [
   'deleted',
   'finished',
   'payment_collected',
+  'presupuesto_converted',
+  'presupuesto_canceled',
   'logo_uploaded',
   'logo_removed',
   'permissions_changed',

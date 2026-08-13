@@ -46,6 +46,7 @@ import {
 } from '@/lib/company-production-guard';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import type { ActionAuthContext } from '@/lib/authz-context';
+import { isWorkTicket } from '@/lib/ticket-document-kind';
 import { z } from 'zod';
 
 const ticketServiceLineSchema = z.object({
@@ -143,7 +144,7 @@ const syncTicketIdSequence = async (): Promise<void> => {
 const assertTicketWritable = async (
   ticketId: bigint,
   companyId: number,
-): Promise<void> => {
+): Promise<TicketRow> => {
   const ticketRow = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
   });
@@ -154,6 +155,23 @@ const assertTicketWritable = async (
 
   if (ticketRow.company_id !== companyId) {
     throw new AuthorizationError('Access denied to this ticket');
+  }
+
+  return ticketRow;
+};
+
+class PresupuestoMutationBlockedError extends Error {
+  constructor() {
+    super('Presupuesto mutation blocked');
+    this.name = 'PresupuestoMutationBlockedError';
+  }
+}
+
+const assertIsWorkTicketRow = (ticketRow: {
+  document_kind?: string | null;
+}): void => {
+  if (!isWorkTicket(ticketRow.document_kind)) {
+    throw new PresupuestoMutationBlockedError();
   }
 };
 
@@ -287,6 +305,7 @@ export async function createTicket(
       ticket_date: validatedData.ticket_date,
       company_id: effectiveCompanyId,
       userId: BigInt(context.userId),
+      document_kind: 'ticket' as const,
     };
 
     let created: TicketRow | undefined;
@@ -346,6 +365,7 @@ export async function getTickets(
       where: and(
         eq(ticket.company_id, effectiveCompanyId),
         isNull(ticket.deleted_at),
+        eq(ticket.document_kind, 'ticket'),
       ),
       with: {
         services_tickets: {
@@ -381,6 +401,7 @@ export async function getTicketsList(
       where: and(
         eq(ticket.company_id, effectiveCompanyId),
         isNull(ticket.deleted_at),
+        eq(ticket.document_kind, 'ticket'),
       ),
       orderBy: [desc(ticket.created_at)],
     });
@@ -434,6 +455,7 @@ export async function getTicketsPaginated(params: {
     const whereCondition = and(
       eq(ticket.company_id, effectiveCompanyId),
       isNull(ticket.deleted_at),
+      eq(ticket.document_kind, 'ticket'),
       ...(searchCondition ? [searchCondition] : []),
     );
 
@@ -527,8 +549,9 @@ export async function updateTicket(
       data.company_id ?? undefined,
     );
     const ticketId = BigInt(id);
-    await assertTicketWritable(ticketId, effectiveCompanyId);
+    const priorWritable = await assertTicketWritable(ticketId, effectiveCompanyId);
     await assertTicketNotFullyPaid(ticketId, effectiveCompanyId);
+    assertIsWorkTicketRow(priorWritable);
 
     if (data.client_id != null) {
       await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
@@ -665,6 +688,9 @@ export async function updateTicket(
     if (e instanceof TicketAlreadyPaidError) {
       return buildActionError('TC010', undefined, 'validation');
     }
+    if (e instanceof PresupuestoMutationBlockedError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
     return handleCodedServerActionError('tickets.update', 'TC004', e);
   }
 }
@@ -733,8 +759,8 @@ export async function finishTicket(
     const { context, companyId: effectiveCompanyId } =
       await requireTicketWrite();
     const ticketId = BigInt(id);
-    await assertTicketWritable(ticketId, effectiveCompanyId);
-
+    const writable = await assertTicketWritable(ticketId, effectiveCompanyId);
+    assertIsWorkTicketRow(writable);
     const prior = await db.query.ticket.findFirst({
       where: and(
         eq(ticket.id, ticketId),
@@ -838,6 +864,9 @@ export async function finishTicket(
     if (e instanceof TicketAlreadyFinishedError) {
       return buildActionError('TC006', undefined, 'validation');
     }
+    if (e instanceof PresupuestoMutationBlockedError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
     return handleCodedServerActionError('tickets.finish', 'TC006', e);
   }
 }
@@ -855,7 +884,8 @@ export async function applyTicketPayment(
     const { context, companyId: effectiveCompanyId } =
       await requireTicketWrite();
     const ticketId = BigInt(id);
-    await assertTicketWritable(ticketId, effectiveCompanyId);
+    const writable = await assertTicketWritable(ticketId, effectiveCompanyId);
+    assertIsWorkTicketRow(writable);
 
     if (!Number.isFinite(additionalPaid) || additionalPaid <= 0) {
       return buildActionError('TC007', undefined, 'validation');
@@ -964,6 +994,9 @@ export async function applyTicketPayment(
 
     return { success: true, data: result.row };
   } catch (e) {
+    if (e instanceof PresupuestoMutationBlockedError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
     return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
   }
 }
@@ -980,7 +1013,13 @@ export async function getTicketsForExport(): Promise<{
     const rows = await db
       .select()
       .from(ticket)
-      .where(and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at)))
+      .where(
+        and(
+          eq(ticket.company_id, companyId),
+          isNull(ticket.deleted_at),
+          eq(ticket.document_kind, 'ticket'),
+        ),
+      )
       .orderBy(desc(ticket.created_at));
 
     return {

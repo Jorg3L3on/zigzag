@@ -8,6 +8,7 @@ import {
   getTicketPaymentStatus,
   type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
+import { isWorkTicket } from '@/lib/ticket-document-kind';
 
 export type CobranzaAgingBucket = 'all' | '0-14' | '15-30' | '30+';
 
@@ -23,6 +24,7 @@ export type CobranzaTicketInput = {
   paid: number | null;
   finished: boolean;
   company_id: number | null;
+  document_kind?: string | null;
 };
 
 export type CobranzaRow = {
@@ -99,6 +101,10 @@ export const toCobranzaRow = (
   ticket: CobranzaTicketInput,
   now: Date = new Date(),
 ): CobranzaRow | null => {
+  if (!isWorkTicket(ticket.document_kind)) {
+    return null;
+  }
+
   const balanceDue = getTicketBalanceDue(ticket.total, ticket.paid);
   if (balanceDue <= 0) {
     return null;

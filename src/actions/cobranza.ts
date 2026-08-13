@@ -36,6 +36,7 @@ export async function getCobranzaList(
       where: and(
         eq(ticket.company_id, effectiveCompanyId),
         isNull(ticket.deleted_at),
+        eq(ticket.document_kind, 'ticket'),
       ),
       orderBy: [desc(ticket.created_at)],
     });
@@ -51,6 +52,7 @@ export async function getCobranzaList(
         paid: row.paid,
         finished: row.finished,
         company_id: row.company_id,
+        document_kind: row.document_kind,
       })),
     );
 

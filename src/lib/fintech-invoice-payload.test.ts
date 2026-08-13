@@ -19,6 +19,11 @@ const baseTicket = (overrides: Partial<FintechInvoiceTicket> = {}) =>
     email: 'client@example.com',
     finished: true,
     document: null,
+    document_kind: 'ticket',
+    expires_at: null,
+    canceled_at: null,
+    converted_to_ticket_id: null,
+    converted_from_ticket_id: null,
     created_at: new Date('2025-06-08T06:00:00.000Z'),
     updated_at: null,
     deleted_at: null,
@@ -82,6 +87,8 @@ describe('fintech invoice payload', () => {
 
     expect(payload.ticketNumber).toBe('000002');
     expect(payload.statusLabel).toBe('PENDIENTE');
+    expect(payload.documentTitle).toBe('Recibo');
+    expect(payload.documentKind).toBe('ticket');
     expect(payload.balanceLabel).toBe('SALDO PENDIENTE');
     expect(payload.paymentProgress).toBeCloseTo(0.4, 5);
     expect(payload.paymentProgressLabel).toBe('40% pagado');
@@ -418,5 +425,20 @@ describe('fintech invoice payload', () => {
 
     expect(header).toBe('%PDF-');
     expect(pdf.byteLength).toBeGreaterThan(1000);
+  });
+
+  it('labels presupuestos as Presupuesto not Recibo', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        document_kind: 'presupuesto',
+        finished: false,
+        paid: 0,
+      }),
+    );
+    expect(payload.documentKind).toBe('presupuesto');
+    expect(payload.documentTitle).toBe('Presupuesto');
+    expect(payload.statusLabel).toBe('PRESUPUESTO');
+    expect(payload.balanceLabel).toBe('TOTAL DEL PRESUPUESTO');
+    expect(payload.dueText).toMatch(/no es un recibo/i);
   });
 });

@@ -86,7 +86,11 @@ export async function loadDashboardMetricsForCompany(
       return buildActionError('CO006');
     }
 
-    const ticketScope = and(eq(ticket.company_id, companyId), isNull(ticket.deleted_at));
+    const ticketScope = and(
+      eq(ticket.company_id, companyId),
+      isNull(ticket.deleted_at),
+      eq(ticket.document_kind, 'ticket'),
+    );
 
     const [ticketTotals] = await db
       .select({
