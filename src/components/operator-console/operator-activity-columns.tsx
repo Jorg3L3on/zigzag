@@ -57,12 +57,14 @@ export type OperatorActivityColumnsOptions = {
   expandedId: number | null;
   onToggleExpand: (eventId: number) => void;
   showIncidentColumn: boolean;
+  tenantCompanyId?: number;
 };
 
 export const createOperatorActivityColumns = ({
   expandedId,
   onToggleExpand,
   showIncidentColumn,
+  tenantCompanyId,
 }: OperatorActivityColumnsOptions): ColumnDef<OperatorActivityRow>[] => {
   const columns: ColumnDef<OperatorActivityRow>[] = [
     {
@@ -137,6 +139,7 @@ export const createOperatorActivityColumns = ({
         const link = resolveAuditResourceLink(
           row.original.resource_type,
           row.original.resource_id,
+          tenantCompanyId != null ? { tenantCompanyId } : undefined,
         );
         const label = formatAuditResourceLabel(
           row.original.resource_type,

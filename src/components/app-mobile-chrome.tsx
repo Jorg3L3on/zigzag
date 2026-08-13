@@ -5,6 +5,7 @@ import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { MobileBottomTabBar } from '@/components/mobile-bottom-tab-bar';
+import { OperatorTenantCompanySync } from '@/components/operator-tenant-company-sync';
 import { MobileChromeProvider, useMobileChrome } from '@/contexts/mobile-chrome-context';
 import { useDisplayModeStandalone } from '@/hooks/use-display-mode-standalone';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -115,6 +116,7 @@ export const AppMobileChrome = ({ children }: { children: ReactNode }) => {
   return (
     <MobileChromeProvider>
       <DisplayModeStandaloneMarker />
+      <OperatorTenantCompanySync />
       <IdlePrefetch />
       <AppContentTransition>{children}</AppContentTransition>
       <MobileBottomTabSpacer />

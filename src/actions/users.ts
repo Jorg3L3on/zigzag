@@ -123,7 +123,10 @@ async function assertRoleAssignableToCompany(
   }
 }
 
-export async function getUsers(): Promise<{
+export async function getUsers(options?: {
+  /** System operators may scope the list to one tenant company. */
+  companyId?: number;
+}): Promise<{
   success: boolean;
   data?: UserWithRelations[];
   error?: string;
@@ -132,18 +135,31 @@ export async function getUsers(): Promise<{
   try {
     const authContext = await requireActionAuth();
     await requireActionPermission('users.read', authContext.companyId);
+
+    const scopedCompanyId =
+      authContext.companyIsSystem &&
+      options?.companyId != null &&
+      Number.isFinite(options.companyId) &&
+      options.companyId >= 1
+        ? options.companyId
+        : null;
+
+    const where = authContext.companyIsSystem
+      ? scopedCompanyId != null
+        ? and(isNull(user.deleted_at), eq(user.company_id, scopedCompanyId))
+        : isNull(user.deleted_at)
+      : and(
+          isNull(user.deleted_at),
+          eq(user.company_id, authContext.companyId as number),
+        );
+
     const users = await db.query.user.findMany({
       with: {
         company: true,
         role: true,
       },
       orderBy: [desc(user.created_at)],
-      where: authContext.companyIsSystem
-        ? isNull(user.deleted_at)
-        : and(
-            isNull(user.deleted_at),
-            eq(user.company_id, authContext.companyId as number),
-          ),
+      where,
     });
     const visibleUsers = users.map((userRow) => ({
       ...userRow,

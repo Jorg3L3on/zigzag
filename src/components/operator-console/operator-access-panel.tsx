@@ -69,7 +69,7 @@ export const OperatorAccessPanel = () => {
       setLoadingUsers(true);
       setUsersError(null);
       try {
-        const result = await getUsers();
+        const result = await getUsers({ companyId });
         if (cancelled) {
           return;
         }
@@ -88,11 +88,7 @@ export const OperatorAccessPanel = () => {
           setUsers([]);
           return;
         }
-        setUsers(
-          (result.data as UserWithRelations[]).filter(
-            (row) => row.company_id === companyId,
-          ),
-        );
+        setUsers(result.data as UserWithRelations[]);
       } catch (error) {
         if (cancelled) {
           return;
@@ -120,7 +116,7 @@ export const OperatorAccessPanel = () => {
       setLoadingRoles(true);
       setRolesError(null);
       try {
-        const result = await getRoles();
+        const result = await getRoles({ companyId });
         if (cancelled) {
           return;
         }
@@ -139,9 +135,7 @@ export const OperatorAccessPanel = () => {
           setRoles([]);
           return;
         }
-        setRoles(
-          (result.data as Role[]).filter((row) => row.company?.id === companyId),
-        );
+        setRoles(result.data as Role[]);
       } catch (error) {
         if (cancelled) {
           return;
@@ -178,16 +172,7 @@ export const OperatorAccessPanel = () => {
   };
 
   return (
-    <section className="space-y-4 border-t border-border/60 pt-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          Acceso y cuentas
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Administra usuarios y roles de la empresa seleccionada.
-        </p>
-      </div>
-
+    <section className="space-y-4 pt-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button asChild variant="outline" className="min-h-11 rounded-xl">
           <Link href={operatorManagementHref('/users', companyId)}>

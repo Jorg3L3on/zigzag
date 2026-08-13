@@ -97,7 +97,7 @@ describe('OperatorConsoleDetail', () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('tab', { name: 'Pulso' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Resumen' })).toHaveAttribute(
       'aria-selected',
       'true',
     );

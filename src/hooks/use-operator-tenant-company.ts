@@ -3,20 +3,18 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { getCompanies } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
 import { resolveOperatorTenantCompanyId } from '@/lib/operator-tenant-scope';
-import { usePermissions } from '@/hooks/use-permissions';
 
 export const useOperatorTenantCompany = () => {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { selectedCompany, setSelectedCompany } = useCompany();
-  const permissions = usePermissions();
+  const isSystem = Boolean(session?.user?.company_is_system);
 
   React.useEffect(() => {
     const raw = searchParams.get('tenant_company_id');
-    if (!permissions.isSystem || !raw) {
+    if (!isSystem || !raw) {
       return;
     }
     const companyId = Number.parseInt(raw, 10);
@@ -24,8 +22,19 @@ export const useOperatorTenantCompany = () => {
       return;
     }
 
+    let cancelled = false;
+
     const sync = async () => {
+      // Dynamic import keeps server-action/auth out of the static client graph
+      // (app chrome / layout tests must not pull next-auth ESM at module load).
+      const { getCompanies } = await import('@/actions/companies');
+      if (cancelled) {
+        return;
+      }
       const result = await getCompanies();
+      if (cancelled) {
+        return;
+      }
       const row = result.data?.find((company) => company.id === companyId);
       if (!row || row.is_system) {
         return;
@@ -41,26 +50,25 @@ export const useOperatorTenantCompany = () => {
     };
 
     void sync();
-  }, [
-    permissions.isSystem,
-    searchParams,
-    selectedCompany?.id,
-    setSelectedCompany,
-  ]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSystem, searchParams, selectedCompany?.id, setSelectedCompany]);
 
   const tenantCompanyId = React.useMemo(() => {
-    if (permissions.isSystem) {
+    if (isSystem) {
       return resolveOperatorTenantCompanyId(true, selectedCompany);
     }
     return session?.user.company_id ?? null;
-  }, [permissions.isSystem, selectedCompany, session?.user.company_id]);
+  }, [isSystem, selectedCompany, session?.user.company_id]);
 
   const tenantCompanyName = React.useMemo(() => {
-    if (permissions.isSystem) {
+    if (isSystem) {
       return selectedCompany?.name ?? null;
     }
     return session?.user.company_name ?? null;
-  }, [permissions.isSystem, selectedCompany?.name, session?.user.company_name]);
+  }, [isSystem, selectedCompany?.name, session?.user.company_name]);
 
   return {
     tenantCompanyId,
