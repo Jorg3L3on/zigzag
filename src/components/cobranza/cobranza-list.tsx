@@ -8,7 +8,7 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { Banknote, Search } from 'lucide-react';
+import { Banknote } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { getCobranzaList } from '@/actions/cobranza';
@@ -16,10 +16,10 @@ import {
   cobranzaRowToTicketActions,
   createCobranzaColumns,
 } from '@/components/cobranza/cobranza-columns';
+import { CobranzaFilterBar } from '@/components/cobranza/cobranza-filter-bar';
 import { CobranzaWhatsAppButton } from '@/components/cobranza/cobranza-whatsapp-button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
-import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -60,11 +60,6 @@ import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { PERMISSIONS } from '@/lib/permissions';
-import { cn } from '@/lib/utils';
-
-const STATUS_OPTIONS: CobranzaStatusFilter[] = ['all', 'pending', 'partial'];
-const AGING_OPTIONS: CobranzaAgingBucket[] = ['all', '0-14', '15-30', '30+'];
-
 export const CobranzaList = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
@@ -179,6 +174,18 @@ export const CobranzaList = () => {
     agingFilter !== 'all' ||
     debouncedSearch.length > 0;
 
+  const sheetFilterCount = [
+    statusFilter !== 'all',
+    agingFilter !== 'all',
+  ].filter(Boolean).length;
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setStatusFilter('all');
+    setAgingFilter('all');
+  };
+
   const filteredRows = React.useMemo(
     () =>
       filterCobranzaRows(rows, {
@@ -193,6 +200,23 @@ export const CobranzaList = () => {
     () => summarizeCobranzaRows(filteredRows),
     [filteredRows],
   );
+
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredRows.length} de ${rows.length} tickets`,
+      variant: 'secondary' as const,
+    },
+    ...(statusFilter !== 'all'
+      ? [{ key: 'status', label: COBRANZA_STATUS_FILTER_LABEL[statusFilter] }]
+      : []),
+    ...(agingFilter !== 'all'
+      ? [{ key: 'aging', label: COBRANZA_AGING_LABEL[agingFilter] }]
+      : []),
+    ...(debouncedSearch
+      ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
+      : []),
+  ];
 
   const handlePaymentApplied = React.useCallback(
     (result: TicketListCollectPaymentResult) => {
@@ -262,67 +286,18 @@ export const CobranzaList = () => {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por cliente o ID"
-            className="h-11 pl-9"
-            aria-label="Buscar en cobranza"
-          />
-        </div>
-
-        <div
-          className="flex flex-wrap gap-2"
-          role="group"
-          aria-label="Filtro de estado de cobro"
-        >
-          {STATUS_OPTIONS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setStatusFilter(value)}
-              className={cn(
-                'min-h-10 rounded-full border px-3 text-sm font-medium transition-colors',
-                statusFilter === value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-foreground hover:bg-muted',
-              )}
-              aria-pressed={statusFilter === value}
-            >
-              {COBRANZA_STATUS_FILTER_LABEL[value]}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className="flex flex-wrap gap-2"
-          role="group"
-          aria-label="Filtro de antigüedad"
-        >
-          {AGING_OPTIONS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setAgingFilter(value)}
-              className={cn(
-                'min-h-10 rounded-full border px-3 text-sm font-medium transition-colors',
-                agingFilter === value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-foreground hover:bg-muted',
-              )}
-              aria-pressed={agingFilter === value}
-            >
-              {COBRANZA_AGING_LABEL[value]}
-            </button>
-          ))}
-        </div>
-      </div>
+      <CobranzaFilterBar
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        agingFilter={agingFilter}
+        onAgingFilterChange={setAgingFilter}
+        sheetFilterCount={sheetFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filterChips={filterChips}
+      />
 
       {listState.kind === 'loading' ? (
         <TripledListLoadingState label="Cargando cobranza…" />

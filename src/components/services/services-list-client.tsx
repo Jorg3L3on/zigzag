@@ -17,15 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -47,19 +39,14 @@ import type { Service } from '@/db/schema';
 import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { createServicesColumns } from '@/components/services/services-columns';
-import {
-  DEFAULT_SERVICE_SORTING,
-  SERVICES_MOBILE_SORT_OPTIONS,
-  decodeSortingState,
-  encodeSortingState,
-} from '@/components/services/services-sort-presets';
+import { ServicesFilterBar } from '@/components/services/services-filter-bar';
+import { DEFAULT_SERVICE_SORTING } from '@/components/services/services-sort-presets';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { usePermissions } from '@/hooks/use-permissions';
 import { canWriteServices } from '@/lib/services-rbac';
@@ -87,12 +74,6 @@ export function ServicesListClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const importedFlag = searchParams.get('imported');
-
-  const filterOptions: Array<{ value: ServiceStatusFilter; label: string }> = [
-    { value: 'active', label: 'Activos' },
-    { value: 'deleted', label: 'Eliminados' },
-    { value: 'all', label: 'Todos' },
-  ];
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
@@ -227,9 +208,9 @@ export function ServicesListClient() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const mobileSortValue = encodeSortingState(sorting);
   const isBusy = loading || loadingServices;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'active';
+  const sheetFilterCount = statusFilter !== 'active' ? 1 : 0;
   const listState = resolveResourceListState({
     isLoading: isBusy,
     loadError,
@@ -238,8 +219,11 @@ export function ServicesListClient() {
     hasActiveFilters,
   });
   const activeStatusLabel =
-    filterOptions.find((option) => option.value === statusFilter)?.label ??
-    'Activos';
+    statusFilter === 'active'
+      ? 'Activos'
+      : statusFilter === 'deleted'
+        ? 'Eliminados'
+        : 'Todos';
 
   const handleClearFilters = () => {
     setSearchValue('');
@@ -279,72 +263,18 @@ export function ServicesListClient() {
   return (
     <>
       <div className="space-y-4">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por nombre o descripción..."
-            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
-            aria-label="Buscar servicios"
-          />
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {filterOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={statusFilter === option.value ? 'default' : 'outline'}
-                className="min-h-11 rounded-xl"
-                onClick={() => setStatusFilter(option.value)}
-                aria-label={`Filtrar por ${option.label.toLowerCase()}`}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <div className="w-full sm:w-auto md:hidden">
-            <Select
-              value={mobileSortValue}
-              onValueChange={(value) => setSorting(decodeSortingState(value))}
-            >
-              <SelectTrigger
-                className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
-                aria-label="Ordenar lista de servicios"
-              >
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                {SERVICES_MOBILE_SORT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TripledFilterChips chips={filterChips} />
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
-              onClick={handleClearFilters}
-              aria-label="Limpiar filtros de servicios"
-            >
-              <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
-              Limpiar filtros
-            </Button>
-          ) : null}
-        </div>
+        <ServicesFilterBar
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          sheetFilterCount={sheetFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filterChips={filterChips}
+        />
       </div>
 
       {listState.kind === 'loading' ? (
