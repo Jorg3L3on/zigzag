@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import React from 'react';
 import { getRoles } from '@/actions/roles';
 import { getUsers } from '@/actions/users';
+import { CreateUserDialog } from '@/app/(app)/users/create-user-dialog';
 import type { UserWithRelations } from '@/components/users/users-columns';
 import type { Role } from '@/components/roles/roles-columns';
 import { useCompany } from '@/contexts/company-context';
@@ -17,6 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { usePermissions } from '@/hooks/use-permissions';
+import { operatorManagementHref } from '@/lib/operator-tenant-scope';
 import { PERMISSIONS } from '@/lib/permissions';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { cn } from '@/lib/utils';
@@ -32,6 +35,8 @@ export const OperatorAccessPanel = () => {
   const permissions = usePermissions();
   const companyId = selectedCompany?.id ?? null;
   const isSystemTenant = selectedCompany?.is_system === true;
+  const canWriteUsers =
+    permissions.isSystem && permissions.can(PERMISSIONS.users.write);
   const canReadUsers = permissions.can(PERMISSIONS.users.read);
   const canReadRoles = permissions.can(PERMISSIONS.roles.read);
 
@@ -42,6 +47,7 @@ export const OperatorAccessPanel = () => {
   const [loadingRoles, setLoadingRoles] = React.useState(false);
   const [usersError, setUsersError] = React.useState<string | null>(null);
   const [rolesError, setRolesError] = React.useState<string | null>(null);
+  const [reloadToken, setReloadToken] = React.useState(0);
 
   React.useEffect(() => {
     if (!companyId || isSystemTenant) {
@@ -63,7 +69,7 @@ export const OperatorAccessPanel = () => {
       setLoadingUsers(true);
       setUsersError(null);
       try {
-        const result = await getUsers();
+        const result = await getUsers({ companyId });
         if (cancelled) {
           return;
         }
@@ -82,11 +88,7 @@ export const OperatorAccessPanel = () => {
           setUsers([]);
           return;
         }
-        setUsers(
-          (result.data as UserWithRelations[]).filter(
-            (row) => row.company_id === companyId,
-          ),
-        );
+        setUsers(result.data as UserWithRelations[]);
       } catch (error) {
         if (cancelled) {
           return;
@@ -114,7 +116,7 @@ export const OperatorAccessPanel = () => {
       setLoadingRoles(true);
       setRolesError(null);
       try {
-        const result = await getRoles();
+        const result = await getRoles({ companyId });
         if (cancelled) {
           return;
         }
@@ -133,9 +135,7 @@ export const OperatorAccessPanel = () => {
           setRoles([]);
           return;
         }
-        setRoles(
-          (result.data as Role[]).filter((row) => row.company?.id === companyId),
-        );
+        setRoles(result.data as Role[]);
       } catch (error) {
         if (cancelled) {
           return;
@@ -160,14 +160,50 @@ export const OperatorAccessPanel = () => {
     return () => {
       cancelled = true;
     };
-  }, [canReadRoles, canReadUsers, companyId, isSystemTenant]);
+  }, [canReadRoles, canReadUsers, companyId, isSystemTenant, reloadToken]);
 
   if (!companyId || isSystemTenant) {
     return null;
   }
 
+  const handleCreatedUser = () => {
+    setActiveTab('users');
+    setReloadToken((token) => token + 1);
+  };
+
   return (
-    <section className="pt-2">
+    <section className="space-y-4 pt-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button asChild variant="outline" className="min-h-11 rounded-xl">
+          <Link href={operatorManagementHref('/users', companyId)}>
+            <Users
+              className="mr-2 h-4 w-4"
+              aria-hidden
+              data-icon="inline-start"
+            />
+            Gestionar usuarios
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="min-h-11 rounded-xl">
+          <Link href={operatorManagementHref('/roles', companyId)}>
+            <Shield
+              className="mr-2 h-4 w-4"
+              aria-hidden
+              data-icon="inline-start"
+            />
+            Gestionar roles
+          </Link>
+        </Button>
+        {canWriteUsers ? (
+          <CreateUserDialog
+            defaultCompanyId={companyId}
+            defaultCompanyName={selectedCompany?.name}
+            lockCompany
+            onCreated={handleCreatedUser}
+          />
+        ) : null}
+      </div>
+
       <Card className="border-border/70 shadow-sm">
         <CardHeader className="space-y-4 pb-2">
           <div>

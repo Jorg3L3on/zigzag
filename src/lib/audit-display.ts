@@ -1,6 +1,7 @@
 import type { AuditResourceType } from '@/lib/audit-catalog';
 import { formatAuditResourceTypeLabel } from '@/lib/audit-labels';
 import { resolveAuditResourceDisplayName } from '@/lib/audit-event-summary';
+import { operatorTenantHref } from '@/lib/operator-tenant-scope';
 
 const REDACTED = '[REDACTED]';
 
@@ -48,42 +49,58 @@ export type AuditResourceLink = {
   label: string;
 };
 
+export type ResolveAuditResourceLinkOptions = {
+  /** When set (operator console), preserve tenant context on deep links. */
+  tenantCompanyId?: number;
+};
+
 export const resolveAuditResourceLink = (
   resourceType: string,
   resourceId: string | null | undefined,
+  options?: ResolveAuditResourceLinkOptions,
 ): AuditResourceLink | null => {
   if (!resourceId || !isPlainPositiveInteger(resourceId)) {
     return null;
   }
 
   const type = resourceType as AuditResourceType;
+  const withTenant = (href: string): string =>
+    options?.tenantCompanyId != null
+      ? operatorTenantHref(href, options.tenantCompanyId)
+      : href;
 
   switch (type) {
     case 'ticket':
-      return { href: `/tickets/${resourceId}`, label: `Ticket #${resourceId}` };
+      return {
+        href: withTenant(`/tickets/${resourceId}`),
+        label: `Ticket #${resourceId}`,
+      };
     case 'invoice':
       // Invoice audits store the ticket id as resource_id.
       return {
-        href: `/tickets/${resourceId}`,
+        href: withTenant(`/tickets/${resourceId}`),
         label: `Recibo · Ticket #${resourceId}`,
       };
     case 'client':
       return {
-        href: `/clients/${resourceId}/edit`,
+        href: withTenant(`/clients/${resourceId}/edit`),
         label: `Cliente #${resourceId}`,
       };
     case 'service':
       return {
-        href: `/services/${resourceId}/edit`,
+        href: withTenant(`/services/${resourceId}/edit`),
         label: `Servicio #${resourceId}`,
       };
     case 'company':
       return {
-        href: `/companies/${resourceId}/edit`,
+        href: withTenant(`/companies/${resourceId}/edit`),
         label: `Empresa #${resourceId}`,
       };
     case 'user':
-      return { href: `/users`, label: `Usuario #${resourceId}` };
+      return {
+        href: withTenant(`/users`),
+        label: `Usuario #${resourceId}`,
+      };
     default:
       return null;
   }

@@ -164,7 +164,7 @@ export const OperatorCompanyMetrics = () => {
   return (
     <section className="space-y-6 pt-2">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Resumen</h2>
+        <h2 className="text-lg font-semibold text-foreground">Métricas</h2>
         <p className="text-sm text-muted-foreground">
           Volumen, personas y dinero de {selectedCompany?.name}.
         </p>
