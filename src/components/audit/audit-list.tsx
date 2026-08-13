@@ -36,6 +36,12 @@ import {
   AUDIT_RESULTS,
 } from '@/lib/audit-catalog';
 import {
+  formatAuditActionLabel,
+  formatAuditResourceTypeLabel,
+  formatAuditResultLabel,
+} from '@/lib/audit-labels';
+import { actorDisplayName } from '@/lib/audit-actor-display';
+import {
   createAuditColumns,
   type AuditEventRow,
 } from '@/components/audit/audit-columns';
@@ -70,7 +76,9 @@ const AuditEventDetails = ({ event }: { event: AuditEventRow }) => (
 
 const AuditResourceLabel = ({ event }: { event: AuditEventRow }) => {
   const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
-  const label = formatAuditResourceLabel(event.resource_type, event.resource_id);
+  const label = formatAuditResourceLabel(event.resource_type, event.resource_id, {
+    actorName: event.actor_name,
+  });
 
   if (!link) {
     return <>{label}</>;
@@ -353,7 +361,7 @@ export const AuditList = () => {
             <SelectItem value="all">Todos los recursos</SelectItem>
             {AUDIT_RESOURCE_TYPES.map((type) => (
               <SelectItem key={type} value={type}>
-                {type}
+                {formatAuditResourceTypeLabel(type)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -372,7 +380,7 @@ export const AuditList = () => {
             <SelectItem value="all">Todas las acciones</SelectItem>
             {AUDIT_ACTIONS.map((action) => (
               <SelectItem key={action} value={action}>
-                {action}
+                {formatAuditActionLabel(action)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -385,7 +393,7 @@ export const AuditList = () => {
             <SelectItem value="all">Todos</SelectItem>
             {AUDIT_RESULTS.map((result) => (
               <SelectItem key={result} value={result}>
-                {result}
+                {formatAuditResultLabel(result)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -455,12 +463,13 @@ export const AuditList = () => {
                 }}
                 role="button"
                 tabIndex={0}
-                aria-label={`Evento ${event.action} en ${event.resource_type}`}
+                aria-label={`Evento ${formatAuditActionLabel(event.action)} en ${formatAuditResourceTypeLabel(event.resource_type)}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">
-                      <AuditResourceLabel event={event} /> · {event.action}
+                      <AuditResourceLabel event={event} /> ·{' '}
+                      {formatAuditActionLabel(event.action)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <FormattedDate
@@ -472,13 +481,15 @@ export const AuditList = () => {
                   <Badge
                     variant={event.result === 'denied' ? 'destructive' : 'secondary'}
                   >
-                    {event.result}
+                    {formatAuditResultLabel(event.result)}
                   </Badge>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <dt className="text-muted-foreground">Actor</dt>
-                    <dd>{event.actor_user_id ?? '—'}</dd>
+                    <dd>
+                      {actorDisplayName(event.actor_user_id, event.actor_name)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Empresa</dt>

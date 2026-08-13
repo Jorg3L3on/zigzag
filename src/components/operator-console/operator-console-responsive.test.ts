@@ -17,6 +17,18 @@ describe('operator console responsive surfaces', () => {
     );
     expect(source).toContain('md:hidden');
     expect(source).toContain('hidden overflow-hidden rounded-xl border');
+    expect(source).toContain('useReactTable');
+    expect(source).toContain('TripledDataPanel');
+    expect(source).toContain('debouncedSearch');
+  });
+
+  it('places activity before access and accounts on the operator page', () => {
+    const source = read('src/app/(app)/operator-console/page.tsx');
+    const activityIndex = source.indexOf('<OperatorActivityPanel');
+    const accessIndex = source.indexOf('<OperatorAccessPanel');
+    expect(activityIndex).toBeGreaterThan(-1);
+    expect(accessIndex).toBeGreaterThan(-1);
+    expect(activityIndex).toBeLessThan(accessIndex);
   });
 
   it('uses responsive layout in lifecycle actions', () => {
