@@ -21,7 +21,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const guidesDir = path.join(root, 'public', 'guides');
 const assetsDir = path.join(guidesDir, 'assets');
-const masterDir = path.join(guidesDir, 'images', 'empresa-maestra');
 const companyDir = path.join(guidesDir, 'images', 'empresa');
 
 const prodBaseUrl = 'http://127.0.0.1:3070';
@@ -34,7 +33,6 @@ const baseUrl =
 const e2ePassword = process.env.E2E_PASSWORD;
 const tenantEmail = process.env.GUIDES_TENANT_EMAIL ?? 'demo@zigzag.app';
 const systemEmail = process.env.E2E_SYSTEM_EMAIL ?? 'jorge@jorge.com';
-const tenantCompanyName = process.env.E2E_COMPANY_NAME ?? 'ClimaTotal Demo';
 const showcaseClientName =
   process.env.DEMO_SHOWCASE_CLIENT_NAME ?? 'Hotel Riviera Dorada';
 const showcaseTicketId = process.env.DEMO_SHOWCASE_TICKET_ID ?? '1000';
@@ -148,55 +146,6 @@ const loginAs = async (page, email, password, expectedPath) => {
   await hideDevUi(page);
 };
 
-const openCompanySwitcher = async (page) => {
-  const switcher = page
-    .getByRole('button')
-    .filter({ has: page.getByText(/zigzag|ClimaTotal|SOLUCIONES|Empresa/i) })
-    .first();
-
-  if ((await switcher.count()) === 0 || !(await switcher.isEnabled())) {
-    return null;
-  }
-
-  await switcher.click();
-  await page.getByRole('menu').waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
-  return switcher;
-};
-
-const selectCompany = async (page, companyName) => {
-  await page.keyboard.press('Escape').catch(() => undefined);
-  await page.waitForTimeout(250);
-  await openCompanySwitcher(page);
-  const menuItem = page.getByRole('menuitem', { name: companyName });
-  await menuItem.waitFor({ state: 'visible', timeout: 10_000 });
-  await menuItem.click({ force: true });
-  await page.waitForTimeout(900);
-};
-
-const selectOperatorConsoleCompany = async (page, companyName) => {
-  await selectCompany(page, companyName);
-  await page.goto(`${baseUrl}/operator-console`, { waitUntil: 'domcontentloaded' });
-  const selectButton = page.getByRole('button', {
-    name: new RegExp(`Seleccionar contexto ${companyName}`, 'i'),
-  });
-  if ((await selectButton.count()) > 0) {
-    await selectButton.first().click();
-    await page.waitForTimeout(1200);
-  }
-};
-
-const captureOperatorPanel = async (page, headingText, fileName) => {
-  const heading = page.getByText(headingText, { exact: true }).first();
-  if ((await heading.count()) === 0) {
-    console.warn(`  ⚠ Panel no encontrado: ${headingText}`);
-    return;
-  }
-  const panel = heading.locator('xpath=ancestor::section[1]');
-  await panel.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(500);
-  await screenshot(page, fileName, { locator: panel });
-};
-
 const captureInvoicePdf = async (page, companyId) => {
   const resolvedCompanyId = companyId ?? demoCompanyId;
   const invoiceUrl = `${baseUrl}/api/tickets/${showcaseTicketId}/invoice?company_id=${resolvedCompanyId}`;
@@ -255,53 +204,6 @@ const captureInvoicePdf = async (page, companyId) => {
   } catch (error) {
     console.warn(`  ⚠ Factura PDF no capturada: ${error.message}`);
   }
-};
-
-const captureMasterCompany = async (page) => {
-  console.log('\n📸 Empresa maestra (zigzag)…');
-  await loginAs(page, systemEmail, e2ePassword, /\/operator-console/);
-  await page.getByText('Consola operadora').first().waitFor({ timeout: 20_000 });
-  await screenshot(page, path.join(masterDir, '01-consola-operadora'));
-
-  await selectOperatorConsoleCompany(page, tenantCompanyName);
-  await page.getByText('Acceso y cuentas').waitFor({ timeout: 30_000 }).catch(() => undefined);
-  await page.waitForTimeout(800);
-  await captureOperatorPanel(
-    page,
-    'Acceso y cuentas',
-    path.join(masterDir, '01b-operator-acceso'),
-  );
-  await captureOperatorPanel(
-    page,
-    'Actividad reciente',
-    path.join(masterDir, '01c-operator-actividad'),
-  );
-
-  await page.goto(`${baseUrl}/companies`);
-  await page.getByRole('heading', { name: /Empresas/i }).first().waitFor({ timeout: 20_000 }).catch(() => undefined);
-  await screenshot(page, path.join(masterDir, '02-empresas'));
-
-  await page.goto(`${baseUrl}/users`);
-  await page.getByRole('heading', { name: /Usuarios/i }).first().waitFor({ timeout: 20_000 }).catch(() => undefined);
-  await screenshot(page, path.join(masterDir, '03-usuarios'));
-
-  await page.goto(`${baseUrl}/roles`);
-  await page.getByRole('heading', { name: /Roles/i }).first().waitFor({ timeout: 20_000 }).catch(() => undefined);
-  await screenshot(page, path.join(masterDir, '03b-roles-permisos'));
-
-  await page.goto(`${baseUrl}/audit`);
-  await page.getByRole('heading', { name: /Auditoría/i }).first().waitFor({ timeout: 20_000 }).catch(() => undefined);
-  await screenshot(page, path.join(masterDir, '04-auditoria'));
-
-  await selectCompany(page, tenantCompanyName);
-  await page.goto(`${baseUrl}/dashboard`);
-  await page.locator('#dashboard-revenue-chart-title').waitFor({ timeout: 20_000 }).catch(() => undefined);
-  await screenshot(page, path.join(masterDir, '05-dashboard-tenant'));
-
-  await openCompanySwitcher(page);
-  await page.waitForTimeout(400);
-  await screenshot(page, path.join(masterDir, '06-selector-empresa'));
-  await page.keyboard.press('Escape').catch(() => undefined);
 };
 
 const captureCreateTicketForm = async (page) => {
@@ -397,12 +299,7 @@ const captureSharedLogin = async (page) => {
   console.log('\n📸 Pantalla de inicio de sesión…');
   await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
   await page.locator('#email').waitFor({ state: 'visible', timeout: 30_000 });
-  await screenshot(page, path.join(masterDir, '00-login'));
-  await copyFile(
-    path.join(masterDir, '00-login.webp'),
-    path.join(companyDir, '00-login.webp'),
-  );
-  console.log(`  ✓ ${path.relative(root, path.join(companyDir, '00-login.webp'))} (copia)`);
+  await screenshot(page, path.join(companyDir, '00-login'));
 };
 
 async function syncGuideCredentials() {
@@ -436,7 +333,6 @@ async function main() {
 
   await syncGuideCredentials();
 
-  await mkdir(masterDir, { recursive: true });
   await mkdir(companyDir, { recursive: true });
   await mkdir(assetsDir, { recursive: true });
   await copyFile(path.join(root, 'public', 'logo.png'), path.join(assetsDir, 'logo.png'));
@@ -467,13 +363,6 @@ async function main() {
       await captureSharedLogin(loginSession.page);
     } finally {
       await loginSession.context.close();
-    }
-
-    const masterSession = await newDesktopPage();
-    try {
-      await captureMasterCompany(masterSession.page);
-    } finally {
-      await masterSession.context.close();
     }
 
     const tenantSession = await newDesktopPage();

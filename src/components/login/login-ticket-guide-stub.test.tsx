@@ -5,7 +5,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 import {
   EMPRESA_GUIDE_LINK,
-  EMPRESA_MAESTRA_GUIDE_LINK,
   EXECUTIVE_SUMMARY_LINK,
   PUBLIC_ONBOARDING_GUIDE_LINKS,
 } from '@/lib/onboarding-guides';
@@ -36,11 +35,6 @@ describe('LoginTicketGuideStub', () => {
     expect(
       screen.getByRole('button', { name: new RegExp(EMPRESA_GUIDE_LINK.label) }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', {
-        name: new RegExp(EMPRESA_MAESTRA_GUIDE_LINK.label),
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it('opens a guide via the injected opener and collapses on Escape', () => {
