@@ -113,7 +113,7 @@ test.describe('Core business flow smoke', () => {
     await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
       timeout: 60_000,
     });
-    await expect(page.getByText(/Finalizado/)).toBeVisible();
+    await expect(page.getByText(/Finalizado/).first()).toBeVisible();
 
     const pdfCheck = await page.evaluate(async (id) => {
       const raw = localStorage.getItem('selectedCompany');
