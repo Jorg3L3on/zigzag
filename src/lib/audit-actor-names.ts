@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 /**
  * Resolve display names for audit actor user ids.
  * Soft-deleted users are still included so historical activity stays labeled.
+ * Server-only — do not import from Client Components.
  */
 export const resolveActorNames = async (
   actorIds: Array<string | null | undefined>,
@@ -37,16 +38,4 @@ export const resolveActorNames = async (
   return map;
 };
 
-export const actorDisplayName = (
-  actorUserId: string | null | undefined,
-  actorName: string | null | undefined,
-): string => {
-  const name = actorName?.trim();
-  if (name) {
-    return name;
-  }
-  if (actorUserId) {
-    return actorUserId;
-  }
-  return '—';
-};
+export { actorDisplayName } from '@/lib/audit-actor-display';

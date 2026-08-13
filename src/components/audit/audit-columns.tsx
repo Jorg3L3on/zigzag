@@ -3,7 +3,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { AuditEventListItem } from '@/lib/audit-query';
-import { actorDisplayName } from '@/lib/audit-actor-names';
+import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
   formatAuditActionLabel,
   formatAuditResultLabel,

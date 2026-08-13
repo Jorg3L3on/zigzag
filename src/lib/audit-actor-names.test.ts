@@ -1,4 +1,5 @@
-import { actorDisplayName, resolveActorNames } from '@/lib/audit-actor-names';
+import { actorDisplayName } from '@/lib/audit-actor-display';
+import { resolveActorNames } from '@/lib/audit-actor-names';
 
 jest.mock('@/lib/db', () => ({
   db: {

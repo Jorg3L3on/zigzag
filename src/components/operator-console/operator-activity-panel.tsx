@@ -56,7 +56,7 @@ import {
   isOperatorIncidentEvent,
   operatorIncidentLabel,
 } from '@/lib/operator-audit-incidents';
-import { actorDisplayName } from '@/lib/audit-actor-names';
+import { actorDisplayName } from '@/lib/audit-actor-display';
 import type { AuditEventListItem } from '@/lib/audit-query';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { resolveResourceListState } from '@/lib/resource-list-state';

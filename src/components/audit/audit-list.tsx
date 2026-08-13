@@ -40,7 +40,7 @@ import {
   formatAuditResourceTypeLabel,
   formatAuditResultLabel,
 } from '@/lib/audit-labels';
-import { actorDisplayName } from '@/lib/audit-actor-names';
+import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
   createAuditColumns,
   type AuditEventRow,

@@ -19,7 +19,7 @@ import {
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
 } from '@/lib/audit-catalog';
-import { buildOperatorIncidentSqlCondition } from '@/lib/operator-audit-incidents';
+import { buildOperatorIncidentSqlCondition } from '@/lib/operator-audit-incidents-sql';
 
 export type AuditEventFilters = {
   targetCompanyId?: number;

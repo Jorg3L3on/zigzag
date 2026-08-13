@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { actorDisplayName } from '@/lib/audit-actor-names';
+import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
   formatAuditActionLabel,
   formatAuditResultLabel,
