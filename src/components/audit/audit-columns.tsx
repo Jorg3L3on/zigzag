@@ -3,6 +3,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { AuditEventListItem } from '@/lib/audit-query';
+import { actorDisplayName } from '@/lib/audit-actor-names';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -36,9 +37,11 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
     ),
   },
   {
-    accessorKey: 'actor_user_id',
+    id: 'actor',
+    accessorKey: 'actor_name',
     header: 'Actor',
-    cell: ({ row }) => row.original.actor_user_id ?? '—',
+    cell: ({ row }) =>
+      actorDisplayName(row.original.actor_user_id, row.original.actor_name),
   },
   {
     accessorKey: 'actor_company_id',

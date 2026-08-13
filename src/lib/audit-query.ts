@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm';
 import { auditEvent } from '@/db/schema';
 import { db } from '@/lib/db';
+import { resolveActorNames } from '@/lib/audit-actor-names';
 import {
   AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
@@ -44,6 +45,8 @@ export type AuditEventListItem = {
   id: number;
   occurred_at: string;
   actor_user_id: string | null;
+  /** Resolved from User.name when the actor still exists. */
+  actor_name: string | null;
   actor_company_id: number | null;
   target_company_id: number | null;
   resource_type: string;
@@ -174,21 +177,42 @@ const buildAuditSearchCondition = (search: string): SQL | null => {
 
 const mapAuditRows = (
   rows: (typeof auditEvent.$inferSelect)[],
+  actorNames: Map<string, string> = new Map(),
 ): AuditEventListItem[] =>
-  rows.map((row) => ({
-    id: row.id,
-    occurred_at: row.occurred_at.toISOString(),
-    actor_user_id: row.actor_user_id?.toString() ?? null,
-    actor_company_id: row.actor_company_id,
-    target_company_id: row.target_company_id,
-    resource_type: row.resource_type,
-    resource_id: row.resource_id,
-    action: row.action,
-    result: row.result,
-    source: row.source,
-    payload: row.payload,
-    request_meta: row.request_meta,
-  }));
+  rows.map((row) => {
+    const actorUserId = row.actor_user_id?.toString() ?? null;
+    return {
+      id: row.id,
+      occurred_at: row.occurred_at.toISOString(),
+      actor_user_id: actorUserId,
+      actor_name: actorUserId ? (actorNames.get(actorUserId) ?? null) : null,
+      actor_company_id: row.actor_company_id,
+      target_company_id: row.target_company_id,
+      resource_type: row.resource_type,
+      resource_id: row.resource_id,
+      action: row.action,
+      result: row.result,
+      source: row.source,
+      payload: row.payload,
+      request_meta: row.request_meta,
+    };
+  });
+
+const toAuditPage = async (
+  rows: (typeof auditEvent.$inferSelect)[],
+  limit: number,
+): Promise<{ items: AuditEventListItem[]; nextCursor: number | null }> => {
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const actorNames = await resolveActorNames(
+    pageRows.map((row) => row.actor_user_id?.toString() ?? null),
+  );
+
+  return {
+    items: mapAuditRows(pageRows, actorNames),
+    nextCursor: hasMore ? pageRows[pageRows.length - 1]?.id ?? null : null,
+  };
+};
 
 export const queryAuditEvents = async (
   filters: AuditEventFilters,
@@ -203,13 +227,7 @@ export const queryAuditEvents = async (
     .orderBy(desc(auditEvent.occurred_at), desc(auditEvent.id))
     .limit(limit + 1);
 
-  const hasMore = rows.length > limit;
-  const pageRows = hasMore ? rows.slice(0, limit) : rows;
-
-  return {
-    items: mapAuditRows(pageRows),
-    nextCursor: hasMore ? pageRows[pageRows.length - 1]?.id ?? null : null,
-  };
+  return toAuditPage(rows, limit);
 };
 
 export const searchAuditEvents = async (
@@ -231,11 +249,5 @@ export const searchAuditEvents = async (
     .orderBy(desc(auditEvent.occurred_at), desc(auditEvent.id))
     .limit(limit + 1);
 
-  const hasMore = rows.length > limit;
-  const pageRows = hasMore ? rows.slice(0, limit) : rows;
-
-  return {
-    items: mapAuditRows(pageRows),
-    nextCursor: hasMore ? pageRows[pageRows.length - 1]?.id ?? null : null,
-  };
+  return toAuditPage(rows, limit);
 };

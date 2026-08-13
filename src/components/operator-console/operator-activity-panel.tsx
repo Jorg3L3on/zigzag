@@ -35,6 +35,7 @@ import {
   isOperatorIncidentEvent,
   operatorIncidentLabel,
 } from '@/lib/operator-audit-incidents';
+import { actorDisplayName } from '@/lib/audit-actor-names';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { ClipboardList, Loader2 } from 'lucide-react';
 
@@ -42,6 +43,7 @@ type AuditEventRow = {
   id: number;
   occurred_at: string;
   actor_user_id: string | null;
+  actor_name: string | null;
   resource_type: string;
   resource_id: string | null;
   action: string;
@@ -280,7 +282,8 @@ export const OperatorActivityPanel = () => {
                     <AuditResourceLink event={event} />
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Actor: {event.actor_user_id ?? '—'} ·{' '}
+                    Actor:{' '}
+                    {actorDisplayName(event.actor_user_id, event.actor_name)} ·{' '}
                     <FormattedDate date={new Date(event.occurred_at)} />
                   </p>
                 </TripledMobileRecordCard>
@@ -308,8 +311,11 @@ export const OperatorActivityPanel = () => {
                       <TableCell className="whitespace-nowrap text-sm">
                         <FormattedDate date={new Date(event.occurred_at)} />
                       </TableCell>
-                      <TableCell className="text-sm tabular-nums">
-                        {event.actor_user_id ?? '—'}
+                      <TableCell className="text-sm">
+                        {actorDisplayName(
+                          event.actor_user_id,
+                          event.actor_name,
+                        )}
                       </TableCell>
                       <TableCell className="text-sm">
                         <AuditResourceLink event={event} />

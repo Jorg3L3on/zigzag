@@ -35,6 +35,7 @@ import {
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
 } from '@/lib/audit-catalog';
+import { actorDisplayName } from '@/lib/audit-actor-names';
 import {
   createAuditColumns,
   type AuditEventRow,
@@ -478,7 +479,9 @@ export const AuditList = () => {
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <dt className="text-muted-foreground">Actor</dt>
-                    <dd>{event.actor_user_id ?? '—'}</dd>
+                    <dd>
+                      {actorDisplayName(event.actor_user_id, event.actor_name)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Empresa</dt>
