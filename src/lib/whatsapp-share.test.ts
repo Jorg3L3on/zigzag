@@ -3,6 +3,7 @@ import {
   buildWhatsAppBalanceShare,
   buildWhatsAppDayVisitShare,
   buildWhatsAppHref,
+  buildWhatsAppVisitShare,
   normalizePhoneForWhatsApp,
 } from '@/lib/whatsapp-share';
 
@@ -46,6 +47,19 @@ describe('whatsapp-share', () => {
     expect(result?.message).toContain('ticket #12');
     expect(result?.message).toContain('Ana');
     expect(result?.message).toMatch(/\$150/);
+    expect(result?.href.startsWith('https://wa.me/5512345678?text=')).toBe(true);
+  });
+
+  it('builds Spanish visit reminder message', () => {
+    const result = buildWhatsAppVisitShare({
+      phone: '5512345678',
+      clientName: 'Ana',
+      serviceName: 'Fumigación',
+      nextDueAt: '2026-09-01T12:00:00.000Z',
+      companyName: 'Fumigaciones Norte',
+    });
+    expect(result?.message).toContain('Fumigación');
+    expect(result?.message).toContain('Ana');
     expect(result?.href.startsWith('https://wa.me/5512345678?text=')).toBe(true);
   });
 

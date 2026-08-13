@@ -4,6 +4,11 @@ import { clientServiceSchedule, notification } from '@/db/schema';
 import { db } from '@/lib/db';
 import { classifyScheduleBucket, DUE_SOON_DAYS } from '@/lib/schedule-buckets';
 import { emitRealtimeEvent } from '@/lib/realtime/events';
+import {
+  buildScheduleDigestCopy,
+  SCHEDULE_DAILY_DIGEST_TYPE,
+  scheduleDigestDedupeKey,
+} from '@/lib/schedule-digest';
 
 const dueDateKey = (date: Date): string => format(startOfDay(date), 'yyyy-MM-dd');
 
@@ -35,6 +40,9 @@ export const materializeScheduleNotificationsForCompany = async (
   });
 
   const rows: NotificationInsert[] = [];
+  let atrasados = 0;
+  let proximos = 0;
+
   for (const schedule of schedules) {
     const bucket = classifyScheduleBucket(
       schedule.next_due_at,
@@ -43,6 +51,12 @@ export const materializeScheduleNotificationsForCompany = async (
     );
     if (bucket !== 'atrasados' && bucket !== 'proximos') {
       continue;
+    }
+
+    if (bucket === 'atrasados') {
+      atrasados += 1;
+    } else {
+      proximos += 1;
     }
 
     const clientName = schedule.client?.name ?? 'Cliente';
@@ -56,10 +70,25 @@ export const materializeScheduleNotificationsForCompany = async (
       title: isOverdue ? 'Servicio atrasado' : 'Servicio próximo',
       body: `${serviceName} para ${clientName}`,
       resource_type: 'client_service_schedule',
-      resource_id: String(schedule.id),
+      // scheduleId:clientId:serviceId — enables one-tap Ticket create from the bell
+      resource_id: `${schedule.id}:${schedule.client_id}:${schedule.service_id}`,
       dedupe_key: `schedule:${schedule.id}:${bucket}:${dueDateKey(
         schedule.next_due_at,
       )}`,
+    });
+  }
+
+  const digest = buildScheduleDigestCopy({ atrasados, proximos });
+  if (digest) {
+    rows.push({
+      company_id: companyId,
+      user_id: null,
+      type: SCHEDULE_DAILY_DIGEST_TYPE,
+      title: digest.title,
+      body: digest.body,
+      resource_type: 'client_service_schedule',
+      resource_id: digest.filter,
+      dedupe_key: scheduleDigestDedupeKey(companyId, today),
     });
   }
 
