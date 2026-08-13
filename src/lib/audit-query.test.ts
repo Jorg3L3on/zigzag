@@ -75,4 +75,14 @@ describe('audit query helpers', () => {
     expect(source).toContain('auditEvent.payload}::text ILIKE');
     expect(source).toContain('auditEvent.request_meta}::text ILIKE');
   });
+
+  it('wires incidentsOnly into the filter pipeline', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'src/lib/audit-query.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('incidentsOnly?: boolean');
+    expect(source).toContain('buildOperatorIncidentSqlCondition()');
+  });
 });

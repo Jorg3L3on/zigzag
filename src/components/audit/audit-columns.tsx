@@ -4,6 +4,10 @@ import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { AuditEventListItem } from '@/lib/audit-query';
 import { actorDisplayName } from '@/lib/audit-actor-names';
+import {
+  formatAuditActionLabel,
+  formatAuditResultLabel,
+} from '@/lib/audit-labels';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -64,6 +68,7 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
       const label = formatAuditResourceLabel(
         row.original.resource_type,
         row.original.resource_id,
+        { actorName: row.original.actor_name },
       );
 
       if (!link) {
@@ -83,13 +88,14 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
     accessorKey: 'action',
     header: 'Acción',
+    cell: ({ row }) => formatAuditActionLabel(row.original.action),
   },
   {
     accessorKey: 'result',
     header: 'Resultado',
     cell: ({ row }) => (
       <Badge variant={resultVariant(row.original.result)}>
-        {row.original.result}
+        {formatAuditResultLabel(row.original.result)}
       </Badge>
     ),
   },

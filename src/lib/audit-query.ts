@@ -19,6 +19,7 @@ import {
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
 } from '@/lib/audit-catalog';
+import { buildOperatorIncidentSqlCondition } from '@/lib/operator-audit-incidents';
 
 export type AuditEventFilters = {
   targetCompanyId?: number;
@@ -31,6 +32,8 @@ export type AuditEventFilters = {
   /** Optional multi-action filter. */
   actions?: string[];
   result?: string;
+  /** When true, only return operator-incident audit rows. */
+  incidentsOnly?: boolean;
   from?: Date;
   to?: Date;
   cursor?: number;
@@ -142,6 +145,9 @@ const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   }
   if (normalized.result) {
     conditions.push(eq(auditEvent.result, normalized.result));
+  }
+  if (normalized.incidentsOnly) {
+    conditions.push(buildOperatorIncidentSqlCondition());
   }
   if (normalized.from) {
     conditions.push(gte(auditEvent.occurred_at, normalized.from));

@@ -32,6 +32,7 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const search = url.searchParams.get('search') ?? '';
+    const incidentsOnlyParam = url.searchParams.get('incidents_only');
     const filters = {
       targetCompanyId: parseOptionalInt(url.searchParams.get('target_company_id')),
       actorUserId: url.searchParams.get('actor_user_id') ?? undefined,
@@ -39,6 +40,10 @@ export async function GET(request: Request) {
       resourceId: url.searchParams.get('resource_id') ?? undefined,
       action: url.searchParams.get('action') ?? undefined,
       result: url.searchParams.get('result') ?? undefined,
+      incidentsOnly:
+        incidentsOnlyParam === '1' || incidentsOnlyParam === 'true'
+          ? true
+          : undefined,
       from: parseOptionalDate(url.searchParams.get('from')),
       to: parseOptionalDate(url.searchParams.get('to')),
       cursor: parseOptionalInt(url.searchParams.get('cursor')),
