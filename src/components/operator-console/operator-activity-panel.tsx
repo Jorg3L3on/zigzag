@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -532,14 +531,17 @@ export const OperatorActivityPanel = () => {
                   ACTIVITY_TABLE_SCROLL_CLASS,
                 )}
               >
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_hsl(var(--border))]">
+                <table className="w-full caption-bottom text-sm">
+                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_hsl(var(--border))] [&_tr]:border-b">
                     {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
+                      <TableRow key={headerGroup.id} className="hover:bg-transparent">
                         {headerGroup.headers.map((header) => (
                           <TableHead
                             key={header.id}
-                            className={header.id === 'expand' ? 'w-8' : undefined}
+                            className={cn(
+                              'bg-card',
+                              header.id === 'expand' ? 'w-8' : undefined,
+                            )}
                           >
                             {header.isPlaceholder
                               ? null
@@ -601,7 +603,7 @@ export const OperatorActivityPanel = () => {
                       );
                     })}
                   </TableBody>
-                </Table>
+                </table>
               </div>
 
               {nextCursor != null ? (

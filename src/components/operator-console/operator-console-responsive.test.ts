@@ -25,6 +25,8 @@ describe('operator console responsive surfaces', () => {
     expect(source).toContain('debouncedSearch');
     expect(source).toContain('ACTIVITY_TABLE_SCROLL_CLASS');
     expect(source).toContain('max-h-[calc(3rem+3.25rem*10)]');
+    expect(source).toContain('<table className="w-full caption-bottom text-sm">');
+    expect(source).toContain('sticky top-0');
   });
 
   it('composes fleet then tabbed detail on the operator page', () => {
@@ -37,11 +39,11 @@ describe('operator console responsive surfaces', () => {
     expect(source).not.toContain('CompaniesList');
   });
 
-  it('exposes pulso actividad acceso and ciclo tabs in detail', () => {
+  it('exposes resumen actividad acceso and ciclo tabs in detail', () => {
     const source = read(
       'src/components/operator-console/operator-console-detail.tsx',
     );
-    expect(source).toContain("id: 'pulso'");
+    expect(source).toContain("id: 'resumen'");
     expect(source).toContain("id: 'actividad'");
     expect(source).toContain("id: 'acceso'");
     expect(source).toContain("id: 'ciclo'");

@@ -3,7 +3,7 @@ import { OperatorCompanyMetrics } from '@/components/operator-console/operator-c
 
 const mockUseCompany = jest.fn();
 const mockFetchDashboardMetrics = jest.fn();
-const mockFetchOnboardingStatus = jest.fn();
+const mockFetchOperatorUserSessions = jest.fn();
 
 jest.mock('@/contexts/company-context', () => ({
   useCompany: () => mockUseCompany(),
@@ -14,10 +14,25 @@ jest.mock('@/actions/dashboard', () => ({
     mockFetchDashboardMetrics(...args),
 }));
 
-jest.mock('@/actions/onboarding-status', () => ({
-  fetchOnboardingStatus: (...args: unknown[]) =>
-    mockFetchOnboardingStatus(...args),
+jest.mock('@/actions/operator-user-sessions', () => ({
+  fetchOperatorUserSessions: (...args: unknown[]) =>
+    mockFetchOperatorUserSessions(...args),
 }));
+
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeAll(() => {
+  global.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
+});
+
+const sparkline = [
+  { monthKey: '2026-01', label: 'ene 2026', value: 1 },
+  { monthKey: '2026-02', label: 'feb 2026', value: 2 },
+];
 
 describe('OperatorCompanyMetrics', () => {
   beforeEach(() => {
@@ -34,7 +49,7 @@ describe('OperatorCompanyMetrics', () => {
     expect(mockFetchDashboardMetrics).not.toHaveBeenCalled();
   });
 
-  it('loads and shows business pulse cards for a selected tenant', async () => {
+  it('loads resumen KPIs, charts, and user sessions for a selected tenant', async () => {
     mockUseCompany.mockReturnValue({
       selectedCompany: { id: 42, name: 'Acme', is_system: false },
     });
@@ -44,28 +59,74 @@ describe('OperatorCompanyMetrics', () => {
         totalTickets: 12,
         totalClients: 4,
         totalCashCollected: 1500,
+        revenueByMonth: [
+          { monthKey: '2026-01', label: 'ene 2026', revenue: 100 },
+        ],
+        paymentStatusBreakdown: [
+          { status: 'paid', label: 'Saldado', count: 1, amount: 100 },
+          { status: 'partial', label: 'Pago parcial', count: 0, amount: 0 },
+          { status: 'pending', label: 'Pendiente', count: 0, amount: 0 },
+        ],
         kpis: [
-          { key: 'activeTickets', value: 3 },
-          { key: 'outstandingBalance', value: 250 },
+          {
+            key: 'revenue',
+            label: 'Ingresos del periodo',
+            value: 100,
+            deltaPercent: 10,
+            sparkline,
+            format: 'currency',
+          },
+          {
+            key: 'cashCollected',
+            label: 'Efectivo cobrado',
+            value: 80,
+            deltaPercent: 5,
+            sparkline,
+            format: 'currency',
+          },
+          {
+            key: 'outstandingBalance',
+            label: 'Saldo por cobrar',
+            value: 20,
+            deltaPercent: -2,
+            sparkline,
+            format: 'currency',
+          },
+          {
+            key: 'activeTickets',
+            label: 'Tickets activos',
+            value: 3,
+            deltaPercent: 0,
+            sparkline,
+            format: 'number',
+          },
         ],
       },
     });
-    mockFetchOnboardingStatus.mockResolvedValue({
+    mockFetchOperatorUserSessions.mockResolvedValue({
       success: true,
-      data: { totalUsers: 5 },
+      data: [
+        {
+          id: '10',
+          name: 'Ana López',
+          email: 'ana@acme.test',
+          lastSignedInAt: new Date('2026-08-12T10:00:00.000Z'),
+        },
+      ],
     });
 
     render(<OperatorCompanyMetrics />);
 
-    expect(await screen.findByText('Pulso del negocio')).toBeInTheDocument();
+    expect(await screen.findByText('Resumen')).toBeInTheDocument();
     await waitFor(() => {
       expect(mockFetchDashboardMetrics).toHaveBeenCalledWith({ companyId: 42 });
+      expect(mockFetchOperatorUserSessions).toHaveBeenCalledWith(42);
     });
-    expect(screen.getByText('Tickets')).toBeInTheDocument();
+    expect(screen.getByText('Ingresos del periodo')).toBeInTheDocument();
+    expect(screen.getByText('Efectivo cobrado')).toBeInTheDocument();
+    expect(screen.getByText('Saldo por cobrar')).toBeInTheDocument();
     expect(screen.getByText('Tickets activos')).toBeInTheDocument();
-    expect(screen.getByText('Usuarios')).toBeInTheDocument();
-    expect(screen.getByText('Clientes')).toBeInTheDocument();
-    expect(screen.getByText('Cobrado')).toBeInTheDocument();
-    expect(screen.getByText('Por cobrar')).toBeInTheDocument();
+    expect(screen.getByText('Ana López')).toBeInTheDocument();
+    expect(screen.getByText('ana@acme.test')).toBeInTheDocument();
   });
 });

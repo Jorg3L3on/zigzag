@@ -69,6 +69,21 @@ describe('OperatorAccessPanel', () => {
     });
   });
 
+  it('does not render the acceso y cuentas actions row', async () => {
+    render(<OperatorAccessPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cuentas de la empresa')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Acceso y cuentas')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Gestionar usuarios/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Gestionar roles/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it('defaults to the users tab and lists company-scoped users', async () => {
     render(<OperatorAccessPanel />);
 

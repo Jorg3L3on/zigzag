@@ -38,10 +38,10 @@ import { Building2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type DetailTab = 'pulso' | 'actividad' | 'acceso' | 'ciclo';
+type DetailTab = 'resumen' | 'actividad' | 'acceso' | 'ciclo';
 
 const TABS: Array<{ id: DetailTab; label: string }> = [
-  { id: 'pulso', label: 'Pulso' },
+  { id: 'resumen', label: 'Resumen' },
   { id: 'actividad', label: 'Actividad' },
   { id: 'acceso', label: 'Acceso' },
   { id: 'ciclo', label: 'Ciclo de vida' },
@@ -61,9 +61,9 @@ export const OperatorConsoleDetail = () => {
   const companyId = selectedCompany?.id ?? null;
   const isSystemTenant = selectedCompany?.is_system === true;
 
-  const [tab, setTab] = React.useState<DetailTab>('pulso');
+  const [tab, setTab] = React.useState<DetailTab>('resumen');
   const [visited, setVisited] = React.useState<Record<DetailTab, boolean>>({
-    pulso: true,
+    resumen: true,
     actividad: false,
     acceso: false,
     ciclo: false,
@@ -85,9 +85,9 @@ export const OperatorConsoleDetail = () => {
   const [reloadToken, setReloadToken] = React.useState(0);
 
   React.useEffect(() => {
-    setTab('pulso');
+    setTab('resumen');
     setVisited({
-      pulso: true,
+      resumen: true,
       actividad: false,
       acceso: false,
       ciclo: false,
@@ -267,7 +267,7 @@ export const OperatorConsoleDetail = () => {
         <TripledEmptyState
           icon={<Building2 className="h-4 w-4" aria-hidden />}
           title="Sin empresa seleccionada"
-          description="Selecciona una empresa en la flota para ver su pulso y operarla."
+          description="Selecciona una empresa en la flota para ver su resumen y operarla."
         />
       </div>
     );
@@ -367,10 +367,10 @@ export const OperatorConsoleDetail = () => {
 
       <div
         role="tabpanel"
-        id="operator-panel-pulso"
-        aria-labelledby="operator-tab-pulso"
-        hidden={tab !== 'pulso'}
-        className={cn(tab === 'pulso' ? 'space-y-4' : 'hidden')}
+        id="operator-panel-resumen"
+        aria-labelledby="operator-tab-resumen"
+        hidden={tab !== 'resumen'}
+        className={cn(tab === 'resumen' ? 'space-y-4' : 'hidden')}
       >
         {attention.length > 0 ? (
           <div
