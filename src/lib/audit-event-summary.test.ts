@@ -97,7 +97,25 @@ describe('formatAuditEventSummary', () => {
       },
     });
 
-    expect(summary.title).toBe('Ana actualizó el ticket #3');
+    expect(summary.title).toBe(
+      'Ana actualizó el ticket #3 (Cliente "B")',
+    );
     expect(summary.details.some((line) => line.includes('cliente:'))).toBe(true);
+  });
+
+  it('includes client name in ticket create titles', () => {
+    expect(
+      formatAuditEventSummary({
+        actor_name: 'Chano',
+        resource_type: 'ticket',
+        resource_id: '1065',
+        action: 'created',
+        result: 'success',
+        payload: { ticket: { client_name: 'Acme' } },
+      }),
+    ).toEqual({
+      title: 'Chano creó el ticket #1065 (Cliente "Acme")',
+      details: [],
+    });
   });
 });

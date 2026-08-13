@@ -24,6 +24,7 @@ export type SearchableSelectProps = {
   searchPlaceholder?: string;
   emptyText?: string;
   'aria-label'?: string;
+  id?: string;
   disabled?: boolean;
   clearable?: boolean;
   className?: string;
@@ -37,6 +38,7 @@ export const SearchableSelect = ({
   searchPlaceholder = 'Buscar…',
   emptyText = 'Sin resultados',
   'aria-label': ariaLabel,
+  id,
   disabled = false,
   clearable = true,
   className,
@@ -91,6 +93,7 @@ export const SearchableSelect = ({
       <PopoverTrigger asChild>
         <Button
           type="button"
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}

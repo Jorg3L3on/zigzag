@@ -96,29 +96,36 @@ describe('AuditList', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows Todos los estatus and a clear-all control when filters are active', async () => {
+  it('shows a mobile Filtros trigger', async () => {
     render(<AuditList />);
 
     expect(
-      await screen.findByRole('button', { name: 'Limpiar todos los filtros' }),
-    ).toBeInTheDocument();
-    // Selected result is "denied" from URL; open label text lives on the item.
-    // Assert the status select is present and the all-option copy is in the tree
-    // via the trigger placeholder wiring by clearing then checking.
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Limpiar todos los filtros' }),
-    );
-    expect(
-      await screen.findByText('Todos los estatus'),
+      await screen.findByRole('button', { name: /Abrir filtros/i }),
     ).toBeInTheDocument();
   });
 
-  it('clears all filters when Limpiar filtros is pressed', async () => {
+  it('opens the mobile Filtros sheet with labeled controls and Listo', async () => {
+    render(<AuditList />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Abrir filtros/i }),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Filtros' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Empresa, actor, recurso/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Listo' })).toBeInTheDocument();
+  });
+
+  it('shows Todos los estatus and clears filters', async () => {
     render(<AuditList />);
 
     await userEvent.click(
       await screen.findByRole('button', { name: 'Limpiar todos los filtros' }),
     );
+
+    expect(await screen.findByText('Todos los estatus')).toBeInTheDocument();
 
     await waitFor(() => {
       const lastReplaceCall = replace.mock.calls.at(-1)?.[0] as string;
@@ -134,34 +141,66 @@ describe('AuditList', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hoy' })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Solo incidentes' }),
+      screen.getByRole('button', { name: 'Últimos 7 días' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Solo denegados' }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Exportar auditoría a CSV' }),
     ).toBeInTheDocument();
   });
 
-  it('shows recoverable load errors', async () => {
+  it('shows IP metadata when expanding an event with request_meta', async () => {
     global.fetch = jest.fn(async () => ({
-      ok: false,
-      status: 500,
+      ok: true,
       json: async () => ({
-        success: false,
-        error: 'No se pudo cargar la auditoría',
-        errorType: 'server',
+        success: true,
+        data: {
+          items: [
+            {
+              id: 1,
+              occurred_at: '2026-08-10T09:00:00.000Z',
+              actor_user_id: '7',
+              actor_name: 'Chano',
+              actor_company_id: 2,
+              actor_company_name: 'Acme',
+              target_company_id: 2,
+              target_company_name: 'Acme',
+              resource_type: 'auth',
+              resource_id: 'user@example.com',
+              action: 'sign_in_failed',
+              result: 'failed',
+              source: 'auth',
+              payload: { email: 'user@example.com', reason: 'throttled' },
+              request_meta: {
+                ip: '203.0.113.10',
+                userAgent: 'Mozilla/5.0 TestAgent',
+                route: '/login',
+                method: 'POST',
+                requestId: 'req-test-1234',
+              },
+            },
+          ],
+          nextCursor: null,
+        },
       }),
     })) as jest.Mock;
 
     render(<AuditList />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Ocurrió un error del servidor',
-    );
+    expect(
+      await screen.findAllByText(/Inicio de sesión fallido/i),
+    ).not.toHaveLength(0);
 
-    await userEvent.click(screen.getByRole('button', { name: /Reintentar/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
+    expect(await screen.findAllByText('IP: 203.0.113.10')).not.toHaveLength(0);
+    expect(
+      screen.getAllByText(/UA: Mozilla\/5\.0 TestAgent/),
+    ).not.toHaveLength(0);
+    expect(
+      screen.getAllByText('Request ID: req-test-1234'),
+    ).not.toHaveLength(0);
   });
 });

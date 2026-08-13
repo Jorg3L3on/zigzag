@@ -1,7 +1,6 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import Link from 'next/link';
 import type { AuditEventListItem } from '@/lib/audit-query';
 import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
@@ -10,11 +9,7 @@ import {
 } from '@/lib/audit-labels';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
-import { formatAuditEventSummary } from '@/lib/audit-event-summary';
-import {
-  formatAuditResourceLabel,
-  resolveAuditResourceLink,
-} from '@/lib/audit-display';
+import { AuditSummaryCell } from '@/components/audit/audit-summary-cell';
 
 export type AuditEventRow = AuditEventListItem;
 
@@ -39,34 +34,7 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
     id: 'summary',
     header: 'Resumen',
-    cell: ({ row }) => {
-      const summary = formatAuditEventSummary(row.original);
-      const link = resolveAuditResourceLink(
-        row.original.resource_type,
-        row.original.resource_id,
-      );
-      const resourceLabel = formatAuditResourceLabel(
-        row.original.resource_type,
-        row.original.resource_id,
-        { actorName: row.original.actor_name },
-      );
-
-      return (
-        <div className="max-w-md space-y-1">
-          <p className="font-medium leading-snug">{summary.title}</p>
-          {link ? (
-            <Link
-              href={link.href}
-              className="text-xs text-primary underline-offset-4 hover:underline"
-            >
-              {link.label}
-            </Link>
-          ) : (
-            <p className="text-xs text-muted-foreground">{resourceLabel}</p>
-          )}
-        </div>
-      );
-    },
+    cell: ({ row }) => <AuditSummaryCell event={row.original} />,
   },
   {
     accessorKey: 'occurred_at',

@@ -2,6 +2,7 @@ import {
   formatAuditResourceLabel,
   redactAuditDisplayValue,
   resolveAuditResourceLink,
+  resolveAuditSummaryResourcePresentation,
 } from '@/lib/audit-display';
 
 describe('audit display helpers', () => {
@@ -81,5 +82,40 @@ describe('audit display helpers', () => {
     expect(formatAuditResourceLabel('auth', 'user@example.com')).toBe(
       'Sesión · user@example.com',
     );
+  });
+
+  it('includes payload display names in resource labels', () => {
+    expect(
+      formatAuditResourceLabel('ticket', '12', { displayName: 'Acme' }),
+    ).toBe('Ticket #12 · Acme');
+    expect(
+      formatAuditResourceLabel('client', '9', { displayName: 'Acme' }),
+    ).toBe('Cliente #9 · Acme');
+  });
+
+  it('hides redundant Resumen subtitles when the title already has the ticket id', () => {
+    const presentation = resolveAuditSummaryResourcePresentation({
+      title: 'Chano generó el recibo del ticket #1062',
+      resourceType: 'invoice',
+      resourceId: '1062',
+      payload: null,
+    });
+
+    expect(presentation.subtitle).toBeNull();
+    expect(presentation.linkTitle).toBe(true);
+    expect(presentation.href).toBe('/tickets/1062');
+  });
+
+  it('keeps a client-name subtitle when the title only has the ticket id', () => {
+    const presentation = resolveAuditSummaryResourcePresentation({
+      title: 'Chano actualizó el ticket #1065',
+      resourceType: 'ticket',
+      resourceId: '1065',
+      payload: { after: { client_name: 'Acme' } },
+    });
+
+    expect(presentation.subtitle).toBe('Cliente · Acme');
+    expect(presentation.linkTitle).toBe(false);
+    expect(presentation.href).toBe('/tickets/1065');
   });
 });

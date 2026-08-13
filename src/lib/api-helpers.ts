@@ -19,6 +19,10 @@ import {
   bindRequestContextFromHeaders,
   getRequestId,
 } from '@/lib/request-context';
+import {
+  buildAuditRequestMetaFromHeaders,
+  mergeAuditRequestMeta,
+} from '@/lib/audit-request-meta';
 
 /** Default budget for authenticated API writes: generous, abuse-stopping. */
 const DEFAULT_API_RATE_LIMIT: RateLimitOptions = {
@@ -142,6 +146,9 @@ export async function requireApiPermission(
     companyIsSystem: Boolean(session.user.company_is_system),
   };
 
+  const autoMeta = await buildAuditRequestMetaFromHeaders();
+  const resolvedMeta = mergeAuditRequestMeta(autoMeta, requestMeta);
+
   let companyId: number;
   try {
     companyId = resolveWritableCompanyId(actor, requestedCompanyId);
@@ -154,7 +161,7 @@ export async function requireApiPermission(
       reason: 'invalid_company_context',
       actorCompanyId: actor.companyId,
       requestedCompanyId: requestedCompanyId ?? null,
-      requestMeta,
+      requestMeta: resolvedMeta,
     });
     return {
       session: null,
@@ -178,7 +185,7 @@ export async function requireApiPermission(
       reason: 'missing_permission',
       actorCompanyId: actor.companyId,
       requestedCompanyId: requestedCompanyId ?? companyId,
-      requestMeta,
+      requestMeta: resolvedMeta,
     });
     return {
       session: null,
