@@ -104,6 +104,18 @@ describe('AuditList', () => {
     ).toBeInTheDocument();
   });
 
+  it('opens the mobile Filtros sheet with labeled controls and Listo', async () => {
+    render(<AuditList />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Abrir filtros/i }),
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Filtros' })).toBeInTheDocument();
+    expect(screen.getByText(/Empresa, actor, recurso/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Listo' })).toBeInTheDocument();
+  });
+
   it('shows Todos los estatus and clears filters', async () => {
     render(<AuditList />);
 
