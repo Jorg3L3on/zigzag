@@ -37,6 +37,7 @@ export async function getTechnicianDayQueue(
         eq(ticket.company_id, effectiveCompanyId),
         isNull(ticket.deleted_at),
         eq(ticket.finished, false),
+        eq(ticket.document_kind, 'ticket'),
       ),
       with: {
         services_tickets: {
@@ -59,6 +60,7 @@ export async function getTechnicianDayQueue(
         total: row.total,
         paid: row.paid,
         finished: row.finished,
+        document_kind: row.document_kind,
         serviceNames: row.services_tickets.map(
           (line) => line.service?.name ?? null,
         ),

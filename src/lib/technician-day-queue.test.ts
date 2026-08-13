@@ -73,6 +73,23 @@ describe('technician-day-queue', () => {
         today,
       ),
     ).toBe(false);
+
+    expect(
+      isTechnicianDayQueueTicket(
+        {
+          id: 5,
+          client_name: 'Quote',
+          client_tel: null,
+          ticket_date: new Date('2026-08-12'),
+          created_at: new Date('2026-08-12'),
+          total: 100,
+          paid: 0,
+          finished: false,
+          document_kind: 'presupuesto',
+        },
+        today,
+      ),
+    ).toBe(false);
   });
 
   it('sorts overdue before today and counts buckets', () => {
