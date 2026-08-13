@@ -16,10 +16,12 @@ describe('operator console responsive surfaces', () => {
       'src/components/operator-console/operator-activity-panel.tsx',
     );
     expect(source).toContain('md:hidden');
-    expect(source).toContain('hidden overflow-hidden rounded-xl border');
+    expect(source).toContain('rounded-xl border border-border/70 md:block');
     expect(source).toContain('useReactTable');
     expect(source).toContain('TripledDataPanel');
     expect(source).toContain('debouncedSearch');
+    expect(source).toContain('ACTIVITY_TABLE_SCROLL_CLASS');
+    expect(source).toContain('max-h-[calc(3rem+3.25rem*10)]');
   });
 
   it('places activity before access and accounts on the operator page', () => {
