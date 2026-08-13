@@ -57,12 +57,12 @@ describe('TicketsListRow', () => {
     mockPush.mockClear();
   });
 
-  it('navigates to edit on click when the ticket is a draft and user can write', async () => {
+  it('navigates to detail on click when the ticket is a draft and user can write', async () => {
     const user = userEvent.setup();
     render(<RowHarness />);
 
     await user.click(screen.getByRole('row'));
-    expect(mockPush).toHaveBeenCalledWith('/tickets/7/edit');
+    expect(mockPush).toHaveBeenCalledWith('/tickets/7');
   });
 
   it('navigates to detail when the ticket is finished', async () => {
@@ -78,6 +78,6 @@ describe('TicketsListRow', () => {
 
     screen.getByRole('row').focus();
     await userEvent.keyboard('{Enter}');
-    expect(mockPush).toHaveBeenCalledWith('/tickets/7/edit');
+    expect(mockPush).toHaveBeenCalledWith('/tickets/7');
   });
 });
