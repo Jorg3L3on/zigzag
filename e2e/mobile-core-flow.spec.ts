@@ -129,7 +129,8 @@ const finishWithPartialPayment = async (
   await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
     timeout: 60_000,
   });
-  await expect(page.getByText(/Finalizado/).first()).toBeVisible();
+  // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
+  await expect(page.getByText(/Finalizado ·/)).toBeVisible();
   await expect(page.getByText('Pago parcial').first()).toBeVisible();
 };
 
