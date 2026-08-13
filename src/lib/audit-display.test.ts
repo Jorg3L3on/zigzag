@@ -48,7 +48,7 @@ describe('audit display helpers', () => {
     });
     expect(resolveAuditResourceLink('invoice', '123')).toEqual({
       href: '/tickets/123',
-      label: 'Recibo (ticket #123)',
+      label: 'Recibo · Ticket #123',
     });
     expect(resolveAuditResourceLink('client', '9')).toEqual({
       href: '/clients/9/edit',
@@ -68,13 +68,18 @@ describe('audit display helpers', () => {
     });
   });
 
-  it('leaves unsafe or unsupported resources as plain Spanish labels', () => {
+  it('leaves unsafe or unsupported resources as plain labels', () => {
     expect(resolveAuditResourceLink('security', 'tickets.write')).toBeNull();
     expect(resolveAuditResourceLink('ticket', '../1')).toBeNull();
     expect(resolveAuditResourceLink('ticket', null)).toBeNull();
     expect(formatAuditResourceLabel('security', 'tickets.write')).toBe(
-      'Seguridad #tickets.write',
+      'Seguridad · tickets.write',
     );
-    expect(formatAuditResourceLabel('client', null)).toBe('Cliente');
+    expect(formatAuditResourceLabel('auth', '10', { actorName: 'Ana' })).toBe(
+      'Sesión · Ana',
+    );
+    expect(formatAuditResourceLabel('auth', 'user@example.com')).toBe(
+      'Sesión · user@example.com',
+    );
   });
 });

@@ -7,19 +7,20 @@ import {
   inArray,
   lt,
   lte,
-  ne,
   or,
   sql,
   type SQL,
 } from 'drizzle-orm';
-import { auditEvent, company, user } from '@/db/schema';
+import { auditEvent, company } from '@/db/schema';
 import { db } from '@/lib/db';
+import { resolveActorNames } from '@/lib/audit-actor-names';
 import {
   AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
-  resolveAuditSearchCatalogMatches,
 } from '@/lib/audit-catalog';
+import { resolveAuditSearchCatalogMatches } from '@/lib/audit-labels';
+import { buildOperatorIncidentSqlCondition } from '@/lib/operator-audit-incidents-sql';
 
 export type AuditEventFilters = {
   targetCompanyId?: number;
@@ -32,7 +33,7 @@ export type AuditEventFilters = {
   /** Optional multi-action filter. */
   actions?: string[];
   result?: string;
-  /** Security-oriented incident subset (failed auth, denials, plan limits). */
+  /** When true, only return operator-incident audit rows. */
   incidentsOnly?: boolean;
   from?: Date;
   to?: Date;
@@ -48,7 +49,8 @@ export type AuditEventListItem = {
   id: number;
   occurred_at: string;
   actor_user_id: string | null;
-  actor_user_name: string | null;
+  /** Resolved from User.name when the actor still exists. */
+  actor_name: string | null;
   actor_company_id: number | null;
   actor_company_name: string | null;
   target_company_id: number | null;
@@ -121,21 +123,6 @@ export const normalizeAuditEventFilters = (
   };
 };
 
-const buildIncidentsCondition = (): SQL =>
-  or(
-    eq(auditEvent.action, 'sign_in_failed'),
-    eq(auditEvent.action, 'permission_denied'),
-    and(eq(auditEvent.resource_type, 'auth'), ne(auditEvent.result, 'success')),
-    and(
-      eq(auditEvent.resource_type, 'security'),
-      eq(auditEvent.result, 'denied'),
-    ),
-    sql`${auditEvent.payload}::text ILIKE ${'%co011%'}`,
-    sql`${auditEvent.payload}::text ILIKE ${'%límite del plan%'}`,
-    sql`${auditEvent.payload}::text ILIKE ${'%limite del plan%'}`,
-    sql`${auditEvent.payload}::text ILIKE ${'%plan limit%'}`,
-  ) as SQL;
-
 const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
   const normalized = normalizeAuditEventFilters(filters);
   const conditions: SQL[] = [];
@@ -170,7 +157,7 @@ const buildAuditFilterConditions = (filters: AuditEventFilters): SQL[] => {
     conditions.push(eq(auditEvent.result, normalized.result));
   }
   if (normalized.incidentsOnly) {
-    conditions.push(buildIncidentsCondition());
+    conditions.push(buildOperatorIncidentSqlCondition());
   }
   if (normalized.from) {
     conditions.push(gte(auditEvent.occurred_at, normalized.from));
@@ -223,12 +210,30 @@ export const buildAuditSearchCondition = (search: string): SQL | null => {
   ) as SQL;
 };
 
+const resolveCompanyNames = async (
+  companyIds: number[],
+): Promise<Map<number, string>> => {
+  const unique = [...new Set(companyIds)];
+  const map = new Map<number, string>();
+  if (unique.length === 0) {
+    return map;
+  }
+
+  const rows = await db
+    .select({ id: company.id, name: company.name })
+    .from(company)
+    .where(inArray(company.id, unique));
+
+  for (const row of rows) {
+    map.set(row.id, row.name);
+  }
+  return map;
+};
+
 const mapAuditRows = (
   rows: (typeof auditEvent.$inferSelect)[],
-  names: {
-    actorNames: Map<string, string>;
-    companyNames: Map<number, string>;
-  },
+  actorNames: Map<string, string>,
+  companyNames: Map<number, string>,
 ): AuditEventListItem[] =>
   rows.map((row) => {
     const actorUserId = row.actor_user_id?.toString() ?? null;
@@ -236,18 +241,16 @@ const mapAuditRows = (
       id: row.id,
       occurred_at: row.occurred_at.toISOString(),
       actor_user_id: actorUserId,
-      actor_user_name: actorUserId
-        ? (names.actorNames.get(actorUserId) ?? null)
-        : null,
+      actor_name: actorUserId ? (actorNames.get(actorUserId) ?? null) : null,
       actor_company_id: row.actor_company_id,
       actor_company_name:
         row.actor_company_id != null
-          ? (names.companyNames.get(row.actor_company_id) ?? null)
+          ? (companyNames.get(row.actor_company_id) ?? null)
           : null,
       target_company_id: row.target_company_id,
       target_company_name:
         row.target_company_id != null
-          ? (names.companyNames.get(row.target_company_id) ?? null)
+          ? (companyNames.get(row.target_company_id) ?? null)
           : null,
       resource_type: row.resource_type,
       resource_id: row.resource_id,
@@ -259,71 +262,25 @@ const mapAuditRows = (
     };
   });
 
-const resolveAuditDisplayNames = async (
-  rows: (typeof auditEvent.$inferSelect)[],
-): Promise<{
-  actorNames: Map<string, string>;
-  companyNames: Map<number, string>;
-}> => {
-  const actorIds = [
-    ...new Set(
-      rows
-        .map((row) => row.actor_user_id)
-        .filter((id): id is bigint => id != null)
-        .map((id) => id.toString()),
-    ),
-  ];
-  const companyIds = [
-    ...new Set(
-      rows.flatMap((row) =>
-        [row.actor_company_id, row.target_company_id].filter(
-          (id): id is number => id != null,
-        ),
-      ),
-    ),
-  ];
-
-  const actorNames = new Map<string, string>();
-  const companyNames = new Map<number, string>();
-
-  if (actorIds.length > 0) {
-    const actorRows = await db
-      .select({ id: user.id, name: user.name })
-      .from(user)
-      .where(
-        inArray(
-          user.id,
-          actorIds.map((id) => BigInt(id)),
-        ),
-      );
-    for (const row of actorRows) {
-      actorNames.set(String(row.id), row.name);
-    }
-  }
-
-  if (companyIds.length > 0) {
-    const companyRows = await db
-      .select({ id: company.id, name: company.name })
-      .from(company)
-      .where(inArray(company.id, companyIds));
-    for (const row of companyRows) {
-      companyNames.set(row.id, row.name);
-    }
-  }
-
-  return { actorNames, companyNames };
-};
-
 const toAuditPage = async (
   rows: (typeof auditEvent.$inferSelect)[],
   limit: number,
 ): Promise<{ items: AuditEventListItem[]; nextCursor: number | null }> => {
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
-  const names = await resolveAuditDisplayNames(pageRows);
+  const actorNames = await resolveActorNames(
+    pageRows.map((row) => row.actor_user_id?.toString() ?? null),
+  );
+  const companyNames = await resolveCompanyNames(
+    pageRows.flatMap((row) =>
+      [row.actor_company_id, row.target_company_id].filter(
+        (id): id is number => id != null,
+      ),
+    ),
+  );
 
   return {
-    items: mapAuditRows(pageRows, names),
+    items: mapAuditRows(pageRows, actorNames, companyNames),
     nextCursor: hasMore ? pageRows[pageRows.length - 1]?.id ?? null : null,
   };
 };

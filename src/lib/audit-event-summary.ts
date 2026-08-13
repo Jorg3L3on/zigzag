@@ -2,7 +2,7 @@ import { formatCompactCurrency } from '@/lib/format-compact';
 import {
   formatAuditActionLabel,
   formatAuditResourceTypeLabel,
-} from '@/lib/audit-catalog';
+} from '@/lib/audit-labels';
 import { operatorIncidentLabel } from '@/lib/operator-audit-incidents';
 import {
   buildTicketAuditUpdateDetails,
@@ -10,6 +10,8 @@ import {
 } from '@/lib/ticket-audit-display';
 
 export type AuditEventSummaryInput = {
+  actor_name?: string | null;
+  /** @deprecated Prefer actor_name; kept for call-site flexibility. */
   actor_user_name?: string | null;
   resource_type: string;
   resource_id: string | null;
@@ -47,8 +49,10 @@ const pickName = (...candidates: unknown[]): string | null => {
   return null;
 };
 
-const actorLabel = (actorName: string | null | undefined): string =>
-  actorName?.trim() || 'Alguien';
+const actorLabel = (
+  actorName: string | null | undefined,
+  fallbackName?: string | null | undefined,
+): string => actorName?.trim() || fallbackName?.trim() || 'Alguien';
 
 const denialReasonLabel = (reason: string | null): string | null => {
   if (!reason) {
@@ -97,7 +101,7 @@ const formatTicketRef = (resourceId: string | null): string =>
   resourceId ? `#${resourceId}` : 'un ticket';
 
 const buildGenericTitle = (input: AuditEventSummaryInput): string => {
-  const who = actorLabel(input.actor_user_name);
+  const who = actorLabel(input.actor_name, input.actor_user_name);
   const actionLabel = formatAuditActionLabel(input.action).toLowerCase();
   const resourceLabel = formatAuditResourceTypeLabel(
     input.resource_type,
@@ -113,7 +117,7 @@ const buildGenericTitle = (input: AuditEventSummaryInput): string => {
 export const formatAuditEventSummary = (
   input: AuditEventSummaryInput,
 ): AuditEventSummary => {
-  const who = actorLabel(input.actor_user_name);
+  const who = actorLabel(input.actor_name, input.actor_user_name);
   const payload = input.payload;
   const name = resourceDisplayName(payload);
   const details: string[] = [];

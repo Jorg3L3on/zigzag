@@ -1,9 +1,6 @@
 'use server';
 
-import { inArray } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
-import { user } from '@/db/schema';
-import { db } from '@/lib/db';
 import {
   ACTIVITY_FEED_RESOURCE_TYPES,
   formatActivityFeed,
@@ -49,50 +46,21 @@ export type FetchDashboardActivityInput = {
   limit?: number;
 };
 
-const resolveActorNames = async (
-  actorIds: string[],
-): Promise<Map<string, string>> => {
-  const unique = [...new Set(actorIds.filter(Boolean))];
-  const map = new Map<string, string>();
-  if (unique.length === 0) {
-    return map;
-  }
-
-  const rows = await db
-    .select({ id: user.id, name: user.name })
-    .from(user)
-    .where(
-      inArray(
-        user.id,
-        unique.map((id) => BigInt(id)),
-      ),
-    );
-
-  for (const row of rows) {
-    map.set(String(row.id), row.name);
-  }
-  return map;
-};
-
-const toFeedInput = (
-  event: {
-    id: number;
-    occurred_at: string;
-    actor_user_id: string | null;
-    resource_type: string;
-    resource_id: string | null;
-    action: string;
-    result: string;
-    payload: Record<string, unknown> | null;
-  },
-  actorNames: Map<string, string>,
-): ActivityFeedEventInput => ({
+const toFeedInput = (event: {
+  id: number;
+  occurred_at: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  resource_type: string;
+  resource_id: string | null;
+  action: string;
+  result: string;
+  payload: Record<string, unknown> | null;
+}): ActivityFeedEventInput => ({
   id: event.id,
   occurredAt: event.occurred_at,
   actorUserId: event.actor_user_id,
-  actorName: event.actor_user_id
-    ? (actorNames.get(event.actor_user_id) ?? null)
-    : null,
+  actorName: event.actor_name,
   resourceType: event.resource_type,
   resourceId: event.resource_id,
   action: event.action,
@@ -159,14 +127,8 @@ export async function fetchDashboardActivity(
         limit: FETCH_PAGE_SIZE,
       });
 
-      const actorNames = await resolveActorNames(
-        page.items
-          .map((item) => item.actor_user_id)
-          .filter((id): id is string => Boolean(id)),
-      );
-
       for (const row of page.items) {
-        const feedInput = toFeedInput(row, actorNames);
+        const feedInput = toFeedInput(row);
         if (!isActivityFeedEvent(feedInput)) {
           continue;
         }

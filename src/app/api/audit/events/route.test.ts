@@ -87,7 +87,7 @@ describe('GET /api/audit/events', () => {
 
     const response = await GET(
       makeGetRequest(
-        'http://localhost/api/audit/events?target_company_id=2&result=denied',
+        'http://localhost/api/audit/events?target_company_id=2&result=denied&incidents_only=1',
       ),
     );
 
@@ -96,6 +96,7 @@ describe('GET /api/audit/events', () => {
       expect.objectContaining({
         targetCompanyId: 2,
         result: 'denied',
+        incidentsOnly: true,
       }),
     );
   });

@@ -9,6 +9,18 @@ jest.mock('@/lib/db', () => ({
   },
 }));
 
+jest.mock('@/lib/audit-actor-names', () => ({
+  resolveActorNames: jest.fn(async (ids: Array<string | null>) => {
+    const map = new Map<string, string>();
+    for (const id of ids) {
+      if (id === '7') {
+        map.set('7', 'Jorge');
+      }
+    }
+    return map;
+  }),
+}));
+
 import {
   buildAuditSearchCondition,
   normalizeAuditEventFilters,
@@ -108,6 +120,16 @@ describe('audit query helpers', () => {
     expect(source).toContain('auditEvent.request_meta}::text ILIKE');
   });
 
+  it('wires incidentsOnly into the filter pipeline', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'src/lib/audit-query.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('incidentsOnly?: boolean');
+    expect(source).toContain('buildOperatorIncidentSqlCondition()');
+  });
+
   it('enriches list items with actor and company display names', async () => {
     const eventRows = [
       {
@@ -128,7 +150,6 @@ describe('audit query helpers', () => {
 
     selectMock
       .mockReturnValueOnce(chainFrom(eventRows))
-      .mockReturnValueOnce(chainFrom([{ id: BigInt(7), name: 'Jorge' }]))
       .mockReturnValueOnce(
         chainFrom([
           { id: 2, name: 'Actor Co' },
@@ -142,7 +163,7 @@ describe('audit query helpers', () => {
     expect(page.items[0]).toMatchObject({
       id: 10,
       actor_user_id: '7',
-      actor_user_name: 'Jorge',
+      actor_name: 'Jorge',
       actor_company_id: 2,
       actor_company_name: 'Actor Co',
       target_company_id: 3,
@@ -161,7 +182,6 @@ describe('audit query helpers', () => {
       'utf8',
     );
     expect(source).toContain('resolveAuditSearchCatalogMatches');
-    expect(source).toContain('incidentsOnly');
   });
 
   it('clamps export limits separately from page limits', () => {

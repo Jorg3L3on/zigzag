@@ -1,7 +1,5 @@
-import {
-  formatAuditResourceTypeLabel,
-  type AuditResourceType,
-} from '@/lib/audit-catalog';
+import type { AuditResourceType } from '@/lib/audit-catalog';
+import { formatAuditResourceTypeLabel } from '@/lib/audit-labels';
 
 const REDACTED = '[REDACTED]';
 
@@ -66,7 +64,7 @@ export const resolveAuditResourceLink = (
       // Invoice audits store the ticket id as resource_id.
       return {
         href: `/tickets/${resourceId}`,
-        label: `Recibo (ticket #${resourceId})`,
+        label: `Recibo · Ticket #${resourceId}`,
       };
     case 'client':
       return {
@@ -90,10 +88,39 @@ export const resolveAuditResourceLink = (
   }
 };
 
+export type FormatAuditResourceLabelOptions = {
+  actorName?: string | null;
+};
+
 export const formatAuditResourceLabel = (
   resourceType: string,
   resourceId: string | null | undefined,
+  options: FormatAuditResourceLabelOptions = {},
 ): string => {
   const typeLabel = formatAuditResourceTypeLabel(resourceType);
-  return resourceId ? `${typeLabel} #${resourceId}` : typeLabel;
+
+  if (resourceType === 'auth') {
+    const actorName = options.actorName?.trim();
+    if (actorName) {
+      return `Sesión · ${actorName}`;
+    }
+    if (resourceId?.includes('@')) {
+      return `Sesión · ${resourceId}`;
+    }
+    return 'Sesión';
+  }
+
+  if (resourceType === 'security') {
+    return resourceId ? `Seguridad · ${resourceId}` : 'Seguridad';
+  }
+
+  if (!resourceId) {
+    return typeLabel;
+  }
+
+  if (isPlainPositiveInteger(resourceId)) {
+    return `${typeLabel} #${resourceId}`;
+  }
+
+  return `${typeLabel} · ${resourceId}`;
 };

@@ -3,12 +3,13 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { AuditEventListItem } from '@/lib/audit-query';
-import { FormattedDate } from '@/components/formatted-date';
-import { Badge } from '@/components/ui/badge';
+import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
   formatAuditResultLabel,
   formatAuditSourceLabel,
-} from '@/lib/audit-catalog';
+} from '@/lib/audit-labels';
+import { FormattedDate } from '@/components/formatted-date';
+import { Badge } from '@/components/ui/badge';
 import { formatAuditEventSummary } from '@/lib/audit-event-summary';
 import {
   formatAuditResourceLabel,
@@ -29,8 +30,10 @@ const resultVariant = (
   return 'secondary';
 };
 
-const displayName = (name: string | null, fallbackId: string | number | null) =>
-  name?.trim() || (fallbackId != null ? String(fallbackId) : '—');
+const companyDisplayName = (
+  name: string | null,
+  fallbackId: number | null,
+): string => name?.trim() || (fallbackId != null ? String(fallbackId) : '—');
 
 export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
   {
@@ -45,6 +48,7 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
       const resourceLabel = formatAuditResourceLabel(
         row.original.resource_type,
         row.original.resource_id,
+        { actorName: row.original.actor_name },
       );
 
       return (
@@ -72,16 +76,17 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
     ),
   },
   {
-    accessorKey: 'actor_user_id',
+    id: 'actor',
+    accessorKey: 'actor_name',
     header: 'Actor',
     cell: ({ row }) =>
-      displayName(row.original.actor_user_name, row.original.actor_user_id),
+      actorDisplayName(row.original.actor_user_id, row.original.actor_name),
   },
   {
     accessorKey: 'target_company_id',
     header: 'Empresa',
     cell: ({ row }) =>
-      displayName(
+      companyDisplayName(
         row.original.target_company_name,
         row.original.target_company_id,
       ),
@@ -99,7 +104,9 @@ export const createAuditColumns = (): ColumnDef<AuditEventRow>[] => [
     accessorKey: 'source',
     header: 'Origen',
     cell: ({ row }) => (
-      <Badge variant="outline">{formatAuditSourceLabel(row.original.source)}</Badge>
+      <Badge variant="outline">
+        {formatAuditSourceLabel(row.original.source)}
+      </Badge>
     ),
   },
 ];

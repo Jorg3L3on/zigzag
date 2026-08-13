@@ -16,7 +16,8 @@ export const parseOptionalDate = (value: string | null): Date | undefined => {
 
 export const parseAuditListFilters = (url: URL) => {
   const search = url.searchParams.get('search') ?? '';
-  const incidentsParam = url.searchParams.get('incidents');
+  const incidentsParam =
+    url.searchParams.get('incidents_only') ?? url.searchParams.get('incidents');
   const filters = {
     targetCompanyId: parseOptionalInt(url.searchParams.get('target_company_id')),
     actorUserId: url.searchParams.get('actor_user_id') ?? undefined,

@@ -4,7 +4,7 @@ describe('formatAuditEventSummary', () => {
   it('summarizes successful sign-in events in Spanish', () => {
     expect(
       formatAuditEventSummary({
-        actor_user_name: 'Jorge',
+        actor_name: 'Jorge',
         resource_type: 'auth',
         resource_id: '2',
         action: 'signed_in',
@@ -19,7 +19,7 @@ describe('formatAuditEventSummary', () => {
 
   it('summarizes failed sign-in with reason and email', () => {
     const summary = formatAuditEventSummary({
-      actor_user_name: null,
+      actor_name: null,
       resource_type: 'auth',
       resource_id: 'user@example.com',
       action: 'sign_in_failed',
@@ -35,7 +35,7 @@ describe('formatAuditEventSummary', () => {
   it('summarizes permission denials with permission code', () => {
     expect(
       formatAuditEventSummary({
-        actor_user_name: 'Ana',
+        actor_name: 'Ana',
         resource_type: 'security',
         resource_id: 'clients.write',
         action: 'permission_denied',
@@ -54,7 +54,7 @@ describe('formatAuditEventSummary', () => {
 
   it('summarizes ticket payments with amount', () => {
     const summary = formatAuditEventSummary({
-      actor_user_name: 'Ana',
+      actor_name: 'Ana',
       resource_type: 'ticket',
       resource_id: '12',
       action: 'payment_collected',
@@ -71,7 +71,7 @@ describe('formatAuditEventSummary', () => {
   it('summarizes client updates with resource name', () => {
     expect(
       formatAuditEventSummary({
-        actor_user_name: 'Luis',
+        actor_name: 'Luis',
         resource_type: 'client',
         resource_id: '9',
         action: 'updated',
@@ -86,7 +86,7 @@ describe('formatAuditEventSummary', () => {
 
   it('includes ticket field diffs in details for updates', () => {
     const summary = formatAuditEventSummary({
-      actor_user_name: 'Ana',
+      actor_name: 'Ana',
       resource_type: 'ticket',
       resource_id: '3',
       action: 'updated',

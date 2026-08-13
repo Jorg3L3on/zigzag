@@ -41,11 +41,14 @@ import {
   AUDIT_ACTIONS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
+} from '@/lib/audit-catalog';
+import {
   formatAuditActionLabel,
   formatAuditResourceTypeLabel,
   formatAuditResultLabel,
   formatAuditSourceLabel,
-} from '@/lib/audit-catalog';
+} from '@/lib/audit-labels';
+import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
   createAuditColumns,
   type AuditEventRow,
@@ -174,7 +177,11 @@ const AuditEventDetails = ({ event }: { event: AuditEventRow }) => {
 
 const AuditResourceLabel = ({ event }: { event: AuditEventRow }) => {
   const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
-  const label = formatAuditResourceLabel(event.resource_type, event.resource_id);
+  const label = formatAuditResourceLabel(
+    event.resource_type,
+    event.resource_id,
+    { actorName: event.actor_name },
+  );
 
   if (!link) {
     return <>{label}</>;
@@ -232,7 +239,7 @@ const buildFilterQuery = (input: {
     params.set('to', input.toDate);
   }
   if (input.incidentsOnly) {
-    params.set('incidents', '1');
+    params.set('incidents_only', '1');
   }
   return params;
 };
@@ -277,6 +284,8 @@ export const AuditList = () => {
   );
   const [incidentsOnly, setIncidentsOnly] = React.useState(
     () =>
+      searchParams.get('incidents_only') === '1' ||
+      searchParams.get('incidents_only') === 'true' ||
       searchParams.get('incidents') === '1' ||
       searchParams.get('incidents') === 'true',
   );
@@ -860,9 +869,10 @@ export const AuditList = () => {
                     <div>
                       <dt className="text-muted-foreground">Actor</dt>
                       <dd>
-                        {event.actor_user_name?.trim() ||
-                          event.actor_user_id ||
-                          '—'}
+                        {actorDisplayName(
+                          event.actor_user_id,
+                          event.actor_name,
+                        )}
                       </dd>
                     </div>
                     <div>

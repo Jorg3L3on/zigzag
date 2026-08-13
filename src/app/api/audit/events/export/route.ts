@@ -5,7 +5,7 @@ import {
   formatAuditResultLabel,
   formatAuditResourceTypeLabel,
   formatAuditSourceLabel,
-} from '@/lib/audit-catalog';
+} from '@/lib/audit-labels';
 import { formatAuditEventSummary } from '@/lib/audit-event-summary';
 import { exportAuditEvents } from '@/lib/audit-query';
 import { toCsv } from '@/lib/csv';
@@ -42,11 +42,14 @@ export async function GET(request: Request) {
 
     const items = await exportAuditEvents(search, exportFilters, 5000);
     const rows = items.map((item) => {
-      const summary = formatAuditEventSummary(item);
+      const summary = formatAuditEventSummary({
+        ...item,
+        actor_name: item.actor_name,
+      });
       return {
         ID: item.id,
         Cuándo: item.occurred_at,
-        Actor: item.actor_user_name ?? item.actor_user_id ?? '',
+        Actor: item.actor_name ?? item.actor_user_id ?? '',
         'Empresa actor':
           item.actor_company_name ?? item.actor_company_id ?? '',
         'Empresa objetivo':

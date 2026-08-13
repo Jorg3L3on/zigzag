@@ -3,18 +3,8 @@ import {
   assertAuditResourceType,
   assertAuditResult,
   AUDIT_ACTIONS,
-  AUDIT_ACTION_LABELS,
-  AUDIT_RESOURCE_LABELS,
   AUDIT_RESOURCE_TYPES,
   AUDIT_RESULTS,
-  AUDIT_RESULT_LABELS,
-  AUDIT_SOURCE_LABELS,
-  AUDIT_SOURCES,
-  formatAuditActionLabel,
-  formatAuditResourceTypeLabel,
-  formatAuditResultLabel,
-  formatAuditSourceLabel,
-  resolveAuditSearchCatalogMatches,
 } from '@/lib/audit-catalog';
 import {
   buildAuditPayload,
@@ -43,44 +33,6 @@ describe('audit-catalog', () => {
     expect(AUDIT_RESOURCE_TYPES).toContain('security');
     expect(AUDIT_ACTIONS).toContain('permission_denied');
     expect(AUDIT_RESULTS).toEqual(['success', 'denied', 'failed']);
-  });
-
-  it('maps every catalog action and result to a Spanish label', () => {
-    for (const action of AUDIT_ACTIONS) {
-      expect(AUDIT_ACTION_LABELS[action]).toBeTruthy();
-      expect(formatAuditActionLabel(action)).toBe(AUDIT_ACTION_LABELS[action]);
-    }
-    for (const result of AUDIT_RESULTS) {
-      expect(AUDIT_RESULT_LABELS[result]).toBeTruthy();
-      expect(formatAuditResultLabel(result)).toBe(AUDIT_RESULT_LABELS[result]);
-    }
-  });
-
-  it('maps every resource type and source to a Spanish label', () => {
-    for (const type of AUDIT_RESOURCE_TYPES) {
-      expect(AUDIT_RESOURCE_LABELS[type]).toBeTruthy();
-      expect(formatAuditResourceTypeLabel(type)).toBe(AUDIT_RESOURCE_LABELS[type]);
-    }
-    for (const source of AUDIT_SOURCES) {
-      expect(AUDIT_SOURCE_LABELS[source]).toBeTruthy();
-      expect(formatAuditSourceLabel(source)).toBe(AUDIT_SOURCE_LABELS[source]);
-    }
-  });
-
-  it('resolves Spanish search terms to catalog enum codes', () => {
-    expect(resolveAuditSearchCatalogMatches('Éxito').results).toContain('success');
-    expect(resolveAuditSearchCatalogMatches('Creación').actions).toContain(
-      'created',
-    );
-    expect(resolveAuditSearchCatalogMatches('Cliente').resourceTypes).toContain(
-      'client',
-    );
-    expect(resolveAuditSearchCatalogMatches('API').sources).toContain('api');
-  });
-
-  it('passes through unknown action and result codes', () => {
-    expect(formatAuditActionLabel('custom_action')).toBe('custom_action');
-    expect(formatAuditResultLabel('weird')).toBe('weird');
   });
 });
 
