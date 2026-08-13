@@ -36,6 +36,7 @@ import {
   listClientServiceSchedules,
   pauseClientServiceSchedule,
   resumeClientServiceSchedule,
+  snoozeClientServiceSchedule,
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
 import { useCompany } from '@/contexts/company-context';
@@ -58,6 +59,8 @@ import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { buildTelHref } from '@/lib/phone-links';
+import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { canCreateTicketFromSchedule, canReadServiceSchedules, canWriteServiceSchedules, needsSelectedCompanyForSchedules } from '@/lib/service-schedules-rbac';
 
 const FILTER_OPTIONS: Array<{ value: ScheduleFilterBucket; label: string }> = [
@@ -227,6 +230,29 @@ export const ServiceSchedulesList = () => {
     [loadSchedules, selectedCompany?.id],
   );
 
+  const handleSnooze = React.useCallback(
+    async (schedule: ClientServiceScheduleListItem) => {
+      setActionLoading(true);
+      const result = await snoozeClientServiceSchedule(
+        schedule.id,
+        7,
+        selectedCompany?.id ?? null,
+      );
+      setActionLoading(false);
+      if (result.success && result.data?.nextDueAt) {
+        const label = new Date(result.data.nextDueAt).toLocaleDateString(
+          'es-MX',
+          { day: 'numeric', month: 'long', year: 'numeric' },
+        );
+        toast.success(`Recordatorio pospuesto al ${label}`);
+        void loadSchedules();
+      } else {
+        toast.error(result.error || 'No se pudo posponer');
+      }
+    },
+    [loadSchedules, selectedCompany?.id],
+  );
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) {
       return;
@@ -251,12 +277,22 @@ export const ServiceSchedulesList = () => {
       createServiceSchedulesColumns({
         canWrite,
         canCreateTicket,
+        companyName: selectedCompany?.name ?? null,
         onEdit: handleEdit,
         onPause: (schedule) => void handlePause(schedule),
         onResume: (schedule) => void handleResume(schedule),
+        onSnooze: (schedule) => void handleSnooze(schedule),
         onDelete: setDeleteTarget,
       }),
-    [canCreateTicket, canWrite, handleEdit, handlePause, handleResume],
+    [
+      canCreateTicket,
+      canWrite,
+      handleEdit,
+      handlePause,
+      handleResume,
+      handleSnooze,
+      selectedCompany?.name,
+    ],
   );
 
   const table = useReactTable({
@@ -411,6 +447,46 @@ export const ServiceSchedulesList = () => {
                       </div>
                     </dl>
                     <div className="flex flex-wrap gap-2 pt-1">
+                      {(() => {
+                        const telHref = buildTelHref(schedule.clientPhone);
+                        const whatsapp = buildWhatsAppVisitShare({
+                          phone: schedule.clientPhone,
+                          clientName: schedule.clientName,
+                          serviceName: schedule.serviceName,
+                          nextDueAt: schedule.nextDueAt,
+                          companyName: selectedCompany?.name ?? null,
+                        });
+                        return (
+                          <>
+                            {telHref ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-lg"
+                                asChild
+                              >
+                                <a href={telHref}>Llamar</a>
+                              </Button>
+                            ) : null}
+                            {whatsapp ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-lg"
+                                asChild
+                              >
+                                <a
+                                  href={whatsapp.href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  WhatsApp
+                                </a>
+                              </Button>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                       {canCreateTicket ? (
                         <Button variant="outline" size="sm" className="rounded-lg" asChild>
                           <Link
@@ -418,6 +494,17 @@ export const ServiceSchedulesList = () => {
                           >
                             Crear ticket
                           </Link>
+                        </Button>
+                      ) : null}
+                      {canWrite && !schedule.pausedAt ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg"
+                          onClick={() => void handleSnooze(schedule)}
+                        >
+                          Posponer
                         </Button>
                       ) : null}
                       {canWrite ? (

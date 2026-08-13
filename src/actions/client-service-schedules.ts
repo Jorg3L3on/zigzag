@@ -27,6 +27,10 @@ import {
   type ScheduleIntervalUnit,
 } from '@/lib/schedule-date';
 import {
+  computeSnoozedNextDueAt,
+  DEFAULT_SCHEDULE_SNOOZE_DAYS,
+} from '@/lib/schedule-snooze';
+import {
   requireScheduleRead,
   requireScheduleWrite,
 } from '@/lib/service-schedules-rbac-server';
@@ -36,6 +40,7 @@ export type ClientServiceScheduleListItem = {
   id: number;
   clientId: number;
   clientName: string;
+  clientPhone: string | null;
   serviceId: number;
   serviceName: string;
   intervalValue: number;
@@ -82,13 +87,14 @@ const toIso = (value: Date | null): string | null =>
 
 const mapRowToListItem = (
   row: ClientServiceScheduleRow & {
-    client: { name: string };
+    client: { name: string; phone: string | null };
     service: { name: string };
   },
 ): ClientServiceScheduleListItem => ({
   id: row.id,
   clientId: row.client_id,
   clientName: row.client.name,
+  clientPhone: row.client.phone,
   serviceId: row.service_id,
   serviceName: row.service.name,
   intervalValue: row.interval_value,
@@ -442,6 +448,71 @@ export async function resumeClientServiceSchedule(
   } catch (error) {
     return handleCodedServerActionError(
       'clientServiceSchedules.resume',
+      'CL004',
+      error,
+    );
+  }
+}
+
+export async function snoozeClientServiceSchedule(
+  id: number,
+  days: number = DEFAULT_SCHEDULE_SNOOZE_DAYS,
+  companyId?: number | null,
+): Promise<{
+  success: boolean;
+  data?: { nextDueAt: string };
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireScheduleWrite(
+      companyId,
+    );
+    const now = new Date();
+
+    const existing = await db.query.clientServiceSchedule.findFirst({
+      where: and(
+        eq(clientServiceSchedule.id, id),
+        eq(clientServiceSchedule.company_id, effectiveCompanyId),
+        isNull(clientServiceSchedule.deleted_at),
+      ),
+    });
+    if (!existing) {
+      return buildActionError('CL001');
+    }
+
+    const nextDueAt = computeSnoozedNextDueAt(
+      existing.next_due_at,
+      days,
+      now,
+    );
+
+    const result = await db
+      .update(clientServiceSchedule)
+      .set({
+        next_due_at: nextDueAt,
+        paused_at: null,
+        pause_reason: null,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(clientServiceSchedule.id, id),
+          eq(clientServiceSchedule.company_id, effectiveCompanyId),
+          isNull(clientServiceSchedule.deleted_at),
+        ),
+      )
+      .returning({ id: clientServiceSchedule.id });
+
+    if (!result.length) {
+      return buildActionError('CL001');
+    }
+
+    revalidateSchedulePaths();
+    return { success: true, data: { nextDueAt: nextDueAt.toISOString() } };
+  } catch (error) {
+    return handleCodedServerActionError(
+      'clientServiceSchedules.snooze',
       'CL004',
       error,
     );
