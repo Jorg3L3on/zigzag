@@ -301,7 +301,9 @@ export const OperatorCompanyFleet = () => {
 
       <TripledFilterChips chips={filterChips} />
 
-      {listState.kind === 'loading' ? <TripledListLoadingState /> : null}
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState label="Cargando flota de empresas…" />
+      ) : null}
       {listState.kind === 'error' ? (
         <p className="text-sm text-destructive" role="alert">
           {listState.message}
