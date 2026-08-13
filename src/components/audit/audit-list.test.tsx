@@ -11,7 +11,7 @@ jest.mock('next/navigation', () => ({
   }),
   useSearchParams: () =>
     new URLSearchParams(
-      'search=denied&target_company_id=2&actor_user_id=7&resource_type=ticket&resource_id=42&action=updated&result=denied&from=2026-05-01&to=2026-05-31',
+      'search=denied&target_company_id=2&actor_user_id=7&resource_type=ticket&action=updated&result=denied&from=2026-05-01&to=2026-05-31',
     ),
 }));
 
@@ -60,7 +60,7 @@ describe('AuditList', () => {
     expect(params.get('target_company_id')).toBe('2');
     expect(params.get('actor_user_id')).toBe('7');
     expect(params.get('resource_type')).toBe('ticket');
-    expect(params.get('resource_id')).toBe('42');
+    expect(params.get('resource_id')).toBeNull();
     expect(params.get('action')).toBe('updated');
     expect(params.get('result')).toBe('denied');
     expect(params.get('from')).toBe('2026-05-01');
@@ -79,18 +79,44 @@ describe('AuditList', () => {
     expect(lastReplaceCall).toContain('target_company_id=2');
     expect(lastReplaceCall).toContain('actor_user_id=7');
     expect(lastReplaceCall).toContain('resource_type=ticket');
-    expect(lastReplaceCall).toContain('resource_id=42');
+    expect(lastReplaceCall).not.toContain('resource_id=');
     expect(lastReplaceCall).toContain('action=updated');
     expect(lastReplaceCall).toContain('result=denied');
     expect(lastReplaceCall).toContain('from=2026-05-01');
     expect(lastReplaceCall).toContain('to=2026-05-31');
   });
 
-  it('shows labeled date filters', async () => {
+  it('shows labeled date filters without a resource id filter on desktop', async () => {
     render(<AuditList />);
 
     expect(await screen.findByLabelText('Desde')).toBeInTheDocument();
     expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Filtrar por ID de recurso'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a mobile Filtros trigger', async () => {
+    render(<AuditList />);
+
+    expect(
+      await screen.findByRole('button', { name: /Abrir filtros/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows Todos los estatus and clears filters', async () => {
+    render(<AuditList />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Limpiar todos los filtros' }),
+    );
+
+    expect(await screen.findByText('Todos los estatus')).toBeInTheDocument();
+
+    await waitFor(() => {
+      const lastReplaceCall = replace.mock.calls.at(-1)?.[0] as string;
+      expect(lastReplaceCall).toBe('/audit');
+    });
   });
 
   it('renders investigation presets and export control', async () => {
@@ -101,34 +127,66 @@ describe('AuditList', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hoy' })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Solo incidentes' }),
+      screen.getByRole('button', { name: 'Últimos 7 días' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Solo denegados' }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Exportar auditoría a CSV' }),
     ).toBeInTheDocument();
   });
 
-  it('shows recoverable load errors', async () => {
+  it('shows IP metadata when expanding an event with request_meta', async () => {
     global.fetch = jest.fn(async () => ({
-      ok: false,
-      status: 500,
+      ok: true,
       json: async () => ({
-        success: false,
-        error: 'No se pudo cargar la auditoría',
-        errorType: 'server',
+        success: true,
+        data: {
+          items: [
+            {
+              id: 1,
+              occurred_at: '2026-08-10T09:00:00.000Z',
+              actor_user_id: '7',
+              actor_name: 'Chano',
+              actor_company_id: 2,
+              actor_company_name: 'Acme',
+              target_company_id: 2,
+              target_company_name: 'Acme',
+              resource_type: 'auth',
+              resource_id: 'user@example.com',
+              action: 'sign_in_failed',
+              result: 'failed',
+              source: 'auth',
+              payload: { email: 'user@example.com', reason: 'throttled' },
+              request_meta: {
+                ip: '203.0.113.10',
+                userAgent: 'Mozilla/5.0 TestAgent',
+                route: '/login',
+                method: 'POST',
+                requestId: 'req-test-1234',
+              },
+            },
+          ],
+          nextCursor: null,
+        },
       }),
     })) as jest.Mock;
 
     render(<AuditList />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Ocurrió un error del servidor',
-    );
+    expect(
+      await screen.findAllByText(/Inicio de sesión fallido/i),
+    ).not.toHaveLength(0);
 
-    await userEvent.click(screen.getByRole('button', { name: /Reintentar/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
+    expect(await screen.findAllByText('IP: 203.0.113.10')).not.toHaveLength(0);
+    expect(
+      screen.getAllByText(/UA: Mozilla\/5\.0 TestAgent/),
+    ).not.toHaveLength(0);
+    expect(
+      screen.getAllByText('Request ID: req-test-1234'),
+    ).not.toHaveLength(0);
   });
 });

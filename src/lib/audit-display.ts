@@ -1,5 +1,6 @@
 import type { AuditResourceType } from '@/lib/audit-catalog';
 import { formatAuditResourceTypeLabel } from '@/lib/audit-labels';
+import { resolveAuditResourceDisplayName } from '@/lib/audit-event-summary';
 
 const REDACTED = '[REDACTED]';
 
@@ -90,6 +91,8 @@ export const resolveAuditResourceLink = (
 
 export type FormatAuditResourceLabelOptions = {
   actorName?: string | null;
+  /** Payload-first human name (client, company, etc.). */
+  displayName?: string | null;
 };
 
 export const formatAuditResourceLabel = (
@@ -98,6 +101,7 @@ export const formatAuditResourceLabel = (
   options: FormatAuditResourceLabelOptions = {},
 ): string => {
   const typeLabel = formatAuditResourceTypeLabel(resourceType);
+  const displayName = options.displayName?.trim() || null;
 
   if (resourceType === 'auth') {
     const actorName = options.actorName?.trim();
@@ -114,13 +118,106 @@ export const formatAuditResourceLabel = (
     return resourceId ? `Seguridad · ${resourceId}` : 'Seguridad';
   }
 
+  if (resourceType === 'ticket' || resourceType === 'invoice') {
+    if (resourceId && isPlainPositiveInteger(resourceId)) {
+      const ticketPart =
+        resourceType === 'invoice'
+          ? `Recibo · Ticket #${resourceId}`
+          : `Ticket #${resourceId}`;
+      return displayName ? `${ticketPart} · ${displayName}` : ticketPart;
+    }
+    if (displayName) {
+      return resourceType === 'invoice'
+        ? `Recibo · ${displayName}`
+        : `Ticket · ${displayName}`;
+    }
+  }
+
   if (!resourceId) {
-    return typeLabel;
+    return displayName ? `${typeLabel} · ${displayName}` : typeLabel;
   }
 
   if (isPlainPositiveInteger(resourceId)) {
-    return `${typeLabel} #${resourceId}`;
+    const withId = `${typeLabel} #${resourceId}`;
+    return displayName ? `${withId} · ${displayName}` : withId;
   }
 
-  return `${typeLabel} · ${resourceId}`;
+  return displayName
+    ? `${typeLabel} · ${displayName}`
+    : `${typeLabel} · ${resourceId}`;
+};
+
+export type AuditSummaryResourcePresentation = {
+  /** Secondary line under Resumen; null when it would only repeat the title. */
+  subtitle: string | null;
+  href: string | null;
+  /** When true, wrap the summary title in the resource link (no separate blue line). */
+  linkTitle: boolean;
+};
+
+/**
+ * Decide whether Resumen needs a blue secondary line.
+ * When the title already mentions the ticket/resource id (and any display name),
+ * hide the subtitle and optionally link the title instead.
+ */
+export const resolveAuditSummaryResourcePresentation = (input: {
+  title: string;
+  resourceType: string;
+  resourceId: string | null | undefined;
+  payload?: Record<string, unknown> | null;
+  actorName?: string | null;
+}): AuditSummaryResourcePresentation => {
+  const link = resolveAuditResourceLink(input.resourceType, input.resourceId);
+  const displayName =
+    input.payload != null
+      ? resolveAuditResourceDisplayName(input.payload)
+      : null;
+  const fullLabel = formatAuditResourceLabel(
+    input.resourceType,
+    input.resourceId,
+    { actorName: input.actorName, displayName },
+  );
+
+  const resourceId = input.resourceId?.trim() || null;
+  const idInTitle = Boolean(
+    resourceId && input.title.includes(`#${resourceId}`),
+  );
+  const nameInTitle = Boolean(
+    displayName &&
+      (input.title.includes(`"${displayName}"`) ||
+        input.title.includes(displayName)),
+  );
+
+  if (idInTitle) {
+    if (displayName && !nameInTitle) {
+      const subtitle =
+        input.resourceType === 'ticket' || input.resourceType === 'invoice'
+          ? `Cliente · ${displayName}`
+          : displayName;
+      return {
+        subtitle,
+        href: link?.href ?? null,
+        linkTitle: false,
+      };
+    }
+    return {
+      subtitle: null,
+      href: link?.href ?? null,
+      linkTitle: Boolean(link?.href),
+    };
+  }
+
+  if (nameInTitle && !resourceId) {
+    return {
+      subtitle: null,
+      href: link?.href ?? null,
+      linkTitle: Boolean(link?.href),
+    };
+  }
+
+  return {
+    subtitle: fullLabel,
+    href: link?.href ?? null,
+    linkTitle: false,
+  };
 };

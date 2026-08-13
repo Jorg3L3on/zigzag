@@ -7,24 +7,22 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ClipboardList, Download, Search } from 'lucide-react';
-import Link from 'next/link';
+import { ClipboardList, Download, ListFilter, Search, X } from 'lucide-react';
 import { getCompanies } from '@/actions/companies';
 import { getUsers } from '@/actions/users';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from '@/components/ui/searchable-select';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -36,15 +34,7 @@ import {
 import { TripledEmptyState, TripledListLoadingState } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { FormattedDate } from '@/components/formatted-date';
-import { Badge } from '@/components/ui/badge';
 import {
-  AUDIT_ACTIONS,
-  AUDIT_RESOURCE_TYPES,
-  AUDIT_RESULTS,
-} from '@/lib/audit-catalog';
-import {
-  formatAuditActionLabel,
-  formatAuditResourceTypeLabel,
   formatAuditResultLabel,
   formatAuditSourceLabel,
 } from '@/lib/audit-labels';
@@ -53,17 +43,23 @@ import {
   createAuditColumns,
   type AuditEventRow,
 } from '@/components/audit/audit-columns';
-import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import { AuditSummaryCell } from '@/components/audit/audit-summary-cell';
 import {
-  formatAuditResourceLabel,
-  redactAuditDisplayValue,
-  resolveAuditResourceLink,
-} from '@/lib/audit-display';
+  AuditActionFilter,
+  AuditActorFilter,
+  AuditCompanyFilter,
+  AuditDateRangeFilter,
+  AuditResourceTypeFilter,
+  AuditResultFilter,
+} from '@/components/audit/audit-filter-fields';
+import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import { redactAuditDisplayValue } from '@/lib/audit-display';
 import {
   formatAuditEventSummary,
   hasRequestMetaContent,
 } from '@/lib/audit-event-summary';
 import { cn } from '@/lib/utils';
+import type { SearchableSelectOption } from '@/components/ui/searchable-select';
 
 type ActorUserOption = SearchableSelectOption & {
   companyId: number | null;
@@ -98,21 +94,38 @@ const AuditJsonBlock = ({
   </section>
 );
 
+const metaString = (
+  meta: Record<string, unknown> | null | undefined,
+  key: string,
+): string | null => {
+  const value = meta?.[key];
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const truncateUserAgent = (value: string, max = 72): string =>
+  value.length > max ? `${value.slice(0, max - 1)}…` : value;
+
 const AuditEventDetails = ({ event }: { event: AuditEventRow }) => {
   const [showJson, setShowJson] = React.useState(false);
   const summary = formatAuditEventSummary(event);
   const hasMeta = hasRequestMetaContent(event.request_meta);
-  const route =
-    typeof event.request_meta?.route === 'string'
-      ? event.request_meta.route
-      : null;
-  const method =
-    typeof event.request_meta?.method === 'string'
-      ? event.request_meta.method
-      : null;
+  const route = metaString(event.request_meta, 'route');
+  const method = metaString(event.request_meta, 'method');
+  const ip = metaString(event.request_meta, 'ip');
+  const userAgent = metaString(event.request_meta, 'userAgent');
+  const requestId = metaString(event.request_meta, 'requestId');
 
   return (
     <div className="space-y-4">
+      <section className="space-y-1">
+        <h4 className="text-sm font-medium">Resumen</h4>
+        <AuditSummaryCell event={event} className="space-y-1" />
+      </section>
+
       {summary.details.length > 0 ? (
         <section className="space-y-2">
           <h4 className="text-sm font-medium">Detalle</h4>
@@ -138,7 +151,27 @@ const AuditEventDetails = ({ event }: { event: AuditEventRow }) => {
                 Ruta: {route}
               </Badge>
             ) : null}
-            {!method && !route ? (
+            {ip ? (
+              <Badge variant="outline" aria-label={`IP ${ip}`}>
+                IP: {ip}
+              </Badge>
+            ) : null}
+            {requestId ? (
+              <Badge variant="outline" aria-label={`Request ID ${requestId}`}>
+                Request ID: {requestId}
+              </Badge>
+            ) : null}
+            {userAgent ? (
+              <Badge
+                variant="secondary"
+                className="max-w-full whitespace-normal text-left"
+                aria-label={`User agent ${userAgent}`}
+                title={userAgent}
+              >
+                UA: {truncateUserAgent(userAgent)}
+              </Badge>
+            ) : null}
+            {!method && !route && !ip && !requestId && !userAgent ? (
               <p className="text-sm text-muted-foreground">
                 Metadatos presentes (ver JSON).
               </p>
@@ -175,35 +208,11 @@ const AuditEventDetails = ({ event }: { event: AuditEventRow }) => {
   );
 };
 
-const AuditResourceLabel = ({ event }: { event: AuditEventRow }) => {
-  const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
-  const label = formatAuditResourceLabel(
-    event.resource_type,
-    event.resource_id,
-    { actorName: event.actor_name },
-  );
-
-  if (!link) {
-    return <>{label}</>;
-  }
-
-  return (
-    <Link
-      href={link.href}
-      className="font-medium text-primary underline-offset-4 hover:underline"
-      onPointerDown={(pointerEvent) => pointerEvent.stopPropagation()}
-    >
-      {link.label}
-    </Link>
-  );
-};
-
 const buildFilterQuery = (input: {
   search: string;
   targetCompanyId: string;
   actorUserId: string;
   resourceType: string;
-  resourceId: string;
   actionFilter: string;
   resultFilter: string;
   fromDate: string;
@@ -222,9 +231,6 @@ const buildFilterQuery = (input: {
   }
   if (input.resourceType !== 'all') {
     params.set('resource_type', input.resourceType);
-  }
-  if (input.resourceId.trim()) {
-    params.set('resource_id', input.resourceId.trim());
   }
   if (input.actionFilter !== 'all') {
     params.set('action', input.actionFilter);
@@ -266,9 +272,6 @@ export const AuditList = () => {
   );
   const [resourceType, setResourceType] = React.useState<string>(
     () => searchParams.get('resource_type') ?? 'all',
-  );
-  const [resourceId, setResourceId] = React.useState(
-    () => searchParams.get('resource_id') ?? '',
   );
   const [actionFilter, setActionFilter] = React.useState<string>(
     () => searchParams.get('action') ?? 'all',
@@ -399,7 +402,6 @@ export const AuditList = () => {
       targetCompanyId,
       actorUserId,
       resourceType,
-      resourceId,
       actionFilter,
       resultFilter,
       fromDate,
@@ -412,7 +414,6 @@ export const AuditList = () => {
       debouncedSearch,
       fromDate,
       incidentsOnly,
-      resourceId,
       resourceType,
       resultFilter,
       targetCompanyId,
@@ -533,12 +534,23 @@ export const AuditList = () => {
     targetCompanyId.trim() !== '' ||
     actorUserId.trim() !== '' ||
     resourceType !== 'all' ||
-    resourceId.trim() !== '' ||
     actionFilter !== 'all' ||
     resultFilter !== 'all' ||
     fromDate !== '' ||
     toDate !== '' ||
     incidentsOnly;
+
+  /** Sheet badge counts dense controls only (search + presets stay outside). */
+  const sheetFilterCount = [
+    targetCompanyId.trim() !== '',
+    actorUserId.trim() !== '',
+    resourceType !== 'all',
+    actionFilter !== 'all',
+    resultFilter !== 'all',
+    fromDate !== '',
+    toDate !== '',
+  ].filter(Boolean).length;
+
   const listState = resolveResourceListState({
     isLoading: loading && events.length === 0,
     loadError,
@@ -553,7 +565,6 @@ export const AuditList = () => {
     setTargetCompanyId('');
     setActorUserId('');
     setResourceType('all');
-    setResourceId('');
     setActionFilter('all');
     setResultFilter('all');
     setFromDate('');
@@ -615,8 +626,8 @@ export const AuditList = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
+      <div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -625,158 +636,231 @@ export const AuditList = () => {
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
             placeholder="Buscar por recurso, acción o resultado"
-            className="h-11 rounded-xl pl-9"
+            className="h-12 rounded-xl pl-9 sm:h-11"
             aria-label="Buscar eventos de auditoría"
           />
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void handleExportCsv()}
-          disabled={exporting || loading}
-          aria-label="Exportar auditoría a CSV"
-        >
-          <Download className="size-4" aria-hidden />
-          {exporting ? 'Exportando…' : 'Exportar CSV'}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 flex-1 rounded-xl sm:h-11 sm:flex-none"
+            onClick={() => void handleExportCsv()}
+            disabled={exporting || loading}
+            aria-label="Exportar auditoría a CSV"
+          >
+            <Download className="size-4" aria-hidden />
+            {exporting ? 'Exportando…' : 'Exportar CSV'}
+          </Button>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="relative h-12 w-12 shrink-0 rounded-xl bg-background shadow-none lg:hidden"
+                aria-label={
+                  sheetFilterCount > 0
+                    ? `Abrir filtros (${sheetFilterCount} activos)`
+                    : 'Abrir filtros'
+                }
+              >
+                <ListFilter className="h-4 w-4" aria-hidden />
+                {sheetFilterCount > 0 ? (
+                  <Badge
+                    variant="secondary"
+                    className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-[10px] leading-none"
+                  >
+                    {sheetFilterCount > 9 ? '9+' : sheetFilterCount}
+                  </Badge>
+                ) : null}
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              showCloseButton={false}
+              className="flex max-h-[min(90vh,720px)] flex-col rounded-t-2xl border-t p-0"
+            >
+              <div
+                className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted"
+                aria-hidden
+              />
+              <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-left">
+                <SheetTitle
+                  data-initial-focus
+                  tabIndex={-1}
+                  className="outline-none focus:outline-none"
+                >
+                  Filtros
+                </SheetTitle>
+                <SheetDescription>
+                  Empresa, actor, recurso, acción, estatus y fechas.
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
+                <AuditCompanyFilter
+                  layout="sheet"
+                  value={targetCompanyId}
+                  onChange={handleTargetCompanyChange}
+                  options={companyOptions}
+                />
+                <AuditActorFilter
+                  layout="sheet"
+                  value={actorUserId}
+                  onChange={setActorUserId}
+                  options={filteredActorUserOptions}
+                />
+                <AuditResourceTypeFilter
+                  layout="sheet"
+                  value={resourceType}
+                  onChange={setResourceType}
+                />
+                <AuditActionFilter
+                  layout="sheet"
+                  value={actionFilter}
+                  onChange={setActionFilter}
+                />
+                <AuditResultFilter
+                  layout="sheet"
+                  value={resultFilter}
+                  onChange={setResultFilter}
+                />
+                <AuditDateRangeFilter
+                  layout="sheet"
+                  fromDate={fromDate}
+                  toDate={toDate}
+                  onFromDateChange={setFromDate}
+                  onToDateChange={setToDate}
+                />
+                {sheetFilterCount > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={handleClearFilters}
+                    aria-label="Limpiar todos los filtros"
+                  >
+                    <X className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+                    Limpiar todos los filtros
+                  </Button>
+                ) : null}
+              </div>
+
+              <SheetFooter className="border-t bg-muted/30 px-4 py-3">
+                <SheetClose asChild>
+                  <Button type="button" size="lg" className="min-h-11 w-full">
+                    Listo
+                  </Button>
+                </SheetClose>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
-      <div
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label="Presets de investigación"
-      >
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(isTodayPreset)}
-          aria-pressed={isTodayPreset}
-          onClick={handlePresetToday}
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Presets de investigación"
         >
-          Hoy
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(isSevenDayPreset)}
-          aria-pressed={isSevenDayPreset}
-          onClick={handlePresetSevenDays}
-        >
-          Últimos 7 días
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(resultFilter === 'denied')}
-          aria-pressed={resultFilter === 'denied'}
-          onClick={handlePresetDenied}
-        >
-          Solo denegados
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(resultFilter === 'failed')}
-          aria-pressed={resultFilter === 'failed'}
-          onClick={handlePresetFailed}
-        >
-          Solo fallidos
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className={presetButtonClass(incidentsOnly)}
-          aria-pressed={incidentsOnly}
-          onClick={handlePresetIncidents}
-        >
-          Solo incidentes
-        </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(isTodayPreset)}
+            aria-pressed={isTodayPreset}
+            onClick={handlePresetToday}
+          >
+            Hoy
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(isSevenDayPreset)}
+            aria-pressed={isSevenDayPreset}
+            onClick={handlePresetSevenDays}
+          >
+            Últimos 7 días
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(resultFilter === 'denied')}
+            aria-pressed={resultFilter === 'denied'}
+            onClick={handlePresetDenied}
+          >
+            Solo denegados
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(resultFilter === 'failed')}
+            aria-pressed={resultFilter === 'failed'}
+            onClick={handlePresetFailed}
+          >
+            Solo fallidos
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={presetButtonClass(incidentsOnly)}
+            aria-pressed={incidentsOnly}
+            onClick={handlePresetIncidents}
+          >
+            Solo incidentes
+          </Button>
+        </div>
+        {hasActiveFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={handleClearFilters}
+            aria-label="Limpiar todos los filtros"
+          >
+            Limpiar filtros
+          </Button>
+        ) : null}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <SearchableSelect
+      <div className="hidden gap-2 lg:grid lg:grid-cols-3">
+        <AuditCompanyFilter
+          layout="desktop"
           value={targetCompanyId}
-          onValueChange={handleTargetCompanyChange}
+          onChange={handleTargetCompanyChange}
           options={companyOptions}
-          placeholder="Empresa objetivo"
-          searchPlaceholder="Buscar empresa…"
-          emptyText="No hay empresas"
-          aria-label="Filtrar por empresa objetivo"
         />
-        <SearchableSelect
+        <AuditActorFilter
+          layout="desktop"
           value={actorUserId}
-          onValueChange={setActorUserId}
+          onChange={setActorUserId}
           options={filteredActorUserOptions}
-          placeholder="Actor usuario"
-          searchPlaceholder="Buscar usuario…"
-          emptyText="No hay usuarios"
-          aria-label="Filtrar por actor usuario"
         />
-        <Select value={resourceType} onValueChange={setResourceType}>
-          <SelectTrigger aria-label="Filtrar por tipo de recurso">
-            <SelectValue placeholder="Recurso" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los recursos</SelectItem>
-            {AUDIT_RESOURCE_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {formatAuditResourceTypeLabel(type)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          value={resourceId}
-          onChange={(event) => setResourceId(event.target.value)}
-          placeholder="ID de recurso"
-          aria-label="Filtrar por ID de recurso"
+        <AuditResourceTypeFilter
+          layout="desktop"
+          value={resourceType}
+          onChange={setResourceType}
         />
-        <Select value={actionFilter} onValueChange={setActionFilter}>
-          <SelectTrigger aria-label="Filtrar por acción">
-            <SelectValue placeholder="Acción" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las acciones</SelectItem>
-            {AUDIT_ACTIONS.map((action) => (
-              <SelectItem key={action} value={action}>
-                {formatAuditActionLabel(action)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={resultFilter} onValueChange={setResultFilter}>
-          <SelectTrigger aria-label="Filtrar por resultado">
-            <SelectValue placeholder="Resultado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {AUDIT_RESULTS.map((result) => (
-              <SelectItem key={result} value={result}>
-                {formatAuditResultLabel(result)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="space-y-1.5">
-          <Label htmlFor="audit-from-date">Desde</Label>
-          <Input
-            id="audit-from-date"
-            type="date"
-            value={fromDate}
-            onChange={(event) => setFromDate(event.target.value)}
-            aria-label="Filtrar desde fecha"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="audit-to-date">Hasta</Label>
-          <Input
-            id="audit-to-date"
-            type="date"
-            value={toDate}
-            onChange={(event) => setToDate(event.target.value)}
-            aria-label="Filtrar hasta fecha"
-          />
-        </div>
+        <AuditActionFilter
+          layout="desktop"
+          value={actionFilter}
+          onChange={setActionFilter}
+        />
+        <AuditResultFilter
+          layout="desktop"
+          value={resultFilter}
+          onChange={setResultFilter}
+        />
+        <AuditDateRangeFilter
+          layout="desktop"
+          fromDate={fromDate}
+          toDate={toDate}
+          onFromDateChange={setFromDate}
+          onToDateChange={setToDate}
+        />
       </div>
 
       {listState.kind === 'loading' ? (
@@ -838,16 +922,16 @@ export const AuditList = () => {
                   aria-label={summary.title}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <p className="font-medium leading-snug">{summary.title}</p>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <AuditSummaryCell
+                        event={event}
+                        className="min-w-0 space-y-1"
+                      />
                       <p className="text-sm text-muted-foreground">
                         <FormattedDate
                           date={new Date(event.occurred_at)}
                           withTime
                         />
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        <AuditResourceLabel event={event} />
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">

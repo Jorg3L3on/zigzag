@@ -58,7 +58,25 @@ describe('audit-security helpers', () => {
         result: 'failed',
         email: 'user@example.com',
         reason: 'invalid_credentials',
+        requestMeta: {
+          ip: '1.2.3.4',
+          userAgent: 'Jest',
+          route: '/login',
+          method: 'POST',
+        },
       }),
     ).resolves.toBeUndefined();
+
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resource_type: 'auth',
+        action: 'sign_in_failed',
+        result: 'failed',
+        request_meta: expect.objectContaining({
+          ip: '1.2.3.4',
+          route: '/login',
+        }),
+      }),
+    );
   });
 });

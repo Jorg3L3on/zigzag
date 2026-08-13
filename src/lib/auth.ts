@@ -10,6 +10,12 @@ import {
   checkLoginRateLimit,
   resetLoginRateLimit,
 } from '@/lib/rate-limiter';
+import {
+  buildAuditRequestMetaFromHeaders,
+  buildAuditRequestMetaFromRequest,
+  getClientIpFromHeaders,
+} from '@/lib/audit-request-meta';
+
 const getClientIp = (request: unknown): string | null => {
   if (!request || typeof request !== 'object' || !('headers' in request)) {
     return null;
@@ -18,11 +24,24 @@ const getClientIp = (request: unknown): string | null => {
   if (!headers || typeof headers.get !== 'function') {
     return null;
   }
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0]?.trim() ?? null;
+  return getClientIpFromHeaders(headers);
+};
+
+const authMetaFromAuthorizeRequest = (
+  request: unknown,
+): Record<string, string> | undefined => {
+  if (!request || typeof request !== 'object' || !('headers' in request)) {
+    return undefined;
   }
-  return headers.get('x-real-ip');
+  const headers = (request as { headers?: Headers }).headers;
+  if (!headers || typeof headers.get !== 'function') {
+    return undefined;
+  }
+  return buildAuditRequestMetaFromRequest({
+    headers,
+    method: 'POST',
+    url: 'https://local/login',
+  });
 };
 
 export const {
@@ -62,11 +81,14 @@ export const {
       },
       async authorize(credentials, request) {
         try {
+          const requestMeta = authMetaFromAuthorizeRequest(request);
+
           if (!credentials?.email || !credentials?.password) {
             await recordAuthAuditEvent({
               action: 'sign_in_failed',
               result: 'failed',
               reason: 'missing_credentials',
+              requestMeta,
             });
             return null;
           }
@@ -82,6 +104,7 @@ export const {
               result: 'failed',
               email,
               reason: 'throttled',
+              requestMeta,
             });
             return null;
           }
@@ -99,6 +122,7 @@ export const {
               result: 'failed',
               email,
               reason: 'invalid_credentials',
+              requestMeta,
             });
             return null;
           }
@@ -113,6 +137,7 @@ export const {
               result: 'failed',
               email,
               reason: 'inactive_company',
+              requestMeta,
             });
             return null;
           }
@@ -124,6 +149,7 @@ export const {
               result: 'failed',
               email,
               reason: 'invalid_credentials',
+              requestMeta,
             });
             return null;
           }
@@ -173,6 +199,10 @@ export const {
       if (!user?.id) {
         return;
       }
+      const requestMeta = await buildAuditRequestMetaFromHeaders({
+        route: '/login',
+        method: 'POST',
+      });
       await recordAuthAuditEvent({
         action: 'signed_in',
         result: 'success',
@@ -184,6 +214,7 @@ export const {
         targetCompanyId: user.company_id ?? null,
         resourceId: user.id,
         email: user.email ?? null,
+        requestMeta,
       });
     },
     async signOut(message) {
@@ -192,6 +223,10 @@ export const {
       if (!userId) {
         return;
       }
+      const requestMeta = await buildAuditRequestMetaFromHeaders({
+        route: '/logout',
+        method: 'POST',
+      });
       await recordAuthAuditEvent({
         action: 'signed_out',
         result: 'success',
@@ -201,6 +236,7 @@ export const {
           companyIsSystem: Boolean(token?.company_is_system),
         },
         resourceId: String(userId),
+        requestMeta,
       });
     },
   },

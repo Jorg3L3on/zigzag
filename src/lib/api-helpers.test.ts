@@ -127,10 +127,10 @@ describe('api helpers', () => {
       reason: 'invalid_company_context',
       actorCompanyId: 10,
       requestedCompanyId: 99,
-      requestMeta: {
+      requestMeta: expect.objectContaining({
         route: '/api/tickets/1',
         method: 'PATCH',
-      },
+      }),
     });
   });
 });

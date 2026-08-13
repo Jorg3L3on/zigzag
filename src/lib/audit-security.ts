@@ -24,6 +24,7 @@ export const recordAuthAuditEvent = async (input: {
   resourceId?: string | null;
   email?: string | null;
   reason?: AuthAuditFailureReason;
+  requestMeta?: Record<string, unknown>;
 }): Promise<void> => {
   await recordAuditEvent(db, {
     actor: input.actor ?? null,
@@ -37,6 +38,7 @@ export const recordAuthAuditEvent = async (input: {
       ...(input.email ? { email: input.email } : {}),
       ...(input.reason ? { reason: input.reason } : {}),
     },
+    requestMeta: input.requestMeta,
   });
 };
 

@@ -79,19 +79,38 @@ const denialReasonLabel = (reason: string | null): string | null => {
   return reason;
 };
 
-const resourceDisplayName = (
-  payload: Record<string, unknown> | null,
+/** Payload-first display name for resource rows (no DB joins). */
+export const resolveAuditResourceDisplayName = (
+  payload: Record<string, unknown> | null | undefined,
 ): string | null => {
-  const after = asRecord(payload?.after);
-  const before = asRecord(payload?.before);
-  const ticket = asRecord(payload?.ticket);
+  if (!payload) {
+    return null;
+  }
+  const after = asRecord(payload.after);
+  const before = asRecord(payload.before);
+  const ticket = asRecord(payload.ticket);
   return pickName(
     after?.name,
     before?.name,
     ticket?.client_name,
     after?.client_name,
     before?.client_name,
+    payload.client_name,
+    payload.name,
   );
+};
+
+const resourceDisplayName = resolveAuditResourceDisplayName;
+
+const ticketTitleSuffix = (
+  resourceId: string | null,
+  clientName: string | null,
+): string => {
+  const ref = formatTicketRef(resourceId);
+  if (!clientName) {
+    return ref;
+  }
+  return `${ref} (Cliente "${clientName}")`;
 };
 
 const quotedName = (name: string | null, fallback: string): string =>
@@ -121,7 +140,6 @@ export const formatAuditEventSummary = (
   const payload = input.payload;
   const name = resourceDisplayName(payload);
   const details: string[] = [];
-  const ticketRef = formatTicketRef(input.resource_id);
 
   if (input.action === 'sign_in_failed' || (input.resource_type === 'auth' && input.result === 'failed')) {
     const email = asString(payload?.email);
@@ -180,66 +198,80 @@ export const formatAuditEventSummary = (
   }
 
   if (input.resource_type === 'ticket') {
+    const clientName = pickName(
+      asRecord(payload?.ticket)?.client_name,
+      asRecord(payload?.after)?.client_name,
+      asRecord(payload?.before)?.client_name,
+      payload?.client_name,
+    );
+    const ticketWithClient = ticketTitleSuffix(input.resource_id, clientName);
+
     if (input.action === 'updated') {
       details.push(...buildTicketAuditUpdateDetails(payload));
     }
 
     if (input.action === 'created') {
-      const client = pickName(
-        asRecord(payload?.ticket)?.client_name,
-        asRecord(payload?.after)?.client_name,
-      );
-      if (client) {
-        details.push(`Cliente: ${client}`);
-      }
-      return { title: `${who} creó el ticket ${ticketRef}`, details };
+      return { title: `${who} creó el ticket ${ticketWithClient}`, details };
     }
     if (input.action === 'updated') {
-      return { title: `${who} actualizó el ticket ${ticketRef}`, details };
+      return {
+        title: `${who} actualizó el ticket ${ticketWithClient}`,
+        details,
+      };
     }
     if (input.action === 'deleted') {
-      return { title: `${who} eliminó el ticket ${ticketRef}`, details };
+      return {
+        title: `${who} eliminó el ticket ${ticketWithClient}`,
+        details,
+      };
     }
     if (input.action === 'finished') {
       const amount = extractTicketAuditAmount('finished', payload);
       if (amount != null && amount > 0) {
         return {
-          title: `${who} finalizó el ticket ${ticketRef} con un pago de ${formatCompactCurrency(amount)}`,
+          title: `${who} finalizó el ticket ${ticketWithClient} con un pago de ${formatCompactCurrency(amount)}`,
           details,
         };
       }
-      return { title: `${who} finalizó el ticket ${ticketRef}`, details };
+      return {
+        title: `${who} finalizó el ticket ${ticketWithClient}`,
+        details,
+      };
     }
     if (input.action === 'payment_collected') {
       const amount = extractTicketAuditAmount('payment_collected', payload);
       if (amount != null) {
         return {
-          title: `${who} registró un pago de ${formatCompactCurrency(amount)} en el ticket ${ticketRef}`,
+          title: `${who} registró un pago de ${formatCompactCurrency(amount)} en el ticket ${ticketWithClient}`,
           details,
         };
       }
       return {
-        title: `${who} registró un pago en el ticket ${ticketRef}`,
+        title: `${who} registró un pago en el ticket ${ticketWithClient}`,
         details,
       };
     }
     if (input.action === 'presupuesto_converted') {
       return {
-        title: `${who} convirtió el presupuesto ${ticketRef}`,
+        title: `${who} convirtió el presupuesto ${ticketWithClient}`,
         details,
       };
     }
     if (input.action === 'presupuesto_canceled') {
       return {
-        title: `${who} canceló el presupuesto ${ticketRef}`,
+        title: `${who} canceló el presupuesto ${ticketWithClient}`,
         details,
       };
     }
   }
 
   if (input.resource_type === 'invoice' && input.action === 'generated') {
+    const clientName = pickName(
+      asRecord(payload?.ticket)?.client_name,
+      payload?.client_name,
+    );
     return {
-      title: `${who} generó el recibo del ticket ${ticketRef}`,
+      title: `${who} generó el recibo del ticket ${ticketTitleSuffix(input.resource_id, clientName)}`,
       details: ['Comprobante PDF generado'],
     };
   }
