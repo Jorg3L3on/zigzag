@@ -23,7 +23,7 @@ jest.mock('@/lib/db', () => ({
     query: {
       client: { findFirst: jest.fn() },
       service: { findFirst: jest.fn() },
-      ticket: { findFirst: jest.Mock },
+      ticket: { findFirst: jest.fn() },
     },
   },
 }));
