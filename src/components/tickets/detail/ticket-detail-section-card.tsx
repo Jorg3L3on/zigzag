@@ -35,6 +35,8 @@ type TicketDetailSectionHeadingProps = {
   id: string;
   title: string;
   description?: string;
+  /** Optional count shown as “Title · N”. */
+  count?: number;
   action?: ReactNode;
 };
 
@@ -42,6 +44,7 @@ export const TicketDetailSectionHeading = ({
   id,
   title,
   description,
+  count,
   action,
 }: TicketDetailSectionHeadingProps) => {
   return (
@@ -52,6 +55,12 @@ export const TicketDetailSectionHeading = ({
           className="text-base font-semibold tracking-tight text-foreground"
         >
           {title}
+          {typeof count === 'number' ? (
+            <span className="font-normal text-muted-foreground">
+              {' '}
+              · {count}
+            </span>
+          ) : null}
         </h2>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>

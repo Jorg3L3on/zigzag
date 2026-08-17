@@ -110,16 +110,15 @@ const finishWithPartialPayment = async (
   ticketId: string,
   partialAmount: number,
 ) => {
-  await page.getByRole('button', { name: 'Continuar a revisión' }).click();
-  await page.waitForURL(
-    new RegExp(`/tickets/${ticketId}/edit\\?step=review`),
-    { timeout: 30_000 },
-  );
+  await page.getByRole('button', { name: 'Continuar al detalle' }).click();
+  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
+    timeout: 30_000,
+  });
 
   await page.getByRole('button', { name: 'Pago parcial' }).click();
-  await page.locator('#paid-amount').fill(String(partialAmount));
+  await page.locator('#detail-paid-amount').fill(String(partialAmount));
 
-  await page.getByRole('button', { name: 'Guardar y generar PDF' }).click();
+  await page.getByRole('button', { name: 'Finalizar y generar recibo' }).click();
 
   const schedulesDialog = page.getByRole('dialog', {
     name: 'Recordatorios de servicio',
@@ -130,9 +129,8 @@ const finishWithPartialPayment = async (
   await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
     timeout: 60_000,
   });
-  await expect(
-    page.locator('[class*="bg-emerald"]').filter({ hasText: 'Finalizado' }),
-  ).toBeVisible();
+  // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
+  await expect(page.getByText(/Finalizado ·/)).toBeVisible();
   await expect(page.getByText('Pago parcial').first()).toBeVisible();
 };
 

@@ -56,7 +56,7 @@ export const TicketPaymentCollectSection = ({
 
   const balanceDue = getTicketBalanceDue(total, paid);
   const paymentStatus = getTicketPaymentStatus(total, paid);
-  const showCollectUi = finished && paymentStatus === 'partial' && canCollect;
+  const showCollectUi = finished && balanceDue > 0 && canCollect;
 
   const parseAmount = (value: string): number => {
     if (!value.trim()) return 0;
@@ -120,7 +120,7 @@ export const TicketPaymentCollectSection = ({
   }
 
   return (
-    <div className="space-y-4" id="cobranza">
+    <div className="space-y-4">
       {paymentStatus === 'paid' ? (
         <div className="grid gap-3 rounded-lg bg-muted/40 p-4 sm:grid-cols-2">
           <div className="space-y-1">

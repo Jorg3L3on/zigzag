@@ -92,7 +92,7 @@ export const TicketServicesTable = ({
         disabled={ticketServices.length === 0}
         onClick={onContinue}
       >
-        Continuar a revisión
+        Continuar al detalle
       </Button>
     </div>
   </>
