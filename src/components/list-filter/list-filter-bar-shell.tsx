@@ -27,6 +27,7 @@ export type ListFilterBarShellProps = {
   searchPlaceholder: string;
   searchAriaLabel: string;
   searchClassName?: string;
+  searchContainerClassName?: string;
   searchTrailing?: ReactNode;
   sheetFilterCount: number;
   sheetDescription: string;
@@ -45,6 +46,7 @@ export const ListFilterBarShell = ({
   searchPlaceholder,
   searchAriaLabel,
   searchClassName = 'h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:bg-background',
+  searchContainerClassName = 'relative min-w-0 flex-1 lg:max-w-md',
   searchTrailing,
   sheetFilterCount,
   sheetDescription,
@@ -58,7 +60,7 @@ export const ListFilterBarShell = ({
 }: ListFilterBarShellProps) => (
   <div className="flex flex-col gap-3">
     <div className="flex min-w-0 w-full gap-2">
-      <div className="relative min-w-0 flex-1 lg:max-w-md">
+      <div className={searchContainerClassName}>
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
