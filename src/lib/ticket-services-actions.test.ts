@@ -6,7 +6,7 @@ import {
 } from '@/actions/ticket-services';
 import { invalidateCompanyCache } from '@/lib/cache';
 import { db } from '@/lib/db';
-import { requireActionPermission } from '@/lib/security';
+import { requireTenantActionPermission } from '@/lib/security';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import {
   IDOR_RESOURCES_A,
@@ -44,7 +44,7 @@ jest.mock('@/lib/db', () => ({
 }));
 
 jest.mock('@/lib/security', () => ({
-  requireActionPermission: jest.fn(),
+  requireTenantActionPermission: jest.fn(),
 }));
 
 jest.mock('@/lib/ticket-financials', () => ({
@@ -67,8 +67,10 @@ const mockDb = db as unknown as {
   transaction: jest.Mock;
 };
 
-const mockRequireActionPermission =
-  requireActionPermission as jest.MockedFunction<typeof requireActionPermission>;
+const mockRequireTenantActionPermission =
+  requireTenantActionPermission as jest.MockedFunction<
+    typeof requireTenantActionPermission
+  >;
 
 describe('ticket-services actions', () => {
   let consoleErrorSpy: jest.SpyInstance;
@@ -76,7 +78,7 @@ describe('ticket-services actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockRequireActionPermission.mockResolvedValue({
+    mockRequireTenantActionPermission.mockResolvedValue({
       context: { userId: '1', companyId: 10, companyIsSystem: false },
       companyId: 10,
     });
@@ -106,7 +108,10 @@ describe('ticket-services actions', () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
-    expect(mockRequireActionPermission).toHaveBeenCalledWith('tickets.read');
+    expect(mockRequireTenantActionPermission).toHaveBeenCalledWith(
+      'tickets.read',
+      undefined,
+    );
   });
 
   it('denies access when the ticket belongs to another company', async () => {
@@ -166,12 +171,12 @@ describe('cross-tenant IDOR — ticket-services actions', () => {
         ),
     ],
   ])('%s denies cross-tenant company context', async (_name, call) => {
-    mockActionCrossTenantDenied(mockRequireActionPermission as unknown as jest.Mock);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission as unknown as jest.Mock);
 
     const result = await call();
 
     expect(result.success).toBe(false);
-    expect(mockRequireActionPermission).toHaveBeenCalled();
+    expect(mockRequireTenantActionPermission).toHaveBeenCalled();
   });
 });
 
@@ -179,7 +184,7 @@ describe('ticket-services money validation (TCI-02)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockRequireActionPermission.mockResolvedValue({
+    mockRequireTenantActionPermission.mockResolvedValue({
       context: { userId: '1', companyId: 10, companyIsSystem: false },
       companyId: 10,
     });
@@ -201,7 +206,7 @@ describe('ticket-services money validation (TCI-02)', () => {
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe('TS006');
     expect(result.errorType).toBe('validation');
-    expect(mockRequireActionPermission).not.toHaveBeenCalled();
+    expect(mockRequireTenantActionPermission).not.toHaveBeenCalled();
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 

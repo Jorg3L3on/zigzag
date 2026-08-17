@@ -564,7 +564,7 @@ describe('cross-tenant IDOR — ticket actions', () => {
     const result = await deleteTicket(IDOR_RESOURCES_A.ticketId);
 
     expect(result.success).toBe(false);
-    expect(mockRequireTicketWrite).toHaveBeenCalledWith();
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith(undefined);
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 
@@ -572,7 +572,7 @@ describe('cross-tenant IDOR — ticket actions', () => {
     const result = await finishTicket(IDOR_RESOURCES_A.ticketId, 100, 50);
 
     expect(result.success).toBe(false);
-    expect(mockRequireTicketWrite).toHaveBeenCalledWith();
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith(undefined);
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 
@@ -580,7 +580,7 @@ describe('cross-tenant IDOR — ticket actions', () => {
     const result = await applyTicketPayment(IDOR_RESOURCES_A.ticketId, 10);
 
     expect(result.success).toBe(false);
-    expect(mockRequireTicketWrite).toHaveBeenCalledWith();
+    expect(mockRequireTicketWrite).toHaveBeenCalledWith(undefined);
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 

@@ -9,7 +9,11 @@ import {
   updateClient,
 } from '@/actions/clients';
 import { db } from '@/lib/db';
-import { requireActionPermission } from '@/lib/security';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireTenantActionPermission,
+} from '@/lib/security';
 import {
   IDOR_COMPANY_A,
   IDOR_RESOURCES_A,
@@ -28,7 +32,9 @@ jest.mock('@/lib/db', () => ({
 }));
 
 jest.mock('@/lib/security', () => ({
+  requireActionAuth: jest.fn(),
   requireActionPermission: jest.fn(),
+  requireTenantActionPermission: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
@@ -37,9 +43,16 @@ jest.mock('@/lib/client-service-schedule-lifecycle', () => ({
   pauseSchedulesForClient: jest.fn(),
 }));
 
+const mockRequireActionAuth = requireActionAuth as jest.MockedFunction<
+  typeof requireActionAuth
+>;
 const mockRequireActionPermission = requireActionPermission as jest.MockedFunction<
   typeof requireActionPermission
 >;
+const mockRequireTenantActionPermission =
+  requireTenantActionPermission as jest.MockedFunction<
+    typeof requireTenantActionPermission
+  >;
 const mockDb = db as unknown as {
   select: jest.Mock;
   insert: jest.Mock;
@@ -86,7 +99,7 @@ describe('cross-tenant IDOR — client actions', () => {
       () => deleteClient(IDOR_RESOURCES_A.clientId, IDOR_COMPANY_A.id),
     ],
   ])('%s denies cross-tenant company context', async (_name, call) => {
-    mockActionCrossTenantDenied(mockRequireActionPermission);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission);
 
     const result = await call();
 
@@ -96,7 +109,12 @@ describe('cross-tenant IDOR — client actions', () => {
   });
 
   it('getClient returns not found for foreign client id in tenant scope', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockRequireActionAuth.mockResolvedValue({
+      userId: '201',
+      companyId: IDOR_COMPANY_A.id,
+      companyIsSystem: false,
+    });
+    mockActionAuthorized(mockRequireActionPermission, IDOR_COMPANY_A.id);
     mockDb.select.mockReturnValue(mockSelectChain([]));
 
     const result = await getClient(IDOR_RESOURCES_A.clientId);
@@ -106,7 +124,7 @@ describe('cross-tenant IDOR — client actions', () => {
   });
 
   it('getClientsForExport uses authorized tenant scope only', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
     mockDb.select.mockReturnValue(mockSelectChain([]));
 
     const result = await getClientsForExport();
@@ -116,7 +134,7 @@ describe('cross-tenant IDOR — client actions', () => {
   });
 
   it('bulkImportClients denies cross-tenant write context', async () => {
-    mockActionCrossTenantDenied(mockRequireActionPermission);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission);
 
     const result = await bulkImportClients([{ name: 'X', email: '', phone: '' }]);
 
