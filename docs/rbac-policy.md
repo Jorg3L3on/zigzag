@@ -7,6 +7,12 @@ business workflow.
 
 - Server actions must call `requireActionPermission()` or an equivalent helper
   that calls `checkPermission()`.
+- For **tenant resources** (clients, services, tickets, ticket-services, trash,
+  CSV import/export, and similar), mutations and tenant-scoped reads must use
+  `requireTenantActionPermission()` (or `requireTicketWrite` /
+  `requireTenantTicketRead`). System operators **must** pass the selected
+  company id; omitting it rejects with missing company context instead of
+  falling back to the master/session company.
 - API routes must call `requireApiPermission()` or `requireSession()` before
   reading or mutating tenant data.
 - Dashboard routes must be protected by `requirePagePermission()` in the page or
@@ -23,6 +29,10 @@ other users are restricted to their own `company_id`.
   permission, but it is covered by the dashboard active-session guard.
 - `/dashboard/forbidden` is authenticated and intentionally reachable after a
   failed page permission check.
+- RSC loaders such as `getTicketById` / `getClient` / `getService` may allow a
+  system operator to load a resource by id without a selected company (no
+  silent write against master). Mutations still require selected company via
+  `requireTenantActionPermission`.
 
 ## Edge-role policy
 
