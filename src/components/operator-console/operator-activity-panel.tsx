@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -87,8 +86,18 @@ const AuditJsonBlock = ({
   </section>
 );
 
-const AuditResourceLink = ({ event }: { event: AuditEventRow }) => {
-  const link = resolveAuditResourceLink(event.resource_type, event.resource_id);
+const AuditResourceLink = ({
+  event,
+  tenantCompanyId,
+}: {
+  event: AuditEventRow;
+  tenantCompanyId?: number | null;
+}) => {
+  const link = resolveAuditResourceLink(
+    event.resource_type,
+    event.resource_id,
+    tenantCompanyId != null ? { tenantCompanyId } : undefined,
+  );
   const label = formatAuditResourceLabel(event.resource_type, event.resource_id, {
     actorName: event.actor_name,
   });
@@ -333,8 +342,9 @@ export const OperatorActivityPanel = () => {
         expandedId,
         onToggleExpand: handleToggleExpand,
         showIncidentColumn: hasIncidents,
+        tenantCompanyId: companyId ?? undefined,
       }),
-    [expandedId, handleToggleExpand, hasIncidents],
+    [companyId, expandedId, handleToggleExpand, hasIncidents],
   );
 
   const table = useReactTable({
@@ -484,7 +494,10 @@ export const OperatorActivityPanel = () => {
                         ) : null}
                       </div>
                       <p className="mt-2 text-sm">
-                        <AuditResourceLink event={event} />
+                        <AuditResourceLink
+                          event={event}
+                          tenantCompanyId={companyId}
+                        />
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Actor:{' '}
@@ -532,14 +545,17 @@ export const OperatorActivityPanel = () => {
                   ACTIVITY_TABLE_SCROLL_CLASS,
                 )}
               >
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_hsl(var(--border))]">
+                <table className="w-full caption-bottom text-sm">
+                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_hsl(var(--border))] [&_tr]:border-b">
                     {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
+                      <TableRow key={headerGroup.id} className="hover:bg-transparent">
                         {headerGroup.headers.map((header) => (
                           <TableHead
                             key={header.id}
-                            className={header.id === 'expand' ? 'w-8' : undefined}
+                            className={cn(
+                              'bg-card',
+                              header.id === 'expand' ? 'w-8' : undefined,
+                            )}
                           >
                             {header.isPlaceholder
                               ? null
@@ -601,7 +617,7 @@ export const OperatorActivityPanel = () => {
                       );
                     })}
                   </TableBody>
-                </Table>
+                </table>
               </div>
 
               {nextCursor != null ? (

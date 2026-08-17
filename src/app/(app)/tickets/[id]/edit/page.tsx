@@ -12,16 +12,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { updateTicket, finishTicket, getTicketById } from '@/actions/tickets';
-import {
-  listClientServiceSchedulesForClient,
-  upsertClientServiceSchedule,
-} from '@/actions/client-service-schedules';
-import {
-  TicketFinishSchedulesDialog,
-  type TicketFinishScheduleLine,
-} from '@/components/service-schedules/ticket-finish-schedules-dialog';
-import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
+import { updateTicket, getTicketById } from '@/actions/tickets';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -39,12 +30,7 @@ import {
   Loader2,
   CheckCircle2,
   PlusCircle,
-  FileText,
   Download,
-  CircleCheck,
-  Circle,
-  Minus,
-  Plus,
 } from 'lucide-react';
 import * as React from 'react';
 import {
@@ -131,6 +117,12 @@ export default function EditTicketPage({
   const resolvedParams = React.use(params);
   const resolvedSearchParams = React.use(searchParams);
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (resolvedSearchParams.step === 'review') {
+      router.replace(`/tickets/${resolvedParams.id}`);
+    }
+  }, [resolvedParams.id, resolvedSearchParams.step, router]);
   const pathname = usePathname();
   const { selectedCompany } = useCompany();
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
@@ -138,13 +130,7 @@ export default function EditTicketPage({
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [ticketCompany, setTicketCompany] = useState<Company | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isFullyPaid, setIsFullyPaid] = useState(true);
-  const [paidAmountInput, setPaidAmountInput] = useState('');
   const [hasLoadedTicket, setHasLoadedTicket] = useState(false);
-  const [schedulesDialogOpen, setSchedulesDialogOpen] = useState(false);
-  const [existingSchedules, setExistingSchedules] = useState<
-    ClientServiceScheduleListItem[]
-  >([]);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -229,19 +215,6 @@ export default function EditTicketPage({
             })),
           );
           setIsFinished(data.finished);
-          if (paidFromTicket !== null) {
-            const normalizedPaid = Math.max(paidFromTicket, 0);
-            setIsFullyPaid(
-              draft?.isFullyPaid ??
-                (normalizedPaid >= totalFromTicket && totalFromTicket > 0),
-            );
-            setPaidAmountInput(
-              draft?.paidAmountInput ?? normalizedPaid.toString(),
-            );
-          } else {
-            setIsFullyPaid(draft?.isFullyPaid ?? true);
-            setPaidAmountInput(draft?.paidAmountInput ?? '');
-          }
           setHasLoadedTicket(true);
 
           if (isTicketFullyPaid(totalFromTicket, paidFromTicket)) {
@@ -302,13 +275,11 @@ export default function EditTicketPage({
         email: values.email,
         document: values.document,
         ticket_date: values.ticket_date,
-        isFullyPaid,
-        paidAmountInput,
       });
     });
 
     return () => subscription.unsubscribe();
-  }, [draftKey, form, hasLoadedTicket, isFinished, isFullyPaid, paidAmountInput]);
+  }, [draftKey, form, hasLoadedTicket, isFinished]);
 
   useEffect(() => {
     if (!hasLoadedTicket || isFinished) return;
@@ -320,10 +291,8 @@ export default function EditTicketPage({
       email: form.getValues('email'),
       document: form.getValues('document'),
       ticket_date: form.getValues('ticket_date'),
-      isFullyPaid,
-      paidAmountInput,
     });
-  }, [draftKey, form, hasLoadedTicket, isFinished, isFullyPaid, paidAmountInput]);
+  }, [draftKey, form, hasLoadedTicket, isFinished]);
 
   const calculateTotal = () => {
     return ticketServices.reduce(
@@ -342,22 +311,6 @@ export default function EditTicketPage({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
-  };
-
-  const parsePaidInput = (value: string): number => {
-    if (!value.trim()) return 0;
-    const parsed = Number.parseFloat(value);
-    if (!Number.isFinite(parsed)) return 0;
-    return Math.max(parsed, 0);
-  };
-
-  const updatePaidAmountInput = (nextValue: number) => {
-    setPaidAmountInput(String(Math.max(Number(nextValue.toFixed(2)), 0)));
-  };
-
-  const getFinalPaidAmount = (): number => {
-    if (isFullyPaid) return calculateTotal();
-    return parsePaidInput(paidAmountInput);
   };
 
   async function onSubmit(values: FormValues) {
@@ -405,153 +358,6 @@ export default function EditTicketPage({
       downloadFileName: buildTicketPdfFileName(),
     });
 
-  const distinctServiceLines = React.useMemo(() => {
-    const byService = new Map<number, string>();
-    for (const line of ticketServices) {
-      byService.set(line.service_id, line.service.name);
-    }
-    return Array.from(byService.entries()).map(([serviceId, serviceName]) => ({
-      serviceId,
-      serviceName,
-    }));
-  }, [ticketServices]);
-
-  const executeFinishAndDownload = async (): Promise<boolean> => {
-    const finalPaidAmount = getFinalPaidAmount();
-    const total = calculateTotal();
-
-    if (!isFullyPaid && finalPaidAmount > total) {
-      toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
-      return false;
-    }
-
-    const result = await finishTicket(
-      Number(resolvedParams.id),
-      total,
-      finalPaidAmount,
-      selectedCompany?.id ?? ticketCompany?.id ?? null,
-    );
-
-    if (!result.success) {
-      const errorType = classifyClientError(null, undefined, result.errorType);
-      const description = getErrorMessageByType(
-        errorType,
-        result.error || 'No se pudo generar el PDF',
-      );
-      toast.error(
-        errorType === 'network' ? 'Sin conexión' : description,
-        {
-          description:
-            errorType === 'network'
-              ? `${description} ${EDIT_TICKET_RETRY_GUIDANCE}`
-              : undefined,
-        },
-      );
-      return false;
-    }
-
-    const deliveryResult = await downloadServerTicketPdf();
-    if (deliveryResult === 'shared') {
-      toast.success('PDF compartido correctamente');
-    } else if (deliveryResult === 'downloaded') {
-      toast.success('PDF generado correctamente');
-    } else {
-      toast.success('Ticket finalizado correctamente');
-    }
-    clearTicketFormDraft(draftKey);
-    setIsFinished(true);
-    router.replace(`/tickets/${resolvedParams.id}`);
-    router.refresh();
-    return true;
-  };
-
-  const handleFinishClick = async () => {
-    try {
-      setIsGeneratingPdf(true);
-
-      const clientId = form.getValues('client_id');
-      if (!clientId || distinctServiceLines.length === 0) {
-        await executeFinishAndDownload();
-        return;
-      }
-
-      const schedulesResult = await listClientServiceSchedulesForClient(
-        clientId,
-        selectedCompany?.id ?? null,
-      );
-      setExistingSchedules(schedulesResult.data ?? []);
-      setSchedulesDialogOpen(true);
-    } catch (error) {
-      console.error('Error preparing finish:', error);
-      const errorType = classifyClientError(error);
-      const description = getErrorMessageByType(
-        errorType,
-        'Ocurrió un error al generar el PDF',
-      );
-      toast.error(errorType === 'network' ? 'Sin conexión' : description, {
-        description:
-          errorType === 'network'
-            ? `${description} ${EDIT_TICKET_RETRY_GUIDANCE}`
-            : undefined,
-      });
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const handleSchedulesSkip = async () => {
-    try {
-      setIsGeneratingPdf(true);
-      await executeFinishAndDownload();
-      setSchedulesDialogOpen(false);
-    } catch (error) {
-      const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const handleSchedulesConfirm = async (lines: TicketFinishScheduleLine[]) => {
-    try {
-      setIsGeneratingPdf(true);
-      const finished = await executeFinishAndDownload();
-      if (!finished) {
-        return;
-      }
-
-      const clientId = form.getValues('client_id');
-      if (!clientId) {
-        return;
-      }
-
-      for (const line of lines.filter((item) => item.checked)) {
-        const upsertResult = await upsertClientServiceSchedule({
-          clientId,
-          serviceId: line.serviceId,
-          intervalValue: line.intervalValue,
-          intervalUnit: line.intervalUnit,
-          lastServiceAt: line.lastServiceAt,
-          companyId: selectedCompany?.id ?? null,
-        });
-        if (!upsertResult.success) {
-          toast.error(
-            upsertResult.error ||
-              'El ticket se finalizó pero no se pudo guardar un recordatorio',
-          );
-        }
-      }
-
-      setSchedulesDialogOpen(false);
-    } catch (error) {
-      console.error('Error saving schedules:', error);
-      const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
   const downloadTicketPdf = async () => {
     try {
       setIsGeneratingPdf(true);
@@ -597,7 +403,7 @@ export default function EditTicketPage({
             steps={[
               { id: 'create', title: 'Datos del ticket' },
               { id: 'services', title: 'Servicios' },
-              { id: 'review', title: 'Revisión y PDF' },
+              { id: 'review', title: 'Detalle' },
             ]}
             currentStepId={
               resolvedSearchParams.step === 'create'
@@ -889,146 +695,22 @@ export default function EditTicketPage({
                   <div className="mt-6 rounded-lg border bg-muted/20 p-4">
                     <div className="space-y-3">
                       <p className="text-sm font-medium text-foreground">
-                        Paso final
+                        Finalizar ticket
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Al guardar, se genera el PDF y el ticket quedará en modo
-                        solo lectura con el estado de pago seleccionado.
+                        El pago inicial y el recibo se registran desde el detalle
+                        del ticket.
                       </p>
-                      <div className="space-y-3 rounded-md border bg-card p-3">
-                        <p className="text-sm font-medium text-foreground">
-                          Pago del ticket
-                        </p>
-                        <div className="grid gap-2">
-                          <button
-                            type="button"
-                            className={cn(
-                              'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                              isFullyPaid
-                                ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200'
-                                : 'border-border bg-background hover:bg-muted/50',
-                            )}
-                            onClick={() => setIsFullyPaid(true)}
-                          >
-                            {isFullyPaid ? (
-                              <CircleCheck className="h-4 w-4" />
-                            ) : (
-                              <Circle className="h-4 w-4" />
-                            )}
-                            Pagado completo ({formatCurrency(calculateTotal())})
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                              !isFullyPaid
-                                ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200'
-                                : 'border-border bg-background hover:bg-muted/50',
-                            )}
-                            onClick={() => setIsFullyPaid(false)}
-                          >
-                            {!isFullyPaid ? (
-                              <CircleCheck className="h-4 w-4" />
-                            ) : (
-                              <Circle className="h-4 w-4" />
-                            )}
-                            Pago parcial
-                          </button>
-                        </div>
-                        {!isFullyPaid && (
-                          <div className="space-y-2">
-                            <label
-                              htmlFor="paid-amount"
-                              className="text-xs text-muted-foreground"
-                            >
-                              Cuánto pagó el cliente
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="h-10 w-10 shrink-0"
-                                onClick={() =>
-                                  updatePaidAmountInput(
-                                    parsePaidInput(paidAmountInput) - 1,
-                                  )
-                                }
-                                aria-label="Reducir monto pagado"
-                              >
-                                <Minus className="h-4 w-4" data-icon="inline-start"/>
-                              </Button>
-                              <input
-                                id="paid-amount"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                inputMode="decimal"
-                                value={paidAmountInput}
-                                onChange={(event) =>
-                                  setPaidAmountInput(event.target.value)
-                                }
-                                onBlur={(event) =>
-                                  updatePaidAmountInput(
-                                    parsePaidInput(event.target.value),
-                                  )
-                                }
-                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-center text-sm"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="h-10 w-10 shrink-0"
-                                onClick={() =>
-                                  updatePaidAmountInput(
-                                    parsePaidInput(paidAmountInput) + 1,
-                                  )
-                                }
-                                aria-label="Aumentar monto pagado"
-                              >
-                                <Plus className="h-4 w-4" data-icon="inline-start"/>
-                              </Button>
-                            </div>
-                            {parsePaidInput(paidAmountInput) >
-                              calculateTotal() && (
-                              <p className="text-xs text-red-600">
-                                El monto pagado no puede superar el total del
-                                ticket.
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
                       <Button
                         type="button"
-                        onClick={() => void handleFinishClick()}
-                        disabled={
-                          isGeneratingPdf ||
-                          ticketServices.length === 0 ||
-                          (!isFullyPaid &&
-                            parsePaidInput(paidAmountInput) > calculateTotal())
+                        variant="outline"
+                        className="h-10"
+                        onClick={() =>
+                          router.push(`/tickets/${resolvedParams.id}#finalizar`)
                         }
-                        className="h-12 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium transition-all duration-200"
                       >
-                        {isGeneratingPdf ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" data-icon="inline-start"/>
-                            Guardando...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="mr-2 h-4 w-4" data-icon="inline-start"/>
-                            Guardar y generar PDF
-                          </>
-                        )}
+                        Ir a finalizar
                       </Button>
-                      {ticketServices.length === 0 && (
-                        <p className="text-xs text-amber-600">
-                          Agrega al menos un servicio para poder guardar el
-                          ticket.
-                        </p>
-                      )}
                     </div>
                   </div>
                 )}
@@ -1066,16 +748,6 @@ export default function EditTicketPage({
         </TripledMobileStickyActionBar>
       )}
 
-      <TicketFinishSchedulesDialog
-        open={schedulesDialogOpen}
-        onOpenChange={setSchedulesDialogOpen}
-        ticketDate={form.watch('ticket_date') ?? new Date()}
-        serviceLines={distinctServiceLines}
-        existingSchedules={existingSchedules}
-        saving={isGeneratingPdf}
-        onConfirm={(lines) => void handleSchedulesConfirm(lines)}
-        onSkip={() => void handleSchedulesSkip()}
-      />
     </>
   );
 }

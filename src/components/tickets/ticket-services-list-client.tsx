@@ -180,7 +180,7 @@ export function TicketServicesListClient({
                   router.push(`/tickets/${ticketId}/edit?step=create`)
                 }
                 onContinue={() =>
-                  router.push(`/tickets/${ticketId}/edit?step=review`)
+                  router.push(`/tickets/${ticketId}`)
                 }
               />
             </CardContent>

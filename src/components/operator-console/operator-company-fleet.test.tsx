@@ -25,7 +25,8 @@ jest.mock('@/hooks/use-permissions', () => ({
 }));
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 describe('OperatorCompanyFleet', () => {

@@ -64,7 +64,10 @@ const assertPermissionsAssignableToCompany = async (
   }
 };
 
-export async function getRoles(): Promise<{
+export async function getRoles(options?: {
+  /** System operators may scope the list to one tenant company. */
+  companyId?: number;
+}): Promise<{
   success: boolean;
   data?: RoleWithRelations[];
   error?: string;
@@ -73,16 +76,29 @@ export async function getRoles(): Promise<{
   try {
     const authContext = await requireActionAuth();
     await requireActionPermission('roles.read', authContext.companyId);
-    const roles = await db.query.role.findMany({
-      where: authContext.companyIsSystem
-        ? isNull(role.deleted_at)
-        : and(
-            isNull(role.deleted_at),
-            or(
-              eq(role.company_id, authContext.companyId as number),
-              isNull(role.company_id),
-            ),
+
+    const scopedCompanyId =
+      authContext.companyIsSystem &&
+      options?.companyId != null &&
+      Number.isFinite(options.companyId) &&
+      options.companyId >= 1
+        ? options.companyId
+        : null;
+
+    const where = authContext.companyIsSystem
+      ? scopedCompanyId != null
+        ? and(isNull(role.deleted_at), eq(role.company_id, scopedCompanyId))
+        : isNull(role.deleted_at)
+      : and(
+          isNull(role.deleted_at),
+          or(
+            eq(role.company_id, authContext.companyId as number),
+            isNull(role.company_id),
           ),
+        );
+
+    const roles = await db.query.role.findMany({
+      where,
       with: {
         company: true,
         permissions: {

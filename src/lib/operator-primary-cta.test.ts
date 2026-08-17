@@ -16,7 +16,7 @@ describe('resolveOperatorPrimaryCta', () => {
     ).toEqual({
       kind: 'complete_go_live',
       label: 'Completar go-live',
-      href: '/companies/10/edit',
+      href: '/companies/10/edit?tenant_company_id=10',
     });
   });
 
@@ -44,7 +44,7 @@ describe('resolveOperatorPrimaryCta', () => {
     ).toEqual({
       kind: 'open_dashboard',
       label: 'Abrir dashboard',
-      href: '/dashboard',
+      href: '/dashboard?tenant_company_id=10',
     });
   });
 
@@ -72,7 +72,7 @@ describe('resolveOperatorPrimaryCta', () => {
     ).toEqual({
       kind: 'edit_company',
       label: 'Editar empresa',
-      href: '/companies/10/edit',
+      href: '/companies/10/edit?tenant_company_id=10',
     });
   });
 });

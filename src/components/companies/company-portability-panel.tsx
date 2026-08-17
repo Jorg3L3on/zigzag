@@ -125,7 +125,7 @@ export const CompanyPortabilityPanel = ({
           className="min-h-11"
           disabled={isExporting}
           onClick={handleExport}
-          aria-label="Descargar exportación JSON de la empresa"
+          aria-label={`Descargar exportación JSON de ${company.name}`}
         >
           <Download className="mr-2 size-4" aria-hidden  data-icon="inline-start" />
           {isExporting ? 'Generando exportación…' : 'Exportar datos (JSON)'}
@@ -138,7 +138,7 @@ export const CompanyPortabilityPanel = ({
               variant="destructive"
               className="min-h-11"
               disabled={!offboardingEligibility.allowed || isOffboarding}
-              aria-label="Archivar empresa e iniciar offboarding"
+              aria-label={`Archivar ${company.name} e iniciar offboarding`}
             >
               <Archive className="mr-2 size-4" aria-hidden data-icon="inline-start"/>
               {isOffboarding ? 'Archivando…' : 'Iniciar offboarding'}
@@ -146,9 +146,11 @@ export const CompanyPortabilityPanel = ({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Archivar esta empresa?</AlertDialogTitle>
+              <AlertDialogTitle>
+                ¿Archivar {company.name}?
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                La empresa pasará a estado{' '}
+                <strong>{company.name}</strong> pasará a estado{' '}
                 <strong>{companyLifecycleLabel('ARCHIVED')}</strong>. Los datos
                 se conservan{' '}
                 {COMPANY_OFFBOARDING_RETENTION_POLICY.retention_days_after_archive}{' '}

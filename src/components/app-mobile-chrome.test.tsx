@@ -19,6 +19,10 @@ jest.mock('@/components/mobile-bottom-tab-bar', () => ({
   MobileBottomTabBar: () => <div data-testid="mobile-bottom-tab-bar" />,
 }));
 
+jest.mock('@/components/operator-tenant-company-sync', () => ({
+  OperatorTenantCompanySync: () => null,
+}));
+
 jest.mock('@/hooks/use-mobile', () => ({
   useIsMobile: jest.fn(),
 }));

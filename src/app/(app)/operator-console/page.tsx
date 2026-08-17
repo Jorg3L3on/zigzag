@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Building2 } from 'lucide-react';
 import { OperatorCompanyFleet } from '@/components/operator-console/operator-company-fleet';
 import { OperatorConsoleDetail } from '@/components/operator-console/operator-console-detail';
@@ -21,11 +22,13 @@ export default async function OperatorConsolePage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Consola operadora"
-          description="Selecciona una empresa para ver su pulso de negocio y operarla."
+          description="Selecciona una empresa para ver su salud operativa y operarla."
           desktopDescription="Flota de tenants, métricas, actividad, acceso y ciclo de vida en un solo lugar."
           icon={<Building2 className="size-5" aria-hidden />}
         >
-          <OperatorCompanyFleet />
+          <Suspense fallback={null}>
+            <OperatorCompanyFleet />
+          </Suspense>
           <OperatorConsoleDetail />
         </TripledResourceCard>
       </TripledDashboardShell>

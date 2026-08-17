@@ -8,7 +8,7 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getOperatorCompanyFleet } from '@/actions/company-operator';
@@ -21,6 +21,11 @@ import {
 } from '@/components/tripled';
 import { createOperatorFleetColumns } from '@/components/operator-console/operator-company-fleet-columns';
 import { resolveResourceListState } from '@/lib/resource-list-state';
+import {
+  OPERATOR_CONSOLE_COMPANY_QUERY_PARAM,
+  operatorConsoleCompanyHref,
+  operatorTenantHref,
+} from '@/lib/operator-tenant-scope';
 import {
   Table,
   TableBody,
@@ -39,7 +44,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
-type StatusFilter = 'all' | 'setup' | 'active' | 'restricted';
+type StatusFilter = 'all' | 'setup' | 'active' | 'suspended' | 'archived';
 
 const matchesStatusFilter = (
   lifecycle: OperatorFleetRow['lifecycle'],
@@ -47,9 +52,8 @@ const matchesStatusFilter = (
 ): boolean => {
   if (filter === 'setup') return lifecycle === 'SETUP';
   if (filter === 'active') return lifecycle === 'ACTIVE';
-  if (filter === 'restricted') {
-    return lifecycle === 'SUSPENDED' || lifecycle === 'ARCHIVED';
-  }
+  if (filter === 'suspended') return lifecycle === 'SUSPENDED';
+  if (filter === 'archived') return lifecycle === 'ARCHIVED';
   return true;
 };
 
@@ -64,7 +68,8 @@ const STATUS_FILTER_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'all', label: 'Todas' },
   { value: 'setup', label: 'En configuración' },
   { value: 'active', label: 'Activas' },
-  { value: 'restricted', label: 'Restringidas' },
+  { value: 'suspended', label: 'Suspendidas' },
+  { value: 'archived', label: 'Archivadas' },
 ];
 
 export const OperatorCompanyFleet = () => {
@@ -73,6 +78,7 @@ export const OperatorCompanyFleet = () => {
   const canWriteCompanies =
     permissions.isSystem && permissions.can(PERMISSIONS.companies.write);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [rows, setRows] = React.useState<OperatorFleetRow[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -148,9 +154,41 @@ export const OperatorCompanyFleet = () => {
         plan: '',
         is_system: false,
       });
+      router.replace(operatorConsoleCompanyHref(row.id), { scroll: false });
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById('operator-console-detail')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     },
-    [setSelectedCompany],
+    [router, setSelectedCompany],
   );
+
+  React.useEffect(() => {
+    if (rows.length === 0) {
+      return;
+    }
+    const raw = searchParams.get(OPERATOR_CONSOLE_COMPANY_QUERY_PARAM);
+    if (!raw) {
+      return;
+    }
+    const companyId = Number.parseInt(raw, 10);
+    if (!Number.isFinite(companyId) || selectedCompany?.id === companyId) {
+      return;
+    }
+    const row = rows.find((entry) => entry.id === companyId);
+    if (!row) {
+      return;
+    }
+    setSelectedCompany({
+      id: row.id,
+      name: row.name,
+      logo: () => null,
+      logoUrl: row.logo,
+      plan: '',
+      is_system: false,
+    });
+  }, [rows, searchParams, selectedCompany?.id, setSelectedCompany]);
 
   const columns = React.useMemo(
     () =>
@@ -185,7 +223,7 @@ export const OperatorCompanyFleet = () => {
                 aria-label={`Editar ${row.name}`}
                 onClick={(event) => {
                   event.stopPropagation();
-                  router.push(row.editHref);
+                  router.push(operatorTenantHref(row.editHref, row.id));
                 }}
               >
                 <Pencil className="h-4 w-4" />
@@ -387,18 +425,39 @@ export const OperatorCompanyFleet = () => {
                           : '—'}
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="min-h-11 w-full"
-                      aria-label={`Seleccionar contexto ${row.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleSelectContext(row);
-                      }}
-                    >
-                      Seleccionar
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11 w-full"
+                        aria-label={`Seleccionar contexto ${row.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleSelectContext(row);
+                        }}
+                      >
+                        Seleccionar
+                      </Button>
+                      {canWriteCompanies ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="min-h-11 w-full"
+                          aria-label={`Editar ${row.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            router.push(operatorTenantHref(row.editHref, row.id));
+                          }}
+                        >
+                          <Pencil
+                            className="mr-2 h-4 w-4"
+                            aria-hidden
+                            data-icon="inline-start"
+                          />
+                          Editar
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </TripledMobileRecordCard>
               );

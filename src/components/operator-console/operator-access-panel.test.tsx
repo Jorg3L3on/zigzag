@@ -23,7 +23,13 @@ jest.mock('@/actions/roles', () => ({
 }));
 
 jest.mock('@/app/(app)/users/create-user-dialog', () => ({
-  CreateUserDialog: () => null,
+  CreateUserDialog: ({
+    defaultCompanyId,
+  }: {
+    defaultCompanyId?: number;
+  }) => (
+    <button type="button">Crear usuario ({defaultCompanyId})</button>
+  ),
 }));
 
 describe('OperatorAccessPanel', () => {
@@ -46,13 +52,6 @@ describe('OperatorAccessPanel', () => {
           company_id: 42,
           role: { name: 'Admin' },
         },
-        {
-          id: 11n,
-          name: 'Other Co',
-          email: 'other@test',
-          company_id: 99,
-          role: { name: 'Tech' },
-        },
       ],
     });
     mockGetRoles.mockResolvedValue({
@@ -67,6 +66,34 @@ describe('OperatorAccessPanel', () => {
         },
       ],
     });
+  });
+
+  it('renders management CTAs and create user for system writers', async () => {
+    render(<OperatorAccessPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cuentas de la empresa')).toBeInTheDocument();
+    });
+
+    const usersLink = screen.getByRole('link', { name: /Gestionar usuarios/i });
+    const rolesLink = screen.getByRole('link', { name: /Gestionar roles/i });
+    expect(usersLink).toHaveAttribute('href', '/users?tenant_company_id=42');
+    expect(rolesLink).toHaveAttribute('href', '/roles?tenant_company_id=42');
+    expect(
+      screen.getByRole('button', { name: /Crear usuario \(42\)/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('loads users and roles scoped by companyId on the server', async () => {
+    render(<OperatorAccessPanel />);
+
+    await waitFor(() => {
+      expect(mockGetUsers).toHaveBeenCalledWith({ companyId: 42 });
+      expect(mockGetRoles).toHaveBeenCalledWith({ companyId: 42 });
+    });
+
+    const usersPanel = screen.getByRole('tabpanel', { name: /Usuarios/i });
+    expect(usersPanel).toHaveTextContent('Ana López');
   });
 
   it('defaults to the users tab and lists company-scoped users', async () => {
@@ -85,7 +112,6 @@ describe('OperatorAccessPanel', () => {
     });
     expect(usersPanel).toHaveTextContent('ana@acme.test');
     expect(usersPanel).toHaveTextContent('Admin');
-    expect(usersPanel).not.toHaveTextContent('Other Co');
   });
 
   it('switches to the roles tab', async () => {
