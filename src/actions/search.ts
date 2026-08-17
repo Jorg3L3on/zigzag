@@ -4,6 +4,7 @@ import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { client, service, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 import { checkPermission, requireActionAuth } from '@/lib/security';
+import { resolveWritableCompanyId } from '@/lib/authz-context';
 import {
   handleCodedServerActionError,
   type ActionErrorType,
@@ -27,7 +28,10 @@ const MIN_QUERY_LENGTH = 2;
  * only included when the user holds the corresponding read permission, so the
  * results never leak data the user could not otherwise see.
  */
-export async function globalSearch(query: string): Promise<{
+export async function globalSearch(
+  query: string,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   data?: GlobalSearchResult[];
   error?: string;
@@ -40,16 +44,23 @@ export async function globalSearch(query: string): Promise<{
     }
 
     const context = await requireActionAuth();
-    if (!context.companyId) {
+    if (context.companyIsSystem && companyId == null) {
       return { success: true, data: [] };
     }
-    const companyId = context.companyId;
+
+    let effectiveCompanyId: number;
+    try {
+      effectiveCompanyId = resolveWritableCompanyId(context, companyId);
+    } catch {
+      return { success: true, data: [] };
+    }
+
     const pattern = `%${trimmed}%`;
 
     const [canTickets, canClients, canServices] = await Promise.all([
-      checkPermission(context.userId, companyId, 'tickets.read'),
-      checkPermission(context.userId, companyId, 'clients.read'),
-      checkPermission(context.userId, companyId, 'services.read'),
+      checkPermission(context.userId, effectiveCompanyId, 'tickets.read'),
+      checkPermission(context.userId, effectiveCompanyId, 'clients.read'),
+      checkPermission(context.userId, effectiveCompanyId, 'services.read'),
     ]);
 
     const results: GlobalSearchResult[] = [];
@@ -60,7 +71,7 @@ export async function globalSearch(query: string): Promise<{
         .from(ticket)
         .where(
           and(
-            eq(ticket.company_id, companyId),
+            eq(ticket.company_id, effectiveCompanyId),
             isNull(ticket.deleted_at),
             or(
               ilike(ticket.client_name, pattern),
@@ -89,7 +100,7 @@ export async function globalSearch(query: string): Promise<{
         .from(client)
         .where(
           and(
-            eq(client.company_id, companyId),
+            eq(client.company_id, effectiveCompanyId),
             isNull(client.deleted_at),
             or(
               ilike(client.name, pattern),
@@ -119,7 +130,7 @@ export async function globalSearch(query: string): Promise<{
         .from(service)
         .where(
           and(
-            eq(service.company_id, companyId),
+            eq(service.company_id, effectiveCompanyId),
             isNull(service.deleted_at),
             or(
               ilike(service.name, pattern),

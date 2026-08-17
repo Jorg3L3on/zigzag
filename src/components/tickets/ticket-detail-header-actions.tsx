@@ -9,12 +9,14 @@ type TicketDetailHeaderActionsProps = {
   ticketId: number | bigint;
   downloadFileName: string;
   finished: boolean;
+  companyId?: number | null;
 };
 
 export const TicketDetailHeaderActions = ({
   ticketId,
   downloadFileName,
   finished,
+  companyId,
 }: TicketDetailHeaderActionsProps) => {
   const { can } = usePermissions();
 
@@ -34,6 +36,7 @@ export const TicketDetailHeaderActions = ({
         <PDFDownloadButton
           ticketId={ticketId}
           downloadFileName={downloadFileName}
+          companyId={companyId}
         />
       ) : null}
     </div>

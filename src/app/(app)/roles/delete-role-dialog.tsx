@@ -31,7 +31,7 @@ export function DeleteRoleDialog({
   const router = useRouter();
 
   const handleDelete = async () => {
-    const result = await deleteRole(role.id);
+    const result = await deleteRole(role.id, role.company?.id ?? null);
     if (!result.success) {
       const errorType = classifyClientError(null, undefined, result.errorType);
       toast.error(

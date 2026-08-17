@@ -53,7 +53,7 @@ export const useTicketServicesList = ({
       }
     };
     const fetchTicketServices = async () => {
-      const result = await getTicketServices(ticketId);
+      const result = await getTicketServices(ticketId, companyId);
       if (result.success) {
         setTicketServices(result.data!);
       }
@@ -89,11 +89,15 @@ export const useTicketServicesList = ({
     const runPrefill = async () => {
       setIsSubmitting(true);
       try {
-        const result = await createServiceTicket(ticketId, {
-          service_id: serviceId,
-          quantity: 1,
-          price: catalogService.price,
-        });
+        const result = await createServiceTicket(
+          ticketId,
+          {
+            service_id: serviceId,
+            quantity: 1,
+            price: catalogService.price,
+          },
+          companyId,
+        );
         if (result.success && result.data) {
           setTicketServices((current) => [...current, result.data!]);
           toast.success('Servicio agregado desde recordatorio');
@@ -104,7 +108,7 @@ export const useTicketServicesList = ({
     };
 
     void runPrefill();
-  }, [prefillServiceId, services, ticketId, ticketServices.length]);
+  }, [companyId, prefillServiceId, services, ticketId, ticketServices.length]);
 
   const resetForm = () => {
     setSelectedService('');
@@ -135,11 +139,15 @@ export const useTicketServicesList = ({
       const parsedQuantity = sanitizeInteger(quantity);
       const parsedPrice = sanitizeDecimal(price);
 
-      const result = await createServiceTicket(ticketId, {
-        service_id: parseInt(selectedService),
-        quantity: parsedQuantity,
-        price: parsedPrice,
-      });
+      const result = await createServiceTicket(
+        ticketId,
+        {
+          service_id: parseInt(selectedService),
+          quantity: parsedQuantity,
+          price: parsedPrice,
+        },
+        companyId,
+      );
 
       if (result.success && result.data) {
         setTicketServices((current) => [...current, result.data!]);
@@ -172,10 +180,15 @@ export const useTicketServicesList = ({
     newPrice: number,
   ) => {
     try {
-      const result = await updateServiceTicket(ticketId, serviceTicketId, {
-        quantity: newQuantity,
-        price: newPrice,
-      });
+      const result = await updateServiceTicket(
+        ticketId,
+        serviceTicketId,
+        {
+          quantity: newQuantity,
+          price: newPrice,
+        },
+        companyId,
+      );
 
       if (result.success && result.data) {
         setTicketServices((current) =>
@@ -226,7 +239,11 @@ export const useTicketServicesList = ({
 
   const handleDeleteService = async (serviceTicketId: number) => {
     try {
-      const result = await deleteServiceTicket(ticketId, serviceTicketId);
+      const result = await deleteServiceTicket(
+        ticketId,
+        serviceTicketId,
+        companyId,
+      );
 
       if (result.success) {
         setTicketServices((current) =>

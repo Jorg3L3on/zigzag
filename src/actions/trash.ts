@@ -18,8 +18,9 @@ import {
 import {
   checkPermission,
   requireActionAuth,
-  requireActionPermission,
+  requireTenantActionPermission,
 } from '@/lib/security';
+import { resolveWritableCompanyId } from '@/lib/authz-context';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 
@@ -36,8 +37,14 @@ export type TrashContents = {
   tickets: TrashTicket[];
 };
 
+const EMPTY_TRASH: TrashContents = {
+  clients: [],
+  services: [],
+  tickets: [],
+};
+
 /** Lists soft-deleted records the caller may restore, scoped to their company. */
-export async function getTrash(): Promise<{
+export async function getTrash(companyId?: number | null): Promise<{
   success: boolean;
   data?: TrashContents;
   error?: string;
@@ -45,18 +52,21 @@ export async function getTrash(): Promise<{
 }> {
   try {
     const context = await requireActionAuth();
-    const companyId = context.companyId;
-    if (!companyId) {
-      return {
-        success: true,
-        data: { clients: [], services: [], tickets: [] },
-      };
+    if (context.companyIsSystem && companyId == null) {
+      return { success: true, data: EMPTY_TRASH };
+    }
+
+    let effectiveCompanyId: number;
+    try {
+      effectiveCompanyId = resolveWritableCompanyId(context, companyId);
+    } catch {
+      return { success: true, data: EMPTY_TRASH };
     }
 
     const [canClients, canServices, canTickets] = await Promise.all([
-      checkPermission(context.userId, companyId, 'clients.read'),
-      checkPermission(context.userId, companyId, 'services.read'),
-      checkPermission(context.userId, companyId, 'tickets.read'),
+      checkPermission(context.userId, effectiveCompanyId, 'clients.read'),
+      checkPermission(context.userId, effectiveCompanyId, 'services.read'),
+      checkPermission(context.userId, effectiveCompanyId, 'tickets.read'),
     ]);
 
     const clients = canClients
@@ -65,7 +75,7 @@ export async function getTrash(): Promise<{
           .from(client)
           .where(
             and(
-              eq(client.company_id, companyId),
+              eq(client.company_id, effectiveCompanyId),
               isNotNull(client.deleted_at),
             ),
           )
@@ -78,7 +88,7 @@ export async function getTrash(): Promise<{
           .from(service)
           .where(
             and(
-              eq(service.company_id, companyId),
+              eq(service.company_id, effectiveCompanyId),
               isNotNull(service.deleted_at),
             ),
           )
@@ -91,7 +101,7 @@ export async function getTrash(): Promise<{
           .from(ticket)
           .where(
             and(
-              eq(ticket.company_id, companyId),
+              eq(ticket.company_id, effectiveCompanyId),
               isNotNull(ticket.deleted_at),
             ),
           )
@@ -116,16 +126,23 @@ export async function getTrash(): Promise<{
   }
 }
 
-export async function restoreClient(id: number): Promise<{
+export async function restoreClient(
+  id: number,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId } = await requireActionPermission('clients.write');
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('clients.write', companyId);
 
     const existing = await db.query.client.findFirst({
-      where: and(eq(client.id, id), eq(client.company_id, companyId)),
+      where: and(
+        eq(client.id, id),
+        eq(client.company_id, effectiveCompanyId),
+      ),
     });
     if (!existing || existing.deleted_at === null) {
       return buildActionError('CL006');
@@ -134,14 +151,16 @@ export async function restoreClient(id: number): Promise<{
     const [restored] = await db
       .update(client)
       .set({ deleted_at: null, updated_at: new Date() })
-      .where(and(eq(client.id, id), eq(client.company_id, companyId)))
+      .where(
+        and(eq(client.id, id), eq(client.company_id, effectiveCompanyId)),
+      )
       .returning();
 
     await recordResourceAudit(db, {
       actor: context,
       resourceType: 'client',
       resourceId: id,
-      targetCompanyId: companyId,
+      targetCompanyId: effectiveCompanyId,
       action: 'updated',
       before: existing,
       after: restored,
@@ -156,17 +175,23 @@ export async function restoreClient(id: number): Promise<{
   }
 }
 
-export async function restoreService(id: number): Promise<{
+export async function restoreService(
+  id: number,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId } =
-      await requireActionPermission('services.write');
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('services.write', companyId);
 
     const existing = await db.query.service.findFirst({
-      where: and(eq(service.id, id), eq(service.company_id, companyId)),
+      where: and(
+        eq(service.id, id),
+        eq(service.company_id, effectiveCompanyId),
+      ),
     });
     if (!existing || existing.deleted_at === null) {
       return buildActionError('SV001');
@@ -175,14 +200,16 @@ export async function restoreService(id: number): Promise<{
     const [restored] = await db
       .update(service)
       .set({ deleted_at: null, updated_at: new Date() })
-      .where(and(eq(service.id, id), eq(service.company_id, companyId)))
+      .where(
+        and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
+      )
       .returning();
 
     await recordResourceAudit(db, {
       actor: context,
       resourceType: 'service',
       resourceId: id,
-      targetCompanyId: companyId,
+      targetCompanyId: effectiveCompanyId,
       action: 'updated',
       before: existing,
       after: restored,
@@ -197,17 +224,24 @@ export async function restoreService(id: number): Promise<{
   }
 }
 
-export async function restoreTicket(id: number): Promise<{
+export async function restoreTicket(
+  id: number,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId } = await requireActionPermission('tickets.write');
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('tickets.write', companyId);
     const ticketId = BigInt(id);
 
     const existing = await db.query.ticket.findFirst({
-      where: and(eq(ticket.id, ticketId), eq(ticket.company_id, companyId)),
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+      ),
     });
     if (!existing || existing.deleted_at === null) {
       return buildActionError('TC008');
@@ -216,14 +250,26 @@ export async function restoreTicket(id: number): Promise<{
     const [restored] = await db
       .update(ticket)
       .set({ deleted_at: null, updated_at: new Date() })
-      .where(and(eq(ticket.id, ticketId), eq(ticket.company_id, companyId)))
+      .where(
+        and(
+          eq(ticket.id, ticketId),
+          eq(ticket.company_id, effectiveCompanyId),
+        ),
+      )
       .returning();
 
-    await recordTicketAudit(db, context, ticketId, companyId, 'updated', {
-      restored: true,
-      before: existing,
-      after: restored,
-    });
+    await recordTicketAudit(
+      db,
+      context,
+      ticketId,
+      effectiveCompanyId,
+      'updated',
+      {
+        restored: true,
+        before: existing,
+        after: restored,
+      },
+    );
 
     revalidatePath('/tickets');
     revalidatePath('/trash');

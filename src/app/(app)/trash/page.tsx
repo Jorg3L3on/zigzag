@@ -1,5 +1,4 @@
 import { Trash2 } from 'lucide-react';
-import { getTrash } from '@/actions/trash';
 import { TrashView } from '@/components/trash/trash-view';
 import {
   TripledDashboardShell,
@@ -14,11 +13,6 @@ export const revalidate = 0;
 export default async function TrashPage() {
   await requireSystemPage();
 
-  const result = await getTrash();
-  const data = result.success
-    ? (result.data ?? { clients: [], services: [], tickets: [] })
-    : { clients: [], services: [], tickets: [] };
-
   return (
     <>
       <TripledPageHeader items={[{ label: 'Papelera' }]} />
@@ -30,7 +24,7 @@ export default async function TrashPage() {
           desktopDescription="Clientes, servicios y tickets eliminados que puedes restaurar."
           icon={<Trash2 className="size-5" aria-hidden />}
         >
-          <TrashView data={data} />
+          <TrashView />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>

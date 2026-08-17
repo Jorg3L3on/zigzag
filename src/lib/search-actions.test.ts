@@ -48,6 +48,20 @@ describe('cross-tenant IDOR - search actions', () => {
     expect(mockDb.select).not.toHaveBeenCalled();
   });
 
+  it('returns empty results for system without selected company', async () => {
+    mockRequireActionAuth.mockResolvedValue({
+      userId: '1',
+      companyId: 1,
+      companyIsSystem: true,
+    });
+
+    const result = await globalSearch('client', null);
+
+    expect(result).toEqual({ success: true, data: [] });
+    expect(mockCheckPermission).not.toHaveBeenCalled();
+    expect(mockDb.select).not.toHaveBeenCalled();
+  });
+
   it('does not query foreign resources when tenant has no read permissions', async () => {
     mockRequireActionAuth.mockResolvedValue(tenantBContext());
     mockCheckPermission.mockResolvedValue(false);

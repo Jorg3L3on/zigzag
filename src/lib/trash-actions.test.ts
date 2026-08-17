@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import {
   checkPermission,
   requireActionAuth,
-  requireActionPermission,
+  requireTenantActionPermission,
 } from '@/lib/security';
 import {
   IDOR_COMPANY_B,
@@ -23,7 +23,7 @@ jest.mock('@/lib/db', () => ({
     query: {
       client: { findFirst: jest.fn() },
       service: { findFirst: jest.fn() },
-      ticket: { findFirst: jest.fn() },
+      ticket: { findFirst: jest.Mock },
     },
   },
 }));
@@ -31,7 +31,7 @@ jest.mock('@/lib/db', () => ({
 jest.mock('@/lib/security', () => ({
   checkPermission: jest.fn(),
   requireActionAuth: jest.fn(),
-  requireActionPermission: jest.fn(),
+  requireTenantActionPermission: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
@@ -41,8 +41,10 @@ jest.mock('@/lib/ticket-audit', () => ({ recordTicketAudit: jest.fn() }));
 const mockRequireActionAuth = requireActionAuth as jest.MockedFunction<
   typeof requireActionAuth
 >;
-const mockRequireActionPermission =
-  requireActionPermission as jest.MockedFunction<typeof requireActionPermission>;
+const mockRequireTenantActionPermission =
+  requireTenantActionPermission as jest.MockedFunction<
+    typeof requireTenantActionPermission
+  >;
 const mockCheckPermission = checkPermission as jest.MockedFunction<
   typeof checkPermission
 >;
@@ -85,14 +87,34 @@ describe('cross-tenant IDOR - trash actions', () => {
     expect(mockDb.select).not.toHaveBeenCalled();
   });
 
+  it('getTrash returns empty payload for system without selected company', async () => {
+    mockRequireActionAuth.mockResolvedValue({
+      userId: '1',
+      companyId: 1,
+      companyIsSystem: true,
+    });
+
+    const result = await getTrash(null);
+
+    expect(result).toEqual({
+      success: true,
+      data: { clients: [], services: [], tickets: [] },
+    });
+    expect(mockCheckPermission).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['restoreClient', () => restoreClient(IDOR_RESOURCES_A.clientId), 'CL006'],
-    ['restoreService', () => restoreService(IDOR_RESOURCES_A.serviceId), 'SV001'],
+    [
+      'restoreService',
+      () => restoreService(IDOR_RESOURCES_A.serviceId),
+      'SV001',
+    ],
     ['restoreTicket', () => restoreTicket(IDOR_RESOURCES_A.ticketId), 'TC008'],
   ])(
     '%s does not restore foreign tenant resources',
     async (_name, call, expectedCode) => {
-      mockRequireActionPermission.mockResolvedValue({
+      mockRequireTenantActionPermission.mockResolvedValue({
         context: tenantBContext(),
         companyId: IDOR_COMPANY_B.id,
       });

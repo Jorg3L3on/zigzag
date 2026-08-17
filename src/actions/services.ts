@@ -11,7 +11,11 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { pauseSchedulesForService } from '@/lib/client-service-schedule-lifecycle';
-import { requireActionPermission } from '@/lib/security';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireTenantActionPermission,
+} from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 import { roundMoney } from '@/lib/money';
@@ -62,10 +66,11 @@ export async function getServices(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId: effectiveCompanyId } = await requireActionPermission(
-      'services.read',
-      companyId ?? undefined,
-    );
+    const { companyId: effectiveCompanyId } =
+      await requireTenantActionPermission(
+        'services.read',
+        companyId ?? undefined,
+      );
     const companyCondition = eq(service.company_id, effectiveCompanyId);
     const statusCondition =
       status === 'active'
@@ -96,16 +101,22 @@ export async function getService(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId } = await requireActionPermission('services.read');
+    const context = await requireActionAuth();
+    const { companyId } = await requireActionPermission(
+      'services.read',
+      context.companyIsSystem ? undefined : context.companyId,
+    );
     const [row] = await db
       .select()
       .from(service)
       .where(
-        and(
-          eq(service.id, id),
-          eq(service.company_id, companyId),
-          isNull(service.deleted_at),
-        ),
+        context.companyIsSystem
+          ? and(eq(service.id, id), isNull(service.deleted_at))
+          : and(
+              eq(service.id, id),
+              eq(service.company_id, companyId),
+              isNull(service.deleted_at),
+            ),
       )
       .limit(1);
 
@@ -128,10 +139,8 @@ export async function createService(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'services.write',
-      data.company_id,
-    );
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('services.write', data.company_id);
 
     const parsed = serviceWriteSchema.safeParse({
       name: data.name,
@@ -185,10 +194,11 @@ export async function updateService(
 }> {
   try {
     const { id, ...updateData } = data;
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'services.write',
-      updateData.company_id ?? undefined,
-    );
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission(
+        'services.write',
+        updateData.company_id ?? undefined,
+      );
 
     if (
       updateData.name !== undefined ||
@@ -271,10 +281,11 @@ export async function updateService(
 
 export async function deleteService(
   id: number,
+  companyId?: number | null,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      await requireActionPermission('services.write');
+      await requireTenantActionPermission('services.write', companyId);
     const existing = await db.query.service.findFirst({
       where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
     });
@@ -311,18 +322,24 @@ export async function deleteService(
 }
 
 /** Returns all active services for the caller's company as CSV-ready rows. */
-export async function getServicesForExport(): Promise<{
+export async function getServicesForExport(companyId?: number | null): Promise<{
   success: boolean;
   data?: Array<Record<(typeof SERVICE_CSV_HEADERS)[number], string>>;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId } = await requireActionPermission('services.read');
+    const { companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('services.read', companyId);
     const rows = await db
       .select()
       .from(service)
-      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .where(
+        and(
+          eq(service.company_id, effectiveCompanyId),
+          isNull(service.deleted_at),
+        ),
+      )
       .orderBy(desc(service.created_at));
 
     return {
@@ -343,6 +360,7 @@ export async function getServicesForExport(): Promise<{
  */
 export async function previewServiceCsvImport(
   records: Array<Record<string, string>>,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: ServiceCsvPreviewResult;
@@ -350,11 +368,17 @@ export async function previewServiceCsvImport(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId } = await requireActionPermission('services.write');
+    const { companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('services.write', companyId);
     const active = await db
       .select({ name: service.name })
       .from(service)
-      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .where(
+        and(
+          eq(service.company_id, effectiveCompanyId),
+          isNull(service.deleted_at),
+        ),
+      )
       .orderBy(desc(service.created_at));
 
     const planned = planServiceCsvImport(
@@ -381,6 +405,7 @@ export async function previewServiceCsvImport(
  */
 export async function commitServiceCsvImportChunk(
   rows: ServiceCsvCommitRow[],
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: CsvImportCommitSummary;
@@ -388,13 +413,19 @@ export async function commitServiceCsvImportChunk(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId } = await requireActionPermission('services.write');
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('services.write', companyId);
     const summary = emptyCsvImportCommitSummary();
 
     const active = await db
       .select({ name: service.name })
       .from(service)
-      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .where(
+        and(
+          eq(service.company_id, effectiveCompanyId),
+          isNull(service.deleted_at),
+        ),
+      )
       .orderBy(desc(service.created_at));
     const activeNames = new Set(
       active.map((row) => row.name.trim().toLowerCase()).filter(Boolean),
@@ -435,7 +466,7 @@ export async function commitServiceCsvImportChunk(
           name: parsed.data.name,
           description: parsed.data.description,
           price: roundMoney(parsed.data.price),
-          company_id: companyId,
+          company_id: effectiveCompanyId,
         })
         .returning();
 
@@ -443,7 +474,7 @@ export async function commitServiceCsvImportChunk(
         actor: context,
         resourceType: 'service',
         resourceId: created.id,
-        targetCompanyId: companyId,
+        targetCompanyId: effectiveCompanyId,
         action: 'created',
         after: created,
         source: 'action',
@@ -466,6 +497,7 @@ export async function commitServiceCsvImportChunk(
  */
 export async function bulkImportServices(
   records: Array<Record<string, string>>,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: ServiceBulkImportSummary;
@@ -473,12 +505,18 @@ export async function bulkImportServices(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId } = await requireActionPermission('services.write');
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('services.write', companyId);
 
     const active = await db
       .select({ name: service.name })
       .from(service)
-      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)))
+      .where(
+        and(
+          eq(service.company_id, effectiveCompanyId),
+          isNull(service.deleted_at),
+        ),
+      )
       .orderBy(desc(service.created_at));
 
     const planned = planServiceCsvImport(
@@ -513,7 +551,7 @@ export async function bulkImportServices(
           name: row.name!,
           description: row.description!,
           price: roundMoney(row.price!),
-          company_id: companyId,
+          company_id: effectiveCompanyId,
         })
         .returning();
 
@@ -521,7 +559,7 @@ export async function bulkImportServices(
         actor: context,
         resourceType: 'service',
         resourceId: created.id,
-        targetCompanyId: companyId,
+        targetCompanyId: effectiveCompanyId,
         action: 'created',
         after: created,
         source: 'action',

@@ -363,14 +363,17 @@ export async function updateRole(
   }
 }
 
-export async function deleteRole(id: number): Promise<{
+export async function deleteRole(
+  id: number,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
     const { context: authContext, companyId: effectiveCompanyId } =
-      await requireActionPermission('roles.write');
+      await requireActionPermission('roles.write', companyId);
 
     const existingRole = await db.query.role.findFirst({
       where: and(eq(role.id, id), isNull(role.deleted_at)),

@@ -16,6 +16,7 @@ import {
   type GlobalSearchResult,
   type GlobalSearchResultType,
 } from '@/actions/search';
+import { useCompany } from '@/contexts/company-context';
 
 const TYPE_META: Record<
   GlobalSearchResultType,
@@ -30,6 +31,7 @@ const TYPE_ORDER: GlobalSearchResultType[] = ['ticket', 'client', 'service'];
 
 export const GlobalSearch = () => {
   const router = useRouter();
+  const { selectedCompany } = useCompany();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [results, setResults] = React.useState<GlobalSearchResult[]>([]);
@@ -59,7 +61,7 @@ export const GlobalSearch = () => {
 
     setLoading(true);
     const timeoutId = window.setTimeout(async () => {
-      const result = await globalSearch(trimmed);
+      const result = await globalSearch(trimmed, selectedCompany?.id ?? null);
       if (result.success) {
         setResults(result.data ?? []);
       }
@@ -67,7 +69,7 @@ export const GlobalSearch = () => {
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [query, open]);
+  }, [query, open, selectedCompany?.id]);
 
   React.useEffect(() => {
     if (!open) {

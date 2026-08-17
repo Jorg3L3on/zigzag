@@ -105,7 +105,7 @@ export function ServicesListClient() {
   const handleDelete = async (id: number) => {
     try {
       setLoading(true);
-      const result = await deleteService(id);
+      const result = await deleteService(id, selectedCompany?.id ?? null);
       if (result.success) {
         toast.success('Servicio movido a eliminados');
         const refreshed = await getServices(selectedCompany?.id ?? null, statusFilter);

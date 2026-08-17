@@ -13,7 +13,7 @@ import {
 } from '@/lib/errors';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { invalidateCompanyCache } from '@/lib/cache';
-import { requireActionPermission } from '@/lib/security';
+import { requireTenantActionPermission } from '@/lib/security';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
@@ -87,6 +87,7 @@ const sleep = (ms: number) =>
 const assertTicketAccess = async (
   ticketId: bigint,
   permissionKey: string,
+  companyId?: number | null,
 ): Promise<{
   companyId: number;
   context: ActionAuthContext;
@@ -94,7 +95,7 @@ const assertTicketAccess = async (
   paid: number | null;
 }> => {
   const { context, companyId: effectiveCompanyId } =
-    await requireActionPermission(permissionKey);
+    await requireTenantActionPermission(permissionKey, companyId);
 
   const ticketRow = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
@@ -163,6 +164,7 @@ const resolveServiceNameById = async (
 
 export async function getTicketServices(
   ticketId: string,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: ServiceTicket[];
@@ -170,7 +172,7 @@ export async function getTicketServices(
   errorType?: ActionErrorType;
 }> {
   try {
-    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.read');
+    await assertTicketAccess(ticketIdBigInt(ticketId), 'tickets.read', companyId);
     const ticketServicesRows = await db.query.servicesTickets.findMany({
       where: and(
         eq(servicesTickets.ticket_id, ticketIdBigInt(ticketId)),
@@ -190,6 +192,7 @@ export async function getTicketServices(
 export async function createServiceTicket(
   ticketId: string,
   data: CreateServiceTicketData,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: ServiceTicket;
@@ -199,14 +202,12 @@ export async function createServiceTicket(
   try {
     const validated = createServiceTicketSchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
-    const { companyId, context, total, paid } = await assertTicketAccess(
-      ticketIdValue,
-      'tickets.write',
-    );
+    const { companyId: effectiveCompanyId, context, total, paid } =
+      await assertTicketAccess(ticketIdValue, 'tickets.write', companyId);
     assertTicketNotFullyPaid(total, paid);
     const serviceRow = await assertServiceAvailable(
       validated.service_id,
-      companyId,
+      effectiveCompanyId,
     );
     const values = {
       ticket_id: ticketIdValue,
@@ -233,7 +234,7 @@ export async function createServiceTicket(
       }
 
       const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
-      await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
+      await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
         serviceLine: 'created',
         line: createdRow,
         serviceName: serviceRow.name,
@@ -255,7 +256,7 @@ export async function createServiceTicket(
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
-    invalidateCompanyCache(companyId, 'dashboard');
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
     if (error instanceof TicketAlreadyPaidError) {
@@ -272,6 +273,7 @@ export async function updateServiceTicket(
   ticketId: string,
   serviceTicketId: number,
   data: UpdateServiceTicketData,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: ServiceTicket;
@@ -281,10 +283,8 @@ export async function updateServiceTicket(
   try {
     const validated = serviceLineMoneySchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
-    const { companyId, context, total, paid } = await assertTicketAccess(
-      ticketIdValue,
-      'tickets.write',
-    );
+    const { companyId: effectiveCompanyId, context, total, paid } =
+      await assertTicketAccess(ticketIdValue, 'tickets.write', companyId);
     assertTicketNotFullyPaid(total, paid);
     const runUpdate = async () =>
       db.transaction(async (tx) => {
@@ -311,9 +311,9 @@ export async function updateServiceTicket(
         const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
         const serviceName = await resolveServiceNameById(
           updatedRow.service_id,
-          companyId,
+          effectiveCompanyId,
         );
-        await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
+        await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
           serviceLine: 'updated',
           line: updatedRow,
           serviceName: serviceName ?? undefined,
@@ -347,7 +347,7 @@ export async function updateServiceTicket(
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
-    invalidateCompanyCache(companyId, 'dashboard');
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     return { success: true, data: full as ServiceTicket };
   } catch (error) {
     if (error instanceof TicketAlreadyPaidError) {
@@ -363,13 +363,12 @@ export async function updateServiceTicket(
 export async function deleteServiceTicket(
   ticketId: string,
   serviceTicketId: number,
+  companyId?: number | null,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
     const ticketIdValue = ticketIdBigInt(ticketId);
-    const { companyId, context, total, paid } = await assertTicketAccess(
-      ticketIdValue,
-      'tickets.write',
-    );
+    const { companyId: effectiveCompanyId, context, total, paid } =
+      await assertTicketAccess(ticketIdValue, 'tickets.write', companyId);
     assertTicketNotFullyPaid(total, paid);
     await db.transaction(async (tx) => {
       const [deletedRow] = await tx
@@ -387,9 +386,9 @@ export async function deleteServiceTicket(
       if (deletedRow) {
         const serviceName = await resolveServiceNameById(
           deletedRow.service_id,
-          companyId,
+          effectiveCompanyId,
         );
-        await recordTicketAudit(tx, context, ticketIdValue, companyId, 'updated', {
+        await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
           serviceLine: 'deleted',
           line: deletedRow,
           serviceName: serviceName ?? undefined,
@@ -399,7 +398,7 @@ export async function deleteServiceTicket(
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
-    invalidateCompanyCache(companyId, 'dashboard');
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     return { success: true };
   } catch (error) {
     if (error instanceof TicketAlreadyPaidError) {

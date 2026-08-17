@@ -97,6 +97,7 @@ export default async function TicketDetailsPage({
             total={ticket.total}
             paid={ticket.paid}
             downloadFileName={downloadFileName}
+            companyId={ticket.company_id}
           />
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] lg:items-start lg:gap-8">

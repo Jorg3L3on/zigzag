@@ -29,6 +29,7 @@ type TicketDetailQuickActionsProps = {
   total: number | null;
   paid: number | null;
   downloadFileName: string;
+  companyId?: number | null;
   className?: string;
 };
 
@@ -38,6 +39,7 @@ export const TicketDetailQuickActions = ({
   total,
   paid,
   downloadFileName,
+  companyId,
   className,
 }: TicketDetailQuickActionsProps) => {
   const { can } = usePermissions();
@@ -126,6 +128,7 @@ export const TicketDetailQuickActions = ({
           <PDFDownloadButton
             ticketId={ticketId}
             downloadFileName={downloadFileName}
+            companyId={companyId}
             label="Generar recibo"
             className="h-10"
           />

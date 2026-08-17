@@ -14,6 +14,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { parseCsvRecords, toCsv } from '@/lib/csv';
+import { useCompany } from '@/contexts/company-context';
 
 type CsvRecord = Record<string, string>;
 
@@ -36,8 +37,11 @@ type ImportFormValues = {
 interface CsvToolbarProps {
   headers: readonly string[];
   filename: string;
-  exportAction: () => Promise<ExportResult>;
-  importAction?: (records: CsvRecord[]) => Promise<ImportResult>;
+  exportAction: (companyId?: number | null) => Promise<ExportResult>;
+  importAction?: (
+    records: CsvRecord[],
+    companyId?: number | null,
+  ) => Promise<ImportResult>;
 }
 
 export const CsvToolbar = ({
@@ -47,6 +51,7 @@ export const CsvToolbar = ({
   importAction,
 }: CsvToolbarProps) => {
   const router = useRouter();
+  const { selectedCompany } = useCompany();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputId = React.useId();
   const [busy, setBusy] = React.useState(false);
@@ -57,7 +62,7 @@ export const CsvToolbar = ({
   const handleExport = async () => {
     setBusy(true);
     try {
-      const result = await exportAction();
+      const result = await exportAction(selectedCompany?.id ?? null);
       if (!result.success || !result.data) {
         toast.error(result.error || 'No se pudo exportar');
         return;
@@ -102,7 +107,10 @@ export const CsvToolbar = ({
         return;
       }
 
-      const result = await importAction(records);
+      const result = await importAction(
+        records,
+        selectedCompany?.id ?? null,
+      );
       if (!result.success || !result.data) {
         form.setError('file', {
           message: result.error || 'No se pudo importar el archivo',

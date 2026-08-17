@@ -46,7 +46,7 @@ import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
-import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
+import { requireTicketRead, requireTicketWrite, requireTenantTicketRead } from '@/lib/tickets-rbac-server';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { isWorkTicket } from '@/lib/ticket-document-kind';
 import { z } from 'zod';
@@ -707,9 +707,7 @@ export async function deleteTicket(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      companyId == null
-        ? await requireTicketWrite()
-        : await requireTicketWrite(companyId);
+      await requireTicketWrite(companyId);
     const ticketId = BigInt(id);
     await assertTicketWritable(ticketId, effectiveCompanyId);
     const prior = await db.query.ticket.findFirst({
@@ -768,9 +766,7 @@ export async function finishTicket(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      companyId == null
-        ? await requireTicketWrite()
-        : await requireTicketWrite(companyId);
+      await requireTicketWrite(companyId);
     const ticketId = BigInt(id);
     const writable = await assertTicketWritable(ticketId, effectiveCompanyId);
     assertIsWorkTicketRow(writable);
@@ -903,9 +899,7 @@ export async function applyTicketPayment(
 }> {
   try {
     const { context, companyId: effectiveCompanyId } =
-      companyId == null
-        ? await requireTicketWrite()
-        : await requireTicketWrite(companyId);
+      await requireTicketWrite(companyId);
     const ticketId = BigInt(id);
     const writable = await assertTicketWritable(ticketId, effectiveCompanyId);
     assertIsWorkTicketRow(writable);
@@ -1058,20 +1052,23 @@ export async function applyTicketPayment(
 }
 
 /** Active tickets for the caller's company as CSV-ready rows. */
-export async function getTicketsForExport(): Promise<{
+export async function getTicketsForExport(
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   data?: Array<Record<(typeof TICKET_CSV_HEADERS)[number], string>>;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId } = await requireTicketRead();
+    const { companyId: effectiveCompanyId } =
+      await requireTenantTicketRead(companyId);
     const rows = await db
       .select()
       .from(ticket)
       .where(
         and(
-          eq(ticket.company_id, companyId),
+          eq(ticket.company_id, effectiveCompanyId),
           isNull(ticket.deleted_at),
           eq(ticket.document_kind, 'ticket'),
         ),
