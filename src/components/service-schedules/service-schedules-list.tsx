@@ -8,11 +8,10 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { CalendarClock, Plus, Search } from 'lucide-react';
+import { CalendarClock, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -46,6 +45,7 @@ import {
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
+import { ServiceSchedulesFilterBar } from '@/components/service-schedules/service-schedules-filter-bar';
 import { createServiceSchedulesColumns } from '@/components/service-schedules/service-schedules-columns';
 import { ScheduleFormDialog } from '@/components/service-schedules/schedule-form-dialog';
 import {
@@ -62,14 +62,6 @@ import Link from 'next/link';
 import { buildTelHref } from '@/lib/phone-links';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { canCreateTicketFromSchedule, canReadServiceSchedules, canWriteServiceSchedules, needsSelectedCompanyForSchedules } from '@/lib/service-schedules-rbac';
-
-const FILTER_OPTIONS: Array<{ value: ScheduleFilterBucket; label: string }> = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'proximos', label: 'Próximos' },
-  { value: 'atrasados', label: 'Atrasados' },
-  { value: 'programados', label: 'Programados' },
-  { value: 'pausados', label: 'Pausados' },
-];
 
 const DEFAULT_SORTING: SortingState = [{ id: 'nextDueAt', desc: false }];
 
@@ -304,6 +296,7 @@ export const ServiceSchedulesList = () => {
     getSortedRowModel: getSortedRowModel(),
   });
   const hasActiveFilters = debouncedSearch !== '' || filter !== 'todos';
+  const sheetFilterCount = filter !== 'todos' ? 1 : 0;
   const listState = resolveResourceListState({
     isLoading: loading,
     loadError,
@@ -319,48 +312,59 @@ export const ServiceSchedulesList = () => {
     setSorting(DEFAULT_SORTING);
   };
 
+  const filterChips = [
+    {
+      key: 'count',
+      label: `${filteredItems.length} de ${items.length} recordatorios`,
+      variant: 'secondary' as const,
+    },
+    ...(filter !== 'todos'
+      ? [
+          {
+            key: 'filter',
+            label:
+              filter === 'proximos'
+                ? 'Próximos'
+                : filter === 'atrasados'
+                  ? 'Atrasados'
+                  : filter === 'programados'
+                    ? 'Programados'
+                    : filter === 'pausados'
+                      ? 'Pausados'
+                      : 'Todos',
+          },
+        ]
+      : []),
+    ...(debouncedSearch
+      ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
+      : []),
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            className="min-h-11 rounded-xl pl-9"
-            placeholder="Buscar por cliente o servicio"
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            aria-label="Buscar recordatorios"
-          />
-        </div>
-        {canWrite ? (
+      {canWrite ? (
+        <div className="flex justify-end">
           <Button
             type="button"
             className="min-h-11 gap-1.5 rounded-xl"
             onClick={handleAdd}
           >
-            <Plus className="h-4 w-4" aria-hidden  data-icon="inline-start" />
+            <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
             Nuevo recordatorio
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        {FILTER_OPTIONS.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            variant={filter === option.value ? 'default' : 'outline'}
-            className="min-h-11 rounded-xl"
-            onClick={() => setFilter(option.value)}
-            aria-label={`Filtrar ${option.label}`}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
+      <ServiceSchedulesFilterBar
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        filter={filter}
+        onFilterChange={setFilter}
+        sheetFilterCount={sheetFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filterChips={filterChips}
+      />
 
       {listState.kind === 'loading' ? (
         <TripledListLoadingState

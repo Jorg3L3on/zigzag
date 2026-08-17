@@ -15,10 +15,13 @@ import { getOperatorCompanyFleet } from '@/actions/company-operator';
 import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
+import {
+  CompaniesFilterBar,
+  FLEET_STATUS_FILTER_OPTIONS,
+} from '@/components/companies/companies-filter-bar';
 import { createOperatorFleetColumns } from '@/components/operator-console/operator-company-fleet-columns';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import {
@@ -36,8 +39,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Pencil, Factory, Search, X, Plus } from 'lucide-react';
+import { Pencil, Factory, X, Plus } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import type { OperatorFleetRow } from '@/lib/company-operator-fleet';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -63,14 +65,6 @@ const formatWhen = (iso: string | null): string => {
   if (!Number.isFinite(date.getTime())) return 'Sin registro';
   return formatDistanceToNow(date, { addSuffix: true, locale: es });
 };
-
-const STATUS_FILTER_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'all', label: 'Todas' },
-  { value: 'setup', label: 'En configuración' },
-  { value: 'active', label: 'Activas' },
-  { value: 'suspended', label: 'Suspendidas' },
-  { value: 'archived', label: 'Archivadas' },
-];
 
 export const OperatorCompanyFleet = () => {
   const { selectedCompany, setSelectedCompany } = useCompany();
@@ -244,6 +238,7 @@ export const OperatorCompanyFleet = () => {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const sheetFilterCount = statusFilter !== 'all' ? 1 : 0;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'all';
   const listState = resolveResourceListState({
     isLoading: loading,
@@ -252,6 +247,16 @@ export const OperatorCompanyFleet = () => {
     visibleCount: table.getRowModel().rows.length,
     hasActiveFilters,
   });
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setStatusFilter('all');
+  };
+
+  const activeStatusLabel =
+    FLEET_STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)
+      ?.label ?? statusFilter;
 
   const filterChips = [
     {
@@ -263,9 +268,7 @@ export const OperatorCompanyFleet = () => {
       ? [
           {
             key: 'status',
-            label:
-              STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter)
-                ?.label ?? statusFilter,
+            label: activeStatusLabel,
           },
         ]
       : []),
@@ -296,48 +299,35 @@ export const OperatorCompanyFleet = () => {
         ) : null}
       </div>
 
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          value={searchValue}
-          onChange={(event) => setSearchValue(event.target.value)}
-          placeholder="Buscar empresa, correo o teléfono"
-          className="min-h-11 rounded-xl pl-9"
-          aria-label="Buscar empresas"
-        />
-        {searchValue ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute top-1/2 right-1 h-9 w-9 -translate-y-1/2"
-            aria-label="Limpiar búsqueda"
-            onClick={() => setSearchValue('')}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTER_OPTIONS.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            variant={statusFilter === option.value ? 'default' : 'outline'}
-            className="min-h-11 rounded-xl"
-            onClick={() => setStatusFilter(option.value)}
-            aria-label={`Filtrar por estado: ${option.label.toLowerCase()}`}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-
-      <TripledFilterChips chips={filterChips} />
+      <CompaniesFilterBar
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        statusOptions={FLEET_STATUS_FILTER_OPTIONS}
+        showSort={false}
+        sheetFilterCount={sheetFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filterChips={filterChips}
+        clearFiltersAriaLabel="Limpiar filtros de flota"
+        searchPlaceholder="Buscar empresa, correo o teléfono"
+        searchClassName="min-h-11 rounded-xl pl-9"
+        searchTrailing={
+          searchValue ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute top-1/2 right-1 h-9 w-9 -translate-y-1/2"
+              aria-label="Limpiar búsqueda"
+              onClick={() => setSearchValue('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null
+        }
+      />
 
       {listState.kind === 'loading' ? (
         <TripledListLoadingState label="Cargando flota de empresas…" />

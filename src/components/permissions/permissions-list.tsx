@@ -11,11 +11,10 @@ import {
 import { getPermissions } from '@/actions/permissions';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
-import { KeyRound, Search, X } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,25 +34,14 @@ import {
 } from '@/components/permissions/permissions-columns';
 import { PermissionActionsMenu } from '@/components/permissions/permission-actions-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { FormattedDate } from '@/components/formatted-date';
-import { Input } from '@/components/ui/input';
 import {
-  DEFAULT_PERMISSION_SORTING,
-  PERMISSIONS_MOBILE_SORT_OPTIONS,
-  decodeSortingState,
-  encodeSortingState,
-} from '@/components/permissions/permissions-sort-presets';
+  PermissionsFilterBar,
+  type PermissionsCompanyScopeFilter,
+} from '@/components/permissions/permissions-filter-bar';
+import { DEFAULT_PERMISSION_SORTING } from '@/components/permissions/permissions-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS as RBAC_PERMISSIONS } from '@/lib/permissions';
-
-type CompanyScopeFilter = 'all' | 'global' | 'company';
 
 export function PermissionsList() {
   const sessionPermissions = usePermissions();
@@ -66,7 +54,7 @@ export function PermissionsList() {
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [companyScopeFilter, setCompanyScopeFilter] =
-    React.useState<CompanyScopeFilter>('all');
+    React.useState<PermissionsCompanyScopeFilter>('all');
   const [sorting, setSorting] =
     React.useState<SortingState>(DEFAULT_PERMISSION_SORTING);
   const [editPermission, setEditPermission] =
@@ -171,8 +159,8 @@ export function PermissionsList() {
     getRowId: (row) => String(row.id),
   });
 
-  const mobileSortValue = encodeSortingState(sorting);
   const hasActiveFilters = debouncedSearch !== '' || companyScopeFilter !== 'all';
+  const sheetFilterCount = companyScopeFilter !== 'all' ? 1 : 0;
   const listState = resolveResourceListState({
     isLoading: loading,
     loadError,
@@ -180,13 +168,6 @@ export function PermissionsList() {
     visibleCount: filteredPermissions.length,
     hasActiveFilters,
   });
-
-  const companyScopeOptions: Array<{ value: CompanyScopeFilter; label: string }> =
-    [
-      { value: 'all', label: 'Todos' },
-      { value: 'global', label: 'Sin empresa' },
-      { value: 'company', label: 'Por empresa' },
-    ];
 
   const handleClearFilters = () => {
     setSearchValue('');
@@ -209,9 +190,7 @@ export function PermissionsList() {
           {
             key: 'scope',
             label:
-              companyScopeOptions.find(
-                (option) => option.value === companyScopeFilter,
-              )?.label ?? 'Alcance',
+              companyScopeFilter === 'global' ? 'Sin empresa' : 'Por empresa',
           },
         ]
       : []),
@@ -225,75 +204,18 @@ export function PermissionsList() {
         ) : null}
       </div>
 
-      <div className="space-y-4">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por permiso, descripción o empresa..."
-            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
-            aria-label="Buscar permisos"
-          />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {companyScopeOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={
-                  companyScopeFilter === option.value ? 'default' : 'outline'
-                }
-                className="min-h-11 rounded-xl"
-                onClick={() => setCompanyScopeFilter(option.value)}
-                aria-label={`Filtrar por alcance: ${option.label.toLowerCase()}`}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <TripledFilterChips chips={filterChips} />
-            {hasActiveFilters ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
-                onClick={handleClearFilters}
-                aria-label="Limpiar filtros de permisos"
-              >
-                <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
-                Limpiar filtros
-              </Button>
-            ) : null}
-            <div className="w-full sm:w-auto md:hidden">
-              <Select
-                value={mobileSortValue}
-                onValueChange={(value) => setSorting(decodeSortingState(value))}
-              >
-                <SelectTrigger
-                  className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
-                  aria-label="Ordenar lista de permisos"
-                >
-                  <SelectValue placeholder="Ordenar por" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERMISSIONS_MOBILE_SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PermissionsFilterBar
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        companyScopeFilter={companyScopeFilter}
+        onCompanyScopeFilterChange={setCompanyScopeFilter}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        sheetFilterCount={sheetFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filterChips={filterChips}
+      />
 
         {listState.kind === 'loading' ? (
           <TripledListLoadingState

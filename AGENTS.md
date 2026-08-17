@@ -51,6 +51,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 
 ### Mobile & responsive UI
 - Dashboard lists use **TanStack Table** on desktop and **card layout** below `md` (768px). See [.cursor/rules/lists-and-responsive-tables.mdc](.cursor/rules/lists-and-responsive-tables.mdc).
+- **List filters below `lg`:** dense filters open in a bottom Sheet via `ListFilterBarShell` (`src/components/list-filter/`); search + chips stay outside. Resource bars: `*-filter-bar.tsx` (tickets, clients, services, companies, etc.).
 - Breakpoint constant: `MOBILE_BREAKPOINT_PX` in `src/lib/breakpoints.ts`; hook: `src/hooks/use-mobile.tsx`.
 - Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
 - **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service data requires network (no offline sync).

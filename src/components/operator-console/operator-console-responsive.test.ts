@@ -21,7 +21,7 @@ describe('operator console responsive surfaces', () => {
     expect(source).toContain('md:hidden');
     expect(source).toContain('rounded-xl border border-border/70 md:block');
     expect(source).toContain('useReactTable');
-    expect(source).toContain('TripledDataPanel');
+    expect(source).toContain('OperatorActivityFilterBar');
     expect(source).toContain('debouncedSearch');
     expect(source).toContain('ACTIVITY_TABLE_SCROLL_CLASS');
     expect(source).toContain('max-h-[calc(3rem+3.25rem*10)]');
@@ -39,12 +39,17 @@ describe('operator console responsive surfaces', () => {
   });
 
   it('separates suspended and archived fleet filters', () => {
-    const source = read(
+    const fleetSource = read(
       'src/components/operator-console/operator-company-fleet.tsx',
     );
-    expect(source).toContain("value: 'suspended'");
-    expect(source).toContain("value: 'archived'");
-    expect(source).toContain('operatorConsoleCompanyHref');
+    const filterBarSource = read(
+      'src/components/companies/companies-filter-bar.tsx',
+    );
+    expect(fleetSource).toContain('FLEET_STATUS_FILTER_OPTIONS');
+    expect(fleetSource).toContain('CompaniesFilterBar');
+    expect(fleetSource).toContain('operatorConsoleCompanyHref');
+    expect(filterBarSource).toContain("value: 'suspended'");
+    expect(filterBarSource).toContain("value: 'archived'");
   });
 
   it('composes fleet then tabbed detail on the operator page', () => {

@@ -49,12 +49,19 @@ These three requirements apply to **all** resource lists:
 - **Search**:
   - Maintain `searchValue` and a debounced value (`debouncedSearch`).
   - Filter on key fields (e.g. tickets: id, client name, phone, email; companies: name, email, phone).
+- **Mobile filter drawer (standard below `lg`)**:
+  - Use **`ListFilterBarShell`** from `src/components/list-filter/` (or a resource `*-filter-bar.tsx` built on it).
+  - **Always visible**: search input + filter icon button (`lg:hidden`) with badge for dense active filters.
+  - **Sheet** (`side="bottom"`): dense filters (status buttons, selects, dates, mobile sort). Title “Filtros”, drag handle, “Listo” footer. Search and `TripledFilterChips` stay **outside** the sheet.
+  - **Desktop (`lg+`)**: same dense filters inline (`hidden lg:flex` / grid); no sheet trigger.
+  - `sheetFilterCount` counts dense controls only (not search). Aria: `Abrir filtros` / `Abrir filtros (N activos)`.
+  - Helpers: `ButtonFilterGroup`, `MobileSortSelect`. Reference: `ClientsFilterBar`, `TicketsFilterBar`, `ServicesFilterBar`.
 - **Filters**:
-  - Simple **button-based filters** for status / state:
-    - Tickets: payment status, finished / PDF presence (see `TicketsList`).
-    - Services: statusFilter (`active`, `deleted`, `all`) with small toggle buttons.
-    - Companies: status filter (`all`, `active`, `inactive`).
-  - Place filters inside the `TripledDataPanel` above the list.
+  - Simple **button-based filters** for status / state (via `ButtonFilterGroup` when using the shell):
+    - Tickets: payment status, finished, date range (see `TicketsFilterBar`).
+    - Services: statusFilter (`active`, `deleted`, `all`).
+    - Companies: lifecycle status filter.
+  - Do **not** leave dense filter button rows always inline on mobile; put them in the drawer.
 
 ## DataTable + mobile cards
 
@@ -80,12 +87,13 @@ When you add a new resource list (e.g. invoices, products, etc.):
   - Loading / error / empty via `TripledEmptyState`.
   - **Desktop**: TanStack DataTable (`hidden md:block`).
   - **Mobile**: cards (`md:hidden`).
-- Re-use `FormattedDate`, `FormattedCurrency`, badges, shared filter buttons.
+- Re-use `FormattedDate`, `FormattedCurrency`, badges, and a `*-filter-bar.tsx` on `ListFilterBarShell` for mobile drawer + desktop inline filters.
 
 ## Anti-patterns
 
 - **Do not** render mobile cards with `.map(filteredRows)` while desktop uses TanStack — use one `useReactTable` and `table.getRowModel().rows` for both.
 - **Do not** use `src/components/ui/data-table.tsx` for dashboard resource lists (table-only, no mobile cards). Use `ClientList`, `TicketsList`, `CompaniesList`, etc.
+- **Do not** stack dense filter controls always-visible on viewports below `lg` — use the mobile filter drawer (`ListFilterBarShell`).
 
 ## Reference implementations
 

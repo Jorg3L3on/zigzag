@@ -14,7 +14,6 @@ import { getCompanies } from '@/actions/companies';
 import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
-  TripledFilterChips,
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
@@ -29,25 +28,17 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Pencil, Trash2, Factory, Globe2, Search, X, Plus } from 'lucide-react';
+import { Pencil, Trash2, Factory, Globe2, Plus } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
 import { DeleteCompanyDialog } from '@/app/(app)/companies/delete-company-dialog';
 import { createCompaniesColumns } from '@/components/companies/companies-columns';
 import {
-  COMPANIES_MOBILE_SORT_OPTIONS,
-  DEFAULT_COMPANY_SORTING,
-  decodeSortingState,
-  encodeSortingState,
-} from '@/components/companies/companies-sort-presets';
+  CompaniesFilterBar,
+  COMPANIES_STATUS_FILTER_OPTIONS,
+  type CompaniesStatusFilter,
+} from '@/components/companies/companies-filter-bar';
+import { DEFAULT_COMPANY_SORTING } from '@/components/companies/companies-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 import {
@@ -55,8 +46,6 @@ import {
   normalizeCompanyLifecycleStatus,
 } from '@/lib/company-lifecycle';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
-
-type StatusFilter = 'all' | 'setup' | 'active' | 'restricted';
 
 export type CompaniesListRowClickAction = 'edit' | 'select';
 
@@ -73,7 +62,7 @@ const statusLabel = (status: Company['status']) =>
 
 const matchesStatusFilter = (
   status: Company['status'],
-  filter: StatusFilter,
+  filter: CompaniesStatusFilter,
 ): boolean => {
   const lifecycle = normalizeCompanyLifecycleStatus(status);
   if (filter === 'setup') {
@@ -104,7 +93,7 @@ export function CompaniesList({
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = React.useState<CompaniesStatusFilter>('all');
   const [sorting, setSorting] =
     React.useState<SortingState>(DEFAULT_COMPANY_SORTING);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -331,15 +320,8 @@ export function CompaniesList({
     setSearchValue(value);
   };
 
-  const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
-    { value: 'all', label: 'Todas' },
-    { value: 'setup', label: 'En configuración' },
-    { value: 'active', label: 'Activas' },
-    { value: 'restricted', label: 'Suspendidas / archivadas' },
-  ];
-
   const rowCount = table.getRowModel().rows.length;
-  const mobileSortValue = encodeSortingState(sorting);
+  const sheetFilterCount = statusFilter !== 'all' ? 1 : 0;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'all';
   const listState = resolveResourceListState({
     isLoading: loading,
@@ -349,7 +331,7 @@ export function CompaniesList({
     hasActiveFilters,
   });
   const activeStatusLabel =
-    statusFilterOptions.find((option) => option.value === statusFilter)?.label ??
+    COMPANIES_STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)?.label ??
     'Todas';
 
   const handleClearFilters = () => {
@@ -385,72 +367,19 @@ export function CompaniesList({
 
   return (
     <div className="space-y-4">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="Buscar por nombre, correo o teléfono..."
-            className="h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:max-w-md sm:bg-background"
-            aria-label="Buscar empresas"
-          />
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {statusFilterOptions.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={statusFilter === option.value ? 'default' : 'outline'}
-                className="min-h-11 rounded-xl"
-                onClick={() => setStatusFilter(option.value)}
-                aria-label={`Filtrar por estado: ${option.label.toLowerCase()}`}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <div className="w-full sm:w-auto md:hidden">
-            <Select
-              value={mobileSortValue}
-              onValueChange={(value) => setSorting(decodeSortingState(value))}
-            >
-              <SelectTrigger
-                className="h-11 w-full rounded-xl sm:w-[min(100%,18rem)]"
-                aria-label="Ordenar lista de empresas"
-              >
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPANIES_MOBILE_SORT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TripledFilterChips chips={filterChips} />
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-11 justify-start text-destructive hover:bg-destructive/10 hover:text-destructive sm:min-h-9"
-              onClick={handleClearFilters}
-              aria-label="Limpiar filtros de empresas"
-            >
-              <X className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
-              Limpiar filtros
-            </Button>
-          ) : null}
-        </div>
+        <CompaniesFilterBar
+          searchValue={searchValue}
+          onSearchChange={handleSearchChange}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          statusOptions={COMPANIES_STATUS_FILTER_OPTIONS}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          sheetFilterCount={sheetFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filterChips={filterChips}
+        />
 
         {listState.kind === 'loading' ? (
           <TripledListLoadingState

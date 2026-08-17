@@ -10,20 +10,12 @@ import {
 } from '@tanstack/react-table';
 import { useCompany } from '@/contexts/company-context';
 import {
-  TripledDataPanel,
   TripledEmptyState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   TableBody,
   TableCell,
@@ -32,11 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { createOperatorActivityColumns } from '@/components/operator-console/operator-activity-columns';
-import {
-  AUDIT_ACTIONS,
-  AUDIT_RESOURCE_TYPES,
-  AUDIT_RESULTS,
-} from '@/lib/audit-catalog';
+import { OperatorActivityFilterBar } from '@/components/operator-console/operator-activity-filter-bar';
 import {
   formatAuditActionLabel,
   formatAuditResourceTypeLabel,
@@ -62,6 +50,7 @@ import { resolveResourceListState } from '@/lib/resource-list-state';
 import Link from 'next/link';
 import { ChevronDown, ClipboardList, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { ListFilterChip } from '@/components/list-filter';
 
 type AuditEventRow = AuditEventListItem;
 
@@ -329,12 +318,60 @@ export const OperatorActivityPanel = () => {
   const incidentCount = events.filter((row) =>
     isOperatorIncidentEvent(row),
   ).length;
+  const sheetFilterCount = [
+    resourceType !== 'all',
+    actionFilter !== 'all',
+    resultFilter !== 'all',
+    incidentsOnly,
+  ].filter(Boolean).length;
   const hasActiveFilters =
     debouncedSearch !== '' ||
     resourceType !== 'all' ||
     actionFilter !== 'all' ||
     resultFilter !== 'all' ||
     incidentsOnly;
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+    setResourceType('all');
+    setActionFilter('all');
+    setResultFilter('all');
+    setIncidentsOnly(false);
+  };
+
+  const filterChips: ListFilterChip[] = [
+    ...(resourceType !== 'all'
+      ? [
+          {
+            key: 'resource',
+            label: formatAuditResourceTypeLabel(resourceType),
+          },
+        ]
+      : []),
+    ...(actionFilter !== 'all'
+      ? [
+          {
+            key: 'action',
+            label: formatAuditActionLabel(actionFilter),
+          },
+        ]
+      : []),
+    ...(resultFilter !== 'all'
+      ? [
+          {
+            key: 'result',
+            label: formatAuditResultLabel(resultFilter),
+          },
+        ]
+      : []),
+    ...(incidentsOnly
+      ? [{ key: 'incidents', label: 'Solo incidentes' }]
+      : []),
+    ...(debouncedSearch
+      ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
+      : []),
+  ];
 
   const columns = React.useMemo(
     () =>
@@ -381,72 +418,41 @@ export const OperatorActivityPanel = () => {
 
   return (
     <section className="space-y-4 border-t border-border/60 pt-6">
-      <TripledDataPanel
-        title="Actividad reciente"
-        description="Eventos de auditoría para la empresa seleccionada."
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            Actividad reciente
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Eventos de auditoría para la empresa seleccionada.
+          </p>
+        </div>
+        {incidentCount > 0 ? (
+          <Badge variant="destructive">
+            {incidentCount} incidente{incidentCount === 1 ? '' : 's'} operativo
+            {incidentCount === 1 ? '' : 's'}
+          </Badge>
+        ) : null}
+      </div>
+
+      <OperatorActivityFilterBar
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        ctaSlot={
-          incidentCount > 0 ? (
-            <Badge variant="destructive">
-              {incidentCount} incidente{incidentCount === 1 ? '' : 's'} operativo
-              {incidentCount === 1 ? '' : 's'}
-            </Badge>
-          ) : null
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Select value={resourceType} onValueChange={setResourceType}>
-              <SelectTrigger aria-label="Filtrar por tipo de recurso">
-                <SelectValue placeholder="Recurso" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los recursos</SelectItem>
-                {AUDIT_RESOURCE_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {formatAuditResourceTypeLabel(type)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger aria-label="Filtrar por acción">
-                <SelectValue placeholder="Acción" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las acciones</SelectItem>
-                {AUDIT_ACTIONS.map((action) => (
-                  <SelectItem key={action} value={action}>
-                    {formatAuditActionLabel(action)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={resultFilter} onValueChange={setResultFilter}>
-              <SelectTrigger aria-label="Filtrar por resultado">
-                <SelectValue placeholder="Resultado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los resultados</SelectItem>
-                {AUDIT_RESULTS.map((result) => (
-                  <SelectItem key={result} value={result}>
-                    {formatAuditResultLabel(result)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant={incidentsOnly ? 'default' : 'outline'}
-              className="min-h-11 rounded-xl"
-              onClick={() => setIncidentsOnly((current) => !current)}
-              aria-pressed={incidentsOnly}
-            >
-              Solo incidentes
-            </Button>
-          </div>
+        resourceType={resourceType}
+        onResourceTypeChange={setResourceType}
+        actionFilter={actionFilter}
+        onActionFilterChange={setActionFilter}
+        resultFilter={resultFilter}
+        onResultFilterChange={setResultFilter}
+        incidentsOnly={incidentsOnly}
+        onIncidentsOnlyChange={setIncidentsOnly}
+        sheetFilterCount={sheetFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filterChips={filterChips}
+      />
 
+      <div className="space-y-4">
           {listState.kind === 'loading' ? (
             <div className="flex h-32 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -641,8 +647,7 @@ export const OperatorActivityPanel = () => {
               ) : null}
             </>
           )}
-        </div>
-      </TripledDataPanel>
+      </div>
     </section>
   );
 };
