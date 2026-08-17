@@ -48,6 +48,9 @@ test.describe('Mobile dashboard redesign', () => {
     await expect(
       page.getByRole('textbox', { name: 'Buscar usuarios' }).first(),
     ).toBeVisible();
+    await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
+    await page.getByRole('button', { name: /Abrir filtros/ }).click();
+    await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Filtrar correo:/i })).toHaveCount(3);
     await expect(page.getByText(/de \d+ usuarios/).first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
