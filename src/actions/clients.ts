@@ -9,7 +9,11 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { pauseSchedulesForClient } from '@/lib/client-service-schedule-lifecycle';
-import { requireActionPermission } from '@/lib/security';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireTenantActionPermission,
+} from '@/lib/security';
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -72,7 +76,10 @@ export async function getClients(params: GetClientsParams): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('clients.read', params.companyId ?? undefined);
+    await requireTenantActionPermission(
+      'clients.read',
+      params.companyId ?? undefined,
+    );
     const page = Math.max(params.page ?? 1, 1);
     const pageSize = Math.min(Math.max(params.pageSize ?? 20, 1), 100);
     const search = params.search?.trim();
@@ -141,7 +148,10 @@ export async function getClientsList(params: {
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireActionPermission('clients.read', params.companyId ?? undefined);
+    await requireTenantActionPermission(
+      'clients.read',
+      params.companyId ?? undefined,
+    );
     const companyCondition =
       params.companyId === null
         ? isNull(client.company_id)
@@ -168,16 +178,23 @@ export async function getClient(id: number): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId } = await requireActionPermission('clients.read');
+    const context = await requireActionAuth();
+    const { companyId } = await requireActionPermission(
+      'clients.read',
+      context.companyIsSystem ? undefined : context.companyId,
+    );
+
     const [row] = await db
       .select()
       .from(client)
       .where(
-        and(
-          eq(client.id, id),
-          eq(client.company_id, companyId),
-          isNull(client.deleted_at),
-        ),
+        context.companyIsSystem
+          ? and(eq(client.id, id), isNull(client.deleted_at))
+          : and(
+              eq(client.id, id),
+              eq(client.company_id, companyId),
+              isNull(client.deleted_at),
+            ),
       )
       .limit(1);
 
@@ -200,10 +217,8 @@ export async function createClient(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'clients.write',
-      data.company_id,
-    );
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('clients.write', data.company_id);
 
     const [created] = await db
       .insert(client)
@@ -250,10 +265,11 @@ export async function updateClient(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'clients.write',
-      data.company_id ?? undefined,
-    );
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission(
+        'clients.write',
+        data.company_id ?? undefined,
+      );
 
     const { id, ...updateData } = data;
     const existing = await db.query.client.findFirst({
@@ -300,10 +316,8 @@ export async function deleteClient(
   companyId?: number | null,
 ): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
   try {
-    const { context, companyId: effectiveCompanyId } = await requireActionPermission(
-      'clients.write',
-      companyId ?? undefined,
-    );
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('clients.write', companyId);
     const existing = await db.query.client.findFirst({
       where: and(
         eq(client.id, id),
@@ -347,18 +361,24 @@ export async function deleteClient(
 }
 
 /** Returns all active clients for the caller's company as plain CSV-ready rows. */
-export async function getClientsForExport(): Promise<{
+export async function getClientsForExport(companyId?: number | null): Promise<{
   success: boolean;
   data?: Array<Record<(typeof CLIENT_CSV_HEADERS)[number], string>>;
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const { companyId } = await requireActionPermission('clients.read');
+    const { companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('clients.read', companyId);
     const rows = await db
       .select()
       .from(client)
-      .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)))
+      .where(
+        and(
+          eq(client.company_id, effectiveCompanyId),
+          isNull(client.deleted_at),
+        ),
+      )
       .orderBy(desc(client.created_at));
 
     return {
@@ -381,6 +401,7 @@ export async function getClientsForExport(): Promise<{
  */
 export async function bulkImportClients(
   records: Array<Record<string, string>>,
+  companyId?: number | null,
 ): Promise<{
   success: boolean;
   data?: BulkImportSummary;
@@ -388,7 +409,8 @@ export async function bulkImportClients(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { context, companyId } = await requireActionPermission('clients.write');
+    const { context, companyId: effectiveCompanyId } =
+      await requireTenantActionPermission('clients.write', companyId);
 
     const summary: BulkImportSummary = { inserted: 0, failed: 0, errors: [] };
 
@@ -422,7 +444,7 @@ export async function bulkImportClients(
           email: value.email ? value.email : null,
           phone: value.phone ? value.phone : null,
           document: value.document ? value.document : null,
-          company_id: companyId,
+          company_id: effectiveCompanyId,
         })
         .returning();
 
@@ -430,7 +452,7 @@ export async function bulkImportClients(
         actor: context,
         resourceType: 'client',
         resourceId: created.id,
-        targetCompanyId: companyId,
+        targetCompanyId: effectiveCompanyId,
         action: 'created',
         after: created,
         source: 'action',

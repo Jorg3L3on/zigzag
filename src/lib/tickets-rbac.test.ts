@@ -12,15 +12,24 @@ import {
 import {
   requireTicketRead,
   requireTicketWrite,
+  requireTenantTicketRead,
 } from '@/lib/tickets-rbac-server';
-import { requireActionPermission } from '@/lib/security';
+import {
+  requireActionPermission,
+  requireTenantActionPermission,
+} from '@/lib/security';
 
 jest.mock('@/lib/security', () => ({
   requireActionPermission: jest.fn(),
+  requireTenantActionPermission: jest.fn(),
 }));
 
 const mockRequireActionPermission =
   requireActionPermission as jest.MockedFunction<typeof requireActionPermission>;
+const mockRequireTenantActionPermission =
+  requireTenantActionPermission as jest.MockedFunction<
+    typeof requireTenantActionPermission
+  >;
 
 describe('tickets RBAC contract', () => {
   beforeEach(() => {
@@ -60,16 +69,29 @@ describe('tickets RBAC contract', () => {
     );
   });
 
-  it('delegates server write to tickets.write', async () => {
-    mockRequireActionPermission.mockResolvedValueOnce({
+  it('delegates server write to tickets.write via requireTenantActionPermission', async () => {
+    mockRequireTenantActionPermission.mockResolvedValueOnce({
       context: { userId: '1', companyId: 1, companyIsSystem: false },
       companyId: 1,
     });
 
     await requireTicketWrite(1);
-    expect(mockRequireActionPermission).toHaveBeenCalledWith(
+    expect(mockRequireTenantActionPermission).toHaveBeenCalledWith(
       PERMISSIONS.tickets.write,
       1,
+    );
+  });
+
+  it('delegates tenant-scoped read to tickets.read via requireTenantActionPermission', async () => {
+    mockRequireTenantActionPermission.mockResolvedValueOnce({
+      context: { userId: '1', companyId: 1, companyIsSystem: true },
+      companyId: 99,
+    });
+
+    await requireTenantTicketRead(99);
+    expect(mockRequireTenantActionPermission).toHaveBeenCalledWith(
+      PERMISSIONS.tickets.read,
+      99,
     );
   });
 });

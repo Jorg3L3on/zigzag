@@ -207,3 +207,32 @@ export async function requireActionPermission(
 
   return { context, companyId };
 }
+
+/**
+ * Tenant-scoped Server Action auth. System operators must pass an explicit
+ * `requestedCompanyId` (selected company); there is no silent fallback to the
+ * master/session company. Non-system tenants may omit it and use their session
+ * company via `requireActionPermission`.
+ */
+export async function requireTenantActionPermission(
+  permissionName: string,
+  requestedCompanyId?: number | null,
+): Promise<{ context: ActionAuthContext; companyId: number }> {
+  const context = await requireActionAuth();
+  if (context.companyIsSystem && requestedCompanyId == null) {
+    const requestMeta = await buildAuditRequestMetaFromHeaders();
+    await recordPermissionDeniedAudit({
+      actor: context,
+      targetCompanyId: context.companyId,
+      permission: permissionName,
+      source: 'action',
+      reason: 'invalid_company_context',
+      actorCompanyId: context.companyId,
+      requestedCompanyId: null,
+      requestMeta,
+    });
+    throw new AuthorizationError('System user must provide company context');
+  }
+
+  return requireActionPermission(permissionName, requestedCompanyId);
+}

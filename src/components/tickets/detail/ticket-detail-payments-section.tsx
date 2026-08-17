@@ -20,6 +20,7 @@ type TicketDetailPaymentsSectionProps = {
   paid: number | null;
   finished: boolean;
   payments: TicketPaymentHistoryRow[];
+  companyId?: number | null;
 };
 
 /**
@@ -32,6 +33,7 @@ export const TicketDetailPaymentsSection = ({
   paid,
   finished,
   payments,
+  companyId = null,
 }: TicketDetailPaymentsSectionProps) => {
   if (!finished) {
     return (
@@ -76,6 +78,7 @@ export const TicketDetailPaymentsSection = ({
         paid={paid}
         finished={finished}
         payments={payments}
+        companyId={companyId}
       />
     </TicketDetailSectionCard>
   );

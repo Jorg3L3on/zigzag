@@ -484,7 +484,10 @@ export async function updateOwnAccount(
   }
 }
 
-export async function deleteUser(id: bigint): Promise<{
+export async function deleteUser(
+  id: bigint,
+  companyId?: number | null,
+): Promise<{
   success: boolean;
   data?: typeof user.$inferSelect;
   error?: string;
@@ -492,7 +495,7 @@ export async function deleteUser(id: bigint): Promise<{
 }> {
   try {
     const { context: authContext, companyId: effectiveCompanyId } =
-      await requireActionPermission('users.write');
+      await requireActionPermission('users.write', companyId);
 
     const existing = await db.query.user.findFirst({
       where: and(eq(user.id, id), isNull(user.deleted_at)),

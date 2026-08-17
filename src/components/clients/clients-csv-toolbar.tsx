@@ -16,9 +16,11 @@ import {
 import { CLIENT_CSV_HEADERS } from '@/lib/csv-schemas';
 import { parseCsvRecords, toCsv } from '@/lib/csv';
 import { bulkImportClients, getClientsForExport } from '@/actions/clients';
+import { useCompany } from '@/contexts/company-context';
 
 type ClientsCsvToolbarProps = {
   canImport: boolean;
+  companyId?: number | null;
 };
 
 type ImportFormValues = {
@@ -29,8 +31,13 @@ type ImportFormValues = {
  * Clients CSV import/export with FormMessage field-error UI bound to
  * `bulkImportClients` validation failures.
  */
-export const ClientsCsvToolbar = ({ canImport }: ClientsCsvToolbarProps) => {
+export const ClientsCsvToolbar = ({
+  canImport,
+  companyId: companyIdProp,
+}: ClientsCsvToolbarProps) => {
   const router = useRouter();
+  const { selectedCompany } = useCompany();
+  const companyId = companyIdProp ?? selectedCompany?.id ?? null;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fileInputId = React.useId();
   const [busy, setBusy] = React.useState(false);
@@ -41,7 +48,7 @@ export const ClientsCsvToolbar = ({ canImport }: ClientsCsvToolbarProps) => {
   const handleExport = async () => {
     setBusy(true);
     try {
-      const result = await getClientsForExport();
+      const result = await getClientsForExport(companyId);
       if (!result.success || !result.data) {
         toast.error(result.error || 'No se pudo exportar');
         return;
@@ -86,7 +93,7 @@ export const ClientsCsvToolbar = ({ canImport }: ClientsCsvToolbarProps) => {
         return;
       }
 
-      const result = await bulkImportClients(records);
+      const result = await bulkImportClients(records, companyId);
       if (!result.success || !result.data) {
         form.setError('file', {
           message: result.error || 'No se pudo importar el archivo',

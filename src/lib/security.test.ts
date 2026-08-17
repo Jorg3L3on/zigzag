@@ -7,6 +7,7 @@ import {
   checkPermission,
   requireActionAuth,
   requireActionPermission,
+  requireTenantActionPermission,
 } from '@/lib/security';
 import { RateLimiter } from '@/lib/rate-limiter';
 import { auth } from '@/lib/auth';
@@ -529,6 +530,117 @@ describe('security helpers', () => {
             ip: '203.0.113.50',
             requestId: 'req-action-denial',
           }),
+        }),
+      );
+    });
+  });
+
+  describe('requireTenantActionPermission', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockBuildAuditRequestMetaFromHeaders.mockResolvedValue({
+        ip: '203.0.113.50',
+        userAgent: 'JestActionAgent/1.0',
+        requestId: 'req-tenant-denial',
+      });
+    });
+
+    it('rejects system operators who omit company context', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '12',
+          company_id: 1,
+          company_is_system: true,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 12n,
+        company_id: 1,
+        company: {
+          id: 1,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: true,
+        },
+      });
+
+      await expect(
+        requireTenantActionPermission('clients.write'),
+      ).rejects.toThrow('System user must provide company context');
+
+      expect(mockRecordPermissionDeniedAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          permission: 'clients.write',
+          source: 'action',
+          reason: 'invalid_company_context',
+          actorCompanyId: 1,
+          requestedCompanyId: null,
+        }),
+      );
+    });
+
+    it('allows system operators when selected company is provided', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '12',
+          company_id: 1,
+          company_is_system: true,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 12n,
+        company_id: 1,
+        company: {
+          id: 1,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: true,
+        },
+      });
+
+      await expect(
+        requireTenantActionPermission('clients.write', 99),
+      ).resolves.toEqual({
+        context: {
+          userId: '12',
+          companyId: 1,
+          companyIsSystem: true,
+        },
+        companyId: 99,
+      });
+    });
+
+    it('lets tenants omit companyId and use their session company', async () => {
+      mockAuth.mockResolvedValue({
+        user: {
+          id: '13',
+          company_id: 10,
+          company_is_system: false,
+        },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 13n,
+        company_id: 10,
+        role_id: null,
+        company: {
+          id: 10,
+          deleted_at: null,
+          status: 'ACTIVE',
+          is_system: false,
+        },
+      });
+
+      // Tenant path reaches permission check on session company (not system reject).
+      await expect(
+        requireTenantActionPermission('clients.write'),
+      ).rejects.toThrow('Missing permission: clients.write');
+
+      expect(mockRecordPermissionDeniedAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: 'missing_permission',
+          targetCompanyId: 10,
+          actorCompanyId: 10,
+          requestedCompanyId: 10,
         }),
       );
     });

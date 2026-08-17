@@ -121,6 +121,7 @@ export const TicketDetailFinishPanel = ({
       Number(ticketId),
       ticketTotal,
       finalPaidAmount,
+      selectedCompany?.id ?? null,
     );
 
     if (!result.success) {

@@ -31,7 +31,7 @@ export function DeleteUserDialog({
   const router = useRouter();
 
   async function onDelete() {
-    const result = await deleteUser(user.id);
+    const result = await deleteUser(user.id, user.company_id);
     if (!result.success) {
       const errorType = classifyClientError(null, undefined, result.errorType);
       toast.error(

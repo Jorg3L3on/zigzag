@@ -157,6 +157,7 @@ export function TicketRowActions({
           {canWrite ? (
             <DeleteTicketButton
               id={Number(ticket.id)}
+              companyId={companyId}
               onDelete={onDelete}
               onDeleteFailed={onDeleteFailed}
             />
@@ -171,6 +172,7 @@ export function TicketRowActions({
           ticketId={Number(ticket.id)}
           total={ticket.total}
           paid={ticket.paid}
+          companyId={companyId}
           onPaymentApplied={(result) => {
             onPaymentApplied?.(result);
           }}

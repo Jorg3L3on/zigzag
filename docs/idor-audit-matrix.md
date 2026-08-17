@@ -90,7 +90,17 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `authz-context.ts` (resolveWritableCompanyId) | ✅ | `src/lib/idor.test.ts` |
 | `tenant.ts` (tenantScope, assertTenantOwnership) | ✅ | `src/lib/tenant.test.ts` |
 | `security.ts` (checkPermission cross-tenant) | ✅ | `src/lib/security.test.ts` |
+| `security.ts` (`requireTenantActionPermission` — system must pass selected company) | ✅ | `src/lib/security.test.ts` |
 | IDOR fixtures | ✅ | `src/test/idor-fixtures.test.ts` |
+
+### Master vs selected company (system operators)
+
+Cross-tenant IDOR (company B vs A) is covered above. Separately, system
+operators who select another tenant in the UI must pass that `companyId` into
+tenant mutations/exports. `requireTenantActionPermission` rejects system users
+who omit it (no silent master-company fallback). Covered in `security.test.ts`
+and the domain action suites listed for clients, services, tickets,
+ticket-services, trash, and search.
 
 ## Schema — `company_id` foreign keys
 
@@ -116,7 +126,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 
 ## Audit sign-off
 
-- **Last updated:** slice #191 — CI gate and epic sign-off
+- **Last updated:** master-company selected-context audit (`requireTenantActionPermission`) + slice #191
 - **Known leaks:** none identified across audited surfaces
 - **Reviewer sign-off:** automated matrix + IDOR test suite green in CI
 

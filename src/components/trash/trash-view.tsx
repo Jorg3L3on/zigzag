@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Package, RotateCcw, Ticket, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,21 +8,65 @@ import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import { TripledEmptyState } from '@/components/tripled';
 import {
+  getTrash,
   restoreClient,
   restoreService,
   restoreTicket,
   type TrashContents,
 } from '@/actions/trash';
+import { useCompany } from '@/contexts/company-context';
+import { usePermissions } from '@/hooks/use-permissions';
+import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 
-interface TrashViewProps {
-  data: TrashContents;
-}
+const EMPTY_TRASH: TrashContents = {
+  clients: [],
+  services: [],
+  tickets: [],
+};
 
-type RestoreFn = (id: number) => Promise<{ success: boolean; error?: string }>;
+type RestoreFn = (
+  id: number,
+  companyId?: number | null,
+) => Promise<{ success: boolean; error?: string }>;
 
-export const TrashView = ({ data }: TrashViewProps) => {
-  const router = useRouter();
+export const TrashView = () => {
+  const { selectedCompany } = useCompany();
+  const { isSystem } = usePermissions();
+  const missingCompany = needsSelectedCompanyContext(
+    isSystem,
+    selectedCompany?.id,
+  );
+  const companyId = selectedCompany?.id ?? null;
+  const [data, setData] = React.useState<TrashContents>(EMPTY_TRASH);
+  const [loading, setLoading] = React.useState(!missingCompany);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
+
+  const loadTrash = React.useCallback(async () => {
+    if (missingCompany) {
+      setData(EMPTY_TRASH);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await getTrash(companyId);
+      if (result.success && result.data) {
+        setData(result.data);
+      } else {
+        setData(EMPTY_TRASH);
+        if (result.error) {
+          toast.error(result.error);
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, missingCompany]);
+
+  React.useEffect(() => {
+    void loadTrash();
+  }, [loadTrash]);
 
   const handleRestore = async (
     key: string,
@@ -32,17 +75,29 @@ export const TrashView = ({ data }: TrashViewProps) => {
   ) => {
     setPendingId(key);
     try {
-      const result = await restoreFn(id);
+      const result = await restoreFn(id, companyId);
       if (!result.success) {
         toast.error(result.error || 'No se pudo restaurar el registro');
         return;
       }
       toast.success('Registro restaurado');
-      router.refresh();
+      await loadTrash();
     } finally {
       setPendingId(null);
     }
   };
+
+  if (missingCompany) {
+    return <SystemCompanyContextEmptyState resourceLabel="registros eliminados" />;
+  }
+
+  if (loading) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        Cargando papelera…
+      </p>
+    );
+  }
 
   const isEmpty =
     data.clients.length === 0 &&
@@ -52,7 +107,7 @@ export const TrashView = ({ data }: TrashViewProps) => {
   if (isEmpty) {
     return (
       <TripledEmptyState
-        icon={<Trash2 className="h-4 w-4"  data-icon="inline-start" />}
+        icon={<Trash2 className="h-4 w-4" data-icon="inline-start" />}
         title="Papelera vacía"
         description="No hay registros eliminados para restaurar."
       />
@@ -93,7 +148,11 @@ export const TrashView = ({ data }: TrashViewProps) => {
                       handleRestore(key, Number(row.id), restoreTicket)
                     }
                   >
-                    <RotateCcw className="size-3.5" aria-hidden  data-icon="inline-start" />
+                    <RotateCcw
+                      className="size-3.5"
+                      aria-hidden
+                      data-icon="inline-start"
+                    />
                     Restaurar
                   </Button>
                 </li>
@@ -131,7 +190,11 @@ export const TrashView = ({ data }: TrashViewProps) => {
                     disabled={pendingId === key}
                     onClick={() => handleRestore(key, row.id, restoreClient)}
                   >
-                    <RotateCcw className="size-3.5" aria-hidden  data-icon="inline-start" />
+                    <RotateCcw
+                      className="size-3.5"
+                      aria-hidden
+                      data-icon="inline-start"
+                    />
                     Restaurar
                   </Button>
                 </li>
@@ -169,7 +232,11 @@ export const TrashView = ({ data }: TrashViewProps) => {
                     disabled={pendingId === key}
                     onClick={() => handleRestore(key, row.id, restoreService)}
                   >
-                    <RotateCcw className="size-3.5" aria-hidden  data-icon="inline-start" />
+                    <RotateCcw
+                      className="size-3.5"
+                      aria-hidden
+                      data-icon="inline-start"
+                    />
                     Restaurar
                   </Button>
                 </li>

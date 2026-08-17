@@ -39,6 +39,7 @@ type TicketPaymentCollectSectionProps = {
   paid: number | null;
   finished: boolean;
   payments: TicketPaymentHistoryRow[];
+  companyId?: number | null;
 };
 
 export const TicketPaymentCollectSection = ({
@@ -47,6 +48,7 @@ export const TicketPaymentCollectSection = ({
   paid,
   finished,
   payments,
+  companyId = null,
 }: TicketPaymentCollectSectionProps) => {
   const router = useRouter();
   const { can } = usePermissions();
@@ -77,7 +79,7 @@ export const TicketPaymentCollectSection = ({
     }
 
     startTransition(async () => {
-      const result = await applyTicketPayment(ticketId, additional);
+      const result = await applyTicketPayment(ticketId, additional, companyId);
       if (result.success) {
         vibrateSuccess();
         toast.success('Cobro registrado correctamente');
@@ -98,7 +100,7 @@ export const TicketPaymentCollectSection = ({
     if (balanceDue <= 0) return;
 
     startTransition(async () => {
-      const result = await applyTicketPayment(ticketId, balanceDue);
+      const result = await applyTicketPayment(ticketId, balanceDue, companyId);
       if (result.success) {
         vibrateSuccess();
         toast.success('Ticket saldado');

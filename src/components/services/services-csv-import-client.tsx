@@ -104,7 +104,10 @@ export const ServicesCsvImportClient = () => {
     try {
       const text = await file.text();
       const records = parseCsvRecords(text);
-      const result = await previewServiceCsvImport(records);
+      const result = await previewServiceCsvImport(
+        records,
+        selectedCompany?.id ?? null,
+      );
       if (!result.success || !result.data) {
         setFileError(result.error || 'No se pudo validar el archivo');
         toast.error(result.error || 'No se pudo validar el archivo');
@@ -169,7 +172,10 @@ export const ServicesCsvImportClient = () => {
     const runner = await runChunkedImport({
       items: okRows,
       runChunk: async (chunk) => {
-        const result = await commitServiceCsvImportChunk(chunk);
+        const result = await commitServiceCsvImportChunk(
+          chunk,
+          selectedCompany?.id ?? null,
+        );
         if (!result.success || !result.data) {
           return {
             ok: false as const,

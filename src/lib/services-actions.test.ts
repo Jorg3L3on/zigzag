@@ -10,7 +10,11 @@ import {
   updateService,
 } from '@/actions/services';
 import { db } from '@/lib/db';
-import { requireActionPermission } from '@/lib/security';
+import {
+  requireActionAuth,
+  requireActionPermission,
+  requireTenantActionPermission,
+} from '@/lib/security';
 import {
   IDOR_COMPANY_A,
   IDOR_RESOURCES_A,
@@ -29,7 +33,9 @@ jest.mock('@/lib/db', () => ({
 }));
 
 jest.mock('@/lib/security', () => ({
+  requireActionAuth: jest.fn(),
   requireActionPermission: jest.fn(),
+  requireTenantActionPermission: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
@@ -38,9 +44,16 @@ jest.mock('@/lib/client-service-schedule-lifecycle', () => ({
   pauseSchedulesForService: jest.fn(),
 }));
 
+const mockRequireActionAuth = requireActionAuth as jest.MockedFunction<
+  typeof requireActionAuth
+>;
 const mockRequireActionPermission = requireActionPermission as jest.MockedFunction<
   typeof requireActionPermission
 >;
+const mockRequireTenantActionPermission =
+  requireTenantActionPermission as jest.MockedFunction<
+    typeof requireTenantActionPermission
+  >;
 const mockDb = db as unknown as {
   select: jest.Mock;
   insert: jest.Mock;
@@ -67,14 +80,13 @@ describe('cross-tenant IDOR — service actions', () => {
 
   it.each([
     ['getServices', () => getServices(IDOR_COMPANY_A.id)],
-    ['getService', () => getService(IDOR_RESOURCES_A.serviceId)],
     ['createService', () => createService(servicePayload)],
     [
       'updateService',
       () => updateService({ id: IDOR_RESOURCES_A.serviceId, ...servicePayload }),
     ],
   ])('%s denies cross-tenant company context', async (_name, call) => {
-    mockActionCrossTenantDenied(mockRequireActionPermission);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission);
 
     const result = await call();
 
@@ -82,8 +94,22 @@ describe('cross-tenant IDOR — service actions', () => {
     expect(mockDb.insert).not.toHaveBeenCalled();
   });
 
+  it('getService denies cross-tenant company context', async () => {
+    mockRequireActionAuth.mockResolvedValue({
+      userId: '201',
+      companyId: IDOR_COMPANY_A.id,
+      companyIsSystem: false,
+    });
+    mockActionCrossTenantDenied(mockRequireActionPermission);
+
+    const result = await getService(IDOR_RESOURCES_A.serviceId);
+
+    expect(result.success).toBe(false);
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
   it('deleteService does not mutate foreign service in tenant scope', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
     mockDb.query.service.findFirst.mockResolvedValue(undefined);
     mockDb.update.mockReturnValue(mockUpdateReturningEmpty());
 
@@ -94,7 +120,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('getServicesForExport uses authorized tenant scope only', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
     mockDb.select.mockReturnValue(mockSelectChain([]));
 
     const result = await getServicesForExport();
@@ -103,7 +129,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('bulkImportServices denies when permission check fails cross-tenant', async () => {
-    mockActionCrossTenantDenied(mockRequireActionPermission);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission);
 
     const result = await bulkImportServices([
       { name: 'S', description: 'D', price: '1' },
@@ -114,7 +140,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('createService rejects description longer than 120 characters', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
 
     const result = await createService({
       ...servicePayload,
@@ -127,7 +153,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('updateService rejects description longer than 120 characters', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
 
     const result = await updateService({
       id: IDOR_RESOURCES_A.serviceId,
@@ -141,7 +167,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('previewServiceCsvImport denies cross-tenant write context', async () => {
-    mockActionCrossTenantDenied(mockRequireActionPermission);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission);
 
     const result = await previewServiceCsvImport([
       { nombre: 'S', descripción: 'D', precio: '1' },
@@ -152,7 +178,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('previewServiceCsvImport classifies without inserting', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
     mockDb.select.mockReturnValue(mockSelectChain([{ name: 'Existente' }]));
 
     const result = await previewServiceCsvImport([
@@ -166,7 +192,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('commitServiceCsvImportChunk denies cross-tenant write context', async () => {
-    mockActionCrossTenantDenied(mockRequireActionPermission);
+    mockActionCrossTenantDenied(mockRequireTenantActionPermission);
 
     const result = await commitServiceCsvImportChunk([
       { name: 'S', description: 'D', price: 1 },
@@ -177,7 +203,7 @@ describe('cross-tenant IDOR — service actions', () => {
   });
 
   it('commitServiceCsvImportChunk skips active duplicates and inserts others', async () => {
-    mockActionAuthorized(mockRequireActionPermission);
+    mockActionAuthorized(mockRequireTenantActionPermission);
     mockDb.select.mockReturnValue(mockSelectChain([{ name: 'Existente' }]));
     const returning = jest.fn(async () => [
       {

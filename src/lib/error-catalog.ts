@@ -383,7 +383,8 @@ export const ERROR_CATALOG = {
     code: 'TC007',
     module: 'tickets',
     title: 'No se pudo registrar el cobro',
-    message: 'Revisa el monto e intenta de nuevo.',
+    message:
+      'Verifica que el ticket esté finalizado y que el monto sea válido.',
     type: 'server',
   },
   TC008: {
