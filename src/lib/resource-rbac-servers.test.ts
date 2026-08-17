@@ -1,6 +1,9 @@
 import { AuthorizationError } from '@/lib/errors';
 import { PERMISSIONS } from '@/lib/permissions';
-import { requireActionPermission } from '@/lib/security';
+import {
+  requireActionPermission,
+  requireTenantActionPermission,
+} from '@/lib/security';
 import {
   requireClientRead,
   requireClientWrite,
@@ -28,6 +31,7 @@ import {
 import {
   requireTicketRead,
   requireTicketWrite,
+  requireTenantTicketRead,
 } from '@/lib/tickets-rbac-server';
 import {
   requireUserRead,
@@ -36,10 +40,15 @@ import {
 
 jest.mock('@/lib/security', () => ({
   requireActionPermission: jest.fn(),
+  requireTenantActionPermission: jest.fn(),
 }));
 
 const mockRequireActionPermission =
   requireActionPermission as jest.MockedFunction<typeof requireActionPermission>;
+const mockRequireTenantActionPermission =
+  requireTenantActionPermission as jest.MockedFunction<
+    typeof requireTenantActionPermission
+  >;
 
 const authContext = {
   context: { userId: '1', companyId: 10, companyIsSystem: false },
@@ -55,13 +64,6 @@ const resourceGuards: Array<{
   readPermission: string;
   writePermission: string;
 }> = [
-  {
-    label: 'tickets',
-    read: requireTicketRead,
-    write: requireTicketWrite,
-    readPermission: PERMISSIONS.tickets.read,
-    writePermission: PERMISSIONS.tickets.write,
-  },
   {
     label: 'clients',
     read: requireClientRead,
@@ -110,6 +112,55 @@ describe('resource RBAC server helpers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRequireActionPermission.mockResolvedValue(authContext);
+    mockRequireTenantActionPermission.mockResolvedValue(authContext);
+  });
+
+  it('tickets read uses requireActionPermission; write uses requireTenantActionPermission', async () => {
+    await expect(requireTicketRead(10)).resolves.toEqual(authContext);
+    await expect(requireTicketWrite(10)).resolves.toEqual(authContext);
+    await expect(requireTenantTicketRead(10)).resolves.toEqual(authContext);
+
+    expect(mockRequireActionPermission).toHaveBeenCalledWith(
+      PERMISSIONS.tickets.read,
+      10,
+    );
+    expect(mockRequireTenantActionPermission).toHaveBeenNthCalledWith(
+      1,
+      PERMISSIONS.tickets.write,
+      10,
+    );
+    expect(mockRequireTenantActionPermission).toHaveBeenNthCalledWith(
+      2,
+      PERMISSIONS.tickets.read,
+      10,
+    );
+  });
+
+  it('tickets write/tenant-read pass company id through (including null)', async () => {
+    await requireTicketRead(null);
+    await requireTicketWrite(undefined);
+    await requireTicketWrite(null);
+    await requireTenantTicketRead(null);
+
+    expect(mockRequireActionPermission).toHaveBeenCalledWith(
+      PERMISSIONS.tickets.read,
+      undefined,
+    );
+    expect(mockRequireTenantActionPermission).toHaveBeenNthCalledWith(
+      1,
+      PERMISSIONS.tickets.write,
+      undefined,
+    );
+    expect(mockRequireTenantActionPermission).toHaveBeenNthCalledWith(
+      2,
+      PERMISSIONS.tickets.write,
+      null,
+    );
+    expect(mockRequireTenantActionPermission).toHaveBeenNthCalledWith(
+      3,
+      PERMISSIONS.tickets.read,
+      null,
+    );
   });
 
   it.each(resourceGuards)(

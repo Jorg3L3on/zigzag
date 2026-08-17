@@ -58,11 +58,13 @@ describe('RBAC coverage', () => {
         const content = read(filePath);
         return !hasAny(content, [
           'requireActionPermission(',
+          'requireTenantActionPermission(',
           'checkPermission(',
           'requireScheduleRead(',
           'requireScheduleWrite(',
           'requireTicketRead(',
           'requireTicketWrite(',
+          'requireTenantTicketRead(',
           'requireClientRead(',
           'requireClientWrite(',
           'requireServiceRead(',
