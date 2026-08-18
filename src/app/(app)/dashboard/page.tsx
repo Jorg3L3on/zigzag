@@ -56,7 +56,7 @@ export default async function DashboardPage() {
             userName={session.user.name}
             subtitle="Resumen de tu operación"
           />
-          <div className="min-h-[20rem]">
+          <div className="min-h-[28rem]">
             <Suspense fallback={null}>
               <DashboardMetricsSection
                 companyId={Number(session.user.company_id)}
