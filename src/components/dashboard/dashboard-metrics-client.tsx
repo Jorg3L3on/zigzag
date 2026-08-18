@@ -26,7 +26,6 @@ import { TripledEmptyState } from '@/components/tripled';
 import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
-import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform-home';
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
@@ -36,10 +35,7 @@ import {
   buildDashboardAttentionItems,
   countSchedulesDueToday,
 } from '@/lib/dashboard-attention';
-import {
-  buildDashboardComposition,
-  buildDashboardIntroSubtitle,
-} from '@/lib/dashboard-composition';
+import { buildDashboardComposition } from '@/lib/dashboard-composition';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
@@ -115,13 +111,11 @@ const DashboardLoadingSkeleton = () => (
 export type DashboardMetricsClientProps = {
   initialMetrics?: DashboardMetrics | null;
   userName?: string | null;
-  hideIntro?: boolean;
 };
 
 export const DashboardMetricsClient = ({
   initialMetrics = null,
   userName = null,
-  hideIntro = false,
 }: DashboardMetricsClientProps) => {
   const router = useRouter();
   const { status, data: session } = useSession();
@@ -238,16 +232,6 @@ export const DashboardMetricsClient = ({
   if (persona === 'system') {
     return (
       <div className="flex flex-col gap-6 md:gap-8">
-        {hideIntro ? null : (
-          <DashboardPageIntro
-            userName={userName ?? session?.user?.name}
-            subtitle={buildDashboardIntroSubtitle({
-              persona,
-              attentionCount: 0,
-              companyName: null,
-            })}
-          />
-        )}
         {composition.widgets.map((widgetId) => {
           if (widgetId === 'platformHome') {
             return <DashboardPlatformHome key={widgetId} />;
@@ -259,7 +243,7 @@ export const DashboardMetricsClient = ({
   }
 
   if (loading && !metrics && !error) {
-    if (hideIntro) {
+    if (userName || initialMetrics) {
       return null;
     }
     return <DashboardLoadingSkeleton />;
@@ -305,9 +289,6 @@ export const DashboardMetricsClient = ({
     window.open(buildReportUrl('csv'), '_blank', 'noopener,noreferrer');
   };
 
-  const companyLabel =
-    selectedCompany?.name ?? session?.user.company_name ?? null;
-
   const activeTicketsKpi =
     metrics.kpis.find((kpi) => kpi.key === 'activeTickets')?.value ?? 0;
 
@@ -329,12 +310,6 @@ export const DashboardMetricsClient = ({
     composition.kpiKeys === 'all'
       ? metrics.kpis
       : metrics.kpis.filter((kpi) => composition.kpiKeys.includes(kpi.key));
-
-  const introSubtitle = buildDashboardIntroSubtitle({
-    persona,
-    attentionCount: attentionItems.reduce((sum, item) => sum + item.count, 0),
-    companyName: companyLabel,
-  });
 
   const exportControls = composition.showExports ? (
     <>
@@ -540,22 +515,15 @@ export const DashboardMetricsClient = ({
         </p>
       ) : null}
 
-      {hideIntro ? (
-        exportControls ? (
-          <div className="mb-2 flex flex-wrap items-center gap-2 sm:justify-end">
-            {exportControls}
-          </div>
-        ) : null
-      ) : (
-        <DashboardPageIntro
-          userName={userName ?? session?.user?.name}
-          subtitle={introSubtitle}
-        >
+      {exportControls ? (
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {exportControls}
-        </DashboardPageIntro>
-      )}
+        </div>
+      ) : null}
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}
     </div>
   );
 };
+
+export default DashboardMetricsClient;

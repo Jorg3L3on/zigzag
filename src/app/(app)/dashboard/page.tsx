@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import nextDynamic from 'next/dynamic';
 import { auth } from '@/lib/auth';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { redirect } from 'next/navigation';
@@ -6,13 +7,16 @@ import {
   TripledDashboardShell,
   TripledPageHeader,
 } from '@/components/tripled';
-import { DashboardMetricsClient } from '@/components/dashboard/dashboard-metrics-client';
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { requirePagePermission } from '@/lib/page-authz';
 import { loadDashboardMetricsForCompany } from '@/actions/dashboard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+const DashboardMetricsClient = nextDynamic(
+  () => import('@/components/dashboard/dashboard-metrics-client'),
+);
 
 const DashboardMetricsSection = async ({
   companyId,
@@ -31,7 +35,6 @@ const DashboardMetricsSection = async ({
     <DashboardMetricsClient
       initialMetrics={initialMetrics}
       userName={userName}
-      hideIntro
     />
   );
 };
