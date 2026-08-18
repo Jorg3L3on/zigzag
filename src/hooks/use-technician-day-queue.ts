@@ -25,7 +25,9 @@ type LoadSignal = {
   cancelled: boolean;
 };
 
-export const useTechnicianDayQueue = (): TechnicianDayQueueState => {
+export const useTechnicianDayQueue = (
+  enabled = true,
+): TechnicianDayQueueState => {
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
   const canRead = canReadTickets(can);
@@ -91,12 +93,16 @@ export const useTechnicianDayQueue = (): TechnicianDayQueueState => {
   );
 
   React.useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     const signal: LoadSignal = { cancelled: false };
     void loadQueue(signal);
     return () => {
       signal.cancelled = true;
     };
-  }, [loadQueue]);
+  }, [enabled, loadQueue]);
 
   const reload = React.useCallback(() => {
     void loadQueue();

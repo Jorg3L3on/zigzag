@@ -7,6 +7,7 @@ import {
 } from '@/components/tripled';
 import { DashboardMetricsClient } from '@/components/dashboard/dashboard-metrics-client';
 import { requirePagePermission } from '@/lib/page-authz';
+import { loadDashboardMetricsForCompany } from '@/actions/dashboard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -19,11 +20,21 @@ export default async function DashboardPage() {
   }
   await requirePagePermission('tickets.read');
 
+  const initialMetrics =
+    session.user.company_is_system
+      ? null
+      : (
+          await loadDashboardMetricsForCompany(
+            Number(session.user.company_id),
+            1,
+          )
+        ).data ?? null;
+
   return (
     <>
       <TripledPageHeader items={[{ label: 'Dashboard' }]} />
       <TripledDashboardShell>
-        <DashboardMetricsClient />
+        <DashboardMetricsClient initialMetrics={initialMetrics} />
       </TripledDashboardShell>
     </>
   );

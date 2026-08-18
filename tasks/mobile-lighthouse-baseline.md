@@ -56,6 +56,7 @@ Re-run on a Vercel preview before release; local prod build is the merge guard b
 | 2026-06-20 | `/dashboard` | Local prod (`next start`, port 3070) | 68 | 6.6 s | TBT 152 ms | 0 | Authenticated via E2E seed user; tenant company context. |
 | 2026-06-20 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 6.2 s | TBT 145 ms | 0 | Authenticated; list with seeded tickets. |
 | 2026-06-20 | `/login` | Local dev (`npm run dev`, port 3069) | 68 | 8.8 s | TBT 270 ms | 0 | Superseded by prod baseline above; kept for comparison. |
+| 2026-08-18 | `/dashboard`, `/tickets` | Post-LCP initiative (code shipped) | _pending_ | _pending_ | — | 0 | Run `npm run lighthouse:mobile` on local prod with `E2E_EMAIL`/`E2E_PASSWORD` after merge. Targets: dashboard LCP ≤ 4.0s, tickets LCP ≤ 3.5s. Changes: server dashboard metrics, paginated tickets (25/page), deferred widgets, dynamic charts, PermissionsProvider dedup, static page header LCP. |
 
 ## Merge Guard
 
@@ -77,4 +78,4 @@ Shipped on `feat/native-feel-pwa` before full Lighthouse re-measure:
 - Conservative mobile idle prefetch of the three tab routes
 - Light optimistic UI for notification mark-read
 
-**Action for #355:** Re-run `npm run lighthouse:mobile` against a local prod build with E2E credentials and append scores to the Baseline Runs table above before the feature PR merges to `main`.
+**Action for #355:** Re-run `npm run lighthouse:mobile` after the Aug 2026 LCP initiative (server dashboard metrics, paginated tickets, deferred widgets, dynamic charts) and append post-change scores above.

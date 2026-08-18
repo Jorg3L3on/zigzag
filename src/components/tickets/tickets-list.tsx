@@ -3,19 +3,17 @@
 import * as React from 'react';
 import {
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
 import type { Ticket } from '@/actions/tickets';
-import { getTicketsList } from '@/actions/tickets';
+import { getTicketsPaginated } from '@/actions/tickets';
 import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
 import {
   buildTicketFilterChips,
   countActiveFilters,
-  filterTickets,
   hasActiveTicketFilters,
 } from '@/components/tickets/tickets-list-filter-utils';
 import { TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
@@ -33,7 +31,8 @@ import { SystemCompanyContextEmptyState } from '@/components/system-company-cont
 import { TripledEmptyState } from '@/components/tripled';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
-import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
+import { classifyClientError, presentActionError } from '@/lib/network-awareness';
+import { endOfDay, startOfDay } from 'date-fns';
 import {
   formatOfflineSnapshotBanner,
   readOfflineSnapshot,
@@ -49,6 +48,8 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
+
+const DEFAULT_PAGE_SIZE = 25;
 
 const parseStatusFilter = (value: string | null): StatusFilterValue => {
   if (value === 'paid' || value === 'partial' || value === 'pending') {
@@ -76,8 +77,10 @@ export default function TicketsList() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
+  const [totalCount, setTotalCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = React.useState<string | null>(
     null,
   );
@@ -94,9 +97,20 @@ export default function TicketsList() {
     React.useState<SortingState>(DEFAULT_TICKET_SORTING);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: DEFAULT_PAGE_SIZE,
   });
   const ticketsRef = React.useRef<Ticket[]>([]);
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchValue.trim());
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchValue]);
+
+  React.useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, statusFilter, finishedFilter, dateRange]);
 
   React.useEffect(() => {
     ticketsRef.current = tickets;
@@ -135,6 +149,7 @@ export default function TicketsList() {
     }: { showLoading?: boolean } = {}): Promise<FetchTicketsOutcome> => {
       if (missingCompany) {
         setTickets([]);
+        setTotalCount(0);
         setLoadError(null);
         setSnapshotUpdatedAt(null);
         setLoading(false);
@@ -161,6 +176,7 @@ export default function TicketsList() {
           }
           setTickets(snapshot.data);
           ticketsRef.current = snapshot.data;
+          setTotalCount(snapshot.data.length);
           setSnapshotUpdatedAt(snapshot.updatedAt);
           setLoadError(null);
           return true;
@@ -170,14 +186,32 @@ export default function TicketsList() {
         }
       };
 
+      const dateFrom = dateRange?.from
+        ? startOfDay(dateRange.from).toISOString()
+        : undefined;
+      const dateTo = dateRange?.from
+        ? endOfDay(dateRange.to ?? dateRange.from).toISOString()
+        : undefined;
+
       try {
-        const result = await getTicketsList(selectedCompany.id);
+        const result = await getTicketsPaginated({
+          companyId: selectedCompany.id,
+          page: pagination.pageIndex + 1,
+          pageSize: pagination.pageSize,
+          search: debouncedSearch || undefined,
+          statusFilter: statusFilter === 'all' ? 'all' : statusFilter,
+          finishedFilter,
+          dateFrom,
+          dateTo,
+        });
         if (result.success && result.data) {
-          setTickets(result.data);
-          ticketsRef.current = result.data;
+          const pageItems = result.data.items as Ticket[];
+          setTickets(pageItems);
+          ticketsRef.current = pageItems;
+          setTotalCount(result.data.total);
           setSnapshotUpdatedAt(null);
           setLoadError(null);
-          void writeOfflineSnapshot('tickets', selectedCompany.id, result.data).catch(
+          void writeOfflineSnapshot('tickets', selectedCompany.id, pageItems).catch(
             (snapshotError) => {
               console.warn(
                 'Unable to write tickets offline snapshot:',
@@ -191,10 +225,11 @@ export default function TicketsList() {
           if (errorType === 'network' && (await showOfflineSnapshot())) {
             return { ok: true };
           }
-          const message = getErrorMessageByType(
-            errorType,
-            result.error || 'No se pudieron cargar los tickets',
+          const toastContent = presentActionError(
+            result,
+            'No se pudieron cargar los tickets',
           );
+          const message = toastContent.description;
           setSnapshotUpdatedAt(null);
           setLoadError(
             !showLoading && ticketsRef.current.length > 0 ? null : message,
@@ -207,10 +242,12 @@ export default function TicketsList() {
         if (errorType === 'network' && (await showOfflineSnapshot())) {
           return { ok: true };
         }
-        const message = getErrorMessageByType(
-          errorType,
+        const toastContent = presentActionError(
+          null,
           'No se pudieron cargar los tickets',
+          errorType,
         );
+        const message = toastContent.description;
         setSnapshotUpdatedAt(null);
         setLoadError(!showLoading && ticketsRef.current.length > 0 ? null : message);
         return { ok: false, message };
@@ -222,7 +259,16 @@ export default function TicketsList() {
 
       return { ok: true };
     },
-    [missingCompany, selectedCompany?.id],
+    [
+      missingCompany,
+      selectedCompany?.id,
+      pagination.pageIndex,
+      pagination.pageSize,
+      debouncedSearch,
+      statusFilter,
+      finishedFilter,
+      dateRange,
+    ],
   );
 
   React.useEffect(() => {
@@ -284,20 +330,7 @@ export default function TicketsList() {
     ],
   );
 
-  const filteredTickets = React.useMemo(
-    () =>
-      filterTickets(tickets, {
-        searchValue,
-        statusFilter,
-        finishedFilter,
-        dateRange,
-      }),
-    [tickets, searchValue, statusFilter, finishedFilter, dateRange],
-  );
-
-  React.useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [searchValue, statusFilter, finishedFilter, dateRange]);
+  const filteredTickets = tickets;
 
   const table = useReactTable({
     data: filteredTickets,
@@ -307,7 +340,8 @@ export default function TicketsList() {
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
   });
 
   const filterState = {
@@ -320,13 +354,13 @@ export default function TicketsList() {
   const listState = resolveResourceListState({
     isLoading: loading,
     loadError,
-    totalCount: tickets.length,
+    totalCount,
     visibleCount: filteredTickets.length,
     hasActiveFilters,
   });
   const activeFilterCount = countActiveFilters(filterState);
   const filterChips = buildTicketFilterChips(
-    tickets,
+    totalCount,
     filteredTickets.length,
     filterState,
   );
@@ -342,7 +376,8 @@ export default function TicketsList() {
   const handlePullToRefresh = React.useCallback(async () => {
     const result = await fetchTickets({ showLoading: false });
     if (!result.ok) {
-      toast.error(result.message);
+      const content = presentActionError(null, result.message);
+      toast.error(content.title, { description: content.description });
     }
   }, [fetchTickets]);
 

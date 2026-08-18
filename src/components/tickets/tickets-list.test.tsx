@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import TicketsList from '@/components/tickets/tickets-list';
-import { getTicketsList } from '@/actions/tickets';
+import { getTicketsPaginated } from '@/actions/tickets';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
@@ -9,7 +9,7 @@ import {
 } from '@/lib/offline-snapshot';
 
 jest.mock('@/actions/tickets', () => ({
-  getTicketsList: jest.fn(),
+  getTicketsPaginated: jest.fn(),
 }));
 
 jest.mock('@/contexts/company-context', () => ({
@@ -28,8 +28,8 @@ jest.mock('@/lib/offline-snapshot', () => ({
   writeOfflineSnapshot: jest.fn(),
 }));
 
-const mockGetTicketsList = getTicketsList as jest.MockedFunction<
-  typeof getTicketsList
+const mockGetTicketsPaginated = getTicketsPaginated as jest.MockedFunction<
+  typeof getTicketsPaginated
 >;
 const mockUseCompany = useCompany as jest.MockedFunction<typeof useCompany>;
 const mockUsePermissions = usePermissions as jest.MockedFunction<
@@ -69,12 +69,25 @@ const makeTicket = (overrides = {}) => ({
   ...overrides,
 });
 
+const paginatedResult = (
+  items: ReturnType<typeof makeTicket>[],
+): Awaited<ReturnType<typeof getTicketsPaginated>> => ({
+  success: true,
+  data: {
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 25,
+    totalPages: 1,
+  },
+});
+
 const arrange = ({
   canWrite = true,
-  result = { success: true, data: [] },
+  result = paginatedResult([]),
 }: {
   canWrite?: boolean;
-  result?: Awaited<ReturnType<typeof getTicketsList>>;
+  result?: Awaited<ReturnType<typeof getTicketsPaginated>>;
 } = {}) => {
   mockUseCompany.mockReturnValue({
     selectedCompany,
@@ -89,8 +102,9 @@ const arrange = ({
       (canWrite
         ? ['tickets.read', 'tickets.write'].includes(permission)
         : permission === 'tickets.read'),
+    refresh: jest.fn(),
   });
-  mockGetTicketsList.mockResolvedValue(result);
+  mockGetTicketsPaginated.mockResolvedValue(result);
 };
 
 const mockMobileViewport = () => {
@@ -132,10 +146,7 @@ describe('TicketsList', () => {
 
   it('renders ticket rows when data is available', async () => {
     arrange({
-      result: {
-        success: true,
-        data: [makeTicket()],
-      },
+      result: paginatedResult([makeTicket()]),
     });
 
     render(<TicketsList />);
@@ -156,16 +167,13 @@ describe('TicketsList', () => {
   it('refreshes tickets from a mobile pull gesture', async () => {
     mockMobileViewport();
     arrange({
-      result: {
-        success: true,
-        data: [makeTicket()],
-      },
+      result: paginatedResult([makeTicket()]),
     });
 
     render(<TicketsList />);
 
     await waitFor(() => {
-      expect(mockGetTicketsList).toHaveBeenCalledTimes(1);
+      expect(mockGetTicketsPaginated).toHaveBeenCalledTimes(1);
     });
 
     const pullArea = screen.getByTestId('tickets-pull-to-refresh');
@@ -174,7 +182,7 @@ describe('TicketsList', () => {
     fireEvent.touchEnd(pullArea);
 
     await waitFor(() => {
-      expect(mockGetTicketsList).toHaveBeenCalledTimes(2);
+      expect(mockGetTicketsPaginated).toHaveBeenCalledTimes(2);
     });
   });
 

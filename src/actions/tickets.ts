@@ -40,6 +40,7 @@ import {
   getTicketPaymentStatus,
   isTicketFullyPaid,
   TICKET_PAYMENT_STATUS_LABEL,
+  type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
 import { format as formatDate } from 'date-fns';
 import {
@@ -422,6 +423,31 @@ export interface PaginatedTicketsData {
   totalPages: number;
 }
 
+export type TicketListPaymentFilter = TicketPaymentStatus | 'all';
+
+export type TicketListFinishedFilter = 'all' | 'yes' | 'no';
+
+const buildTicketPaymentStatusCondition = (
+  status: TicketListPaymentFilter,
+) => {
+  if (status === 'all') {
+    return undefined;
+  }
+
+  const paid = sql`COALESCE(${ticket.paid}, 0)`;
+  const total = sql`COALESCE(${ticket.total}, 0)`;
+
+  if (status === 'paid') {
+    return sql`${total} > 0.01 AND ${paid} >= ${total} - 0.01`;
+  }
+
+  if (status === 'partial') {
+    return sql`${total} > 0.01 AND ${paid} > 0.01 AND ${paid} < ${total} - 0.01`;
+  }
+
+  return sql`(${total} <= 0.01) OR (${paid} <= 0.01 AND NOT (${total} > 0.01 AND ${paid} >= ${total} - 0.01))`;
+};
+
 /**
  * Server-side paginated + searchable ticket list, scoped to the company. Keeps
  * large ticket tables responsive instead of loading every row client-side.
@@ -431,6 +457,10 @@ export async function getTicketsPaginated(params: {
   page?: number;
   pageSize?: number;
   search?: string;
+  statusFilter?: TicketListPaymentFilter;
+  finishedFilter?: TicketListFinishedFilter;
+  dateFrom?: string;
+  dateTo?: string;
 }): Promise<{
   success: boolean;
   data?: PaginatedTicketsData;
@@ -443,7 +473,7 @@ export async function getTicketsPaginated(params: {
     );
 
     const page = Math.max(1, Math.floor(params.page ?? 1));
-    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 20)));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 25)));
     const search = params.search?.trim();
 
     const searchCondition = search
@@ -451,7 +481,27 @@ export async function getTicketsPaginated(params: {
           ilike(ticket.client_name, `%${search}%`),
           ilike(ticket.email, `%${search}%`),
           ilike(ticket.document, `%${search}%`),
+          ilike(ticket.client_tel, `%${search}%`),
+          sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search}%`}`,
         )
+      : undefined;
+
+    const paymentStatusCondition = buildTicketPaymentStatusCondition(
+      params.statusFilter ?? 'all',
+    );
+
+    const finishedCondition =
+      params.finishedFilter === 'yes'
+        ? eq(ticket.finished, true)
+        : params.finishedFilter === 'no'
+          ? eq(ticket.finished, false)
+          : undefined;
+
+    const dateFromCondition = params.dateFrom
+      ? sql`${ticket.ticket_date} >= ${params.dateFrom}::timestamptz`
+      : undefined;
+    const dateToCondition = params.dateTo
+      ? sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`
       : undefined;
 
     const whereCondition = and(
@@ -459,6 +509,10 @@ export async function getTicketsPaginated(params: {
       isNull(ticket.deleted_at),
       eq(ticket.document_kind, 'ticket'),
       ...(searchCondition ? [searchCondition] : []),
+      ...(paymentStatusCondition ? [paymentStatusCondition] : []),
+      ...(finishedCondition ? [finishedCondition] : []),
+      ...(dateFromCondition ? [dateFromCondition] : []),
+      ...(dateToCondition ? [dateToCondition] : []),
     );
 
     const [{ total }] = await db

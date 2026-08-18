@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -26,7 +27,6 @@ import {
   TripledMotionDiv,
   tripledStagger,
 } from '@/components/tripled';
-import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
 import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
@@ -55,9 +55,21 @@ import {
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedules';
+import { useDeferredMount } from '@/hooks/use-deferred-mount';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
+
+const DashboardCharts = dynamic(
+  () =>
+    import('@/components/dashboard/dashboard-charts').then((module) => ({
+      default: module.DashboardCharts,
+    })),
+  {
+    loading: () => <Skeleton className="h-[280px] rounded-xl lg:col-span-2" />,
+    ssr: false,
+  },
+);
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 1, label: '1 mes' },
@@ -104,17 +116,26 @@ const DashboardLoadingSkeleton = () => (
   </div>
 );
 
-export const DashboardMetricsClient = () => {
+export type DashboardMetricsClientProps = {
+  initialMetrics?: DashboardMetrics | null;
+};
+
+export const DashboardMetricsClient = ({
+  initialMetrics = null,
+}: DashboardMetricsClientProps) => {
   const router = useRouter();
   const { status, data: session } = useSession();
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
-  const urgentSchedules = useDashboardUrgentSchedules();
-  const technicianDay = useTechnicianDayQueue();
+  const deferSecondaryWidgets = useDeferredMount();
+  const urgentSchedules = useDashboardUrgentSchedules(deferSecondaryWidgets);
+  const technicianDay = useTechnicianDayQueue(deferSecondaryWidgets);
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
-  const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
+  const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(
+    initialMetrics,
+  );
   const [error, setError] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(initialMetrics == null);
 
   React.useEffect(() => {
     if (status === 'loading') {
@@ -138,6 +159,18 @@ export const DashboardMetricsClient = () => {
     if (viewingSystemHome) {
       setLoading(false);
       setMetrics(null);
+      setError(null);
+      return;
+    }
+
+    if (
+      initialMetrics != null &&
+      monthCount === 1 &&
+      !isSystem &&
+      selectedCompany == null
+    ) {
+      setLoading(false);
+      setMetrics(initialMetrics);
       setError(null);
       return;
     }
@@ -179,7 +212,7 @@ export const DashboardMetricsClient = () => {
     return () => {
       cancelled = true;
     };
-  }, [status, session, selectedCompany, monthCount, router]);
+  }, [status, session, selectedCompany, monthCount, router, initialMetrics]);
 
   const needsCompanyContext =
     session?.user.company_is_system === true &&
@@ -194,7 +227,7 @@ export const DashboardMetricsClient = () => {
   });
   const composition = buildDashboardComposition(persona);
 
-  if (status === 'loading' || permissions.loading) {
+  if (status === 'loading' || (permissions.loading && initialMetrics == null)) {
     return <DashboardLoadingSkeleton />;
   }
 
@@ -411,6 +444,20 @@ export const DashboardMetricsClient = () => {
           </div>
         );
       case 'operations':
+        if (!deferSecondaryWidgets) {
+          return (
+            <section
+              key={widgetId}
+              aria-label={composition.sectionTitles.operations}
+              className="space-y-3"
+            >
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                {composition.sectionTitles.operations}
+              </h2>
+              <Skeleton className="h-64 rounded-xl" />
+            </section>
+          );
+        }
         return (
           <section
             key={widgetId}
