@@ -42,7 +42,15 @@ export type TicketForKpiAggregate = {
   created_at: Date;
 };
 
-const SPARKLINE_MONTH_COUNT = 8;
+export const SPARKLINE_MONTH_COUNT = 8;
+
+export type DashboardMonthlyBucket = {
+  monthKey: string;
+  revenue: number;
+  cash: number;
+  outstanding: number;
+  active: number;
+};
 
 export const computeDeltaPercent = (
   current: number,
@@ -85,6 +93,18 @@ const PAYMENT_STATUS_ORDER: TicketPaymentStatus[] = [
   'pending',
 ];
 
+export const buildPaymentStatusBreakdownFromCounts = (
+  counts: Partial<
+    Record<TicketPaymentStatus, { count: number; amount: number }>
+  >,
+): PaymentStatusBreakdownItem[] =>
+  PAYMENT_STATUS_ORDER.map((status) => ({
+    status,
+    label: TICKET_PAYMENT_STATUS_LABEL[status],
+    count: counts[status]?.count ?? 0,
+    amount: counts[status]?.amount ?? 0,
+  }));
+
 export const buildPaymentStatusBreakdown = (
   tickets: TicketForKpiAggregate[],
 ): PaymentStatusBreakdownItem[] => {
@@ -103,12 +123,7 @@ export const buildPaymentStatusBreakdown = (
     buckets[status].amount += ticket.total ?? 0;
   }
 
-  return PAYMENT_STATUS_ORDER.map((status) => ({
-    status,
-    label: TICKET_PAYMENT_STATUS_LABEL[status],
-    count: buckets[status].count,
-    amount: buckets[status].amount,
-  }));
+  return buildPaymentStatusBreakdownFromCounts(buckets);
 };
 
 export const sumFinishedRevenueInMonth = (
@@ -208,6 +223,73 @@ const buildMonthlySparkline = (
       value: metricFn(tickets, monthStart),
     };
   });
+};
+
+export const buildDashboardKpisFromMonthlySeries = (
+  series: DashboardMonthlyBucket[],
+  snapshots: { outstanding: number; active: number },
+  now: Date = new Date(),
+  locale: Locale = es,
+): DashboardKpi[] => {
+  const byKey = new Map(series.map((bucket) => [bucket.monthKey, bucket]));
+  const currentKey = format(startOfMonth(now), 'yyyy-MM');
+  const priorKey = format(subMonths(startOfMonth(now), 1), 'yyyy-MM');
+  const emptyBucket: DashboardMonthlyBucket = {
+    monthKey: '',
+    revenue: 0,
+    cash: 0,
+    outstanding: 0,
+    active: 0,
+  };
+  const current = byKey.get(currentKey) ?? emptyBucket;
+  const prior = byKey.get(priorKey) ?? emptyBucket;
+
+  const sparkline = (
+    pick: (bucket: DashboardMonthlyBucket) => number,
+  ): DashboardKpiSparklinePoint[] =>
+    buildSparklineBuckets(now, SPARKLINE_MONTH_COUNT).map((monthStart) => {
+      const monthKey = format(monthStart, 'yyyy-MM');
+      return {
+        monthKey,
+        label: format(monthStart, 'MMM yyyy', { locale }),
+        value: pick(byKey.get(monthKey) ?? emptyBucket),
+      };
+    });
+
+  return [
+    {
+      key: 'revenue',
+      label: 'Ingresos del periodo',
+      value: current.revenue,
+      deltaPercent: computeDeltaPercent(current.revenue, prior.revenue),
+      sparkline: sparkline((bucket) => bucket.revenue),
+      format: 'currency',
+    },
+    {
+      key: 'cashCollected',
+      label: 'Efectivo cobrado',
+      value: current.cash,
+      deltaPercent: computeDeltaPercent(current.cash, prior.cash),
+      sparkline: sparkline((bucket) => bucket.cash),
+      format: 'currency',
+    },
+    {
+      key: 'outstandingBalance',
+      label: 'Saldo por cobrar',
+      value: snapshots.outstanding,
+      deltaPercent: computeDeltaPercent(current.outstanding, prior.outstanding),
+      sparkline: sparkline((bucket) => bucket.outstanding),
+      format: 'currency',
+    },
+    {
+      key: 'activeTickets',
+      label: 'Tickets activos',
+      value: snapshots.active,
+      deltaPercent: computeDeltaPercent(current.active, prior.active),
+      sparkline: sparkline((bucket) => bucket.active),
+      format: 'number',
+    },
+  ];
 };
 
 export const buildDashboardKpis = (

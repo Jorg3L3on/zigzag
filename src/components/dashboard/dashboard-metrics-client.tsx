@@ -22,11 +22,7 @@ import {
   FileDown,
   AlertTriangle,
 } from 'lucide-react';
-import {
-  TripledEmptyState,
-  TripledMotionDiv,
-  tripledStagger,
-} from '@/components/tripled';
+import { TripledEmptyState } from '@/components/tripled';
 import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
@@ -118,10 +114,14 @@ const DashboardLoadingSkeleton = () => (
 
 export type DashboardMetricsClientProps = {
   initialMetrics?: DashboardMetrics | null;
+  userName?: string | null;
+  hideIntro?: boolean;
 };
 
 export const DashboardMetricsClient = ({
   initialMetrics = null,
+  userName = null,
+  hideIntro = false,
 }: DashboardMetricsClientProps) => {
   const router = useRouter();
   const { status, data: session } = useSession();
@@ -227,7 +227,10 @@ export const DashboardMetricsClient = ({
   });
   const composition = buildDashboardComposition(persona);
 
-  if (status === 'loading' || (permissions.loading && initialMetrics == null)) {
+  if (
+    (status === 'loading' && initialMetrics == null && !userName) ||
+    (permissions.loading && initialMetrics == null && !userName)
+  ) {
     return <DashboardLoadingSkeleton />;
   }
 
@@ -235,14 +238,16 @@ export const DashboardMetricsClient = ({
   if (persona === 'system') {
     return (
       <div className="flex flex-col gap-6 md:gap-8">
-        <DashboardPageIntro
-          userName={session?.user?.name}
-          subtitle={buildDashboardIntroSubtitle({
-            persona,
-            attentionCount: 0,
-            companyName: null,
-          })}
-        />
+        {hideIntro ? null : (
+          <DashboardPageIntro
+            userName={userName ?? session?.user?.name}
+            subtitle={buildDashboardIntroSubtitle({
+              persona,
+              attentionCount: 0,
+              companyName: null,
+            })}
+          />
+        )}
         {composition.widgets.map((widgetId) => {
           if (widgetId === 'platformHome') {
             return <DashboardPlatformHome key={widgetId} />;
@@ -254,6 +259,15 @@ export const DashboardMetricsClient = ({
   }
 
   if (loading && !metrics && !error) {
+    if (hideIntro) {
+      return (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-40 rounded-xl" />
+          ))}
+        </div>
+      );
+    }
     return <DashboardLoadingSkeleton />;
   }
 
@@ -394,16 +408,13 @@ export const DashboardMetricsClient = ({
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {composition.sectionTitles.kpis}
             </h2>
-            <TripledMotionDiv
+            <div
               className={cn(
                 'grid gap-4',
                 visibleKpis.length <= 2
                   ? 'grid-cols-2 lg:grid-cols-2 lg:max-w-2xl'
                   : 'grid-cols-2 lg:grid-cols-4',
               )}
-              variants={tripledStagger}
-              initial="hidden"
-              animate="visible"
             >
               {visibleKpis.map((kpi) => {
                 const card = (
@@ -427,10 +438,18 @@ export const DashboardMetricsClient = ({
                   </Link>
                 );
               })}
-            </TripledMotionDiv>
+            </div>
           </section>
         );
       case 'charts':
+        if (!deferSecondaryWidgets) {
+          return (
+            <Skeleton
+              key={widgetId}
+              className="h-[280px] rounded-xl lg:col-span-2"
+            />
+          );
+        }
         return (
           <div
             key={widgetId}
@@ -527,12 +546,20 @@ export const DashboardMetricsClient = ({
         </p>
       ) : null}
 
-      <DashboardPageIntro
-        userName={session?.user?.name}
-        subtitle={introSubtitle}
-      >
-        {exportControls}
-      </DashboardPageIntro>
+      {hideIntro ? (
+        exportControls ? (
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {exportControls}
+          </div>
+        ) : null
+      ) : (
+        <DashboardPageIntro
+          userName={userName ?? session?.user?.name}
+          subtitle={introSubtitle}
+        >
+          {exportControls}
+        </DashboardPageIntro>
+      )}
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}
     </div>
