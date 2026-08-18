@@ -56,7 +56,9 @@ Re-run on a Vercel preview before release; local prod build is the merge guard b
 | 2026-06-20 | `/dashboard` | Local prod (`next start`, port 3070) | 68 | 6.6 s | TBT 152 ms | 0 | Authenticated via E2E seed user; tenant company context. |
 | 2026-06-20 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 6.2 s | TBT 145 ms | 0 | Authenticated; list with seeded tickets. |
 | 2026-06-20 | `/login` | Local dev (`npm run dev`, port 3069) | 68 | 8.8 s | TBT 270 ms | 0 | Superseded by prod baseline above; kept for comparison. |
-| 2026-08-18 | `/dashboard`, `/tickets` | Post-LCP initiative (code shipped) | _pending_ | _pending_ | — | 0 | Run `npm run lighthouse:mobile` on local prod with `E2E_EMAIL`/`E2E_PASSWORD` after merge. Targets: dashboard LCP ≤ 4.0s, tickets LCP ≤ 3.5s. Changes: server dashboard metrics, paginated tickets (25/page), deferred widgets, dynamic charts, PermissionsProvider dedup, static page header LCP. |
+| 2026-08-18 | `/login` | Local prod (`next start`, port 3070) | 87 | 4.0 s | TBT 66 ms | 0 | Post-LCP initiative; Cloud Agent re-run (`demo@zigzag.app`). Improved vs 2026-06-20. |
+| 2026-08-18 | `/dashboard` | Local prod (`next start`, port 3070) | 67 | 7.1 s | TBT 375 ms | 0 | Post-LCP initiative; **LCP regressed** vs 6.6 s baseline — investigate dashboard query/chart split (slice 1F). Target ≤ 4.0 s not met. |
+| 2026-08-18 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 4.7 s | TBT 316 ms | 0 | Post-LCP initiative; LCP improved 6.2 s → 4.7 s with paginated fetch. Target ≤ 3.5 s not met; TBT higher than baseline. |
 
 ## Merge Guard
 

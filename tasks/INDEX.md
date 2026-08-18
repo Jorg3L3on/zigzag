@@ -119,7 +119,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Item | Status |
 |------|--------|
-| US-001 Lighthouse baseline | ✅ `/login` 79, `/dashboard` 68, `/tickets` 76 (local prod, 2026-06-20); script `npm run lighthouse:mobile`; post-LCP re-run pending |
+| US-001 Lighthouse baseline | ✅ `/login` 79→87, `/dashboard` 68 (LCP 7.1 s post-initiative), `/tickets` 76 (LCP 4.7 s post-initiative); re-run 2026-08-18 on local prod |
 | US-002 Server PDF endpoint | ✅ `src/app/api/tickets/[id]/invoice/route.ts` generates authenticated, tenant-scoped PDFs |
 | US-003 PDFDownloadButton server path | ✅ `src/components/pdf-download-button.tsx` fetches `/api/tickets/[id]/invoice` as primary path with timeout/error handling (`PDF001` catalog toast) |
 | US-004 Reduced motion | ✅ `src/components/dashboard/dashboard-charts.tsx` disables chart animation under reduced motion; `src/components/tripled/motion.tsx` renders static motion divs |
