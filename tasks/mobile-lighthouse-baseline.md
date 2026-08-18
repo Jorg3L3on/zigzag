@@ -57,8 +57,10 @@ Re-run on a Vercel preview before release; local prod build is the merge guard b
 | 2026-06-20 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 6.2 s | TBT 145 ms | 0 | Authenticated; list with seeded tickets. |
 | 2026-06-20 | `/login` | Local dev (`npm run dev`, port 3069) | 68 | 8.8 s | TBT 270 ms | 0 | Superseded by prod baseline above; kept for comparison. |
 | 2026-08-18 | `/login` | Local prod (`next start`, port 3070) | 87 | 4.0 s | TBT 66 ms | 0 | Post-LCP initiative; Cloud Agent re-run (`demo@zigzag.app`). Improved vs 2026-06-20. |
-| 2026-08-18 | `/dashboard` | Local prod (`next start`, port 3070) | 67 | 7.1 s | TBT 375 ms | 0 | Post-LCP initiative; **LCP regressed** vs 6.6 s baseline — investigate dashboard query/chart split (slice 1F). Target ≤ 4.0 s not met. |
-| 2026-08-18 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 4.7 s | TBT 316 ms | 0 | Post-LCP initiative; LCP improved 6.2 s → 4.7 s with paginated fetch. Target ≤ 3.5 s not met; TBT higher than baseline. |
+| 2026-08-18 | `/dashboard` | Local prod (`next start`, port 3070) | 67 | 7.1 s | TBT 375 ms | 0 | First post-change run; LCP **regressed** vs 6.6 s. |
+| 2026-08-18 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 4.7 s | TBT 316 ms | 0 | Paginated tickets; LCP improved 6.2 s → 4.7 s. |
+| 2026-08-18 | `/dashboard` | Local prod after slice 1F recovery | 67–74 | **4.5–6.8 s** | TBT ~290 ms | 0.12 | SQL aggregates, server greeting, SVG KPIs, deferred charts. Best LCP 4.5 s (beats 6.6 s); slower runs ~6.8 s. CLS from streamed widgets — follow-up. Target ≤ 4.0 s not met on every run. |
+| 2026-08-18 | `/tickets` | Local prod after slice 1F recovery | 76–77 | **4.4–4.8 s** | TBT ~280–380 ms | 0 | Stable improvement vs 6.2 s baseline. Target ≤ 3.5 s not met. |
 
 ## Merge Guard
 
