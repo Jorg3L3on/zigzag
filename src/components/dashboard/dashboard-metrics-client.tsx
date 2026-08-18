@@ -115,13 +115,11 @@ const DashboardLoadingSkeleton = () => (
 export type DashboardMetricsClientProps = {
   initialMetrics?: DashboardMetrics | null;
   userName?: string | null;
-  hideIntro?: boolean;
 };
 
 export const DashboardMetricsClient = ({
   initialMetrics = null,
   userName = null,
-  hideIntro = false,
 }: DashboardMetricsClientProps) => {
   const router = useRouter();
   const { status, data: session } = useSession();
@@ -238,16 +236,14 @@ export const DashboardMetricsClient = ({
   if (persona === 'system') {
     return (
       <div className="flex flex-col gap-6 md:gap-8">
-        {hideIntro ? null : (
-          <DashboardPageIntro
-            userName={userName ?? session?.user?.name}
-            subtitle={buildDashboardIntroSubtitle({
-              persona,
-              attentionCount: 0,
-              companyName: null,
-            })}
-          />
-        )}
+        <DashboardPageIntro
+          userName={userName ?? session?.user?.name}
+          subtitle={buildDashboardIntroSubtitle({
+            persona,
+            attentionCount: 0,
+            companyName: null,
+          })}
+        />
         {composition.widgets.map((widgetId) => {
           if (widgetId === 'platformHome') {
             return <DashboardPlatformHome key={widgetId} />;
@@ -259,15 +255,6 @@ export const DashboardMetricsClient = ({
   }
 
   if (loading && !metrics && !error) {
-    if (hideIntro) {
-      return (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-busy="true">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-40 rounded-xl" />
-          ))}
-        </div>
-      );
-    }
     return <DashboardLoadingSkeleton />;
   }
 
@@ -546,20 +533,12 @@ export const DashboardMetricsClient = ({
         </p>
       ) : null}
 
-      {hideIntro ? (
-        exportControls ? (
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            {exportControls}
-          </div>
-        ) : null
-      ) : (
-        <DashboardPageIntro
-          userName={userName ?? session?.user?.name}
-          subtitle={introSubtitle}
-        >
-          {exportControls}
-        </DashboardPageIntro>
-      )}
+      <DashboardPageIntro
+        userName={userName ?? session?.user?.name}
+        subtitle={introSubtitle}
+      >
+        {exportControls}
+      </DashboardPageIntro>
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}
     </div>
