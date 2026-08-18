@@ -48,9 +48,11 @@ export async function setCompanyLifecycleStatus(
     const validation = validateCompanyLifecycleChange(existing, nextStatus);
     if (!validation.allowed) {
       return {
-        success: false,
-        error: validation.reason ?? 'No se puede cambiar el estado.',
-        errorType: 'validation',
+        ...buildActionError(
+          'GN003',
+          validation.reason ?? 'No se puede cambiar el estado.',
+          'validation',
+        ),
         missingLabels: validation.missingLabels,
       };
     }

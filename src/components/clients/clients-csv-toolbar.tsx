@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { presentActionError } from '@/lib/network-awareness';
 import { Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,7 +51,8 @@ export const ClientsCsvToolbar = ({
     try {
       const result = await getClientsForExport(companyId);
       if (!result.success || !result.data) {
-        toast.error(result.error || 'No se pudo exportar');
+        const content = presentActionError(result, 'No se pudo exportar');
+        toast.error(content.title, { description: content.description });
         return;
       }
       const csv = toCsv([...CLIENT_CSV_HEADERS], result.data);
@@ -95,10 +97,10 @@ export const ClientsCsvToolbar = ({
 
       const result = await bulkImportClients(records, companyId);
       if (!result.success || !result.data) {
-        form.setError('file', {
-          message: result.error || 'No se pudo importar el archivo',
-        });
-        toast.error(result.error || 'No se pudo importar el archivo');
+        const message = result.error || 'No se pudo importar el archivo';
+        form.setError('file', { message });
+        const content = presentActionError(result, message);
+        toast.error(content.title, { description: content.description });
         return;
       }
 

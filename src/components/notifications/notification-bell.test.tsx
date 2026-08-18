@@ -58,7 +58,10 @@ describe('NotificationBell optimistic updates', () => {
     });
     notificationActions.markNotificationRead.mockResolvedValue({
       success: false,
-      error: 'Server failed',
+      error: 'No se pudo marcar la notificación como leída.',
+      errorCode: 'GN001',
+      errorTitle: 'Error del servidor',
+      errorType: 'server',
     });
     notificationActions.markAllNotificationsRead.mockResolvedValue({
       success: true,
@@ -84,9 +87,11 @@ describe('NotificationBell optimistic updates', () => {
       expect(notificationActions.markNotificationRead).toHaveBeenCalledWith(1);
     });
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith(
-        'No se pudo marcar la notificación como leída.',
-      );
+      expect(mockToast.error).toHaveBeenCalledWith('Error del servidor', {
+        description: expect.stringContaining(
+          'No se pudo marcar la notificación como leída.',
+        ),
+      });
     });
 
     expect(

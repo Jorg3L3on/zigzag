@@ -16,6 +16,7 @@ import {
 } from '@/actions/trash';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
+import { presentActionError } from '@/lib/network-awareness';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 
@@ -56,7 +57,8 @@ export const TrashView = () => {
       } else {
         setData(EMPTY_TRASH);
         if (result.error) {
-          toast.error(result.error);
+          const content = presentActionError(result, 'No se pudo cargar la papelera');
+          toast.error(content.title, { description: content.description });
         }
       }
     } finally {
@@ -77,7 +79,8 @@ export const TrashView = () => {
     try {
       const result = await restoreFn(id, companyId);
       if (!result.success) {
-        toast.error(result.error || 'No se pudo restaurar el registro');
+        const content = presentActionError(result, 'No se pudo restaurar el registro');
+        toast.error(content.title, { description: content.description });
         return;
       }
       toast.success('Registro restaurado');

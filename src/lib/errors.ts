@@ -1,3 +1,4 @@
+import type { ActionFailure } from '@/lib/action-result';
 import {
   getErrorCatalogEntry,
   isErrorCode,
@@ -5,6 +6,7 @@ import {
   type PublicErrorPayload,
 } from '@/lib/error-catalog';
 import { logger } from '@/lib/logger';
+import { captureException } from '@/lib/observability';
 import { getRequestId } from '@/lib/request-context';
 
 export class AppError extends Error {
@@ -64,9 +66,7 @@ export type ActionErrorType =
   | 'server'
   | 'unknown';
 
-export type CodedActionError = {
-  success: false;
-} & PublicErrorPayload;
+export type CodedActionError = ActionFailure;
 
 type NetworkErrorCandidate = {
   code?: string;
@@ -196,6 +196,9 @@ export function handleCodedServerActionError(
   cause: unknown,
 ): CodedActionError {
   logServerError(operation, code, cause);
+  if (cause instanceof Error) {
+    captureException(cause, { operation, errorCode: code });
+  }
   return buildActionError(code, cause);
 }
 

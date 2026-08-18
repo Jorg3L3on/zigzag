@@ -19,6 +19,7 @@ import {
 import type { NotificationRow } from '@/db/schema';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import { toast } from 'sonner';
+import { presentActionError } from '@/lib/network-awareness';
 
 import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
 
@@ -124,11 +125,14 @@ export const NotificationBell = () => {
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
 
+    let failure: Awaited<ReturnType<typeof markNotificationRead>> | null =
+      null;
     try {
       const result = await markNotificationRead(row.id);
       if (result.success) {
         return;
       }
+      failure = result;
     } catch {
       // Rollback below keeps the UI honest when the action throws.
     }
@@ -139,7 +143,12 @@ export const NotificationBell = () => {
       ),
     );
     setUnreadCount((prev) => prev + 1);
-    toast.error('No se pudo marcar la notificación como leída.');
+    const content = presentActionError(
+      failure,
+      'No se pudo marcar la notificación como leída.',
+      'auth',
+    );
+    toast.error(content.title, { description: content.description });
   };
 
   const handleMarkAll = async () => {
@@ -159,11 +168,14 @@ export const NotificationBell = () => {
     );
     setUnreadCount(0);
 
+    let failure: Awaited<ReturnType<typeof markAllNotificationsRead>> | null =
+      null;
     try {
       const result = await markAllNotificationsRead();
       if (result.success) {
         return;
       }
+      failure = result;
     } catch {
       // Rollback below keeps the UI honest when the action throws.
     }
@@ -176,7 +188,12 @@ export const NotificationBell = () => {
       ),
     );
     setUnreadCount((prev) => prev + unreadRows.length);
-    toast.error('No se pudieron marcar las notificaciones como leídas.');
+    const content = presentActionError(
+      failure,
+      'No se pudieron marcar las notificaciones como leídas.',
+      'auth',
+    );
+    toast.error(content.title, { description: content.description });
   };
 
   const badgeLabel = unreadCount > 9 ? '9+' : String(unreadCount);

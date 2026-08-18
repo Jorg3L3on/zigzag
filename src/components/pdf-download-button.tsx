@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { presentActionError } from '@/lib/network-awareness';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
   Tooltip,
@@ -49,7 +50,14 @@ export function PDFDownloadButton({
       }
     } catch (error) {
       console.error('Error generating ticket PDF:', error);
-      toast.error('No se pudo generar el PDF. Código: PDF001');
+      const isTimeout =
+        error instanceof DOMException && error.name === 'AbortError';
+      const content = presentActionError(
+        isTimeout ? { errorCode: 'PDF001' } : null,
+        'No se pudo generar el PDF',
+        isTimeout ? 'server' : undefined,
+      );
+      toast.error(content.title, { description: content.description });
     } finally {
       setIsGenerating(false);
     }

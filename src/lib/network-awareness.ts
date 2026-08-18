@@ -1,5 +1,9 @@
 'use client';
 
+import {
+  isActionFailure,
+  type ActionFailure,
+} from '@/lib/action-result';
 import type { ActionErrorType } from '@/lib/errors';
 import { ERROR_CATALOG, isErrorCode, type ErrorCode } from '@/lib/error-catalog';
 
@@ -176,4 +180,23 @@ export function getErrorDisplayMessage(
 ): string {
   const content = buildToastErrorContent(payload, fallbackMessage, fallbackType);
   return `${content.title}. ${content.description}`;
+}
+
+export function presentActionError(
+  result: ActionFailure | PublicErrorResponse | null | undefined,
+  fallbackMessage: string,
+  fallbackType?: ActionErrorType,
+): ToastErrorContent {
+  return buildToastErrorContent(result, fallbackMessage, fallbackType);
+}
+
+export function toastActionFailure(
+  result: { success: boolean } | null | undefined,
+  fallbackMessage: string,
+  fallbackType?: ActionErrorType,
+): ToastErrorContent | null {
+  if (!isActionFailure(result)) {
+    return null;
+  }
+  return presentActionError(result, fallbackMessage, fallbackType);
 }
