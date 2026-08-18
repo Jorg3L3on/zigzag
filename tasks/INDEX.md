@@ -119,11 +119,11 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Item | Status |
 |------|--------|
-| US-001 Lighthouse baseline | ✅ `/login` 79→87, `/dashboard` 68 (LCP 7.1 s post-initiative), `/tickets` 76 (LCP 4.7 s post-initiative); re-run 2026-08-18 on local prod |
+| US-001 Lighthouse baseline | ✅ `/login` 79→87; `/dashboard` 68 / 6.6 s → recovered 4.5–6.8 s (was 7.1 s); `/tickets` 76 / 6.2 s → 4.4–4.8 s; 2026-08-18 local prod |
 | US-002 Server PDF endpoint | ✅ `src/app/api/tickets/[id]/invoice/route.ts` generates authenticated, tenant-scoped PDFs |
 | US-003 PDFDownloadButton server path | ✅ `src/components/pdf-download-button.tsx` fetches `/api/tickets/[id]/invoice` as primary path with timeout/error handling (`PDF001` catalog toast) |
 | US-004 Reduced motion | ✅ `src/components/dashboard/dashboard-charts.tsx` disables chart animation under reduced motion; `src/components/tripled/motion.tsx` renders static motion divs |
-| US-005 LCP initiative (Aug 2026) | ✅ Paginated tickets, SSR dashboard metrics, deferred widgets, dynamic charts, permission dedup, static page header |
+| US-005 LCP initiative (Aug 2026) | ✅ Paginated tickets, SQL dashboard aggregates, server greeting, SVG KPI sparklines, deferred charts, permission dedup |
 
 **Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/components/pdf-download-button.tsx`, `src/components/dashboard/dashboard-metrics-client.tsx`, `src/app/(app)/dashboard/page.tsx`, `src/components/tickets/tickets-list.tsx`, `src/contexts/permissions-context.tsx`, `src/components/tripled/page-header.tsx`, `scripts/mobile-lighthouse-baseline.mjs`, `tasks/mobile-lighthouse-baseline.md`.
 
