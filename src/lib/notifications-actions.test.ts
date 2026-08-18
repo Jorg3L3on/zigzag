@@ -96,8 +96,16 @@ describe('cross-tenant IDOR - notifications actions', () => {
     const singleResult = await markNotificationRead(1);
     const allResult = await markAllNotificationsRead();
 
-    expect(singleResult).toEqual({ success: false, errorType: 'auth' });
-    expect(allResult).toEqual({ success: false, errorType: 'auth' });
+    expect(singleResult).toMatchObject({
+      success: false,
+      errorType: 'auth',
+      errorCode: 'AU002',
+    });
+    expect(allResult).toMatchObject({
+      success: false,
+      errorType: 'auth',
+      errorCode: 'AU002',
+    });
     expect(mockDb.update).not.toHaveBeenCalled();
   });
 

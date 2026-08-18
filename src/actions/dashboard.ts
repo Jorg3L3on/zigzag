@@ -10,13 +10,14 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import {
-  buildDashboardKpis,
-  buildPaymentStatusBreakdown,
+  buildDashboardKpisFromMonthlySeries,
+  buildPaymentStatusBreakdownFromCounts,
   type DashboardKpi,
+  type DashboardMonthlyBucket,
   type PaymentStatusBreakdownItem,
 } from '@/lib/dashboard-kpi';
+import type { TicketPaymentStatus } from '@/lib/ticket-payment-status';
 import {
-  aggregateFinishedRevenueByMonthKey,
   buildMonthBuckets,
   parseDashboardMonthCount,
   toRevenueByMonthPoints,
@@ -92,80 +93,149 @@ export async function loadDashboardMetricsForCompany(
       eq(ticket.document_kind, 'ticket'),
     );
 
-    const [ticketTotals] = await db
-      .select({
-        totalTickets: sql<number>`count(*)`,
-        totalRevenueRecognized: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
-        totalCashCollected: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.paid} ELSE 0 END), 0)`,
-      })
-      .from(ticket)
-      .where(ticketScope);
+    const ticketMonthTrunc = sql`date_trunc('month', COALESCE(${ticket.ticket_date}, ${ticket.created_at}))`;
+    const paymentStatusExpr = sql`
+      CASE
+        WHEN COALESCE(${ticket.total}, 0) <= 0.01 THEN 'pending'
+        WHEN COALESCE(${ticket.paid}, 0) >= COALESCE(${ticket.total}, 0) - 0.01 THEN 'paid'
+        WHEN COALESCE(${ticket.paid}, 0) > 0.01 THEN 'partial'
+        ELSE 'pending'
+      END
+    `;
+    const outstandingExpr = sql`GREATEST(COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0), 0)`;
+
+    const [
+      [ticketTotals],
+      monthlyRows,
+      paymentRows,
+      [clientsAgg],
+      [servicesAgg],
+      [servicesSoldAgg],
+      recentTicketRows,
+      clientMetrics,
+    ] = await Promise.all([
+      db
+        .select({
+          totalTickets: sql<number>`count(*)`,
+          totalRevenueRecognized: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+          totalCashCollected: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.paid} ELSE 0 END), 0)`,
+          outstanding: sql<number>`COALESCE(SUM(${outstandingExpr}), 0)`,
+          active: sql<number>`COUNT(*) FILTER (WHERE NOT ${ticket.finished})`,
+        })
+        .from(ticket)
+        .where(ticketScope),
+      db
+        .select({
+          monthKey: sql<string>`to_char(${ticketMonthTrunc}, 'YYYY-MM')`,
+          revenue: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+          cash: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.paid} ELSE 0 END), 0)`,
+          outstanding: sql<number>`COALESCE(SUM(${outstandingExpr}), 0)`,
+          active: sql<number>`COUNT(*) FILTER (WHERE NOT ${ticket.finished})`,
+        })
+        .from(ticket)
+        .where(ticketScope)
+        .groupBy(ticketMonthTrunc),
+      db
+        .select({
+          status: sql<TicketPaymentStatus>`${paymentStatusExpr}`,
+          count: sql<number>`count(*)`,
+          amount: sql<number>`COALESCE(SUM(COALESCE(${ticket.total}, 0)), 0)`,
+        })
+        .from(ticket)
+        .where(ticketScope)
+        .groupBy(paymentStatusExpr),
+      db
+        .select({ totalClients: sql<number>`count(*)` })
+        .from(client)
+        .where(and(eq(client.company_id, companyId), isNull(client.deleted_at))),
+      db
+        .select({ totalServices: sql<number>`count(*)` })
+        .from(service)
+        .where(and(eq(service.company_id, companyId), isNull(service.deleted_at))),
+      db
+        .select({
+          totalServicesSold: sql<number>`COALESCE(SUM(${servicesTickets.quantity}), 0)`,
+        })
+        .from(servicesTickets)
+        .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+        .where(
+          and(
+            eq(ticket.company_id, companyId),
+            isNull(ticket.deleted_at),
+            isNull(servicesTickets.deleted_at),
+          ),
+        ),
+      db
+        .select({
+          id: ticket.id,
+          client_name: ticket.client_name,
+          client_table_name: client.name,
+          total: ticket.total,
+          paid: ticket.paid,
+          ticket_date: ticket.ticket_date,
+          created_at: ticket.created_at,
+        })
+        .from(ticket)
+        .leftJoin(
+          client,
+          and(eq(ticket.client_id, client.id), isNull(client.deleted_at)),
+        )
+        .where(ticketScope)
+        .orderBy(desc(sql`COALESCE(${ticket.ticket_date}, ${ticket.created_at})`))
+        .limit(15),
+      db
+        .select({
+          id: client.id,
+          name: client.name,
+          ticketCount: sql<number>`COUNT(${ticket.id})`,
+          totalSpent: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+        })
+        .from(client)
+        .leftJoin(
+          ticket,
+          and(
+            eq(ticket.client_id, client.id),
+            eq(ticket.company_id, companyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
+        .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)))
+        .groupBy(client.id, client.name)
+        .orderBy(
+          desc(
+            sql`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
+          ),
+        )
+        .limit(10),
+    ]);
 
     const monthBuckets = buildMonthBuckets(monthCount);
-    const ticketRowsForRevenue = await db
-      .select({
-        ticket_date: ticket.ticket_date,
-        created_at: ticket.created_at,
-        finished: ticket.finished,
-        total: ticket.total,
-        paid: ticket.paid,
-      })
-      .from(ticket)
-      .where(ticketScope);
-
-    const kpis = buildDashboardKpis(ticketRowsForRevenue);
-    const paymentStatusBreakdown = buildPaymentStatusBreakdown(
-      ticketRowsForRevenue,
+    const monthlySeries: DashboardMonthlyBucket[] = monthlyRows.map((row) => ({
+      monthKey: row.monthKey,
+      revenue: Number(row.revenue ?? 0),
+      cash: Number(row.cash ?? 0),
+      outstanding: Number(row.outstanding ?? 0),
+      active: Number(row.active ?? 0),
+    }));
+    const kpis = buildDashboardKpisFromMonthlySeries(monthlySeries, {
+      outstanding: Number(ticketTotals?.outstanding ?? 0),
+      active: Number(ticketTotals?.active ?? 0),
+    });
+    const paymentStatusBreakdown = buildPaymentStatusBreakdownFromCounts(
+      Object.fromEntries(
+        paymentRows.map((row) => [
+          row.status,
+          {
+            count: Number(row.count ?? 0),
+            amount: Number(row.amount ?? 0),
+          },
+        ]),
+      ),
     );
-
-    const revenueByMonthMap = aggregateFinishedRevenueByMonthKey(
-      ticketRowsForRevenue,
+    const revenueByMonth = toRevenueByMonthPoints(
       monthBuckets,
+      new Map(monthlySeries.map((row) => [row.monthKey, row.revenue])),
     );
-    const revenueByMonth = toRevenueByMonthPoints(monthBuckets, revenueByMonthMap);
-
-    const [clientsAgg] = await db
-      .select({ totalClients: sql<number>`count(*)` })
-      .from(client)
-      .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)));
-
-    const [servicesAgg] = await db
-      .select({ totalServices: sql<number>`count(*)` })
-      .from(service)
-      .where(and(eq(service.company_id, companyId), isNull(service.deleted_at)));
-
-    const [servicesSoldAgg] = await db
-      .select({
-        totalServicesSold: sql<number>`COALESCE(SUM(${servicesTickets.quantity}), 0)`,
-      })
-      .from(servicesTickets)
-      .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
-      .where(
-        and(
-          eq(ticket.company_id, companyId),
-          isNull(ticket.deleted_at),
-          isNull(servicesTickets.deleted_at),
-        ),
-      );
-
-    const recentTicketRows = await db
-      .select({
-        id: ticket.id,
-        client_name: ticket.client_name,
-        client_table_name: client.name,
-        total: ticket.total,
-        paid: ticket.paid,
-        ticket_date: ticket.ticket_date,
-        created_at: ticket.created_at,
-      })
-      .from(ticket)
-      .leftJoin(
-        client,
-        and(eq(ticket.client_id, client.id), isNull(client.deleted_at)),
-      )
-      .where(ticketScope)
-      .orderBy(desc(sql`COALESCE(${ticket.ticket_date}, ${ticket.created_at})`))
-      .limit(15);
 
     const recentTickets: DashboardRecentTicket[] = recentTicketRows.map(
       (row) => ({
@@ -180,30 +250,6 @@ export async function loadDashboardMetricsForCompany(
         createdAt: row.created_at,
       }),
     );
-
-    const clientMetrics = await db
-      .select({
-        id: client.id,
-        name: client.name,
-        ticketCount: sql<number>`COUNT(${ticket.id})`,
-        totalSpent: sql<number>`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
-      })
-      .from(client)
-      .leftJoin(
-        ticket,
-        and(
-          eq(ticket.client_id, client.id),
-          eq(ticket.company_id, companyId),
-          isNull(ticket.deleted_at),
-        ),
-      )
-      .where(and(eq(client.company_id, companyId), isNull(client.deleted_at)))
-      .groupBy(client.id, client.name)
-      .orderBy(
-        desc(
-          sql`COALESCE(SUM(CASE WHEN ${ticket.finished} THEN ${ticket.total} ELSE 0 END), 0)`,
-        ),
-      );
 
     return {
       success: true,

@@ -1,5 +1,6 @@
 import {
   buildDashboardKpis,
+  buildDashboardKpisFromMonthlySeries,
   buildPaymentStatusBreakdown,
   computeDeltaPercent,
   countActiveTicketsSnapshot,
@@ -134,5 +135,40 @@ describe('buildDashboardKpis', () => {
     expect(countActiveTicketsSnapshot(tickets)).toBe(1);
     expect(kpis[2].value).toBe(60);
     expect(kpis[3].value).toBe(1);
+  });
+});
+
+describe('buildDashboardKpisFromMonthlySeries', () => {
+  const now = new Date(2026, 4, 15);
+
+  it('uses monthly aggregates and snapshot totals', () => {
+    const kpis = buildDashboardKpisFromMonthlySeries(
+      [
+        {
+          monthKey: '2026-04',
+          revenue: 50,
+          cash: 40,
+          outstanding: 10,
+          active: 2,
+        },
+        {
+          monthKey: '2026-05',
+          revenue: 100,
+          cash: 80,
+          outstanding: 20,
+          active: 1,
+        },
+      ],
+      { outstanding: 60, active: 3 },
+      now,
+    );
+
+    expect(kpis[0].value).toBe(100);
+    expect(kpis[0].deltaPercent).toBe(100);
+    expect(kpis[1].value).toBe(80);
+    expect(kpis[2].value).toBe(60);
+    expect(kpis[3].value).toBe(3);
+    expect(kpis[0].sparkline).toHaveLength(8);
+    expect(kpis[0].sparkline.at(-1)?.value).toBe(100);
   });
 });

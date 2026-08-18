@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -21,16 +22,10 @@ import {
   FileDown,
   AlertTriangle,
 } from 'lucide-react';
-import {
-  TripledEmptyState,
-  TripledMotionDiv,
-  tripledStagger,
-} from '@/components/tripled';
-import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { TripledEmptyState } from '@/components/tripled';
 import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
-import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform-home';
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
@@ -40,10 +35,7 @@ import {
   buildDashboardAttentionItems,
   countSchedulesDueToday,
 } from '@/lib/dashboard-attention';
-import {
-  buildDashboardComposition,
-  buildDashboardIntroSubtitle,
-} from '@/lib/dashboard-composition';
+import { buildDashboardComposition } from '@/lib/dashboard-composition';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
@@ -55,9 +47,21 @@ import {
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedules';
+import { useDeferredMount } from '@/hooks/use-deferred-mount';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
+
+const DashboardCharts = dynamic(
+  () =>
+    import('@/components/dashboard/dashboard-charts').then((module) => ({
+      default: module.DashboardCharts,
+    })),
+  {
+    loading: () => <Skeleton className="h-[280px] rounded-xl lg:col-span-2" />,
+    ssr: false,
+  },
+);
 
 const MONTH_PRESETS: { value: DashboardMonthCount; label: string }[] = [
   { value: 1, label: '1 mes' },
@@ -104,17 +108,28 @@ const DashboardLoadingSkeleton = () => (
   </div>
 );
 
-export const DashboardMetricsClient = () => {
+export type DashboardMetricsClientProps = {
+  initialMetrics?: DashboardMetrics | null;
+  userName?: string | null;
+};
+
+export const DashboardMetricsClient = ({
+  initialMetrics = null,
+  userName = null,
+}: DashboardMetricsClientProps) => {
   const router = useRouter();
   const { status, data: session } = useSession();
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
-  const urgentSchedules = useDashboardUrgentSchedules();
-  const technicianDay = useTechnicianDayQueue();
+  const deferSecondaryWidgets = useDeferredMount();
+  const urgentSchedules = useDashboardUrgentSchedules(deferSecondaryWidgets);
+  const technicianDay = useTechnicianDayQueue(deferSecondaryWidgets);
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
-  const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null);
+  const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(
+    initialMetrics,
+  );
   const [error, setError] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(initialMetrics == null);
 
   React.useEffect(() => {
     if (status === 'loading') {
@@ -138,6 +153,18 @@ export const DashboardMetricsClient = () => {
     if (viewingSystemHome) {
       setLoading(false);
       setMetrics(null);
+      setError(null);
+      return;
+    }
+
+    if (
+      initialMetrics != null &&
+      monthCount === 1 &&
+      !isSystem &&
+      selectedCompany == null
+    ) {
+      setLoading(false);
+      setMetrics(initialMetrics);
       setError(null);
       return;
     }
@@ -179,7 +206,7 @@ export const DashboardMetricsClient = () => {
     return () => {
       cancelled = true;
     };
-  }, [status, session, selectedCompany, monthCount, router]);
+  }, [status, session, selectedCompany, monthCount, router, initialMetrics]);
 
   const needsCompanyContext =
     session?.user.company_is_system === true &&
@@ -194,7 +221,10 @@ export const DashboardMetricsClient = () => {
   });
   const composition = buildDashboardComposition(persona);
 
-  if (status === 'loading' || permissions.loading) {
+  if (
+    (status === 'loading' && initialMetrics == null && !userName) ||
+    (permissions.loading && initialMetrics == null && !userName)
+  ) {
     return <DashboardLoadingSkeleton />;
   }
 
@@ -202,14 +232,6 @@ export const DashboardMetricsClient = () => {
   if (persona === 'system') {
     return (
       <div className="flex flex-col gap-6 md:gap-8">
-        <DashboardPageIntro
-          userName={session?.user?.name}
-          subtitle={buildDashboardIntroSubtitle({
-            persona,
-            attentionCount: 0,
-            companyName: null,
-          })}
-        />
         {composition.widgets.map((widgetId) => {
           if (widgetId === 'platformHome') {
             return <DashboardPlatformHome key={widgetId} />;
@@ -221,6 +243,9 @@ export const DashboardMetricsClient = () => {
   }
 
   if (loading && !metrics && !error) {
+    if (userName || initialMetrics) {
+      return null;
+    }
     return <DashboardLoadingSkeleton />;
   }
 
@@ -264,9 +289,6 @@ export const DashboardMetricsClient = () => {
     window.open(buildReportUrl('csv'), '_blank', 'noopener,noreferrer');
   };
 
-  const companyLabel =
-    selectedCompany?.name ?? session?.user.company_name ?? null;
-
   const activeTicketsKpi =
     metrics.kpis.find((kpi) => kpi.key === 'activeTickets')?.value ?? 0;
 
@@ -288,12 +310,6 @@ export const DashboardMetricsClient = () => {
     composition.kpiKeys === 'all'
       ? metrics.kpis
       : metrics.kpis.filter((kpi) => composition.kpiKeys.includes(kpi.key));
-
-  const introSubtitle = buildDashboardIntroSubtitle({
-    persona,
-    attentionCount: attentionItems.reduce((sum, item) => sum + item.count, 0),
-    companyName: companyLabel,
-  });
 
   const exportControls = composition.showExports ? (
     <>
@@ -361,16 +377,13 @@ export const DashboardMetricsClient = () => {
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {composition.sectionTitles.kpis}
             </h2>
-            <TripledMotionDiv
+            <div
               className={cn(
                 'grid gap-4',
                 visibleKpis.length <= 2
                   ? 'grid-cols-2 lg:grid-cols-2 lg:max-w-2xl'
                   : 'grid-cols-2 lg:grid-cols-4',
               )}
-              variants={tripledStagger}
-              initial="hidden"
-              animate="visible"
             >
               {visibleKpis.map((kpi) => {
                 const card = (
@@ -394,10 +407,18 @@ export const DashboardMetricsClient = () => {
                   </Link>
                 );
               })}
-            </TripledMotionDiv>
+            </div>
           </section>
         );
       case 'charts':
+        if (!deferSecondaryWidgets) {
+          return (
+            <Skeleton
+              key={widgetId}
+              className="h-[280px] rounded-xl lg:col-span-2"
+            />
+          );
+        }
         return (
           <div
             key={widgetId}
@@ -411,6 +432,20 @@ export const DashboardMetricsClient = () => {
           </div>
         );
       case 'operations':
+        if (!deferSecondaryWidgets) {
+          return (
+            <section
+              key={widgetId}
+              aria-label={composition.sectionTitles.operations}
+              className="space-y-3"
+            >
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                {composition.sectionTitles.operations}
+              </h2>
+              <Skeleton className="h-64 rounded-xl" />
+            </section>
+          );
+        }
         return (
           <section
             key={widgetId}
@@ -480,14 +515,15 @@ export const DashboardMetricsClient = () => {
         </p>
       ) : null}
 
-      <DashboardPageIntro
-        userName={session?.user?.name}
-        subtitle={introSubtitle}
-      >
-        {exportControls}
-      </DashboardPageIntro>
+      {exportControls ? (
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {exportControls}
+        </div>
+      ) : null}
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}
     </div>
   );
 };
+
+export default DashboardMetricsClient;

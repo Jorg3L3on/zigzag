@@ -32,6 +32,7 @@ import { buildServiceCsvPlantilla } from '@/lib/service-csv';
 import type { ServiceCsvPreviewResult } from '@/lib/service-csv-preview';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
+import { presentActionError } from '@/lib/network-awareness';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 
@@ -109,8 +110,10 @@ export const ServicesCsvImportClient = () => {
         selectedCompany?.id ?? null,
       );
       if (!result.success || !result.data) {
-        setFileError(result.error || 'No se pudo validar el archivo');
-        toast.error(result.error || 'No se pudo validar el archivo');
+        const message = result.error || 'No se pudo validar el archivo';
+        setFileError(message);
+        const content = presentActionError(result, message);
+        toast.error(content.title, { description: content.description });
         setStep('upload');
         return;
       }

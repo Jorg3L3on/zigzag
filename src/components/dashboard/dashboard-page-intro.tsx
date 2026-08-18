@@ -1,5 +1,3 @@
-'use client';
-
 import type { ReactNode } from 'react';
 
 export type DashboardPageIntroProps = {
@@ -42,7 +40,10 @@ export const DashboardPageIntro = ({
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
       <div className="min-w-0 space-y-1">
-        <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1
+          className="truncate text-3xl font-semibold tracking-tight text-foreground"
+          style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
+        >
           {title}
         </h1>
         <p className="text-sm text-muted-foreground">{resolvedSubtitle}</p>

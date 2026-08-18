@@ -7,7 +7,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | Status | File | Kind |
 |--------|------|------|
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
-| ❌ | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — native-feel PWA polish (items 2, 4–10) |
+| 🔶 | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — most slices shipped; LCP pagination/SSR follow-up Aug 2026 |
 | ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
 | ❌ | [prd-native-feel-theme-splash.md](./prd-native-feel-theme-splash.md) ([#343](https://github.com/Jorg3L3on/zigzag/issues/343)–[#344](https://github.com/Jorg3L3on/zigzag/issues/344)) | Slice — theme / splash continuity |
 | ❌ | [prd-native-feel-thumb-forms.md](./prd-native-feel-thumb-forms.md) ([#345](https://github.com/Jorg3L3on/zigzag/issues/345)) | Slice — sticky CTA on ticket edit |
@@ -22,7 +22,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-mobile-architecture-consistency.md](./prd-mobile-architecture-consistency.md) | v1 epic |
 | ✅ | [prd-mobile-performance.md](./prd-mobile-performance.md) | v1 epic |
 | ✅ | [prd-mobile-pwa-install.md](./prd-mobile-pwa-install.md) | v1 epic |
-| ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic (install prompt) |
+| ⏸️ | [prd-mobile-pwa-offline.md](./prd-mobile-pwa-offline.md) | Future epic — Android install prompt shipped Aug 2026; richer offline UX remains |
 | ✅ | [prd-pwa-offline-shell.md](./prd-pwa-offline-shell.md) | Execution plan 4.1 — app shell SW |
 | ✅ | [prd-mobile-testing.md](./prd-mobile-testing.md) | v1 epic |
 | ✅ | [prd-mobile-accessibility.md](./prd-mobile-accessibility.md) | v1 epic |
@@ -113,18 +113,19 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 ## ✅ prd-mobile-performance.md
 
-**Status:** Applied (server PDF + reduced motion + Lighthouse baselines)
+**Status:** Applied (server PDF + reduced motion + Lighthouse baselines; **Aug 2026 LCP initiative** shipped — post-merge Lighthouse pending)
 
-**TL;DR:** Mobile performance: **server-generated ticket PDF** is the primary path, `PDFDownloadButton` has a 60s timeout, dashboard charts/`TripledMotionDiv` honor `prefers-reduced-motion`, and Lighthouse mobile baselines for `/login`, `/dashboard`, and `/tickets` are in `tasks/mobile-lighthouse-baseline.md` (local prod build). Re-run on Vercel preview before release gate.
+**TL;DR:** Mobile performance: **server-generated ticket PDF** is the primary path, `PDFDownloadButton` has a 60s timeout, dashboard charts/`TripledMotionDiv` honor `prefers-reduced-motion`, and Lighthouse mobile baselines for `/login`, `/dashboard`, and `/tickets` are in `tasks/mobile-lighthouse-baseline.md` (local prod build). **Aug 2026:** server-first dashboard metrics, paginated tickets list, deferred below-fold widgets, dynamic chart imports, `PermissionsProvider` dedup, static page header for LCP. Re-run `npm run lighthouse:mobile` before release gate.
 
 | Item | Status |
 |------|--------|
-| US-001 Lighthouse baseline | ✅ `/login` 79, `/dashboard` 68, `/tickets` 76 (local prod, 2026-06-20); script `npm run lighthouse:mobile` |
+| US-001 Lighthouse baseline | ✅ `/login` 79→87; `/dashboard` 68 / 6.6 s → recovered 4.5–6.8 s (was 7.1 s); `/tickets` 76 / 6.2 s → 4.4–4.8 s; 2026-08-18 local prod |
 | US-002 Server PDF endpoint | ✅ `src/app/api/tickets/[id]/invoice/route.ts` generates authenticated, tenant-scoped PDFs |
-| US-003 PDFDownloadButton server path | ✅ `src/components/pdf-download-button.tsx` fetches `/api/tickets/[id]/invoice` as primary path with timeout/error handling |
+| US-003 PDFDownloadButton server path | ✅ `src/components/pdf-download-button.tsx` fetches `/api/tickets/[id]/invoice` as primary path with timeout/error handling (`PDF001` catalog toast) |
 | US-004 Reduced motion | ✅ `src/components/dashboard/dashboard-charts.tsx` disables chart animation under reduced motion; `src/components/tripled/motion.tsx` renders static motion divs |
+| US-005 LCP initiative (Aug 2026) | ✅ Paginated tickets, SQL dashboard aggregates, server greeting, SVG KPI sparklines, deferred charts, permission dedup |
 
-**Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/components/pdf-download-button.tsx`, `src/components/dashboard/dashboard-charts.tsx`, `src/components/tripled/motion.tsx`, `scripts/mobile-lighthouse-baseline.mjs`, `tasks/mobile-lighthouse-baseline.md`.
+**Evidence:** `src/app/api/tickets/[id]/invoice/route.ts`, `src/components/pdf-download-button.tsx`, `src/components/dashboard/dashboard-metrics-client.tsx`, `src/app/(app)/dashboard/page.tsx`, `src/components/tickets/tickets-list.tsx`, `src/contexts/permissions-context.tsx`, `src/components/tripled/page-header.tsx`, `scripts/mobile-lighthouse-baseline.mjs`, `tasks/mobile-lighthouse-baseline.md`.
 
 ---
 
@@ -146,7 +147,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 **Evidence:** `src/app/manifest.ts`, `src/app/layout.tsx`, `src/app/manifest.test.ts`, `src/app/pwa-icons.test.ts`, `src/proxy.test.ts`, `README.md` (Mobile & PWA).
 
-**Out of scope (unchanged):** Android install prompt, push, offline CRUD → `prd-mobile-pwa-offline.md`. App shell SW shipped in `prd-pwa-offline-shell.md` (execution plan 4.1).
+**Out of scope (unchanged):** push, offline CRUD → `prd-mobile-pwa-offline.md`. App shell SW shipped in `prd-pwa-offline-shell.md` (execution plan 4.1). **Aug 2026:** Android Chrome in-app install banner shipped (`PwaInstallBanner`, `usePwaInstallPrompt`); iOS remains manual Safari steps in README.
 
 ---
 
@@ -255,4 +256,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-06-20 (mobile v1 closure: Playwright mobile-chrome, release checklist, docs; performance `/login` Lighthouse).
+- **Last audited:** 2026-08-18 (UX three-initiative: LCP pagination/SSR, PWA install banner, ActionResult error unification).

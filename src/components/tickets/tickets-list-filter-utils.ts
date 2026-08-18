@@ -109,7 +109,7 @@ export const hasActiveTicketFilters = (
 ): boolean => countActiveFilters(filters) > 0;
 
 export const buildTicketFilterChips = (
-  tickets: Ticket[],
+  totalCount: number,
   filteredCount: number,
   filters: Pick<
     TicketsFilterState,
@@ -118,7 +118,7 @@ export const buildTicketFilterChips = (
 ) => [
   {
     key: 'count',
-    label: `${filteredCount} de ${tickets.length} tickets`,
+    label: `${filteredCount} de ${totalCount} tickets`,
     variant: 'secondary' as const,
   },
   ...(filters.statusFilter !== 'all'

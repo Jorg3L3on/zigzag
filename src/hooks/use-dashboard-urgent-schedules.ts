@@ -28,7 +28,9 @@ type LoadSignal = {
   cancelled: boolean;
 };
 
-export const useDashboardUrgentSchedules = (): DashboardUrgentSchedulesState => {
+export const useDashboardUrgentSchedules = (
+  enabled = true,
+): DashboardUrgentSchedulesState => {
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
   const canRead = canReadServiceSchedules(can);
@@ -114,6 +116,10 @@ export const useDashboardUrgentSchedules = (): DashboardUrgentSchedulesState => 
   );
 
   React.useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     // Per-effect cancel token (not a persistent ref): React Strict Mode remounts
     // must not permanently ignore successful fetches and leave the widget spinning.
     const signal: LoadSignal = { cancelled: false };
@@ -121,7 +127,7 @@ export const useDashboardUrgentSchedules = (): DashboardUrgentSchedulesState => 
     return () => {
       signal.cancelled = true;
     };
-  }, [loadSchedules]);
+  }, [enabled, loadSchedules]);
 
   const reload = React.useCallback(() => {
     void loadSchedules();

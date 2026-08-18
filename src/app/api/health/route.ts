@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     return response;
   } catch (error) {
     captureException(error, { route: '/api/health', requestId });
-    const response = fail('No se pudo verificar el estado del sistema', 503, 'server');
+    const response = fail('GN001', 503, 'server');
     response.headers.set(REQUEST_ID_HEADER, requestId);
     return response;
   }

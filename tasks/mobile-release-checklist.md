@@ -31,6 +31,7 @@ Core business flows on mobile (create ticket → add service / total → collect
 ## Manual — Android Chrome
 
 - [ ] Login and open sidebar sheet from the menu button; navigation links work.
+- [ ] When not installed, **Instalar ZigZag** banner may appear; dismiss hides it for 30 days; after install banner does not return in standalone mode.
 - [ ] Bottom tabs (Inicio · Tickets · Clientes · Más) visible on list pages; Más opens the sidebar sheet.
 - [ ] Ticket create sticky save bar hides bottom tabs.
 - [ ] Tickets list cards and filters usable with touch targets.

@@ -7,6 +7,7 @@ import { Providers } from '@/components/providers';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeColorMeta } from '@/components/theme-color-meta';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
+import { PwaInstallBanner } from '@/components/pwa-install-banner';
 import { AppSerwistProvider } from '@/components/serwist-provider';
 import './globals.css';
 import { CompanyProvider } from '@/contexts/company-context';
@@ -82,6 +83,7 @@ export default async function RootLayout({
               <Providers>
                 <AppSerwistProvider>
                   <NetworkStatusBanner />
+                  <PwaInstallBanner />
                   {children}
                   <AppToaster />
                 </AppSerwistProvider>

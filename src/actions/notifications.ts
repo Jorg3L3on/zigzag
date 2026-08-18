@@ -5,6 +5,7 @@ import { notification, type NotificationRow } from '@/db/schema';
 import { db } from '@/lib/db';
 import { requireActionAuth } from '@/lib/security';
 import {
+  buildActionError,
   handleCodedServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
@@ -91,7 +92,7 @@ export async function markNotificationRead(id: number): Promise<{
   try {
     const context = await requireActionAuth();
     if (!context.companyId) {
-      return { success: false, errorType: 'auth' };
+      return buildActionError('AU002');
     }
 
     await db
@@ -119,7 +120,7 @@ export async function markAllNotificationsRead(): Promise<{
   try {
     const context = await requireActionAuth();
     if (!context.companyId) {
-      return { success: false, errorType: 'auth' };
+      return buildActionError('AU002');
     }
 
     await db

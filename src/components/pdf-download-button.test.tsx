@@ -53,8 +53,8 @@ describe('PDFDownloadButton', () => {
     await waitFor(() => {
       expect(button).toBeEnabled();
     });
-    expect(toast.error).toHaveBeenCalledWith(
-      'No se pudo generar el PDF. Código: PDF001',
-    );
+    expect(toast.error).toHaveBeenCalledWith('No se pudo generar el PDF', {
+      description: expect.stringContaining('PDF001'),
+    });
   });
 });

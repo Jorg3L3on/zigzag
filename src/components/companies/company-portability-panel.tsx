@@ -24,8 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Download, Archive } from 'lucide-react';
 import {
-  classifyClientError,
-  getErrorDisplayMessage,
+  presentActionError,
 } from '@/lib/network-awareness';
 
 type CompanyPortabilityPanelProps = {
@@ -44,13 +43,11 @@ export const CompanyPortabilityPanel = ({
     try {
       const result = await downloadCompanyExportJson(company.id);
       if (!result.success || !result.data) {
-        toast.error(
-          getErrorDisplayMessage(
-            null,
-            result.error ?? 'No se pudo generar la exportación.',
-            classifyClientError(result.errorType),
-          ),
+        const content = presentActionError(
+          result,
+          'No se pudo generar la exportación.',
         );
+        toast.error(content.title, { description: content.description });
         return;
       }
 
@@ -74,13 +71,11 @@ export const CompanyPortabilityPanel = ({
     try {
       const result = await offboardCompany(company.id);
       if (!result.success || !result.data) {
-        toast.error(
-          getErrorDisplayMessage(
-            null,
-            result.error ?? 'No se pudo iniciar el offboarding.',
-            classifyClientError(result.errorType),
-          ),
+        const content = presentActionError(
+          result,
+          'No se pudo iniciar el offboarding.',
         );
+        toast.error(content.title, { description: content.description });
         return;
       }
 

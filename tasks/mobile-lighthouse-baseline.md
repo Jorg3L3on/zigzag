@@ -56,6 +56,11 @@ Re-run on a Vercel preview before release; local prod build is the merge guard b
 | 2026-06-20 | `/dashboard` | Local prod (`next start`, port 3070) | 68 | 6.6 s | TBT 152 ms | 0 | Authenticated via E2E seed user; tenant company context. |
 | 2026-06-20 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 6.2 s | TBT 145 ms | 0 | Authenticated; list with seeded tickets. |
 | 2026-06-20 | `/login` | Local dev (`npm run dev`, port 3069) | 68 | 8.8 s | TBT 270 ms | 0 | Superseded by prod baseline above; kept for comparison. |
+| 2026-08-18 | `/login` | Local prod (`next start`, port 3070) | 87 | 4.0 s | TBT 66 ms | 0 | Post-LCP initiative; Cloud Agent re-run (`demo@zigzag.app`). Improved vs 2026-06-20. |
+| 2026-08-18 | `/dashboard` | Local prod (`next start`, port 3070) | 67 | 7.1 s | TBT 375 ms | 0 | First post-change run; LCP **regressed** vs 6.6 s. |
+| 2026-08-18 | `/tickets` | Local prod (`next start`, port 3070) | 76 | 4.7 s | TBT 316 ms | 0 | Paginated tickets; LCP improved 6.2 s → 4.7 s. |
+| 2026-08-18 | `/dashboard` | Local prod after slice 1F recovery | 67–74 | **4.5–6.8 s** | TBT ~290 ms | 0.12 | SQL aggregates, server greeting, SVG KPIs, deferred charts. Best LCP 4.5 s (beats 6.6 s); slower runs ~6.8 s. CLS from streamed widgets — follow-up. Target ≤ 4.0 s not met on every run. |
+| 2026-08-18 | `/tickets` | Local prod after slice 1F recovery | 76–77 | **4.4–4.8 s** | TBT ~280–380 ms | 0 | Stable improvement vs 6.2 s baseline. Target ≤ 3.5 s not met. |
 
 ## Merge Guard
 
@@ -77,4 +82,4 @@ Shipped on `feat/native-feel-pwa` before full Lighthouse re-measure:
 - Conservative mobile idle prefetch of the three tab routes
 - Light optimistic UI for notification mark-read
 
-**Action for #355:** Re-run `npm run lighthouse:mobile` against a local prod build with E2E credentials and append scores to the Baseline Runs table above before the feature PR merges to `main`.
+**Action for #355:** Re-run `npm run lighthouse:mobile` after the Aug 2026 LCP initiative (server dashboard metrics, paginated tickets, deferred widgets, dynamic charts) and append post-change scores above.

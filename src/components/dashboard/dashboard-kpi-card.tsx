@@ -2,12 +2,10 @@
 
 import type { ReactNode } from 'react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
-import { useReducedMotion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled/motion';
 import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
+import { DashboardKpiSparkline } from '@/components/dashboard/dashboard-kpi-sparkline';
 import type { DashboardKpi } from '@/lib/dashboard-kpi';
 import { formatCompactCurrency, formatCompactNumber } from '@/lib/format-compact';
 import { cn } from '@/lib/utils';
@@ -26,23 +24,17 @@ const formatDelta = (deltaPercent: number | null): string => {
 };
 
 export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
-  const shouldReduceMotion = useReducedMotion();
   const delta = kpi.deltaPercent;
   const isUp = delta !== null && delta > 0;
   const isDown = delta !== null && delta < 0;
   const isNeutral = delta === null || delta === 0;
-
-  const sparklineData = kpi.sparkline.map((point) => ({
-    label: point.label,
-    value: point.value,
-  }));
   const compactValue =
     kpi.format === 'currency'
       ? formatCompactCurrency(kpi.value)
       : formatCompactNumber(kpi.value);
 
   return (
-    <TripledMotionDiv className="h-full min-w-0" variants={tripledFadeInUp}>
+    <div className="h-full min-w-0">
       <Card className={cn(DASHBOARD_CARD_CLASS, 'flex h-full flex-col overflow-hidden')}>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 p-4 pb-3 sm:p-5 sm:pb-3">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -90,50 +82,12 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
               </p>
             ) : null}
           </div>
-          <div
-            className="mt-auto h-8 w-full opacity-80"
-            role="img"
-            aria-label={`Tendencia de ${kpi.label}, últimos ${sparklineData.length} meses`}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={sparklineData}
-                margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient
-                    id={`spark-${kpi.key}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor="hsl(var(--primary))"
-                      stopOpacity={0.35}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="hsl(var(--primary))"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={1.5}
-                  fill={`url(#spark-${kpi.key})`}
-                  isAnimationActive={!shouldReduceMotion}
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <DashboardKpiSparkline
+            values={kpi.sparkline.map((point) => point.value)}
+            label={`Tendencia de ${kpi.label}, últimos ${kpi.sparkline.length} meses`}
+          />
         </CardContent>
       </Card>
-    </TripledMotionDiv>
+    </div>
   );
 };

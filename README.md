@@ -163,7 +163,7 @@ Install ZigZag on a phone or tablet for quick access from the home screen. After
 **Instalar en Android (Chrome)**
 
 1. Abre ZigZag en Chrome.
-2. Toca el menú → **Instalar app** o **Añadir a pantalla de inicio** (según el dispositivo).
+2. Si el navegador lo permite, verás un aviso **Instalar ZigZag** en la parte superior; también puedes usar el menú → **Instalar app** o **Añadir a pantalla de inicio**.
 3. Confirma la instalación.
 
 Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró, inicia sesión de nuevo.
@@ -185,7 +185,7 @@ Antes de un release móvil, usa la checklist manual: [tasks/mobile-release-check
 **Install on Android (Chrome)**
 
 1. Open ZigZag in Chrome.
-2. Tap the menu → **Install app** or **Add to home screen** (wording varies by device).
+2. When supported, an **Install ZigZag** banner appears at the top; you can also use the menu → **Install app** or **Add to home screen** (wording varies by device).
 3. Confirm the install.
 
 After install, the app opens on the **Dashboard** (`/dashboard`). Sign in again if your session expired.

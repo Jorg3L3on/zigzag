@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { ApiResponse } from '@/lib/action-result';
 import { auth } from '@/lib/auth';
 import {
   buildPublicError,
@@ -45,7 +46,7 @@ export async function enforceApiRateLimit(
   return null;
 }
 
-const attachRequestIdHeader = (response: NextResponse): NextResponse => {
+const attachRequestIdHeader = <T>(response: NextResponse<T>): NextResponse<T> => {
   const requestId = getRequestId();
   if (requestId) {
     response.headers.set(REQUEST_ID_HEADER, requestId);
@@ -53,10 +54,10 @@ const attachRequestIdHeader = (response: NextResponse): NextResponse => {
   return response;
 };
 
-export function ok<T>(data: T, status = 200) {
+export function ok<T>(data: T, status = 200): NextResponse<ApiResponse<T>> {
   return attachRequestIdHeader(
     NextResponse.json(
-      { success: true, data: convertBigIntToString(data) },
+      { success: true as const, data: convertBigIntToString(data) as T },
       { status },
     ),
   );
@@ -66,7 +67,7 @@ export function fail(
   error: string | ErrorCode,
   status = 400,
   errorType?: ActionErrorType,
-) {
+): NextResponse<ApiResponse<never>> {
   if (isErrorCode(error)) {
     const payload = buildPublicError(error);
     return attachRequestIdHeader(
