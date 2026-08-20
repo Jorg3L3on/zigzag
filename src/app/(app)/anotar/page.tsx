@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
+import { enqueueFieldJobCreate, fieldJobStore } from '@/lib/field-jobs';
 import {
   buildToastErrorContent,
   classifyClientError,
@@ -206,9 +207,6 @@ const AnotarPageContent = () => {
         toast.error('Selecciona una empresa para guardar en el teléfono');
         return;
       }
-      const { enqueueFieldJobCreate, fieldJobStore } = await import(
-        '@/lib/field-jobs'
-      );
       await enqueueFieldJobCreate(fieldJobStore, {
         companyId,
         payload: {
@@ -225,7 +223,10 @@ const AnotarPageContent = () => {
       });
       toast.success('Guardado en el teléfono');
       vibrateSuccess();
-      router.push('/dashboard');
+      // Soft-nav needs network for RSC; stay put while offline so the toast remains.
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        router.push('/dashboard');
+      }
     };
 
     try {

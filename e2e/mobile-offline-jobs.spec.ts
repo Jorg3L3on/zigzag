@@ -23,7 +23,8 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
     );
 
     await page.goto('/anotar');
-    await expect(page.getByText(/Trabajo del día|Anotar/i).first()).toBeVisible({
+    // Prefer the card title — breadcrumb "Anotar trabajo" is hidden below md.
+    await expect(page.getByText('Trabajo del día')).toBeVisible({
       timeout: 30_000,
     });
 
@@ -53,8 +54,12 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
     await total.fill('150');
 
     await context.setOffline(true);
+    await expect(
+      page.getByRole('status').filter({ hasText: /Sin conexión/i }),
+    ).toBeVisible({ timeout: 10_000 });
 
-    await page.getByRole('button', { name: /Guardar/i }).first().click();
+    // Sticky mobile CTA — avoid matching hidden desktop "Guardar trabajo".
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     await expect(page.getByText(/Guardado en el teléfono/i)).toBeVisible({
       timeout: 15_000,
     });
@@ -78,8 +83,18 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
     await expect(page.getByTestId('technician-day-widget')).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText(/pendiente(?:s)? de subir/i).first()).toBeVisible({
+    await page.getByTestId('technician-day-widget').scrollIntoViewIfNeeded();
+    // Prefer Subir ahora — CardDescription can be clipped in the mobile header row.
+    await expect(page.getByTestId('field-sync-now-button')).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByTestId('field-sync-now-button')).toContainText(
+      /Subir ahora/i,
+    );
+    await expect(
+      page
+        .getByTestId('technician-day-widget')
+        .getByText('Pendiente de subir', { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });

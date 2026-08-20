@@ -73,6 +73,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { enqueueFieldJobCreate, fieldJobStore } from '@/lib/field-jobs';
 import {
   buildTicketDraftStorageKey,
   clearTicketFormDraft,
@@ -278,9 +279,6 @@ const CreateTicketPageContent = () => {
       setIsSubmitting(true);
 
       const saveOffline = async () => {
-        const { enqueueFieldJobCreate, fieldJobStore } = await import(
-          '@/lib/field-jobs'
-        );
         const companyId = selectedCompany?.id ?? values.company_id;
         if (!companyId) {
           toast.error('Selecciona una empresa para guardar en el teléfono');
@@ -303,7 +301,9 @@ const CreateTicketPageContent = () => {
         toast.success('Guardado en el teléfono');
         vibrateSuccess();
         clearTicketFormDraft(draftKey);
-        router.push('/dashboard');
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          router.push('/dashboard');
+        }
       };
 
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -341,9 +341,6 @@ const CreateTicketPageContent = () => {
       const errorType = classifyClientError(error);
       if (errorType === 'network') {
         try {
-          const { enqueueFieldJobCreate, fieldJobStore } = await import(
-            '@/lib/field-jobs'
-          );
           const companyId = selectedCompany?.id ?? values.company_id;
           if (companyId) {
             await enqueueFieldJobCreate(fieldJobStore, {
@@ -365,7 +362,9 @@ const CreateTicketPageContent = () => {
             toast.success('Guardado en el teléfono');
             vibrateSuccess();
             clearTicketFormDraft(draftKey);
-            router.push('/dashboard');
+            if (typeof navigator === 'undefined' || navigator.onLine) {
+              router.push('/dashboard');
+            }
             return;
           }
         } catch {
