@@ -86,7 +86,6 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
 /**
  * Field program mobile bottom tabs: Hoy · Anotar · Clientes (+ Más in the tab bar).
  * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy, Tickets list vs Anotar).
- * Anotar href becomes `/anotar` when job-capture-anotar ships — change only here.
  */
 export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
   {
@@ -96,7 +95,7 @@ export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
   },
   {
     title: 'Anotar',
-    url: '/tickets/create',
+    url: '/anotar',
     icon: PenLine,
     requiredPermission: PERMISSIONS.tickets.write,
   },
@@ -171,7 +170,7 @@ export const getLongestMatchingHref = (
 /**
  * Active tab for field bottom bar.
  * Hoy must not activate on `/tickets` list alone (Tickets is not a tab).
- * Anotar activates on `/tickets/create` (and nested under create) until `/anotar` ships.
+ * Anotar activates on `/anotar` (and nested paths under it).
  */
 export const getActiveMobileTabHref = (
   pathname: string,
