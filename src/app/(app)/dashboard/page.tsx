@@ -10,6 +10,8 @@ import {
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { requirePagePermission } from '@/lib/page-authz';
 import { loadDashboardMetricsForCompany } from '@/actions/dashboard';
+import { loadExperienceModeForCompany } from '@/actions/experience-mode';
+import type { ExperienceMode } from '@/lib/experience-mode';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,10 +24,12 @@ const DashboardMetricsSection = async ({
   companyId,
   companyIsSystem,
   userName,
+  initialExperienceMode,
 }: {
   companyId: number;
   companyIsSystem: boolean;
   userName?: string | null;
+  initialExperienceMode: ExperienceMode;
 }) => {
   const initialMetrics = companyIsSystem
     ? null
@@ -35,6 +39,7 @@ const DashboardMetricsSection = async ({
     <DashboardMetricsClient
       initialMetrics={initialMetrics}
       userName={userName}
+      initialExperienceMode={initialExperienceMode}
     />
   );
 };
@@ -47,21 +52,33 @@ export default async function DashboardPage() {
   }
   await requirePagePermission('tickets.read');
 
+  const companyId = Number(session.user.company_id);
+  const companyIsSystem = Boolean(session.user.company_is_system);
+  const experienceMode = companyIsSystem
+    ? 'office'
+    : await loadExperienceModeForCompany(companyId);
+  const isCampo = experienceMode === 'campo';
+
   return (
     <>
-      <TripledPageHeader items={[{ label: 'Dashboard' }]} />
+      <TripledPageHeader
+        items={[{ label: isCampo ? 'Hoy' : 'Dashboard' }]}
+      />
       <TripledDashboardShell>
         <div className="flex flex-col gap-6 md:gap-8">
           <DashboardPageIntro
             userName={session.user.name}
-            subtitle="Resumen de tu operación"
+            subtitle={
+              isCampo ? 'Tu día en el campo' : 'Resumen de tu operación'
+            }
           />
           <div className="min-h-[28rem]">
             <Suspense fallback={null}>
               <DashboardMetricsSection
-                companyId={Number(session.user.company_id)}
-                companyIsSystem={Boolean(session.user.company_is_system)}
+                companyId={companyId}
+                companyIsSystem={companyIsSystem}
                 userName={session.user.name}
+                initialExperienceMode={experienceMode}
               />
             </Suspense>
           </div>

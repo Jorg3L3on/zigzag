@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -47,6 +48,7 @@ const defaultSettings = {
   rfc: '',
   invoice_footer_note: '',
   default_currency: 'MXN',
+  experience_mode: '' as '' | 'campo' | 'office',
 };
 
 const emptyDefaults: CompanyBootstrapFormValues = {
@@ -113,6 +115,7 @@ export const CompanyForm = ({
               company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
+            experience_mode: company.settings?.experience_mode ?? '',
           },
           owner: { name: '', email: '', password: '' },
         }
@@ -467,6 +470,36 @@ export const CompanyForm = ({
                   <FormControl>
                     <Input {...field} placeholder="MXN" />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="settings.experience_mode"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Experiencia de inicio</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? ''}
+                  >
+                    <FormControl>
+                      <SelectTrigger aria-label="Experiencia de inicio">
+                        <SelectValue placeholder="Automático (1 usuario = Campo)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Automático (1 usuario = Campo)</SelectItem>
+                      <SelectItem value="campo">Campo</SelectItem>
+                      <SelectItem value="office">Oficina</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Campo oculta gráficos y prioriza el trabajo del día en el
+                    inicio. Déjalo en automático para que empresas de un solo
+                    usuario usen Campo.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

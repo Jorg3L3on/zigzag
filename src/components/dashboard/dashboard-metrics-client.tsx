@@ -35,7 +35,11 @@ import {
   buildDashboardAttentionItems,
   countSchedulesDueToday,
 } from '@/lib/dashboard-attention';
-import { buildDashboardComposition } from '@/lib/dashboard-composition';
+import {
+  buildCampoDashboardComposition,
+  buildDashboardComposition,
+} from '@/lib/dashboard-composition';
+import type { ExperienceMode } from '@/lib/experience-mode';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
@@ -50,6 +54,7 @@ import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedu
 import { useDeferredMount } from '@/hooks/use-deferred-mount';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
 
 const DashboardCharts = dynamic(
@@ -111,11 +116,13 @@ const DashboardLoadingSkeleton = () => (
 export type DashboardMetricsClientProps = {
   initialMetrics?: DashboardMetrics | null;
   userName?: string | null;
+  initialExperienceMode?: ExperienceMode;
 };
 
 export const DashboardMetricsClient = ({
   initialMetrics = null,
   userName = null,
+  initialExperienceMode = 'office',
 }: DashboardMetricsClientProps) => {
   const router = useRouter();
   const { status, data: session } = useSession();
@@ -219,7 +226,10 @@ export const DashboardMetricsClient = ({
     needsCompanyContext,
     can: permissions.can,
   });
-  const composition = buildDashboardComposition(persona);
+  const composition =
+    initialExperienceMode === 'campo'
+      ? buildCampoDashboardComposition(persona)
+      : buildDashboardComposition(persona);
 
   if (
     (status === 'loading' && initialMetrics == null && !userName) ||
@@ -297,13 +307,18 @@ export const DashboardMetricsClient = ({
     !urgentSchedules.missingCompany &&
     !urgentSchedules.permissionsLoading;
 
+  const schedulesDueTodayCount = schedulesReady
+    ? countSchedulesDueToday(urgentSchedules.proximos)
+    : 0;
+  const urgentScheduleCount = schedulesReady
+    ? urgentSchedules.atrasados.length + schedulesDueTodayCount
+    : 0;
+
   const attentionItems = buildDashboardAttentionItems({
     paymentStatusBreakdown: metrics.paymentStatusBreakdown,
     activeTickets: activeTicketsKpi,
     overdueSchedules: schedulesReady ? urgentSchedules.atrasados.length : null,
-    dueTodaySchedules: schedulesReady
-      ? countSchedulesDueToday(urgentSchedules.proximos)
-      : null,
+    dueTodaySchedules: schedulesReady ? schedulesDueTodayCount : null,
   });
 
   const visibleKpis =
@@ -358,6 +373,37 @@ export const DashboardMetricsClient = ({
 
   const renderWidget = (widgetId: (typeof composition.widgets)[number]) => {
     switch (widgetId) {
+      case 'campoSummary': {
+        const cashCollected =
+          metrics.kpis.find((kpi) => kpi.key === 'cashCollected')?.value ?? 0;
+        const outstandingBalance =
+          metrics.kpis.find((kpi) => kpi.key === 'outstandingBalance')?.value ??
+          0;
+        return (
+          <section
+            key={widgetId}
+            aria-label="Resumen de hoy"
+            className="flex flex-wrap gap-2"
+          >
+            <div className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm sm:min-h-9">
+              <span className="text-muted-foreground">Entró hoy</span>
+              <span className="font-semibold tabular-nums">
+                {formatTicketListAmount(cashCollected)}
+              </span>
+            </div>
+            <Link
+              href="/cobranza"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
+              aria-label="Ver cobranza: por cobrar"
+            >
+              <span className="text-muted-foreground">Por cobrar</span>
+              <span className="font-semibold tabular-nums">
+                {formatTicketListAmount(outstandingBalance)}
+              </span>
+            </Link>
+          </section>
+        );
+      }
       case 'needsAttention':
         return (
           <DashboardNeedsAttention
@@ -457,6 +503,7 @@ export const DashboardMetricsClient = ({
             </h2>
             <div className="space-y-4">
               <DashboardTechnicianDayWidget
+                variant={composition.campoOperations ? 'campo' : 'default'}
                 canRead={technicianDay.canRead}
                 missingCompany={technicianDay.missingCompany}
                 permissionsLoading={technicianDay.permissionsLoading}
@@ -470,25 +517,43 @@ export const DashboardMetricsClient = ({
                   technicianDay.reload();
                 }}
               />
-              <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-                <DashboardServiceSchedulesWidget
-                  canRead={urgentSchedules.canRead}
-                  canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
-                  missingCompany={urgentSchedules.missingCompany}
-                  permissionsLoading={urgentSchedules.permissionsLoading}
-                  loading={urgentSchedules.loading}
-                  error={urgentSchedules.error}
-                  proximos={urgentSchedules.proximos}
-                  atrasados={urgentSchedules.atrasados}
-                  onRetry={urgentSchedules.reload}
-                />
-                <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
-                  <DashboardActivityFeed
-                    emptyTitle={composition.emptyCopy.activityTitle}
-                    emptyDescription={composition.emptyCopy.activityDescription}
+              {composition.campoOperations ? (
+                urgentScheduleCount > 0 ? (
+                  <DashboardServiceSchedulesWidget
+                    canRead={urgentSchedules.canRead}
+                    canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
+                    missingCompany={urgentSchedules.missingCompany}
+                    permissionsLoading={urgentSchedules.permissionsLoading}
+                    loading={urgentSchedules.loading}
+                    error={urgentSchedules.error}
+                    proximos={urgentSchedules.proximos}
+                    atrasados={urgentSchedules.atrasados}
+                    onRetry={urgentSchedules.reload}
                   />
+                ) : null
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+                  <DashboardServiceSchedulesWidget
+                    canRead={urgentSchedules.canRead}
+                    canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
+                    missingCompany={urgentSchedules.missingCompany}
+                    permissionsLoading={urgentSchedules.permissionsLoading}
+                    loading={urgentSchedules.loading}
+                    error={urgentSchedules.error}
+                    proximos={urgentSchedules.proximos}
+                    atrasados={urgentSchedules.atrasados}
+                    onRetry={urgentSchedules.reload}
+                  />
+                  <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
+                    <DashboardActivityFeed
+                      emptyTitle={composition.emptyCopy.activityTitle}
+                      emptyDescription={
+                        composition.emptyCopy.activityDescription
+                      }
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
         );

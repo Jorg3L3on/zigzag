@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 type TripledEmptyStateProps = {
   icon: ReactNode;
   title: string;
-  description: string;
+  description: ReactNode;
   action?: ReactNode;
   role?: 'status' | 'alert';
 };
