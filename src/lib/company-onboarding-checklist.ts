@@ -146,10 +146,16 @@ export const areAllOnboardingStepsComplete = (
 export const shouldShowOnboardingChecklist = ({
   signals,
   needsCompanyContext = false,
+  experienceMode = 'office',
 }: {
   signals: OnboardingChecklistSignals;
   needsCompanyContext?: boolean;
+  /** Campo home never shows the RFC/setup checklist. */
+  experienceMode?: 'campo' | 'office';
 }): boolean => {
+  if (experienceMode === 'campo') {
+    return false;
+  }
   if (needsCompanyContext || signals.dismissedAt) {
     return false;
   }
@@ -168,10 +174,12 @@ export const buildCompanyOnboardingChecklist = ({
   signals,
   permissions,
   needsCompanyContext = false,
+  experienceMode = 'office',
 }: {
   signals: OnboardingChecklistSignals;
   permissions: OnboardingChecklistPermissions;
   needsCompanyContext?: boolean;
+  experienceMode?: 'campo' | 'office';
 }): CompanyOnboardingChecklistSnapshot => {
   const steps: OnboardingChecklistStep[] = CHECKLIST_STEP_DEFINITIONS.map(
     (definition) => ({
@@ -192,7 +200,11 @@ export const buildCompanyOnboardingChecklist = ({
   const completed = steps.filter((step) => step.complete).length;
 
   return {
-    shouldShow: shouldShowOnboardingChecklist({ signals, needsCompanyContext }),
+    shouldShow: shouldShowOnboardingChecklist({
+      signals,
+      needsCompanyContext,
+      experienceMode,
+    }),
     progress: { completed, total: steps.length },
     steps,
   };

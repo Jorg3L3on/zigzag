@@ -8,7 +8,8 @@ export type DashboardWidgetId =
   | 'kpis'
   | 'charts'
   | 'operations'
-  | 'quickActions';
+  | 'quickActions'
+  | 'campoSummary';
 
 export type DashboardComposition = {
   persona: DashboardPersona;
@@ -17,6 +18,8 @@ export type DashboardComposition = {
   showQuickActions: boolean;
   /** Which KPI keys to render (subset of metrics.kpis). */
   kpiKeys: DashboardKpiKey[] | 'all';
+  /** Campo: hide activity feed and non-urgent schedules inside operations. */
+  campoOperations?: boolean;
   sectionTitles: {
     kpis: string;
     operations: string;
@@ -130,6 +133,35 @@ export const buildDashboardComposition = (
     default:
       return { persona, ...ADMIN_COMPOSITION };
   }
+};
+
+/** Hoy-first campo home: operations first, no charts / office chrome. */
+export const buildCampoDashboardComposition = (
+  persona: DashboardPersona,
+): DashboardComposition => {
+  if (persona === 'system') {
+    return buildDashboardComposition(persona);
+  }
+
+  return {
+    persona,
+    widgets: ['campoSummary', 'operations'],
+    showExports: false,
+    showQuickActions: false,
+    kpiKeys: ['cashCollected', 'outstandingBalance'],
+    campoOperations: true,
+    sectionTitles: {
+      kpis: 'Hoy',
+      operations: 'Trabajo de hoy',
+    },
+    emptyCopy: {
+      attentionTitle: 'Sin visitas pendientes',
+      attentionDescription:
+        'No hay trabajos de hoy ni atrasados. Puedes anotar un trabajo nuevo.',
+      activityTitle: 'Sin actividad reciente',
+      activityDescription: 'Tus visitas aparecerán aquí conforme trabajes.',
+    },
+  };
 };
 
 export type DashboardIntroContext = {

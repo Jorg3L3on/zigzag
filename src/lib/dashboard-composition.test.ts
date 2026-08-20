@@ -1,4 +1,5 @@
 import {
+  buildCampoDashboardComposition,
   buildDashboardComposition,
   buildDashboardIntroSubtitle,
 } from '@/lib/dashboard-composition';
@@ -89,6 +90,22 @@ describe('dashboard persona + composition', () => {
         'onboarding',
       );
     }
+  });
+
+  it('builds campo composition without charts or exports', () => {
+    const composition = buildCampoDashboardComposition('operator');
+    expect(composition.widgets).toEqual(['campoSummary', 'operations']);
+    expect(composition.widgets).not.toContain('charts');
+    expect(composition.showExports).toBe(false);
+    expect(composition.showQuickActions).toBe(false);
+    expect(composition.campoOperations).toBe(true);
+    expect(composition.kpiKeys).toEqual(['cashCollected', 'outstandingBalance']);
+  });
+
+  it('keeps system persona on standard platform home for campo builder', () => {
+    const composition = buildCampoDashboardComposition('system');
+    expect(composition.widgets).toEqual(['platformHome']);
+    expect(composition.campoOperations).toBeUndefined();
   });
 
   it('builds attention-aware intro subtitles', () => {

@@ -42,6 +42,7 @@ import { buildWhatsAppDayVisitShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
 
 export type DashboardTechnicianDayWidgetProps = {
+  variant?: 'campo' | 'default';
   canRead: boolean;
   missingCompany: boolean;
   permissionsLoading: boolean;
@@ -237,6 +238,7 @@ const TechnicianDayCard = ({
 };
 
 export const DashboardTechnicianDayWidget = ({
+  variant = 'default',
   canRead,
   missingCompany,
   permissionsLoading,
@@ -251,6 +253,7 @@ export const DashboardTechnicianDayWidget = ({
   const { selectedCompany } = useCompany();
   const { can } = usePermissions();
   const canWrite = canWriteTickets(can);
+  const isCampo = variant === 'campo';
 
   if (permissionsLoading) {
     return null;
@@ -271,8 +274,9 @@ export const DashboardTechnicianDayWidget = ({
             Trabajo de hoy
           </CardTitle>
           <CardDescription>
-            Tickets sin terminar de hoy y atrasados. Para cobros de tickets
-            finalizados, usa Cobranza.
+            {isCampo
+              ? 'Visitas y trabajos pendientes de hoy y atrasados'
+              : 'Tickets sin terminar de hoy y atrasados. Para cobros de tickets finalizados, usa Cobranza.'}
           </CardDescription>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
@@ -343,11 +347,27 @@ export const DashboardTechnicianDayWidget = ({
           <TripledEmptyState
             icon={<ClipboardList className="h-4 w-4" />}
             title="Sin trabajo pendiente"
-            description="No hay tickets sin terminar para hoy ni atrasados."
+            description={
+              isCampo ? (
+                <>
+                  No hay tickets sin terminar para hoy ni atrasados.{' '}
+                  <Link
+                    href="/tickets/create"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    ¿Anotar un trabajo?
+                  </Link>
+                </>
+              ) : (
+                'No hay tickets sin terminar para hoy ni atrasados.'
+              )
+            }
             action={
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/cobranza">Ir a cobranza</Link>
-              </Button>
+              isCampo ? undefined : (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/cobranza">Ir a cobranza</Link>
+                </Button>
+              )
             }
           />
         ) : (
