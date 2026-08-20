@@ -53,6 +53,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { FieldSendSuccessPanel } from '@/components/field/field-send-success-panel';
 import { useCompany } from '@/contexts/company-context';
 import {
   buildAnotarDraftStorageKey,
@@ -60,6 +61,10 @@ import {
   readAnotarFormDraft,
   writeAnotarFormDraft,
 } from '@/lib/anotar-form-drafts';
+import {
+  toFieldJobSnapshotFromAnotarSuccess,
+  type FieldJobSnapshot,
+} from '@/lib/field-job-snapshot';
 import { enqueueFieldJobCreate, fieldJobStore } from '@/lib/field-jobs';
 import {
   buildToastErrorContent,
@@ -108,6 +113,7 @@ const AnotarPageContent = () => {
   const [paymentMode, setPaymentMode] = React.useState<PaymentMode>('paid');
   const [totalInput, setTotalInput] = React.useState('');
   const [paidInput, setPaidInput] = React.useState('');
+  const [savedJob, setSavedJob] = React.useState<FieldJobSnapshot | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -303,6 +309,9 @@ const AnotarPageContent = () => {
       });
       toast.success('Guardado en el teléfono');
       vibrateSuccess();
+      if (draftKey) {
+        clearAnotarFormDraft(draftKey);
+      }
       // Soft-nav needs network for RSC; stay put while offline so the toast remains.
       if (typeof navigator === 'undefined' || navigator.onLine) {
         router.push('/dashboard');
@@ -329,9 +338,24 @@ const AnotarPageContent = () => {
       });
 
       if (result.success && result.data) {
+        if (draftKey) {
+          clearAnotarFormDraft(draftKey);
+        }
         toast.success('Trabajo guardado correctamente');
         vibrateSuccess();
-        router.push(`/tickets/${result.data.id}`);
+        setSavedJob(
+          toFieldJobSnapshotFromAnotarSuccess({
+            ticketId: result.data.id,
+            clientName: values.client_name,
+            clientTel: values.client_tel,
+            workNotes: workNotes,
+            total,
+            paid,
+            finished: true,
+            companyId,
+            companyName: selectedCompany?.name,
+          }),
+        );
         return;
       }
 
@@ -373,6 +397,60 @@ const AnotarPageContent = () => {
   };
 
   const isClientListEmpty = !isClientsLoading && clients.length === 0;
+
+  if (savedJob) {
+    return (
+      <>
+        <TripledPageHeader
+          className="hidden md:flex"
+          items={[
+            { label: 'Hoy', href: '/dashboard' },
+            { label: 'Anotar' },
+            { label: 'Enviar' },
+          ]}
+        />
+        <TripledDashboardShell
+          maxWidthClassName="max-w-2xl"
+          contentClassName="space-y-4"
+        >
+          <TripledMobileAppBar
+            title="Listo"
+            subtitle="Envía el comprobante"
+            backHref="/dashboard"
+            backLabel="Volver a Hoy"
+          />
+          <FieldSendSuccessPanel
+            job={savedJob}
+            canWrite
+            onDoneHref="/dashboard"
+            onDoneLabel="Listo"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setSavedJob(null);
+              form.reset({
+                client_id: undefined,
+                client_name: '',
+                client_tel: '',
+                work_notes: '',
+                total: 0,
+                company_id: selectedCompany?.id ?? 0,
+              });
+              setSelectedClient(null);
+              setTotalInput('');
+              setPaidInput('');
+              setPaymentMode('paid');
+            }}
+          >
+            Anotar otro trabajo
+          </Button>
+        </TripledDashboardShell>
+      </>
+    );
+  }
 
   return (
     <>
