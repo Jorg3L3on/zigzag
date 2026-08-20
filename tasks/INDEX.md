@@ -6,6 +6,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Status | File | Kind |
 |--------|------|------|
+| 📋 | [prd-first-customer-field-technician.md](./prd-first-customer-field-technician.md) | Discovery — value map for first customer (electrician / HVAC / consultancy; Android, offline, notebook habits). **Do not implement from this file yet.** |
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
 | 🔶 | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — most slices shipped; LCP pagination/SSR follow-up Aug 2026 |
 | ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
@@ -32,6 +33,14 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ✅ | [prd-rbac-enforcement-and-system-admin.md](./prd-rbac-enforcement-and-system-admin.md) | RBAC/system-admin hardening |
 
 **Suggested implementation order** (from program decisions): UI/UX → Functionality → Architecture → Performance → PWA install → Testing → Accessibility → Documentation.
+
+---
+
+## 📋 prd-first-customer-field-technician.md
+
+**Status:** Reference (discovery only — do not implement from this file)
+
+**TL;DR:** Exhaustive opportunity map for the first customer: solo electrical / HVAC / consultancy work on Android, often offline, low battery, notebook habits. Diagnosis: ZigZag is still an office SaaS (online Tickets, catalog, RFC gates, metrics Dashboard). Highest-value bets are offline-first capture, a 15-second Anotar flow, Hoy as home, photos, WhatsApp send, stay-signed-in, and concierge notebook migration — not more dashboard/PDF/RBAC polish. Includes radical options (native Android, WhatsApp-first, campo vs casa split). Ride-along questions included to validate why he is not using the product.
 
 ---
 
@@ -256,4 +265,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-08-18 (UX three-initiative: LCP pagination/SSR, PWA install banner, ActionResult error unification).
+- **Last audited:** 2026-08-20 (added first-customer field-technician discovery PRD; no product code changes).
