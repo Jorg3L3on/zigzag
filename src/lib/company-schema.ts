@@ -6,7 +6,9 @@ export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
   invoice_footer_note: z.string().optional(),
   default_currency: z.string().optional(),
-  experience_mode: z.union([z.enum(['campo', 'office']), z.literal('')]).optional(),
+  experience_mode: z
+    .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
+    .optional(),
 });
 
 export const companyFormSchema = z.object({

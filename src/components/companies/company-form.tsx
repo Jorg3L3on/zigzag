@@ -48,7 +48,7 @@ const defaultSettings = {
   rfc: '',
   invoice_footer_note: '',
   default_currency: 'MXN',
-  experience_mode: '' as '' | 'campo' | 'office',
+  experience_mode: 'auto' as 'auto' | 'campo' | 'office',
 };
 
 const emptyDefaults: CompanyBootstrapFormValues = {
@@ -115,7 +115,7 @@ export const CompanyForm = ({
               company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
-            experience_mode: company.settings?.experience_mode ?? '',
+            experience_mode: company.settings?.experience_mode ?? 'auto',
           },
           owner: { name: '', email: '', password: '' },
         }
@@ -482,7 +482,7 @@ export const CompanyForm = ({
                   <FormLabel>Experiencia de inicio</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value ?? ''}
+                    value={field.value || 'auto'}
                   >
                     <FormControl>
                       <SelectTrigger aria-label="Experiencia de inicio">
@@ -490,7 +490,9 @@ export const CompanyForm = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Automático (1 usuario = Campo)</SelectItem>
+                      <SelectItem value="auto">
+                        Automático (1 usuario = Campo)
+                      </SelectItem>
                       <SelectItem value="campo">Campo</SelectItem>
                       <SelectItem value="office">Oficina</SelectItem>
                     </SelectContent>
