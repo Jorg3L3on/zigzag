@@ -6,6 +6,30 @@ import {
   login,
 } from './helpers/auth';
 
+const setExperienceMode = async (
+  page: import('@playwright/test').Page,
+  mode: 'Campo' | 'Oficina' | 'Automático (1 usuario = Campo)',
+) => {
+  await page.goto('/company');
+  const experience = page
+    .getByRole('combobox', { name: 'Experiencia de inicio' })
+    .locator('visible=true')
+    .first();
+  await expect(experience).toBeVisible({ timeout: 30_000 });
+  await experience.click();
+  await page.getByRole('option', { name: mode, exact: true }).click();
+  await page
+    .getByRole('button', { name: /Guardar cambios|Guardar/i })
+    .locator('visible=true')
+    .first()
+    .click();
+  await expect(
+    page.getByText(/Empresa actualizada|guardado|cambios/i).first(),
+  )
+    .toBeVisible({ timeout: 15_000 })
+    .catch(() => undefined);
+};
+
 /**
  * Epic A #429 — mobile campo home must not flash office charts.
  */
@@ -24,30 +48,20 @@ test.describe('Mobile campo Hoy home (Epic A)', () => {
       'Campo mobile composition is validated on Pixel viewport',
     );
 
-    await page.goto('/company');
-    const experience = page
-      .getByRole('combobox', { name: 'Experiencia de inicio' })
-      .locator('visible=true')
-      .first();
-    await expect(experience).toBeVisible({ timeout: 30_000 });
-    await experience.click();
-    await page.getByRole('option', { name: 'Campo', exact: true }).click();
-    await page
-      .getByRole('button', { name: /Guardar cambios|Guardar/i })
-      .locator('visible=true')
-      .first()
-      .click();
-    await expect(
-      page.getByText(/Empresa actualizada|guardado|cambios/i).first(),
-    )
-      .toBeVisible({ timeout: 15_000 })
-      .catch(() => undefined);
+    try {
+      await setExperienceMode(page, 'Campo');
 
-    await page.goto('/dashboard');
-    await expect(
-      page.getByText(/Tu día en el campo|Trabajo de hoy/i).first(),
-    ).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('#dashboard-revenue-chart-title')).toHaveCount(0);
-    await expect(page.getByTestId('mobile-bottom-tab-bar')).toBeVisible();
+      await page.goto('/dashboard');
+      await expect(
+        page.getByText(/Tu día en el campo|Trabajo de hoy/i).first(),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator('#dashboard-revenue-chart-title')).toHaveCount(
+        0,
+      );
+      await expect(page.getByTestId('mobile-bottom-tab-bar')).toBeVisible();
+    } finally {
+      // Shared CI DB — restore office so later specs looking for "Dashboard" pass.
+      await setExperienceMode(page, 'Oficina');
+    }
   });
 });

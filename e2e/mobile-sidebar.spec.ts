@@ -19,7 +19,9 @@ test.describe('Mobile sidebar sheet', () => {
   }) => {
     await page.goto('/dashboard');
 
-    await expect(visiblePageHeader(page).getByText('Dashboard')).toBeVisible();
+    await expect(
+      visiblePageHeader(page).getByText(/Dashboard|Hoy/i),
+    ).toBeVisible();
 
     await visiblePageHeader(page)
       .getByRole('button', { name: 'Abrir menú de navegación', exact: true })
@@ -36,7 +38,9 @@ test.describe('Mobile sidebar sheet', () => {
       .click({ position: { x: 320, y: 400 }, force: true });
     await expect(navDialog).toBeHidden();
 
-    await expect(visiblePageHeader(page).getByText('Dashboard')).toBeVisible();
+    await expect(
+      visiblePageHeader(page).getByText(/Dashboard|Hoy/i),
+    ).toBeVisible();
   });
 
   test('shows mobile ticket cards instead of desktop-only table layout', async ({
