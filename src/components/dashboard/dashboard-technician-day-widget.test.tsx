@@ -83,7 +83,7 @@ describe('DashboardTechnicianDayWidget', () => {
     ).toHaveAttribute('href', '/cobranza');
   });
 
-  it('shows Abrir for unfinished writable tickets and disables contact without phone', () => {
+  it('shows Abrir for unfinished writable tickets and Enviar menu trigger', () => {
     render(
       <DashboardTechnicianDayWidget
         canRead
@@ -110,13 +110,11 @@ describe('DashboardTechnicianDayWidget', () => {
       screen.getByRole('link', { name: /Abrir y editar ticket 10/i }),
     ).toHaveAttribute('href', '/tickets/10/edit');
     expect(
-      screen.getByRole('button', { name: /Sin teléfono para ticket 11/i }),
+      screen.getByRole('button', { name: /Sin teléfono para 11/i }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', {
-        name: /WhatsApp no disponible para ticket 11/i,
-      }),
-    ).toBeDisabled();
+      screen.getAllByTestId('field-send-menu-trigger').length,
+    ).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Atrasado')).toBeTruthy();
     expect(screen.getByText('1 hoy · 1 atrasados')).toBeTruthy();
   });

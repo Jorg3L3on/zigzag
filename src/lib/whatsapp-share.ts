@@ -143,3 +143,112 @@ export const buildWhatsAppDayVisitShare = (
     phone: input.phone,
     message: buildWhatsAppDayVisitMessage(input),
   });
+
+export type WhatsAppQuoteShareInput = {
+  phone: string | null | undefined;
+  clientName: string | null | undefined;
+  ticketId: string | number;
+  total: number;
+  servicesSummary?: string | null;
+  validUntil?: Date | string | null;
+  companyName?: string | null;
+};
+
+export const buildWhatsAppQuoteMessage = (
+  input: Omit<WhatsAppQuoteShareInput, 'phone'>,
+): string => {
+  const client = (input.clientName ?? 'cliente').trim() || 'cliente';
+  const total = formatTicketListAmount(input.total);
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+  const services = input.servicesSummary?.trim();
+  const servicesPart = services ? ` para ${services}` : '';
+  const validUntil = input.validUntil
+    ? new Date(input.validUntil)
+    : null;
+  const validityPart =
+    validUntil && !Number.isNaN(validUntil.getTime())
+      ? ` Válido hasta el ${validUntil.toLocaleDateString('es-MX', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}.`
+      : '';
+
+  return [
+    intro,
+    `Te enviamos el presupuesto #${input.ticketId} por ${total}${servicesPart}.`,
+    `${validityPart} ¿Te confirmamos?`.trim(),
+  ]
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const buildWhatsAppQuoteShare = (
+  input: WhatsAppQuoteShareInput,
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone: input.phone,
+    message: buildWhatsAppQuoteMessage(input),
+  });
+
+export type OfflineReceiptInput = {
+  clientName: string | null | undefined;
+  ticketId: string | number | null | undefined;
+  localJobId?: string | null;
+  workNotesSummary?: string | null;
+  total: number;
+  paid: number;
+  balanceDue: number;
+  ticketDate?: Date | string | null;
+  companyName?: string | null;
+};
+
+/** Plain-text recibo for offline WhatsApp when branded PDF is unavailable. */
+export const buildOfflineReceiptText = (input: OfflineReceiptInput): string => {
+  const client = (input.clientName ?? 'cliente').trim() || 'cliente';
+  const company = input.companyName?.trim() || 'ZigZag';
+  const idLabel = input.ticketId
+    ? `Ticket #${input.ticketId}`
+    : input.localJobId
+      ? `Trabajo local (${input.localJobId}) — pendiente de subir`
+      : 'Trabajo pendiente de subir';
+  const dateValue = input.ticketDate ? new Date(input.ticketDate) : new Date();
+  const dateLabel = Number.isNaN(dateValue.getTime())
+    ? new Date().toLocaleDateString('es-MX')
+    : dateValue.toLocaleDateString('es-MX', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+  const notes = input.workNotesSummary?.trim();
+
+  const lines = [
+    `${company} — RECIBO SIMPLE`,
+    idLabel,
+    `Cliente: ${client}`,
+    `Fecha: ${dateLabel}`,
+  ];
+  if (notes) {
+    lines.push(`Trabajo: ${notes}`);
+  }
+  lines.push(
+    `Total: ${formatTicketListAmount(input.total)}`,
+    `Pagado: ${formatTicketListAmount(input.paid)}`,
+    `Saldo: ${formatTicketListAmount(input.balanceDue)}`,
+    'Sin internet — recibo simple. El PDF oficial se envía cuando haya señal.',
+  );
+  return lines.join('\n');
+};
+
+export const buildWhatsAppOfflineReceiptShare = (
+  phone: string | null | undefined,
+  input: OfflineReceiptInput,
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone,
+    message: buildOfflineReceiptText(input),
+  });
