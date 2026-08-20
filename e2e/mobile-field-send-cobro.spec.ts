@@ -33,8 +33,9 @@ test.describe('Field send & cobro (Epic D)', () => {
 
     await sendTrigger.click();
     await expect(page.getByTestId('field-send-menu-sheet')).toBeVisible();
+    // Options depend on finished vs open: Voy en camino | Enviar recibo | Recordar saldo
     await expect(
-      page.getByTestId('field-send-option-voy_en_camino'),
+      page.locator('[data-testid^="field-send-option-"]').first(),
     ).toBeVisible();
   });
 
