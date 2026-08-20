@@ -33,15 +33,22 @@ test.describe('Mobile bottom tabs', () => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
-    await tabBar.getByRole('link', { name: 'Clientes' }).click();
-    await expect(page).toHaveURL(/\/clients/);
-    await expect(tabBar.getByRole('link', { name: 'Clientes' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    await expect(tabBar).toBeVisible();
 
-    await tabBar.getByRole('link', { name: 'Anotar' }).click();
-    await expect(page).toHaveURL(/\/anotar/);
+    const clientsTab = tabBar.getByRole('link', { name: 'Clientes' });
+    await expect(clientsTab).toHaveAttribute('href', '/clients');
+    await Promise.all([
+      page.waitForURL(/\/clients/),
+      clientsTab.click(),
+    ]);
+    await expect(clientsTab).toHaveAttribute('aria-current', 'page');
+
+    const anotarTab = tabBar.getByRole('link', { name: 'Anotar' });
+    await expect(anotarTab).toHaveAttribute('href', '/anotar');
+    await Promise.all([
+      page.waitForURL(/\/anotar/),
+      anotarTab.click(),
+    ]);
   });
 
   test('does not treat tickets list as a primary tab destination', async ({

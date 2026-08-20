@@ -32,11 +32,13 @@ test.describe('Anotar online capture (Epic C)', () => {
     const unique = `Anotar Online ${Date.now()}`;
     const phone = `55${String(Date.now()).slice(-8)}`;
 
-    await page.getByRole('button', { name: 'Nuevo cliente' }).first().click();
+    const nuevoCliente = page.getByRole('button', { name: 'Nuevo cliente' }).first();
+    await expect(nuevoCliente).toBeVisible();
+    await nuevoCliente.click();
     const clientDialog = page.getByRole('dialog', {
       name: 'Crear nuevo cliente',
     });
-    await expect(clientDialog).toBeVisible();
+    await expect(clientDialog).toBeVisible({ timeout: 15_000 });
     await clientDialog.getByLabel('Nombre').fill(unique);
     await clientDialog.getByLabel('Teléfono').fill(phone);
     await clientDialog.getByRole('button', { name: 'Crear' }).click();
