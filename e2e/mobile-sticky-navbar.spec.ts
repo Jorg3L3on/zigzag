@@ -156,11 +156,13 @@ test.describe('Mobile sticky navigation', () => {
         page,
       }) => {
         await page.goto('/clients');
-        await page
+        // Click the pencil control, not the card center: ClientPhoneLink uses
+        // stopPropagation, so a center hit on a card with a phone never navigates.
+        const clientCard = page
           .getByRole('button', { name: /Editar cliente/i })
-          .first()
-          .click();
-        await page.waitForURL(/\/clients\/\d+\/edit/);
+          .first();
+        await clientCard.getByRole('button', { name: /^Editar / }).click();
+        await expect(page).toHaveURL(/\/clients\/\d+\/edit/);
 
         const appBar = visibleMobileAppBar(page);
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
@@ -170,11 +172,11 @@ test.describe('Mobile sticky navigation', () => {
         page,
       }) => {
         await page.goto('/services');
-        await page
+        const serviceCard = page
           .getByRole('button', { name: /Editar servicio/i })
-          .first()
-          .click();
-        await page.waitForURL(/\/services\/\d+\/edit/);
+          .first();
+        await serviceCard.getByRole('button', { name: /^Editar / }).click();
+        await expect(page).toHaveURL(/\/services\/\d+\/edit/);
 
         const appBar = visibleMobileAppBar(page);
         await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
