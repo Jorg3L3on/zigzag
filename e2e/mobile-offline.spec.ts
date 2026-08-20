@@ -42,10 +42,11 @@ test.describe('Mobile offline graceful degradation', () => {
     context,
   }) => {
     await page.goto('/dashboard');
-    await expect(page.getByText('Dashboard').first()).toBeVisible();
+    // Campo mode labels the home "Hoy"; office keeps "Dashboard".
+    await expect(page.getByText(/Dashboard|Hoy/i).first()).toBeVisible();
 
     await context.setOffline(true);
     await expect(page.getByText(offlineBannerText)).toBeVisible();
-    await expect(page.getByText('Dashboard').first()).toBeVisible();
+    await expect(page.getByText(/Dashboard|Hoy/i).first()).toBeVisible();
   });
 });

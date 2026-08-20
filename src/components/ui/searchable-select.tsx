@@ -28,6 +28,9 @@ export type SearchableSelectProps = {
   disabled?: boolean;
   clearable?: boolean;
   className?: string;
+  /** When set, search is owned by the parent (e.g. debounced server query). */
+  onSearchChange?: (query: string) => void;
+  isLoading?: boolean;
 };
 
 export const SearchableSelect = ({
@@ -42,14 +45,20 @@ export const SearchableSelect = ({
   disabled = false,
   clearable = true,
   className,
+  onSearchChange,
+  isLoading = false,
 }: SearchableSelectProps) => {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const externalSearch = onSearchChange != null;
 
   const selected = options.find((option) => option.value === value) ?? null;
 
   const filteredOptions = React.useMemo(() => {
+    if (externalSearch) {
+      return options;
+    }
     const term = search.trim().toLowerCase();
     if (!term) {
       return options;
@@ -57,13 +66,19 @@ export const SearchableSelect = ({
     return options.filter((option) =>
       option.label.toLowerCase().includes(term),
     );
-  }, [options, search]);
+  }, [externalSearch, options, search]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (!nextOpen) {
       setSearch('');
+      onSearchChange?.('');
     }
+  };
+
+  const handleSearchChange = (nextSearch: string) => {
+    setSearch(nextSearch);
+    onSearchChange?.(nextSearch);
   };
 
   React.useEffect(() => {
@@ -80,6 +95,7 @@ export const SearchableSelect = ({
     onValueChange(nextValue);
     setOpen(false);
     setSearch('');
+    onSearchChange?.('');
   };
 
   const handleClear = (event: React.MouseEvent | React.KeyboardEvent) => {
@@ -138,10 +154,11 @@ export const SearchableSelect = ({
           <Input
             ref={searchInputRef}
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => handleSearchChange(event.target.value)}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
             className="h-8"
+            aria-busy={isLoading}
           />
         </div>
         <ul
@@ -149,7 +166,11 @@ export const SearchableSelect = ({
           role="listbox"
           aria-label={ariaLabel}
         >
-          {filteredOptions.length === 0 ? (
+          {isLoading ? (
+            <li className="px-2 py-3 text-center text-sm text-muted-foreground">
+              Buscando…
+            </li>
+          ) : filteredOptions.length === 0 ? (
             <li className="px-2 py-3 text-center text-sm text-muted-foreground">
               {emptyText}
             </li>
