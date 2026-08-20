@@ -6,7 +6,13 @@ import {
   type TechnicianDayQueueData,
 } from '@/actions/technician-day-queue';
 import { useCompany } from '@/contexts/company-context';
+import { useFieldJobStore } from '@/hooks/use-field-job-store';
+import { useFieldJobSync } from '@/hooks/use-field-job-sync';
 import { usePermissions } from '@/hooks/use-permissions';
+import {
+  mergeTechnicianDayWithLocalJobs,
+  type MergedTechnicianDayTicket,
+} from '@/lib/field-jobs';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canReadTickets } from '@/lib/tickets-rbac';
@@ -17,8 +23,13 @@ export type TechnicianDayQueueState = {
   permissionsLoading: boolean;
   loading: boolean;
   error: string | null;
-  data: TechnicianDayQueueData | null;
+  data: (Omit<TechnicianDayQueueData, 'items'> & {
+    items: MergedTechnicianDayTicket[];
+  }) | null;
   reload: () => void;
+  pendingUploadCount: number;
+  syncing: boolean;
+  flushNow: () => Promise<unknown>;
 };
 
 type LoadSignal = {
@@ -35,9 +46,13 @@ export const useTechnicianDayQueue = (
     isSystem,
     selectedCompany?.id,
   );
+  const companyId = selectedCompany?.id ?? null;
+  const localStore = useFieldJobStore(companyId, enabled && !missingCompany);
+  const fieldSync = useFieldJobSync(companyId, enabled && !missingCompany);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [data, setData] = React.useState<TechnicianDayQueueData | null>(null);
+  const [serverData, setServerData] =
+    React.useState<TechnicianDayQueueData | null>(null);
 
   const loadQueue = React.useCallback(
     async (signal?: LoadSignal) => {
@@ -51,15 +66,22 @@ export const useTechnicianDayQueue = (
         }
         setLoading(false);
         setError(null);
-        setData(null);
+        setServerData(null);
         return;
       }
 
       setLoading(true);
       setError(null);
-      const companyId = selectedCompany?.id ?? null;
 
       try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          if (!signal?.cancelled) {
+            setServerData({ items: [], todayCount: 0, overdueCount: 0 });
+            setError(null);
+          }
+          return;
+        }
+
         const result = await getTechnicianDayQueue(companyId);
         if (signal?.cancelled) {
           return;
@@ -72,24 +94,25 @@ export const useTechnicianDayQueue = (
               'No se pudo cargar el trabajo de hoy',
             ),
           );
-          setData(null);
+          setServerData(null);
           return;
         }
 
-        setData(result.data);
+        setServerData(result.data);
       } catch {
         if (signal?.cancelled) {
           return;
         }
-        setError('No se pudo cargar el trabajo de hoy');
-        setData(null);
+        // Offline / network: still show local jobs via merge.
+        setServerData({ items: [], todayCount: 0, overdueCount: 0 });
+        setError(null);
       } finally {
         if (!signal?.cancelled) {
           setLoading(false);
         }
       }
     },
-    [canRead, missingCompany, permissionsLoading, selectedCompany?.id],
+    [canRead, companyId, missingCompany, permissionsLoading],
   );
 
   React.useEffect(() => {
@@ -104,17 +127,44 @@ export const useTechnicianDayQueue = (
     };
   }, [enabled, loadQueue]);
 
+  const mergedItems = React.useMemo(
+    () =>
+      mergeTechnicianDayWithLocalJobs(
+        serverData?.items ?? [],
+        localStore.jobs,
+      ),
+    [localStore.jobs, serverData?.items],
+  );
+
+  const data = React.useMemo(() => {
+    if (!serverData && mergedItems.length === 0) {
+      return null;
+    }
+    const todayCount = mergedItems.filter((row) => !row.isOverdue).length;
+    const overdueCount = mergedItems.filter((row) => row.isOverdue).length;
+    return {
+      items: mergedItems,
+      todayCount,
+      overdueCount,
+    };
+  }, [mergedItems, serverData]);
+
   const reload = React.useCallback(() => {
     void loadQueue();
-  }, [loadQueue]);
+    localStore.reload();
+    fieldSync.reloadPending();
+  }, [fieldSync, loadQueue, localStore]);
 
   return {
     canRead,
     missingCompany,
     permissionsLoading,
-    loading,
+    loading: loading || localStore.loading,
     error,
     data,
     reload,
+    pendingUploadCount: fieldSync.pendingCount,
+    syncing: fieldSync.syncing,
+    flushNow: fieldSync.flushNow,
   };
 };

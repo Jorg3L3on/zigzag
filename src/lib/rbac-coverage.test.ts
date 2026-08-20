@@ -42,8 +42,9 @@ const nearestLayouts = (pagePath: string): string[] => {
 
 describe('RBAC coverage', () => {
   it('keeps domain server actions behind authorization helpers', () => {
-    const actionFiles = walk(path.join(root, 'src/actions')).filter((filePath) =>
-      filePath.endsWith('.ts'),
+    const actionFiles = walk(path.join(root, 'src/actions')).filter(
+      (filePath) =>
+        filePath.endsWith('.ts') && !filePath.endsWith('.test.ts'),
     );
     const allowedExceptions = new Set([
       'src/actions/authz.ts',

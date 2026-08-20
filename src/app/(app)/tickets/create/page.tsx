@@ -73,6 +73,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { enqueueFieldJobCreate, fieldJobStore } from '@/lib/field-jobs';
 import {
   buildTicketDraftStorageKey,
   clearTicketFormDraft,
@@ -276,6 +277,40 @@ const CreateTicketPageContent = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
+
+      const saveOffline = async () => {
+        const companyId = selectedCompany?.id ?? values.company_id;
+        if (!companyId) {
+          toast.error('Selecciona una empresa para guardar en el teléfono');
+          return;
+        }
+        await enqueueFieldJobCreate(fieldJobStore, {
+          companyId,
+          payload: {
+            client_id: values.client_id,
+            client_name: values.client_name,
+            client_tel: values.client_tel,
+            email: values.email || undefined,
+            document: values.document || undefined,
+            ticket_date: values.ticket_date?.toISOString?.() ?? new Date().toISOString(),
+            total: 0,
+            paid: 0,
+            finished: false,
+          },
+        });
+        toast.success('Guardado en el teléfono');
+        vibrateSuccess();
+        clearTicketFormDraft(draftKey);
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          router.push('/dashboard');
+        }
+      };
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await saveOffline();
+        return;
+      }
+
       const result = await createTicket({
         ...values,
         company_id: selectedCompany?.id ?? 0,
@@ -293,16 +328,49 @@ const CreateTicketPageContent = () => {
           result,
           'No se pudo crear el ticket',
         );
+        if (errorContent.errorType === 'network') {
+          await saveOffline();
+          return;
+        }
         toast.error(errorContent.title, {
-          description:
-            errorContent.errorType === 'network'
-              ? `${errorContent.description} ${CREATE_TICKET_RETRY_GUIDANCE}`
-              : errorContent.description,
+          description: errorContent.description,
         });
       }
     } catch (error) {
       console.error('Error creating ticket:', error);
       const errorType = classifyClientError(error);
+      if (errorType === 'network') {
+        try {
+          const companyId = selectedCompany?.id ?? values.company_id;
+          if (companyId) {
+            await enqueueFieldJobCreate(fieldJobStore, {
+              companyId,
+              payload: {
+                client_id: values.client_id,
+                client_name: values.client_name,
+                client_tel: values.client_tel,
+                email: values.email || undefined,
+                document: values.document || undefined,
+                ticket_date:
+                  values.ticket_date?.toISOString?.() ??
+                  new Date().toISOString(),
+                total: 0,
+                paid: 0,
+                finished: false,
+              },
+            });
+            toast.success('Guardado en el teléfono');
+            vibrateSuccess();
+            clearTicketFormDraft(draftKey);
+            if (typeof navigator === 'undefined' || navigator.onLine) {
+              router.push('/dashboard');
+            }
+            return;
+          }
+        } catch {
+          // fall through to network error toast
+        }
+      }
       const description = getErrorMessageByType(
         errorType,
         'Ocurrió un error al crear el ticket',
