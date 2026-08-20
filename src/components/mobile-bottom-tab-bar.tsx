@@ -8,7 +8,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { useMobileChrome } from '@/contexts/mobile-chrome-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
-  getLongestMatchingHref,
+  getActiveMobileTabHref,
   MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX,
   MOBILE_TAB_ITEMS,
 } from '@/lib/nav-items';
@@ -25,10 +25,7 @@ export const MobileBottomTabBar = () => {
     can(item.requiredPermission),
   );
 
-  const activeHref = getLongestMatchingHref(
-    pathname,
-    visibleTabs.map((item) => item.url),
-  );
+  const activeHref = getActiveMobileTabHref(pathname, visibleTabs);
 
   if (hasStickyAction) {
     return null;
