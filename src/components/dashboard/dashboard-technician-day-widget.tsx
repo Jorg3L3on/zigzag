@@ -288,14 +288,11 @@ export const DashboardTechnicianDayWidget = ({
             Trabajo de hoy
           </CardTitle>
           <CardDescription>
-<<<<<<< HEAD
-            {isCampo
-              ? 'Visitas y trabajos pendientes de hoy y atrasados'
-=======
             {pendingUploadCount > 0
               ? `${pendingUploadCount} pendiente${pendingUploadCount === 1 ? '' : 's'} de subir · tickets de hoy y atrasados`
->>>>>>> origin/feat/offline-first-jobs
-              : 'Tickets sin terminar de hoy y atrasados. Para cobros de tickets finalizados, usa Cobranza.'}
+              : isCampo
+                ? 'Visitas y trabajos pendientes de hoy y atrasados'
+                : 'Tickets sin terminar de hoy y atrasados. Para cobros de tickets finalizados, usa Cobranza.'}
           </CardDescription>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">

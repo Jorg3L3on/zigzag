@@ -15,18 +15,11 @@ Manual QA before concierge install and ride-along. Run on **Android Chrome PWA**
 ## 2. Bottom tabs (Epic A0)
 
 - [ ] Tabs visible below 768px: **Hoy**, **Anotar**, **Clientes**, **Más**
-<<<<<<< HEAD
-- [ ] Hoy → `/dashboard`; Anotar → `/tickets/create` (or `/anotar` when shipped); Clientes → `/clients`
-- [ ] Más opens sidebar sheet (Cobranza, Recordatorios, Tickets list reachable)
-- [ ] Tabs **hidden** on Anotar/create when sticky **Guardar** bar visible
-- [ ] Safe area: tabs not under gesture bar on notched phone
-- [ ] Tickets list (`/tickets`) does **not** highlight Hoy as active
-=======
 - [ ] Hoy → `/dashboard`; Anotar → `/tickets/create` or `/anotar` when shipped; Clientes → `/clients`
 - [ ] Más opens sidebar sheet (Cobranza, Recordatorios, Tickets list reachable)
 - [ ] Tabs **hidden** on Anotar/create when sticky **Guardar** bar visible
 - [ ] Safe area: tabs not under gesture bar on notched phone
->>>>>>> origin/feat/offline-first-jobs
+- [ ] Tickets list (`/tickets`) does **not** highlight Hoy as active
 
 ## 3. Hoy home (Epic A)
 

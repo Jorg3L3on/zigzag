@@ -29,7 +29,7 @@ test.describe('Mobile bottom tabs', () => {
     );
   });
 
-  test('navigates Anotar to ticket create and Clientes', async ({ page }) => {
+  test('navigates Anotar to /anotar and Clientes', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
@@ -41,7 +41,7 @@ test.describe('Mobile bottom tabs', () => {
     );
 
     await tabBar.getByRole('link', { name: 'Anotar' }).click();
-    await expect(page).toHaveURL(/\/tickets\/create/);
+    await expect(page).toHaveURL(/\/anotar/);
   });
 
   test('does not treat tickets list as a primary tab destination', async ({

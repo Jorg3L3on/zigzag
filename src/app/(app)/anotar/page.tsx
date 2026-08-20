@@ -54,6 +54,12 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
+import {
+  buildAnotarDraftStorageKey,
+  clearAnotarFormDraft,
+  readAnotarFormDraft,
+  writeAnotarFormDraft,
+} from '@/lib/anotar-form-drafts';
 import { enqueueFieldJobCreate, fieldJobStore } from '@/lib/field-jobs';
 import {
   buildToastErrorContent,
@@ -115,11 +121,85 @@ const AnotarPageContent = () => {
     },
   });
 
+  const draftKey =
+    selectedCompany?.id != null
+      ? buildAnotarDraftStorageKey(selectedCompany.id)
+      : null;
+  const restoredDraftKeyRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
     if (selectedCompany?.id && selectedCompany?.name !== 'System') {
       form.setValue('company_id', selectedCompany.id);
     }
   }, [selectedCompany?.id, selectedCompany?.name, form]);
+
+  React.useEffect(() => {
+    if (!draftKey || restoredDraftKeyRef.current === draftKey) {
+      return;
+    }
+    restoredDraftKeyRef.current = draftKey;
+    const draft = readAnotarFormDraft(draftKey);
+    if (!draft) {
+      return;
+    }
+    if (draft.client_id != null) {
+      form.setValue('client_id', draft.client_id);
+    }
+    if (draft.client_name) {
+      form.setValue('client_name', draft.client_name);
+    }
+    if (draft.client_tel) {
+      form.setValue('client_tel', draft.client_tel);
+    }
+    if (draft.work_notes != null) {
+      form.setValue('work_notes', draft.work_notes);
+    }
+    if (draft.company_id != null) {
+      form.setValue('company_id', draft.company_id);
+    }
+    if (draft.totalInput != null) {
+      setTotalInput(draft.totalInput);
+    }
+    if (draft.paidInput != null) {
+      setPaidInput(draft.paidInput);
+    }
+    if (draft.paymentMode) {
+      setPaymentMode(draft.paymentMode);
+    }
+  }, [draftKey, form]);
+
+  React.useEffect(() => {
+    if (!draftKey || clients.length === 0) {
+      return;
+    }
+    const draft = readAnotarFormDraft(draftKey);
+    if (!draft?.client_id) {
+      return;
+    }
+    const match = clients.find((item) => item.id === draft.client_id);
+    if (match) {
+      setSelectedClient(match);
+    }
+  }, [clients, draftKey]);
+
+  React.useEffect(() => {
+    if (!draftKey) {
+      return;
+    }
+    const subscription = form.watch((values) => {
+      writeAnotarFormDraft(draftKey, {
+        client_id: values.client_id,
+        client_name: values.client_name,
+        client_tel: values.client_tel,
+        work_notes: values.work_notes,
+        company_id: values.company_id,
+        totalInput,
+        paidInput,
+        paymentMode,
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [draftKey, form, totalInput, paidInput, paymentMode]);
 
   React.useEffect(() => {
     let cancelled = false;

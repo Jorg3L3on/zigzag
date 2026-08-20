@@ -15,7 +15,7 @@ describe('nav-items', () => {
     ]);
     expect(MOBILE_TAB_ITEMS.map((item) => item.url)).toEqual([
       '/dashboard',
-      '/tickets/create',
+      '/anotar',
       '/clients',
     ]);
   });
@@ -58,9 +58,10 @@ describe('nav-items', () => {
     expect(getActiveMobileTabHref('/tickets/42')).toBeNull();
   });
 
-  it('activates Anotar on ticket create only', () => {
-    expect(getActiveMobileTabHref('/tickets/create')).toBe('/tickets/create');
+  it('activates Anotar on /anotar', () => {
+    expect(getActiveMobileTabHref('/anotar')).toBe('/anotar');
     expect(getActiveMobileTabHref('/tickets')).toBeNull();
+    expect(getActiveMobileTabHref('/tickets/create')).toBeNull();
   });
 
   it('activates Clientes on client routes', () => {
