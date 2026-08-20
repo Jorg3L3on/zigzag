@@ -1,6 +1,7 @@
 # PRD: Field program — Offline-first jobs (create / edit + sync)
 
 **Status:** 📋 Ready to implement — **Epic B**  
+**Integration branch:** `feat/offline-first-jobs`  
 **Program:** [`prd-field-program-decisions.md`](./prd-field-program-decisions.md)  
 **Supersedes write scope in:** [`prd-native-feel-offline-snapshots.md`](./prd-native-feel-offline-snapshots.md) (read-only snapshots remain complementary, not sufficient)  
 **Parent discovery:** [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md)  
@@ -10,7 +11,7 @@
 
 The first field customer (solo electrical / HVAC / consultancy technician on Android) must **create and edit jobs with zero network** — a basement, roof, or hotel machine room cannot send him back to paper. Today ZigZag is installable as a PWA with an offline **app shell**, but **Ticket mutations go through Server Actions that require a live connection**. [`prd-native-feel-offline-snapshots.md`](./prd-native-feel-offline-snapshots.md) explicitly scoped **read-only** IndexedDB list snapshots and `localStorage` form drafts, not durable offline CRUD or a sync queue.
 
-Program decision **Q3** locks the opposite for the field track: **create + edit jobs offline** with a **sync queue when online**, **last-write-wins on a single phone**, **tenant-scoped local keys**, and **no service-worker caching of API JSON** (shell-only SW policy unchanged).
+Program decision **Q3** in [`prd-field-program-decisions.md`](./prd-field-program-decisions.md) locks the opposite for the field track: **create + edit jobs offline** with a **sync queue when online**, **last-write-wins on a single phone**, **tenant-scoped local keys**, and **no service-worker caching of API JSON** (shell-only SW policy unchanged). Discovery PRD [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md) ranks offline capture as **P0 — replace the notebook** (H1, O-01).
 
 This epic introduces a **local job store** (IndexedDB), an **outbox queue** for mutations, **sync status UI** in Spanish (`pendiente de subir`), and a **sync adapter** that pushes to existing Ticket Server Actions when connectivity returns — without pretending the server works offline or serving stale tenant data from the SW.
 
@@ -92,7 +93,7 @@ This epic introduces a **local job store** (IndexedDB), an **outbox queue** for 
 - [ ] On `online` event and on app foreground (visibility change), sync runner attempts to drain outbox if session is valid
 - [ ] **Create path:** sync adapter calls `createTicket` with mapped fields, then applies amount/paid via established ticket financial actions (`updateTicket` / `finishTicket` / payment recording — implementation chooses minimal sequence documented in PR)
 - [ ] **Update path:** sync adapter calls `updateTicket` (and payment delta helpers if `paid` changed) for `serverTicketId`
-- [ ] `workNotes` maps to server field agreed in implementation (v1 default: `Ticket.document` and/or single synthetic service line titled “Trabajo de campo” — document mapping in PR)
+- [ ] `workNotes` maps to server field agreed in implementation (v1 default: `Ticket.work_notes` when Epic C shipped, else `Ticket.document` and/or single synthetic service line titled “Trabajo de campo” — document mapping in PR)
 - [ ] On success: store `serverTicketId`, set `syncStatus: synced`, clear `syncError`, update `serverUpdatedAt`
 - [ ] On recoverable failure: `syncStatus: error`, Spanish message, keep local truth; user can tap **“Reintentar subida”**
 - [ ] Sync does not run for logged-out users
@@ -226,6 +227,19 @@ This epic introduces a **local job store** (IndexedDB), an **outbox queue** for 
 
 **Recommendation:** **Dexie** (or equivalent thin ORM) for `LocalJob`, outbox, and `companyId` indexes — unless bundle budget forbids; document choice in implementing PR. Either way, expose a **`FieldJobStore`** module so UI does not touch IDB directly.
 
+### `FieldJobStore` module (required abstraction)
+
+All UI and sync code MUST go through a single module, e.g. `src/lib/field-jobs/field-job-store.ts`:
+
+- `saveLocalJob(job)` — create or update IndexedDB + enqueue outbox
+- `getLocalJobs(companyId, filters)` — tenant-scoped queries
+- `getOutboxPending(companyId)` — pending upload count
+- `markSyncing(localId)` / `markSynced(localId, serverTicketId)` / `markSyncError(localId, message)`
+- `purgeCompany(companyId)` / `purgeAll()` — logout / company switch
+- Pure functions extracted for Jest (mapping, coalesce, dedupe)
+
+UI hooks (`useFieldJobs`, `useSyncStatus`) wrap this module; components never open Dexie/IDB directly.
+
 ### Local schema (illustrative)
 
 ```
@@ -264,6 +278,7 @@ OutboxEntry {
 1. **Create:** `createTicket({ client_name, client_tel, client_id?, ticket_date, company_id, document: workNotes })` → obtain `id` → set total/paid via `updateTicket` and/or `finishTicket` with a **single placeholder service line** if server requires lines to finish (document in PR; may need seeded “Trabajo general” service per company or field-mode bypass — coordinate with [`prd-job-capture-anotar.md`](./prd-job-capture-anotar.md)).
 2. **Update:** `updateTicket(serverId, { ...fields, company_id })` + payment delta if needed.
 3. **Audit:** rely on existing `TicketAuditEvent` recording from server actions post-sync.
+4. **Preferred sync target after Epic C:** `anotarCapture` with same payload shape as Anotar UI when job originated from field capture.
 
 ### Background Sync limitations (Android PWA)
 
@@ -280,7 +295,7 @@ OutboxEntry {
 
 | Area | Path / module |
 |------|----------------|
-| Local store | `src/lib/field-jobs/` (new) — store, types, outbox, sync-runner |
+| Local store | `src/lib/field-jobs/` (new) — `FieldJobStore`, types, outbox, sync-runner |
 | UI hooks | `src/hooks/use-field-jobs.ts`, sync badge components |
 | Anotar / ticket create | `src/app/.../tickets/create`, future `/anotar` |
 | Hoy list merge | dashboard technician widgets, tickets list cards |
@@ -290,7 +305,7 @@ OutboxEntry {
 
 ### Branch convention
 
-Implement on `feat/offline-first-jobs`; slice PRs merge to feature branch; one PR **`feat/offline-first-jobs` → `main`** when epic ships ([`docs/agents/deployment.md`](../docs/agents/deployment.md)).
+Implement on **`feat/offline-first-jobs`**; slice PRs merge to feature branch; one PR **`feat/offline-first-jobs` → `main`** when epic ships ([`docs/agents/deployment.md`](../docs/agents/deployment.md)).
 
 ---
 
@@ -300,12 +315,14 @@ Implement on `feat/offline-first-jobs`; slice PRs merge to feature branch; one P
 |------------|--------------|
 | [`prd-pwa-offline-shell.md`](./prd-pwa-offline-shell.md) | **Required** — shell + banner shipped |
 | [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md) | **Recommended before or parallel** — Anotar tab reaches create flow |
+| [`prd-field-program-decisions.md`](./prd-field-program-decisions.md) | **Required** — Q3 offline scope, Q13 fiscal gates |
+| [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md) | **Reference** — discovery north star, H1 offline hypothesis |
 | `prd-technician-solo-mode.md` | **Optional but paired** — Hoy-first lists, hide SaaS chrome, long-lived session; offline jobs can ship before solo mode if Anotar uses local store |
 | [`prd-job-capture-anotar.md`](./prd-job-capture-anotar.md) | **Follows or overlaps** — dedicated `/anotar` should use same `FieldJobStore`; epic B can start on `/tickets/create` |
 | [`prd-native-feel-offline-snapshots.md`](./prd-native-feel-offline-snapshots.md) | **Complementary** — read-only snapshots optional |
 | Server: ticket financial rules | `finishTicket` requires service lines today — sync adapter may need field-mode placeholder service (coordination issue) |
 
-**Program order (Epic B):** after bottom tabs + optional solo mode; **before or parallel with** Anotar UX epic.
+**Program order (Epic B):** after bottom tabs + optional solo mode; **before or parallel with** Anotar UX epic (Epic C).
 
 ---
 
@@ -327,7 +344,7 @@ Implement on `feat/offline-first-jobs`; slice PRs merge to feature branch; one P
 
 ## Open Questions
 
-1. **workNotes → server mapping:** `Ticket.document` only vs dedicated DB column in a later migration — default v1 to `document` + synthetic service line label from first line of notes?
+1. **workNotes → server mapping:** `Ticket.work_notes` (Epic C) vs `Ticket.document` only — default v1: prefer `work_notes` when column exists, else `document` + synthetic service line label from first line of notes.
 2. **Placeholder service:** seed global “Trabajo de campo” per company vs relax `finishTicket` empty-lines check for field-sync origin (prefer minimal server change — decide in implementing PR).
 3. **Offline client create:** allow `clientName`/`clientTel` only locally and `createClient` on sync, or require picking existing client when online at least once?
 4. **Purge policy on logout:** wipe entire IndexedDB vs per-`companyId` store delete.

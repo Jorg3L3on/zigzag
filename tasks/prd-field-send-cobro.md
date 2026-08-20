@@ -1,6 +1,7 @@
 # PRD: Field program — Send & Cobro (WhatsApp, receipts, Hoy surfacing)
 
 **Status:** 📋 Ready to implement — **Epic D**  
+**Integration branch:** `feat/field-send-cobro`  
 **Program:** [`prd-field-program-decisions.md`](./prd-field-program-decisions.md)  
 **Parent discovery:** [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md)  
 **Depends on:** [`prd-offline-first-jobs.md`](./prd-offline-first-jobs.md) (job model + sync), [`prd-job-capture-anotar.md`](./prd-job-capture-anotar.md) (job cards / `/anotar`)  
@@ -8,7 +9,7 @@
 
 ## Introduction
 
-The first field customer lives in **WhatsApp**. Quotes, “voy en camino,” saldo reminders, and receipts already happen in chat — not in `/cobranza` or ticket detail PDF buttons buried three taps deep.
+The first field customer lives in **WhatsApp**. Quotes, “voy en camino,” saldo reminders, and receipts already happen in chat — not in `/cobranza` or ticket detail PDF buttons buried three taps deep. Discovery PRD [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md) ranks **Enviar** and **Cobrar** as core daily loop steps (§7 north-star); program decision **Q15** teaches **Hoy / Anotar / Cobrar** on return day.
 
 ZigZag already has the plumbing:
 
@@ -17,7 +18,7 @@ ZigZag already has the plumbing:
 - **`CobranzaList`** + **`CobranzaWhatsAppButton`** — office-style cobranza queue with per-row WhatsApp saldo
 - **`DashboardTechnicianDayWidget`** — “Trabajo de hoy” cards with a single generic WhatsApp button (day visit only)
 
-This epic makes **Enviar** and **Cobrar** first-class on **job cards** (Hoy queue, Anotar result, finished jobs) and surfaces **who still owes** on **Hoy** instead of hiding cobranza behind **Más**. When the network is available, share the branded PDF via the existing invoice pipeline. When it is not, generate a **simple offline receipt** (plain text via WhatsApp and/or an on-device image) so the technician can show proof before sync.
+This epic makes **Enviar** and **Cobrar** first-class on **job cards** (Hoy queue, Anotar result, finished jobs) and surfaces **who still owes** on **Hoy** via a **Por cobrar** strip instead of hiding cobranza behind **Más**. When the network is available, share the branded PDF via the existing invoice pipeline. When it is not, generate a **simple offline receipt** (plain text via WhatsApp and/or an on-device image) so the technician can show proof before sync.
 
 **Mental model for Don:** one card per job → tap **WhatsApp** → pick what to send (visita, recibo, saldo, presupuesto) → done. Cobro owed money is visible on **Hoy**, not a separate office module he must remember.
 
@@ -29,7 +30,7 @@ This epic makes **Enviar** and **Cobrar** first-class on **job cards** (Hoy queu
 - **Four message types** from one entry point: visita / en camino, saldo reminder, presupuesto (quote text), recibo (PDF when online)
 - **Reuse existing helpers** — extend `whatsapp-share.ts` and `ticket-invoice-download.ts`; do not fork PDF fetch or `wa.me` encoding
 - **Offline receipt v1** — plain-text recibo and/or simple image receipt when `navigator.onLine === false` or PDF fetch fails for network reasons; no server round-trip required
-- **Cobranza on Hoy** — overdue/partial balances visible in the technician home queue with one-tap WhatsApp saldo and **Cobrar**; full `CobranzaList` remains for office/helper use via **Más**
+- **Hoy Por cobrar strip** — overdue/partial balances visible in the technician home queue with one-tap WhatsApp saldo and **Cobrar**; full `CobranzaList` remains for office/helper use via **Más**
 - **Spanish field copy** — “Enviar,” “Recibo,” “Saldo,” “Presupuesto,” “Voy en camino”; no error codes as headlines
 - **No WhatsApp Business API** — client-initiated `wa.me` + Web Share only
 
@@ -108,7 +109,7 @@ This epic makes **Enviar** and **Cobrar** first-class on **job cards** (Hoy queu
 - [ ] Saldo message includes ticket id, client name, balance, company intro (existing helper)
 - [ ] Typecheck/lint passes
 
-### US-007: Cobranza surfaced on Hoy (not buried in Más)
+### US-007: Hoy Por cobrar strip (not buried in Más)
 **Description:** As a field technician, I want to see who owes me money on **Hoy** so I do not forget hotel payments without opening a separate Cobranza page.
 
 **Acceptance Criteria:**
@@ -165,14 +166,14 @@ This epic makes **Enviar** and **Cobrar** first-class on **job cards** (Hoy queu
 **Acceptance Criteria:**
 - [ ] Extend `whatsapp-share.test.ts` for quote + offline receipt text builders
 - [ ] Unit test: send menu option visibility given job state (unfinished vs finished, presupuesto vs ticket, balanceDue, phone missing)
-- [ ] E2E (mobile viewport): Hoy shows por cobrar strip when seed has unpaid finished ticket; WhatsApp link href contains encoded saldo text; send menu opens
+- [ ] E2E (mobile viewport): Hoy shows **Por cobrar** strip when seed has unpaid finished ticket; WhatsApp link href contains encoded saldo text; send menu opens
 - [ ] `npm test` and targeted `npm run test:e2e` pass
 
 ### US-013: Field release checklist
 **Description:** As a release owner, I want return-day QA steps for send/cobro before the customer ride-along.
 
 **Acceptance Criteria:**
-- [ ] `tasks/field-release-checklist.md` (or `tasks/mobile-release-checklist.md`) includes: Enviar menu on Hoy card, offline recibo simple, PDF share online, por cobrar on Hoy, saldo WhatsApp from cobranza strip
+- [ ] `tasks/field-release-checklist.md` (or `tasks/mobile-release-checklist.md`) includes: Enviar menu on Hoy card, offline recibo simple, PDF share online, **Por cobrar** on Hoy, saldo WhatsApp from cobranza strip
 
 ---
 
@@ -257,6 +258,10 @@ Until offline epic lands, JobCard may accept server-fetched `TechnicianDayTicket
 - No polling for cobranza on Hoy; refetch on dashboard focus or pull-to-refresh (existing native-feel patterns)
 - PDF fetch timeout remains 60s (`PDF_DOWNLOAD_TIMEOUT_MS`); do not increase for field
 
+### Branch convention
+
+Implement on **`feat/field-send-cobro`**; slice PRs merge to feature branch; one PR **`feat/field-send-cobro` → `main`** when epic ships ([`docs/agents/deployment.md`](../docs/agents/deployment.md)).
+
 ---
 
 ## Success Metrics
@@ -275,6 +280,8 @@ Until offline epic lands, JobCard may accept server-fetched `TechnicianDayTicket
 |------------|-----|-----------|
 | [`prd-offline-first-jobs.md`](./prd-offline-first-jobs.md) | Local job snapshot, pending-sync ids, offline finish flow | **Partial** — online-only send/cobro (US-001–004, 006–008) can ship on server tickets; **US-005 offline receipt** and pending-sync copy need job model |
 | [`prd-job-capture-anotar.md`](./prd-job-capture-anotar.md) | Job cards on `/anotar`, post-save Enviar prompt (US-009) | **Partial** — Hoy + dashboard path can ship first |
+| [`prd-field-program-decisions.md`](./prd-field-program-decisions.md) | Q15 teach Cobrar; Q14 WhatsApp in v1 | Reference |
+| [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md) | O-12, O-13, O-14 discovery IDs | Reference |
 | [`prd-technician-solo-mode.md`](./prd-technician-solo-mode.md) | Hoy-first layout, demote metrics, campo copy | Soft — cobranza strip should land in solo-mode layout slot |
 | [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md) | Hoy tab → `/dashboard` | Already specified |
 | [`prd-native-feel-share-pdf.md`](./prd-native-feel-share-pdf.md) | PDF Web Share helper | **Done** — `ticket-invoice-download.ts` |
@@ -308,5 +315,5 @@ Validate items 1–2 on customer return ride-along (proof preference: photos vs 
 | O-12 WhatsApp as send button | US-001–004, US-006 |
 | O-13 Share PDF / offline receipt | US-003, US-005 |
 | O-14 Money / cobro visibility | US-007, US-008 |
-| O-09 Home = Hoy | US-007 cobranza strip on Hoy |
+| O-09 Home = Hoy | US-007 **Por cobrar** strip on Hoy |
 | Program Q15 teach **Hoy / Anotar / Cobrar** | US-007–009, US-013 checklist |
