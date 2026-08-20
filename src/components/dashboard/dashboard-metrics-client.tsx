@@ -30,7 +30,9 @@ import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
 import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
 import { DashboardTechnicianDayWidget } from '@/components/dashboard/dashboard-technician-day-widget';
+import { HoyPorCobrarStrip } from '@/components/field/hoy-por-cobrar-strip';
 import { useTechnicianDayQueue } from '@/hooks/use-technician-day-queue';
+import { canWriteTickets } from '@/lib/tickets-rbac';
 import {
   buildDashboardAttentionItems,
   countSchedulesDueToday,
@@ -124,6 +126,7 @@ export const DashboardMetricsClient = ({
   const deferSecondaryWidgets = useDeferredMount();
   const urgentSchedules = useDashboardUrgentSchedules(deferSecondaryWidgets);
   const technicianDay = useTechnicianDayQueue(deferSecondaryWidgets);
+  const [cobranzaRefreshKey, setCobranzaRefreshKey] = React.useState(0);
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(
     initialMetrics,
@@ -456,6 +459,14 @@ export const DashboardMetricsClient = ({
               {composition.sectionTitles.operations}
             </h2>
             <div className="space-y-4">
+              <HoyPorCobrarStrip
+                canWrite={canWriteTickets(permissions.can)}
+                refreshKey={cobranzaRefreshKey}
+                onPaymentApplied={() => {
+                  technicianDay.reload();
+                  setCobranzaRefreshKey((key) => key + 1);
+                }}
+              />
               <DashboardTechnicianDayWidget
                 canRead={technicianDay.canRead}
                 missingCompany={technicianDay.missingCompany}
@@ -468,6 +479,7 @@ export const DashboardMetricsClient = ({
                 onRetry={technicianDay.reload}
                 onPaymentApplied={() => {
                   technicianDay.reload();
+                  setCobranzaRefreshKey((key) => key + 1);
                 }}
               />
               <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
