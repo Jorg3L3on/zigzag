@@ -26,13 +26,13 @@ Core business flows on mobile (create ticket → add service / total → collect
 - [ ] Toggle airplane mode — offline banner appears; shell may load from cache on cold start after prior online visit; no offline data sync.
 - [ ] **Share → Add to Home Screen** — icon installs; cold start opens **Dashboard** (`/dashboard`).
 - [ ] Installed app cold start shows a white splash/theme background and readable default iOS status bar.
-- [ ] Bottom tabs visible on Dashboard/Tickets; Más opens navigation sheet.
+- [ ] Bottom tabs visible: **Hoy · Anotar · Clientes · Más**; Más opens navigation sheet.
 
 ## Manual — Android Chrome
 
 - [ ] Login and open sidebar sheet from the menu button; navigation links work.
 - [ ] When not installed, **Instalar ZigZag** banner may appear; dismiss hides it for 30 days; after install banner does not return in standalone mode.
-- [ ] Bottom tabs (Inicio · Tickets · Clientes · Más) visible on list pages; Más opens the sidebar sheet.
+- [ ] Bottom tabs (**Hoy · Anotar · Clientes · Más**) visible on list pages; Más opens the sidebar sheet; Anotar opens ticket create.
 - [ ] Ticket create sticky save bar hides bottom tabs.
 - [ ] Tickets list cards and filters usable with touch targets.
 - [ ] Create-ticket flow: client step and services step scroll without layout break.
