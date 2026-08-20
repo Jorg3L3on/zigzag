@@ -14,26 +14,54 @@ test.describe('Mobile bottom tabs', () => {
     await ensureTenantCompany(page);
   });
 
-  test('shows tabs on tickets and navigates to clients', async ({ page }) => {
-    await page.goto('/tickets');
+  test('shows Hoy / Anotar / Clientes / Más on dashboard', async ({ page }) => {
+    await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
-    await expect(tabBar.getByRole('link', { name: 'Tickets' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Hoy' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Anotar' })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Clientes' })).toBeVisible();
+    await expect(tabBar.getByRole('button', { name: /Más/i })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Hoy' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
 
+  test('navigates Anotar to /anotar and Clientes', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await tabBar.getByRole('link', { name: 'Clientes' }).click();
     await expect(page).toHaveURL(/\/clients/);
     await expect(tabBar.getByRole('link', { name: 'Clientes' })).toHaveAttribute(
       'aria-current',
       'page',
     );
+
+    await tabBar.getByRole('link', { name: 'Anotar' }).click();
+    await expect(page).toHaveURL(/\/anotar/);
   });
 
-  test('hides tabs on ticket create when sticky action bar is present', async ({
+  test('does not treat tickets list as a primary tab destination', async ({
     page,
   }) => {
-    await page.goto('/tickets/create');
+    await page.goto('/tickets');
+
+    const tabBar = page.getByTestId('mobile-bottom-tab-bar');
+    await expect(tabBar).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Tickets' })).toHaveCount(0);
+    await expect(tabBar.getByRole('link', { name: 'Hoy' })).not.toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  test('hides tabs on Anotar when sticky action bar is present', async ({
+    page,
+  }) => {
+    await page.goto('/anotar');
 
     await expect(visibleMobileStickyActionBar(page)).toBeVisible({
       timeout: 15_000,
@@ -73,5 +101,6 @@ test.describe('Mobile bottom tabs', () => {
     const navDialog = page.getByRole('dialog', { name: 'Menú de navegación' });
     await expect(navDialog).toBeVisible();
     await expect(navDialog.getByRole('link', { name: 'Inicio' })).toBeVisible();
+    await expect(navDialog.getByRole('link', { name: 'Tickets' })).toBeVisible();
   });
 });

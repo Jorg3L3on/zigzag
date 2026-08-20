@@ -6,6 +6,7 @@ import {
   Home,
   Key,
   Package,
+  PenLine,
   Shield,
   Ticket,
   Trash2,
@@ -22,7 +23,7 @@ export type NavItemDefinition = {
   icon?: LucideIcon;
   requiredPermission?: string;
   systemOnly?: boolean;
-  /** When true, item is a primary mobile bottom-tab destination. */
+  /** When true, item is a primary mobile bottom-tab destination (legacy flag; prefer MOBILE_TAB_ITEMS). */
   mobileTab?: boolean;
   items?: {
     title: string;
@@ -31,20 +32,18 @@ export type NavItemDefinition = {
   }[];
 };
 
-/** Plataforma nav — shared by AppSidebar and mobile bottom tabs. */
+/** Plataforma nav — sidebar (Más sheet). Desktop + overflow destinations. */
 export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
   {
     title: 'Inicio',
     url: '/dashboard',
     icon: Home,
-    mobileTab: true,
   },
   {
     title: 'Tickets',
     url: '/tickets',
     icon: Ticket,
     requiredPermission: PERMISSIONS.tickets.read,
-    mobileTab: true,
   },
   {
     title: 'Cobranza',
@@ -75,13 +74,36 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
     url: '/clients',
     icon: User,
     requiredPermission: PERMISSIONS.clients.read,
-    mobileTab: true,
   },
   {
     title: 'Mi empresa',
     url: '/company',
     icon: Building,
     requiredPermission: PERMISSIONS.company.manage,
+  },
+];
+
+/**
+ * Field program mobile bottom tabs: Hoy · Anotar · Clientes (+ Más in the tab bar).
+ * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy, Tickets list vs Anotar).
+ */
+export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
+  {
+    title: 'Hoy',
+    url: '/dashboard',
+    icon: Home,
+  },
+  {
+    title: 'Anotar',
+    url: '/anotar',
+    icon: PenLine,
+    requiredPermission: PERMISSIONS.tickets.write,
+  },
+  {
+    title: 'Clientes',
+    url: '/clients',
+    icon: User,
+    requiredPermission: PERMISSIONS.clients.read,
   },
 ];
 
@@ -132,8 +154,6 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
   },
 ];
 
-export const MOBILE_TAB_ITEMS = NAV_MAIN_ITEMS.filter((item) => item.mobileTab);
-
 export const getLongestMatchingHref = (
   pathname: string,
   hrefs: string[],
@@ -146,6 +166,19 @@ export const getLongestMatchingHref = (
   }
   return matching.reduce((a, b) => (a.length >= b.length ? a : b));
 };
+
+/**
+ * Active tab for field bottom bar.
+ * Hoy must not activate on `/tickets` list alone (Tickets is not a tab).
+ * Anotar activates on `/anotar` (and nested paths under it).
+ */
+export const getActiveMobileTabHref = (
+  pathname: string,
+  tabs: Array<{ url: string }> = MOBILE_TAB_ITEMS,
+): string | null => getLongestMatchingHref(
+  pathname,
+  tabs.map((item) => item.url),
+);
 
 /** Fixed height of the mobile bottom tab row (excluding safe-area). */
 export const MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX = 56;
