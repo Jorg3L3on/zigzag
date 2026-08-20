@@ -7,6 +7,8 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | Status | File | Kind |
 |--------|------|------|
 | 📋 | [prd-first-customer-field-technician.md](./prd-first-customer-field-technician.md) | Discovery — value map for first customer (electrician / HVAC / consultancy; Android, offline, notebook habits). **Do not implement from this file yet.** |
+| 📋 | [prd-field-program-decisions.md](./prd-field-program-decisions.md) | Locked decisions for field program (Hoy/Anotar tabs, offline, PWA-first) |
+| 📋 | [prd-field-bottom-tabs.md](./prd-field-bottom-tabs.md) | Epic A0 — mobile tabs **Hoy · Anotar · Clientes · Más** (supersedes generic Inicio/Tickets in native-feel tabs PRD) |
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
 | 🔶 | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — most slices shipped; LCP pagination/SSR follow-up Aug 2026 |
 | ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
@@ -40,7 +42,23 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 **Status:** Reference (discovery only — do not implement from this file)
 
-**TL;DR:** Exhaustive opportunity map for the first customer: solo electrical / HVAC / consultancy work on Android, often offline, low battery, notebook habits. Diagnosis: ZigZag is still an office SaaS (online Tickets, catalog, RFC gates, metrics Dashboard). Highest-value bets are offline-first capture, a 15-second Anotar flow, Hoy as home, photos, WhatsApp send, stay-signed-in, and concierge notebook migration — not more dashboard/PDF/RBAC polish. Includes radical options (native Android, WhatsApp-first, campo vs casa split). Ride-along questions included to validate why he is not using the product.
+**TL;DR:** Exhaustive opportunity map for the first customer: solo electrical / HVAC / consultancy work on Android, often offline, low battery, notebook habits. Diagnosis: ZigZag is still an office SaaS (online Tickets, catalog, RFC gates, metrics Dashboard). Highest-value bets are **bottom tabs Hoy/Anotar**, offline-first capture, Hoy as home, photos, WhatsApp send, stay-signed-in, and concierge notebook migration — not more dashboard/PDF/RBAC polish. Includes radical options (native Android, WhatsApp-first, campo vs casa split). Ride-along questions included to validate why he is not using the product.
+
+---
+
+## 📋 prd-field-program-decisions.md
+
+**Status:** Reference (locked defaults until ride-along)
+
+**TL;DR:** Field program Q&A: PWA-first, offline CRUD, Hoy landing, Anotar default, bottom tabs **Hoy · Anotar · Clientes · Más**, no RFC gate on capture, concierge return ritual. Supersedes generic Inicio/Tickets tab IA from `prd-native-feel-bottom-tabs.md`.
+
+---
+
+## 📋 prd-field-bottom-tabs.md
+
+**Status:** Ready to implement (Epic A0, slice 1)
+
+**TL;DR:** Retarget existing `MobileBottomTabBar` from Inicio/Tickets/Clientes/Más to **Hoy** (`/dashboard`), **Anotar** (`/tickets/create`, later `/anotar`), **Clientes**, **Más**. Desktop sidebar unchanged; sticky CTA hides tabs; update Playwright. Ship before or alongside solo-mode Hoy dashboard content.
 
 ---
 
@@ -265,4 +283,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-08-20 (added first-customer field-technician discovery PRD; no product code changes).
+- **Last audited:** 2026-08-20 (field program decisions + Hoy/Anotar bottom tabs PRD).

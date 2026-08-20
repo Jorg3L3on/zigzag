@@ -642,9 +642,18 @@ Do **not** start with visual native-feel or PDF chrome.
 7. **Epic E — Hotels/consultancy polish:** PO, signature, quotes from site, warranty. (O-24–O-27, O-31.)
 8. **Packaging decision:** Stay PWA vs native Android vs WhatsApp-first (R-01/R-02) — make this after Epic A prototypes, not before.
 
-Existing modules (Recordatorios, Presupuestos, Cobranza, PDF, native-feel tabs) **plug into Epics B–E**; they are not Epic A.
+**Updated program order (vacation window):**
 
-**If we can only do five things:** (1) offline anotar, (2) Hoy as home, (3) photos, (4) WhatsApp send, (5) concierge migration. That set beats a year of SaaS features.
+0. **Lock decisions:** [`prd-field-program-decisions.md`](./prd-field-program-decisions.md)  
+1. **Epic A0 — Bottom tabs:** [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md) — **Hoy · Anotar · Clientes · Más** (retarget existing `MobileBottomTabBar`; Anotar → `/tickets/create` until `/anotar` exists)  
+2. **Epic A — Campo / solo mode:** Hoy-first dashboard, hide SaaS noise  
+3. **Epic B — Offline-first jobs**  
+4. **Epic C — Anotar capture** (dedicated `/anotar`; tab href updates in one config place)  
+5. **Epic D — Send & cobro**  
+
+Existing modules (Recordatorios, Presupuestos, Cobranza, PDF) plug into Epics C–D; native-feel chrome (theme, pull-to-refresh) is optional polish **after** A0+A.
+
+**If we can only do five things:** (1) **bottom tabs Hoy/Anotar**, (2) offline anotar, (3) Hoy as home content, (4) photos + WhatsApp send, (5) concierge migration.
 
 ---
 
@@ -704,7 +713,9 @@ When ready to build, split — do **not** implement from this file:
 
 | Later file | Scope |
 |------------|--------|
-| `prd-technician-solo-mode.md` | Hide SaaS, Hoy home, copy, auth lifetime |
+| [`prd-field-program-decisions.md`](./prd-field-program-decisions.md) | Locked Q&A for field epics |
+| [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md) | **Hoy · Anotar · Clientes · Más** (Epic A0) |
+| `prd-technician-solo-mode.md` | Hide SaaS, Hoy home content, copy, auth lifetime |
 | `prd-offline-first-jobs.md` | Local store, queue, sync, conflict, tests |
 | `prd-job-capture-anotar.md` | One-screen capture, notes, money, voice |
 | `prd-job-media.md` | Photos/audio queue, compression, WhatsApp |
