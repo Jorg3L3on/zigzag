@@ -56,6 +56,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
 - **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service data requires network (no offline sync).
 - Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md). Manual release checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). E2E: `npm run test:e2e` (desktop + `mobile-chrome` Pixel 5); mobile-only: `npm run test:e2e:mobile`.
+- **First-customer field program (agent-ready):** [tasks/FIELD-PROGRAM.md](tasks/FIELD-PROGRAM.md) — umbrella GitHub [#421](https://github.com/Jorg3L3on/zigzag/issues/421); slice issues [#423–452](https://github.com/Jorg3L3on/zigzag/issues/423); return QA [tasks/field-release-checklist.md](tasks/field-release-checklist.md).
 
 ### PDF invoices
 - Generated on demand on the server: `GET /api/tickets/[id]/invoice`.

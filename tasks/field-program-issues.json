@@ -1,0 +1,255 @@
+{
+  "program": 421,
+  "programUrl": "https://github.com/Jorg3L3on/zigzag/issues/421",
+  "publishedAt": "2026-08-20T07:00:08.963Z",
+  "epics": [
+    {
+      "slug": "field-bottom-tabs",
+      "branch": "feat/field-bottom-tabs",
+      "prdFile": "tasks/prd-field-bottom-tabs.md",
+      "parent": 422,
+      "parentUrl": "https://github.com/Jorg3L3on/zigzag/issues/422",
+      "slices": [
+        {
+          "number": 423,
+          "title": "Field tab definitions in shared nav config",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/423",
+          "blockedBy": []
+        },
+        {
+          "number": 424,
+          "title": "Mobile bottom tab bar Hoy / Anotar / Clientes / Más",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/424",
+          "blockedBy": [
+            "Field tab definitions in shared nav config"
+          ]
+        },
+        {
+          "number": 425,
+          "title": "Bottom tabs hide for sticky form actions",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/425",
+          "blockedBy": [
+            "Mobile bottom tab bar Hoy / Anotar / Clientes / Más"
+          ]
+        },
+        {
+          "number": 426,
+          "title": "Playwright E2E and checklist for field tabs",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/426",
+          "blockedBy": [
+            "Mobile bottom tab bar Hoy / Anotar / Clientes / Más",
+            "Bottom tabs hide for sticky form actions"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "technician-solo-mode",
+      "branch": "feat/technician-solo-mode",
+      "prdFile": "tasks/prd-technician-solo-mode.md",
+      "parent": 427,
+      "parentUrl": "https://github.com/Jorg3L3on/zigzag/issues/427",
+      "slices": [
+        {
+          "number": 428,
+          "title": "Campo experience_mode setting and resolver",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/428",
+          "blockedBy": []
+        },
+        {
+          "number": 429,
+          "title": "Campo dashboard composition and mobile Hoy-first layout",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/429",
+          "blockedBy": [
+            "Campo experience_mode setting and resolver"
+          ]
+        },
+        {
+          "number": 430,
+          "title": "Campo copy and sidebar Hoy label",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/430",
+          "blockedBy": [
+            "Campo dashboard composition and mobile Hoy-first layout"
+          ]
+        },
+        {
+          "number": 431,
+          "title": "Mi empresa Experiencia toggle (Campo vs Oficina)",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/431",
+          "blockedBy": [
+            "Campo experience_mode setting and resolver"
+          ]
+        },
+        {
+          "number": 432,
+          "title": "Compact Hoy summary strip (entró hoy / por cobrar)",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/432",
+          "blockedBy": [
+            "Campo dashboard composition and mobile Hoy-first layout"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "offline-first-jobs",
+      "branch": "feat/offline-first-jobs",
+      "prdFile": "tasks/prd-offline-first-jobs.md",
+      "parent": 433,
+      "parentUrl": "https://github.com/Jorg3L3on/zigzag/issues/433",
+      "slices": [
+        {
+          "number": 434,
+          "title": "FieldJobStore IndexedDB schema and module",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/434",
+          "blockedBy": []
+        },
+        {
+          "number": 435,
+          "title": "Offline job create with pendiente de subir badge",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/435",
+          "blockedBy": [
+            "FieldJobStore IndexedDB schema and module"
+          ]
+        },
+        {
+          "number": 436,
+          "title": "Sync runner and server action adapter",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/436",
+          "blockedBy": [
+            "Offline job create with pendiente de subir badge"
+          ]
+        },
+        {
+          "number": 437,
+          "title": "Merge local jobs into Hoy and ticket lists",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/437",
+          "blockedBy": [
+            "FieldJobStore IndexedDB schema and module"
+          ]
+        },
+        {
+          "number": 438,
+          "title": "Subir ahora control and offline edit",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/438",
+          "blockedBy": [
+            "Sync runner and server action adapter"
+          ]
+        },
+        {
+          "number": 439,
+          "title": "Playwright mobile offline jobs E2E",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/439",
+          "blockedBy": [
+            "Sync runner and server action adapter",
+            "Merge local jobs into Hoy and ticket lists"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "job-capture-anotar",
+      "branch": "feat/job-capture-anotar",
+      "prdFile": "tasks/prd-job-capture-anotar.md",
+      "parent": 440,
+      "parentUrl": "https://github.com/Jorg3L3on/zigzag/issues/440",
+      "slices": [
+        {
+          "number": 441,
+          "title": "Ticket work_notes schema migration",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/441",
+          "blockedBy": []
+        },
+        {
+          "number": 442,
+          "title": "anotarCapture server action",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/442",
+          "blockedBy": [
+            "Ticket work_notes schema migration"
+          ]
+        },
+        {
+          "number": 443,
+          "title": "/anotar one-screen mobile page",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/443",
+          "blockedBy": [
+            "anotarCapture server action"
+          ]
+        },
+        {
+          "number": 444,
+          "title": "Client typeahead and quick nuevo on Anotar",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/444",
+          "blockedBy": [
+            "/anotar one-screen mobile page"
+          ]
+        },
+        {
+          "number": 445,
+          "title": "Retarget Anotar tab to /anotar and E2E",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/445",
+          "blockedBy": [
+            "/anotar one-screen mobile page"
+          ]
+        },
+        {
+          "number": 446,
+          "title": "submitAnotarCapture offline handoff contract",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/446",
+          "blockedBy": [
+            "/anotar one-screen mobile page",
+            "Offline job create with pendiente de subir badge"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "field-send-cobro",
+      "branch": "feat/field-send-cobro",
+      "prdFile": "tasks/prd-field-send-cobro.md",
+      "parent": 447,
+      "parentUrl": "https://github.com/Jorg3L3on/zigzag/issues/447",
+      "slices": [
+        {
+          "number": 448,
+          "title": "JobWhatsAppSendMenu and quote helper",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/448",
+          "blockedBy": []
+        },
+        {
+          "number": 449,
+          "title": "FieldJobCard shared component on Hoy",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/449",
+          "blockedBy": [
+            "JobWhatsAppSendMenu and quote helper"
+          ]
+        },
+        {
+          "number": 450,
+          "title": "Hoy Por cobrar strip with WhatsApp and Cobrar",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/450",
+          "blockedBy": [
+            "FieldJobCard shared component on Hoy"
+          ]
+        },
+        {
+          "number": 451,
+          "title": "Offline recibo simple text and image share",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/451",
+          "blockedBy": [
+            "JobWhatsAppSendMenu and quote helper",
+            "Offline job create with pendiente de subir badge"
+          ]
+        },
+        {
+          "number": 452,
+          "title": "Anotar post-save Enviar prompt",
+          "url": "https://github.com/Jorg3L3on/zigzag/issues/452",
+          "blockedBy": [
+            "JobWhatsAppSendMenu and quote helper",
+            "/anotar one-screen mobile page"
+          ]
+        }
+      ]
+    }
+  ]
+}
