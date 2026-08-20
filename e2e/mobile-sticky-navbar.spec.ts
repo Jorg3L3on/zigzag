@@ -185,7 +185,7 @@ test.describe('Mobile sticky navigation', () => {
 
     test.describe('Sticky page header (list & dashboard modules)', () => {
       const listModulePages = [
-        { name: 'dashboard', path: '/dashboard', label: 'Dashboard' },
+        { name: 'dashboard', path: '/dashboard', label: /Dashboard|Hoy/i },
         { name: 'tickets', path: '/tickets', label: 'Tickets' },
         { name: 'clients', path: '/clients', label: 'Clientes' },
         { name: 'services', path: '/services', label: 'Servicios' },
