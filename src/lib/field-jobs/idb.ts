@@ -46,6 +46,27 @@ export const closeFieldJobDb = (database: IDBDatabase): void => {
   database.close();
 };
 
+/**
+ * Drop the field-jobs IndexedDB database (local jobs + outbox).
+ * Call on logout so tenant job data does not linger on a shared device.
+ */
+export const deleteFieldJobDatabase = (): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (!canUseIndexedDb()) {
+      resolve();
+      return;
+    }
+
+    const request = window.indexedDB.deleteDatabase(FIELD_JOB_DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () =>
+      reject(request.error ?? new Error('Unable to delete field jobs database'));
+    request.onblocked = () => {
+      // Another connection may still be open; treat as best-effort clear.
+      resolve();
+    };
+  });
+
 export const idbRequest = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
