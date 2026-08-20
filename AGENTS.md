@@ -54,7 +54,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - **List filters below `lg`:** dense filters open in a bottom Sheet via `ListFilterBarShell` (`src/components/list-filter/`); search + chips stay outside. Resource bars: `*-filter-bar.tsx` (tickets, clients, services, companies, etc.).
 - Breakpoint constant: `MOBILE_BREAKPOINT_PX` in `src/lib/breakpoints.ts`; hook: `src/hooks/use-mobile.tsx`.
 - Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
-- **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service data requires network (no offline sync).
+- **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service **reads** require network. Field **offline job create/edit** uses IndexedDB + outbox (`src/lib/field-jobs/`, see `tasks/prd-offline-first-jobs.md`).
 - Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md). Manual release checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). E2E: `npm run test:e2e` (desktop + `mobile-chrome` Pixel 5); mobile-only: `npm run test:e2e:mobile`.
 
 ### PDF invoices

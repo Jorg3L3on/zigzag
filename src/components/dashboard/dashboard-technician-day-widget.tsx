@@ -19,6 +19,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { FieldSyncNowButton } from '@/components/field/field-sync-now-button';
+import { SyncStatusBadge } from '@/components/field/sync-status-badge';
 import { FormattedDate } from '@/components/formatted-date';
 import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
 import {
@@ -29,13 +31,13 @@ import { TripledEmptyState } from '@/components/tripled';
 import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
+import type { MergedTechnicianDayTicket } from '@/lib/field-jobs';
 import { buildTelHref } from '@/lib/phone-links';
 import {
   formatTicketListAmount,
 } from '@/lib/ticket-payment-status';
 import {
   getTechnicianDayCardActions,
-  type TechnicianDayTicket,
 } from '@/lib/technician-day-queue';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { buildWhatsAppDayVisitShare } from '@/lib/whatsapp-share';
@@ -48,11 +50,14 @@ export type DashboardTechnicianDayWidgetProps = {
   permissionsLoading: boolean;
   loading: boolean;
   error: string | null;
-  items: TechnicianDayTicket[];
+  items: MergedTechnicianDayTicket[];
   todayCount: number;
   overdueCount: number;
   onRetry: () => void;
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
+  pendingUploadCount?: number;
+  syncing?: boolean;
+  onFlushNow?: () => void;
 };
 
 const TechnicianDayCard = ({
@@ -62,17 +67,18 @@ const TechnicianDayCard = ({
   companyName,
   onPaymentApplied,
 }: {
-  item: TechnicianDayTicket;
+  item: MergedTechnicianDayTicket;
   canWrite: boolean;
   companyId?: number | null;
   companyName?: string | null;
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
 }) => {
   const [collectOpen, setCollectOpen] = React.useState(false);
+  const isLocalOnly = Boolean(item.pendingSync && item.localJobId);
   const { showOpenEdit, showCollect } = getTechnicianDayCardActions({
     finished: item.finished,
     balanceDue: item.balanceDue,
-    canWrite,
+    canWrite: canWrite && !isLocalOnly,
   });
   const telHref = buildTelHref(item.clientTel);
   const whatsapp = buildWhatsAppDayVisitShare({
@@ -81,9 +87,11 @@ const TechnicianDayCard = ({
     ticketId: item.id,
     companyName,
   });
-  const openHref = showOpenEdit
-    ? `/tickets/${item.id}/edit`
-    : `/tickets/${item.id}`;
+  const openHref = isLocalOnly
+    ? '/tickets/create'
+    : showOpenEdit
+      ? `/tickets/${item.id}/edit`
+      : `/tickets/${item.id}`;
 
   return (
     <li className="rounded-xl border border-border/60 bg-background/80 p-3 sm:p-4">
@@ -102,6 +110,9 @@ const TechnicianDayCard = ({
                 Hoy
               </Badge>
             )}
+            {item.syncStatus && item.pendingSync ? (
+              <SyncStatusBadge status={item.syncStatus} />
+            ) : null}
             <TicketPaymentBadge total={item.total} paid={item.paid} />
           </div>
           <p className="text-xs text-muted-foreground">
@@ -249,6 +260,9 @@ export const DashboardTechnicianDayWidget = ({
   overdueCount,
   onRetry,
   onPaymentApplied,
+  pendingUploadCount = 0,
+  syncing = false,
+  onFlushNow,
 }: DashboardTechnicianDayWidgetProps) => {
   const { selectedCompany } = useCompany();
   const { can } = usePermissions();
@@ -274,12 +288,24 @@ export const DashboardTechnicianDayWidget = ({
             Trabajo de hoy
           </CardTitle>
           <CardDescription>
+<<<<<<< HEAD
             {isCampo
               ? 'Visitas y trabajos pendientes de hoy y atrasados'
+=======
+            {pendingUploadCount > 0
+              ? `${pendingUploadCount} pendiente${pendingUploadCount === 1 ? '' : 's'} de subir · tickets de hoy y atrasados`
+>>>>>>> origin/feat/offline-first-jobs
               : 'Tickets sin terminar de hoy y atrasados. Para cobros de tickets finalizados, usa Cobranza.'}
           </CardDescription>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+          {onFlushNow ? (
+            <FieldSyncNowButton
+              pendingCount={pendingUploadCount}
+              syncing={syncing}
+              onFlush={onFlushNow}
+            />
+          ) : null}
           <Button
             type="button"
             variant="ghost"

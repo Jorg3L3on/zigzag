@@ -513,6 +513,13 @@ export const DashboardMetricsClient = ({
                 todayCount={technicianDay.data?.todayCount ?? 0}
                 overdueCount={technicianDay.data?.overdueCount ?? 0}
                 onRetry={technicianDay.reload}
+                pendingUploadCount={technicianDay.pendingUploadCount}
+                syncing={technicianDay.syncing}
+                onFlushNow={() => {
+                  void technicianDay.flushNow().then(() => {
+                    technicianDay.reload();
+                  });
+                }}
                 onPaymentApplied={() => {
                   technicianDay.reload();
                 }}
