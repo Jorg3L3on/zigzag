@@ -43,6 +43,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -367,7 +368,7 @@ const AnotarPageContent = () => {
                             value={
                               field.value != null && field.value > 0
                                 ? String(field.value)
-                                : ''
+                                : undefined
                             }
                           >
                             <FormControl>
@@ -502,7 +503,7 @@ const AnotarPageContent = () => {
                 />
 
                 <div className="space-y-2">
-                  <FormLabel htmlFor="anotar-total">Total</FormLabel>
+                  <Label htmlFor="anotar-total">Total</Label>
                   <Input
                     id="anotar-total"
                     inputMode="decimal"
