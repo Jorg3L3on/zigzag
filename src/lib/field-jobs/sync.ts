@@ -4,11 +4,13 @@
 
 import type {
   FieldJobPayload,
-  FieldJobStore,
   LocalJob,
   OutboxEntry,
 } from '@/lib/field-jobs/types';
-import { fieldJobStore } from '@/lib/field-jobs/store';
+import {
+  fieldJobStore,
+  type FieldJobStore,
+} from '@/lib/field-jobs/store';
 
 export type SyncFlushResult = {
   processed: number;
