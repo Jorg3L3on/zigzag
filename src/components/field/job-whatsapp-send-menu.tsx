@@ -160,10 +160,11 @@ export const JobWhatsAppSendMenu = ({
         receiptInput,
       );
 
+      const ticketId = job.ticketId;
       const useOffline =
-        !isOnline || !job.ticketId || job.pendingSync === true;
+        !isOnline || !ticketId || job.pendingSync === true;
 
-      if (useOffline) {
+      if (useOffline || !ticketId) {
         setBusyId(id);
         try {
           const result = await deliverOfflineReceipt({
@@ -191,7 +192,7 @@ export const JobWhatsAppSendMenu = ({
       setBusyId(id);
       try {
         const result = await fetchAndDeliverTicketInvoice({
-          ticketId: job.ticketId,
+          ticketId,
           companyId: job.companyId,
           downloadFileName: buildPdfFileName(job),
         });
