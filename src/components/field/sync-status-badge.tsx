@@ -9,8 +9,9 @@ import type { SyncStatus } from '@/lib/field-jobs/types';
 
 const SYNC_STATUS_LABEL: Record<SyncStatus, string> = {
   pending: 'Pendiente de subir',
-  uploading: 'Subiendo',
-  error: 'Error',
+  uploading: 'Subiendo…',
+  synced: 'Subido',
+  error: 'Error al subir',
 };
 
 type SyncStatusBadgeProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -27,7 +28,9 @@ export const SyncStatusBadge = ({
       ? 'destructive'
       : status === 'uploading'
         ? 'default'
-        : 'secondary';
+        : status === 'synced'
+          ? 'outline'
+          : 'secondary';
 
   return (
     <Badge

@@ -37,7 +37,7 @@ More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel
 - Tickets, clients, and service catalog
 - Dashboard metrics and **server-generated** ticket invoices (PDF)
 - Mobile-friendly UI (responsive lists, touch targets, accessibility)
-- Installable PWA (`start_url` → `/dashboard`; service worker caches app shell; Ticket data requires internet)
+- Installable PWA (`start_url` → `/dashboard`; service worker caches app shell; field jobs can be created offline and sync via IndexedDB outbox — see `tasks/prd-offline-first-jobs.md`)
 - UI with shadcn/ui and Tailwind CSS
 
 ## Tech stack
@@ -150,7 +150,7 @@ Manual device checks before release: [tasks/mobile-release-checklist.md](tasks/m
 
 Install ZigZag on a phone or tablet for quick access from the home screen. After install, the app opens on the **Dashboard** (`/dashboard`). If your session expired, sign in again.
 
-**Internet required for writes:** A service worker caches the **app shell** (UI, static assets) so the installed app can load offline after one online visit. Ticket and client lists keep read-only device snapshots after a successful online load, with a last-updated banner when shown offline. **Services and saves still require a live connection** — there is no offline sync or offline CRUD.
+**Internet required for most writes:** A service worker caches the **app shell** (UI, static assets) so the installed app can load offline after one online visit. Ticket and client lists keep read-only device snapshots after a successful online load, with a last-updated banner when shown offline. **Field job create/edit** can persist offline in IndexedDB (`src/lib/field-jobs/`) and sync through an outbox when online (see `tasks/prd-offline-first-jobs.md`). Catalog/service mutations still require a live connection.
 
 ### Español
 
@@ -168,7 +168,7 @@ Install ZigZag on a phone or tablet for quick access from the home screen. After
 
 Tras instalar, la app abre en el **Panel** (`/dashboard`). Si la sesión expiró, inicia sesión de nuevo.
 
-**Conexión para guardar:** un service worker guarda la **cáscara de la app** (interfaz y recursos estáticos) para que la app instalada pueda abrirse sin red tras una visita en línea. Las listas de tickets y clientes conservan copias locales solo lectura después de una carga exitosa en línea y muestran la última actualización si aparecen sin conexión. **Servicios y guardados siguen requiriendo internet** — no hay sincronización ni edición offline.
+**Conexión para guardar:** un service worker guarda la **cáscara de la app** (interfaz y recursos estáticos) para que la app instalada pueda abrirse sin red tras una visita en línea. Las listas de tickets y clientes conservan copias locales solo lectura después de una carga exitosa en línea y muestran la última actualización si aparecen sin conexión. **Crear/editar trabajos de campo** puede persistir offline (IndexedDB + cola de subida; ver `tasks/prd-offline-first-jobs.md`). Catálogo/servicios siguen requiriendo internet.
 
 **Probar en la red local (opcional):** con `npm run dev` en el puerto **3069**, abre `http://<tu-ip>:3069` desde el teléfono en la misma Wi‑Fi.
 
@@ -190,7 +190,7 @@ Antes de un release móvil, usa la checklist manual: [tasks/mobile-release-check
 
 After install, the app opens on the **Dashboard** (`/dashboard`). Sign in again if your session expired.
 
-**Writes require internet:** a service worker caches the **app shell** (UI and static assets) so the installed app can load offline after one online visit. Ticket and client lists keep read-only device snapshots after a successful online load, with a last-updated banner when shown offline. **Services and saves still need a live connection** — no offline sync or offline CRUD.
+**Writes require internet:** a service worker caches the **app shell** (UI and static assets) so the installed app can load offline after one online visit. Ticket and client lists keep read-only device snapshots after a successful online load, with a last-updated banner when shown offline. **Field job create/edit** can persist offline (IndexedDB + sync outbox; see `tasks/prd-offline-first-jobs.md`). Catalog/service mutations still need a live connection.
 
 **Test on your LAN (optional):** with `npm run dev` on port **3069**, open `http://<your-ip>:3069` from your phone on the same Wi‑Fi.
 

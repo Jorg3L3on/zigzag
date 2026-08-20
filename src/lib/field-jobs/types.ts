@@ -5,7 +5,7 @@ export const LOCAL_JOBS_STORE = 'localJobs';
 export const OUTBOX_STORE = 'outbox';
 
 /** Client-visible sync state for a locally captured field job. */
-export type SyncStatus = 'pending' | 'uploading' | 'error';
+export type SyncStatus = 'pending' | 'uploading' | 'synced' | 'error';
 
 export type FieldJobServiceLine = {
   service_id: number;
@@ -20,9 +20,14 @@ export type FieldJobPayload = {
   client_tel?: string;
   email?: string;
   document?: string;
+  /** Field narrative; preferred over document for Anotar sync. */
+  work_notes?: string;
   ticket_date?: string;
   services?: FieldJobServiceLine[];
   notes?: string;
+  total?: number;
+  paid?: number;
+  finished?: boolean;
 };
 
 /** Locally persisted field job awaiting server sync. */

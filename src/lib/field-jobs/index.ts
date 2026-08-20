@@ -34,3 +34,15 @@ export {
   type EnqueueCreateInput,
   type EnqueueUpdateInput,
 } from '@/lib/field-jobs/outbox';
+
+export {
+  flushFieldJobOutbox,
+  type SyncFlushResult,
+} from '@/lib/field-jobs/sync';
+
+export {
+  countPendingFieldUploads,
+  localJobToTechnicianDayTicket,
+  mergeTechnicianDayWithLocalJobs,
+  type MergedTechnicianDayTicket,
+} from '@/lib/field-jobs/merge-day-queue';
