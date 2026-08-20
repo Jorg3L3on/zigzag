@@ -15,12 +15,14 @@ import { signOut } from 'next-auth/react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Pencil } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { clearFieldJobsOnLogout } from '@/lib/field-jobs';
 
 export function AccountFormDialog() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const handleSuccess = async () => {
     setOpen(false);
+    await clearFieldJobsOnLogout();
     await signOut({ redirect: false });
     router.push('/login');
   };

@@ -46,3 +46,12 @@ export {
   mergeTechnicianDayWithLocalJobs,
   type MergedTechnicianDayTicket,
 } from '@/lib/field-jobs/merge-day-queue';
+
+export {
+  canUseIndexedDb,
+  closeFieldJobDb,
+  deleteFieldJobDatabase,
+  openFieldJobDb,
+} from '@/lib/field-jobs/idb';
+
+export { clearFieldJobsOnLogout } from '@/lib/field-jobs/clear-on-logout';

@@ -30,12 +30,15 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
+import { clearFieldJobsOnLogout } from '@/lib/field-jobs';
+
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { data: session } = useSession();
   const router = useRouter();
 
   const handleLogout = async () => {
+    await clearFieldJobsOnLogout();
     await signOut({ redirect: false });
     router.push('/login');
   };
