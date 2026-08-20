@@ -333,10 +333,7 @@ const CreateTicketPageContent = () => {
           return;
         }
         toast.error(errorContent.title, {
-          description:
-            errorContent.errorType === 'network'
-              ? `${errorContent.description} ${CREATE_TICKET_RETRY_GUIDANCE}`
-              : errorContent.description,
+          description: errorContent.description,
         });
       }
     } catch (error) {
