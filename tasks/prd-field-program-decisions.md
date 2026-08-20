@@ -42,12 +42,13 @@ Code may use a **campo mode** flag or tenant setting later so office users keep 
 
 | PRD | Priority | Notes |
 |-----|----------|-------|
-| [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md) | **P0 — Epic A** | Retarget tabs; E2E |
-| `prd-technician-solo-mode.md` | **P0 — Epic A** | Hoy home, hide SaaS chrome |
-| `prd-offline-first-jobs.md` | **P0 — Epic B** | Local store + sync |
-| `prd-job-capture-anotar.md` | **P0 — Epic C** | Dedicated `/anotar` screen |
-| `prd-field-send-cobro.md` | **P1 — Epic D** | WhatsApp, offline receipt |
-| `tasks/field-release-checklist.md` | **Parallel** | Return-day QA (not code epic) |
+| [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md) | **P0 — Epic A0** | Retarget tabs; E2E |
+| [`prd-technician-solo-mode.md`](./prd-technician-solo-mode.md) | **P0 — Epic A** | Hoy home, hide SaaS chrome |
+| [`prd-offline-first-jobs.md`](./prd-offline-first-jobs.md) | **P0 — Epic B** | Local store + sync |
+| [`prd-job-capture-anotar.md`](./prd-job-capture-anotar.md) | **P0 — Epic C** | Dedicated `/anotar` screen |
+| [`prd-field-send-cobro.md`](./prd-field-send-cobro.md) | **P1 — Epic D** | WhatsApp, offline receipt |
+| [`field-release-checklist.md`](./field-release-checklist.md) | **Parallel** | Return-day QA (not code epic) |
+| [`FIELD-PROGRAM.md`](./FIELD-PROGRAM.md) | **Agent entry** | Handoff + issue registry |
 
 ## Out of scope (until ride-along)
 
@@ -63,3 +64,32 @@ Code may use a **campo mode** flag or tenant setting later so office users keep 
 3. Hotel payment delay and proof expectations (photos vs PDF vs signature)
 
 Until answered, **offline capture (Q3) and Anotar speed (Q5) remain the design drivers.**
+
+---
+
+## Agent decisions (2026-08-20 — user on vacation)
+
+Decisions we **would have asked** but locked so agents can proceed:
+
+| # | Would have asked | Decision | Revisit |
+|---|------------------|----------|---------|
+| AD-1 | PWA or Play Store? | **PWA first** ([ADR 001](../docs/adr/001-field-program-pwa-first-packaging.md)) | If sync fails on device |
+| AD-2 | One release or incremental? | **5 epic PRs to `main` sequentially** | — |
+| AD-3 | Tabs for all users or campo only? | **Global Hoy/Anotar retarget v1** | If office users need Inicio/Tickets |
+| AD-4 | Sidebar Inicio vs Hoy? | **Hoy** in campo sidebar; **Inicio** in office | Solo-mode epic |
+| AD-5 | Anotar URL before `/anotar`? | Tab → **`/tickets/create`** until Epic C | Epic C slice 5 |
+| AD-6 | Notes storage? | **`Ticket.work_notes`** column | — |
+| AD-7 | Finish without catalog? | **Synthetic service line** in `anotarCapture` | — |
+| AD-8 | IDB library? | **Dexie** + **`FieldJobStore`** | — |
+| AD-9 | Multi-device sync? | **Last-write-wins, one phone** | — |
+| AD-10 | Offline receipt? | **Text always; image if canShare** | Ride-along |
+| AD-11 | After Anotar save? | **Navigate to ticket detail** | — |
+| AD-12 | Auto campo mode? | **1 user ⇒ campo** | — |
+| AD-13 | Second user joins? | **No auto-switch to office** | — |
+| AD-14 | RFC on save? | **No block** on Anotar | — |
+| AD-15 | WhatsApp API? | **No — wa.me only** | — |
+| AD-16 | Sites/equipos in vacation? | **Deferred** | After return |
+| AD-17 | Notebook migration? | **Concierge checklist**, not code | Return day |
+| AD-18 | PR size? | **~26 slice PRs** → 5 feat branches | — |
+
+**Agent entry:** [`FIELD-PROGRAM.md`](./FIELD-PROGRAM.md) · publish issues: `node scripts/publish-field-program-issues.mjs`

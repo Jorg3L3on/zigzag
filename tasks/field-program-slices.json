@@ -1,0 +1,338 @@
+{
+  "programTitle": "PRD: Field program — first customer (umbrella)",
+  "programBodyFile": "tasks/FIELD-PROGRAM-GITHUB-UMBRELLA.md",
+  "epics": [
+    {
+      "slug": "field-bottom-tabs",
+      "branch": "feat/field-bottom-tabs",
+      "parentTitle": "PRD: Field bottom tabs (Hoy / Anotar / Clientes / Más)",
+      "prdFile": "tasks/prd-field-bottom-tabs.md",
+      "order": 0,
+      "slices": [
+        {
+          "title": "Field tab definitions in shared nav config",
+          "whatToBuild": "Define Hoy (/dashboard), Anotar (/tickets/create), Clientes (/clients) in shared nav module. Exclude /tickets from primary tabs. Spanish labels Hoy, Anotar, Clientes.",
+          "acceptanceCriteria": [
+            "MOBILE_TAB_ITEMS order: Hoy, Anotar, Clientes",
+            "Permission gating unchanged (tickets.read, clients.read)",
+            "nav-items.test.ts updated",
+            "Typecheck/lint pass"
+          ],
+          "blockedBy": []
+        },
+        {
+          "title": "Mobile bottom tab bar Hoy / Anotar / Clientes / Más",
+          "whatToBuild": "Render MobileBottomTabBar from shared config. Más opens sidebar sheet. Active tab rules per prd-field-bottom-tabs.md US-002.",
+          "acceptanceCriteria": [
+            "Tab bar md:hidden only",
+            "Labels Hoy, Anotar, Clientes, Más",
+            "Hoy not active on /tickets list alone",
+            "Safe area respected",
+            "Verify mobile viewport"
+          ],
+          "blockedBy": ["Field tab definitions in shared nav config"]
+        },
+        {
+          "title": "Bottom tabs hide for sticky form actions",
+          "whatToBuild": "Hide tabs when sticky action bar visible. List pages reserve bottom padding.",
+          "acceptanceCriteria": [
+            "Tabs hidden on ticket create/edit sticky CTA",
+            "No double bottom chrome",
+            "Verify Anotar/create flow mobile"
+          ],
+          "blockedBy": ["Mobile bottom tab bar Hoy / Anotar / Clientes / Más"]
+        },
+        {
+          "title": "Playwright E2E and checklist for field tabs",
+          "whatToBuild": "Update e2e/mobile-bottom-tabs.spec.ts and field-release-checklist.md for Hoy/Anotar labels.",
+          "acceptanceCriteria": [
+            "E2E passes on mobile-chrome",
+            "Checklist tab smoke line added",
+            "CI green"
+          ],
+          "blockedBy": [
+            "Mobile bottom tab bar Hoy / Anotar / Clientes / Más",
+            "Bottom tabs hide for sticky form actions"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "technician-solo-mode",
+      "branch": "feat/technician-solo-mode",
+      "parentTitle": "PRD: Technician solo mode (Hoy-first home)",
+      "prdFile": "tasks/prd-technician-solo-mode.md",
+      "order": 1,
+      "slices": [
+        {
+          "title": "Campo experience_mode setting and resolver",
+          "whatToBuild": "Add Company.settings.experience_mode and resolveExperienceMode() with single-user auto-default to campo.",
+          "acceptanceCriteria": [
+            "experience_mode campo | office in settings JSON",
+            "Auto-default: 1 user => campo",
+            "Unit tests",
+            "Migration not required (JSON settings)"
+          ],
+          "blockedBy": []
+        },
+        {
+          "title": "Campo dashboard composition and mobile Hoy-first layout",
+          "whatToBuild": "Pure composition module; mobile campo hides charts, KPI grid, onboarding checklist; technician day widget first.",
+          "acceptanceCriteria": [
+            "No DashboardCharts on mobile campo",
+            "Technician day widget first slot",
+            "SSR initialExperienceMode prevents chart flash",
+            "Office mode unchanged",
+            "Playwright: no chart on mobile campo"
+          ],
+          "blockedBy": ["Campo experience_mode setting and resolver"]
+        },
+        {
+          "title": "Campo copy and sidebar Hoy label",
+          "whatToBuild": "Field Spanish on dashboard intro and technician widget. Sidebar Inicio => Hoy when campo.",
+          "acceptanceCriteria": [
+            "Subtitle Tu día en el campo",
+            "Breadcrumb Hoy in campo",
+            "Sidebar Hoy label for /dashboard",
+            "Empty state CTA to Anotar"
+          ],
+          "blockedBy": ["Campo dashboard composition and mobile Hoy-first layout"]
+        },
+        {
+          "title": "Mi empresa Experiencia toggle (Campo vs Oficina)",
+          "whatToBuild": "Admin toggle saves experience_mode; dashboard switches on next load.",
+          "acceptanceCriteria": [
+            "company.manage required",
+            "Toggle persists in settings",
+            "Office charts return when office selected",
+            "Verify browser"
+          ],
+          "blockedBy": ["Campo experience_mode setting and resolver"]
+        },
+        {
+          "title": "Compact Hoy summary strip (entró hoy / por cobrar)",
+          "whatToBuild": "Two stat chips above day queue linking to cobranza when balances exist.",
+          "acceptanceCriteria": [
+            "Entró hoy and Por cobrar chips on mobile campo",
+            "Hidden when metrics fail",
+            "Verify mobile viewport"
+          ],
+          "blockedBy": ["Campo dashboard composition and mobile Hoy-first layout"]
+        }
+      ]
+    },
+    {
+      "slug": "offline-first-jobs",
+      "branch": "feat/offline-first-jobs",
+      "parentTitle": "PRD: Offline-first jobs (local store + sync)",
+      "prdFile": "tasks/prd-offline-first-jobs.md",
+      "order": 2,
+      "slices": [
+        {
+          "title": "FieldJobStore IndexedDB schema and module",
+          "whatToBuild": "Dexie or thin IDB wrapper: LocalJob + OutboxEntry stores scoped by companyId. FieldJobStore public API.",
+          "acceptanceCriteria": [
+            "CRUD LocalJob with schema version",
+            "Outbox store with coalesce updates",
+            "Unit tests with fake store",
+            "Tenant key isolation"
+          ],
+          "blockedBy": []
+        },
+        {
+          "title": "Offline job create with pendiente de subir badge",
+          "whatToBuild": "When offline, save to FieldJobStore instead of Server Actions. Toast Guardado en el teléfono.",
+          "acceptanceCriteria": [
+            "Offline create on /tickets/create or /anotar path",
+            "Badge Pendiente de subir",
+            "No RFC/readiness block",
+            "Survives reload"
+          ],
+          "blockedBy": ["FieldJobStore IndexedDB schema and module"]
+        },
+        {
+          "title": "Sync runner and server action adapter",
+          "whatToBuild": "Drain outbox on online/foreground; map to createTicket/updateTicket; idempotent create by localId.",
+          "acceptanceCriteria": [
+            "Successful sync sets serverTicketId",
+            "Retry on failure with Spanish error",
+            "Integration tests with mocked actions",
+            "No duplicate tickets on retry"
+          ],
+          "blockedBy": ["Offline job create with pendiente de subir badge"]
+        },
+        {
+          "title": "Merge local jobs into Hoy and ticket lists",
+          "whatToBuild": "Hoy widget and lists show local + server jobs; dedupe by serverTicketId.",
+          "acceptanceCriteria": [
+            "Offline Hoy shows local jobs",
+            "Online merge without duplicates",
+            "Airplane mode E2E or manual doc"
+          ],
+          "blockedBy": ["FieldJobStore IndexedDB schema and module"]
+        },
+        {
+          "title": "Subir ahora control and offline edit",
+          "whatToBuild": "Manual sync button; offline edit updates outbox; optional Wi-Fi-only defer (document default).",
+          "acceptanceCriteria": [
+            "Subir ahora flushes outbox",
+            "Offline edit coalesces in outbox",
+            "Pending count visible",
+            "Tests for edit-then-sync"
+          ],
+          "blockedBy": ["Sync runner and server action adapter"]
+        },
+        {
+          "title": "Playwright mobile offline jobs E2E",
+          "whatToBuild": "e2e/mobile-offline-jobs.spec.ts: offline create, reload, online sync.",
+          "acceptanceCriteria": [
+            "mobile-chrome project passes",
+            "CI stable",
+            "field-release-checklist offline section satisfied"
+          ],
+          "blockedBy": ["Sync runner and server action adapter", "Merge local jobs into Hoy and ticket lists"]
+        }
+      ]
+    },
+    {
+      "slug": "job-capture-anotar",
+      "branch": "feat/job-capture-anotar",
+      "parentTitle": "PRD: Anotar one-screen job capture",
+      "prdFile": "tasks/prd-job-capture-anotar.md",
+      "order": 3,
+      "slices": [
+        {
+          "title": "Ticket work_notes schema migration",
+          "whatToBuild": "Add work_notes text column to Ticket; drizzle migration.",
+          "acceptanceCriteria": [
+            "Migration applies locally",
+            "Existing rows valid",
+            "Typecheck pass"
+          ],
+          "blockedBy": []
+        },
+        {
+          "title": "anotarCapture server action",
+          "whatToBuild": "Single action: create + finish + work_notes; synthetic service line; skip production readiness for this path only.",
+          "acceptanceCriteria": [
+            "Unit tests: happy path, paid>total, cross-tenant",
+            "TicketAuditEvent recorded",
+            "BigInt stringified at boundary"
+          ],
+          "blockedBy": ["Ticket work_notes schema migration"]
+        },
+        {
+          "title": "/anotar one-screen mobile page",
+          "whatToBuild": "Single form: client, qué hice, total, pagó; sticky Guardar; no stepper.",
+          "acceptanceCriteria": [
+            "tickets.write gate",
+            "No CompanyProductionNotice block",
+            "Success navigates to ticket detail",
+            "Verify mobile viewport"
+          ],
+          "blockedBy": ["anotarCapture server action"]
+        },
+        {
+          "title": "Client typeahead and quick nuevo on Anotar",
+          "whatToBuild": "Combobox search; inline minimal client create; ?clientId= deep link.",
+          "acceptanceCriteria": [
+            "Debounced tenant-scoped search",
+            "Quick nuevo name+phone",
+            "Verify mobile"
+          ],
+          "blockedBy": ["/anotar one-screen mobile page"]
+        },
+        {
+          "title": "Retarget Anotar tab to /anotar and E2E",
+          "whatToBuild": "nav-items Anotar href /anotar; update mobile-bottom-tabs spec; office link to full wizard.",
+          "acceptanceCriteria": [
+            "Single config change for tab href",
+            "E2E Anotar happy path",
+            "Creación completa link to /tickets/create"
+          ],
+          "blockedBy": ["/anotar one-screen mobile page"]
+        },
+        {
+          "title": "submitAnotarCapture offline handoff contract",
+          "whatToBuild": "Shared payload type; submit indirection routes to FieldJobStore when offline (wire Epic B).",
+          "acceptanceCriteria": [
+            "AnotarCaptureInput exported",
+            "Offline uses FieldJobStore when navigator offline",
+            "Document cross-link in offline PRD"
+          ],
+          "blockedBy": [
+            "/anotar one-screen mobile page",
+            "Offline job create with pendiente de subir badge"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "field-send-cobro",
+      "branch": "feat/field-send-cobro",
+      "parentTitle": "PRD: Field send & cobro (WhatsApp, recibo, Hoy cobranza)",
+      "prdFile": "tasks/prd-field-send-cobro.md",
+      "order": 4,
+      "slices": [
+        {
+          "title": "JobWhatsAppSendMenu and quote helper",
+          "whatToBuild": "Unified send sheet on job cards; extend whatsapp-share with buildWhatsAppQuoteShare; reuse ticket-invoice-download for PDF.",
+          "acceptanceCriteria": [
+            "Menu options: visita, saldo, presupuesto, recibo PDF",
+            "whatsapp-share.test.ts extended",
+            "User gesture only"
+          ],
+          "blockedBy": []
+        },
+        {
+          "title": "FieldJobCard shared component on Hoy",
+          "whatToBuild": "Extract JobCard + send menu; migrate DashboardTechnicianDayWidget to use it.",
+          "acceptanceCriteria": [
+            "technician-day-widget testid preserved",
+            "Llamar tel: links",
+            "Send menu on each card"
+          ],
+          "blockedBy": ["JobWhatsAppSendMenu and quote helper"]
+        },
+        {
+          "title": "Hoy Por cobrar strip with WhatsApp and Cobrar",
+          "whatToBuild": "Top N cobranza rows on campo dashboard; collect dialog; Ver toda la cobranza link.",
+          "acceptanceCriteria": [
+            "Uses cobranza row semantics",
+            "WhatsApp saldo from strip",
+            "TicketListCollectPaymentDialog integration",
+            "Verify mobile"
+          ],
+          "blockedBy": ["FieldJobCard shared component on Hoy"]
+        },
+        {
+          "title": "Offline recibo simple text and image share",
+          "whatToBuild": "offline-receipt.ts; share via wa.me text and canvas image when PDF unavailable.",
+          "acceptanceCriteria": [
+            "Works offline from local job snapshot",
+            "Copy explains recibo simple",
+            "Unit tests for receipt text",
+            "Manual airplane mode test"
+          ],
+          "blockedBy": [
+            "JobWhatsAppSendMenu and quote helper",
+            "Offline job create with pendiente de subir badge"
+          ]
+        },
+        {
+          "title": "Anotar post-save Enviar prompt",
+          "whatToBuild": "After successful Anotar save, show Enviar por WhatsApp using same send menu.",
+          "acceptanceCriteria": [
+            "Highlights recibo or saldo by job state",
+            "Dismissible Listo to Hoy",
+            "Verify mobile"
+          ],
+          "blockedBy": [
+            "JobWhatsAppSendMenu and quote helper",
+            "/anotar one-screen mobile page"
+          ]
+        }
+      ]
+    }
+  ]
+}

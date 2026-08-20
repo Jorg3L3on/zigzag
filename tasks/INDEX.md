@@ -6,9 +6,17 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 | Status | File | Kind |
 |--------|------|------|
+| 📋 | [FIELD-PROGRAM.md](./FIELD-PROGRAM.md) | **Agent entry** — handoff, branches, GitHub #421–452 |
+| 📋 | [field-program-issues.json](./field-program-issues.json) | Published slice issue registry |
+| 📋 | [field-program-slices.json](./field-program-slices.json) | Machine-readable slice catalog |
+| 📋 | [field-release-checklist.md](./field-release-checklist.md) | Return-day manual QA |
 | 📋 | [prd-first-customer-field-technician.md](./prd-first-customer-field-technician.md) | Discovery — value map for first customer (electrician / HVAC / consultancy; Android, offline, notebook habits). **Do not implement from this file yet.** |
 | 📋 | [prd-field-program-decisions.md](./prd-field-program-decisions.md) | Locked decisions for field program (Hoy/Anotar tabs, offline, PWA-first) |
-| 📋 | [prd-field-bottom-tabs.md](./prd-field-bottom-tabs.md) | Epic A0 — mobile tabs **Hoy · Anotar · Clientes · Más** (supersedes generic Inicio/Tickets in native-feel tabs PRD) |
+| 📋 | [prd-field-bottom-tabs.md](./prd-field-bottom-tabs.md) | Epic A0 — mobile tabs **Hoy · Anotar · Clientes · Más** ([#422](https://github.com/Jorg3L3on/zigzag/issues/422)) |
+| 📋 | [prd-technician-solo-mode.md](./prd-technician-solo-mode.md) | Epic A — Hoy-first campo home ([#427](https://github.com/Jorg3L3on/zigzag/issues/427)) |
+| 📋 | [prd-offline-first-jobs.md](./prd-offline-first-jobs.md) | Epic B — IndexedDB + sync ([#433](https://github.com/Jorg3L3on/zigzag/issues/433)) |
+| 📋 | [prd-job-capture-anotar.md](./prd-job-capture-anotar.md) | Epic C — `/anotar` one-screen ([#440](https://github.com/Jorg3L3on/zigzag/issues/440)) |
+| 📋 | [prd-field-send-cobro.md](./prd-field-send-cobro.md) | Epic D — WhatsApp + cobro on Hoy ([#447](https://github.com/Jorg3L3on/zigzag/issues/447)) |
 | ✅ | [prd-login-page-redesign.md](./prd-login-page-redesign.md) ([#276](https://github.com/Jorg3L3on/zigzag/issues/276); slices [#278](https://github.com/Jorg3L3on/zigzag/issues/278)–[#281](https://github.com/Jorg3L3on/zigzag/issues/281); prod [#286](https://github.com/Jorg3L3on/zigzag/pull/286)) · prototype [`prototypes/zigzag-login-redesign.html`](./prototypes/zigzag-login-redesign.html) | Public `/login` ticket redesign + collapsible guide stub |
 | 🔶 | [prd-native-feel-pwa.md](./prd-native-feel-pwa.md) ([#341](https://github.com/Jorg3L3on/zigzag/issues/341); slices [#342](https://github.com/Jorg3L3on/zigzag/issues/342)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Parent epic — most slices shipped; LCP pagination/SSR follow-up Aug 2026 |
 | ❌ | [prd-native-feel-bottom-tabs.md](./prd-native-feel-bottom-tabs.md) ([#342](https://github.com/Jorg3L3on/zigzag/issues/342)) | Slice — mobile bottom tabs |
@@ -283,4 +291,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-08-20 (field program decisions + Hoy/Anotar bottom tabs PRD).
+- **Last audited:** 2026-08-20 (field program agent-ready: PRDs, GitHub #421–452, FIELD-PROGRAM.md).
