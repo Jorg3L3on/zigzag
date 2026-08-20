@@ -113,11 +113,8 @@ const AnotarPageContent = () => {
   const [paymentMode, setPaymentMode] = React.useState<PaymentMode>('paid');
   const [totalInput, setTotalInput] = React.useState('');
   const [paidInput, setPaidInput] = React.useState('');
-<<<<<<< HEAD
   const [savedJob, setSavedJob] = React.useState<FieldJobSnapshot | null>(null);
-=======
   const prefillAppliedRef = React.useRef<string | null>(null);
->>>>>>> 3fdffba (feat(anotar): debounced client typeahead and ?clientId= deep link (#444))
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
