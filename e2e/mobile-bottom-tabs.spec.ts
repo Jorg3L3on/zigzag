@@ -58,10 +58,10 @@ test.describe('Mobile bottom tabs', () => {
     );
   });
 
-  test('hides tabs on Anotar when sticky action bar is present', async ({
+  test('hides tabs on ticket create when sticky action bar is present', async ({
     page,
   }) => {
-    await page.goto('/anotar');
+    await page.goto('/tickets/create');
 
     await expect(visibleMobileStickyActionBar(page)).toBeVisible({
       timeout: 15_000,
