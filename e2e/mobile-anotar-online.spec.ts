@@ -25,6 +25,9 @@ test.describe('Anotar online capture (Epic C)', () => {
     await expect(page.getByText('Trabajo del día')).toBeVisible({
       timeout: 30_000,
     });
+    await expect(
+      page.getByRole('combobox', { name: /Buscar cliente/i }),
+    ).toBeVisible();
 
     const unique = `Anotar Online ${Date.now()}`;
     const phone = `55${String(Date.now()).slice(-8)}`;

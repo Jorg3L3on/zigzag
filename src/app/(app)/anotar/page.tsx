@@ -2,14 +2,14 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { CheckCircle2, Circle, CircleCheck, Loader2, Plus, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { anotarCapture } from '@/actions/anotar';
-import { getClients, type Client } from '@/actions/clients';
+import { getClient, getClients, type Client } from '@/actions/clients';
 import { ClientForm } from '@/components/clients/client-form';
 import { ClientPhoneLink } from '@/components/client-phone-link';
 import { FormattedCurrency } from '@/components/formatted-currency';
@@ -45,13 +45,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { FieldSendSuccessPanel } from '@/components/field/field-send-success-panel';
 import { useCompany } from '@/contexts/company-context';
@@ -78,6 +72,8 @@ import { vibrateSuccess } from '@/lib/vibrate-success';
 const ANOTAR_FORM_ID = 'anotar-capture-form';
 const ANOTAR_RETRY_GUIDANCE =
   'Conservamos los datos del formulario. Revisa tu conexión y vuelve a intentar guardar.';
+const CLIENT_SEARCH_DEBOUNCE_MS = 300;
+const CLIENT_SEARCH_PAGE_SIZE = 25;
 
 type PaymentMode = 'paid' | 'partial' | 'pending';
 
@@ -101,8 +97,12 @@ const parseMoneyInput = (value: string): number => {
 
 const AnotarPageContent = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillClientId = searchParams.get('clientId');
   const { selectedCompany } = useCompany();
   const [clients, setClients] = React.useState<Client[]>([]);
+  const [clientQuery, setClientQuery] = React.useState('');
+  const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] =
@@ -113,7 +113,11 @@ const AnotarPageContent = () => {
   const [paymentMode, setPaymentMode] = React.useState<PaymentMode>('paid');
   const [totalInput, setTotalInput] = React.useState('');
   const [paidInput, setPaidInput] = React.useState('');
+<<<<<<< HEAD
   const [savedJob, setSavedJob] = React.useState<FieldJobSnapshot | null>(null);
+=======
+  const prefillAppliedRef = React.useRef<string | null>(null);
+>>>>>>> 3fdffba (feat(anotar): debounced client typeahead and ?clientId= deep link (#444))
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -175,7 +179,7 @@ const AnotarPageContent = () => {
   }, [draftKey, form]);
 
   React.useEffect(() => {
-    if (!draftKey || clients.length === 0) {
+    if (!draftKey) {
       return;
     }
     const draft = readAnotarFormDraft(draftKey);
@@ -185,7 +189,18 @@ const AnotarPageContent = () => {
     const match = clients.find((item) => item.id === draft.client_id);
     if (match) {
       setSelectedClient(match);
+      return;
     }
+    let cancelled = false;
+    void getClient(draft.client_id).then((result) => {
+      if (cancelled || !result.success || !result.data) {
+        return;
+      }
+      setSelectedClient(result.data);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [clients, draftKey]);
 
   React.useEffect(() => {
@@ -208,6 +223,13 @@ const AnotarPageContent = () => {
   }, [draftKey, form, totalInput, paidInput, paymentMode]);
 
   React.useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedClientQuery(clientQuery.trim());
+    }, CLIENT_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [clientQuery]);
+
+  React.useEffect(() => {
     let cancelled = false;
 
     const fetchClients = async () => {
@@ -222,7 +244,8 @@ const AnotarPageContent = () => {
       const result = await getClients({
         companyId: selectedCompany.id,
         page: 1,
-        pageSize: 200,
+        pageSize: CLIENT_SEARCH_PAGE_SIZE,
+        search: debouncedClientQuery || undefined,
       });
 
       if (!cancelled) {
@@ -237,9 +260,44 @@ const AnotarPageContent = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedCompany?.id]);
+  }, [selectedCompany?.id, debouncedClientQuery]);
+
+  React.useEffect(() => {
+    if (!prefillClientId || prefillAppliedRef.current === prefillClientId) {
+      return;
+    }
+    const id = Number.parseInt(prefillClientId, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      return;
+    }
+    prefillAppliedRef.current = prefillClientId;
+    let cancelled = false;
+    void getClient(id).then((result) => {
+      if (cancelled || !result.success || !result.data) {
+        return;
+      }
+      const match = result.data;
+      setSelectedClient(match);
+      setClients((prev) =>
+        prev.some((item) => item.id === match.id) ? prev : [match, ...prev],
+      );
+      form.setValue('client_id', match.id);
+      form.setValue('client_name', match.name);
+      form.setValue('client_tel', match.phone || '');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [prefillClientId, form]);
 
   const handleClientSelect = (clientId: string) => {
+    if (!clientId) {
+      setSelectedClient(null);
+      form.setValue('client_id', undefined);
+      form.setValue('client_name', '');
+      form.setValue('client_tel', '');
+      return;
+    }
     const match = clients.find((item) => item.id === Number.parseInt(clientId, 10));
     if (!match) {
       return;
@@ -250,6 +308,27 @@ const AnotarPageContent = () => {
     form.setValue('client_name', match.name);
     form.setValue('client_tel', match.phone || '');
   };
+
+  const clientOptions = React.useMemo(() => {
+    const options = clients.map((clientItem) => ({
+      value: String(clientItem.id),
+      label: clientItem.phone
+        ? `${clientItem.name} · ${clientItem.phone}`
+        : clientItem.name,
+    }));
+    if (
+      selectedClient &&
+      !options.some((option) => option.value === String(selectedClient.id))
+    ) {
+      options.unshift({
+        value: String(selectedClient.id),
+        label: selectedClient.phone
+          ? `${selectedClient.name} · ${selectedClient.phone}`
+          : selectedClient.name,
+      });
+    }
+    return options;
+  }, [clients, selectedClient]);
 
   const totalAmount = roundMoney(parseMoneyInput(totalInput));
 
@@ -396,7 +475,8 @@ const AnotarPageContent = () => {
     }
   };
 
-  const isClientListEmpty = !isClientsLoading && clients.length === 0;
+  const isClientListEmpty =
+    !isClientsLoading && clients.length === 0 && !debouncedClientQuery;
 
   if (savedJob) {
     return (
@@ -498,44 +578,24 @@ const AnotarPageContent = () => {
                       <FormLabel>Cliente</FormLabel>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <div className="min-w-0 flex-1">
-                          <Select
-                            disabled={isClientsLoading}
-                            onValueChange={handleClientSelect}
-                            value={
-                              field.value != null && field.value > 0
-                                ? String(field.value)
-                                : undefined
-                            }
-                          >
-                            <FormControl>
-                              <SelectTrigger
-                                className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
-                                aria-busy={isClientsLoading}
-                              >
-                                {isClientsLoading ? (
-                                  <span className="flex w-full items-center gap-2 text-muted-foreground">
-                                    <Loader2
-                                      className="h-4 w-4 shrink-0 animate-spin"
-                                      aria-hidden
-                                    />
-                                    <span>Cargando clientes…</span>
-                                  </span>
-                                ) : (
-                                  <SelectValue placeholder="Selecciona un cliente" />
-                                )}
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {clients.map((clientItem) => (
-                                <SelectItem
-                                  key={clientItem.id}
-                                  value={clientItem.id.toString()}
-                                >
-                                  {clientItem.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              aria-label="Buscar cliente"
+                              options={clientOptions}
+                              value={
+                                field.value != null && field.value > 0
+                                  ? String(field.value)
+                                  : ''
+                              }
+                              onValueChange={handleClientSelect}
+                              onSearchChange={setClientQuery}
+                              isLoading={isClientsLoading}
+                              placeholder="Selecciona un cliente"
+                              searchPlaceholder="Buscar por nombre o teléfono…"
+                              emptyText="Sin clientes que coincidan"
+                              className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
+                            />
+                          </FormControl>
                         </div>
 
                         <Dialog
@@ -556,7 +616,7 @@ const AnotarPageContent = () => {
                             <DialogHeader className="shrink-0 border-b border-border/60 px-6 pb-4 pr-12 pt-6">
                               <DialogTitle>Crear nuevo cliente</DialogTitle>
                               <DialogDescription>
-                                Completa los datos del nuevo cliente
+                                Nombre y teléfono bastan para anotar el trabajo
                               </DialogDescription>
                             </DialogHeader>
                             <ClientForm
