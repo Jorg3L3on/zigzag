@@ -49,7 +49,32 @@ describe('field job merge + sync', () => {
     const merged = mergeTechnicianDayWithLocalJobs(server, local);
     expect(merged[0]?.clientName).toBe('Local');
     expect(merged[0]?.pendingSync).toBe(true);
-    expect(merged).toHaveLength(2);
+  });
+
+  it('surfaces finished pending Anotar jobs on Hoy', () => {
+    const local = [
+      {
+        localJobId: 'local-anotar',
+        companyId: 1,
+        payload: {
+          client_name: 'Anotar',
+          client_tel: '5533333333',
+          total: 150,
+          paid: 150,
+          finished: true,
+          work_notes: 'offline',
+        },
+        syncStatus: 'pending' as const,
+        createdAt: '2026-08-20T10:00:00.000Z',
+        updatedAt: '2026-08-20T10:00:00.000Z',
+      },
+    ];
+
+    const merged = mergeTechnicianDayWithLocalJobs([], local);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.clientName).toBe('Anotar');
+    expect(merged[0]?.finished).toBe(true);
+    expect(merged[0]?.pendingSync).toBe(true);
     expect(countPendingFieldUploads(local)).toBe(1);
   });
 

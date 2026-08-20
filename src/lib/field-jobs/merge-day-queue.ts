@@ -70,9 +70,8 @@ export const mergeTechnicianDayWithLocalJobs = (
     .filter((item) => !remoteIds.has(item.id))
     .map((item) => ({ ...item, pendingSync: false }));
 
-  const localCards = pending
-    .filter((job) => !job.payload.finished)
-    .map(localJobToTechnicianDayTicket);
+  // Include finished pending creates (Anotar always saves finished: true).
+  const localCards = pending.map(localJobToTechnicianDayTicket);
 
   return [...localCards, ...mergedServer];
 };

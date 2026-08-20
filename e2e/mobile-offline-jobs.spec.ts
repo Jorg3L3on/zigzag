@@ -27,37 +27,58 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
       timeout: 30_000,
     });
 
-    await context.setOffline(true);
-
     const unique = `Offline Anotar ${Date.now()}`;
-    // Prefer name field when no client selected — fill client name + phone
-    const nameInput = page.getByLabel(/^Nombre/i).first();
-    const phoneInput = page.getByLabel(/Teléfono/i).first();
-    if (await nameInput.isVisible().catch(() => false)) {
-      await nameInput.fill(unique);
-    }
-    if (await phoneInput.isVisible().catch(() => false)) {
-      await phoneInput.fill('5512345678');
-    }
-    const notes = page.getByLabel(/Qué hice|Notas|trabajo/i).first();
-    if (await notes.isVisible().catch(() => false)) {
-      await notes.fill('Trabajo offline de prueba');
-    }
-    const total = page.getByLabel(/^Total/i).first();
-    if (await total.isVisible().catch(() => false)) {
-      await total.fill('150');
-    }
+    const phone = `55${String(Date.now()).slice(-8)}`;
+
+    // Create/select a client while online so Anotar has required name + phone.
+    await page.getByRole('button', { name: 'Nuevo cliente' }).first().click();
+    const clientDialog = page.getByRole('dialog', {
+      name: 'Crear nuevo cliente',
+    });
+    await expect(clientDialog).toBeVisible();
+    await clientDialog.getByLabel('Nombre').fill(unique);
+    await clientDialog.getByLabel('Teléfono').fill(phone);
+    await clientDialog.getByRole('button', { name: 'Crear' }).click();
+    await expect(page.getByText('Cliente seleccionado')).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(clientDialog).toBeHidden({ timeout: 10_000 });
+
+    const notes = page.getByLabel(/Qué hice/i).first();
+    await expect(notes).toBeVisible();
+    await notes.fill('Trabajo offline de prueba');
+
+    const total = page.getByLabel(/^Total$/i).first();
+    await expect(total).toBeVisible();
+    await total.fill('150');
+
+    await context.setOffline(true);
 
     await page.getByRole('button', { name: /Guardar/i }).first().click();
     await expect(page.getByText(/Guardado en el teléfono/i)).toBeVisible({
       timeout: 15_000,
     });
 
+    // Reconnect for navigation, but block mutations so auto-flush cannot clear
+    // the pending badge before we assert it.
+    await context.setOffline(false);
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      const isMutation =
+        request.method() !== 'GET' && request.method() !== 'HEAD';
+      const isServerAction = Boolean(request.headers()['next-action']);
+      if (isMutation || isServerAction) {
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+
     await page.goto('/dashboard');
     await expect(page.getByTestId('technician-day-widget')).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText(/Pendiente de subir/i).first()).toBeVisible({
+    await expect(page.getByText(/pendiente(?:s)? de subir/i).first()).toBeVisible({
       timeout: 15_000,
     });
   });
