@@ -25,20 +25,28 @@ test.describe('Mobile campo Hoy home (Epic A)', () => {
     );
 
     await page.goto('/company');
-    await expect(page.getByLabel('Experiencia de inicio')).toBeVisible({
-      timeout: 30_000,
-    });
-    await page.getByLabel('Experiencia de inicio').click();
+    const experience = page
+      .getByRole('combobox', { name: 'Experiencia de inicio' })
+      .locator('visible=true')
+      .first();
+    await expect(experience).toBeVisible({ timeout: 30_000 });
+    await experience.click();
     await page.getByRole('option', { name: 'Campo', exact: true }).click();
-    await page.getByRole('button', { name: /Guardar cambios|Guardar/i }).click();
-    await expect(page.getByText(/Empresa actualizada|guardado/i).first()).toBeVisible({
-      timeout: 30_000,
-    }).catch(() => undefined);
+    await page
+      .getByRole('button', { name: /Guardar cambios|Guardar/i })
+      .locator('visible=true')
+      .first()
+      .click();
+    await expect(
+      page.getByText(/Empresa actualizada|guardado|cambios/i).first(),
+    )
+      .toBeVisible({ timeout: 15_000 })
+      .catch(() => undefined);
 
     await page.goto('/dashboard');
-    await expect(page.getByText(/Tu día en el campo|Trabajo de hoy/i).first()).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(
+      page.getByText(/Tu día en el campo|Trabajo de hoy/i).first(),
+    ).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('#dashboard-revenue-chart-title')).toHaveCount(0);
     await expect(page.getByTestId('mobile-bottom-tab-bar')).toBeVisible();
   });
