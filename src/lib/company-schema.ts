@@ -6,6 +6,9 @@ export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
   invoice_footer_note: z.string().optional(),
   default_currency: z.string().optional(),
+  experience_mode: z
+    .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
+    .optional(),
 });
 
 export const companyFormSchema = z.object({
@@ -45,6 +48,9 @@ export function normalizeCompanySettingsForDb(
   }
   if (cur) {
     out.default_currency = cur;
+  }
+  if (input.experience_mode === 'campo' || input.experience_mode === 'office') {
+    out.experience_mode = input.experience_mode;
   }
   return Object.keys(out).length > 0 ? out : null;
 }

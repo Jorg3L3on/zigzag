@@ -47,6 +47,8 @@ export type CompanySettingsJson = {
   invoice_footer_note?: string;
   default_currency?: string;
   onboarding_checklist_dismissed_at?: string;
+  /** Field program: campo = Hoy-first mobile; office = full dashboard. */
+  experience_mode?: 'campo' | 'office';
 };
 
 export const company = pgTable(
