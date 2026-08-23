@@ -2,7 +2,8 @@
  * Production-only service worker registration helpers.
  *
  * Cache strategy (see `src/app/sw.ts`):
- * - Precache / cache-first: `_next/static`, fonts, icons, offline shell page
+ * - Precache / cache-first: fonts, icons, offline shell page
+ * - Network-first: `_next/static` JS (avoids stale post-deploy chunks on PWA)
  * - Network-only: `/api/**`, auth, Server Actions, RSC flight requests
  * - Navigations: network-first with offline fallback to `/offline`
  */
