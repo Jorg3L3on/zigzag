@@ -1,20 +1,17 @@
+'use client';
+
+import * as React from 'react';
 import type { ReactNode } from 'react';
+import {
+  getTimeOfDayGreeting,
+  NEUTRAL_TIME_GREETING,
+} from '@/lib/time-greeting';
 
 export type DashboardPageIntroProps = {
   userName?: string | null;
   /** Personalized subtitle (attention count, persona copy, etc.). */
   subtitle?: string | null;
   children?: ReactNode;
-};
-
-const getGreeting = (hour: number): string => {
-  if (hour < 12) {
-    return 'Buenos días';
-  }
-  if (hour < 19) {
-    return 'Buenas tardes';
-  }
-  return 'Buenas noches';
 };
 
 const getDisplayName = (userName?: string | null): string | null => {
@@ -25,13 +22,22 @@ const getDisplayName = (userName?: string | null): string | null => {
   return trimmed.split(/\s+/)[0] ?? trimmed;
 };
 
+const useLocalTimeGreeting = (): string => {
+  const [greeting, setGreeting] = React.useState(NEUTRAL_TIME_GREETING);
+
+  React.useEffect(() => {
+    setGreeting(getTimeOfDayGreeting(new Date().getHours()));
+  }, []);
+
+  return greeting;
+};
+
 export const DashboardPageIntro = ({
   userName,
   subtitle,
   children,
 }: DashboardPageIntroProps) => {
-  const hour = new Date().getHours();
-  const greeting = getGreeting(hour);
+  const greeting = useLocalTimeGreeting();
   const firstName = getDisplayName(userName);
   const title = firstName ? `${greeting}, ${firstName}` : greeting;
   const resolvedSubtitle =
@@ -43,6 +49,7 @@ export const DashboardPageIntro = ({
         <h1
           className="truncate text-3xl font-semibold tracking-tight text-foreground"
           style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
+          suppressHydrationWarning
         >
           {title}
         </h1>
