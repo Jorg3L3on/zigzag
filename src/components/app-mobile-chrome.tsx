@@ -12,7 +12,13 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX } from '@/lib/nav-items';
 
 const IDLE_PREFETCH_SESSION_KEY = 'zigzag:mobile-shell-prefetched';
-const IDLE_PREFETCH_ROUTES = ['/dashboard', '/tickets', '/clients'] as const;
+const IDLE_PREFETCH_ROUTES = [
+  '/dashboard',
+  '/tickets',
+  '/clients',
+  '/presupuestos',
+  '/cobranza',
+] as const;
 
 const IdlePrefetch = () => {
   const router = useRouter();

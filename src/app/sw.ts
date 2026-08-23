@@ -3,7 +3,8 @@
 /**
  * ZigZag PWA service worker — app shell only.
  *
- * Precache / cache-first: `_next/static`, fonts, icons, `/offline` shell page.
+ * Precache / cache-first: fonts, icons, `/offline` shell page.
+ * Network-first: `_next/static` JS (post-deploy chunk safety on installed PWAs).
  * Network-only: `/api/**`, auth, Server Action POSTs, RSC flight requests
  * (never serve stale tenant JSON from cache).
  * Navigations: network-first with offline fallback to `/offline`.
@@ -84,8 +85,9 @@ const shellRuntimeCaching: RuntimeCaching[] = [
   },
   {
     matcher: /\/_next\/static.+\.js$/i,
-    handler: new CacheFirst({
+    handler: new NetworkFirst({
       cacheName: 'next-static-js-assets',
+      networkTimeoutSeconds: 10,
       plugins: [
         new ExpirationPlugin({
           maxEntries: 64,

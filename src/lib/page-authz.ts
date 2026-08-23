@@ -5,12 +5,19 @@ import {
   requireSystemUser,
 } from '@/lib/security';
 import { resolveWritableCompanyId } from '@/lib/authz-context';
+import { getExpiredLoginPath } from '@/lib/login-redirect';
 
 export async function requirePagePermission(
   permissionName: string,
   requestedCompanyId?: number | null,
 ): Promise<number> {
-  const context = await requireActionAuth();
+  let context;
+  try {
+    context = await requireActionAuth();
+  } catch {
+    redirect(getExpiredLoginPath());
+  }
+
   let companyId: number;
 
   try {
