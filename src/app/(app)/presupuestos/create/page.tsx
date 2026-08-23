@@ -143,24 +143,30 @@ export default function CreatePresupuestoPage() {
         >
           <Form {...form}>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <FormItem>
-                <FormLabel>Cliente existente</FormLabel>
-                <Select
-                  onValueChange={handleClientSelect}
-                  value={form.watch('client_id')}
-                >
-                  <SelectTrigger aria-label="Seleccionar cliente">
-                    <SelectValue placeholder="Opcional — autocompleta datos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={String(client.id)}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
+              <FormField
+                control={form.control}
+                name="client_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente existente</FormLabel>
+                    <Select
+                      onValueChange={handleClientSelect}
+                      value={field.value ? String(field.value) : ''}
+                    >
+                      <SelectTrigger aria-label="Seleccionar cliente">
+                        <SelectValue placeholder="Opcional — autocompleta datos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={String(client.id)}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
