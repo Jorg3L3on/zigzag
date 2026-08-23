@@ -64,10 +64,12 @@ describe('AppMobileChrome idle prefetch', () => {
     );
 
     expect(window.requestIdleCallback).toHaveBeenCalled();
-    expect(mockPrefetch).toHaveBeenCalledTimes(3);
+    expect(mockPrefetch).toHaveBeenCalledTimes(5);
     expect(mockPrefetch).toHaveBeenNthCalledWith(1, '/dashboard');
     expect(mockPrefetch).toHaveBeenNthCalledWith(2, '/tickets');
     expect(mockPrefetch).toHaveBeenNthCalledWith(3, '/clients');
+    expect(mockPrefetch).toHaveBeenNthCalledWith(4, '/presupuestos');
+    expect(mockPrefetch).toHaveBeenNthCalledWith(5, '/cobranza');
 
     unmount();
     render(
@@ -76,7 +78,7 @@ describe('AppMobileChrome idle prefetch', () => {
       </AppMobileChrome>,
     );
 
-    expect(mockPrefetch).toHaveBeenCalledTimes(3);
+    expect(mockPrefetch).toHaveBeenCalledTimes(5);
   });
 
   it('skips idle prefetch on desktop widths', () => {
