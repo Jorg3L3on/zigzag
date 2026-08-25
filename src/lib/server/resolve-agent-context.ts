@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { apiKey, company, user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
-import { checkPermission } from '@/lib/security';
+import { checkUserPermission } from '@/lib/security';
 import {
   AGENT_TOKEN_LOOKUP_LENGTH,
   AGENT_TOKEN_PREFIX,
@@ -213,7 +213,7 @@ export async function assertAgentCompanyAccess(
     throw forbidden('Sin acceso a esta compañía');
   }
 
-  const allowed = await checkPermission(String(agent.userId), companyId, permission);
+  const allowed = await checkUserPermission(String(agent.userId), companyId, permission);
   if (!allowed) {
     throw forbidden(`Permiso "${permission}" requerido para esta compañía`);
   }
