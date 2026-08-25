@@ -11,6 +11,18 @@ ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /
 
 El endpoint responde `OPTIONS` con CORS abierto. Sin un token válido ninguna tool devuelve datos (401 + `WWW-Authenticate` RFC 9728).
 
+### Origen público (issuer / resource)
+
+Los endpoints well-known OAuth, redirects de authorize, DCR y la validación del parámetro `resource` en token **derivan el host del request entrante** (`Host` / `x-forwarded-host`), no de un `NEXTAUTH_URL` fijo que pueda apuntar a otro despliegue de Vercel.
+
+| Contexto | Origen usado |
+|---|---|
+| Request HTTP (well-known, `/api/oauth/*`, `/api/mcp`) | Host del request (p. ej. `https://zigzag-hazel.vercel.app`) |
+| SSR sin request (p. ej. Ajustes → Conexiones) | `NEXTAUTH_URL`, luego `AUTH_URL` si está definido |
+| Local sin env | `http://localhost:3069` |
+
+Mantén `NEXTAUTH_URL` alineado con la URL canónica de NextAuth en Vercel; el conector MCP no lo usa cuando el cliente ya llamó a un host concreto.
+
 ## Autenticación
 
 | Camino | Clientes típicos | Cómo se obtiene |

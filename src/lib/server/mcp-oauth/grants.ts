@@ -38,6 +38,7 @@ export const createAuthorizationCode = async (input: {
   codeChallenge: string;
   codeChallengeMethod: string;
   resource: string;
+  request?: Request;
 }) => {
   const { token: code, tokenHash } = generateAuthorizationCode();
   await db.insert(mcpOAuthAuthorizationCode).values({
@@ -49,7 +50,7 @@ export const createAuthorizationCode = async (input: {
     allowed_company_ids: input.allowedCompanyIds,
     code_challenge: input.codeChallenge,
     code_challenge_method: input.codeChallengeMethod,
-    resource: normalizeMcpResourceUrl(input.resource),
+    resource: normalizeMcpResourceUrl(input.resource, input.request),
     expires_at: oauthExpiresAtFromNow(OAUTH_CODE_TTL_MS),
   });
   return code;
@@ -78,6 +79,7 @@ export const exchangeAuthorizationCode = async (input: {
   codeVerifier?: string | null;
   clientAuthenticatedViaPrivateKeyJwt?: boolean;
   resource?: string | null;
+  request?: Request;
 }) => {
   const codeHash = hashOAuthSecret(input.code);
   const row = await db.query.mcpOAuthAuthorizationCode.findFirst({
@@ -114,7 +116,10 @@ export const exchangeAuthorizationCode = async (input: {
     throw new OAuthInvalidGrantError('pkce');
   }
 
-  if (input.resource && !mcpResourcesMatch(input.resource, row.resource)) {
+  if (
+    input.resource &&
+    !mcpResourcesMatch(input.resource, row.resource, input.request)
+  ) {
     throw new OAuthInvalidGrantError('resource');
   }
 
@@ -130,7 +135,7 @@ export const exchangeAuthorizationCode = async (input: {
       (scope): scope is AgentScope => scope === 'read' || scope === 'write',
     ),
     allowedCompanyIds: row.allowed_company_ids,
-    resource: normalizeMcpResourceUrl(row.resource),
+    resource: normalizeMcpResourceUrl(row.resource, input.request),
   });
 };
 
@@ -170,6 +175,7 @@ export const refreshOAuthGrant = async (input: {
   refreshToken: string;
   clientId: string;
   resource?: string | null;
+  request?: Request;
 }) => {
   const refreshHash = hashOAuthSecret(input.refreshToken);
   const row = await db.query.mcpOAuthGrant.findFirst({
@@ -182,7 +188,10 @@ export const refreshOAuthGrant = async (input: {
   if (row.client_id !== input.clientId) {
     throw new OAuthInvalidGrantError('client');
   }
-  if (input.resource && !mcpResourcesMatch(input.resource, row.resource)) {
+  if (
+    input.resource &&
+    !mcpResourcesMatch(input.resource, row.resource, input.request)
+  ) {
     throw new OAuthInvalidGrantError('resource');
   }
 

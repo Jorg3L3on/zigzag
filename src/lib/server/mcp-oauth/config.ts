@@ -22,27 +22,46 @@ export const OAUTH_TOKEN_LOOKUP_LENGTH = 20;
 const trimTrailingSlash = (value: string): string =>
   value.endsWith('/') ? value.slice(0, -1) : value;
 
-export const getOAuthIssuer = (request?: Request): string => {
-  const fromEnv = process.env.NEXTAUTH_URL?.trim();
-  if (fromEnv) return trimTrailingSlash(fromEnv);
+const getOAuthIssuerFromEnv = (): string | null => {
+  const fromEnv =
+    process.env.NEXTAUTH_URL?.trim() ?? process.env.AUTH_URL?.trim();
+  return fromEnv ? trimTrailingSlash(fromEnv) : null;
+};
 
-  if (request) {
-    try {
-      const url = new URL(request.url);
-      if (url.host) {
-        return trimTrailingSlash(`${url.protocol}//${url.host}`);
-      }
-    } catch {
-      // fall through
+const getOAuthIssuerFromRequest = (request: Request): string | null => {
+  try {
+    const url = new URL(request.url);
+    if (url.host) {
+      return trimTrailingSlash(`${url.protocol}//${url.host}`);
     }
-
-    const host =
-      request.headers.get('x-forwarded-host') ?? request.headers.get('host');
-    const proto =
-      request.headers.get('x-forwarded-proto') ??
-      (host?.includes('localhost') ? 'http' : 'https');
-    if (host) return trimTrailingSlash(`${proto}://${host}`);
+  } catch {
+    // fall through to forwarded headers
   }
+
+  const host =
+    request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const proto =
+    request.headers.get('x-forwarded-proto') ??
+    (host?.includes('localhost') ? 'http' : 'https');
+  if (host) return trimTrailingSlash(`${proto}://${host}`);
+
+  return null;
+};
+
+/**
+ * Canonical OAuth issuer / public origin for MCP metadata and endpoints.
+ * Prefers the incoming request Host so production aliases (e.g. zigzag-hazel.vercel.app)
+ * match what the client called. Falls back to NEXTAUTH_URL or AUTH_URL when no request
+ * is available (SSR, scripts). See docs/mcp-connector.md.
+ */
+export const getOAuthIssuer = (request?: Request): string => {
+  if (request) {
+    const fromRequest = getOAuthIssuerFromRequest(request);
+    if (fromRequest) return fromRequest;
+  }
+
+  const fromEnv = getOAuthIssuerFromEnv();
+  if (fromEnv) return fromEnv;
 
   return 'http://localhost:3069';
 };
