@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AccountFormDialog } from '@/components/account/account-form-dialog';
+import { Button } from '@/components/ui/button';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
@@ -59,8 +60,11 @@ export default function AccountPage() {
                   </h3>
                   <p className="mt-1">{session.user.company_name}</p>
                 </div>
-                <div className="pt-4">
+                <div className="pt-4 flex flex-wrap gap-2">
                   <AccountFormDialog />
+                  <Button asChild variant="outline" size="sm">
+                    <a href="/settings/connections">Conexiones MCP</a>
+                  </Button>
                 </div>
               </div>
             </CardContent>
