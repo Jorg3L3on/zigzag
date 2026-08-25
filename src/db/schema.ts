@@ -514,6 +514,182 @@ export const auditOutbox = pgTable(
   (t) => [index('AuditOutbox_status_idx').on(t.status)],
 );
 
+/** Bearer tokens for MCP agent connectors (`zigzag_…`). */
+export const apiKey = pgTable(
+  'ApiKey',
+  {
+    id: serial('id').primaryKey(),
+    user_id: bigint('user_id', { mode: 'bigint' })
+      .notNull()
+      .references(() => user.id),
+    name: text('name').notNull(),
+    key_hash: text('key_hash').notNull(),
+    key_prefix: text('key_prefix').notNull(),
+    scopes: text('scopes').array().notNull().default(['read']),
+    allowed_company_ids: integer('allowed_company_ids')
+      .array()
+      .notNull()
+      .default([]),
+    last_used_at: timestamp('last_used_at', { precision: 3, mode: 'date' }),
+    expires_at: timestamp('expires_at', { precision: 3, mode: 'date' }),
+    revoked_at: timestamp('revoked_at', { precision: 3, mode: 'date' }),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('ApiKey_key_prefix_key').on(t.key_prefix),
+    index('ApiKey_user_id_idx').on(t.user_id),
+  ],
+);
+
+/** Dynamically registered OAuth clients for MCP connectors (RFC 7591 / CIMD). */
+export const mcpOAuthClient = pgTable(
+  'McpOAuthClient',
+  {
+    id: serial('id').primaryKey(),
+    client_id: text('client_id').notNull(),
+    client_secret_hash: text('client_secret_hash'),
+    client_name: text('client_name').notNull(),
+    redirect_uris: text('redirect_uris').array().notNull(),
+    grant_types: text('grant_types')
+      .array()
+      .notNull()
+      .default(['authorization_code', 'refresh_token']),
+    response_types: text('response_types').array().notNull().default(['code']),
+    token_endpoint_auth_method: text('token_endpoint_auth_method')
+      .notNull()
+      .default('none'),
+    client_uri: text('client_uri'),
+    logo_uri: text('logo_uri'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex('McpOAuthClient_client_id_key').on(t.client_id)],
+);
+
+/** Short-lived authorization codes (OAuth 2.1 + PKCE). */
+export const mcpOAuthAuthorizationCode = pgTable(
+  'McpOAuthAuthorizationCode',
+  {
+    id: serial('id').primaryKey(),
+    code_hash: text('code_hash').notNull(),
+    client_id: text('client_id')
+      .notNull()
+      .references(() => mcpOAuthClient.client_id, { onDelete: 'cascade' }),
+    user_id: bigint('user_id', { mode: 'bigint' })
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    redirect_uri: text('redirect_uri').notNull(),
+    scopes: text('scopes').array().notNull(),
+    allowed_company_ids: integer('allowed_company_ids')
+      .array()
+      .notNull()
+      .default([]),
+    code_challenge: text('code_challenge').notNull(),
+    code_challenge_method: text('code_challenge_method').notNull().default('S256'),
+    resource: text('resource').notNull(),
+    expires_at: timestamp('expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }).notNull(),
+    used_at: timestamp('used_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('McpOAuthAuthorizationCode_code_hash_key').on(t.code_hash),
+    index('McpOAuthAuthorizationCode_client_id_idx').on(t.client_id),
+    index('McpOAuthAuthorizationCode_user_id_idx').on(t.user_id),
+  ],
+);
+
+/** OAuth access/refresh grants issued after user consent. */
+export const mcpOAuthGrant = pgTable(
+  'McpOAuthGrant',
+  {
+    id: serial('id').primaryKey(),
+    user_id: bigint('user_id', { mode: 'bigint' })
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    client_id: text('client_id')
+      .notNull()
+      .references(() => mcpOAuthClient.client_id, { onDelete: 'cascade' }),
+    token_hash: text('token_hash').notNull(),
+    token_prefix: text('token_prefix').notNull(),
+    refresh_token_hash: text('refresh_token_hash'),
+    refresh_token_prefix: text('refresh_token_prefix'),
+    scopes: text('scopes').array().notNull(),
+    allowed_company_ids: integer('allowed_company_ids')
+      .array()
+      .notNull()
+      .default([]),
+    resource: text('resource').notNull(),
+    last_used_at: timestamp('last_used_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    expires_at: timestamp('expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    revoked_at: timestamp('revoked_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('McpOAuthGrant_token_prefix_key').on(t.token_prefix),
+    uniqueIndex('McpOAuthGrant_refresh_token_hash_key').on(t.refresh_token_hash),
+    uniqueIndex('McpOAuthGrant_refresh_token_prefix_key').on(
+      t.refresh_token_prefix,
+    ),
+    index('McpOAuthGrant_user_id_idx').on(t.user_id),
+    index('McpOAuthGrant_client_id_idx').on(t.client_id),
+  ],
+);
+
+/** Secret-free log of OAuth token endpoint attempts (diagnostics). */
+export const mcpOAuthTokenAttempt = pgTable(
+  'McpOAuthTokenAttempt',
+  {
+    id: serial('id').primaryKey(),
+    path: text('path').notNull(),
+    method: text('method').notNull(),
+    content_type: text('content_type'),
+    grant_type: text('grant_type'),
+    has_code: boolean('has_code').notNull().default(false),
+    has_verifier: boolean('has_verifier').notNull().default(false),
+    has_assertion: boolean('has_assertion').notNull().default(false),
+    client_id_kind: text('client_id_kind'),
+    redirect_kind: text('redirect_kind'),
+    resource_kind: text('resource_kind'),
+    error: text('error'),
+    invalid_grant_reason: text('invalid_grant_reason'),
+    http_status: integer('http_status'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp('updated_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('McpOAuthTokenAttempt_created_at_idx').on(t.created_at)],
+);
+
 export const rolePermission = pgTable(
   'RolePermission',
   {
@@ -547,6 +723,40 @@ export const userRelations = relations(user, ({ one, many }) => ({
   company: one(company, { fields: [user.company_id], references: [company.id] }),
   role: one(role, { fields: [user.role_id], references: [role.id] }),
   tickets: many(ticket),
+  apiKeys: many(apiKey),
+  mcpOAuthGrants: many(mcpOAuthGrant),
+  mcpOAuthAuthCodes: many(mcpOAuthAuthorizationCode),
+}));
+
+export const apiKeyRelations = relations(apiKey, ({ one }) => ({
+  user: one(user, { fields: [apiKey.user_id], references: [user.id] }),
+}));
+
+export const mcpOAuthClientRelations = relations(mcpOAuthClient, ({ many }) => ({
+  authorizationCodes: many(mcpOAuthAuthorizationCode),
+  grants: many(mcpOAuthGrant),
+}));
+
+export const mcpOAuthAuthorizationCodeRelations = relations(
+  mcpOAuthAuthorizationCode,
+  ({ one }) => ({
+    client: one(mcpOAuthClient, {
+      fields: [mcpOAuthAuthorizationCode.client_id],
+      references: [mcpOAuthClient.client_id],
+    }),
+    user: one(user, {
+      fields: [mcpOAuthAuthorizationCode.user_id],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const mcpOAuthGrantRelations = relations(mcpOAuthGrant, ({ one }) => ({
+  client: one(mcpOAuthClient, {
+    fields: [mcpOAuthGrant.client_id],
+    references: [mcpOAuthClient.client_id],
+  }),
+  user: one(user, { fields: [mcpOAuthGrant.user_id], references: [user.id] }),
 }));
 
 export const roleRelations = relations(role, ({ one, many }) => ({
@@ -692,3 +902,9 @@ export type NotificationRow = typeof notification.$inferSelect;
 export type RateLimitRow = typeof rateLimit.$inferSelect;
 export type JobQueueRow = typeof jobQueue.$inferSelect;
 export type AuditOutboxRow = typeof auditOutbox.$inferSelect;
+export type ApiKeyRow = typeof apiKey.$inferSelect;
+export type McpOAuthClientRow = typeof mcpOAuthClient.$inferSelect;
+export type McpOAuthAuthorizationCodeRow =
+  typeof mcpOAuthAuthorizationCode.$inferSelect;
+export type McpOAuthGrantRow = typeof mcpOAuthGrant.$inferSelect;
+export type McpOAuthTokenAttemptRow = typeof mcpOAuthTokenAttempt.$inferSelect;
