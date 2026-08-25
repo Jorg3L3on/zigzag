@@ -121,7 +121,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (formPost) {
-      return NextResponse.redirect(redirect, { status: 302 });
+      // 303 for non-JS form posts; production CSP form-action 'self' blocks
+      // third-party Location targets anyway — the consent UI uses fetch + JS nav.
+      return new Response(null, {
+        status: 303,
+        headers: { Location: redirect.toString() },
+      });
     }
 
     return NextResponse.json({ redirect_to: redirect.toString() });
