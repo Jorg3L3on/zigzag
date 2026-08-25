@@ -1,6 +1,10 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { client, company, servicesTickets, ticket, user } from '@/db/schema';
 import { db } from '@/lib/db';
+import {
+  mapAgentTicketDetail,
+  mapAgentTicketSummary,
+} from '@/lib/mcp/serialize-ticket';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import type { AgentContext } from '@/lib/server/resolve-agent-context';
 import { resolveAccessibleCompanyIds } from '@/lib/server/resolve-agent-context';
@@ -54,10 +58,7 @@ export const listAgentTickets = async (
     },
   });
 
-  return rows.map((row) => ({
-    ...row,
-    id: row.id.toString(),
-  }));
+  return rows.map(mapAgentTicketSummary);
 };
 
 export const getAgentTicket = async (agent: AgentContext, ticketId: bigint) => {
@@ -85,10 +86,7 @@ export const getAgentTicket = async (agent: AgentContext, ticketId: bigint) => {
     throw new Error('Ticket no encontrado');
   }
 
-  return {
-    ...row,
-    id: row.id.toString(),
-  };
+  return mapAgentTicketDetail(row);
 };
 
 export const createAgentTicket = async (
@@ -133,10 +131,7 @@ export const createAgentTicket = async (
     return row;
   });
 
-  return {
-    ...created,
-    id: created.id.toString(),
-  };
+  return mapAgentTicketSummary(created);
 };
 
 export const updateAgentTicketStatus = async (
@@ -189,10 +184,7 @@ export const updateAgentTicketStatus = async (
     return row;
   });
 
-  return {
-    ...updated,
-    id: updated.id.toString(),
-  };
+  return mapAgentTicketSummary(updated);
 };
 
 export const listAgentClients = async (
