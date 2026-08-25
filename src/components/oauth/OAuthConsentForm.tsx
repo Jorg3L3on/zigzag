@@ -47,6 +47,8 @@ export default function OAuthConsentForm({
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>(
     companies.length === 1 ? [companies[0]!.id] : [],
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleToggleCompany = (companyId: number, checked: boolean) => {
     setSelectedCompanyIds((prev) => {
@@ -64,6 +66,47 @@ export default function OAuthConsentForm({
   };
 
   const canSubmit = selectedCompanyIds.length > 0;
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSubmit || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await fetch('/api/oauth/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: consentParams.client_id,
+          redirect_uri: consentParams.redirect_uri,
+          state: consentParams.state,
+          scope: consentParams.scope,
+          code_challenge: consentParams.code_challenge,
+          code_challenge_method: consentParams.code_challenge_method,
+          resource: consentParams.resource,
+          allow_write: allowWrite ? 'true' : 'false',
+          allowed_company_ids: selectedCompanyIds.map(String),
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setSubmitError(payload?.error ?? 'No se pudo autorizar la conexión.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { redirect_to } = (await response.json()) as { redirect_to: string };
+      window.location.assign(redirect_to);
+    } catch {
+      setSubmitError('No se pudo autorizar la conexión.');
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-8">
@@ -110,37 +153,7 @@ export default function OAuthConsentForm({
               </div>
             ))}
           </div>
-          <form
-            method="POST"
-            action="/api/oauth/consent"
-            className="flex flex-col gap-4"
-          >
-            <input type="hidden" name="client_id" value={consentParams.client_id} />
-            <input type="hidden" name="redirect_uri" value={consentParams.redirect_uri} />
-            <input type="hidden" name="code_challenge" value={consentParams.code_challenge} />
-            <input
-              type="hidden"
-              name="code_challenge_method"
-              value={consentParams.code_challenge_method}
-            />
-            {consentParams.state ? (
-              <input type="hidden" name="state" value={consentParams.state} />
-            ) : null}
-            {consentParams.scope ? (
-              <input type="hidden" name="scope" value={consentParams.scope} />
-            ) : null}
-            {consentParams.resource ? (
-              <input type="hidden" name="resource" value={consentParams.resource} />
-            ) : null}
-            {selectedCompanyIds.map((companyId) => (
-              <input
-                key={companyId}
-                type="hidden"
-                name="allowed_company_ids"
-                value={String(companyId)}
-              />
-            ))}
-            <input type="hidden" name="allow_write" value={allowWrite ? 'true' : 'false'} />
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="allow-write"
@@ -151,21 +164,27 @@ export default function OAuthConsentForm({
                 Permitir escritura (crear tickets y cambiar estados)
               </Label>
             </div>
+            {submitError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {submitError}
+              </p>
+            ) : null}
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 className="h-11 flex-1 rounded-xl"
                 onClick={handleDeny}
+                disabled={isSubmitting}
               >
                 Rechazar
               </Button>
               <Button
                 type="submit"
                 className="h-11 flex-1 rounded-xl"
-                disabled={!canSubmit}
+                disabled={!canSubmit || isSubmitting}
               >
-                Autorizar
+                {isSubmitting ? 'Autorizando…' : 'Autorizar'}
               </Button>
             </div>
           </form>
