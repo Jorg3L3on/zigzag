@@ -225,6 +225,7 @@ export async function POST(request: NextRequest) {
         clientAuthenticatedViaPrivateKeyJwt:
           authResult.clientAuthenticatedViaPrivateKeyJwt,
         resource: resourceParam,
+        request,
       });
       return returnWithAttempt(
         attemptId,
@@ -238,6 +239,7 @@ export async function POST(request: NextRequest) {
       refreshToken: input.refresh_token,
       clientId: input.client_id,
       resource: resourceParam,
+      request,
     });
     return returnWithAttempt(
       attemptId,

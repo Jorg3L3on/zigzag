@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       codeChallenge: input.code_challenge,
       codeChallengeMethod: input.code_challenge_method,
       resource,
+      request,
     });
 
     const redirect = buildOAuthCallbackUrl({
