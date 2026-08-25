@@ -31,18 +31,16 @@ const loadActiveUserWithCompany = cache(async (userId: string) =>
   }),
 );
 
-// Permission checking
-export async function checkPermission(
+/**
+ * Session-free RBAC check for a known user id (MCP OAuth grants, API keys).
+ * Does not call `auth()` — callers must already have authenticated the user.
+ */
+export async function checkUserPermission(
   userId: string,
   companyId: number,
   permissionName?: string,
 ): Promise<boolean> {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      throw new AuthorizationError('User not authenticated');
-    }
-
     const userRow = await loadActiveUserWithCompany(userId);
 
     if (
@@ -115,6 +113,25 @@ export async function checkPermission(
       .limit(1);
 
     return permitted.length > 0;
+  } catch (error) {
+    console.error('Permission check failed:', error);
+    return false;
+  }
+}
+
+// Permission checking (cookie session required — UI / Server Actions)
+export async function checkPermission(
+  userId: string,
+  companyId: number,
+  permissionName?: string,
+): Promise<boolean> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      throw new AuthorizationError('User not authenticated');
+    }
+
+    return checkUserPermission(userId, companyId, permissionName);
   } catch (error) {
     console.error('Permission check failed:', error);
     return false;
