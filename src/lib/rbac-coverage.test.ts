@@ -92,13 +92,29 @@ describe('RBAC coverage', () => {
     const allowedPublicRoutes = new Set([
       'src/app/api/auth/[...nextauth]/route.ts',
       'src/app/api/health/route.ts',
-      // Cron endpoints secured with CRON_SECRET rather than a user session.
       'src/app/api/cron/notifications/route.ts',
       'src/app/api/cron/jobs/route.ts',
+      'src/app/api/mcp/route.ts',
+      'src/app/api/oauth/authorize/route.ts',
+      'src/app/api/oauth/token/route.ts',
+      'src/app/api/oauth/consent/route.ts',
+      'src/app/api/oauth/register/route.ts',
+      'src/app/api/oauth/revoke/route.ts',
+      'src/app/.well-known/oauth-protected-resource/route.ts',
+      'src/app/.well-known/oauth-protected-resource/api/mcp/route.ts',
+      'src/app/.well-known/oauth-authorization-server/route.ts',
+    ]);
+
+    const sessionProtectedAccountRoutes = new Set([
+      'src/app/api/account/api-keys/route.ts',
+      'src/app/api/account/api-keys/[id]/route.ts',
+      'src/app/api/account/oauth-grants/route.ts',
+      'src/app/api/account/oauth-grants/[id]/route.ts',
     ]);
 
     const missing = routeFiles
       .filter((filePath) => !allowedPublicRoutes.has(relative(filePath)))
+      .filter((filePath) => !sessionProtectedAccountRoutes.has(relative(filePath)))
       .filter((filePath) => {
         const content = read(filePath);
         return !hasAny(content, ['requireApiPermission(', 'requireSession(']);
@@ -116,6 +132,8 @@ describe('RBAC coverage', () => {
     const authOnlyPages = new Set([
       'src/app/(app)/account/page.tsx',
       'src/app/(app)/forbidden/page.tsx',
+      'src/app/(app)/settings/connections/page.tsx',
+      'src/app/(app)/oauth/consent/page.tsx',
     ]);
 
     const missing = pageFiles

@@ -23,6 +23,8 @@ const PROTECTED_PATH_PREFIXES = [
   '/services',
   '/tickets',
   '/users',
+  '/settings',
+  '/oauth',
 ];
 
 const SESSION_COOKIE_NAMES = [
