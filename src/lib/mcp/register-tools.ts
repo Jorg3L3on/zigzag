@@ -8,12 +8,17 @@ import {
   listAgentTickets,
   updateAgentTicketStatus,
 } from '@/lib/mcp/domain';
+import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
 import {
   companyIdSchema,
   runAgentCompanyTool,
   runAgentUserTool,
   type McpToolContext,
 } from '@/lib/mcp/tool-helpers';
+
+const ticketIdSchema = z
+  .union([z.string(), z.number()])
+  .describe('Id del ticket (BigInt como string o número).');
 
 export const registerMcpTools = (server: McpServer) => {
   server.registerTool(
@@ -65,7 +70,7 @@ export const registerMcpTools = (server: McpServer) => {
       description: 'Obtiene un ticket por id dentro de una compañía autorizada.',
       inputSchema: z.object({
         company_id: companyIdSchema,
-        ticket_id: z.string().describe('Id del ticket (BigInt como string).'),
+        ticket_id: ticketIdSchema,
       }),
       annotations: { readOnlyHint: true },
     },
@@ -77,7 +82,7 @@ export const registerMcpTools = (server: McpServer) => {
         'tickets.read',
         'read',
         async (agent) => ({
-          ticket: await getAgentTicket(agent, BigInt(args.ticket_id)),
+          ticket: await getAgentTicket(agent, parseAgentTicketId(args.ticket_id)),
         }),
       ),
   );
@@ -117,7 +122,7 @@ export const registerMcpTools = (server: McpServer) => {
         'Marca un ticket como terminado o reabre (scope write). No registra pagos.',
       inputSchema: z.object({
         company_id: companyIdSchema,
-        ticket_id: z.string(),
+        ticket_id: ticketIdSchema,
         finished: z.boolean(),
       }),
       annotations: { destructiveHint: true },
@@ -132,7 +137,7 @@ export const registerMcpTools = (server: McpServer) => {
         async (agent) => ({
           ticket: await updateAgentTicketStatus(
             agent,
-            BigInt(args.ticket_id),
+            parseAgentTicketId(args.ticket_id),
             args.finished,
           ),
         }),
