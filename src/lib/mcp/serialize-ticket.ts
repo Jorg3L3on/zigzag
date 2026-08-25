@@ -6,8 +6,8 @@ export type AgentTicketPayload = {
   client_id: number | null;
   client_name: string | null;
   ticket_date: Date | null;
-  total: string | null;
-  paid: string | null;
+  total: number | null;
+  paid: number | null;
   finished: boolean;
   company_id: number | null;
   created_at: Date;
@@ -15,7 +15,7 @@ export type AgentTicketPayload = {
     id: number;
     service_id: number;
     quantity: number;
-    price: string;
+    price: number;
   }>;
 };
 

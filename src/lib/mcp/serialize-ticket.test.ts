@@ -11,8 +11,8 @@ describe('mapAgentTicketSummary', () => {
       client_id: 42,
       client_name: 'Sample Client',
       ticket_date: new Date('2026-01-15T10:00:00.000Z'),
-      total: '150.00',
-      paid: '0.00',
+      total: 150,
+      paid: 0,
       finished: false,
       company_id: 7,
       created_at: new Date('2026-01-15T10:00:00.000Z'),
@@ -33,8 +33,8 @@ describe('mapAgentTicketDetail', () => {
       client_id: 43,
       client_name: 'Sample Client B',
       ticket_date: new Date('2026-01-16T12:00:00.000Z'),
-      total: '200.00',
-      paid: '50.00',
+      total: 200,
+      paid: 50,
       finished: true,
       company_id: 7,
       created_at: new Date('2026-01-16T12:00:00.000Z'),
@@ -43,14 +43,14 @@ describe('mapAgentTicketDetail', () => {
           id: 1,
           service_id: 10,
           quantity: 2,
-          price: '100.00',
+          price: 100,
         },
       ],
     });
 
     expect(() => JSON.stringify({ ticket: payload })).not.toThrow();
     expect(payload.services_tickets).toEqual([
-      { id: 1, service_id: 10, quantity: 2, price: '100.00' },
+      { id: 1, service_id: 10, quantity: 2, price: 100 },
     ]);
     expect(payload).not.toHaveProperty('client_tel');
     expect(payload).not.toHaveProperty('userId');
@@ -108,8 +108,8 @@ describe('MCP ticket JSON safety', () => {
       client_id: 1,
       client_name: 'Fixture Client',
       ticket_date: new Date('2026-01-01T00:00:00.000Z'),
-      total: '10.00',
-      paid: '0.00',
+      total: 10,
+      paid: 0,
       finished: false,
       company_id: 1,
       created_at: new Date('2026-01-01T00:00:00.000Z'),
