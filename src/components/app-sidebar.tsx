@@ -11,6 +11,7 @@ import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
 import { NavUser } from '@/components/nav-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
   Sidebar,
@@ -254,7 +255,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <span className="truncate text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
             Notificaciones
           </span>
-          <NotificationBell />
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
         </div>
         <NavUser />
       </SidebarFooter>
