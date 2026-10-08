@@ -125,14 +125,6 @@
 }
 
 @layer utilities {
-  .bg-gradient-primary {
-    background-image: linear-gradient(
-      to right,
-      hsl(var(--primary) / 0.9),
-      hsl(var(--primary))
-    );
-  }
-
   .bg-gradient-card {
     background-image: linear-gradient(
       to bottom right,
