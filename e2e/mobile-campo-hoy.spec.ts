@@ -12,19 +12,29 @@ const setExperienceMode = async (
 ) => {
   await page.goto('/company');
   // ZIG-I3-2: on mobile, Configuración is a collapsed section of the Datos tab.
-  // The toggle is enabled only once the page hydrates in mobile mode.
+  // The toggle is enabled only once the page hydrates in mobile mode; retry the
+  // open-section / open-select steps so slow CI hydration cannot race them.
   const configuracion = page.getByRole('button', { name: /^Configuración/ });
   await expect(configuracion).toBeEnabled({ timeout: 30_000 });
-  if ((await configuracion.getAttribute('aria-expanded')) === 'false') {
-    await configuracion.click();
-  }
   const experience = page
     .getByRole('combobox', { name: 'Experiencia de inicio' })
     .locator('visible=true')
     .first();
-  await expect(experience).toBeVisible({ timeout: 30_000 });
-  await experience.click();
-  await page.getByRole('option', { name: mode, exact: true }).click();
+  await expect(async () => {
+    if ((await configuracion.getAttribute('aria-expanded')) !== 'true') {
+      await configuracion.click();
+    }
+    await expect(experience).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+
+  const option = page.getByRole('option', { name: mode, exact: true });
+  await expect(async () => {
+    if (!(await option.isVisible())) {
+      await experience.click();
+    }
+    await expect(option).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  await option.click();
   await page
     .getByRole('button', { name: /Guardar cambios|Guardar/i })
     .locator('visible=true')

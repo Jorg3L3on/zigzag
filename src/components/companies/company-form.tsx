@@ -116,15 +116,15 @@ export const CompanyForm = ({
   const isSectioned = sectioned ?? isSelfService;
   const isMobile = useIsMobile();
   const collapsible = isSectioned && isMobile;
+  // Read synchronously on the client: the saved state only shows once the
+  // form switches to mobile after hydration, so it cannot mismatch the server
+  // markup, and no later effect flips a section the user already toggled.
   const [openSections, setOpenSections] = React.useState<CompanyFormSectionState>(
-    DEFAULT_COMPANY_FORM_SECTIONS,
+    () =>
+      isSectioned && typeof window !== 'undefined'
+        ? readCompanyFormSections()
+        : DEFAULT_COMPANY_FORM_SECTIONS,
   );
-
-  React.useEffect(() => {
-    if (isSectioned) {
-      setOpenSections(readCompanyFormSections());
-    }
-  }, [isSectioned]);
 
   const setSectionOpen = (key: CompanyFormSectionKey, open: boolean) => {
     setOpenSections((current) => {

@@ -204,11 +204,16 @@ test.describe('Mi empresa hub', () => {
         test.skip(true, 'Current E2E user cannot manage the company');
       }
 
-      await expect(page.getByTestId('company-readiness-banner')).toBeVisible();
-      const general = page.getByTestId('company-form-section-general');
-      await expect(general.getByLabel('Nombre')).toBeVisible();
+      // Slow streaming can leave a hidden copy of the page next to the live one.
+      const visibleByTestId = (id: string) =>
+        page.getByTestId(id).filter({ visible: true }).first();
 
-      const direccion = page.getByTestId('company-form-section-direccion');
+      await expect(visibleByTestId('company-readiness-banner')).toBeVisible();
+      await expect(
+        visibleByTestId('company-form-section-general').getByLabel('Nombre'),
+      ).toBeVisible();
+
+      const direccion = visibleByTestId('company-form-section-direccion');
       const direccionToggle = direccion.getByRole('button', { name: /^Dirección/ });
       // Enabled once hydrated in mobile mode; open state is remembered per browser.
       await expect(direccionToggle).toBeEnabled();
