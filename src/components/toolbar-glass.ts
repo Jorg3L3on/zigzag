@@ -34,3 +34,9 @@ export const GLASS_MENU_ITEM_CLASS =
 /** Blue icon tile at the start of a GLASS_MENU_ITEM_CLASS row. */
 export const GLASS_MENU_ICON_PILL_CLASS =
   'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 [&_svg]:h-4 [&_svg]:w-4';
+
+/** Content card for the creation flow (composer, review): soft panel shadow + glass rim. */
+export const GLASS_CARD_CLASS = [
+  'liquid-glass relative rounded-2xl border border-border/60 bg-card p-4 shadow-panel sm:p-6',
+  'dark:border-white/[0.08]',
+].join(' ');

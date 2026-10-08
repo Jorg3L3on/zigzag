@@ -71,12 +71,12 @@ import {
   type TicketComposerDraftLine,
 } from '@/lib/ticket-composer-draft';
 import { cn } from '@/lib/utils';
+import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 
 const CLIENT_SEARCH_DEBOUNCE_MS = 250;
 const CLIENT_SEARCH_PAGE_SIZE = 50;
-const SECTION_CLASS =
-  'rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6';
+const SECTION_CLASS = GLASS_CARD_CLASS;
 
 type ComposerClient = { id: number; label: string };
 type SaveState = 'idle' | 'saving' | 'done';
@@ -583,7 +583,7 @@ export const TicketComposer = () => {
                     <motion.li
                       key={line.key}
                       layout={!reduceMotion}
-                      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
                       transition={{ duration: reduceMotion ? 0 : 0.2 }}

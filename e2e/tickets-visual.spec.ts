@@ -8,6 +8,8 @@ import {
 
 /**
  * Visual regression baselines for decomposed ticket list surfaces.
+ * Viewport-sized and with ticket data masked, so baselines do not drift as the
+ * E2E tenant gains tickets (other specs create them).
  * Requires E2E_COMPANY_NAME to match the tenant company for E2E_EMAIL.
  *
  * Update snapshots:
@@ -29,8 +31,13 @@ test.describe('Tickets visual baselines', () => {
       timeout: 15_000,
     });
 
-    const main = page.locator('main');
-    await expect(main).toHaveScreenshot('tickets-list-desktop.png');
+    await expect(page.locator('tbody tr').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page).toHaveScreenshot('tickets-list-desktop.png', {
+      fullPage: false,
+      mask: [page.locator('tbody'), page.getByText(/de \d+ tickets/)],
+    });
   });
 
   test('mobile tickets list matches baseline', async ({ page }) => {
@@ -40,7 +47,12 @@ test.describe('Tickets visual baselines', () => {
       timeout: 15_000,
     });
 
-    const main = page.locator('main');
-    await expect(main).toHaveScreenshot('tickets-list-mobile.png');
+    const cards = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ });
+    await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+    // Viewport shot keeps the floating dock in the baseline.
+    await expect(page).toHaveScreenshot('tickets-list-mobile.png', {
+      fullPage: false,
+      mask: [cards, page.getByText(/de \d+ tickets/)],
+    });
   });
 });

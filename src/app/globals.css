@@ -205,6 +205,19 @@ html[data-display-mode='standalone'] body {
   overscroll-behavior-y: contain;
 }
 
+/* Reduced motion: no non-essential animation anywhere (Radix enter/exit,
+   tailwindcss-animate, transitions). Spinners stay as loading feedback. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Opacity-only: a transform on this wrapper creates a containing block and
    breaks position:fixed / sticky chrome (app bar, sticky actions, page headers). */
 @media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
