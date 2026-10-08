@@ -33,7 +33,7 @@ More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel
 ## Features
 
 - Multi-tenant data isolation by company
-- Role-based permissions
+- Role-based permissions: tenants manage their team and roles in **Mi empresa** (`/company`: Datos · Equipo · Roles, roles edited as a Ver/Editar matrix by module); the global `/users`, `/roles` and permission catalog pages are for system operators only
 - Tickets, clients, and service catalog
 - Dashboard metrics and **server-generated** ticket invoices (PDF)
 - Mobile-friendly UI (responsive lists, touch targets, accessibility)

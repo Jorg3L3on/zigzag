@@ -44,4 +44,11 @@ describe('Mi empresa hub page access (ZIG-I3-1)', () => {
       expect(permissionAt).toBeGreaterThan(redirectAt);
     },
   );
+
+  it.each(systemAdminPages)(
+    '%s also requires a system user (ZIG-I3-6)',
+    (relativePath) => {
+      expect(readSource(relativePath)).toContain('await requireSystemPage()');
+    },
+  );
 });

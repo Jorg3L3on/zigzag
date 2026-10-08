@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  filterSystemNavItems,
   getActiveMobileTabHref,
   getLongestMatchingHref,
   MOBILE_TAB_ITEMS,
@@ -119,5 +120,28 @@ describe('nav-items', () => {
 
   it('leaves no tenant-visible item in Administración', () => {
     expect(NAV_SYSTEM_ITEMS.every((item) => item.systemOnly)).toBe(true);
+  });
+
+  it('hides Administración entirely for tenants, even with every permission', () => {
+    expect(
+      filterSystemNavItems(NAV_SYSTEM_ITEMS, { isSystemUser: false, can: () => true }),
+    ).toEqual([]);
+  });
+
+  it('shows system users the full Administración list in order', () => {
+    expect(
+      filterSystemNavItems(NAV_SYSTEM_ITEMS, {
+        isSystemUser: true,
+        can: () => true,
+      }).map((item) => item.title),
+    ).toEqual([
+      'Consola operadora',
+      'Usuarios',
+      'Empresas',
+      'Roles',
+      'Catálogo de permisos',
+      'Auditoría',
+      'Papelera',
+    ]);
   });
 });

@@ -49,6 +49,13 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 ### Company selection
 `src/contexts/company-context.tsx` stores the selected company in React state and localStorage. This is separate from the session's `company_id`; system users can switch context between companies.
 
+### Mi empresa hub (team and roles)
+- Tenants manage their company at `/company` (layout `src/app/(app)/company/layout.tsx`): tabs **Datos** (`company.manage`), **Equipo** (`/company/equipo`, `users.read`) and **Roles** (`/company/roles`, `/company/roles/[id]`, `/company/roles/nuevo`, `roles.read`). Tab model in `src/lib/company-hub.ts`.
+- Hub actions never take a company id: `src/actions/team.ts` and `src/actions/company-roles.ts` scope to the caller's company and write through the core `users.ts` / `roles.ts` actions.
+- Roles are edited as a Ver/Editar matrix over the existing keys (`src/lib/role-matrix.ts`); keys outside the matrix are preserved. Shared global roles (`company_id` null) are copy-on-write: saving one creates a company-owned copy and moves that company's users onto it.
+- Lockout guards in `src/lib/team-guards.ts`: nobody deactivates themselves (US006); a tenant never loses its last `users.write` / `roles.write` holder through a user or role change (US007, RL006); roles in use cannot be deleted (RL005).
+- `/users`, `/roles`, `/permissions` (Catálogo de permisos) are system-operator pages: tenants are redirected to the hub (`redirectTenantToCompanyHub`) and the pages also call `requireSystemPage()`. The sidebar *Administración* group is empty, hence hidden, for tenants (`filterSystemNavItems`).
+
 ### Mobile & responsive UI
 - Dashboard lists use **TanStack Table** on desktop and **card layout** below `md` (768px). See [.cursor/rules/lists-and-responsive-tables.mdc](.cursor/rules/lists-and-responsive-tables.mdc).
 - **List filters below `lg`:** dense filters open in a bottom Sheet via `ListFilterBarShell` (`src/components/list-filter/`); search + chips stay outside. Resource bars: `*-filter-bar.tsx` (tickets, clients, services, companies, etc.).
