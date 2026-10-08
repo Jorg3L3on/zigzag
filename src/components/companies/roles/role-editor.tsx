@@ -92,10 +92,13 @@ export const RoleEditor = ({
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
-  const readOnly = !canWrite || Boolean(role?.isGlobal);
+  const readOnly = !canWrite;
+  const isShared = Boolean(role?.isGlobal);
   const isNew = role === null;
   const userCount = role?.userCount ?? 0;
-  const deleteBlockedReason = role?.isProtected
+  const deleteBlockedReason = isShared
+    ? 'Los roles compartidos no se eliminan desde una empresa.'
+    : role?.isProtected
     ? 'El rol de administrador principal no se puede eliminar.'
     : userCount > 0
       ? 'Se habilita cuando nadie tiene este rol.'
@@ -134,7 +137,9 @@ export const RoleEditor = ({
       showError(result, isNew ? 'No se pudo crear el rol' : 'No se pudo guardar el rol');
       return;
     }
-    toast.success(isNew ? 'Rol creado' : 'Rol guardado');
+    toast.success(
+      isNew ? 'Rol creado' : isShared ? 'Rol guardado como copia de tu empresa' : 'Rol guardado',
+    );
     onSaved(result.data?.id ?? role?.id ?? 0);
   };
 
@@ -161,12 +166,20 @@ export const RoleEditor = ({
       aria-label={isNew ? 'Nuevo rol' : `Editar rol ${role?.name}`}
       className={cn('flex flex-col gap-5', variant === 'page' && 'pb-24 md:pb-0')}
     >
-      {role?.isGlobal ? (
-        <div className="flex flex-col gap-3 rounded-xl border bg-muted/40 p-4 sm:flex-row sm:items-center">
+      {role && isShared ? (
+        <div
+          className="flex flex-col gap-3 rounded-xl border bg-muted/40 p-4 sm:flex-row sm:items-center"
+          data-testid="shared-role-notice"
+        >
           <Lock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <p className="flex-1 text-sm text-muted-foreground">
-            Rol compartido de la plataforma: no se puede editar aquí. Duplícalo para
-            crear uno propio con estos permisos.
+            {readOnly
+              ? 'Rol compartido de la plataforma.'
+              : `Rol compartido de la plataforma. Al guardar se crea una copia solo para tu empresa${
+                  userCount > 0
+                    ? ` y ${userCount === 1 ? 'la persona que lo tiene pasa' : `las ${userCount} personas que lo tienen pasan`} a ella`
+                    : ''
+                }; las demás empresas no cambian.`}
           </p>
           {canWrite && onDuplicate ? (
             <Button
@@ -260,7 +273,7 @@ export const RoleEditor = ({
         {isNew ? null : (
           <p className="text-sm text-muted-foreground sm:ml-auto">{usersLabel(userCount)}</p>
         )}
-        {isNew || readOnly ? null : (
+        {isNew || readOnly || isShared ? null : (
           <div className="flex flex-col gap-1">
             <Button
               type="button"

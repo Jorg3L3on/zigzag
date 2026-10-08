@@ -6,6 +6,7 @@ import {
 import { createRole, deleteRole, updateRole } from '@/actions/roles';
 import { db } from '@/lib/db';
 import { checkPermission, requireActionPermission } from '@/lib/security';
+import { countUsersWithPermissionOutsideRole } from '@/lib/team-guards';
 import {
   IDOR_COMPANY_A,
   IDOR_COMPANY_B,
@@ -16,6 +17,7 @@ import {
 jest.mock('@/lib/db', () => ({
   db: {
     select: jest.fn(),
+    transaction: jest.fn(),
     query: {
       role: { findMany: jest.fn(), findFirst: jest.fn() },
     },
@@ -27,6 +29,19 @@ jest.mock('@/lib/security', () => ({
   checkPermission: jest.fn(),
 }));
 
+jest.mock('@/lib/team-guards', () => ({
+  LOCKOUT_PERMISSIONS: ['users.write', 'roles.write'],
+  countUsersWithPermissionOutsideRole: jest.fn(async () => 1),
+}));
+
+jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
+
+jest.mock('@/lib/governance-audit', () => ({
+  actionAuthToGovernanceActor: jest.fn(() => ({ type: 'user', id: '201' })),
+  recordGovernanceAudit: jest.fn(),
+  sanitizeRoleForAudit: jest.fn((row) => row),
+}));
+
 jest.mock('@/actions/roles', () => ({
   createRole: jest.fn(),
   updateRole: jest.fn(),
@@ -35,6 +50,7 @@ jest.mock('@/actions/roles', () => ({
 
 const mockDb = db as unknown as {
   select: jest.Mock;
+  transaction: jest.Mock;
   query: { role: { findMany: jest.Mock; findFirst: jest.Mock } };
 };
 const mockRequireActionPermission = requireActionPermission as jest.MockedFunction<
@@ -146,16 +162,86 @@ describe('company role actions (ZIG-I3-5)', () => {
     expect(mockCreateRole).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['a shared global role', { ...ownRole([]), company_id: null }],
-    ['another company role', { ...ownRole([]), company_id: IDOR_COMPANY_A.id }],
-  ])('refuses to edit %s', async (_label, row) => {
-    mockDb.query.role.findFirst.mockResolvedValue(row);
+  it('refuses to edit another company role', async () => {
+    mockDb.query.role.findFirst.mockResolvedValue({
+      ...ownRole([]),
+      company_id: IDOR_COMPANY_A.id,
+    });
 
     const result = await saveCompanyRole({ id: 7, name: 'X', permissionKeys: [] });
 
     expect(result.success).toBe(false);
     expect(mockUpdateRole).not.toHaveBeenCalled();
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  describe('copy-on-write for shared roles', () => {
+    const tx = {
+      insert: jest.fn(),
+      update: jest.fn(),
+    };
+    const insertedValues: unknown[] = [];
+    let userUpdateSet: jest.Mock;
+    let userUpdateWhere: jest.Mock;
+
+    beforeEach(() => {
+      insertedValues.length = 0;
+      tx.insert.mockImplementation(() => ({
+        values: jest.fn((values: unknown) => {
+          insertedValues.push(values);
+          return Object.assign(Promise.resolve(), {
+            returning: jest.fn(async () => [{ id: 55, name: 'Operator' }]),
+          });
+        }),
+      }));
+      userUpdateWhere = jest.fn(async () => undefined);
+      userUpdateSet = jest.fn(() => ({ where: userUpdateWhere }));
+      tx.update.mockReturnValue({ set: userUpdateSet });
+      mockDb.transaction.mockImplementation(async (fn: (t: typeof tx) => unknown) => fn(tx));
+      mockDb.query.role.findFirst.mockResolvedValue({
+        ...ownRole(['tickets.read', 'tickets.write']),
+        company_id: null,
+      });
+    });
+
+    it('creates a company copy and moves the company users onto it', async () => {
+      mockSelectRows(catalog); // permission ids
+      mockSelectRows([{ value: 2 }]); // company users holding the shared role
+
+      const result = await saveCompanyRole({
+        id: 7,
+        name: 'Operator',
+        permissionKeys: ['tickets.read'],
+      });
+
+      expect(result).toEqual({ success: true, data: { id: 55 } });
+      expect(mockUpdateRole).not.toHaveBeenCalled();
+      expect(insertedValues[0]).toEqual({
+        name: 'Operator',
+        description: undefined,
+        company_id: IDOR_COMPANY_B.id,
+      });
+      expect(insertedValues[1]).toEqual([{ role_id: 55, permission_id: 1 }]);
+      expect(userUpdateSet).toHaveBeenCalledWith(
+        expect.objectContaining({ role_id: 55 }),
+      );
+    });
+
+    it('refuses when the moving users would be the last team managers', async () => {
+      mockSelectRows(catalog);
+      mockSelectRows([{ value: 1 }]);
+      (countUsersWithPermissionOutsideRole as jest.Mock).mockResolvedValueOnce(0);
+
+      const result = await saveCompanyRole({
+        id: 7,
+        name: 'Operator',
+        permissionKeys: ['tickets.read'],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('RL006');
+      expect(mockDb.transaction).not.toHaveBeenCalled();
+    });
   });
 
   it('refuses to delete another company role', async () => {

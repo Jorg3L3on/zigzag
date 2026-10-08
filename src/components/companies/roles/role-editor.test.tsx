@@ -148,12 +148,28 @@ describe('RoleEditor', () => {
     expect(mockSave).not.toHaveBeenCalled();
   });
 
-  it('shows shared roles read-only with Duplicar', () => {
-    renderEditor({ ...operator, isGlobal: true });
+  it('lets a tenant edit a shared role, explaining the company copy', async () => {
+    renderEditor({ ...operator, isGlobal: true, userCount: 2 });
+
+    expect(screen.getByTestId('shared-role-notice')).toHaveTextContent(
+      'las 2 personas que lo tienen pasan a ella',
+    );
+    expect(screen.getByRole('button', { name: /Duplicar/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Eliminar rol/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Editar Servicios' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar rol' }));
+
+    await waitFor(() =>
+      expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ id: 7 })),
+    );
+  });
+
+  it('is fully read-only without roles.write', () => {
+    renderEditor(operator, false);
 
     expect(screen.getByRole('checkbox', { name: 'Ver Tickets' })).toBeDisabled();
     expect(screen.getByLabelText('Nombre del rol')).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Duplicar/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Guardar rol' })).toBeNull();
   });
 });

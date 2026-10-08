@@ -61,7 +61,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `roles.ts` | getRoles, getRolesPaginated, createRole, updateRole, deleteRole | ✅ | `roles-actions.test.ts` | #188 |
 | `permissions.ts` | getPermissions, getPermissionsByCompany, createPermission, updatePermission, deletePermission, assignPermissionToRole, removePermissionFromRole | ✅ | `permissions-actions.test.ts` | #188 |
 | `team.ts` | getTeam, addTeamMember, updateTeamMember, changeTeamMemberRole, deactivateTeamMember (Mi empresa › Equipo; no company id input, members looked up within the caller's company) | ✅ | `team-actions.test.ts` | ZIG-I3-4 |
-| `company-roles.ts` | getCompanyRoles, saveCompanyRole, deleteCompanyRole (Mi empresa › Roles; no company id input, only roles owned by the caller's company are editable, shared global roles are read-only) | ✅ | `company-roles-actions.test.ts` | ZIG-I3-5 |
+| `company-roles.ts` | getCompanyRoles, saveCompanyRole, deleteCompanyRole (Mi empresa › Roles; no company id input, edits roles owned by the caller's company; a shared global role is copied into the caller's company on save, never edited in place) | ✅ | `company-roles-actions.test.ts` | ZIG-I3-5 |
 
 ## Server Actions — Companies & operator (#189)
 

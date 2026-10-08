@@ -1,8 +1,9 @@
 'use server';
 
 import { and, count, eq, inArray, isNull, or } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { permission, role, user } from '@/db/schema';
+import { permission, role, rolePermission, user } from '@/db/schema';
 import { createRole, deleteRole, updateRole } from '@/actions/roles';
 import { isProtectedBootstrapAdminRole } from '@/lib/company-bootstrap';
 import { db } from '@/lib/db';
@@ -12,8 +13,18 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { PERMISSIONS } from '@/lib/permissions';
+import {
+  actionAuthToGovernanceActor,
+  recordGovernanceAudit,
+  sanitizeRoleForAudit,
+} from '@/lib/governance-audit';
 import { ROLE_MATRIX_KEYS } from '@/lib/role-matrix';
 import { checkPermission, requireActionPermission } from '@/lib/security';
+import {
+  countUsersWithPermissionOutsideRole,
+  LOCKOUT_PERMISSIONS,
+} from '@/lib/team-guards';
+import type { ActionAuthContext } from '@/lib/authz-context';
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -27,7 +38,7 @@ export type CompanyRoleSummary = {
   id: number;
   name: string;
   description: string | null;
-  /** Shared platform role (company_id null): read-only for tenants. */
+  /** Shared platform role (company_id null): saving it creates a company copy. */
   isGlobal: boolean;
   /** Bootstrap Admin role: cannot be deleted. */
   isProtected: boolean;
@@ -152,6 +163,100 @@ async function resolvePermissionIds(
   return keys.map((key) => idByName.get(key)!);
 }
 
+/**
+ * Copy-on-write for a shared global role (ZIG-I3 decision): create a copy owned
+ * by the caller's company with the edited values and move this company's active
+ * users onto it, in one transaction. The global role and other tenants are untouched.
+ */
+async function forkGlobalRole(input: {
+  context: ActionAuthContext;
+  companyId: number;
+  globalRoleId: number;
+  name: string;
+  description?: string;
+  permissionIds: number[];
+  permissionKeys: string[];
+}): Promise<ActionResult<{ id: number }>> {
+  const { context, companyId, globalRoleId } = input;
+
+  const [holders] = await db
+    .select({ value: count() })
+    .from(user)
+    .where(
+      and(
+        eq(user.company_id, companyId),
+        eq(user.role_id, globalRoleId),
+        isNull(user.deleted_at),
+      ),
+    );
+  const movingUsers = Number(holders?.value ?? 0);
+
+  // Same lockout rule as updateRole: the people moving onto the copy may be
+  // the company's last team or role managers.
+  if (movingUsers > 0) {
+    for (const name of LOCKOUT_PERMISSIONS) {
+      if (input.permissionKeys.includes(name)) {
+        continue;
+      }
+      const others = await countUsersWithPermissionOutsideRole(
+        companyId,
+        name,
+        globalRoleId,
+      );
+      if (others === 0) {
+        return buildActionError('RL006');
+      }
+    }
+  }
+
+  const newRoleId = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(role)
+      .values({
+        name: input.name,
+        description: input.description,
+        company_id: companyId,
+      })
+      .returning();
+
+    if (input.permissionIds.length > 0) {
+      await tx.insert(rolePermission).values(
+        input.permissionIds.map((permissionId) => ({
+          role_id: created.id,
+          permission_id: permissionId,
+        })),
+      );
+    }
+
+    await tx
+      .update(user)
+      .set({ role_id: created.id, updated_at: new Date() })
+      .where(
+        and(
+          eq(user.company_id, companyId),
+          eq(user.role_id, globalRoleId),
+          isNull(user.deleted_at),
+        ),
+      );
+
+    await recordGovernanceAudit(tx, {
+      actor: actionAuthToGovernanceActor(context),
+      resourceType: 'role',
+      resourceId: created.id,
+      targetCompanyId: companyId,
+      eventType: 'created',
+      after: sanitizeRoleForAudit(created, input.permissionIds),
+      extra: { forkedFromRoleId: globalRoleId, movedUsers: movingUsers },
+    });
+
+    return created.id;
+  });
+
+  revalidatePath('/roles');
+  revalidatePath('/company', 'layout');
+  return { success: true, data: { id: newRoleId } };
+}
+
 export async function saveCompanyRole(input: {
   id?: number;
   name: string;
@@ -160,19 +265,24 @@ export async function saveCompanyRole(input: {
 }): Promise<ActionResult<{ id: number }>> {
   const failCode = input.id ? 'RL003' : 'RL002';
   try {
-    const { companyId } = await requireActionPermission(PERMISSIONS.roles.write);
+    const { context, companyId } = await requireActionPermission(
+      PERMISSIONS.roles.write,
+    );
     const parsed = roleInputSchema.parse(input);
 
     let currentKeys: string[] = [];
+    let forkFromGlobal = false;
     if (input.id) {
       const existing = await db.query.role.findFirst({
         where: and(eq(role.id, input.id), isNull(role.deleted_at)),
         with: { permissions: { with: { permission: true } } },
       });
-      // Only the caller's own roles are editable here (global ones are shared).
-      if (!existing || existing.company_id !== companyId) {
+      // Own roles are edited in place; shared global ones are copied on write.
+      // Another company's role is never reachable.
+      if (!existing || (existing.company_id !== null && existing.company_id !== companyId)) {
         return buildActionError('RL003');
       }
+      forkFromGlobal = existing.company_id === null;
       currentKeys = existing.permissions
         .map((assignment) => assignment.permission?.name)
         .filter((name): name is string => Boolean(name));
@@ -188,6 +298,18 @@ export async function saveCompanyRole(input: {
     const permissionIds = await resolvePermissionIds(keys, companyId);
     if (permissionIds === null) {
       return buildActionError(failCode);
+    }
+
+    if (forkFromGlobal && input.id) {
+      return await forkGlobalRole({
+        context,
+        companyId,
+        globalRoleId: input.id,
+        name: parsed.name,
+        description: parsed.description || undefined,
+        permissionIds,
+        permissionKeys: keys,
+      });
     }
 
     const payload = {
