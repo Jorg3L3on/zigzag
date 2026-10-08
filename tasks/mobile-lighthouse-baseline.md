@@ -62,6 +62,13 @@ Re-run on a Vercel preview before release; local prod build is the merge guard b
 | 2026-08-18 | `/dashboard` | Local prod after slice 1F recovery | 67–74 | **4.5–6.8 s** | TBT ~290 ms | 0.12 | SQL aggregates, server greeting, SVG KPIs, deferred charts. Best LCP 4.5 s (beats 6.6 s); slower runs ~6.8 s. CLS from streamed widgets — follow-up. Target ≤ 4.0 s not met on every run. |
 | 2026-08-18 | `/tickets` | Local prod after slice 1F recovery | 76–77 | **4.4–4.8 s** | TBT ~280–380 ms | 0 | Stable improvement vs 6.2 s baseline. Target ≤ 3.5 s not met. |
 
+| 2026-10-08 | `/tickets/create` | Local prod, ZIG-I2 composer (`b8e07cd`) | 43 / 70 / 66 / 63 | 7.7–8.3 s | TBT 248–1421 ms | 0 | 4 runs on a loaded MacBook Air (load avg 6–15). Same-session A/B vs `main` below. |
+| 2026-10-08 | `/tickets` | Local prod, ZIG-I2 (`b8e07cd`) | 49 / 70 / 56 / 59 | 7.4–7.8 s | TBT 253–984 ms | 0 | Same runs as above. |
+| 2026-10-08 | `/tickets/create` | Local prod, `main` @433a2e1 (old 3-step wizard) | 60 / 42 | 7.8–8.3 s | TBT 603–1845 ms | 0.012 | A/B baseline under the same load: the composer is not slower (median ~64 vs ~51) and removes the small CLS. |
+| 2026-10-08 | `/tickets` | Local prod, `main` @433a2e1 | 44 / 61 | 7.5–8.0 s | TBT 558–1654 ms | 0 | A/B baseline (median ~52 vs ~58 with the dock). Absolute scores sit below the Aug rows because of machine load, not code. |
+
+`LIGHTHOUSE_PATHS=/tickets/create,/tickets npm run lighthouse:mobile` limits a run to those paths.
+
 ## Merge Guard
 
 Mobile performance PRs must at least verify:
