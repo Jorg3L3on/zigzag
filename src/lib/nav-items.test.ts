@@ -4,6 +4,7 @@ import {
   getLongestMatchingHref,
   MOBILE_TAB_ITEMS,
   NAV_MAIN_ITEMS,
+  NAV_SYSTEM_ITEMS,
 } from '@/lib/nav-items';
 
 describe('nav-items', () => {
@@ -76,5 +77,47 @@ describe('nav-items', () => {
         '/tickets/create',
       ]),
     ).toBe('/tickets/create');
+  });
+
+  it('nests Datos, Equipo and Roles under Mi empresa', () => {
+    const company = NAV_MAIN_ITEMS.find((item) => item.title === 'Mi empresa');
+    expect(company?.url).toBe('/company');
+    expect(
+      company?.items?.map((sub) => [sub.title, sub.url, sub.requiredPermission]),
+    ).toEqual([
+      ['Datos', '/company', 'company.manage'],
+      ['Equipo', '/company/equipo', 'users.read'],
+      ['Roles', '/company/roles', 'roles.read'],
+    ]);
+  });
+
+  it('keeps Mi empresa sub-items active on nested hub routes', () => {
+    const hubHrefs =
+      NAV_MAIN_ITEMS.find((item) => item.title === 'Mi empresa')?.items?.map(
+        (sub) => sub.url,
+      ) ?? [];
+    expect(getLongestMatchingHref('/company', hubHrefs)).toBe('/company');
+    expect(getLongestMatchingHref('/company/equipo', hubHrefs)).toBe(
+      '/company/equipo',
+    );
+    expect(getLongestMatchingHref('/company/roles/3', hubHrefs)).toBe(
+      '/company/roles',
+    );
+  });
+
+  it('shows Usuarios, Roles and Catálogo de permisos to system users only', () => {
+    const adminPages = NAV_SYSTEM_ITEMS.filter((item) =>
+      ['/users', '/roles', '/permissions'].includes(item.url),
+    );
+    expect(adminPages.map((item) => item.title)).toEqual([
+      'Usuarios',
+      'Roles',
+      'Catálogo de permisos',
+    ]);
+    expect(adminPages.every((item) => item.systemOnly)).toBe(true);
+  });
+
+  it('leaves no tenant-visible item in Administración', () => {
+    expect(NAV_SYSTEM_ITEMS.every((item) => item.systemOnly)).toBe(true);
   });
 });

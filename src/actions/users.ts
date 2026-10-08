@@ -299,6 +299,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
     });
 
     revalidatePath('/users');
+    revalidatePath('/company', 'layout');
     return { success: true, data: created };
   } catch (e) {
     if (
@@ -382,6 +383,7 @@ export async function updateUser(
     });
 
     revalidatePath('/users');
+    revalidatePath('/company', 'layout');
     return { success: true, data: updated };
   } catch (e) {
     if (
@@ -541,6 +543,7 @@ export async function deleteUser(
     });
 
     revalidatePath('/users');
+    revalidatePath('/company', 'layout');
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('users.delete', 'US004', e);
