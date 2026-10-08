@@ -63,7 +63,6 @@ transition; new Ticket service API mutations dual-write Ticket history where not
 | Resource | Action | Result | Source | Trigger | Test evidence |
 |---|---|---|---|---|---|
 | `invoice` | `generated` | `success` | `api` | `GET /api/tickets/[id]/invoice` | resource-audit instrumentation |
-| `report` | `generated` | `success` | `action` | Dashboard report export | resource-audit instrumentation |
 
 ## Console investigation UI
 

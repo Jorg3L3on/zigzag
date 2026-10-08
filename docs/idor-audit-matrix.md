@@ -36,7 +36,6 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
 | `/api/audit/events` | GET | ✅ | `audit/events/route.test.ts` | #190 |
-| `/api/dashboard/report` | GET | ✅ | `dashboard/report/route.test.ts` | #190 |
 | `/api/realtime` | GET | ⏭️ Exempt | `realtime/route.test.ts` (session-only SSE) | #190 |
 
 ## Server Actions — Clients & Services (#186)

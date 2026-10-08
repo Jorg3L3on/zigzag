@@ -26,6 +26,40 @@ test.describe('Mobile dashboard redesign', () => {
     await ensureTenantCompany(page);
   });
 
+  test('Inicio leads with Acciones rápidas and has no export buttons', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard');
+
+    const quickActions = page
+      .getByTestId('dashboard-quick-actions')
+      .filter({ visible: true })
+      .first();
+    const forbiddenOrEmpty = await quickActions
+      .waitFor({ timeout: 20_000 })
+      .then(() => false)
+      .catch(() => true);
+    test.skip(forbiddenOrEmpty, 'Current E2E user has no quick actions (viewer)');
+
+    await expect(page.getByRole('button', { name: /Exportar (PDF|CSV)/ })).toHaveCount(0);
+    await expect(quickActions.getByRole('link').first()).toBeVisible();
+
+    // The chip row is the first block after the greeting, before any section.
+    const leadsPage = await page.evaluate(() => {
+      const heading = document.querySelector('h1');
+      const row = document.querySelector('[data-testid="dashboard-quick-actions"]');
+      if (!heading || !row) return false;
+      const following = (a: Node, b: Node) =>
+        Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const firstSection = Array.from(document.querySelectorAll('section')).find(
+        (section) => following(heading, section),
+      );
+      return following(heading, row) && (!firstSection || following(row, firstSection));
+    });
+    expect(leadsPage).toBe(true);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test('shows mobile-first client form chrome', async ({ page }) => {
     await page.goto('/clients/new');
 

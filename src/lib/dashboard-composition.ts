@@ -8,13 +8,14 @@ export type DashboardWidgetId =
   | 'kpis'
   | 'charts'
   | 'operations'
-  | 'quickActions'
   | 'campoSummary';
 
 export type DashboardComposition = {
   persona: DashboardPersona;
   widgets: DashboardWidgetId[];
-  showExports: boolean;
+  /** Revenue period select in the KPI section header (it only drives the KPIs). */
+  showPeriodSelect: boolean;
+  /** Acciones rápidas chip row right under the greeting. */
   showQuickActions: boolean;
   /** Which KPI keys to render (subset of metrics.kpis). */
   kpiKeys: DashboardKpiKey[] | 'all';
@@ -33,14 +34,8 @@ export type DashboardComposition = {
 };
 
 const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
-  widgets: [
-    'needsAttention',
-    'kpis',
-    'charts',
-    'operations',
-    'quickActions',
-  ],
-  showExports: true,
+  widgets: ['needsAttention', 'kpis', 'charts', 'operations'],
+  showPeriodSelect: true,
   showQuickActions: true,
   kpiKeys: 'all',
   sectionTitles: {
@@ -58,13 +53,8 @@ const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 };
 
 const OPERATOR_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
-  widgets: [
-    'needsAttention',
-    'operations',
-    'kpis',
-    'quickActions',
-  ],
-  showExports: false,
+  widgets: ['needsAttention', 'operations', 'kpis'],
+  showPeriodSelect: false,
   showQuickActions: true,
   // Operations-first: open work and collections pressure (no assignee field exists).
   kpiKeys: ['activeTickets', 'outstandingBalance'],
@@ -84,7 +74,7 @@ const OPERATOR_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 
 const VIEWER_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
   widgets: ['kpis', 'charts', 'operations'],
-  showExports: true,
+  showPeriodSelect: true,
   showQuickActions: false,
   kpiKeys: 'all',
   sectionTitles: {
@@ -102,7 +92,7 @@ const VIEWER_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 
 const SYSTEM_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
   widgets: ['platformHome'],
-  showExports: false,
+  showPeriodSelect: false,
   showQuickActions: false,
   kpiKeys: 'all',
   sectionTitles: {
@@ -146,7 +136,7 @@ export const buildCampoDashboardComposition = (
   return {
     persona,
     widgets: ['campoSummary', 'operations'],
-    showExports: false,
+    showPeriodSelect: false,
     showQuickActions: false,
     kpiKeys: ['cashCollected', 'outstandingBalance'],
     campoOperations: true,
