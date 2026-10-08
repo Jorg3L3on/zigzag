@@ -71,12 +71,12 @@ import {
   type TicketComposerDraftLine,
 } from '@/lib/ticket-composer-draft';
 import { cn } from '@/lib/utils';
+import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 
 const CLIENT_SEARCH_DEBOUNCE_MS = 250;
 const CLIENT_SEARCH_PAGE_SIZE = 50;
-const SECTION_CLASS =
-  'rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6';
+const SECTION_CLASS = GLASS_CARD_CLASS;
 
 type ComposerClient = { id: number; label: string };
 type SaveState = 'idle' | 'saving' | 'done';

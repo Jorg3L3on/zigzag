@@ -6,6 +6,7 @@
  * Usage:
  *   npm run build && npm run start -- -p 3070   # separate terminal
  *   node scripts/mobile-lighthouse-baseline.mjs
+ *   LIGHTHOUSE_PATHS=/tickets/create,/tickets node scripts/mobile-lighthouse-baseline.mjs
  */
 import { spawnSync } from 'node:child_process';
 import dotenv from 'dotenv';
@@ -17,11 +18,19 @@ const baseUrl = process.env.LIGHTHOUSE_BASE_URL ?? 'http://127.0.0.1:3070';
 const email = process.env.E2E_EMAIL;
 const password = process.env.E2E_PASSWORD;
 
-const paths = [
+const defaultPaths = [
   { path: '/login', auth: false },
   { path: '/dashboard', auth: true },
   { path: '/tickets', auth: true },
 ];
+
+// LIGHTHOUSE_PATHS=/tickets/create,/tickets limits the run (all but /login need auth).
+const paths = process.env.LIGHTHOUSE_PATHS
+  ? process.env.LIGHTHOUSE_PATHS.split(',')
+      .map((path) => path.trim())
+      .filter(Boolean)
+      .map((path) => ({ path, auth: path !== '/login' }))
+  : defaultPaths;
 
 const formatMs = (value) => {
   if (value == null || Number.isNaN(value)) return '—';

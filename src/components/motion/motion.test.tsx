@@ -17,6 +17,7 @@ import {
   ActionSwap,
   BlurFade,
   BottomSheet,
+  DrawCheck,
   NumberTicker,
   resolveSnapAfterDrag,
 } from '@/components/motion';
@@ -177,6 +178,19 @@ describe('motion primitives', () => {
       expect(
         resolveSnapAfterDrag({ ...base, currentIndex: 0, offsetY: 200, velocityY: 0 }),
       ).toBeNull();
+    });
+  });
+
+  describe('DrawCheck', () => {
+    it('draws in when motion is allowed', () => {
+      const { container } = render(<DrawCheck />);
+      expect(container.querySelector('svg')).toHaveAttribute('data-draw-check', 'animated');
+    });
+
+    it('renders the finished mark with reduced motion', () => {
+      mockReduceMotion = true;
+      const { container } = render(<DrawCheck />);
+      expect(container.querySelector('svg')).toHaveAttribute('data-draw-check', 'static');
     });
   });
 });

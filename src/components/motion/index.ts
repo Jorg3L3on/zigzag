@@ -1,5 +1,6 @@
 export { ActionSwap, type ActionSwapProps } from './action-swap';
 export { BlurFade, type BlurFadeProps } from './blur-fade';
+export { DrawCheck, type DrawCheckProps } from './draw-check';
 export {
   BottomSheet,
   resolveSnapAfterDrag,

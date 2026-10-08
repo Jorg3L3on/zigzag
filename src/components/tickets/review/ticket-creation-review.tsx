@@ -7,7 +7,6 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-  CheckCircle2,
   Circle,
   CircleCheck,
   Download,
@@ -23,7 +22,7 @@ import {
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
 import { finishTicket } from '@/actions/tickets';
-import { ActionSwap, BlurFade, NumberTicker } from '@/components/motion';
+import { ActionSwap, BlurFade, DrawCheck, NumberTicker } from '@/components/motion';
 import {
   TicketFinishSchedulesDialog,
   type TicketFinishScheduleLine,
@@ -50,6 +49,7 @@ import {
 import { buildTicketInvoicePreviewUrl } from '@/lib/ticket-invoice-url';
 import { canDownloadTicketInvoice, canFinishTicket } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
+import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
@@ -77,8 +77,7 @@ type TicketCreationReviewProps = {
 type PayMode = 'full' | 'partial' | 'pending';
 type Phase = 'idle' | 'finishing' | 'sharing';
 
-const SECTION_CLASS =
-  'rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6';
+const SECTION_CLASS = GLASS_CARD_CLASS;
 
 const subscribeNoop = () => () => {};
 const readPdfViewerEnabled = () =>
@@ -447,7 +446,7 @@ export const TicketCreationReview = ({
               }
               className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
             >
-              <CheckCircle2 className="size-6" aria-hidden />
+              <DrawCheck className="size-6" delay={0.1} />
             </motion.span>
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight">
