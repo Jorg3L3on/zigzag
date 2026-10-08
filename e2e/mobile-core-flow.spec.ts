@@ -5,6 +5,12 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import {
+  addComposerLine,
+  createClientInComposer,
+  openComposer,
+  saveComposer,
+} from './helpers/ticket-composer';
 import { formatServiceCurrency } from '../src/components/tickets/ticket-services-utils';
 
 const uniqueSuffix = () => Date.now().toString().slice(-8);
@@ -14,90 +20,17 @@ const INITIAL_QUANTITY = 2;
 const UPDATED_QUANTITY = 3;
 const PARTIAL_PAYMENT = 50;
 
-const createClientAndTicket = async (page: Page) => {
+const composeTicket = async (page: Page) => {
   const clientName = `Mobile E2E Client ${uniqueSuffix()}`;
   const clientPhone = `961${uniqueSuffix().slice(-7)}`;
 
-  await page.goto('/tickets/create');
-  await expect(page.getByText('Información del cliente').first()).toBeVisible({
-    timeout: 15_000,
+  await openComposer(page);
+  await createClientInComposer(page, { name: clientName, phone: clientPhone });
+  const serviceName = await addComposerLine(page, {
+    quantity: INITIAL_QUANTITY,
+    price: UNIT_PRICE,
   });
-
-  await page.getByRole('button', { name: 'Nuevo cliente' }).first().click();
-  const clientDialog = page.getByRole('dialog', {
-    name: 'Crear nuevo cliente',
-  });
-  await expect(clientDialog).toBeVisible();
-  await clientDialog.getByLabel('Nombre').fill(clientName);
-  await clientDialog.getByLabel('Teléfono').fill(clientPhone);
-  await clientDialog.getByRole('button', { name: 'Crear' }).click();
-
-  const clientCreateError = page.getByText(
-    /Error al crear el cliente|Selecciona una empresa/,
-  );
-  await Promise.race([
-    expect(page.getByText('Cliente seleccionado')).toBeVisible({
-      timeout: 30_000,
-    }),
-    clientCreateError
-      .waitFor({ state: 'visible', timeout: 30_000 })
-      .then(async () => {
-        throw new Error(
-          `Client create failed: ${await clientCreateError.textContent()}`,
-        );
-      }),
-  ]);
-  await expect(clientDialog).toBeHidden({ timeout: 10_000 });
-
-  // Mobile sticky bar uses "Crear"; desktop submit is hidden below md.
-  await page.getByRole('button', { name: 'Crear', exact: true }).click();
-  await page.waitForURL(/\/tickets\/\d+\/services/, { timeout: 30_000 });
-
-  const ticketId = page.url().match(/\/tickets\/(\d+)\/services/)?.[1];
-  expect(ticketId).toBeTruthy();
-  return { ticketId: ticketId!, clientName };
-};
-
-const addServiceWithPrice = async (
-  page: Page,
-  {
-    quantity,
-    price,
-  }: {
-    quantity: number;
-    price: number;
-  },
-) => {
-  await page.getByRole('button', { name: 'Agregar servicio' }).click();
-  const serviceDialog = page.getByRole('dialog', {
-    name: 'Agregar servicio al ticket',
-  });
-  await expect(serviceDialog).toBeVisible();
-
-  await serviceDialog.getByRole('combobox', { name: 'Servicio' }).click();
-  const serviceListbox = page.getByRole('listbox');
-  await expect(serviceListbox).toBeVisible({ timeout: 15_000 });
-  const serviceOption = serviceListbox.getByRole('option').first();
-  await expect(serviceOption).toBeVisible();
-  const serviceName = (await serviceOption.textContent())?.trim();
-  expect(serviceName).toBeTruthy();
-  await serviceOption.click();
-
-  await serviceDialog
-    .getByRole('spinbutton', { name: 'Cantidad' })
-    .fill(String(quantity));
-  await serviceDialog
-    .getByRole('spinbutton', { name: 'Precio' })
-    .fill(String(price));
-  await serviceDialog
-    .getByRole('button', { name: 'Agregar al ticket' })
-    .click();
-  await expect(serviceDialog).toBeHidden({ timeout: 30_000 });
-  await expect(
-    page.getByRole('heading', { name: serviceName! }),
-  ).toBeVisible();
-
-  return serviceName!;
+  return { clientName, serviceName };
 };
 
 const expectServicesTotal = async (page: Page, amount: number) => {
@@ -110,7 +43,6 @@ const finishWithPartialPayment = async (
   ticketId: string,
   partialAmount: number,
 ) => {
-  await page.getByRole('button', { name: 'Continuar al detalle' }).click();
   await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
     timeout: 30_000,
   });
@@ -209,27 +141,24 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
   test('creates ticket, updates service total, collects payment, downloads PDF', async ({
     page,
   }) => {
-    const { ticketId } = await createClientAndTicket(page);
-
-    const serviceName = await addServiceWithPrice(page, {
-      quantity: INITIAL_QUANTITY,
-      price: UNIT_PRICE,
-    });
+    const { serviceName } = await composeTicket(page);
     await expectServicesTotal(page, UNIT_PRICE * INITIAL_QUANTITY);
 
-    // Mobile lines are compact: quantity changes go through ⋯ → Editar sheet.
+    // Editar the draft line in its sheet before saving.
     await page.getByRole('button', { name: `Opciones de ${serviceName}` }).click();
     await page.getByRole('menuitem', { name: /Editar/ }).click();
-    const editSheet = page.getByTestId('ticket-service-edit-sheet');
+    const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await editSheet
       .getByRole('button', { name: 'Aumentar cantidad del servicio' })
       .click();
     await expect(
       editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
     ).toHaveValue(String(UPDATED_QUANTITY));
-    await editSheet.getByRole('button', { name: 'Guardar' }).click();
+    await editSheet.getByRole('button', { name: 'Guardar cambios' }).click();
     await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
+
+    const ticketId = await saveComposer(page);
 
     const finalTotal = UNIT_PRICE * UPDATED_QUANTITY;
     await finishWithPartialPayment(page, ticketId, PARTIAL_PAYMENT);

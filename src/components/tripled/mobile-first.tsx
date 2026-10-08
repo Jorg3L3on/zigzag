@@ -201,9 +201,9 @@ export const TripledMobileStickyActionBar = ({
   innerClassName,
 }: TripledMobileStickyActionBarProps) => {
   useRegisterMobileStickyAction();
-  const [portalHost, setPortalHost] = React.useState<HTMLElement | null>(() =>
-    typeof document !== 'undefined' ? document.body : null,
-  );
+  // Start null on server and client alike: reading document.body during the
+  // first client render made hydration output differ from the SSR markup.
+  const [portalHost, setPortalHost] = React.useState<HTMLElement | null>(null);
 
   React.useLayoutEffect(() => {
     setPortalHost(document.body);

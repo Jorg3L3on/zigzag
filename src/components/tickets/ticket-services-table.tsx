@@ -84,7 +84,7 @@ export const TicketServicesTable = ({
         className="h-10 w-full sm:w-auto"
         onClick={onBack}
       >
-        Volver a datos del ticket
+        Editar datos del ticket
       </Button>
       <Button
         type="button"
@@ -92,7 +92,7 @@ export const TicketServicesTable = ({
         disabled={ticketServices.length === 0}
         onClick={onContinue}
       >
-        Continuar al detalle
+        Ver ticket
       </Button>
     </div>
   </>
