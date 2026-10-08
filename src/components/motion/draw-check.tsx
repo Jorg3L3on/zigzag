@@ -12,21 +12,22 @@ export type DrawCheckProps = {
 
 /**
  * Success mark that draws itself (circle, then tick), like easyui DrawCheckbox /
- * beui success-check. Reduced motion renders the finished mark.
+ * beui success-check. Reduced motion shows the finished mark at once.
  */
 export const DrawCheck = ({ className, delay = 0 }: DrawCheckProps) => {
   const reduceMotion = useReducedMotion();
-  const draw = (start: number, duration: number) =>
-    reduceMotion
-      ? { initial: false as const }
+  // Same initial/animate on server and client (hydration-safe); reduced motion
+  // only zeroes the timing so the finished mark appears at once.
+  const draw = (start: number, duration: number) => ({
+    initial: { pathLength: 0, opacity: 0 },
+    animate: { pathLength: 1, opacity: 1 },
+    transition: reduceMotion
+      ? { duration: 0 }
       : {
-          initial: { pathLength: 0, opacity: 0 },
-          animate: { pathLength: 1, opacity: 1 },
-          transition: {
-            pathLength: { delay: delay + start, duration, ease: [0.22, 1, 0.36, 1] as const },
-            opacity: { delay: delay + start, duration: 0.01 },
-          },
-        };
+          pathLength: { delay: delay + start, duration, ease: [0.22, 1, 0.36, 1] as const },
+          opacity: { delay: delay + start, duration: 0.01 },
+        },
+  });
 
   return (
     <svg
@@ -37,7 +38,7 @@ export const DrawCheck = ({ className, delay = 0 }: DrawCheckProps) => {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      data-draw-check={reduceMotion ? 'static' : 'animated'}
+      data-draw-check
       className={cn('size-6', className)}
     >
       <motion.circle cx="12" cy="12" r="10" {...draw(0, 0.45)} />

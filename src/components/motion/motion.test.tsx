@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 let mockReduceMotion = false;
 
@@ -36,13 +36,14 @@ describe('motion primitives', () => {
       expect(node).toHaveAttribute('data-blur-fade');
     });
 
-    it('renders the final state with reduced motion', () => {
+    it('keeps the same markup and snaps to the final state with reduced motion', async () => {
       mockReduceMotion = true;
-      render(<BlurFade data-testid="fade">Hola</BlurFade>);
+      render(<BlurFade data-testid="fade" delay={1}>Hola</BlurFade>);
       const node = screen.getByTestId('fade');
-      expect(node).not.toHaveAttribute('data-blur-fade');
-      expect(node.style.filter).toBe('');
-      expect(node.style.opacity).toBe('');
+      // Same attribute as the animated path, so SSR and hydration agree.
+      expect(node).toHaveAttribute('data-blur-fade');
+      // Duration 0 ignores the 1 s delay: fully visible right away.
+      await waitFor(() => expect(node.style.opacity).toBe('1'));
     });
   });
 
@@ -88,14 +89,14 @@ describe('motion primitives', () => {
       expect(screen.getByText('Guardando…')).toBeTruthy();
     });
 
-    it('swaps instantly with reduced motion', () => {
+    it('swaps instantly with reduced motion', async () => {
       mockReduceMotion = true;
       const { rerender, container } = render(
         <ActionSwap swapKey="idle">Guardar</ActionSwap>,
       );
       rerender(<ActionSwap swapKey="done">Listo</ActionSwap>);
-      expect(screen.queryByText('Guardar')).toBeNull();
       expect(container.querySelector('[data-swap-key="done"]')).not.toBeNull();
+      await waitFor(() => expect(screen.queryByText('Guardar')).toBeNull());
     });
   });
 
@@ -182,15 +183,22 @@ describe('motion primitives', () => {
   });
 
   describe('DrawCheck', () => {
-    it('draws in when motion is allowed', () => {
-      const { container } = render(<DrawCheck />);
-      expect(container.querySelector('svg')).toHaveAttribute('data-draw-check', 'animated');
+    it('starts undrawn when motion is allowed', () => {
+      const { container } = render(<DrawCheck delay={1} />);
+      expect(container.querySelector('svg')).toHaveAttribute('data-draw-check');
+      expect(
+        container.querySelector('circle')?.getAttribute('opacity'),
+      ).toBe('0');
     });
 
-    it('renders the finished mark with reduced motion', () => {
+    it('shows the finished mark at once with reduced motion', async () => {
       mockReduceMotion = true;
-      const { container } = render(<DrawCheck />);
-      expect(container.querySelector('svg')).toHaveAttribute('data-draw-check', 'static');
+      const { container } = render(<DrawCheck delay={1} />);
+      await waitFor(() =>
+        expect(
+          container.querySelector('circle')?.getAttribute('opacity'),
+        ).toBe('1'),
+      );
     });
   });
 });

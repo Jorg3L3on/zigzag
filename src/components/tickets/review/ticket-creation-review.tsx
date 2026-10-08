@@ -437,7 +437,7 @@ export const TicketCreationReview = ({
         <BlurFade>
           <header className="flex items-center gap-3 px-1 py-2" data-testid="review-header">
             <motion.span
-              initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
+              initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={
                 reduceMotion

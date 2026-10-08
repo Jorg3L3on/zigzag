@@ -18,13 +18,32 @@ import {
  * then the ticket shows in the Tickets tab. Plus a reduced-motion pass.
  */
 
+/** Running animations, ignoring loading spinners (essential feedback). */
 const runningAnimations = (page: Page) =>
   page.evaluate(
     () =>
-      document
-        .getAnimations()
-        .filter((animation) => animation.playState === 'running').length,
+      document.getAnimations().filter((animation) => {
+        if (animation.playState !== 'running') return false;
+        const target = (animation.effect as KeyframeEffect | null)?.target;
+        return !(target instanceof Element && target.closest('.animate-spin'));
+      }).length,
   );
+
+/**
+ * Reduced motion: entrance elements are at their final state almost at once
+ * (no staggered fade / draw). BlurFade delays go up to 0.15 s plus 0.4 s of
+ * animation, so 150 ms after load nothing should still be mid-animation.
+ */
+const expectSettledAtOnce = async (page: Page, selector: string) => {
+  await page.waitForTimeout(150);
+  const opacities = await page
+    .locator(selector)
+    .evaluateAll((nodes) =>
+      nodes.map((node) => getComputedStyle(node as Element).opacity),
+    );
+  expect(opacities.length).toBeGreaterThan(0);
+  expect(opacities.every((value) => value === '1')).toBe(true);
+};
 
 test.describe('Ticket creation (mobile)', () => {
   test.setTimeout(240_000);
@@ -75,11 +94,13 @@ test.describe('Ticket creation (mobile)', () => {
     await page.waitForURL(new RegExp(`/tickets/${ticketId}$`));
     await expect(page.getByText(/Finalizado ·/)).toBeVisible({ timeout: 15_000 });
 
+    // The detail page's sticky recibo action hides the dock; go back to Hoy.
+    await page.goto('/dashboard');
     const ticketsTab = page
       .getByTestId('mobile-bottom-tab-bar')
       .getByRole('link', { name: 'Tickets' });
-    await expect(ticketsTab).toHaveAttribute('aria-current', 'page');
     await Promise.all([page.waitForURL(/\/tickets$/), ticketsTab.click()]);
+    await expect(ticketsTab).toHaveAttribute('aria-current', 'page');
     await expect(page.getByText(clientName).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -99,6 +120,13 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
   test('no non-essential animation in the dock, composer and review', async ({
     page,
   }) => {
+    const hydrationErrors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error' && /hydrat/i.test(message.text())) {
+        hydrationErrors.push(message.text());
+      }
+    });
+
     await page.goto('/dashboard');
     const dock = page.getByTestId('mobile-bottom-tab-bar');
     await expect(dock).toBeVisible();
@@ -111,7 +139,7 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
     await expect(
       page.getByRole('heading', { name: 'Cliente', exact: true }),
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-blur-fade]')).toHaveCount(0);
+    await expectSettledAtOnce(page, '[data-blur-fade]');
     await page.getByRole('button', { name: 'Agregar servicio' }).click();
     await expect(page.getByRole('dialog', { name: 'Agregar servicio' })).toBeVisible();
     expect(await runningAnimations(page)).toBe(0);
@@ -124,7 +152,9 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
     test.skip(!firstId, 'No ticket to open the review screen with');
     await page.goto(`/tickets/${firstId}/listo`);
     await expect(page.getByTestId('review-header')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-draw-check="static"]')).toHaveCount(1);
-    await expect(page.locator('[data-blur-fade]')).toHaveCount(0);
+    await expectSettledAtOnce(page, '[data-blur-fade]');
+    await expectSettledAtOnce(page, '[data-draw-check] circle');
+    // Motion primitives keep SSR markup identical under reduced motion.
+    expect(hydrationErrors).toEqual([]);
   });
 });

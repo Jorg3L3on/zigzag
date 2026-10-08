@@ -15,23 +15,12 @@ export type ActionSwapProps = {
 /**
  * CTA label / icon swap (beui Action Swap): the old content slides up and blurs
  * out while the new one rises in. Use inside a Button for idle → saving → done.
- * Reduced motion swaps instantly.
+ * Reduced motion swaps instantly (duration 0, same markup).
  */
 export const ActionSwap = ({ swapKey, children, className }: ActionSwapProps) => {
   const reduceMotion = useReducedMotion();
 
-  if (reduceMotion) {
-    return (
-      <span
-        key={swapKey}
-        data-swap-key={swapKey}
-        className={cn('inline-flex items-center justify-center gap-2', className)}
-      >
-        {children}
-      </span>
-    );
-  }
-
+  // Same markup either way (hydration-safe); reduced motion only zeroes the timing.
   return (
     <span className={cn('relative inline-grid overflow-hidden', className)}>
       <AnimatePresence mode="popLayout" initial={false}>
@@ -42,7 +31,11 @@ export const ActionSwap = ({ swapKey, children, className }: ActionSwapProps) =>
           initial={{ y: '60%', opacity: 0, filter: 'blur(4px)' }}
           animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
           exit={{ y: '-60%', opacity: 0, filter: 'blur(4px)' }}
-          transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.6 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: 'spring', stiffness: 420, damping: 32, mass: 0.6 }
+          }
         >
           {children}
         </motion.span>

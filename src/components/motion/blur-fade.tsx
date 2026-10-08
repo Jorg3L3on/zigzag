@@ -28,7 +28,9 @@ export type BlurFadeProps = Omit<
 
 /**
  * Section / list entrance: fade + slight rise + blur clearing (magicui Blur Fade).
- * Reduced motion renders the final state with no animation.
+ * Reduced motion snaps to the final state (duration 0). Markup never depends on
+ * the preference: useReducedMotion can differ between SSR and the first client
+ * render, and a different branch would break hydration.
  */
 export const BlurFade = ({
   children,
@@ -45,14 +47,6 @@ export const BlurFade = ({
   const isInView = useInView(ref, { once: true, margin: '-40px' });
   const visible = !inView || isInView;
 
-  if (reduceMotion) {
-    return (
-      <motion.div ref={ref} className={className} {...props}>
-        {children}
-      </motion.div>
-    );
-  }
-
   return (
     <motion.div
       ref={ref}
@@ -64,7 +58,11 @@ export const BlurFade = ({
           ? { opacity: 1, y: 0, filter: 'blur(0px)' }
           : { opacity: 0, y: offset, filter: `blur(${blur}px)` }
       }
-      transition={{ delay, duration, ease: [0.22, 1, 0.36, 1] }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { delay, duration, ease: [0.22, 1, 0.36, 1] }
+      }
       {...props}
     >
       {children}

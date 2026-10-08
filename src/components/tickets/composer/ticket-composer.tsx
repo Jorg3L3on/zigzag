@@ -583,7 +583,7 @@ export const TicketComposer = () => {
                     <motion.li
                       key={line.key}
                       layout={!reduceMotion}
-                      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
                       transition={{ duration: reduceMotion ? 0 : 0.2 }}
