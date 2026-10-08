@@ -18,12 +18,18 @@ import {
  * then the ticket shows in the Tickets tab. Plus a reduced-motion pass.
  */
 
-/** Running animations, ignoring loading spinners (essential feedback). */
+/**
+ * Perceptible running animations (> 50 ms), ignoring loading spinners
+ * (essential feedback). The reduced-motion reset shortens CSS motion to
+ * 0.01 ms, which can still be caught "running" for a frame.
+ */
 const runningAnimations = (page: Page) =>
   page.evaluate(
     () =>
       document.getAnimations().filter((animation) => {
         if (animation.playState !== 'running') return false;
+        const duration = Number(animation.effect?.getComputedTiming().duration ?? 0);
+        if (!(duration > 50)) return false;
         const target = (animation.effect as KeyframeEffect | null)?.target;
         return !(target instanceof Element && target.closest('.animate-spin'));
       }).length,
@@ -146,6 +152,9 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
     await page.keyboard.press('Escape');
 
     await page.goto('/tickets');
+    await expect(
+      page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).first(),
+    ).toBeVisible({ timeout: 15_000 });
     const firstId = (
       await page.locator('main').innerText()
     ).match(/#(\d{3,})/)?.[1];
