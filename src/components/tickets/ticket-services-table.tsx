@@ -88,7 +88,7 @@ export const TicketServicesTable = ({
       </Button>
       <Button
         type="button"
-        className="h-11 w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-base font-semibold text-white shadow-md transition-colors hover:from-blue-700 hover:to-purple-700 sm:w-auto"
+        className="h-11 w-full rounded-xl text-base font-semibold sm:w-auto"
         disabled={ticketServices.length === 0}
         onClick={onContinue}
       >

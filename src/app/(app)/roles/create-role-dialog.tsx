@@ -179,7 +179,7 @@ export function CreateRoleDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+        <Button>
           <Plus className="mr-2 h-4 w-4" data-icon="inline-start" />
           Crear rol
         </Button>
@@ -326,7 +326,6 @@ export function CreateRoleDialog({
             />
 
             <Button
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               type="submit"
               disabled={isSubmitting}
             >

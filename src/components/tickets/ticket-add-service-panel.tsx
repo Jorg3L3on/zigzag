@@ -70,7 +70,7 @@ export const TicketAddServicePanel = ({
 }: TicketAddServicePanelProps) => (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
     <DialogTrigger asChild>
-      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transition-all duration-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg sm:w-auto">
+      <Button className="w-full sm:w-auto">
         <PlusCircle className="mr-2 h-5 w-5" data-icon="inline-start" />
         Agregar servicio
       </Button>
@@ -274,7 +274,7 @@ export const TicketAddServicePanel = ({
           <Button
             type="button"
             onClick={onAddService}
-            className="h-12 w-full transform bg-gradient-to-r from-blue-600 to-purple-600 font-medium text-white transition-all duration-200 hover:scale-[1.02] hover:from-blue-700 hover:to-purple-700"
+            className="h-12 w-full font-medium"
             disabled={isSubmitting}
           >
             {isSubmitting ? (
