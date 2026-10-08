@@ -309,6 +309,20 @@ export const ERROR_CATALOG = {
     message: 'Intenta de nuevo en unos momentos.',
     type: 'server',
   },
+  RL005: {
+    code: 'RL005',
+    module: 'roles',
+    title: 'Este rol está en uso',
+    message: 'Cambia de rol a las personas que lo tienen antes de eliminarlo.',
+    type: 'validation',
+  },
+  RL006: {
+    code: 'RL006',
+    module: 'roles',
+    title: 'Tu empresa se quedaría sin administrador',
+    message: 'Nadie más podría gestionar el equipo o los roles. Deja Equipo y Roles en Editar, o da ese permiso a otro rol con personas asignadas.',
+    type: 'validation',
+  },
   SV001: {
     code: 'SV001',
     module: 'services',

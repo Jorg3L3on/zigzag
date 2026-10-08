@@ -143,6 +143,56 @@ test.describe('Mi empresa hub', () => {
       }
     });
 
+    test('Roles is master-detail with a Ver / Editar matrix on desktop', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto('/company/roles');
+
+      const forbidden = page.getByText('Acceso denegado');
+      if (await forbidden.isVisible().catch(() => false)) {
+        test.skip(true, 'Current E2E user cannot read roles');
+      }
+
+      const firstRole = page.getByTestId('role-list-item').first();
+      await expect(firstRole).toBeVisible();
+      await firstRole.click();
+      await expect(firstRole).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByRole('checkbox', { name: 'Ver Tickets' })).toBeVisible();
+      await expect(page.getByRole('checkbox', { name: 'Editar Tickets' })).toBeVisible();
+      await expect(
+        page.getByRole('checkbox', { name: 'Administrar Mi empresa' }),
+      ).toBeVisible();
+    });
+
+    test('a role opens a full-screen editor with sticky Guardar rol @375px', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto('/company/roles');
+
+      const forbidden = page.getByText('Acceso denegado');
+      if (await forbidden.isVisible().catch(() => false)) {
+        test.skip(true, 'Current E2E user cannot read roles');
+      }
+
+      await page.getByTestId('role-card').first().click();
+      await expect(page).toHaveURL(/\/company\/roles\/\d+$/);
+      const appBar = visibleMobileAppBar(page);
+      await expect(appBar.getByText('Editar rol')).toBeVisible();
+      await expect(page.getByRole('checkbox', { name: 'Ver Tickets' })).toBeVisible();
+
+      const stickySave = page
+        .getByTestId('mobile-sticky-action-bar')
+        .getByRole('button', { name: 'Guardar rol' });
+      if (await page.getByRole('checkbox', { name: 'Ver Tickets' }).isEnabled()) {
+        await expect(stickySave).toBeVisible();
+      }
+
+      await appBar.getByRole('link', { name: 'Volver a roles' }).click();
+      await expect(page).toHaveURL(/\/company\/roles$/);
+    });
+
     test('redirects tenant users from the old admin pages to the hub', async ({
       page,
     }) => {
