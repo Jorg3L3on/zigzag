@@ -17,13 +17,14 @@ const visibleHubTab = (page: Page, name: string) =>
     .filter({ visible: true })
     .first();
 
-const sessionIsSystem = async (page: Page): Promise<boolean> => {
-  const response = await page.request.get('/api/auth/session');
-  const session = (await response.json()) as {
-    user?: { company_is_system?: boolean };
-  };
-  return Boolean(session.user?.company_is_system);
-};
+const sessionIsSystem = async (page: Page): Promise<boolean> =>
+  page.evaluate(async () => {
+    const response = await fetch('/api/auth/session');
+    const session = (await response.json()) as {
+      user?: { company_is_system?: boolean };
+    } | null;
+    return Boolean(session?.user?.company_is_system);
+  });
 
 /** ZIG-I3-1 — Mi empresa hub shell: Datos · Equipo · Roles. */
 test.describe('Mi empresa hub', () => {
