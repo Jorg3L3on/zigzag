@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { MobileBottomDock } from '@/components/mobile-bottom-dock';
 
@@ -9,6 +9,15 @@ let mockPathname = '/dashboard';
 let mockGranted = ['tickets.read', 'tickets.write', 'clients.read', 'clients.write'];
 let mockHasStickyAction = false;
 const mockSetOpenMobile = jest.fn();
+let mockReduceMotion = false;
+
+jest.mock('framer-motion', () => {
+  const actual = jest.requireActual('framer-motion');
+  return {
+    ...actual,
+    useReducedMotion: () => mockReduceMotion,
+  };
+});
 
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
@@ -53,6 +62,7 @@ describe('MobileBottomDock', () => {
     mockPathname = '/dashboard';
     mockGranted = ['tickets.read', 'tickets.write', 'clients.read', 'clients.write'];
     mockHasStickyAction = false;
+    mockReduceMotion = false;
     mockSetOpenMobile.mockClear();
   });
 
@@ -179,5 +189,18 @@ describe('MobileBottomDock', () => {
     mockHasStickyAction = true;
     renderDock();
     expect(screen.queryByTestId('mobile-bottom-tab-bar')).toBeNull();
+  });
+
+  it('works with reduced motion (instant pill and menu, no press scale)', async () => {
+    mockReduceMotion = true;
+    mockPathname = '/tickets';
+    renderDock();
+    expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Crear' }));
+    expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+    act(() => {
+      fireEvent.keyDown(document, { key: 'Escape' });
+    });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
   });
 });
