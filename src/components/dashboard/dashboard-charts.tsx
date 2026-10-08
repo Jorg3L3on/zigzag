@@ -140,6 +140,8 @@ export const DashboardCharts = ({
   revenuePeriodControl,
 }: DashboardChartsProps) => {
   const shouldReduceMotion = useReducedMotion();
+  const periodLabel =
+    revenueMonthCount === 1 ? 'último mes' : `últimos ${revenueMonthCount} meses`;
   const hasRevenueData = revenueByMonth.some((m) => m.revenue > 0);
   const currentMonthKey = format(startOfMonth(new Date()), 'yyyy-MM');
 
@@ -177,8 +179,7 @@ export const DashboardCharts = ({
             {revenuePeriodControl}
           </div>
           <CardDescription>
-            Compara ingresos de tickets finalizados, mes a mes (últimos{' '}
-            {revenueMonthCount} meses)
+            Compara ingresos de tickets finalizados, mes a mes ({periodLabel})
           </CardDescription>
           <p className="sr-only">
             Los tooltips del gráfico son complementarios. Los montos por mes
@@ -200,7 +201,7 @@ export const DashboardCharts = ({
               <ChartContainer
                 config={revenueChartConfig}
                 role="img"
-                aria-label={`Gráfica de barras de ingresos por mes, últimos ${revenueMonthCount} meses`}
+                aria-label={`Gráfica de barras de ingresos por mes, ${periodLabel}`}
                 className="aspect-auto h-[260px] w-full sm:h-[280px]"
               >
                 <BarChart

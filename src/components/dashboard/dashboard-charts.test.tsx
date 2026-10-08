@@ -99,4 +99,19 @@ describe('DashboardCharts', () => {
       screen.getByRole('button', { name: '6 meses' }),
     );
   });
+
+  it('says último mes for a one-month period', () => {
+    render(
+      <DashboardCharts
+        revenueByMonth={[{ monthKey: '2026-10', label: 'oct 2026', revenue: 100 }]}
+        paymentStatusBreakdown={paymentBreakdown}
+        revenueMonthCount={1}
+      />,
+    );
+
+    expect(screen.getByText(/mes a mes \(último mes\)/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: /ingresos por mes, último mes$/i }),
+    ).toBeInTheDocument();
+  });
 });
