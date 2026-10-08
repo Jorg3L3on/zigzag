@@ -81,8 +81,56 @@ export const saveComposer = async (page: Page) => {
   const save = page.getByRole('button', { name: 'Guardar ticket' }).first();
   await expect(save).toBeEnabled();
   await save.click();
-  await page.waitForURL(/\/tickets\/\d+(\?|$)/, { timeout: 60_000 });
+  await page.waitForURL(/\/tickets\/\d+\/listo$/, { timeout: 60_000 });
   const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1];
   expect(ticketId).toBeTruthy();
   return ticketId!;
+};
+
+/**
+ * Creation review (ZIG-I2-5): choose the payment and tap Finalizar y compartir.
+ * window.open is stubbed so the WhatsApp fallback never leaves the app in tests.
+ */
+export const finishOnReview = async (
+  page: Page,
+  ticketId: string,
+  payment: { mode: 'full' } | { mode: 'partial'; amount: number } | { mode: 'pending' },
+) => {
+  await expect(
+    page.getByRole('heading', { name: `Ticket #${ticketId} guardado` }),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.evaluate(() => {
+    (window as unknown as { __openedUrls: string[] }).__openedUrls = [];
+    window.open = ((url?: string | URL) => {
+      (window as unknown as { __openedUrls: string[] }).__openedUrls.push(String(url));
+      return null;
+    }) as typeof window.open;
+  });
+
+  const label =
+    payment.mode === 'full'
+      ? /Pagado completo/
+      : payment.mode === 'partial'
+        ? /Pago parcial/
+        : /Pendiente/;
+  await page.getByRole('radio', { name: label }).click();
+  if (payment.mode === 'partial') {
+    await page.getByLabel('Cuánto pagó').fill(String(payment.amount));
+  }
+
+  await page.getByRole('button', { name: 'Finalizar y compartir' }).first().click();
+  await expect(
+    page.getByRole('heading', { name: `Ticket #${ticketId} finalizado` }),
+  ).toBeVisible({ timeout: 60_000 });
+
+  const schedulesDialog = page.getByRole('dialog', {
+    name: 'Recordatorios de servicio',
+  });
+  await expect(schedulesDialog).toBeVisible({ timeout: 30_000 });
+  await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
+  await expect(schedulesDialog).toBeHidden();
+
+  return page.evaluate(
+    () => (window as unknown as { __openedUrls: string[] }).__openedUrls,
+  );
 };

@@ -174,7 +174,7 @@ describe('TicketComposer', () => {
       ],
       client_total: 12950,
     });
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1201'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1201/listo'));
     expect(
       window.localStorage.getItem(buildTicketComposerDraftKey(10)),
     ).toBeNull();

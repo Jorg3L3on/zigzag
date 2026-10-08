@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -8,12 +8,19 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
+  finishOnReview,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
 import { formatServiceCurrency } from '../src/components/tickets/ticket-services-utils';
 
 const uniqueSuffix = () => Date.now().toString().slice(-8);
+
+/**
+ * After a hard navigation Next may still hold streamed sections in hidden
+ * placeholders (duplicate ids/text for a moment); act on the visible copy.
+ */
+const visible = (locator: Locator) => locator.filter({ visible: true }).first();
 
 const UNIT_PRICE = 100;
 const INITIAL_QUANTITY = 2;
@@ -43,50 +50,39 @@ const finishWithPartialPayment = async (
   ticketId: string,
   partialAmount: number,
 ) => {
-  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-    timeout: 30_000,
-  });
+  await finishOnReview(page, ticketId, { mode: 'partial', amount: partialAmount });
 
-  await page.getByRole('button', { name: 'Pago parcial' }).click();
-  await page.locator('#detail-paid-amount').fill(String(partialAmount));
-
-  await page.getByRole('button', { name: 'Finalizar y generar recibo' }).click();
-
-  const schedulesDialog = page.getByRole('dialog', {
-    name: 'Recordatorios de servicio',
-  });
-  await expect(schedulesDialog).toBeVisible({ timeout: 15_000 });
-  await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
-
-  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-    timeout: 60_000,
-  });
+  await page.goto(`/tickets/${ticketId}`);
   // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
-  await expect(page.getByText(/Finalizado ·/)).toBeVisible();
-  await expect(page.getByText('Pago parcial').first()).toBeVisible();
+  // After a hard navigation Next may still hold streamed chunks in hidden
+  // placeholders, so match the visible chip (strict mode would fail at once).
+  await expect(
+    page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(visible(page.getByText('Pago parcial'))).toBeVisible();
 };
 
 const settleRemainingBalance = async (page: Page) => {
-  const paymentsSection = page.locator('#cobranza');
+  const paymentsSection = visible(page.locator('#cobranza'));
+  await expect(paymentsSection).toBeVisible({ timeout: 15_000 });
   await paymentsSection.scrollIntoViewIfNeeded();
-  await expect(
+  const settleButton = visible(
     page.getByRole('button', { name: 'Saldar el ticket por completo' }),
-  ).toBeVisible({ timeout: 15_000 });
+  );
+  await expect(settleButton).toBeVisible({ timeout: 15_000 });
 
-  await page
-    .getByRole('button', { name: 'Saldar el ticket por completo' })
-    .click();
+  await settleButton.click();
 
-  await expect(page.getByText('Pago completado').first()).toBeVisible({
+  await expect(visible(page.getByText('Pago completado'))).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText('Saldado').first()).toBeVisible();
+  await expect(visible(page.getByText('Saldado'))).toBeVisible();
 };
 
 const downloadInvoicePdf = async (page: Page, ticketId: string) => {
-  const downloadButton = page
-    .getByRole('button', { name: /Descargar \/ imprimir|Generar recibo/ })
-    .first();
+  const downloadButton = visible(
+    page.getByRole('button', { name: /Descargar \/ imprimir|Generar recibo/ }),
+  );
   await expect(downloadButton).toBeVisible({ timeout: 15_000 });
 
   await Promise.all([

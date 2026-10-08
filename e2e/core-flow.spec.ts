@@ -8,6 +8,7 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
+  finishOnReview,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -34,30 +35,15 @@ test.describe('Core business flow smoke', () => {
     await createClientInComposer(page, { name: clientName, phone: clientPhone });
     await addComposerLine(page, { quantity: 1, price: 150 });
     const ticketId = await saveComposer(page);
-    await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-      timeout: 30_000,
-    });
+    await finishOnReview(page, ticketId, { mode: 'full' });
 
-    await expect(
-      page.getByRole('button', { name: 'Finalizar y generar recibo' }),
-    ).toBeVisible();
-
-    const finishButton = page.getByRole('button', {
-      name: 'Finalizar y generar recibo',
-    });
-    await finishButton.click();
-
-    const schedulesDialog = page.getByRole('dialog', {
-      name: 'Recordatorios de servicio',
-    });
-    await expect(schedulesDialog).toBeVisible({ timeout: 15_000 });
-    await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
-
-    await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-      timeout: 60_000,
-    });
+    await page.goto(`/tickets/${ticketId}`);
     // Status chip is always visible; mobile app bar subtitle is md:hidden on desktop.
-    await expect(page.getByText(/Finalizado ·/)).toBeVisible();
+    // After a hard navigation Next may still hold streamed chunks in hidden
+    // placeholders, so match the visible chip (strict mode would fail at once).
+    await expect(
+      page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
 
     const pdfCheck = await page.evaluate(async (id) => {
       const raw = localStorage.getItem('selectedCompany');
