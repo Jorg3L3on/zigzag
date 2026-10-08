@@ -7,20 +7,21 @@ import {
 } from './helpers/auth';
 import { visibleMobileStickyActionBar } from './helpers/mobile-chrome';
 
-test.describe('Mobile bottom tabs', () => {
+test.describe('Mobile bottom dock', () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
     await login(page);
     await ensureTenantCompany(page);
   });
 
-  test('shows Hoy / Tickets / Clientes / Más on dashboard', async ({ page }) => {
+  test('shows Hoy / Tickets / + / Clientes / Más on dashboard', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Hoy' })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Tickets' })).toBeVisible();
+    await expect(tabBar.getByRole('button', { name: 'Crear' })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Anotar' })).toHaveCount(0);
     await expect(tabBar.getByRole('link', { name: 'Clientes' })).toBeVisible();
     await expect(tabBar.getByRole('button', { name: /Más/i })).toBeVisible();
@@ -69,6 +70,53 @@ test.describe('Mobile bottom tabs', () => {
     await expect(
       page.getByRole('link', { name: 'Nuevo ticket' }).first(),
     ).toBeVisible();
+  });
+
+  test('+ opens the create menu and navigates to Nuevo ticket', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard');
+
+    const tabBar = page.getByTestId('mobile-bottom-tab-bar');
+    const plus = tabBar.getByRole('button', { name: 'Crear' });
+    await expect(plus).toHaveAttribute('aria-expanded', 'false');
+    await plus.click();
+
+    const menu = tabBar.getByRole('menu', { name: 'Crear' });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitem')).toHaveCount(3);
+    await expect(
+      menu.getByRole('menuitem', { name: /Captura rápida/ }),
+    ).toHaveAttribute('href', '/anotar');
+    await expect(
+      menu.getByRole('menuitem', { name: /Nuevo cliente/ }),
+    ).toHaveAttribute('href', '/clients/new');
+
+    await Promise.all([
+      page.waitForURL(/\/tickets\/create/),
+      menu.getByRole('menuitem', { name: /Nuevo ticket/ }).click(),
+    ]);
+  });
+
+  test('+ menu reaches Captura rápida and closes on Escape', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard');
+
+    const tabBar = page.getByTestId('mobile-bottom-tab-bar');
+    const plus = tabBar.getByRole('button', { name: 'Crear' });
+    await plus.click();
+    await expect(tabBar.getByRole('menu')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(tabBar.getByRole('menu')).toHaveCount(0);
+    await expect(plus).toHaveAttribute('aria-expanded', 'false');
+
+    await plus.click();
+    await Promise.all([
+      page.waitForURL(/\/anotar/),
+      tabBar.getByRole('menuitem', { name: /Captura rápida/ }).click(),
+    ]);
+    await expect(tabBar.getByRole('menu')).toHaveCount(0);
   });
 
   test('hides tabs on ticket create when sticky action bar is present', async ({

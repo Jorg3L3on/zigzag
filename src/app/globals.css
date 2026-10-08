@@ -81,10 +81,24 @@
 @layer base {
   :root {
     color-scheme: light;
+
+    /* Floating mobile dock (ported from Micasa). Content clears it via --dock-clearance. */
+    --dock-bar-height: 4rem;
+    --dock-float-gap: 0.75rem;
+    --dock-clearance: calc(
+      var(--dock-bar-height) + max(env(safe-area-inset-bottom, 0px), var(--dock-float-gap))
+    );
+    --shadow-panel:
+      0 1px 2px rgb(15 23 42 / 0.06),
+      0 10px 28px -12px rgb(15 23 42 / 0.18);
   }
 
   .dark {
     color-scheme: dark;
+    --shadow-panel:
+      0 0 0 1px rgb(255 255 255 / 0.04),
+      0 18px 40px -22px rgb(0 0 0 / 0.72),
+      0 32px 80px -36px rgb(59 130 246 / 0.16);
   }
 
   * {
@@ -153,12 +167,50 @@
   }
 }
 
-html[data-display-mode='standalone'] body {
-  overscroll-behavior-y: contain;
+@utility shadow-panel {
+  box-shadow: var(--shadow-panel);
 }
 
-html[data-display-mode='standalone'] [data-testid='mobile-bottom-tab-bar'] {
-  box-shadow: 0 -18px 36px -28px rgba(15, 23, 42, 0.45);
+/* Soft glass rim: top hairline + faint inner glow. Host must be positioned. */
+.liquid-glass {
+  isolation: isolate;
+}
+
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset 0 0 6px -3px rgb(255 255 255 / 0.3);
+}
+
+.dark .liquid-glass::before {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    inset 0 0 6px -3px rgb(255 255 255 / 0.3);
+}
+
+/* Active dock pill: light tint, thin ring, small halo. */
+.liquid-glass-pill {
+  background-color: rgb(255 255 255 / 0.7);
+  box-shadow:
+    0 0 0 1px rgb(15 23 42 / 0.06),
+    0 4px 12px -8px rgb(15 23 42 / 0.3);
+}
+
+.dark .liquid-glass-pill {
+  background-color: rgb(255 255 255 / 0.07);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.1),
+    0 0 14px -8px rgb(255 255 255 / 0.2);
+}
+
+html[data-display-mode='standalone'] body {
+  overscroll-behavior-y: contain;
 }
 
 /* Opacity-only: a transform on this wrapper creates a containing block and

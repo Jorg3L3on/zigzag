@@ -40,7 +40,7 @@ export const TripledDashboardShell = ({
         'flex min-w-0 flex-1 flex-col gap-4 bg-muted/20 p-3 sm:gap-6 sm:bg-background sm:p-6',
         hasMobileStickyAction
           ? 'pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-6'
-          : 'pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-6',
+          : 'pb-4 sm:pb-6',
         className,
       )}
     >

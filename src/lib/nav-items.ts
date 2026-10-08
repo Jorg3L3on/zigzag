@@ -226,6 +226,3 @@ export const getActiveMobileTabHref = (
   pathname,
   tabs.map((item) => item.url),
 );
-
-/** Fixed height of the mobile bottom tab row (excluding safe-area). */
-export const MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX = 56;
