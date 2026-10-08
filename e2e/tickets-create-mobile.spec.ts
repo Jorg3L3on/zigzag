@@ -98,7 +98,9 @@ test.describe('Ticket creation (mobile)', () => {
 
     await page.getByRole('link', { name: 'Ver ticket' }).first().click();
     await page.waitForURL(new RegExp(`/tickets/${ticketId}$`));
-    await expect(page.getByText(/Finalizado ·/)).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
 
     // The detail page's sticky recibo action hides the dock; go back to Hoy.
     await page.goto('/dashboard');
