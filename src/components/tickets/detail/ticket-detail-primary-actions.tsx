@@ -73,16 +73,9 @@ export const TicketDetailPrimaryActions = ({
     return null;
   }
 
+  // Unfinished tickets: the Finalizar panel owns the only primary CTA
+  // ("Finalizar y generar recibo"), so no second "Finalizar" button here.
   const primaryButton = (() => {
-    if (canFinish) {
-      return (
-        <Button asChild className="h-10 w-full gap-2 md:w-auto">
-          <a href="#finalizar" aria-label="Finalizar ticket">
-            Finalizar
-          </a>
-        </Button>
-      );
-    }
     if (canCollect) {
       return (
         <Button asChild className="h-10 w-full gap-2 md:w-auto">

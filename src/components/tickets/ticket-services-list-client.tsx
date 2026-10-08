@@ -9,7 +9,6 @@ import {
   TripledDashboardShell,
   TripledMobileAppBar,
   TripledPageHeader,
-  TripledStepper,
 } from '@/components/tripled';
 import { TicketAddServicePanel } from '@/components/tickets/ticket-add-service-panel';
 import { TicketServicesTable } from '@/components/tickets/ticket-services-table';
@@ -116,14 +115,6 @@ export function TicketServicesListClient({
           className="mb-3"
         />
         <div className="space-y-4">
-          <TripledStepper
-            steps={[
-              { id: 'create', title: 'Datos del ticket' },
-              { id: 'services', title: 'Servicios' },
-              { id: 'review', title: 'Revisión y PDF' },
-            ]}
-            currentStepId="services"
-          />
           <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
             <CardHeader className="border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-6 sm:px-8 sm:py-7">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -132,7 +123,7 @@ export function TicketServicesListClient({
                     Servicios asignados
                   </CardTitle>
                   <CardDescription className="text-base">
-                    Lista de servicios asignados a este ticket
+                    Agrega, edita o quita servicios de este ticket
                   </CardDescription>
                 </div>
                 <TicketAddServicePanel

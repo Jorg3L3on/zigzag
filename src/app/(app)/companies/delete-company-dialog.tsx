@@ -63,7 +63,6 @@ export function DeleteCompanyDialog({
             Cancelar
           </Button>
           <Button
-            className="bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-700 hover:to-purple-700"
             variant="destructive"
             onClick={onDelete}
           >

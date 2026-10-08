@@ -71,6 +71,47 @@ export const buildWhatsAppBalanceShare = (
     message: buildWhatsAppBalanceMessage(input),
   });
 
+export type WhatsAppReceiptShareInput = {
+  phone: string | null | undefined;
+  clientName: string | null | undefined;
+  ticketId: string | number;
+  total: number;
+  paid: number;
+  companyName?: string | null;
+};
+
+export const buildWhatsAppReceiptMessage = (
+  input: Omit<WhatsAppReceiptShareInput, 'phone'>,
+): string => {
+  const client = (input.clientName ?? 'cliente').trim() || 'cliente';
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+  const balance = Math.max(input.total - input.paid, 0);
+  const amounts = [
+    `total ${formatTicketListAmount(input.total)}`,
+    `pagado ${formatTicketListAmount(input.paid)}`,
+  ];
+  if (balance > 0) {
+    amounts.push(`saldo ${formatTicketListAmount(balance)}`);
+  }
+
+  return [
+    intro,
+    `Te compartimos el recibo del ticket #${input.ticketId} a nombre de ${client}: ${amounts.join(', ')}.`,
+    '¡Gracias!',
+  ].join(' ');
+};
+
+export const buildWhatsAppReceiptShare = (
+  input: WhatsAppReceiptShareInput,
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone: input.phone,
+    message: buildWhatsAppReceiptMessage(input),
+  });
+
 export type WhatsAppVisitShareInput = {
   phone: string | null | undefined;
   clientName: string | null | undefined;

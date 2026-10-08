@@ -22,7 +22,10 @@ export async function GET(
       return fail('TC008', 404, 'validation');
     }
 
-    const requestedCompanyId = new URL(request.url).searchParams.get('company_id');
+    const searchParams = new URL(request.url).searchParams;
+    const requestedCompanyId = searchParams.get('company_id');
+    const disposition =
+      searchParams.get('disposition') === 'inline' ? 'inline' : 'attachment';
     const parsedCompanyId = requestedCompanyId
       ? Number.parseInt(requestedCompanyId, 10)
       : undefined;
@@ -81,7 +84,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"`,
+        'Content-Disposition': `${disposition}; filename="${filename.replace(/"/g, '')}"`,
         'Cache-Control': 'no-store',
       },
     });

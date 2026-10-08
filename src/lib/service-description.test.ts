@@ -6,12 +6,16 @@ import {
 } from '@/lib/service-description';
 
 describe('service description limits', () => {
-  it('accepts description at exactly 120 characters', () => {
+  it('allows 240 characters (ZIG-I2)', () => {
+    expect(SERVICE_DESCRIPTION_MAX_LENGTH).toBe(240);
+  });
+
+  it('accepts description at exactly 240 characters', () => {
     const value = 'a'.repeat(SERVICE_DESCRIPTION_MAX_LENGTH);
     expect(serviceDescriptionSchema.safeParse(value).success).toBe(true);
   });
 
-  it('rejects description longer than 120 characters', () => {
+  it('rejects description longer than 240 characters', () => {
     const value = 'a'.repeat(SERVICE_DESCRIPTION_MAX_LENGTH + 1);
     const result = serviceDescriptionSchema.safeParse(value);
     expect(result.success).toBe(false);

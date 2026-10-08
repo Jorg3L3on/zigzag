@@ -38,7 +38,7 @@ export const TicketDetailMoneyBar = ({
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">Total</p>
           <p className="truncate text-sm font-semibold tabular-nums tracking-tight sm:text-base">
-            <FormattedCurrency amount={total} />
+            <FormattedCurrency amount={total ?? 0} />
           </p>
         </div>
         <a
@@ -48,7 +48,11 @@ export const TicketDetailMoneyBar = ({
         >
           <p className="text-xs text-muted-foreground">Pagado</p>
           <p className="truncate text-sm font-semibold tabular-nums tracking-tight sm:text-base">
-            <FormattedCurrency amount={paid} />
+            {(paid ?? 0) > 0 ? (
+              <FormattedCurrency amount={paid} />
+            ) : (
+              <span className="font-medium text-muted-foreground">Sin pagos</span>
+            )}
           </p>
         </a>
         <a

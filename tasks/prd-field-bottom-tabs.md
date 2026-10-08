@@ -1,6 +1,7 @@
 # PRD: Field program — Mobile bottom tabs (Hoy / Anotar / Clientes / Más)
 
-**Status:** 📋 Ready to implement — **Epic A, slice 1**  
+**Status:** ⚠️ Superseded 2026-10-08 by Plania initiative **ZIG-I2** (ticket creation redesign, mobile-first). Tabs are now **Hoy · Tickets · + · Clientes · Más**; `/anotar` remains as **Captura rápida** (dock + menu, Hoy, Más sheet). Kept for history.  
+**Original status:** 📋 Ready to implement — **Epic A, slice 1**  
 **Program:** [`prd-field-program-decisions.md`](./prd-field-program-decisions.md)  
 **Supersedes tab IA in:** [`prd-native-feel-bottom-tabs.md`](./prd-native-feel-bottom-tabs.md) (generic Inicio/Tickets tabs)  
 **Parent discovery:** [`prd-first-customer-field-technician.md`](./prd-first-customer-field-technician.md)
