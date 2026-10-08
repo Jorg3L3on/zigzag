@@ -10,7 +10,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ModeToggle } from '@/components/mode-toggle';
 import { cn } from '@/lib/utils';
 
 type BreadcrumbItemType = {
@@ -61,7 +60,6 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-        <ModeToggle />
       </div>
     </header>
   );
