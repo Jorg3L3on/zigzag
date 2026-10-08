@@ -42,10 +42,13 @@ const runningAnimations = (page: Page) =>
  */
 const expectSettledAtOnce = async (page: Page, selector: string) => {
   await page.waitForTimeout(150);
+  // Skip hidden streaming placeholders (Next keeps a hidden copy for a moment).
   const opacities = await page
     .locator(selector)
     .evaluateAll((nodes) =>
-      nodes.map((node) => getComputedStyle(node as Element).opacity),
+      nodes
+        .filter((node) => !(node as Element).closest('[hidden]'))
+        .map((node) => getComputedStyle(node as Element).opacity),
     );
   expect(opacities.length).toBeGreaterThan(0);
   expect(opacities.every((value) => value === '1')).toBe(true);
@@ -162,7 +165,10 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
     ).match(/#(\d{3,})/)?.[1];
     test.skip(!firstId, 'No ticket to open the review screen with');
     await page.goto(`/tickets/${firstId}/listo`);
-    await expect(page.getByTestId('review-header')).toBeVisible({ timeout: 15_000 });
+    // Hard navigation: Next may briefly hold a hidden streamed copy.
+    await expect(
+      page.getByTestId('review-header').filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
     await expectSettledAtOnce(page, '[data-blur-fade]');
     await expectSettledAtOnce(page, '[data-draw-check] circle');
     // Motion primitives keep SSR markup identical under reduced motion.
