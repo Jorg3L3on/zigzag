@@ -211,18 +211,24 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
   }) => {
     const { ticketId } = await createClientAndTicket(page);
 
-    await addServiceWithPrice(page, {
+    const serviceName = await addServiceWithPrice(page, {
       quantity: INITIAL_QUANTITY,
       price: UNIT_PRICE,
     });
     await expectServicesTotal(page, UNIT_PRICE * INITIAL_QUANTITY);
 
-    await page.getByRole('button', { name: 'Aumentar cantidad del servicio' }).click();
-    await expect
-      .poll(async () =>
-        page.getByRole('spinbutton', { name: 'Cantidad del servicio' }).inputValue(),
-      )
-      .toBe(String(UPDATED_QUANTITY));
+    // Mobile lines are compact: quantity changes go through ⋯ → Editar sheet.
+    await page.getByRole('button', { name: `Opciones de ${serviceName}` }).click();
+    await page.getByRole('menuitem', { name: /Editar/ }).click();
+    const editSheet = page.getByTestId('ticket-service-edit-sheet');
+    await editSheet
+      .getByRole('button', { name: 'Aumentar cantidad del servicio' })
+      .click();
+    await expect(
+      editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
+    ).toHaveValue(String(UPDATED_QUANTITY));
+    await editSheet.getByRole('button', { name: 'Guardar' }).click();
+    await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 
     const finalTotal = UNIT_PRICE * UPDATED_QUANTITY;
