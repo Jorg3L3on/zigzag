@@ -79,7 +79,6 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `dashboard.ts` | loadDashboardMetricsForCompany, fetchDashboardMetrics | ✅ | `src/lib/dashboard-actions.test.ts` | #190 |
 | `client-service-schedules.ts` | list*, upsert, pause, resume, delete | ✅ | `src/lib/client-service-schedules-actions.test.ts` | #190 |
 | `trash.ts` | getTrash, restoreClient, restoreService, restoreTicket | ✅ | `src/lib/trash-actions.test.ts` | #190 |
-| `search.ts` | globalSearch | ✅ | `src/lib/search-actions.test.ts` | #190 |
 | `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ✅ | `src/lib/notifications-actions.test.ts` | #190 |
 | `authz.ts` | getSessionPermissionMap | ⏭️ Exempt | — (session-scoped; filters permissions by caller company) | #190 |
 
@@ -100,7 +99,7 @@ operators who select another tenant in the UI must pass that `companyId` into
 tenant mutations/exports. `requireTenantActionPermission` rejects system users
 who omit it (no silent master-company fallback). Covered in `security.test.ts`
 and the domain action suites listed for clients, services, tickets,
-ticket-services, trash, and search.
+ticket-services, and trash.
 
 ## Schema — `company_id` foreign keys
 

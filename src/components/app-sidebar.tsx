@@ -11,7 +11,6 @@ import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
 import { NavUser } from '@/components/nav-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
-import { GlobalSearch } from '@/components/search/global-search';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
   Sidebar,
@@ -245,9 +244,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
-        <div className="px-2 pt-2">
-          <GlobalSearch />
-        </div>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
           {systemItems.length > 0 && <NavProject items={systemItems} />}
           <NavMain items={navItems} />
