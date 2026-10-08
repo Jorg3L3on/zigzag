@@ -14,13 +14,14 @@ test.describe('Mobile bottom tabs', () => {
     await ensureTenantCompany(page);
   });
 
-  test('shows Hoy / Anotar / Clientes / Más on dashboard', async ({ page }) => {
+  test('shows Hoy / Tickets / Clientes / Más on dashboard', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Hoy' })).toBeVisible();
-    await expect(tabBar.getByRole('link', { name: 'Anotar' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Tickets' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Anotar' })).toHaveCount(0);
     await expect(tabBar.getByRole('link', { name: 'Clientes' })).toBeVisible();
     await expect(tabBar.getByRole('button', { name: /Más/i })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Hoy' })).toHaveAttribute(
@@ -29,7 +30,7 @@ test.describe('Mobile bottom tabs', () => {
     );
   });
 
-  test('navigates Anotar to /anotar and Clientes', async ({ page }) => {
+  test('navigates Clientes and Tickets', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
@@ -43,26 +44,31 @@ test.describe('Mobile bottom tabs', () => {
     ]);
     await expect(clientsTab).toHaveAttribute('aria-current', 'page');
 
-    const anotarTab = tabBar.getByRole('link', { name: 'Anotar' });
-    await expect(anotarTab).toHaveAttribute('href', '/anotar');
+    const ticketsTab = tabBar.getByRole('link', { name: 'Tickets' });
+    await expect(ticketsTab).toHaveAttribute('href', '/tickets');
     await Promise.all([
-      page.waitForURL(/\/anotar/),
-      anotarTab.click(),
+      page.waitForURL(/\/tickets$/),
+      ticketsTab.click(),
     ]);
+    await expect(ticketsTab).toHaveAttribute('aria-current', 'page');
   });
 
-  test('does not treat tickets list as a primary tab destination', async ({
-    page,
-  }) => {
+  test('lights Tickets (not Más) on the tickets list', async ({ page }) => {
     await page.goto('/tickets');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
-    await expect(tabBar.getByRole('link', { name: 'Tickets' })).toHaveCount(0);
+    await expect(tabBar.getByRole('link', { name: 'Tickets' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await expect(tabBar.getByRole('link', { name: 'Hoy' })).not.toHaveAttribute(
       'aria-current',
       'page',
     );
+    await expect(
+      page.getByRole('link', { name: 'Nuevo ticket' }).first(),
+    ).toBeVisible();
   });
 
   test('hides tabs on ticket create when sticky action bar is present', async ({
@@ -109,5 +115,8 @@ test.describe('Mobile bottom tabs', () => {
     await expect(navDialog).toBeVisible();
     await expect(navDialog.getByRole('link', { name: 'Inicio' })).toBeVisible();
     await expect(navDialog.getByRole('link', { name: 'Tickets' })).toBeVisible();
+    await expect(
+      navDialog.getByRole('link', { name: 'Captura rápida' }),
+    ).toHaveAttribute('href', '/anotar');
   });
 });
