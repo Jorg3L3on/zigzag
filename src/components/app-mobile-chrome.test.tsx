@@ -15,8 +15,8 @@ jest.mock('@/hooks/use-display-mode-standalone', () => ({
   useDisplayModeStandalone: () => false,
 }));
 
-jest.mock('@/components/mobile-bottom-tab-bar', () => ({
-  MobileBottomTabBar: () => <div data-testid="mobile-bottom-tab-bar" />,
+jest.mock('@/components/mobile-bottom-dock', () => ({
+  MobileBottomDock: () => <div data-testid="mobile-bottom-tab-bar" />,
 }));
 
 jest.mock('@/components/operator-tenant-company-sync', () => ({
