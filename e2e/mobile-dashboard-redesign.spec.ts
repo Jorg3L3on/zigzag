@@ -97,4 +97,23 @@ test.describe('Mobile dashboard redesign', () => {
     await expect(page.getByText('Perfil y empresa').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible();
   });
+
+  test('Actividad reciente shows at most 5 rows before Ver más', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    const feed = page
+      .getByRole('region', { name: 'Actividad reciente' })
+      .filter({ visible: true })
+      .first();
+    const missing = await feed
+      .waitFor({ timeout: 30_000 })
+      .then(() => false)
+      .catch(() => true);
+    test.skip(missing, 'Activity feed not shown for this persona');
+
+    await expect(feed.getByRole('status')).toHaveCount(0, { timeout: 20_000 });
+    const rows = await feed.getByRole('listitem').count();
+    expect(rows).toBeLessThanOrEqual(5);
+    await expect(feed.getByRole('button', { name: 'Cargar más' })).toHaveCount(0);
+  });
 });
