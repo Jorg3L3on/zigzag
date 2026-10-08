@@ -34,7 +34,6 @@ See also: [rbac-audit-matrix.md](rbac-audit-matrix.md),
 | Ticket edit preload | `GET /api/tickets/[id]` | `tickets/[id]/edit/page.tsx` hydrates form via fetch |
 | Service edit preload / save | `GET/PATCH /api/services/[id]` | `services/[id]/edit/page.tsx` |
 | Invoice PDF download | `GET /api/tickets/[id]/invoice` | `pdf-download-button.tsx` streams PDF |
-| Dashboard report export | `GET /api/dashboard/report` | `dashboard-metrics-client.tsx` PDF export |
 | Audit log (system company) | `GET /api/audit/events` | Paginated client-side fetch in audit console |
 | Company picker (system user) | `GET /api/companies` | `app-sidebar.tsx` loads tenant list |
 

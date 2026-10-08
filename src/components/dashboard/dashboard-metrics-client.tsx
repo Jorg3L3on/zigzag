@@ -19,7 +19,6 @@ import {
   DollarSign,
   Wallet,
   ClipboardList,
-  FileDown,
   AlertTriangle,
 } from 'lucide-react';
 import { TripledEmptyState } from '@/components/tripled';
@@ -282,26 +281,6 @@ export const DashboardMetricsClient = ({
     return null;
   }
 
-  const buildReportUrl = (format?: 'csv') => {
-    const params = new URLSearchParams();
-    params.set('monthCount', String(monthCount));
-    if (format) {
-      params.set('format', format);
-    }
-    if (session?.user.company_is_system && selectedCompany?.id != null) {
-      params.set('company_id', String(selectedCompany.id));
-    }
-    return `/api/dashboard/report?${params.toString()}`;
-  };
-
-  const handleExportPdf = () => {
-    window.open(buildReportUrl(), '_blank', 'noopener,noreferrer');
-  };
-
-  const handleExportCsv = () => {
-    window.open(buildReportUrl('csv'), '_blank', 'noopener,noreferrer');
-  };
-
   const activeTicketsKpi =
     metrics.kpis.find((kpi) => kpi.key === 'activeTickets')?.value ?? 0;
 
@@ -329,49 +308,27 @@ export const DashboardMetricsClient = ({
       ? metrics.kpis
       : metrics.kpis.filter((kpi) => composition.kpiKeys.includes(kpi.key));
 
-  const exportControls = composition.showExports ? (
-    <>
-      <Select
-        value={String(monthCount)}
-        onValueChange={(value) =>
-          setMonthCount(Number(value) as DashboardMonthCount)
-        }
+  const periodSelect = composition.showPeriodSelect ? (
+    <Select
+      value={String(monthCount)}
+      onValueChange={(value) =>
+        setMonthCount(Number(value) as DashboardMonthCount)
+      }
+    >
+      <SelectTrigger
+        className="min-h-11 w-[140px] rounded-xl sm:min-h-9"
+        aria-label="Seleccionar periodo de ingresos"
       >
-        <SelectTrigger
-          className="min-h-11 w-[170px] rounded-xl sm:min-h-9"
-          aria-label="Seleccionar periodo de ingresos"
-        >
-          <SelectValue placeholder="Seleccionar periodo" />
-        </SelectTrigger>
-        <SelectContent>
-          {MONTH_PRESETS.map((preset) => (
-            <SelectItem key={preset.value} value={String(preset.value)}>
-              {preset.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        type="button"
-        variant="default"
-        className="min-h-11 gap-2 rounded-xl sm:min-h-9"
-        onClick={handleExportPdf}
-        aria-label="Exportar resumen del dashboard en PDF"
-      >
-        <FileDown className="h-4 w-4" aria-hidden data-icon="inline-start" />
-        Exportar PDF
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11 gap-2 rounded-xl sm:min-h-9"
-        onClick={handleExportCsv}
-        aria-label="Exportar resumen del dashboard en CSV"
-      >
-        <FileDown className="h-4 w-4" aria-hidden data-icon="inline-start" />
-        Exportar CSV
-      </Button>
-    </>
+        <SelectValue placeholder="Seleccionar periodo" />
+      </SelectTrigger>
+      <SelectContent>
+        {MONTH_PRESETS.map((preset) => (
+          <SelectItem key={preset.value} value={String(preset.value)}>
+            {preset.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   ) : null;
 
   const renderWidget = (widgetId: (typeof composition.widgets)[number]) => {
@@ -423,9 +380,12 @@ export const DashboardMetricsClient = ({
             aria-label={composition.sectionTitles.kpis}
             className="space-y-3"
           >
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">
-              {composition.sectionTitles.kpis}
-            </h2>
+            <div className="flex min-h-11 items-center justify-between gap-3 sm:min-h-9">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                {composition.sectionTitles.kpis}
+              </h2>
+              {periodSelect}
+            </div>
             <div
               className={cn(
                 'grid gap-4',
@@ -576,13 +536,6 @@ export const DashboardMetricsClient = ({
             </div>
           </section>
         );
-      case 'quickActions':
-        if (!composition.showQuickActions) {
-          return null;
-        }
-        return (
-          <DashboardQuickActions key={widgetId} persona={persona} />
-        );
       default:
         return null;
     }
@@ -599,10 +552,8 @@ export const DashboardMetricsClient = ({
         </p>
       ) : null}
 
-      {exportControls ? (
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {exportControls}
-        </div>
+      {composition.showQuickActions ? (
+        <DashboardQuickActions persona={persona} />
       ) : null}
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}

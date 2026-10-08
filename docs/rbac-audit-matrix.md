@@ -50,7 +50,6 @@ Core resource CRUD (clients, services, tickets, ticket line items, users, compan
 | Surface | Permission | Notes |
 |---|---|---|
 | `GET /api/tickets/[id]/invoice` | `tickets.read` | Company-scoped PDF download |
-| `GET /api/dashboard/report` | `tickets.read` | Dashboard metrics PDF export; company-scoped |
 | `GET /api/companies/[id]/export` | `companies.read` | System company operator; tenant export bundle |
 | `GET /api/companies/[id]/entitlements` | `companies.read` | Company-scoped entitlement usage |
 | `GET /api/companies/[id]/readiness` | `companies.read` | Company-scoped readiness assessment |
