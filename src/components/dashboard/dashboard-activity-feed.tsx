@@ -110,9 +110,13 @@ const ActivityRow = ({ item }: { item: ActivityFeedItem }) => {
   );
 };
 
+/** Inicio stays short: 5 rows first, then pages of 10 behind «Ver más». */
+export const ACTIVITY_FIRST_PAGE = 5;
+export const ACTIVITY_NEXT_PAGE = 10;
+
 const FeedSkeleton = () => (
   <div className="space-y-3" role="status" aria-label="Cargando actividad reciente">
-    {Array.from({ length: 5 }).map((_, index) => (
+    {Array.from({ length: ACTIVITY_FIRST_PAGE }).map((_, index) => (
       <div key={index} className="flex items-start gap-3 py-2">
         <Skeleton className="h-9 w-9 rounded-lg" />
         <div className="flex-1 space-y-2">
@@ -166,7 +170,7 @@ export const DashboardActivityFeed = ({
       const result: DashboardActivityResponse = await fetchDashboardActivity({
         companyId: companyIdArg,
         cursor,
-        limit: 15,
+        limit: isAppend ? ACTIVITY_NEXT_PAGE : ACTIVITY_FIRST_PAGE,
       });
 
       if (isAppend) {
@@ -258,13 +262,12 @@ export const DashboardActivityFeed = ({
               <div className="mt-3 flex justify-center">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground"
+                  variant="secondary"
+                  className="min-h-11 w-full rounded-xl sm:min-h-9 sm:w-auto"
                   disabled={loadingMore}
                   onClick={handleLoadMore}
                 >
-                  {loadingMore ? 'Cargando…' : 'Cargar más'}
+                  {loadingMore ? 'Cargando…' : 'Ver más'}
                 </Button>
               </div>
             ) : null}
