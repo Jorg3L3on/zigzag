@@ -47,3 +47,20 @@ export async function requireSystemPage(): Promise<void> {
     redirect('/forbidden');
   }
 }
+
+/**
+ * Tenant users manage their team and roles inside the Mi empresa hub; the
+ * standalone admin pages stay for system operators (and their `?tenant_company_id=` scope).
+ */
+export async function redirectTenantToCompanyHub(hubPath: string): Promise<void> {
+  let context;
+  try {
+    context = await requireActionAuth();
+  } catch {
+    redirect(getExpiredLoginPath());
+  }
+
+  if (!context.companyIsSystem) {
+    redirect(hubPath);
+  }
+}

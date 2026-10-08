@@ -48,6 +48,17 @@ describe('proxy request correlation', () => {
     );
   });
 
+  it('protects the Mi empresa hub routes', () => {
+    const response = proxy(
+      new NextRequest('http://localhost:3069/company/equipo'),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3069/login?reason=expired&callbackUrl=%2Fcompany%2Fequipo',
+    );
+  });
+
   it('allows logged-in users through public marketing paths without login redirect', () => {
     const request = new NextRequest('http://localhost:3069/aviso-de-privacidad', {
       headers: {

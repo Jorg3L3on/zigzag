@@ -4,13 +4,18 @@ import {
   TripledResourceCard,
 } from '@/components/tripled';
 import { UsersList } from '@/components/users/users-list';
-import { requirePagePermission } from '@/lib/page-authz';
+import { COMPANY_HUB_TEAM_PATH } from '@/lib/company-hub';
+import {
+  redirectTenantToCompanyHub,
+  requirePagePermission,
+} from '@/lib/page-authz';
 import { Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function UsersPage() {
+  await redirectTenantToCompanyHub(COMPANY_HUB_TEAM_PATH);
   await requirePagePermission('users.read');
 
   return (

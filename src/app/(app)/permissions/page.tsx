@@ -4,10 +4,15 @@ import {
   TripledResourceCard,
 } from '@/components/tripled';
 import { PermissionsList } from '@/components/permissions/permissions-list';
-import { requirePagePermission } from '@/lib/page-authz';
+import { COMPANY_HUB_ROLES_PATH } from '@/lib/company-hub';
+import {
+  redirectTenantToCompanyHub,
+  requirePagePermission,
+} from '@/lib/page-authz';
 import { KeyRound } from 'lucide-react';
 
 export default async function PermissionsPage() {
+  await redirectTenantToCompanyHub(COMPANY_HUB_ROLES_PATH);
   await requirePagePermission('permissions.read');
 
   return (

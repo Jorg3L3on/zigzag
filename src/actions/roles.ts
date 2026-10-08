@@ -283,6 +283,7 @@ export async function createRole(data: {
     });
 
     revalidatePath('/roles');
+    revalidatePath('/company', 'layout');
     return { success: true, data: full };
   } catch (error) {
     return handleCodedServerActionError('roles.create', 'RL002', error);
@@ -373,6 +374,7 @@ export async function updateRole(
     });
 
     revalidatePath('/roles');
+    revalidatePath('/company', 'layout');
     return { success: true, data: full };
   } catch (error) {
     return handleCodedServerActionError('roles.update', 'RL003', error);
@@ -433,6 +435,7 @@ export async function deleteRole(
     });
 
     revalidatePath('/roles');
+    revalidatePath('/company', 'layout');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('roles.delete', 'RL004', error);

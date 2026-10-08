@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import { AuthorizationError } from '@/lib/errors';
-import { requirePagePermission } from '@/lib/page-authz';
+import {
+  redirectTenantToCompanyHub,
+  requirePagePermission,
+} from '@/lib/page-authz';
 import { checkPermission, requireActionAuth } from '@/lib/security';
 
 jest.mock('next/navigation', () => ({
@@ -63,5 +66,46 @@ describe('requirePagePermission', () => {
 
     await expect(requirePagePermission('tickets.read')).resolves.toBe(42);
     expect(mockCheckPermission).toHaveBeenCalledWith('7', 42, 'tickets.read');
+  });
+});
+
+describe('redirectTenantToCompanyHub', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('sends tenant users to the Mi empresa hub', async () => {
+    mockRequireActionAuth.mockResolvedValueOnce({
+      userId: '7',
+      companyId: 42,
+      companyIsSystem: false,
+    });
+
+    await expect(redirectTenantToCompanyHub('/company/equipo')).rejects.toThrow(
+      'NEXT_REDIRECT:/company/equipo',
+    );
+  });
+
+  it('lets system operators through to the standalone page', async () => {
+    mockRequireActionAuth.mockResolvedValueOnce({
+      userId: '1',
+      companyId: 1,
+      companyIsSystem: true,
+    });
+
+    await expect(
+      redirectTenantToCompanyHub('/company/equipo'),
+    ).resolves.toBeUndefined();
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it('redirects to login when the session is gone', async () => {
+    mockRequireActionAuth.mockRejectedValueOnce(
+      new AuthorizationError('Session expired'),
+    );
+
+    await expect(redirectTenantToCompanyHub('/company/roles')).rejects.toThrow(
+      'NEXT_REDIRECT:/login?reason=expired',
+    );
   });
 });
