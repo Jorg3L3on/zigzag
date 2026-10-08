@@ -400,7 +400,7 @@ export const TicketComposer = () => {
         if (draftKey) clearTicketComposerDraft(draftKey);
         vibrateSuccess();
         toast.success(`Ticket #${result.data.id} guardado`);
-        router.push(`/tickets/${result.data.id}`);
+        router.push(`/tickets/${result.data.id}/listo`);
         return;
       }
 

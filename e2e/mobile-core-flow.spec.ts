@@ -8,6 +8,7 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
+  finishOnReview,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -43,26 +44,11 @@ const finishWithPartialPayment = async (
   ticketId: string,
   partialAmount: number,
 ) => {
-  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-    timeout: 30_000,
-  });
+  await finishOnReview(page, ticketId, { mode: 'partial', amount: partialAmount });
 
-  await page.getByRole('button', { name: 'Pago parcial' }).click();
-  await page.locator('#detail-paid-amount').fill(String(partialAmount));
-
-  await page.getByRole('button', { name: 'Finalizar y generar recibo' }).click();
-
-  const schedulesDialog = page.getByRole('dialog', {
-    name: 'Recordatorios de servicio',
-  });
-  await expect(schedulesDialog).toBeVisible({ timeout: 15_000 });
-  await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
-
-  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-    timeout: 60_000,
-  });
+  await page.goto(`/tickets/${ticketId}`);
   // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
-  await expect(page.getByText(/Finalizado ·/)).toBeVisible();
+  await expect(page.getByText(/Finalizado ·/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Pago parcial').first()).toBeVisible();
 };
 

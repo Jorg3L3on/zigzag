@@ -31,7 +31,7 @@ jest.mock('@/components/tripled', () => ({
 }));
 
 describe('TicketDetailPrimaryActions', () => {
-  it('shows Finalizar for unfinished tickets', () => {
+  it('leaves the only Finalizar CTA to the finish panel on unfinished tickets', () => {
     render(
       <TicketDetailPrimaryActions
         ticketId={12}
@@ -40,14 +40,17 @@ describe('TicketDetailPrimaryActions', () => {
         total={100}
         paid={0}
         downloadFileName="t.pdf"
-        placement="desktop"
+        placement="both"
       />,
     );
 
-    expect(
-      screen.getByRole('link', { name: /finalizar ticket/i }),
-    ).toHaveAttribute('href', '#finalizar');
+    expect(screen.queryByRole('link', { name: /finalizar/i })).toBeNull();
+    expect(screen.queryByText('Finalizar')).toBeNull();
+    expect(screen.queryByTestId('sticky')).toBeNull();
     expect(screen.queryByText('Generar recibo')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /más acciones del ticket/i }),
+    ).toBeInTheDocument();
   });
 
   it('shows Registrar pago when finished with balance due', () => {

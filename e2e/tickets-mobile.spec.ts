@@ -9,6 +9,7 @@ import { visibleMobileAppBar, visiblePageHeader } from './helpers/mobile-chrome'
 import {
   addComposerLine,
   createClientInComposer,
+  finishOnReview,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -117,6 +118,31 @@ test.describe('Mobile ticket screens', () => {
     });
     const ticketId = await saveComposer(page);
     expect(Number(ticketId)).toBeGreaterThan(0);
+
+    // Creation review: summary, pago and recibo; none of the detail-page noise.
+    await expect(
+      page.getByRole('heading', { name: `Ticket #${ticketId} guardado` }),
+    ).toBeVisible();
+    await expect(page.getByTestId('review-total')).toHaveText('$12,950.00');
+    await expect(page.getByRole('radio', { name: /Pago parcial/ })).toBeVisible();
+    await expect(page.getByRole('radio', { name: /Pendiente/ })).toBeVisible();
+    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Descargar PDF/ })).toBeVisible();
+    for (const noise of ['Creado', 'Actualizado', 'Actividad']) {
+      await expect(page.getByText(noise, { exact: true })).toHaveCount(0);
+    }
+    await expect(page.getByRole('button', { name: 'Más acciones del ticket' })).toHaveCount(0);
+
+    const openedUrls = await finishOnReview(page, ticketId, { mode: 'full' });
+    // Headless Chromium has no file share: falls back to WhatsApp with the recibo text.
+    expect(openedUrls.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
+    await expect(page.getByTestId('recibo-pdf-preview')).toBeAttached();
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 60_000 }),
+      page.getByRole('button', { name: /Descargar PDF/ }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/\.pdf$/);
 
     await page.goto('/tickets');
     await expect(page.getByText(clientName).first()).toBeVisible({
