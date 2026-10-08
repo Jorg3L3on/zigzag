@@ -14,9 +14,9 @@ Decisions from product planning (apply to field epics unless a later PRD explici
 | Q4 | Home / default landing | **Hoy** (today’s work), not metrics dashboard — dashboard charts demoted or hidden in campo mode |
 | Q5 | Capture default | **Anotar** one-screen flow; Service catalog optional; RFC not required to save a job |
 | Q6 | Auth in the field | **Stay signed in on device** + optional PIN/biometrics; 8h JWT alone is insufficient for campo UX |
-| Q7 | Mobile bottom tabs | **Hoy · Anotar · Clientes · Más** (see [`prd-field-bottom-tabs.md`](./prd-field-bottom-tabs.md)) |
+| Q7 | Mobile bottom tabs | ~~**Hoy · Anotar · Clientes · Más**~~ **Superseded 2026-10-08 by ZIG-I2:** **Hoy · Tickets · + · Clientes · Más** (the + opens Nuevo ticket / Captura rápida / Nuevo cliente) |
 | Q8 | Tab: Hoy | Label **Hoy**; route **`/dashboard`** until a dedicated `/hoy` exists; content = technician day queue first |
-| Q9 | Tab: Anotar | Label **Anotar**; route **`/tickets/create`** until dedicated **`/anotar`** ships in job-capture epic |
+| Q9 | Tab: Anotar | ~~Label **Anotar**; route **`/tickets/create`** until dedicated **`/anotar`** ships in job-capture epic~~ **Superseded 2026-10-08 by ZIG-I2:** Anotar is no longer a tab; `/anotar` stays as **Captura rápida** (dock + menu, Hoy, Más sheet) with its offline outbox |
 | Q10 | Tab: Clientes | Unchanged — **`/clients`** |
 | Q11 | Tab: Más | Opens **existing mobile sidebar sheet** (Cobranza, Recordatorios, Servicios, Mi empresa, admin) |
 | Q12 | Desktop nav | **Sidebar unchanged** on `md+`; tabs are mobile-only |

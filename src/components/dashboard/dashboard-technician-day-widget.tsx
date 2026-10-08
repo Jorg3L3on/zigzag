@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ClipboardList, RefreshCw } from 'lucide-react';
+import { ClipboardList, PenLine, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -98,6 +98,19 @@ export const DashboardTechnicianDayWidget = ({
           <CardDescription>{description}</CardDescription>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1">
+          {canWrite ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 rounded-lg text-muted-foreground"
+              asChild
+            >
+              <Link href="/anotar">
+                <PenLine className="h-4 w-4 shrink-0" aria-hidden />
+                Captura rápida
+              </Link>
+            </Button>
+          ) : null}
           {onFlushNow ? (
             <FieldSyncNowButton
               pendingCount={pendingUploadCount}

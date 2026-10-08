@@ -20,9 +20,11 @@ jest.mock('next/link', () => ({
   ),
 }));
 
+let mockGranted = ['tickets.write'];
+
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
-    can: (permission: string) => permission === 'tickets.write',
+    can: (permission: string) => mockGranted.includes(permission),
     isSystem: false,
     loading: false,
   }),
@@ -58,6 +60,10 @@ const baseItem = (
 });
 
 describe('DashboardTechnicianDayWidget', () => {
+  beforeEach(() => {
+    mockGranted = ['tickets.write'];
+  });
+
   it('renders empty state and cobranza link', () => {
     render(
       <DashboardTechnicianDayWidget
@@ -117,5 +123,45 @@ describe('DashboardTechnicianDayWidget', () => {
     ).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Atrasado')).toBeTruthy();
     expect(screen.getByText('1 hoy · 1 atrasados')).toBeTruthy();
+  });
+
+  it('links Captura rápida to /anotar for writers', () => {
+    render(
+      <DashboardTechnicianDayWidget
+        canRead
+        missingCompany={false}
+        permissionsLoading={false}
+        loading={false}
+        error={null}
+        items={[]}
+        todayCount={0}
+        overdueCount={0}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: /Captura rápida/i })).toHaveAttribute(
+      'href',
+      '/anotar',
+    );
+  });
+
+  it('hides Captura rápida without tickets.write', () => {
+    mockGranted = [];
+    render(
+      <DashboardTechnicianDayWidget
+        canRead
+        missingCompany={false}
+        permissionsLoading={false}
+        loading={false}
+        error={null}
+        items={[]}
+        todayCount={0}
+        overdueCount={0}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('link', { name: /Captura rápida/i })).toBeNull();
   });
 });
