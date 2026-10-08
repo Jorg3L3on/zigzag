@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { format, startOfMonth } from 'date-fns';
 import { useReducedMotion } from 'framer-motion';
 import {
@@ -128,12 +129,15 @@ export type DashboardChartsProps = {
   revenueByMonth: RevenueByMonthPoint[];
   paymentStatusBreakdown: PaymentStatusBreakdownItem[];
   revenueMonthCount?: DashboardMonthCount;
+  /** Period select for the revenue chart (the only thing it drives). */
+  revenuePeriodControl?: ReactNode;
 };
 
 export const DashboardCharts = ({
   revenueByMonth,
   paymentStatusBreakdown,
   revenueMonthCount = 12,
+  revenuePeriodControl,
 }: DashboardChartsProps) => {
   const shouldReduceMotion = useReducedMotion();
   const hasRevenueData = revenueByMonth.some((m) => m.revenue > 0);
@@ -163,12 +167,15 @@ export const DashboardCharts = ({
         className={cn(DASHBOARD_CARD_CLASS, 'flex flex-col lg:col-span-2')}
       >
         <CardHeader className="space-y-1 p-4 pb-2 sm:p-5 sm:pb-3">
-          <CardTitle
-            id="dashboard-revenue-chart-title"
-            className="text-base font-semibold tracking-tight sm:text-lg"
-          >
-            ¿Cómo van los ingresos?
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle
+              id="dashboard-revenue-chart-title"
+              className="text-base font-semibold tracking-tight sm:text-lg"
+            >
+              ¿Cómo van los ingresos?
+            </CardTitle>
+            {revenuePeriodControl}
+          </div>
           <CardDescription>
             Compara ingresos de tickets finalizados, mes a mes (últimos{' '}
             {revenueMonthCount} meses)

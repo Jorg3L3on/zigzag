@@ -13,7 +13,7 @@ export type DashboardWidgetId =
 export type DashboardComposition = {
   persona: DashboardPersona;
   widgets: DashboardWidgetId[];
-  /** Revenue period select in the KPI section header (it only drives the KPIs). */
+  /** Revenue period select in the revenue chart header (KPIs are month over month). */
   showPeriodSelect: boolean;
   /** Acciones rápidas chip row right under the greeting. */
   showQuickActions: boolean;

@@ -380,12 +380,9 @@ export const DashboardMetricsClient = ({
             aria-label={composition.sectionTitles.kpis}
             className="space-y-3"
           >
-            <div className="flex min-h-11 items-center justify-between gap-3 sm:min-h-9">
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                {composition.sectionTitles.kpis}
-              </h2>
-              {periodSelect}
-            </div>
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              {composition.sectionTitles.kpis}
+            </h2>
             <div
               className={cn(
                 'grid gap-4',
@@ -437,6 +434,7 @@ export const DashboardMetricsClient = ({
               revenueByMonth={metrics.revenueByMonth}
               paymentStatusBreakdown={metrics.paymentStatusBreakdown}
               revenueMonthCount={monthCount}
+              revenuePeriodControl={periodSelect}
             />
           </div>
         );

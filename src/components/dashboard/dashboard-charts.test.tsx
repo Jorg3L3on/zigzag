@@ -83,4 +83,20 @@ describe('DashboardCharts', () => {
     expect(empty).toHaveAttribute('role', 'status');
     expect(empty).toHaveTextContent(/No hay tickets/i);
   });
+
+  it('renders the period control in the revenue chart header', () => {
+    render(
+      <DashboardCharts
+        revenueByMonth={[]}
+        paymentStatusBreakdown={paymentBreakdown}
+        revenueMonthCount={6}
+        revenuePeriodControl={<button type="button">6 meses</button>}
+      />,
+    );
+
+    const title = document.getElementById('dashboard-revenue-chart-title');
+    expect(title?.parentElement).toContainElement(
+      screen.getByRole('button', { name: '6 meses' }),
+    );
+  });
 });
