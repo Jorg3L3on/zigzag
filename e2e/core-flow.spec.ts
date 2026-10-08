@@ -39,7 +39,11 @@ test.describe('Core business flow smoke', () => {
 
     await page.goto(`/tickets/${ticketId}`);
     // Status chip is always visible; mobile app bar subtitle is md:hidden on desktop.
-    await expect(page.getByText(/Finalizado ·/)).toBeVisible({ timeout: 15_000 });
+    // After a hard navigation Next may still hold streamed chunks in hidden
+    // placeholders, so match the visible chip (strict mode would fail at once).
+    await expect(
+      page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
 
     const pdfCheck = await page.evaluate(async (id) => {
       const raw = localStorage.getItem('selectedCompany');

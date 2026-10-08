@@ -48,7 +48,11 @@ const finishWithPartialPayment = async (
 
   await page.goto(`/tickets/${ticketId}`);
   // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
-  await expect(page.getByText(/Finalizado ·/)).toBeVisible({ timeout: 15_000 });
+  // After a hard navigation Next may still hold streamed chunks in hidden
+  // placeholders, so match the visible chip (strict mode would fail at once).
+  await expect(
+    page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
+  ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Pago parcial').first()).toBeVisible();
 };
 
