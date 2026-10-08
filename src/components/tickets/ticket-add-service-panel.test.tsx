@@ -71,4 +71,24 @@ describe('TicketAddServicePanel', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Formulario de servicio')).toBeInTheDocument();
   });
+
+  it('shows a live subtotal of Cantidad × Precio', () => {
+    const { rerender } = render(
+      <TicketAddServicePanel {...baseProps} isOpen quantity="3" price="4200" />,
+    );
+
+    expect(screen.getByTestId('ticket-add-service-subtotal-value')).toHaveTextContent(
+      '$12,600.00',
+    );
+    expect(screen.getByTestId('ticket-add-service-subtotal')).toHaveTextContent(
+      '3 × $4,200.00',
+    );
+
+    rerender(
+      <TicketAddServicePanel {...baseProps} isOpen quantity="2" price="10.005" />,
+    );
+    expect(
+      screen.getByTestId('ticket-add-service-subtotal-value'),
+    ).toHaveAttribute('data-value', '20.01');
+  });
 });
