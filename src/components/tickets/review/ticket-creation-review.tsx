@@ -80,6 +80,20 @@ type Phase = 'idle' | 'finishing' | 'sharing';
 const SECTION_CLASS =
   'rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6';
 
+const subscribeNoop = () => () => {};
+const readPdfViewerEnabled = () =>
+  typeof navigator !== 'undefined' &&
+  (navigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled === true;
+const serverPdfViewerEnabled = () => false;
+
+/** Inline PDF only where the browser can render it (not Android Chrome, not headless). */
+const usePdfViewerEnabled = () =>
+  React.useSyncExternalStore(
+    subscribeNoop,
+    readPdfViewerEnabled,
+    serverPdfViewerEnabled,
+  );
+
 const parseAmount = (value: string): number => {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? Math.max(roundMoney(parsed), 0) : 0;
@@ -178,6 +192,7 @@ export const TicketCreationReview = ({
   const companyId = selectedCompany?.id ?? null;
   const canFinish = canFinishTicket(can);
   const canInvoice = canDownloadTicketInvoice(can);
+  const pdfViewerEnabled = usePdfViewerEnabled();
 
   const [finished, setFinished] = React.useState(initialFinished);
   const [paid, setPaid] = React.useState(initialPaid);
@@ -577,7 +592,7 @@ export const TicketCreationReview = ({
               ) : null}
             </div>
             <div className="mt-3">
-              {finished && canInvoice ? (
+              {finished && canInvoice && pdfViewerEnabled ? (
                 <object
                   data={buildTicketInvoicePreviewUrl(ticketId, companyId)}
                   type="application/pdf"

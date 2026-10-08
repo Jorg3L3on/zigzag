@@ -227,6 +227,10 @@ describe('TicketCreationReview', () => {
   });
 
   it('shows the PDF preview and Compartir recibo as the single CTA once finished', () => {
+    Object.defineProperty(navigator, 'pdfViewerEnabled', {
+      configurable: true,
+      value: true,
+    });
     renderReview({ finished: true, paid: 12950 });
 
     expect(screen.getByTestId('recibo-pdf-preview')).toHaveAttribute(
@@ -236,5 +240,20 @@ describe('TicketCreationReview', () => {
     expect(screen.queryByRole('radio', { name: /Pagado completo/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Finalizar y compartir/ })).toBeNull();
     expect(screen.getAllByRole('button', { name: /Compartir recibo/ }).length).toBeGreaterThan(0);
+  });
+
+  it('shows only the summary where the browser cannot render PDFs inline', () => {
+    Object.defineProperty(navigator, 'pdfViewerEnabled', {
+      configurable: true,
+      value: false,
+    });
+    renderReview({ finished: true, paid: 12950 });
+
+    expect(screen.queryByTestId('recibo-pdf-preview')).toBeNull();
+    expect(screen.getByTestId('recibo-summary')).toHaveTextContent('$12,950.00');
+    expect(screen.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
+      'href',
+      '/api/tickets/1201/invoice?disposition=inline&company_id=10',
+    );
   });
 });

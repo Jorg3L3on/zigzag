@@ -136,7 +136,12 @@ test.describe('Mobile ticket screens', () => {
     const openedUrls = await finishOnReview(page, ticketId, { mode: 'full' });
     // Headless Chromium has no file share: falls back to WhatsApp with the recibo text.
     expect(openedUrls.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
-    await expect(page.getByTestId('recibo-pdf-preview')).toBeAttached();
+    // Headless Chromium has no inline PDF viewer: the recibo summary + Abrir PDF show instead.
+    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
+      'href',
+      new RegExp(`/api/tickets/${ticketId}/invoice\\?disposition=inline`),
+    );
 
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
