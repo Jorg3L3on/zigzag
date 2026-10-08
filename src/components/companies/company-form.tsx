@@ -238,6 +238,9 @@ export const CompanyForm = ({
   };
 
   const values = form.watch();
+  // Separators only on md+ for sectioned forms (cards replace them on mobile);
+  // CSS rather than isMobile so hydration does not change the DOM.
+  const sectionSeparatorClass = isSectioned ? 'hidden md:block' : undefined;
   const submitLabel = isSubmitting
     ? 'Guardando…'
     : isEdit
@@ -258,6 +261,7 @@ export const CompanyForm = ({
         <CompanyFormSection
           title="General"
           summary={summarizeCompanyGeneral(values)}
+          sectioned={isSectioned}
           collapsible={collapsible}
           open={openSections.general}
           onOpenChange={(open) => setSectionOpen('general', open)}
@@ -330,22 +334,23 @@ export const CompanyForm = ({
               )}
             />
           </div>
-          {/* Mobile sections keep the logo inside General. */}
-          {collapsible && logoUpload ? <div className="pt-4">{logoUpload}</div> : null}
+          {/* Sectioned forms keep the logo inside General. */}
+          {isSectioned && logoUpload ? <div className="pt-6">{logoUpload}</div> : null}
         </CompanyFormSection>
 
-        {!collapsible && logoUpload ? (
+        {!isSectioned && logoUpload ? (
           <>
             <Separator />
             {logoUpload}
           </>
         ) : null}
 
-        {collapsible ? null : <Separator />}
+        <Separator className={sectionSeparatorClass} />
 
         <CompanyFormSection
           title="Dirección"
           summary={summarizeCompanyAddress(values)}
+          sectioned={isSectioned}
           collapsible={collapsible}
           open={openSections.direccion}
           onOpenChange={(open) => setSectionOpen('direccion', open)}
@@ -523,11 +528,12 @@ export const CompanyForm = ({
           </>
         ) : null}
 
-        {collapsible ? null : <Separator />}
+        <Separator className={sectionSeparatorClass} />
 
         <CompanyFormSection
           title="Configuración"
           summary={summarizeCompanySettings(values.settings)}
+          sectioned={isSectioned}
           collapsible={collapsible}
           open={openSections.configuracion}
           onOpenChange={(open) => setSectionOpen('configuracion', open)}

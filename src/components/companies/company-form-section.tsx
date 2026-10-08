@@ -14,6 +14,9 @@ type CompanyFormSectionProps = {
   title: string;
   /** One line shown under the title while the section is closed. */
   summary: string;
+  /** The form uses sections at all (self-service). Static for a form's life. */
+  sectioned: boolean;
+  /** Sections can collapse right now (mobile viewport). */
   collapsible: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,20 +25,23 @@ type CompanyFormSectionProps = {
 };
 
 /**
- * A form section: a plain heading on desktop, a collapsible card on mobile
- * (ZIG-I3-2). Content stays mounted while closed so fields keep their refs
- * and can be focused when a validation error opens the section.
+ * A form section (ZIG-I3-2). When the form is sectioned the DOM structure is
+ * the same on every viewport, so switching to mobile after hydration never
+ * remounts the fields (an open Select would lose its popup); only the open
+ * state and the trigger change. Content stays mounted while closed so a
+ * validation error can open the section and focus its field.
  */
 export const CompanyFormSection = ({
   title,
   summary,
+  sectioned,
   collapsible,
   open,
   onOpenChange,
   children,
   testId,
 }: CompanyFormSectionProps) => {
-  if (!collapsible) {
+  if (!sectioned) {
     return (
       <div className="space-y-4" data-testid={testId}>
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -44,34 +50,51 @@ export const CompanyFormSection = ({
     );
   }
 
+  const isOpen = collapsible ? open : true;
+
   return (
     <Collapsible
-      open={open}
+      open={isOpen}
       onOpenChange={onOpenChange}
-      className="rounded-xl border bg-card"
+      disabled={!collapsible}
+      className={collapsible ? 'rounded-xl border bg-card' : 'space-y-4'}
       data-testid={testId}
     >
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
-        >
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-sm font-semibold text-foreground">{title}</span>
-            {open ? null : (
-              <span className="truncate text-xs text-muted-foreground">{summary}</span>
-            )}
-          </span>
-          <ChevronDown
-            aria-hidden
+      <h3 className="text-sm font-semibold text-foreground">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
             className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform',
-              open && 'rotate-180',
+              'flex w-full items-center gap-3 text-left disabled:cursor-default',
+              collapsible &&
+                'min-h-14 rounded-xl px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
-          />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent forceMount hidden={!open} className="px-4 pb-4">
+          >
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span>{title}</span>
+              {collapsible && !isOpen ? (
+                <span className="truncate text-xs font-normal text-muted-foreground">
+                  {summary}
+                </span>
+              ) : null}
+            </span>
+            {collapsible ? (
+              <ChevronDown
+                aria-hidden
+                className={cn(
+                  'size-4 shrink-0 text-muted-foreground transition-transform',
+                  isOpen && 'rotate-180',
+                )}
+              />
+            ) : null}
+          </button>
+        </CollapsibleTrigger>
+      </h3>
+      <CollapsibleContent
+        forceMount
+        hidden={!isOpen}
+        className={collapsible ? 'px-4 pb-4' : undefined}
+      >
         {children}
       </CollapsibleContent>
     </Collapsible>

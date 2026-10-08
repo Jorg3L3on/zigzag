@@ -127,4 +127,17 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     expect(within(section('direccion')).getByLabelText('Calle')).toBeVisible();
     expect(within(section('configuracion')).getByLabelText('RFC')).toBeVisible();
   });
+
+  it('keeps the same field nodes when hydration switches to mobile (no remount)', () => {
+    mockUseIsMobile.mockReturnValue(false);
+    const { rerender } = render(<CompanyForm company={company} mode="self" />);
+    const rfcBefore = within(section('configuracion')).getByLabelText('RFC');
+
+    mockUseIsMobile.mockReturnValue(true);
+    rerender(<CompanyForm company={company} mode="self" />);
+
+    const rfcAfter = within(section('configuracion')).getByLabelText('RFC');
+    expect(rfcAfter).toBe(rfcBefore);
+    expect(rfcAfter).not.toBeVisible();
+  });
 });

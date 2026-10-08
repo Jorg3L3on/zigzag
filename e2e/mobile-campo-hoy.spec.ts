@@ -12,11 +12,10 @@ const setExperienceMode = async (
 ) => {
   await page.goto('/company');
   // ZIG-I3-2: on mobile, Configuración is a collapsed section of the Datos tab.
+  // The toggle is enabled only once the page hydrates in mobile mode.
   const configuracion = page.getByRole('button', { name: /^Configuración/ });
-  if (
-    (await configuracion.isVisible().catch(() => false)) &&
-    (await configuracion.getAttribute('aria-expanded')) === 'false'
-  ) {
+  await expect(configuracion).toBeEnabled({ timeout: 30_000 });
+  if ((await configuracion.getAttribute('aria-expanded')) === 'false') {
     await configuracion.click();
   }
   const experience = page

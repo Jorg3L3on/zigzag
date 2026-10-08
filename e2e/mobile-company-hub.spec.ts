@@ -210,7 +210,8 @@ test.describe('Mi empresa hub', () => {
 
       const direccion = page.getByTestId('company-form-section-direccion');
       const direccionToggle = direccion.getByRole('button', { name: /^Dirección/ });
-      // Open state is remembered per browser; start from closed.
+      // Enabled once hydrated in mobile mode; open state is remembered per browser.
+      await expect(direccionToggle).toBeEnabled();
       if ((await direccionToggle.getAttribute('aria-expanded')) === 'true') {
         await direccionToggle.click();
       }
