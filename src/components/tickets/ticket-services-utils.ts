@@ -1,3 +1,5 @@
+import { sumLineTotals } from '@/lib/money';
+
 export const sanitizeInteger = (value: string, fallback = 1) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -20,8 +22,4 @@ export const formatServiceCurrency = (amount: number) =>
 
 export const calculateServicesTotal = (
   services: Array<{ quantity: number; price: number }>,
-) =>
-  services.reduce(
-    (total, service) => total + service.quantity * service.price,
-    0,
-  );
+) => sumLineTotals(services);

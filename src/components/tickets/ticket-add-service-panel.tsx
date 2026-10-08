@@ -19,9 +19,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  formatServiceCurrency,
   sanitizeDecimal,
   sanitizeInteger,
 } from '@/components/tickets/ticket-services-utils';
+import { NumberTicker } from '@/components/motion';
+import { multiplyMoney } from '@/lib/money';
 import { CheckCircle2, Loader2, Minus, Plus, PlusCircle } from 'lucide-react';
 
 type TicketAddServicePanelProps = {
@@ -269,6 +272,30 @@ export const TicketAddServicePanel = ({
                 </Button>
               </div>
             </div>
+          </div>
+
+          <div
+            data-testid="ticket-add-service-subtotal"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Subtotal
+              </p>
+              <p className="truncate text-xs tabular-nums text-muted-foreground">
+                {sanitizeInteger(quantity)} ×{' '}
+                {formatServiceCurrency(sanitizeDecimal(price))}
+              </p>
+            </div>
+            <NumberTicker
+              value={multiplyMoney(
+                sanitizeDecimal(price),
+                sanitizeInteger(quantity),
+              )}
+              format={formatServiceCurrency}
+              className="shrink-0 text-lg font-semibold text-foreground"
+              data-testid="ticket-add-service-subtotal-value"
+            />
           </div>
 
           <Button
