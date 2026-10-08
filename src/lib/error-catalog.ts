@@ -485,6 +485,20 @@ export const ERROR_CATALOG = {
     message: 'Revisa los campos marcados e intenta de nuevo.',
     type: 'validation',
   },
+  US006: {
+    code: 'US006',
+    module: 'users',
+    title: 'No puedes desactivar tu propia cuenta',
+    message: 'Pide a otro administrador que lo haga si de verdad quieres salir del equipo.',
+    type: 'validation',
+  },
+  US007: {
+    code: 'US007',
+    module: 'users',
+    title: 'Tu empresa se quedaría sin administrador',
+    message: 'Esta es la única persona que puede gestionar el equipo. Da ese permiso a alguien más antes de quitárselo o desactivarla.',
+    type: 'validation',
+  },
 } as const satisfies Record<string, ErrorCatalogEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

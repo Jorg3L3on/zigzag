@@ -78,6 +78,71 @@ test.describe('Mi empresa hub', () => {
       await expect(visiblePageHeader(page).getByText('Equipo')).toBeVisible();
     });
 
+    test('Equipo lists the team as cards and opens Agregar usuario @375px', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto('/company/equipo');
+
+      const forbidden = page.getByText('Acceso denegado');
+      if (await forbidden.isVisible().catch(() => false)) {
+        test.skip(true, 'Current E2E user cannot read the team');
+      }
+
+      await expect(page.getByTestId('team-member-card').first()).toBeVisible();
+      // Tenant view: no company column or filters on the cards.
+      await expect(
+        page.getByTestId('team-member-card').getByText(/Empresa/),
+      ).toHaveCount(0);
+
+      const stickyAdd = page
+        .getByTestId('mobile-sticky-action-bar')
+        .getByRole('button', { name: 'Agregar usuario' });
+      if (!(await stickyAdd.isVisible().catch(() => false))) {
+        test.skip(true, 'Current E2E user cannot add users');
+      }
+
+      await stickyAdd.click();
+      const sheet = page.getByRole('dialog', { name: 'Agregar usuario' });
+      await expect(sheet).toBeVisible();
+      await expect(sheet.getByRole('radio').first()).toBeVisible();
+      await expect(sheet.getByLabel('Contraseña inicial')).toBeVisible();
+      await sheet.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(sheet).toBeHidden();
+    });
+
+    test('Equipo actions menu offers Editar, Cambiar rol and Desactivar', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto('/company/equipo');
+
+      const firstMenu = page
+        .getByTestId('team-member-row')
+        .getByRole('button', { name: /^Acciones de / })
+        .first();
+      await expect(page.getByTestId('team-member-row').first()).toBeVisible();
+      if (!(await firstMenu.isVisible().catch(() => false))) {
+        test.skip(true, 'Current E2E user cannot manage the team');
+      }
+
+      await firstMenu.click();
+      await expect(page.getByRole('menuitem', { name: 'Editar' })).toBeVisible();
+      await expect(page.getByRole('menuitem', { name: 'Cambiar rol' })).toBeVisible();
+      await expect(page.getByRole('menuitem', { name: /Desactivar/ })).toBeVisible();
+      await page.keyboard.press('Escape');
+
+      // The caller's own row cannot be deactivated.
+      const selfRow = page.getByTestId('team-member-row').filter({ hasText: '(tú)' });
+      if ((await selfRow.count()) > 0) {
+        await selfRow.getByRole('button', { name: /^Acciones de / }).click();
+        await expect(
+          page.getByRole('menuitem', { name: 'Desactivar (eres tú)' }),
+        ).toHaveAttribute('data-disabled', '');
+        await page.keyboard.press('Escape');
+      }
+    });
+
     test('redirects tenant users from the old admin pages to the hub', async ({
       page,
     }) => {

@@ -60,6 +60,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `users.ts` | getUsers, getUsersPaginated, createUser, updateUser, updateOwnAccount, deleteUser | ✅ | `users-actions.test.ts` | #188 |
 | `roles.ts` | getRoles, getRolesPaginated, createRole, updateRole, deleteRole | ✅ | `roles-actions.test.ts` | #188 |
 | `permissions.ts` | getPermissions, getPermissionsByCompany, createPermission, updatePermission, deletePermission, assignPermissionToRole, removePermissionFromRole | ✅ | `permissions-actions.test.ts` | #188 |
+| `team.ts` | getTeam, addTeamMember, updateTeamMember, changeTeamMemberRole, deactivateTeamMember (Mi empresa › Equipo; no company id input, members looked up within the caller's company) | ✅ | `team-actions.test.ts` | ZIG-I3-4 |
 
 ## Server Actions — Companies & operator (#189)
 
