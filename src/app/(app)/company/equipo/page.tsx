@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { Users } from 'lucide-react';
 import { TripledResourceCard } from '@/components/tripled';
-import { UsersList } from '@/components/users/users-list';
+import { TeamList } from '@/components/companies/team/team-list';
 import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export default async function CompanyTeamPage() {
       description="Personas con acceso a tu empresa y su rol."
       icon={<Users className="size-5" aria-hidden />}
     >
-      <UsersList />
+      <TeamList />
     </TripledResourceCard>
   );
 }
