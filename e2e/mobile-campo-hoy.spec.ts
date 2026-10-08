@@ -11,6 +11,14 @@ const setExperienceMode = async (
   mode: 'Campo' | 'Oficina' | 'Automático (1 usuario = Campo)',
 ) => {
   await page.goto('/company');
+  // ZIG-I3-2: on mobile, Configuración is a collapsed section of the Datos tab.
+  const configuracion = page.getByRole('button', { name: /^Configuración/ });
+  if (
+    (await configuracion.isVisible().catch(() => false)) &&
+    (await configuracion.getAttribute('aria-expanded')) === 'false'
+  ) {
+    await configuracion.click();
+  }
   const experience = page
     .getByRole('combobox', { name: 'Experiencia de inicio' })
     .locator('visible=true')

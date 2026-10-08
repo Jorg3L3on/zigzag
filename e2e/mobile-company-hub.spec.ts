@@ -193,6 +193,38 @@ test.describe('Mi empresa hub', () => {
       await expect(page).toHaveURL(/\/company\/roles$/);
     });
 
+    test('Datos shows readiness banner and collapsible sections @375px', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto('/company');
+
+      const forbidden = page.getByText('Acceso denegado');
+      if (await forbidden.isVisible().catch(() => false)) {
+        test.skip(true, 'Current E2E user cannot manage the company');
+      }
+
+      await expect(page.getByTestId('company-readiness-banner')).toBeVisible();
+      const general = page.getByTestId('company-form-section-general');
+      await expect(general.getByLabel('Nombre')).toBeVisible();
+
+      const direccion = page.getByTestId('company-form-section-direccion');
+      const direccionToggle = direccion.getByRole('button', { name: /^Dirección/ });
+      // Open state is remembered per browser; start from closed.
+      if ((await direccionToggle.getAttribute('aria-expanded')) === 'true') {
+        await direccionToggle.click();
+      }
+      await expect(direccion.getByLabel('Calle')).toBeHidden();
+      await direccionToggle.click();
+      await expect(direccion.getByLabel('Calle')).toBeVisible();
+
+      await expect(
+        page.getByTestId('mobile-sticky-action-bar').getByRole('button', {
+          name: 'Guardar cambios',
+        }),
+      ).toBeVisible();
+    });
+
     test('redirects tenant users from the old admin pages to the hub', async ({
       page,
     }) => {

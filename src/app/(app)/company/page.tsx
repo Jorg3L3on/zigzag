@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Building2 } from 'lucide-react';
 import { CompanyForm } from '@/components/companies/company-form';
-import { CompanyReadinessPanel } from '@/components/companies/company-readiness-panel';
+import { CompanyReadinessBanner } from '@/components/companies/company-readiness-banner';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
 import { getOwnCompany } from '@/actions/companies';
 import { requirePagePermission } from '@/lib/page-authz';
@@ -32,7 +32,7 @@ export default async function CompanySettingsPage() {
         icon={<Building2 className="size-5" aria-hidden />}
       >
         <div className="space-y-6">
-          <CompanyReadinessPanel assessment={readiness} />
+          <CompanyReadinessBanner assessment={readiness} />
           <CompanyForm
             company={companyRow}
             mode="self"
