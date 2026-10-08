@@ -163,3 +163,119 @@ export async function keepsATeamManager(
   );
   return others > 0;
 }
+
+/** Permissions a tenant must never lose entirely: managing the team and managing roles. */
+export const LOCKOUT_PERMISSIONS = [
+  PERMISSIONS.users.write,
+  PERMISSIONS.roles.write,
+] as const;
+
+export async function countActiveUsersWithRole(roleId: number): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(user)
+    .where(and(eq(user.role_id, roleId), isNull(user.deleted_at)));
+  return Number(row?.value ?? 0);
+}
+
+/** Active users of the company whose role (other than `roleId`) grants the permission. */
+export async function countUsersWithPermissionOutsideRole(
+  companyId: number,
+  permissionName: string,
+  roleId: number,
+): Promise<number> {
+  const permissionIds = await permissionIdsFor(companyId, permissionName);
+  if (permissionIds.length === 0) {
+    return 0;
+  }
+
+  const [row] = await db
+    .select({ value: count() })
+    .from(user)
+    .innerJoin(role, eq(role.id, user.role_id))
+    .innerJoin(rolePermission, eq(rolePermission.role_id, role.id))
+    .where(
+      and(
+        eq(user.company_id, companyId),
+        isNull(user.deleted_at),
+        ne(user.role_id, roleId),
+        isNull(role.deleted_at),
+        or(eq(role.company_id, companyId), isNull(role.company_id)),
+        inArray(rolePermission.permission_id, permissionIds),
+      ),
+    );
+
+  return Number(row?.value ?? 0);
+}
+
+async function permissionNamesForIds(ids: number[]): Promise<Set<string>> {
+  if (ids.length === 0) {
+    return new Set();
+  }
+  const rows = await db
+    .select({ name: permission.name })
+    .from(permission)
+    .where(and(inArray(permission.id, ids), isNull(permission.deleted_at)));
+  return new Set(rows.map((row) => row.name));
+}
+
+export type RolePermissionChange = {
+  /** The role's own company; global roles (null) are skipped. */
+  companyId: number | null;
+  roleId: number;
+  beforePermissionIds: number[];
+  afterPermissionIds: number[];
+};
+
+export type RoleGuardDeps = {
+  permissionNamesForIds: typeof permissionNamesForIds;
+  countActiveUsersWithRole: typeof countActiveUsersWithRole;
+  countUsersWithPermissionOutsideRole: typeof countUsersWithPermissionOutsideRole;
+  isSystemCompany: typeof isSystemCompany;
+};
+
+const defaultRoleDeps: RoleGuardDeps = {
+  permissionNamesForIds,
+  countActiveUsersWithRole,
+  countUsersWithPermissionOutsideRole,
+  isSystemCompany,
+};
+
+/**
+ * False when editing the role would leave its tenant with nobody holding
+ * users.write or roles.write (the role's holders were the last ones).
+ */
+export async function roleChangeKeepsAdmins(
+  change: RolePermissionChange,
+  deps: RoleGuardDeps = defaultRoleDeps,
+): Promise<boolean> {
+  const { companyId, roleId } = change;
+  if (companyId === null) {
+    return true;
+  }
+
+  const [before, after] = await Promise.all([
+    deps.permissionNamesForIds(change.beforePermissionIds),
+    deps.permissionNamesForIds(change.afterPermissionIds),
+  ]);
+  const dropped = LOCKOUT_PERMISSIONS.filter(
+    (name) => before.has(name) && !after.has(name),
+  );
+  if (dropped.length === 0) {
+    return true;
+  }
+
+  if ((await deps.countActiveUsersWithRole(roleId)) === 0) {
+    return true;
+  }
+  if (await deps.isSystemCompany(companyId)) {
+    return true;
+  }
+
+  for (const name of dropped) {
+    if ((await deps.countUsersWithPermissionOutsideRole(companyId, name, roleId)) === 0) {
+      return false;
+    }
+  }
+  return true;
+}

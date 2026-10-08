@@ -3,6 +3,7 @@ import {
   COMPANY_HUB_TABS,
   filterCompanyHubTabs,
   getActiveCompanyHubTab,
+  getCompanyHubSubpage,
   getCompanyHubTabLabel,
 } from '@/lib/company-hub';
 
@@ -37,5 +38,16 @@ describe('company-hub', () => {
       'datos',
       'equipo',
     ]);
+  });
+
+  it('detects the full-screen role editor routes', () => {
+    expect(getCompanyHubSubpage('/company/roles/nuevo')?.title).toBe('Nuevo rol');
+    expect(getCompanyHubSubpage('/company/roles/12')).toEqual({
+      title: 'Editar rol',
+      backHref: '/company/roles',
+      backLabel: 'Volver a roles',
+    });
+    expect(getCompanyHubSubpage('/company/roles')).toBeNull();
+    expect(getCompanyHubSubpage('/company/equipo')).toBeNull();
   });
 });

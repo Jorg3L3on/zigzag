@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   COMPANY_HUB_TABS,
   getActiveCompanyHubTab,
+  getCompanyHubSubpage,
   type CompanyHubTabKey,
 } from '@/lib/company-hub';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,8 @@ export const CompanyHubTabs = ({
 }: CompanyHubTabsProps) => {
   const pathname = usePathname();
   const activeKey = getActiveCompanyHubTab(pathname ?? '');
+  // Full-screen editors replace the segmented control on mobile.
+  const isSubpage = getCompanyHubSubpage(pathname ?? '') !== null;
   const tabs = COMPANY_HUB_TABS.filter((tab) => visibleTabs.includes(tab.key));
 
   if (tabs.length === 0) {
@@ -42,7 +45,10 @@ export const CompanyHubTabs = ({
     >
       {/* Mobile: segmented control */}
       <ul
-        className="grid gap-0 rounded-full bg-muted p-1 md:hidden"
+        className={cn(
+          'grid gap-0 rounded-full bg-muted p-1 md:hidden',
+          isSubpage && 'hidden',
+        )}
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
         {tabs.map((tab) => {

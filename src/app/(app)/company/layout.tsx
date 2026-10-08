@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
 
-import { CompanyHubPageHeader } from '@/components/companies/company-hub-header';
-import { CompanyHubTabs } from '@/components/companies/company-hub-tabs';
 import {
-  TripledDashboardShell,
-  TripledMobileAppBar,
-} from '@/components/tripled';
+  CompanyHubMobileAppBar,
+  CompanyHubPageHeader,
+} from '@/components/companies/company-hub-header';
+import { CompanyHubTabs } from '@/components/companies/company-hub-tabs';
+import { TripledDashboardShell } from '@/components/tripled';
 import { getCompanyHubSummary } from '@/lib/company-hub-summary';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { requireActionAuth } from '@/lib/security';
@@ -46,11 +46,7 @@ export default async function CompanyHubLayout({
     <>
       <CompanyHubPageHeader />
       <TripledDashboardShell>
-        <TripledMobileAppBar
-          title="Mi empresa"
-          subtitle={summary.companyName}
-          className="mb-3"
-        />
+        <CompanyHubMobileAppBar companyName={summary.companyName} />
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="hidden flex-wrap items-end justify-between gap-4 md:flex">
             <div className="flex min-w-0 flex-col gap-1">

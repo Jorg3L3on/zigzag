@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { Shield } from 'lucide-react';
 import { TripledResourceCard } from '@/components/tripled';
-import { RolesList } from '@/components/roles/roles-list';
+import { RolesWorkspace } from '@/components/companies/roles/roles-workspace';
 import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
@@ -15,10 +15,10 @@ export default async function CompanyRolesPage() {
   return (
     <TripledResourceCard
       title="Roles"
-      description="Perfiles de acceso y lo que cada uno puede hacer."
+      description="Qué puede ver y hacer cada persona del equipo."
       icon={<Shield className="size-5" aria-hidden />}
     >
-      <RolesList />
+      <RolesWorkspace />
     </TripledResourceCard>
   );
 }

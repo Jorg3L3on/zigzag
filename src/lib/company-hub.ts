@@ -63,3 +63,16 @@ export const filterCompanyHubTabs = (
   can: (permission: string) => boolean,
 ): CompanyHubTab[] =>
   COMPANY_HUB_TABS.filter((tab) => can(tab.requiredPermission));
+
+/** Full-screen sub-pages of the hub (mobile app bar with back instead of tabs). */
+export const getCompanyHubSubpage = (
+  pathname: string,
+): { title: string; backHref: string; backLabel: string } | null => {
+  if (pathname === `${COMPANY_HUB_ROLES_PATH}/nuevo`) {
+    return { title: 'Nuevo rol', backHref: COMPANY_HUB_ROLES_PATH, backLabel: 'Volver a roles' };
+  }
+  if (/^\/company\/roles\/\d+$/.test(pathname)) {
+    return { title: 'Editar rol', backHref: COMPANY_HUB_ROLES_PATH, backLabel: 'Volver a roles' };
+  }
+  return null;
+};

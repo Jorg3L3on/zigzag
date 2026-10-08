@@ -13,6 +13,7 @@ import {
   tenantBContext,
 } from '@/test/cross-tenant-action-helpers';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
+import { countActiveUsersWithRole, roleChangeKeepsAdmins } from '@/lib/team-guards';
 
 jest.mock('@/lib/db', () => ({
   db: {
@@ -40,6 +41,10 @@ jest.mock('@/lib/governance-audit', () => ({
   recordGovernanceAudit: jest.fn(),
   sanitizePermissionForAudit: jest.fn((row) => row),
   sanitizeRoleForAudit: jest.fn((row) => row),
+}));
+jest.mock('@/lib/team-guards', () => ({
+  countActiveUsersWithRole: jest.fn(async () => 0),
+  roleChangeKeepsAdmins: jest.fn(async () => true),
 }));
 jest.mock('@/lib/company-bootstrap', () => ({
   isProtectedBootstrapAdminRole: jest.fn(() => false),
@@ -108,5 +113,69 @@ describe('cross-tenant IDOR - role actions', () => {
     expect(mockDb.update).not.toHaveBeenCalled();
     expect(mockDb.query.role.findMany).not.toHaveBeenCalled();
     expect(mockDb.query.role.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe('role lockout guards (ZIG-I3-5)', () => {
+  const mockCountUsers = countActiveUsersWithRole as jest.MockedFunction<
+    typeof countActiveUsersWithRole
+  >;
+  const mockKeepsAdmins = roleChangeKeepsAdmins as jest.MockedFunction<
+    typeof roleChangeKeepsAdmins
+  >;
+  const tenantRole = {
+    id: 7,
+    name: 'Operator',
+    description: null,
+    company_id: 20,
+    deleted_at: null,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireActionPermission.mockResolvedValue({
+      context: tenantBContext(),
+      companyId: 20,
+    });
+    // assertPermissionsAssignableToCompany: every requested permission exists.
+    mockDb.select.mockReturnValue({
+      from: jest.fn(() => ({ where: jest.fn(async () => [{ id: 1 }]) })),
+    });
+    mockDb.query.role.findFirst.mockResolvedValue(tenantRole);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('refuses to delete a role someone still has', async () => {
+    mockCountUsers.mockResolvedValueOnce(2);
+
+    const result = await deleteRole(7);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('RL005');
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a permission change that leaves nobody managing the team', async () => {
+    mockKeepsAdmins.mockResolvedValueOnce(false);
+
+    const result = await updateRole(7, {
+      name: 'Operator',
+      company_id: 20,
+      permissions: [1],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('RL006');
+    expect(mockKeepsAdmins).toHaveBeenCalledWith({
+      companyId: 20,
+      roleId: 7,
+      beforePermissionIds: [],
+      afterPermissionIds: [1],
+    });
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });
