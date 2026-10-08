@@ -1,7 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   COMPANY_HUB_TABS,
-  filterCompanyHubTabs,
   getActiveCompanyHubTab,
   getCompanyHubSubpage,
   getCompanyHubTabLabel,
@@ -30,14 +29,6 @@ describe('company-hub', () => {
   it('labels the breadcrumb with the active tab', () => {
     expect(getCompanyHubTabLabel('/company/equipo')).toBe('Equipo');
     expect(getCompanyHubTabLabel('/dashboard')).toBeNull();
-  });
-
-  it('hides tabs the caller cannot read', () => {
-    const can = (permission: string) => permission !== 'roles.read';
-    expect(filterCompanyHubTabs(can).map((tab) => tab.key)).toEqual([
-      'datos',
-      'equipo',
-    ]);
   });
 
   it('detects the full-screen role editor routes', () => {

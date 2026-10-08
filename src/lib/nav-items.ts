@@ -182,6 +182,21 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
   },
 ];
 
+/**
+ * Administración items a user may see: system-only items for system users,
+ * the rest by permission. Tenants get an empty list, so the group is hidden.
+ */
+export const filterSystemNavItems = (
+  items: NavItemDefinition[],
+  {
+    isSystemUser,
+    can,
+  }: { isSystemUser: boolean; can: (permission?: string) => boolean },
+): NavItemDefinition[] =>
+  items.filter((item) =>
+    item.systemOnly ? isSystemUser : can(item.requiredPermission),
+  );
+
 export const getLongestMatchingHref = (
   pathname: string,
   hrefs: string[],

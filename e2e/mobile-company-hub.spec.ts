@@ -223,5 +223,13 @@ test.describe('Mi empresa hub', () => {
       await expect(page).toHaveURL(/\/users/);
       await expect(visiblePageHeader(page).getByText('Usuarios')).toBeVisible();
     });
+
+    test('sees the permission catalog under its new name', async ({ page }) => {
+      await page.goto('/permissions');
+      await expect(page).toHaveURL(/\/permissions/);
+      await expect(
+        visiblePageHeader(page).getByText('Catálogo de permisos'),
+      ).toBeVisible();
+    });
   });
 });

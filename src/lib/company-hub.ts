@@ -59,11 +59,6 @@ export const getCompanyHubTabLabel = (pathname: string): string | null => {
   return COMPANY_HUB_TABS.find((tab) => tab.key === key)?.label ?? null;
 };
 
-export const filterCompanyHubTabs = (
-  can: (permission: string) => boolean,
-): CompanyHubTab[] =>
-  COMPANY_HUB_TABS.filter((tab) => can(tab.requiredPermission));
-
 /** Full-screen sub-pages of the hub (mobile app bar with back instead of tabs). */
 export const getCompanyHubSubpage = (
   pathname: string,
