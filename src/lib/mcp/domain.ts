@@ -75,6 +75,7 @@ export const getAgentTicket = async (agent: AgentContext, ticketId: bigint) => {
         columns: {
           id: true,
           service_id: true,
+          name: true,
           quantity: true,
           price: true,
         },

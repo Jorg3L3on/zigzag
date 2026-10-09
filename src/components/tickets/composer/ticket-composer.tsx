@@ -21,6 +21,10 @@ import { toast } from 'sonner';
 
 import { getClient, getClients, type Client } from '@/actions/clients';
 import { getServices } from '@/actions/services';
+import {
+  createPresupuestoWithLines,
+  updatePresupuesto,
+} from '@/actions/presupuestos';
 import { createTicketWithLines } from '@/actions/tickets';
 import type { Service } from '@/db/schema';
 import { ClientForm } from '@/components/clients/client-form';
@@ -30,6 +34,8 @@ import {
   ComposerLineSheet,
   type ComposerLineInput,
 } from '@/components/tickets/composer/composer-line-sheet';
+import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
+import { ExpiresAtField } from '@/components/tickets/composer/expires-at-field';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import {
   TripledDashboardShell,
@@ -64,8 +70,10 @@ import { useCompany } from '@/contexts/company-context';
 import { multiplyMoney, sumLineTotals } from '@/lib/money';
 import { buildToastErrorContent } from '@/lib/network-awareness';
 import {
+  buildPresupuestoComposerDraftKey,
   buildTicketComposerDraftKey,
   clearTicketComposerDraft,
+  draftLineToServiceLineInput,
   readTicketComposerDraft,
   writeTicketComposerDraft,
   type TicketComposerDraftLine,
@@ -99,7 +107,13 @@ type ComposerLineRowProps = {
 const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
   <div className="flex items-start gap-3 py-3">
     <div className="min-w-0 flex-1">
-      <p className="font-medium leading-snug text-foreground">{line.service_name}</p>
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <span className="font-medium leading-snug text-foreground">{line.service_name}</span>
+        <InlineLineChips
+          isInline={line.kind === 'custom' || line.service_id == null}
+          saveToCatalog={line.save_to_catalog}
+        />
+      </div>
       <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
         {line.quantity} × {formatServiceCurrency(line.price)}
       </p>
@@ -136,12 +150,88 @@ const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
   </div>
 );
 
+export type ComposerKind = 'ticket' | 'presupuesto';
+
+const COMPOSER_COPY: Record<
+  ComposerKind,
+  {
+    title: string;
+    subtitle: string;
+    listHref: string;
+    listLabel: string;
+    backLabel: string;
+    saveLabel: string;
+    noun: string;
+    linesLabel: string;
+    documentLabel: string;
+    saveError: string;
+  }
+> = {
+  ticket: {
+    title: 'Nuevo ticket',
+    subtitle: 'Cliente, servicios y total',
+    listHref: '/tickets',
+    listLabel: 'Tickets',
+    backLabel: 'Volver a tickets',
+    saveLabel: 'Guardar ticket',
+    noun: 'Ticket',
+    linesLabel: 'Servicios del ticket',
+    documentLabel: 'ticket',
+    saveError: 'No se pudo guardar el ticket',
+  },
+  presupuesto: {
+    title: 'Nuevo presupuesto',
+    subtitle: 'Cliente, servicios y vigencia',
+    listHref: '/presupuestos',
+    listLabel: 'Presupuestos',
+    backLabel: 'Volver a presupuestos',
+    saveLabel: 'Guardar presupuesto',
+    noun: 'Presupuesto',
+    linesLabel: 'Servicios del presupuesto',
+    documentLabel: 'presupuesto',
+    saveError: 'No se pudo guardar el presupuesto',
+  },
+};
+
 /**
  * Nuevo ticket (ZIG-I2-4): one screen for client, date, service lines with a
  * running total and notes. Nothing is persisted until Guardar ticket, which
  * creates the ticket and its lines in one transaction.
  */
-export const TicketComposer = () => {
+type DocumentComposerProps = {
+  /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
+  kind?: ComposerKind;
+  /**
+   * Presupuestos only (ZIG-I5-5): reopen an open quote. The client is locked,
+   * no local draft is kept, and Guardar cambios goes through updatePresupuesto.
+   */
+  edit?: ComposerEditState;
+};
+
+export type ComposerEditState = {
+  id: string;
+  client: { id: number; label: string };
+  ticketDate: string;
+  expiresAt: string | null;
+  notes: string;
+  lines: TicketComposerDraftLine[];
+};
+
+export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProps) => {
+  const isQuote = kind === 'presupuesto';
+  const isEdit = isQuote && edit != null;
+  const baseCopy = COMPOSER_COPY[kind];
+  const copy = isEdit
+    ? {
+        ...baseCopy,
+        title: `Editar presupuesto #${edit.id}`,
+        subtitle: 'Servicios, vigencia y notas',
+        listHref: `/presupuestos/${edit.id}`,
+        backLabel: 'Volver al presupuesto',
+        saveLabel: 'Guardar cambios',
+        saveError: 'No se pudieron guardar los cambios',
+      }
+    : baseCopy;
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -153,16 +243,25 @@ export const TicketComposer = () => {
   const prefillClientId = searchParams.get('clientId');
   const prefillServiceId = searchParams.get('serviceId');
 
-  const [client, setClient] = React.useState<ComposerClient | null>(null);
+  const [client, setClient] = React.useState<ComposerClient | null>(
+    isEdit ? edit.client : null,
+  );
   const [clients, setClients] = React.useState<Client[]>([]);
   const [clientQuery, setClientQuery] = React.useState('');
   const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
   const [isNewClientOpen, setIsNewClientOpen] = React.useState(false);
-  const [ticketDate, setTicketDate] = React.useState<Date>(() => new Date());
+  const [ticketDate, setTicketDate] = React.useState<Date>(() =>
+    isEdit ? new Date(edit.ticketDate) : new Date(),
+  );
   const [isDateOpen, setIsDateOpen] = React.useState(false);
-  const [notes, setNotes] = React.useState('');
-  const [lines, setLines] = React.useState<TicketComposerDraftLine[]>([]);
+  const [expiresAt, setExpiresAt] = React.useState<Date | null>(() =>
+    isEdit && edit.expiresAt ? new Date(edit.expiresAt) : null,
+  );
+  const [notes, setNotes] = React.useState(isEdit ? edit.notes : '');
+  const [lines, setLines] = React.useState<TicketComposerDraftLine[]>(
+    isEdit ? edit.lines : [],
+  );
   const [services, setServices] = React.useState<Service[]>([]);
   const [isServicesLoading, setIsServicesLoading] = React.useState(true);
   const [lineSheet, setLineSheet] = React.useState<{
@@ -175,7 +274,12 @@ export const TicketComposer = () => {
   const servicePrefillAppliedRef = React.useRef(false);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
-  const draftKey = companyId ? buildTicketComposerDraftKey(companyId) : null;
+  // Editing an existing quote keeps no local draft: the server row is the source.
+  const draftKey = companyId && !isEdit
+    ? isQuote
+      ? buildPresupuestoComposerDraftKey(companyId)
+      : buildTicketComposerDraftKey(companyId)
+    : null;
   const total = sumLineTotals(lines);
   const canSave = Boolean(companyId && client && lines.length > 0);
   const editingLine = lines.find((line) => line.key === lineSheet.editingKey) ?? null;
@@ -192,11 +296,12 @@ export const TicketComposer = () => {
         });
       }
       if (draft.ticket_date) setTicketDate(new Date(draft.ticket_date));
+      if (isQuote && draft.expires_at) setExpiresAt(new Date(draft.expires_at));
       if (draft.work_notes) setNotes(draft.work_notes);
       if (draft.lines.length > 0) setLines(draft.lines);
     }
     setDraftReady(true);
-  }, [draftKey]);
+  }, [draftKey, isQuote]);
 
   // Persist every change after the restore so a reload keeps the work.
   React.useEffect(() => {
@@ -205,10 +310,21 @@ export const TicketComposer = () => {
       client_id: client?.id,
       client_label: client?.label,
       ticket_date: ticketDate.toISOString(),
+      ...(isQuote && expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
       work_notes: notes,
       lines,
     });
-  }, [draftKey, draftReady, client, ticketDate, notes, lines, saveState]);
+  }, [
+    draftKey,
+    draftReady,
+    client,
+    ticketDate,
+    expiresAt,
+    isQuote,
+    notes,
+    lines,
+    saveState,
+  ]);
 
   React.useEffect(() => {
     const handle = window.setTimeout(
@@ -358,7 +474,7 @@ export const TicketComposer = () => {
     setLines((current) => {
       if (lineSheet.editingKey) {
         return current.map((line) =>
-          line.key === lineSheet.editingKey ? { ...line, ...input } : line,
+          line.key === lineSheet.editingKey ? { key: line.key, ...input } : line,
         );
       }
       return [...current, { key: nextLineKey(), ...input }];
@@ -375,36 +491,63 @@ export const TicketComposer = () => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       toast.error('Sin conexión', {
         description:
-          'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Captura rápida.',
+          isQuote
+            ? 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal.'
+            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Captura rápida.',
       });
       return;
     }
 
     setSaveState('saving');
     try {
-      const result = await createTicketWithLines({
+      const payload = {
         company_id: companyId,
         client_id: client.id,
         ticket_date: ticketDate,
         work_notes: notes,
-        lines: lines.map(({ service_id, quantity, price }) => ({
-          service_id,
-          quantity,
-          price,
-        })),
+        lines: lines.map(draftLineToServiceLineInput),
         client_total: total,
-      });
+      };
+      if (isEdit) {
+        const updated = await updatePresupuesto(Number(edit.id), {
+          company_id: companyId,
+          ticket_date: ticketDate,
+          expires_at: expiresAt,
+          work_notes: notes,
+          services: payload.lines,
+        });
+        if (updated.success) {
+          setSaveState('done');
+          vibrateSuccess();
+          toast.success(`Presupuesto #${edit.id} actualizado`);
+          router.push(`/presupuestos/${edit.id}`);
+          router.refresh();
+          return;
+        }
+        const content = buildToastErrorContent(updated, copy.saveError);
+        toast.error(content.title, { description: content.description });
+        setSaveState('idle');
+        return;
+      }
+
+      const result = isQuote
+        ? await createPresupuestoWithLines({ ...payload, expires_at: expiresAt })
+        : await createTicketWithLines(payload);
 
       if (result.success && result.data) {
         setSaveState('done');
         if (draftKey) clearTicketComposerDraft(draftKey);
         vibrateSuccess();
-        toast.success(`Ticket #${result.data.id} guardado`);
-        router.push(`/tickets/${result.data.id}/listo`);
+        toast.success(`${copy.noun} #${result.data.id} guardado`);
+        router.push(
+          isQuote
+            ? `/presupuestos/${result.data.id}/listo`
+            : `/tickets/${result.data.id}/listo`,
+        );
         return;
       }
 
-      const content = buildToastErrorContent(result, 'No se pudo guardar el ticket');
+      const content = buildToastErrorContent(result, copy.saveError);
       toast.error(content.title, {
         description:
           content.errorType === 'network'
@@ -413,7 +556,7 @@ export const TicketComposer = () => {
       });
       setSaveState('idle');
     } catch {
-      toast.error('No se pudo guardar el ticket', {
+      toast.error(copy.saveError, {
         description: 'Tu borrador sigue en este teléfono. Vuelve a intentarlo.',
       });
       setSaveState('idle');
@@ -433,7 +576,7 @@ export const TicketComposer = () => {
           Guardado
         </>
       ) : (
-        'Guardar ticket'
+        copy.saveLabel
       )}
     </ActionSwap>
   );
@@ -453,8 +596,8 @@ export const TicketComposer = () => {
       <TripledPageHeader
         className="hidden md:flex"
         items={[
-          { label: 'Tickets', href: '/tickets' },
-          { label: 'Nuevo ticket' },
+          { label: copy.listLabel, href: copy.listHref },
+          { label: copy.title },
         ]}
       />
 
@@ -463,16 +606,18 @@ export const TicketComposer = () => {
         contentClassName="space-y-4"
       >
         <TripledMobileAppBar
-          title="Nuevo ticket"
-          subtitle="Cliente, servicios y total"
-          backHref="/tickets"
-          backLabel="Volver a tickets"
+          title={copy.title}
+          subtitle={copy.subtitle}
+          backHref={copy.listHref}
+          backLabel={copy.backLabel}
         />
 
         <div className="hidden md:block">
-          <h1 className="text-2xl font-semibold tracking-tight">Nuevo ticket</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Elige el cliente, agrega los servicios y guarda. Nada se guarda antes.
+            {isEdit
+              ? 'Ajusta servicios, vigencia o notas. Nada cambia hasta Guardar cambios.'
+              : 'Elige el cliente, agrega los servicios y guarda. Nada se guarda antes.'}
           </p>
         </div>
 
@@ -493,21 +638,24 @@ export const TicketComposer = () => {
                   onValueChange={handleClientChange}
                   onSearchChange={setClientQuery}
                   isLoading={isClientsLoading}
+                  disabled={isEdit}
                   placeholder="Busca o elige un cliente"
                   searchPlaceholder="Buscar por nombre o teléfono…"
                   emptyText="Sin clientes que coincidan"
                   className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 gap-2 rounded-xl md:h-10"
-                onClick={() => setIsNewClientOpen(true)}
-              >
-                <UserPlus className="h-4 w-4" aria-hidden />
-                Nuevo cliente
-              </Button>
+              {isEdit ? null : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 gap-2 rounded-xl md:h-10"
+                  onClick={() => setIsNewClientOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4" aria-hidden />
+                  Nuevo cliente
+                </Button>
+              )}
             </div>
 
             <div className="mt-4 space-y-2">
@@ -544,6 +692,16 @@ export const TicketComposer = () => {
                 </PopoverContent>
               </Popover>
             </div>
+
+            {isQuote ? (
+              <div className="mt-4">
+                <ExpiresAtField
+                  value={expiresAt}
+                  onChange={setExpiresAt}
+                  minDate={ticketDate}
+                />
+              </div>
+            ) : null}
           </section>
         </BlurFade>
 
@@ -574,7 +732,7 @@ export const TicketComposer = () => {
               </div>
             ) : (
               <ul
-                aria-label="Servicios del ticket"
+                aria-label={copy.linesLabel}
                 className="mt-2 divide-y divide-border/60"
               >
                 <AnimatePresence initial={false}>
@@ -644,12 +802,14 @@ export const TicketComposer = () => {
           </Button>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground md:hidden">
-          ¿Sin señal o con prisa?{' '}
-          <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
-            Captura rápida
-          </Link>
-        </p>
+        {isQuote ? null : (
+          <p className="text-center text-xs text-muted-foreground md:hidden">
+            ¿Sin señal o con prisa?{' '}
+            <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
+              Captura rápida
+            </Link>
+          </p>
+        )}
       </TripledDashboardShell>
 
       <TripledMobileStickyActionBar>
@@ -677,11 +837,7 @@ export const TicketComposer = () => {
         servicesLoading={isServicesLoading}
         initialLine={editingLine}
         onSubmit={handleLineSubmit}
-        onServiceCreated={(saved) =>
-          setServices((current) =>
-            current.some((item) => item.id === saved.id) ? current : [saved, ...current],
-          )
-        }
+        documentLabel={copy.documentLabel}
       />
 
       <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>
@@ -708,3 +864,6 @@ export const TicketComposer = () => {
     </>
   );
 };
+
+/** Nuevo ticket composer (ZIG-I2-4). */
+export const TicketComposer = () => <DocumentComposer kind="ticket" />;

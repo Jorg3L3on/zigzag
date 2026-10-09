@@ -17,6 +17,7 @@ import {
   type DashboardDayQueue,
 } from '@/lib/dashboard-day-queue';
 import { buildTechnicianDayQueue } from '@/lib/technician-day-queue';
+import { getServiceLineName } from '@/lib/service-line-display';
 
 export const loadDashboardDayQueueForCompany = async (
   companyId: number,
@@ -68,7 +69,7 @@ export const loadDashboardDayQueueForCompany = async (
       paid: row.paid,
       finished: row.finished,
       document_kind: row.document_kind,
-      serviceNames: row.services_tickets.map((line) => line.service?.name ?? null),
+      serviceNames: row.services_tickets.map((line) => getServiceLineName(line)),
     })),
     today,
   );

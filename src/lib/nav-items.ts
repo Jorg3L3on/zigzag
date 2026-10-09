@@ -161,6 +161,13 @@ export const MOBILE_CREATE_ACTIONS: MobileCreateAction[] = [
     requiredPermission: PERMISSIONS.tickets.write,
   },
   {
+    title: 'Nuevo presupuesto',
+    hint: 'Cotiza y compártelo por WhatsApp',
+    url: '/presupuestos/create',
+    icon: ClipboardList,
+    requiredPermission: PERMISSIONS.tickets.write,
+  },
+  {
     title: 'Captura rápida',
     hint: 'Un solo paso, funciona sin señal',
     url: '/anotar',

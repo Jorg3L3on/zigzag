@@ -42,12 +42,18 @@ export function TicketServicesListClient({
     isDialogOpen,
     isSubmitting,
     searchTerm,
-    isCreatingNewService,
+    lineMode,
+    customName,
+    customDescription,
+    saveToCatalog,
+    setLineMode,
+    setCustomName,
+    setCustomDescription,
+    setSaveToCatalog,
     setIsDialogOpen,
     setSearchTerm,
     setQuantity,
     setPrice,
-    setIsCreatingNewService,
     resetForm,
     handleServiceSelect,
     handleAddService,
@@ -55,7 +61,6 @@ export function TicketServicesListClient({
     handleServiceQuantityChange,
     handleServicePriceChange,
     handleDeleteService,
-    handleServiceCreated,
   } = useTicketServicesList({
     ticketId,
     companyId: selectedCompany?.id,
@@ -150,10 +155,14 @@ export function TicketServicesListClient({
                   onPriceAdjust={(nextValue) =>
                     setPrice(String(Math.max(nextValue, 0)))
                   }
-                  isCreatingNewService={isCreatingNewService}
-                  onStartCreateService={() => setIsCreatingNewService(true)}
-                  onCancelCreateService={() => setIsCreatingNewService(false)}
-                  onServiceCreated={handleServiceCreated}
+                  lineMode={lineMode}
+                  onLineModeChange={setLineMode}
+                  customName={customName}
+                  onCustomNameChange={setCustomName}
+                  customDescription={customDescription}
+                  onCustomDescriptionChange={setCustomDescription}
+                  saveToCatalog={saveToCatalog}
+                  onSaveToCatalogChange={setSaveToCatalog}
                   isSubmitting={isSubmitting}
                   onAddService={handleAddService}
                 />

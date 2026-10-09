@@ -1,16 +1,22 @@
 'use server';
 
 import { and, desc, eq, isNull } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
   servicesTickets,
   ticket,
+  type Client,
+  type Service,
+  type ServicesTicketsRow,
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
+  AuthenticationError,
   AuthorizationError,
   buildActionError,
+  type CodedActionError,
   handleCodedServerActionError,
   handleServerActionError,
   type ActionErrorType,
@@ -21,7 +27,7 @@ import {
 } from '@/lib/company-production-guard';
 import { invalidateCompanyCache } from '@/lib/cache';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import { calculateTicketTotal } from '@/lib/ticket-financials';
+import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import {
   getPresupuestoStatus,
@@ -31,12 +37,18 @@ import {
   type PresupuestoStatus,
 } from '@/lib/ticket-document-kind';
 import { client, service } from '@/db/schema';
+import {
+  composerServiceLineSchema,
+  serviceLineInputSchema,
+} from '@/lib/ticket-service-line-schema';
+import {
+  catalogServiceIds,
+  copyServiceLineValues,
+  insertServiceLines,
+} from '@/lib/service-lines-server';
 
-const serviceLineSchema = z.object({
-  service_id: z.number(),
-  quantity: z.number().finite().min(1),
-  price: z.number().finite().min(0),
-});
+/** Catalog or inline line (ZIG-I5). */
+const serviceLineSchema = serviceLineInputSchema;
 
 const presupuestoSchema = z.object({
   client_id: z.number().optional(),
@@ -51,11 +63,12 @@ const presupuestoSchema = z.object({
   document: z.string().max(100).optional(),
   ticket_date: z.date(),
   expires_at: z.date().nullable().optional(),
+  work_notes: z.string().trim().max(2000).nullable().optional(),
   company_id: z.number(),
   services: z.array(serviceLineSchema).optional(),
 });
 
-export type CreatePresupuestoInput = z.infer<typeof presupuestoSchema>;
+export type CreatePresupuestoInput = z.input<typeof presupuestoSchema>;
 
 export type PresupuestoListItem = {
   id: string;
@@ -156,42 +169,94 @@ export async function getPresupuestosList(
   }
 }
 
-export async function createPresupuesto(
-  data: CreatePresupuestoInput,
+const TICKET_EMAIL_MAX_LENGTH = 40;
+
+const startOfDay = (value: Date): number => {
+  const day = new Date(value);
+  day.setHours(0, 0, 0, 0);
+  return day.getTime();
+};
+
+const createPresupuestoWithLinesSchema = z
+  .object({
+    company_id: z.number().int().positive(),
+    client_id: z.number().int().positive(),
+    ticket_date: z.coerce.date(),
+    expires_at: z.coerce.date().nullable().optional(),
+    work_notes: z.string().trim().max(2000).optional().default(''),
+    lines: z.array(composerServiceLineSchema).min(1).max(50),
+    /** What the composer showed; audit only. The server always recomputes the total. */
+    client_total: z.number().finite().optional(),
+  })
+  .refine(
+    (value) =>
+      value.expires_at == null ||
+      startOfDay(value.expires_at) >= startOfDay(value.ticket_date),
+    { message: 'La vigencia no puede ser anterior a la fecha', path: ['expires_at'] },
+  );
+
+export type CreatePresupuestoWithLinesInput = z.input<
+  typeof createPresupuestoWithLinesSchema
+>;
+
+/**
+ * Nuevo presupuesto composer (ZIG-I5 D1): creates the quote and all its lines
+ * (catalog or inline) in one transaction. Nothing is persisted before this call.
+ * Client snapshot fields come from the tenant's client row and the total is
+ * server-authoritative.
+ */
+export async function createPresupuestoWithLines(
+  input: CreatePresupuestoWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: PresupuestoListItem;
+  data?: { id: string; total: number };
   error?: string;
   errorType?: ActionErrorType;
 }> {
   try {
-    const validated = presupuestoSchema.parse(data);
+    const validated = createPresupuestoWithLinesSchema.parse(input);
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
 
     await assertCompanyProductionReady(effectiveCompanyId);
-    await assertClientBelongsToCompany(validated.client_id, effectiveCompanyId);
-    if (validated.services?.length) {
-      await assertServicesBelongToCompany(
-        validated.services.map((line) => line.service_id),
-        effectiveCompanyId,
-      );
+
+    const clientRow = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, validated.client_id),
+        eq(client.company_id, effectiveCompanyId),
+        isNull(client.deleted_at),
+      ),
+      columns: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        document: true,
+      },
+    });
+    if (!clientRow) {
+      throw new AuthorizationError('Client not found for this company');
     }
 
-    const total = validated.services?.length
-      ? calculateTicketTotal(validated.services)
-      : 0;
+    await assertServicesBelongToCompany(
+      catalogServiceIds(validated.lines),
+      effectiveCompanyId,
+    );
 
     const created = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(ticket)
         .values({
-          client_id: validated.client_id,
-          client_name: validated.client_name,
-          client_tel: validated.client_tel,
-          email: validated.email,
-          document: validated.document,
+          client_id: clientRow.id,
+          client_name: clientRow.name.slice(0, 100),
+          client_tel: (clientRow.phone ?? '').slice(0, 20),
+          email:
+            clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
+              ? clientRow.email
+              : null,
+          document: clientRow.document ?? null,
+          work_notes: validated.work_notes || null,
           ticket_date: validated.ticket_date,
           expires_at: validated.expires_at ?? null,
           company_id: effectiveCompanyId,
@@ -199,43 +264,90 @@ export async function createPresupuesto(
           document_kind: 'presupuesto',
           finished: false,
           paid: 0,
-          total,
+          total: 0,
         })
         .returning();
 
-      if (validated.services?.length) {
-        await tx.insert(servicesTickets).values(
-          validated.services.map((line) => ({
-            service_id: line.service_id,
-            ticket_id: row.id,
-            quantity: line.quantity,
-            price: line.price,
-          })),
-        );
-      }
-
-      await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
-        ticket: row,
-        document_kind: 'presupuesto',
+      const { rows: lineRows, createdServiceIds } = await insertServiceLines(tx, {
+        companyId: effectiveCompanyId,
+        ticketId: row.id,
+        lines: validated.lines,
       });
 
-      return row;
+      const syncedTotal = await syncTicketTotal(tx, row.id);
+
+      await recordTicketAudit(tx, context, row.id, effectiveCompanyId, 'created', {
+        ticket: { ...row, total: syncedTotal },
+        document_kind: 'presupuesto',
+        source: 'composer',
+        lines: lineRows,
+        ...(createdServiceIds.length > 0
+          ? { savedToCatalogServiceIds: createdServiceIds }
+          : {}),
+        syncedTotal,
+        ignoredClientTotal: validated.client_total ?? null,
+      });
+
+      return { id: row.id, total: syncedTotal };
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
-    return { success: true, data: toListItem(created) };
+    revalidatePath('/presupuestos');
+
+    return {
+      success: true,
+      data: { id: String(created.id), total: created.total },
+    };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {
       return handleServerActionError(error);
     }
-    if (error instanceof z.ZodError) {
-      return handleCodedServerActionError(
-        'presupuestos.create.validation',
-        'TC009',
-        error,
-      );
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) {
+      return handleServerActionError(error);
     }
-    return handleCodedServerActionError('presupuestos.create', 'TC001', error);
+    if (error instanceof z.ZodError) {
+      return buildActionError('TC009', error, 'validation');
+    }
+    return handleCodedServerActionError('presupuestos.composer.create', 'TC001', error);
+  }
+}
+
+export type PresupuestoDetailData = TicketRow & {
+  client?: Client | null;
+  services_tickets: Array<ServicesTicketsRow & { service: Service | null }>;
+};
+
+/**
+ * One presupuesto for its review and detail pages (ZIG-I5-4). Tenant-scoped and
+ * limited to document_kind = 'presupuesto': a work ticket id is not found here.
+ */
+export async function getPresupuestoById(
+  id: number,
+  requestedCompanyId?: number | null,
+): Promise<{ success: true; data: PresupuestoDetailData } | CodedActionError> {
+  try {
+    const { companyId } = await requireTicketRead(requestedCompanyId ?? undefined);
+    const row = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, BigInt(id)),
+        eq(ticket.company_id, companyId),
+        eq(ticket.document_kind, 'presupuesto'),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        client: true,
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: { service: true },
+        },
+      },
+    });
+    if (!row) {
+      return buildActionError('TC008');
+    }
+    return { success: true, data: row as PresupuestoDetailData };
+  } catch (e) {
+    return handleCodedServerActionError('presupuestos.get', 'TC003', e);
   }
 }
 
@@ -273,11 +385,12 @@ export async function updatePresupuesto(
       await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
     }
 
-    const servicesToSync = Array.isArray(data.services) ? data.services : null;
+    const servicesToSync = Array.isArray(data.services)
+      ? z.array(serviceLineSchema).parse(data.services)
+      : null;
     if (servicesToSync) {
-      z.array(serviceLineSchema).parse(servicesToSync);
       await assertServicesBelongToCompany(
-        servicesToSync.map((line) => line.service_id),
+        catalogServiceIds(servicesToSync),
         effectiveCompanyId,
       );
     }
@@ -294,14 +407,11 @@ export async function updatePresupuesto(
             ),
           );
         if (servicesToSync.length > 0) {
-          await tx.insert(servicesTickets).values(
-            servicesToSync.map((line) => ({
-              service_id: line.service_id,
-              ticket_id: ticketId,
-              quantity: line.quantity,
-              price: line.price,
-            })),
-          );
+          await insertServiceLines(tx, {
+            companyId: effectiveCompanyId,
+            ticketId,
+            lines: servicesToSync,
+          });
         }
       }
 
@@ -318,6 +428,9 @@ export async function updatePresupuesto(
           ...(data.email !== undefined ? { email: data.email } : {}),
           ...(data.document !== undefined ? { document: data.document } : {}),
           ...(data.ticket_date != null ? { ticket_date: data.ticket_date } : {}),
+          ...(data.work_notes !== undefined
+            ? { work_notes: data.work_notes?.trim() || null }
+            : {}),
           ...(data.expires_at !== undefined
             ? { expires_at: data.expires_at }
             : {}),
@@ -492,14 +605,10 @@ export async function convertPresupuestoToTicket(
 
       const activeLines = source.services_tickets ?? [];
       if (activeLines.length > 0) {
-        await tx.insert(servicesTickets).values(
-          activeLines.map((line) => ({
-            service_id: line.service_id,
-            ticket_id: workTicket.id,
-            quantity: line.quantity,
-            price: line.price,
-          })),
-        );
+        // Catalog and inline lines (ZIG-I5) are copied verbatim.
+        await tx
+          .insert(servicesTickets)
+          .values(copyServiceLineValues(activeLines, workTicket.id));
       }
 
       const [presupuesto] = await tx

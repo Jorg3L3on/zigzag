@@ -1,9 +1,11 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { getTicketById } from '@/actions/tickets';
 import { TicketCreationReview } from '@/components/tickets/review/ticket-creation-review';
 import { requirePagePermission } from '@/lib/page-authz';
+import { getServiceLineName } from '@/lib/service-line-display';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
+import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,10 +25,14 @@ export default async function TicketReadyPage({
   }
 
   const ticket = result.data;
+  // Quotes have their own pages (ZIG-I5-4); never render one as a work ticket.
+  if (isPresupuestoTicket(ticket.document_kind)) {
+    redirect(`/presupuestos/${String(ticket.id)}`);
+  }
   const lines = ticket.services_tickets.map((line) => ({
     id: Number(line.id),
     serviceId: line.service_id,
-    name: line.service?.name ?? 'Servicio',
+    name: getServiceLineName(line),
     quantity: line.quantity,
     price: Number(line.price) || 0,
   }));

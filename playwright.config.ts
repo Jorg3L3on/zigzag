@@ -10,7 +10,7 @@ const useProdServer = process.env.PLAYWRIGHT_USE_DEV !== '1';
 const mobileSpecPattern =
   /(?:^|\/)mobile-.*\.spec\.ts$|(?:^|\/)tickets-(?:create-)?mobile\.spec\.ts$/;
 const visualSpecPattern =
-  /(?:^|\/)(?:tickets-visual|theme-dark|company-hub-visual)\.spec\.ts$/;
+  /(?:^|\/)(?:tickets-visual|theme-dark|company-hub-visual|presupuestos-visual)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './e2e',
