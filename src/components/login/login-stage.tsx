@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ZigZagMark } from '@/components/brand/zigzag-mark';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
   loginDisplay,
@@ -63,6 +64,7 @@ export const LoginStage = ({ children, className }: LoginStageProps) => {
           className="flex items-center gap-1.5 font-[family-name:var(--font-login-mono)] text-[11px] tracking-[0.04em] text-[color:var(--login-ink-faint)]"
         >
           Powered by{' '}
+          <ZigZagMark size={14} className="shrink-0" />
           <strong className="font-semibold text-[color:var(--login-ink-muted)]">
             ZigZag
           </strong>
