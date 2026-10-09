@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 
 jest.mock('next/navigation', () => ({
@@ -34,5 +34,41 @@ describe('CompanyLogoUpload', () => {
     expect(button).toHaveAttribute('type', 'button');
     fireEvent.click(button);
     expect(pick).toHaveBeenCalledTimes(1);
+  });
+
+  describe('logo preview', () => {
+    const logoUrl =
+      'https://abc.public.blob.vercel-storage.com/company-logos/4/logo.png';
+
+    it('shows a placeholder until the logo loads', async () => {
+      render(<CompanyLogoUpload companyId={4} logoUrl={logoUrl} />);
+
+      const img = screen.getByAltText('Logo actual de la empresa');
+      expect(screen.getByTestId('company-logo-skeleton')).toBeInTheDocument();
+      expect(img).toHaveClass('opacity-0');
+
+      fireEvent.load(img);
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('company-logo-skeleton')).not.toBeInTheDocument(),
+      );
+      expect(img).toHaveClass('opacity-100');
+    });
+
+    it('swaps the placeholder for a fallback when the logo fails', async () => {
+      render(<CompanyLogoUpload companyId={4} logoUrl={logoUrl} />);
+
+      fireEvent.error(screen.getByAltText('Logo actual de la empresa'));
+
+      expect(await screen.findByText('Logo no disponible')).toBeInTheDocument();
+      expect(screen.queryByTestId('company-logo-skeleton')).not.toBeInTheDocument();
+    });
+
+    it('shows Sin logo without a placeholder when there is no logo', () => {
+      render(<CompanyLogoUpload companyId={4} logoUrl={null} />);
+
+      expect(screen.getByText('Sin logo')).toBeInTheDocument();
+      expect(screen.queryByTestId('company-logo-skeleton')).not.toBeInTheDocument();
+    });
   });
 });
