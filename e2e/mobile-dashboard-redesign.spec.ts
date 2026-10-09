@@ -103,7 +103,7 @@ test.describe('Mobile dashboard redesign', () => {
   }) => {
     await page.goto('/dashboard');
 
-    const tuDia = page.getByTestId('dashboard-tu-dia');
+    const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
     await expect(tuDia).toBeVisible({ timeout: 30_000 });
     const tabs = tuDia.getByRole('tab');
     expect(await tabs.count()).toBeGreaterThanOrEqual(3);

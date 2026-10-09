@@ -22,7 +22,7 @@ test.describe('Field send & cobro (Epic D)', () => {
     );
 
     await page.goto('/dashboard');
-    const tuDia = page.getByTestId('dashboard-tu-dia');
+    const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
     await expect(tuDia).toBeVisible({ timeout: 30_000 });
 
     const more = tuDia.getByRole('button', { name: /^Más acciones para / }).first();
@@ -41,7 +41,7 @@ test.describe('Field send & cobro (Epic D)', () => {
 
   test('Tu día Por cobrar lists balances and links to cobranza', async ({ page }) => {
     await page.goto('/dashboard');
-    const tuDia = page.getByTestId('dashboard-tu-dia');
+    const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
     await expect(tuDia).toBeVisible({ timeout: 30_000 });
 
     await tuDia.getByRole('tab', { name: /Por cobrar/ }).click();

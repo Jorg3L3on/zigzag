@@ -55,7 +55,7 @@ test.describe('Mobile campo Hoy home (Epic A)', () => {
       await expect(
         page.getByText(/Tu día en el campo/i).first(),
       ).toBeVisible({ timeout: 30_000 });
-      const tuDia = page.getByTestId('dashboard-tu-dia');
+      const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
       await expect(tuDia).toBeVisible();
       await expect(tuDia.getByRole('tab', { name: /Hoy/ })).toHaveAttribute(
         'aria-selected',
