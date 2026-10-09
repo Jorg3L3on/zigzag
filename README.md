@@ -94,6 +94,7 @@ npm run dev           # http://localhost:3069
 | `npm run db:studio` | Drizzle Studio |
 | `npm run seed` | Seed via `scripts/seed.ts` |
 | `npm run db:prod:setup` | `migrate:deploy` + seed (first-time prod only) |
+| `npm run icons:generate` | Rebuild favicons, PWA/Apple icons and `public/logo.png` from `assets/brand/` |
 | `npm test` | Jest unit/integration tests |
 | `npm run test:watch` | Jest watch mode |
 | `npm run test:coverage` | Coverage report |
