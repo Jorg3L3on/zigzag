@@ -1,11 +1,14 @@
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import {
   convertPresupuestoToTicket,
   createPresupuestoWithLines,
+  getPresupuestoById,
 } from '@/actions/presupuestos';
 import { service, servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import { requireTicketWrite } from '@/lib/tickets-rbac-server';
+import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 
 jest.mock('@/lib/db', () => ({
   db: {
@@ -348,5 +351,38 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
     expect(result.success).toBe(false);
     expect(result.errorType).toBe('validation');
     expect(requireTicketWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe('getPresupuestoById (ZIG-I5-4)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (requireTicketRead as jest.Mock).mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+  });
+
+  it('scopes the lookup to the tenant and to document_kind presupuesto', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({ ...quote, services_tickets: [] });
+
+    const result = await getPresupuestoById(300);
+
+    expect(result.success).toBe(true);
+    const { where } = mockDb.query.ticket.findFirst.mock.calls[0][0] as { where: SQL };
+    const query = new PgDialect().sqlToQuery(where);
+    expect(query.sql).toContain('"company_id" = $');
+    expect(query.sql).toContain('"document_kind" = $');
+    expect(query.sql).toContain('"deleted_at" is null');
+    expect(query.params).toEqual(expect.arrayContaining([300n, 10, 'presupuesto']));
+  });
+
+  it('returns not found for another tenant or a work ticket id', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(undefined);
+
+    const result = await getPresupuestoById(300);
+
+    expect(result.success).toBe(false);
+    expect((result as { errorCode?: string }).errorCode).toBe('TC008');
   });
 });

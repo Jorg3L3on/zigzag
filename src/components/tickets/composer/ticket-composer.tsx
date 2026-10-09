@@ -479,8 +479,11 @@ export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => 
         if (draftKey) clearTicketComposerDraft(draftKey);
         vibrateSuccess();
         toast.success(`${copy.noun} #${result.data.id} guardado`);
-        // The presupuesto review screen lands in ZIG-I5-4; until then, the list.
-        router.push(isQuote ? '/presupuestos' : `/tickets/${result.data.id}/listo`);
+        router.push(
+          isQuote
+            ? `/presupuestos/${result.data.id}/listo`
+            : `/tickets/${result.data.id}/listo`,
+        );
         return;
       }
 

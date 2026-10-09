@@ -6,6 +6,9 @@ import { z } from 'zod';
 import {
   servicesTickets,
   ticket,
+  type Client,
+  type Service,
+  type ServicesTicketsRow,
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -13,6 +16,7 @@ import {
   AuthenticationError,
   AuthorizationError,
   buildActionError,
+  type CodedActionError,
   handleCodedServerActionError,
   handleServerActionError,
   type ActionErrorType,
@@ -304,6 +308,45 @@ export async function createPresupuestoWithLines(
       return buildActionError('TC009', error, 'validation');
     }
     return handleCodedServerActionError('presupuestos.composer.create', 'TC001', error);
+  }
+}
+
+export type PresupuestoDetailData = TicketRow & {
+  client?: Client | null;
+  services_tickets: Array<ServicesTicketsRow & { service: Service | null }>;
+};
+
+/**
+ * One presupuesto for its review and detail pages (ZIG-I5-4). Tenant-scoped and
+ * limited to document_kind = 'presupuesto': a work ticket id is not found here.
+ */
+export async function getPresupuestoById(
+  id: number,
+  requestedCompanyId?: number | null,
+): Promise<{ success: true; data: PresupuestoDetailData } | CodedActionError> {
+  try {
+    const { companyId } = await requireTicketRead(requestedCompanyId ?? undefined);
+    const row = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, BigInt(id)),
+        eq(ticket.company_id, companyId),
+        eq(ticket.document_kind, 'presupuesto'),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        client: true,
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: { service: true },
+        },
+      },
+    });
+    if (!row) {
+      return buildActionError('TC008');
+    }
+    return { success: true, data: row as PresupuestoDetailData };
+  } catch (e) {
+    return handleCodedServerActionError('presupuestos.get', 'TC003', e);
   }
 }
 
