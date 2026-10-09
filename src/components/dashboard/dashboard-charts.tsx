@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { format, startOfMonth } from 'date-fns';
 import { useReducedMotion } from 'framer-motion';
 import {
@@ -128,14 +129,19 @@ export type DashboardChartsProps = {
   revenueByMonth: RevenueByMonthPoint[];
   paymentStatusBreakdown: PaymentStatusBreakdownItem[];
   revenueMonthCount?: DashboardMonthCount;
+  /** Period select for the revenue chart (the only thing it drives). */
+  revenuePeriodControl?: ReactNode;
 };
 
 export const DashboardCharts = ({
   revenueByMonth,
   paymentStatusBreakdown,
   revenueMonthCount = 12,
+  revenuePeriodControl,
 }: DashboardChartsProps) => {
   const shouldReduceMotion = useReducedMotion();
+  const periodLabel =
+    revenueMonthCount === 1 ? 'último mes' : `últimos ${revenueMonthCount} meses`;
   const hasRevenueData = revenueByMonth.some((m) => m.revenue > 0);
   const currentMonthKey = format(startOfMonth(new Date()), 'yyyy-MM');
 
@@ -163,15 +169,17 @@ export const DashboardCharts = ({
         className={cn(DASHBOARD_CARD_CLASS, 'flex flex-col lg:col-span-2')}
       >
         <CardHeader className="space-y-1 p-4 pb-2 sm:p-5 sm:pb-3">
-          <CardTitle
-            id="dashboard-revenue-chart-title"
-            className="text-base font-semibold tracking-tight sm:text-lg"
-          >
-            ¿Cómo van los ingresos?
-          </CardTitle>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle
+              id="dashboard-revenue-chart-title"
+              className="text-base font-semibold tracking-tight sm:text-lg"
+            >
+              ¿Cómo van los ingresos?
+            </CardTitle>
+            {revenuePeriodControl}
+          </div>
           <CardDescription>
-            Compara ingresos de tickets finalizados, mes a mes (últimos{' '}
-            {revenueMonthCount} meses)
+            Compara ingresos de tickets finalizados, mes a mes ({periodLabel})
           </CardDescription>
           <p className="sr-only">
             Los tooltips del gráfico son complementarios. Los montos por mes
@@ -193,7 +201,7 @@ export const DashboardCharts = ({
               <ChartContainer
                 config={revenueChartConfig}
                 role="img"
-                aria-label={`Gráfica de barras de ingresos por mes, últimos ${revenueMonthCount} meses`}
+                aria-label={`Gráfica de barras de ingresos por mes, ${periodLabel}`}
                 className="aspect-auto h-[260px] w-full sm:h-[280px]"
               >
                 <BarChart

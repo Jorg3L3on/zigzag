@@ -764,3 +764,45 @@ html[data-display-mode='standalone'] body {
     var(--login-accent-teal)
   );
 }
+
+/*
+ * Theme toggle reveal (ZIG-I4-1, beui Theme Toggle). runThemeTransition in
+ * src/components/theme-toggle.tsx sets data-theme-vt and --theme-vt-origin on
+ * <html> only while a View Transition runs; reduced motion never sets them.
+ */
+html[data-theme-vt]::view-transition-old(root),
+html[data-theme-vt]::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+
+html[data-theme-vt]::view-transition-old(root) {
+  animation: none;
+}
+
+html[data-theme-vt]::view-transition-new(root) {
+  animation: theme-vt-circle 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-theme-vt='circle-blur']::view-transition-new(root) {
+  animation-name: theme-vt-circle-blur;
+}
+
+@keyframes theme-vt-circle {
+  from {
+    clip-path: circle(0 at var(--theme-vt-origin, 50% 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--theme-vt-origin, 50% 50%));
+  }
+}
+
+@keyframes theme-vt-circle-blur {
+  from {
+    clip-path: circle(0 at var(--theme-vt-origin, 50% 50%));
+    filter: blur(8px);
+  }
+  to {
+    clip-path: circle(150% at var(--theme-vt-origin, 50% 50%));
+    filter: blur(0);
+  }
+}

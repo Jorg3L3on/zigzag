@@ -34,14 +34,6 @@ test.describe('Sellability features smoke', () => {
     });
   });
 
-  test('global search opens and queries', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.getByRole('button', { name: /Buscar/ }).first().click();
-    await expect(
-      page.getByPlaceholder('Buscar tickets, clientes o servicios…'),
-    ).toBeVisible({ timeout: 10_000 });
-  });
-
   test('notification bell is present', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(

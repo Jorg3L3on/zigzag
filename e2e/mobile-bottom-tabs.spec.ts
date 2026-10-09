@@ -157,6 +157,10 @@ test.describe('Mobile bottom dock', () => {
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
+    // The theme toggle lives only in the sheet footer, not in the app bar.
+    await expect(
+      page.getByRole('button', { name: /Activar modo (oscuro|claro)/ }).filter({ visible: true }),
+    ).toHaveCount(0);
     await tabBar.getByRole('button', { name: /Más/i }).click();
 
     const navDialog = page.getByRole('dialog', { name: 'Menú de navegación' });
@@ -166,5 +170,9 @@ test.describe('Mobile bottom dock', () => {
     await expect(
       navDialog.getByRole('link', { name: 'Captura rápida' }),
     ).toHaveAttribute('href', '/anotar');
+    await expect(navDialog.getByRole('button', { name: /^Notificaciones/ })).toBeVisible();
+    await expect(
+      navDialog.getByRole('button', { name: /Activar modo (oscuro|claro)/ }),
+    ).toBeVisible();
   });
 });

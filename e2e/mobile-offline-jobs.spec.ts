@@ -80,21 +80,15 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
     });
 
     await page.goto('/dashboard');
-    await expect(page.getByTestId('technician-day-widget')).toBeVisible({
-      timeout: 30_000,
-    });
-    await page.getByTestId('technician-day-widget').scrollIntoViewIfNeeded();
-    // Prefer Subir ahora — CardDescription can be clipped in the mobile header row.
-    await expect(page.getByTestId('field-sync-now-button')).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByTestId('field-sync-now-button')).toContainText(
-      /Subir ahora/i,
-    );
+    // Hard navigation can briefly mount a second copy; act on the visible one.
+    const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
+    await expect(tuDia).toBeVisible({ timeout: 30_000 });
+    await tuDia.scrollIntoViewIfNeeded();
+    const syncNow = tuDia.getByTestId('field-sync-now-button');
+    await expect(syncNow).toBeVisible({ timeout: 15_000 });
+    await expect(syncNow).toContainText(/Subir ahora/i);
     await expect(
-      page
-        .getByTestId('technician-day-widget')
-        .getByText('Pendiente de subir', { exact: true }),
+      tuDia.getByText('Pendiente de subir', { exact: true }),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

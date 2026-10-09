@@ -62,5 +62,4 @@ export const OPERATOR_GUIDE_ANCHORS = {
   recordatorios: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-11`,
   roles: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-12`,
   mobile: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-13`,
-  busqueda: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-14`,
 } as const;

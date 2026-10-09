@@ -3,10 +3,7 @@
  * Adapters map server day-queue / cobranza rows until offline sync lands.
  */
 
-import {
-  compareCobranzaUrgency,
-  type CobranzaRow,
-} from '@/lib/cobranza';
+import type { CobranzaRow } from '@/lib/cobranza';
 import {
   isPresupuestoMutable,
   isPresupuestoTicket,
@@ -239,10 +236,3 @@ export const getDefaultFieldSendHighlight = (
   }
   return null;
 };
-
-/** Top N cobranza rows for Hoy strip (already urgency-sorted preferred). */
-export const pickHoyCobranzaRows = (
-  rows: CobranzaRow[],
-  limit = 5,
-): CobranzaRow[] =>
-  [...rows].sort(compareCobranzaUrgency).slice(0, Math.max(0, limit));
