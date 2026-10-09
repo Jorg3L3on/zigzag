@@ -17,6 +17,7 @@ import {
   sanitizeDecimal,
   sanitizeInteger,
 } from '@/components/tickets/ticket-services-utils';
+import type { ServiceLineMode } from '@/components/tickets/service-line-source-fields';
 
 type UseTicketServicesListOptions = {
   ticketId: string;
@@ -37,7 +38,11 @@ export const useTicketServicesList = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isCreatingNewService, setIsCreatingNewService] = useState(false);
+  // Line source (ZIG-I5 D2): a catalog service or an inline line typed here.
+  const [lineMode, setLineMode] = useState<ServiceLineMode>('catalog');
+  const [customName, setCustomName] = useState('');
+  const [customDescription, setCustomDescription] = useState('');
+  const [saveToCatalog, setSaveToCatalog] = useState(false);
 
   const filteredServices = services.filter(
     (service) =>
@@ -115,7 +120,10 @@ export const useTicketServicesList = ({
     setQuantity('1');
     setPrice('');
     setSearchTerm('');
-    setIsCreatingNewService(false);
+    setLineMode('catalog');
+    setCustomName('');
+    setCustomDescription('');
+    setSaveToCatalog(false);
   };
 
   const handleServiceSelect = (serviceId: string) => {
@@ -129,7 +137,9 @@ export const useTicketServicesList = ({
   };
 
   const handleAddService = async () => {
-    if (!selectedService || !quantity || !price) {
+    const isCustom = lineMode === 'custom';
+    const trimmedName = customName.trim();
+    if ((isCustom ? !trimmedName : !selectedService) || !quantity || !price) {
       toast.error('Completa todos los campos para continuar. Código: TS002');
       return;
     }
@@ -138,20 +148,43 @@ export const useTicketServicesList = ({
     try {
       const parsedQuantity = sanitizeInteger(quantity);
       const parsedPrice = sanitizeDecimal(price);
+      const description = customDescription.trim();
 
       const result = await createServiceTicket(
         ticketId,
-        {
-          service_id: parseInt(selectedService),
-          quantity: parsedQuantity,
-          price: parsedPrice,
-        },
+        isCustom
+          ? {
+              kind: 'custom',
+              name: trimmedName,
+              description: description || undefined,
+              save_to_catalog: saveToCatalog,
+              quantity: parsedQuantity,
+              price: parsedPrice,
+            }
+          : {
+              service_id: parseInt(selectedService),
+              quantity: parsedQuantity,
+              price: parsedPrice,
+            },
         companyId,
       );
 
       if (result.success && result.data) {
-        setTicketServices((current) => [...current, result.data!]);
-        toast.success('Servicio agregado exitosamente');
+        const created = result.data;
+        setTicketServices((current) => [...current, created]);
+        if (isCustom && saveToCatalog && created.service) {
+          const savedService = created.service;
+          setServices((prev) =>
+            prev.some((item) => item.id === savedService.id)
+              ? prev
+              : [savedService, ...prev],
+          );
+        }
+        toast.success(
+          isCustom && saveToCatalog
+            ? 'Servicio agregado y guardado en tu catálogo'
+            : 'Servicio agregado exitosamente',
+        );
         resetForm();
         setIsDialogOpen(false);
       } else {
@@ -268,19 +301,6 @@ export const useTicketServicesList = ({
     }
   };
 
-  const handleServiceCreated = (savedService: Service) => {
-    setServices((prev) => {
-      const exists = prev.some((s) => s.id === savedService.id);
-      if (exists) {
-        return prev;
-      }
-      return [savedService, ...prev];
-    });
-    setSelectedService(savedService.id.toString());
-    setPrice(savedService.price.toString());
-    setIsCreatingNewService(false);
-  };
-
   return {
     services,
     ticketServices,
@@ -291,12 +311,18 @@ export const useTicketServicesList = ({
     isDialogOpen,
     isSubmitting,
     searchTerm,
-    isCreatingNewService,
+    lineMode,
+    customName,
+    customDescription,
+    saveToCatalog,
+    setLineMode,
+    setCustomName,
+    setCustomDescription,
+    setSaveToCatalog,
     setIsDialogOpen,
     setSearchTerm,
     setQuantity,
     setPrice,
-    setIsCreatingNewService,
     resetForm,
     handleServiceSelect,
     handleAddService,
@@ -304,6 +330,5 @@ export const useTicketServicesList = ({
     handleServiceQuantityChange,
     handleServicePriceChange,
     handleDeleteService,
-    handleServiceCreated,
   };
 };

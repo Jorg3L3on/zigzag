@@ -1,11 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
 
 import type { Service } from '@/db/schema';
 import { BottomSheet, NumberTicker } from '@/components/motion';
-import { ServiceForm } from '@/components/services/service-form';
+import {
+  InlineServiceFields,
+  ServiceLineModeToggle,
+  type ServiceLineMode,
+} from '@/components/tickets/service-line-source-fields';
 import { TicketServiceLineEditor } from '@/components/tickets/ticket-service-line-editor';
 import {
   formatServiceCurrency,
@@ -28,15 +31,21 @@ type ComposerLineSheetProps = {
   /** Present when editing an existing draft line. */
   initialLine: TicketComposerDraftLine | null;
   onSubmit: (line: ComposerLineInput) => void;
-  onServiceCreated: (service: Service) => void;
+  /** Noun for copy ("ticket" / "presupuesto"). */
+  documentLabel?: string;
 };
 
 const servicePrice = (item: Service | undefined): number =>
   item ? roundMoney(Number(item.price) || 0) : 0;
 
+const isInlineDraftLine = (line: TicketComposerDraftLine | null): boolean =>
+  line != null && (line.kind === 'custom' || line.service_id == null);
+
 /**
- * Add / edit one composer line: service + Cantidad × Precio with a live
- * subtotal. Mount it with a fresh `key` per open so the form starts clean.
+ * Add / edit one composer line: Del catálogo (pick a Service) or Nuevo (type it
+ * inline, ZIG-I5 D2) + Cantidad × Precio with a live subtotal. Agregar never
+ * writes to the catalog; Guardar en mi catálogo is applied by the server in the
+ * save transaction. Mount it with a fresh `key` per open so the form starts clean.
  */
 export const ComposerLineSheet = ({
   open,
@@ -45,10 +54,25 @@ export const ComposerLineSheet = ({
   servicesLoading,
   initialLine,
   onSubmit,
-  onServiceCreated,
+  documentLabel = 'ticket',
 }: ComposerLineSheetProps) => {
+  const editingInline = isInlineDraftLine(initialLine);
+  const [mode, setMode] = useState<ServiceLineMode>(
+    editingInline ? 'custom' : 'catalog',
+  );
   const [serviceId, setServiceId] = useState(
-    initialLine ? String(initialLine.service_id) : '',
+    initialLine && !editingInline && initialLine.service_id != null
+      ? String(initialLine.service_id)
+      : '',
+  );
+  const [customName, setCustomName] = useState(
+    editingInline ? (initialLine?.service_name ?? '') : '',
+  );
+  const [customDescription, setCustomDescription] = useState(
+    editingInline ? (initialLine?.description ?? '') : '',
+  );
+  const [saveToCatalog, setSaveToCatalog] = useState(
+    editingInline ? initialLine?.save_to_catalog === true : false,
   );
   const [quantity, setQuantity] = useState(
     initialLine ? String(initialLine.quantity) : '1',
@@ -56,7 +80,6 @@ export const ComposerLineSheet = ({
   const [price, setPrice] = useState(
     initialLine ? String(initialLine.price) : '',
   );
-  const [isCreatingService, setIsCreatingService] = useState(false);
 
   const options = useMemo(
     () =>
@@ -71,6 +94,15 @@ export const ComposerLineSheet = ({
   const quantityValue = sanitizeInteger(quantity);
   const priceValue = roundMoney(sanitizeDecimal(price));
   const isEditing = initialLine !== null;
+  const editingCatalogLine =
+    initialLine && !editingInline && initialLine.service_id != null
+      ? initialLine
+      : null;
+  const trimmedName = customName.trim();
+  const canSubmit =
+    mode === 'custom'
+      ? trimmedName.length > 0
+      : Boolean(selectedService || (editingCatalogLine && serviceId));
 
   const handleServiceChange = (value: string) => {
     setServiceId(value);
@@ -81,13 +113,27 @@ export const ComposerLineSheet = ({
   };
 
   const handleSubmit = () => {
-    if (!selectedService && !initialLine) return;
-    onSubmit({
-      service_id: selectedService?.id ?? initialLine!.service_id,
-      service_name: selectedService?.name ?? initialLine!.service_name,
-      quantity: quantityValue,
-      price: priceValue,
-    });
+    if (!canSubmit) return;
+    if (mode === 'custom') {
+      const description = customDescription.trim();
+      onSubmit({
+        kind: 'custom',
+        service_id: null,
+        service_name: trimmedName,
+        ...(description ? { description } : {}),
+        save_to_catalog: saveToCatalog,
+        quantity: quantityValue,
+        price: priceValue,
+      });
+    } else {
+      onSubmit({
+        kind: 'catalog',
+        service_id: selectedService?.id ?? editingCatalogLine!.service_id,
+        service_name: selectedService?.name ?? editingCatalogLine!.service_name,
+        quantity: quantityValue,
+        price: priceValue,
+      });
+    }
     onOpenChange(false);
   };
 
@@ -95,54 +141,54 @@ export const ComposerLineSheet = ({
     <BottomSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={
-        isCreatingService
-          ? 'Nuevo servicio'
-          : isEditing
-            ? 'Editar servicio'
-            : 'Agregar servicio'
-      }
+      title={isEditing ? 'Editar servicio' : 'Agregar servicio'}
       description={
-        isCreatingService
-          ? 'Se guarda en tu catálogo y lo podrás agregar a este ticket.'
+        mode === 'custom'
+          ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
           : 'Elige el servicio, la cantidad y el precio.'
       }
       data-testid="composer-line-sheet"
       footer={
-        isCreatingService ? undefined : (
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-1"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="h-11 flex-1"
-              disabled={!selectedService && !initialLine}
-              onClick={handleSubmit}
-            >
-              {isEditing ? 'Guardar cambios' : 'Agregar'}
-            </Button>
-          </div>
-        )
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 flex-1"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            className="h-11 flex-1"
+            disabled={!canSubmit}
+            onClick={handleSubmit}
+          >
+            {isEditing ? 'Guardar cambios' : 'Agregar'}
+          </Button>
+        </div>
       }
     >
-      {isCreatingService ? (
-        <ServiceForm
-          onCancel={() => setIsCreatingService(false)}
-          onSuccess={(saved) => {
-            onServiceCreated(saved);
-            setServiceId(String(saved.id));
-            setPrice(String(servicePrice(saved)));
-            setIsCreatingService(false);
-          }}
+      <div className="space-y-4">
+        <ServiceLineModeToggle
+          idPrefix="composer-line"
+          value={mode}
+          onValueChange={setMode}
         />
-      ) : (
-        <div className="space-y-4">
+
+        {mode === 'custom' ? (
+          <InlineServiceFields
+            idPrefix="composer-line"
+            name={customName}
+            onNameChange={setCustomName}
+            description={customDescription}
+            onDescriptionChange={setCustomDescription}
+            saveToCatalog={saveToCatalog}
+            onSaveToCatalogChange={setSaveToCatalog}
+            documentLabel={documentLabel}
+            autoFocus={!isEditing}
+          />
+        ) : (
           <div className="space-y-2">
             <Label htmlFor="composer-line-service">Servicio</Label>
             <SearchableSelect
@@ -157,46 +203,41 @@ export const ComposerLineSheet = ({
               emptyText="Sin servicios que coincidan"
               className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm"
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 gap-1.5 px-2 text-primary"
-              onClick={() => setIsCreatingService(true)}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              Nuevo servicio
-            </Button>
+            {!servicesLoading && services.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Tu catálogo está vacío. Usa Nuevo para escribir el servicio.
+              </p>
+            ) : null}
           </div>
+        )}
 
-          <TicketServiceLineEditor
-            idPrefix="composer-line"
-            quantity={quantity}
-            price={price}
-            onQuantityStep={(next) => setQuantity(String(next))}
-            onPriceStep={(next) => setPrice(String(next))}
-            onQuantityInput={(value) => setQuantity(value.replace(/[^\d]/g, ''))}
-            onPriceInput={setPrice}
+        <TicketServiceLineEditor
+          idPrefix="composer-line"
+          quantity={quantity}
+          price={price}
+          onQuantityStep={(next) => setQuantity(String(next))}
+          onPriceStep={(next) => setPrice(String(next))}
+          onQuantityInput={(value) => setQuantity(value.replace(/[^\d]/g, ''))}
+          onPriceInput={setPrice}
+        />
+
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Subtotal
+            </p>
+            <p className="truncate text-xs tabular-nums text-muted-foreground">
+              {quantityValue} × {formatServiceCurrency(priceValue)}
+            </p>
+          </div>
+          <NumberTicker
+            value={multiplyMoney(priceValue, quantityValue)}
+            format={formatServiceCurrency}
+            className="shrink-0 text-lg font-semibold text-foreground"
+            data-testid="composer-line-subtotal"
           />
-
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Subtotal
-              </p>
-              <p className="truncate text-xs tabular-nums text-muted-foreground">
-                {quantityValue} × {formatServiceCurrency(priceValue)}
-              </p>
-            </div>
-            <NumberTicker
-              value={multiplyMoney(priceValue, quantityValue)}
-              format={formatServiceCurrency}
-              className="shrink-0 text-lg font-semibold text-foreground"
-              data-testid="composer-line-subtotal"
-            />
-          </div>
         </div>
-      )}
+      </div>
     </BottomSheet>
   );
 };

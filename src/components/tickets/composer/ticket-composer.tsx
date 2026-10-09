@@ -30,6 +30,7 @@ import {
   ComposerLineSheet,
   type ComposerLineInput,
 } from '@/components/tickets/composer/composer-line-sheet';
+import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import {
   TripledDashboardShell,
@@ -66,6 +67,7 @@ import { buildToastErrorContent } from '@/lib/network-awareness';
 import {
   buildTicketComposerDraftKey,
   clearTicketComposerDraft,
+  draftLineToServiceLineInput,
   readTicketComposerDraft,
   writeTicketComposerDraft,
   type TicketComposerDraftLine,
@@ -99,7 +101,13 @@ type ComposerLineRowProps = {
 const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
   <div className="flex items-start gap-3 py-3">
     <div className="min-w-0 flex-1">
-      <p className="font-medium leading-snug text-foreground">{line.service_name}</p>
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <span className="font-medium leading-snug text-foreground">{line.service_name}</span>
+        <InlineLineChips
+          isInline={line.kind === 'custom' || line.service_id == null}
+          saveToCatalog={line.save_to_catalog}
+        />
+      </div>
       <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
         {line.quantity} × {formatServiceCurrency(line.price)}
       </p>
@@ -358,7 +366,7 @@ export const TicketComposer = () => {
     setLines((current) => {
       if (lineSheet.editingKey) {
         return current.map((line) =>
-          line.key === lineSheet.editingKey ? { ...line, ...input } : line,
+          line.key === lineSheet.editingKey ? { key: line.key, ...input } : line,
         );
       }
       return [...current, { key: nextLineKey(), ...input }];
@@ -387,11 +395,7 @@ export const TicketComposer = () => {
         client_id: client.id,
         ticket_date: ticketDate,
         work_notes: notes,
-        lines: lines.map(({ service_id, quantity, price }) => ({
-          service_id,
-          quantity,
-          price,
-        })),
+        lines: lines.map(draftLineToServiceLineInput),
         client_total: total,
       });
 
@@ -677,11 +681,7 @@ export const TicketComposer = () => {
         servicesLoading={isServicesLoading}
         initialLine={editingLine}
         onSubmit={handleLineSubmit}
-        onServiceCreated={(saved) =>
-          setServices((current) =>
-            current.some((item) => item.id === saved.id) ? current : [saved, ...current],
-          )
-        }
+        documentLabel="ticket"
       />
 
       <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>

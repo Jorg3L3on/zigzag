@@ -30,6 +30,7 @@ import {
 } from '@/components/tickets/ticket-services-utils';
 import { multiplyMoney, roundMoney } from '@/lib/money';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import {
   getServiceLineDescription,
   getServiceLineName,
@@ -167,7 +168,10 @@ export const TicketServiceRow = ({
     >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-foreground">{name}</h3>
+          <h3 className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-medium text-foreground">
+            <span>{name}</span>
+            <InlineLineChips isInline={serviceTicket.service_id == null} />
+          </h3>
           <p
             data-testid="ticket-service-row-summary"
             className="mt-0.5 text-sm tabular-nums text-muted-foreground sm:hidden"

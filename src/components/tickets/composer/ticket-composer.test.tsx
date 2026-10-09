@@ -65,10 +65,6 @@ jest.mock('@/components/clients/client-form', () => ({
   ClientForm: () => <div>Formulario de cliente</div>,
 }));
 
-jest.mock('@/components/services/service-form', () => ({
-  ServiceForm: () => <div>Formulario de servicio</div>,
-}));
-
 jest.mock('@/components/companies/company-production-notice', () => ({
   CompanyProductionNotice: () => null,
 }));
@@ -201,6 +197,84 @@ describe('TicketComposer', () => {
     await waitFor(() =>
       expect(screen.queryByRole('list', { name: 'Servicios del ticket' })).toBeNull(),
     );
+  });
+
+  it('adds an inline line with Nuevo and saves it without the catalog (ZIG-I5)', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({
+      success: true,
+      data: { id: '1202', total: 850 },
+    });
+    renderComposer();
+
+    await pickClient(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('radio', { name: /Nuevo/ }));
+    // Agregar stays disabled until the inline line has a name.
+    expect(within(sheet).getByRole('button', { name: 'Agregar' })).toBeDisabled();
+    await user.type(
+      within(sheet).getByLabelText('Nombre del servicio'),
+      'Cambio de capacitor 35 µF',
+    );
+    const toggle = within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await user.type(
+      within(sheet).getByRole('spinbutton', { name: 'Precio del servicio' }),
+      '850',
+    );
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByText('Cambio de capacitor 35 µF')).toBeTruthy();
+    expect(within(lines).getByText('Nuevo')).toBeTruthy();
+    expect(within(lines).queryByText('→ catálogo')).toBeNull();
+
+    await user.click(saveButtons()[0]);
+    await waitFor(() => expect(mockCreateTicketWithLines).toHaveBeenCalledTimes(1));
+    expect(mockCreateTicketWithLines.mock.calls[0][0].lines).toEqual([
+      {
+        kind: 'custom',
+        name: 'Cambio de capacitor 35 µF',
+        description: undefined,
+        save_to_catalog: false,
+        quantity: 1,
+        price: 850,
+      },
+    ]);
+  });
+
+  it('marks an inline line → catálogo and restores it in Editar', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    let sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('radio', { name: /Nuevo/ }));
+    await user.type(within(sheet).getByLabelText('Nombre del servicio'), 'Instalación');
+    await user.type(within(sheet).getByLabelText(/Descripción/), 'Incluye base');
+    await user.click(within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+    expect(screen.getByText('→ catálogo')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Opciones de Instalación' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Editar/ }));
+    sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
+    expect(within(sheet).getByRole('radio', { name: /Nuevo/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(within(sheet).getByLabelText('Nombre del servicio')).toHaveValue('Instalación');
+    expect(within(sheet).getByLabelText(/Descripción/)).toHaveValue('Incluye base');
+    expect(
+      within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }),
+    ).toHaveAttribute('aria-checked', 'true');
   });
 
   it('restores the local draft after a reload', async () => {

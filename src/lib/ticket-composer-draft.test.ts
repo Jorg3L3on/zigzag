@@ -4,6 +4,7 @@
 import {
   buildTicketComposerDraftKey,
   clearTicketComposerDraft,
+  draftLineToServiceLineInput,
   readTicketComposerDraft,
   sanitizeTicketComposerDraft,
   writeTicketComposerDraft,
@@ -68,6 +69,53 @@ describe('ticket composer draft', () => {
       ],
     });
     expect(draft).toEqual({ lines: [line] });
+  });
+
+  it('round-trips inline lines and reads pre-ZIG-I5 lines as catalog (ZIG-I5)', () => {
+    const inline = {
+      key: 'l2',
+      kind: 'custom' as const,
+      service_id: null,
+      service_name: 'Cambio de capacitor',
+      description: '35 µF',
+      save_to_catalog: true,
+      quantity: 1,
+      price: 850,
+    };
+    writeTicketComposerDraft(key, { lines: [line, inline] });
+    const restored = readTicketComposerDraft(key);
+    expect(restored?.lines).toEqual([line, inline]);
+    expect(restored?.lines.map(draftLineToServiceLineInput)).toEqual([
+      { service_id: 7, quantity: 3, price: 4200 },
+      {
+        kind: 'custom',
+        name: 'Cambio de capacitor',
+        description: '35 µF',
+        save_to_catalog: true,
+        quantity: 1,
+        price: 850,
+      },
+    ]);
+  });
+
+  it('drops inline lines without a name', () => {
+    const draft = sanitizeTicketComposerDraft({
+      lines: [
+        { key: 'a', kind: 'custom', service_id: null, service_name: '  ', quantity: 1, price: 1 },
+        { key: 'b', kind: 'custom', service_name: 'Visita', quantity: 1, price: 300 },
+      ],
+    });
+    expect(draft.lines).toEqual([
+      {
+        key: 'b',
+        kind: 'custom',
+        service_id: null,
+        service_name: 'Visita',
+        save_to_catalog: false,
+        quantity: 1,
+        price: 300,
+      },
+    ]);
   });
 
   it('ignores corrupt JSON', () => {
