@@ -103,7 +103,8 @@ describe('PWA icon assets', () => {
       '/apple-icon.png',
     );
 
-    expect(metadata.icons?.shortcut).toBe('/favicon.ico');
+    // The favicon.ico file convention emits its own link; a shortcut entry would duplicate it.
+    expect(metadata.icons).not.toHaveProperty('shortcut');
     expect(METADATA_ICON_URLS.length).toBeGreaterThan(0);
   });
 
