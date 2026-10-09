@@ -108,12 +108,14 @@ describe('MobileBottomDock', () => {
     const items = screen.getAllByRole('menuitem');
     expect(items.map((item) => item.getAttribute('href'))).toEqual([
       '/tickets/create',
+      '/presupuestos/create',
       '/anotar',
       '/clients/new',
     ]);
     expect(items[0]).toHaveTextContent('Nuevo ticket');
-    expect(items[1]).toHaveTextContent('Captura rápida');
-    expect(items[2]).toHaveTextContent('Nuevo cliente');
+    expect(items[1]).toHaveTextContent('Nuevo presupuesto');
+    expect(items[2]).toHaveTextContent('Captura rápida');
+    expect(items[3]).toHaveTextContent('Nuevo cliente');
     expect(document.activeElement).toBe(items[0]);
   });
 
@@ -185,7 +187,7 @@ describe('MobileBottomDock', () => {
     renderDock();
     expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Crear' }));
-    expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+    expect(screen.getAllByRole('menuitem')).toHaveLength(4);
     act(() => {
       fireEvent.keyDown(document, { key: 'Escape' });
     });

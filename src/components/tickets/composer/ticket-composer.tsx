@@ -21,7 +21,10 @@ import { toast } from 'sonner';
 
 import { getClient, getClients, type Client } from '@/actions/clients';
 import { getServices } from '@/actions/services';
-import { createPresupuestoWithLines } from '@/actions/presupuestos';
+import {
+  createPresupuestoWithLines,
+  updatePresupuesto,
+} from '@/actions/presupuestos';
 import { createTicketWithLines } from '@/actions/tickets';
 import type { Service } from '@/db/schema';
 import { ClientForm } from '@/components/clients/client-form';
@@ -198,11 +201,37 @@ const COMPOSER_COPY: Record<
 type DocumentComposerProps = {
   /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
   kind?: ComposerKind;
+  /**
+   * Presupuestos only (ZIG-I5-5): reopen an open quote. The client is locked,
+   * no local draft is kept, and Guardar cambios goes through updatePresupuesto.
+   */
+  edit?: ComposerEditState;
 };
 
-export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => {
-  const copy = COMPOSER_COPY[kind];
+export type ComposerEditState = {
+  id: string;
+  client: { id: number; label: string };
+  ticketDate: string;
+  expiresAt: string | null;
+  notes: string;
+  lines: TicketComposerDraftLine[];
+};
+
+export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProps) => {
   const isQuote = kind === 'presupuesto';
+  const isEdit = isQuote && edit != null;
+  const baseCopy = COMPOSER_COPY[kind];
+  const copy = isEdit
+    ? {
+        ...baseCopy,
+        title: `Editar presupuesto #${edit.id}`,
+        subtitle: 'Servicios, vigencia y notas',
+        listHref: `/presupuestos/${edit.id}`,
+        backLabel: 'Volver al presupuesto',
+        saveLabel: 'Guardar cambios',
+        saveError: 'No se pudieron guardar los cambios',
+      }
+    : baseCopy;
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -214,17 +243,25 @@ export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => 
   const prefillClientId = searchParams.get('clientId');
   const prefillServiceId = searchParams.get('serviceId');
 
-  const [client, setClient] = React.useState<ComposerClient | null>(null);
+  const [client, setClient] = React.useState<ComposerClient | null>(
+    isEdit ? edit.client : null,
+  );
   const [clients, setClients] = React.useState<Client[]>([]);
   const [clientQuery, setClientQuery] = React.useState('');
   const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
   const [isNewClientOpen, setIsNewClientOpen] = React.useState(false);
-  const [ticketDate, setTicketDate] = React.useState<Date>(() => new Date());
+  const [ticketDate, setTicketDate] = React.useState<Date>(() =>
+    isEdit ? new Date(edit.ticketDate) : new Date(),
+  );
   const [isDateOpen, setIsDateOpen] = React.useState(false);
-  const [expiresAt, setExpiresAt] = React.useState<Date | null>(null);
-  const [notes, setNotes] = React.useState('');
-  const [lines, setLines] = React.useState<TicketComposerDraftLine[]>([]);
+  const [expiresAt, setExpiresAt] = React.useState<Date | null>(() =>
+    isEdit && edit.expiresAt ? new Date(edit.expiresAt) : null,
+  );
+  const [notes, setNotes] = React.useState(isEdit ? edit.notes : '');
+  const [lines, setLines] = React.useState<TicketComposerDraftLine[]>(
+    isEdit ? edit.lines : [],
+  );
   const [services, setServices] = React.useState<Service[]>([]);
   const [isServicesLoading, setIsServicesLoading] = React.useState(true);
   const [lineSheet, setLineSheet] = React.useState<{
@@ -237,7 +274,8 @@ export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => 
   const servicePrefillAppliedRef = React.useRef(false);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
-  const draftKey = companyId
+  // Editing an existing quote keeps no local draft: the server row is the source.
+  const draftKey = companyId && !isEdit
     ? isQuote
       ? buildPresupuestoComposerDraftKey(companyId)
       : buildTicketComposerDraftKey(companyId)
@@ -470,6 +508,28 @@ export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => 
         lines: lines.map(draftLineToServiceLineInput),
         client_total: total,
       };
+      if (isEdit) {
+        const updated = await updatePresupuesto(Number(edit.id), {
+          company_id: companyId,
+          ticket_date: ticketDate,
+          expires_at: expiresAt,
+          work_notes: notes,
+          services: payload.lines,
+        });
+        if (updated.success) {
+          setSaveState('done');
+          vibrateSuccess();
+          toast.success(`Presupuesto #${edit.id} actualizado`);
+          router.push(`/presupuestos/${edit.id}`);
+          router.refresh();
+          return;
+        }
+        const content = buildToastErrorContent(updated, copy.saveError);
+        toast.error(content.title, { description: content.description });
+        setSaveState('idle');
+        return;
+      }
+
       const result = isQuote
         ? await createPresupuestoWithLines({ ...payload, expires_at: expiresAt })
         : await createTicketWithLines(payload);
@@ -555,7 +615,9 @@ export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => 
         <div className="hidden md:block">
           <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Elige el cliente, agrega los servicios y guarda. Nada se guarda antes.
+            {isEdit
+              ? 'Ajusta servicios, vigencia o notas. Nada cambia hasta Guardar cambios.'
+              : 'Elige el cliente, agrega los servicios y guarda. Nada se guarda antes.'}
           </p>
         </div>
 
@@ -576,21 +638,24 @@ export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => 
                   onValueChange={handleClientChange}
                   onSearchChange={setClientQuery}
                   isLoading={isClientsLoading}
+                  disabled={isEdit}
                   placeholder="Busca o elige un cliente"
                   searchPlaceholder="Buscar por nombre o teléfono…"
                   emptyText="Sin clientes que coincidan"
                   className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 gap-2 rounded-xl md:h-10"
-                onClick={() => setIsNewClientOpen(true)}
-              >
-                <UserPlus className="h-4 w-4" aria-hidden />
-                Nuevo cliente
-              </Button>
+              {isEdit ? null : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 gap-2 rounded-xl md:h-10"
+                  onClick={() => setIsNewClientOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4" aria-hidden />
+                  Nuevo cliente
+                </Button>
+              )}
             </div>
 
             <div className="mt-4 space-y-2">

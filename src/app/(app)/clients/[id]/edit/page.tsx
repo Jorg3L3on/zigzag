@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { ClientCreateShortcuts } from '@/components/clients/client-create-shortcuts';
 import { ClientForm } from '@/components/clients/client-form';
 import {
   TripledDashboardShell,
@@ -69,6 +70,7 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
           backHref="/clients"
           className="mb-3"
         />
+        <ClientCreateShortcuts clientId={result.data.id} />
         <TripledResourceCard
           title="Información del cliente"
           description="Modifica la información del cliente."

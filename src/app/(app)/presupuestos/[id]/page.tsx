@@ -24,5 +24,13 @@ export default async function PresupuestoDetailPage({
   const result = await getPresupuestoById(numericId);
   if (!result.success) notFound();
 
-  return <PresupuestoView variant="detail" {...buildPresupuestoViewProps(result.data)} />;
+  const props = buildPresupuestoViewProps(result.data);
+  const isMutable = props.status === 'abierto' || props.status === 'vencido';
+  return (
+    <PresupuestoView
+      variant="detail"
+      {...props}
+      editHref={isMutable ? `/presupuestos/${props.presupuestoId}/edit` : null}
+    />
+  );
 }

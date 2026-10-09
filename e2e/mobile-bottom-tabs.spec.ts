@@ -84,7 +84,10 @@ test.describe('Mobile bottom dock', () => {
 
     const menu = tabBar.getByRole('menu', { name: 'Crear' });
     await expect(menu).toBeVisible();
-    await expect(menu.getByRole('menuitem')).toHaveCount(3);
+    await expect(menu.getByRole('menuitem')).toHaveCount(4);
+    await expect(
+      menu.getByRole('menuitem', { name: /Nuevo presupuesto/ }),
+    ).toHaveAttribute('href', '/presupuestos/create');
     await expect(
       menu.getByRole('menuitem', { name: /Captura rápida/ }),
     ).toHaveAttribute('href', '/anotar');

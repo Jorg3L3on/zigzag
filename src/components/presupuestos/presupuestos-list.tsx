@@ -2,12 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FileText, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CalendarClock, ChevronRight, FileText, Plus } from 'lucide-react';
 import {
-  cancelPresupuesto,
-  convertPresupuestoToTicket,
   getPresupuestosList,
   type PresupuestoListItem,
 } from '@/actions/presupuestos';
@@ -15,25 +13,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PDFDownloadButton } from '@/components/pdf-download-button';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { FormattedDate } from '@/components/formatted-date';
 import {
   TripledEmptyState,
   TripledListLoadingState,
-  TripledMobileRecordCard,
 } from '@/components/tripled';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
+import { cn } from '@/lib/utils';
 
 const statusVariant = (
   status: PresupuestoListItem['status'],
@@ -44,8 +34,29 @@ const statusVariant = (
   return 'default';
 };
 
+const shortDate = (value: string): string => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : format(date, "d MMM yy", { locale: es });
+};
+
+const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
+  { status: 'abierto', label: 'Abiertos' },
+  { status: 'vencido', label: 'Vencidos' },
+  { status: 'convertido', label: 'Convertidos' },
+  { status: 'cancelado', label: 'Cancelados' },
+];
+
+/** Open pipeline by default: Abiertos + Vencidos (ZIG-I5-5). */
+export const DEFAULT_PRESUPUESTO_FILTER: PresupuestoStatus[] = ['abierto', 'vencido'];
+
+/**
+ * Presupuestos list (ZIG-I5-5): status chips (multi-select) over tappable rows
+ * that open /presupuestos/[id]; PDF stays as a row action. Convertir and
+ * Cancelar live on the detail page behind confirmations.
+ */
 export const PresupuestosList = () => {
-  const router = useRouter();
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
   const canWrite = canWriteTickets(can);
@@ -56,7 +67,9 @@ export const PresupuestosList = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [items, setItems] = React.useState<PresupuestoListItem[]>([]);
-  const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [filter, setFilter] = React.useState<PresupuestoStatus[]>(
+    DEFAULT_PRESUPUESTO_FILTER,
+  );
 
   const load = React.useCallback(async () => {
     if (permissionsLoading) return;
@@ -90,45 +103,30 @@ export const PresupuestosList = () => {
     void load();
   }, [load]);
 
-  const handleConvert = async (id: string) => {
-    setBusyId(id);
-    try {
-      const result = await convertPresupuestoToTicket(
-        Number(id),
-        selectedCompany?.id ?? null,
-      );
-      if (!result.success || !result.data) {
-        toast.error(
-          getErrorDisplayMessage(result, 'No se pudo convertir el presupuesto'),
-        );
-        return;
-      }
-      toast.success(`Convertido a ticket #${result.data.ticketId}`);
-      router.push(`/tickets/${result.data.ticketId}`);
-    } finally {
-      setBusyId(null);
-    }
-  };
+  const counts = React.useMemo(() => {
+    const next: Record<PresupuestoStatus, number> = {
+      abierto: 0,
+      vencido: 0,
+      convertido: 0,
+      cancelado: 0,
+    };
+    items.forEach((item) => {
+      next[item.status] += 1;
+    });
+    return next;
+  }, [items]);
 
-  const handleCancel = async (id: string) => {
-    setBusyId(id);
-    try {
-      const result = await cancelPresupuesto(
-        Number(id),
-        selectedCompany?.id ?? null,
-      );
-      if (!result.success) {
-        toast.error(
-          getErrorDisplayMessage(result, 'No se pudo cancelar el presupuesto'),
-        );
-        return;
-      }
-      toast.success('Presupuesto cancelado');
-      await load();
-    } finally {
-      setBusyId(null);
-    }
-  };
+  const visible = React.useMemo(
+    () => items.filter((item) => filter.includes(item.status)),
+    [items, filter],
+  );
+
+  const toggleFilter = (status: PresupuestoStatus) =>
+    setFilter((current) =>
+      current.includes(status)
+        ? current.filter((value) => value !== status)
+        : [...current, status],
+    );
 
   if (permissionsLoading || loading) {
     return <TripledListLoadingState label="Cargando presupuestos…" />;
@@ -191,176 +189,107 @@ export const PresupuestosList = () => {
         />
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
-            {items.map((item) => {
-              const canAct =
-                canWrite &&
-                (item.status === 'abierto' || item.status === 'vencido');
+          <div
+            role="group"
+            aria-label="Filtrar por estado"
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {STATUS_FILTERS.map(({ status, label }) => {
+              const pressed = filter.includes(status);
               return (
-                <TripledMobileRecordCard key={item.id}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-lg font-semibold">
-                        {item.clientName || 'Cliente sin nombre'}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        #{item.id}
-                        {item.ticketDate ? (
-                          <>
-                            {' · '}
-                            <FormattedDate date={new Date(item.ticketDate)} />
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
-                    <Badge variant={statusVariant(item.status)} className="shadow-none">
-                      {item.statusLabel}
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-xl font-semibold tabular-nums">
-                    <FormattedCurrency amount={item.total ?? 0} />
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <PDFDownloadButton
-                      ticketId={item.id}
-                      downloadFileName={`presupuesto_${item.id}.pdf`}
-                      companyId={selectedCompany?.id}
-                      label="PDF"
-                      variant="outline"
-                    />
-                    {item.convertedToTicketId ? (
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link href={`/tickets/${item.convertedToTicketId}`}>
-                          Ver ticket
-                        </Link>
-                      </Button>
-                    ) : null}
-                    {canAct ? (
-                      <>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={busyId === item.id}
-                          onClick={() => void handleConvert(item.id)}
-                        >
-                          Convertir a ticket
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          disabled={busyId === item.id}
-                          onClick={() => void handleCancel(item.id)}
-                        >
-                          Cancelar
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
-                </TripledMobileRecordCard>
+                <button
+                  key={status}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => toggleFilter(status)}
+                  className={cn(
+                    'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                    pressed
+                      ? 'border-primary/50 bg-primary/10 text-foreground'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label}
+                  <span className="tabular-nums text-xs text-muted-foreground">
+                    {counts[status]}
+                  </span>
+                </button>
               );
             })}
           </div>
 
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Vence</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const canAct =
-                    canWrite &&
-                    (item.status === 'abierto' || item.status === 'vencido');
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div className="min-w-0">
-                          <p className="font-medium">
-                            {item.clientName || 'Cliente sin nombre'}
-                          </p>
-                          <p className="font-mono text-xs text-muted-foreground">
-                            #{item.id}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {item.ticketDate ? (
-                          <FormattedDate date={new Date(item.ticketDate)} />
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {item.expiresAt ? (
-                          <FormattedDate date={new Date(item.expiresAt)} />
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell className="tabular-nums">
-                        <FormattedCurrency amount={item.total ?? 0} />
-                      </TableCell>
-                      <TableCell>
+          {visible.length === 0 ? (
+            <TripledEmptyState
+              icon={<FileText className="h-4 w-4" />}
+              title="Nada en este filtro"
+              description="Activa otro estado arriba para ver más presupuestos."
+            />
+          ) : (
+            <ul
+              aria-label="Presupuestos"
+              className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card"
+            >
+              {visible.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center gap-2 pr-2"
+                  data-testid="presupuesto-row"
+                >
+                  <Link
+                    href={`/presupuestos/${item.id}`}
+                    aria-label={`Presupuesto #${item.id} · ${item.clientName ?? 'Sin cliente'} · ${item.statusLabel}`}
+                    className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="truncate font-medium text-foreground">
+                          {item.clientName ?? 'Sin cliente'}
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums">
+                          <FormattedCurrency amount={item.total ?? 0} />
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
                         <Badge
                           variant={statusVariant(item.status)}
-                          className="shadow-none"
+                          className="h-5 px-1.5 text-[11px] shadow-none"
                         >
                           {item.statusLabel}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1">
-                          <PDFDownloadButton
-                            ticketId={item.id}
-                            downloadFileName={`presupuesto_${item.id}.pdf`}
-                            companyId={selectedCompany?.id}
-                            label="PDF"
-                            variant="ghost"
-                          />
-                          {item.convertedToTicketId ? (
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/tickets/${item.convertedToTicketId}`}>
-                                Ticket
-                              </Link>
-                            </Button>
-                          ) : null}
-                          {canAct ? (
-                            <>
-                              <Button
-                                type="button"
-                                size="sm"
-                                disabled={busyId === item.id}
-                                onClick={() => void handleConvert(item.id)}
-                              >
-                                Convertir
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                disabled={busyId === item.id}
-                                onClick={() => void handleCancel(item.id)}
-                              >
-                                Cancelar
-                              </Button>
-                            </>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                        <span>#{item.id}</span>
+                        {item.ticketDate ? (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span>{shortDate(item.ticketDate)}</span>
+                          </>
+                        ) : null}
+                        {item.expiresAt ? (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarClock className="h-3 w-3" aria-hidden />
+                              Vence {shortDate(item.expiresAt)}
+                            </span>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
+                      aria-hidden
+                    />
+                  </Link>
+                  <PDFDownloadButton
+                    ticketId={item.id}
+                    downloadFileName={`presupuesto_${item.id}.pdf`}
+                    companyId={selectedCompany?.id}
+                    variant="ghost"
+                    className="h-10 w-10"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </div>

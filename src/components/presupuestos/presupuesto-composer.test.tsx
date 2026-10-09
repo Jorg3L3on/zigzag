@@ -4,7 +4,10 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { PresupuestoComposer } from '@/components/presupuestos/presupuesto-composer';
+import {
+  PresupuestoComposer,
+  PresupuestoEditComposer,
+} from '@/components/presupuestos/presupuesto-composer';
 import { MobileChromeProvider } from '@/contexts/mobile-chrome-context';
 import { addDays, startOfDay } from 'date-fns';
 import {
@@ -15,10 +18,12 @@ import {
 const mockPush = jest.fn();
 const mockCreateTicketWithLines = jest.fn();
 const mockCreatePresupuestoWithLines = jest.fn();
+const mockUpdatePresupuesto = jest.fn();
+const mockRefresh = jest.fn();
 let mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
   useSearchParams: () => mockSearchParams,
   usePathname: () => '/presupuestos/create',
 }));
@@ -66,6 +71,7 @@ jest.mock('@/actions/tickets', () => ({
 jest.mock('@/actions/presupuestos', () => ({
   createPresupuestoWithLines: (...args: unknown[]) =>
     mockCreatePresupuestoWithLines(...args),
+  updatePresupuesto: (...args: unknown[]) => mockUpdatePresupuesto(...args),
 }));
 
 jest.mock('@/components/clients/client-form', () => ({
@@ -225,5 +231,95 @@ describe('PresupuestoComposer (ZIG-I5-3)', () => {
         'true',
       ),
     );
+  });
+});
+
+describe('PresupuestoEditComposer (ZIG-I5-5)', () => {
+  const edit = {
+    id: '1057',
+    client: { id: 5, label: 'Cliente Demo · 5550001111' },
+    ticketDate: '2026-10-09T12:00:00.000Z',
+    expiresAt: null,
+    notes: 'Nota previa',
+    lines: [
+      {
+        key: 'line-90',
+        kind: 'custom' as const,
+        service_id: null,
+        service_name: 'Revisión de fuga',
+        save_to_catalog: false,
+        quantity: 1,
+        price: 600,
+      },
+      {
+        key: 'line-91',
+        kind: 'catalog' as const,
+        service_id: 7,
+        service_name: 'Mantenimiento',
+        quantity: 2,
+        price: 4200,
+      },
+    ],
+  };
+
+  const renderEdit = () =>
+    render(
+      <MobileChromeProvider>
+        <PresupuestoEditComposer edit={edit} />
+      </MobileChromeProvider>,
+    );
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockRefresh.mockReset();
+    mockUpdatePresupuesto.mockReset();
+    mockCreatePresupuestoWithLines.mockReset();
+  });
+
+  it('loads the quote with the client locked and Guardar cambios enabled', async () => {
+    renderEdit();
+
+    expect(screen.getByRole('heading', { name: 'Editar presupuesto #1057' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Cliente' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).toBeNull();
+    const lines = screen.getByRole('list', { name: 'Servicios del presupuesto' });
+    expect(within(lines).getByText('Revisión de fuga')).toBeTruthy();
+    expect(within(lines).getByText('Nuevo')).toBeTruthy();
+    expect(document.getElementById('composer-notes')).toHaveValue('Nota previa');
+    screen
+      .getAllByRole('button', { name: 'Guardar cambios' })
+      .forEach((button) => expect(button).toBeEnabled());
+  });
+
+  it('saves through updatePresupuesto with inline and catalog lines, no draft kept', async () => {
+    const user = userEvent.setup();
+    mockUpdatePresupuesto.mockResolvedValue({ success: true, data: {} });
+    renderEdit();
+
+    await user.click(screen.getByRole('button', { name: '15 días' }));
+    await user.click(screen.getAllByRole('button', { name: 'Guardar cambios' })[0]);
+
+    await waitFor(() => expect(mockUpdatePresupuesto).toHaveBeenCalledTimes(1));
+    const [id, data] = mockUpdatePresupuesto.mock.calls[0];
+    expect(id).toBe(1057);
+    expect(data).toMatchObject({
+      company_id: 10,
+      work_notes: 'Nota previa',
+      services: [
+        {
+          kind: 'custom',
+          name: 'Revisión de fuga',
+          save_to_catalog: false,
+          quantity: 1,
+          price: 600,
+        },
+        { service_id: 7, quantity: 2, price: 4200 },
+      ],
+    });
+    expect(data.expires_at.getTime()).toBe(addDays(startOfDay(new Date()), 15).getTime());
+    expect(mockCreatePresupuestoWithLines).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/presupuestos/1057'));
+    expect(window.localStorage.getItem(buildPresupuestoComposerDraftKey(10))).toBeNull();
   });
 });
