@@ -98,6 +98,30 @@ test.describe('Mobile dashboard redesign', () => {
     await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible();
   });
 
+  test('Tu día replaces the stacked widgets with four tiles over one list', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard');
+
+    const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
+    await expect(tuDia).toBeVisible({ timeout: 30_000 });
+    const tabs = tuDia.getByRole('tab');
+    expect(await tabs.count()).toBeGreaterThanOrEqual(3);
+    await expect(tuDia.getByRole('tab', { selected: true })).toHaveCount(1);
+
+    for (const name of [/Atrasados/, /Hoy/]) {
+      await tuDia.getByRole('tab', { name }).click();
+      await expect(tuDia.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true');
+      const rows = tuDia.getByRole('tabpanel').getByRole('listitem');
+      expect(await rows.count()).toBeLessThanOrEqual(5);
+    }
+
+    await expect(page.getByText('Trabajo de hoy', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Necesita atención', { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('hoy-por-cobrar-strip')).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test('Actividad reciente shows at most 5 rows before Ver más', async ({ page }) => {
     await page.goto('/dashboard');
 

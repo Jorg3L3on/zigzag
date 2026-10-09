@@ -64,11 +64,9 @@ describe('dashboard persona + composition', () => {
     ).toBe('viewer');
   });
 
-  it('orders operator widgets operations-first and hides charts and the period select', () => {
+  it('orders operator widgets Tu día first and hides charts and the period select', () => {
     const composition = buildDashboardComposition('operator');
-    expect(composition.widgets.indexOf('operations')).toBeLessThan(
-      composition.widgets.indexOf('kpis'),
-    );
+    expect(composition.widgets[0]).toBe('tuDia');
     expect(composition.widgets).not.toContain('charts');
     expect(composition.showPeriodSelect).toBe(false);
     expect(composition.showQuickActions).toBe(true);
@@ -85,16 +83,11 @@ describe('dashboard persona + composition', () => {
     expect(composition.widgets).toContain('charts');
   });
 
-  it('shows admin quick actions on top and the period select with the KPIs', () => {
+  it('shows admin quick actions, Tu día beside activity, then performance', () => {
     const composition = buildDashboardComposition('admin');
     expect(composition.showQuickActions).toBe(true);
     expect(composition.showPeriodSelect).toBe(true);
-    expect(composition.widgets).toEqual([
-      'needsAttention',
-      'kpis',
-      'charts',
-      'operations',
-    ]);
+    expect(composition.widgets).toEqual(['tuDia', 'activity', 'kpis', 'charts']);
   });
 
   it('does not include the onboarding / inicio rapido widget', () => {
@@ -107,7 +100,7 @@ describe('dashboard persona + composition', () => {
 
   it('builds campo composition without charts, period select or quick actions', () => {
     const composition = buildCampoDashboardComposition('operator');
-    expect(composition.widgets).toEqual(['campoSummary', 'operations']);
+    expect(composition.widgets).toEqual(['tuDia']);
     expect(composition.widgets).not.toContain('charts');
     expect(composition.showPeriodSelect).toBe(false);
     expect(composition.showQuickActions).toBe(false);
