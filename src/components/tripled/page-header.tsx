@@ -1,5 +1,7 @@
 'use client';
 
+import * as React from 'react';
+
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -43,7 +45,8 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
                 const isLast = index === items.length - 1;
 
                 return (
-                  <div className="flex items-center" key={`${item.label}-${index}`}>
+                  // Fragment, not a div: an <ol> may only contain <li> (axe "list").
+                  <React.Fragment key={`${item.label}-${index}`}>
                     <BreadcrumbItem className={isLast ? '' : 'hidden md:block'}>
                       {isLast ? (
                         <BreadcrumbPage>{item.label}</BreadcrumbPage>
@@ -54,7 +57,7 @@ export const TripledPageHeader = ({ items, className }: TripledPageHeaderProps) 
                     {!isLast ? (
                       <BreadcrumbSeparator className="hidden md:block" />
                     ) : null}
-                  </div>
+                  </React.Fragment>
                 );
               })}
             </BreadcrumbList>

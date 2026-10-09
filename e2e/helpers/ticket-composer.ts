@@ -42,6 +42,7 @@ export const addComposerLine = async (
   page: Page,
   { quantity, price }: { quantity: number; price: number },
   optionIndex = 0,
+  linesLabel = 'Servicios del ticket',
 ) => {
   await page.getByRole('button', { name: 'Agregar servicio' }).click();
   const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
@@ -70,7 +71,7 @@ export const addComposerLine = async (
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   await expect(
     page
-      .getByRole('list', { name: 'Servicios del ticket' })
+      .getByRole('list', { name: linesLabel })
       .getByText(serviceName)
       .first(),
   ).toBeVisible();
@@ -133,4 +134,39 @@ export const finishOnReview = async (
   return page.evaluate(
     () => (window as unknown as { __openedUrls: string[] }).__openedUrls,
   );
+};
+
+/**
+ * Inline line (ZIG-I5): Nuevo mode in the line sheet, typed name and price,
+ * optionally with Guardar en mi catálogo on. Nothing is written until save.
+ */
+export const addInlineComposerLine = async (
+  page: Page,
+  {
+    name,
+    price,
+    quantity = 1,
+    saveToCatalog = false,
+  }: { name: string; price: number; quantity?: number; saveToCatalog?: boolean },
+  linesLabel = 'Servicios del ticket',
+) => {
+  await page.getByRole('button', { name: 'Agregar servicio' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+  await sheet.getByLabel('Nombre del servicio').fill(name);
+  const toggle = sheet.getByRole('switch', { name: /Guardar en mi catálogo/ });
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  if (saveToCatalog) await toggle.click();
+  await sheet
+    .getByRole('spinbutton', { name: 'Cantidad del servicio' })
+    .fill(String(quantity));
+  await sheet
+    .getByRole('spinbutton', { name: 'Precio del servicio' })
+    .fill(String(price));
+  await sheet.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await expect(sheet).toBeHidden({ timeout: 10_000 });
+  const lines = page.getByRole('list', { name: linesLabel });
+  await expect(lines.getByText(name).first()).toBeVisible();
+  return name;
 };
