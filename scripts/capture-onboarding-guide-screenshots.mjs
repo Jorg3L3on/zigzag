@@ -9,13 +9,12 @@
 import { mkdir, copyFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
+import './load-env.cjs';
 import sharp from 'sharp';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { chromium, devices } from '@playwright/test';
 
-dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -268,21 +267,6 @@ const captureTenantCompany = async (page) => {
   await page.goto(`${baseUrl}/roles`);
   await page.getByRole('heading', { name: /Roles/i }).first().waitFor({ timeout: 20_000 }).catch(() => undefined);
   await screenshot(page, path.join(companyDir, '11-roles-permisos'));
-
-  await captureGlobalSearch(page);
-};
-
-const captureGlobalSearch = async (page) => {
-  await page.goto(`${baseUrl}/dashboard`);
-  await page.locator('#dashboard-revenue-chart-title').waitFor({ timeout: 20_000 }).catch(() => undefined);
-  await page.getByRole('button', { name: /Buscar/i }).click();
-  await page
-    .getByPlaceholder('Buscar tickets, clientes o servicios…')
-    .fill('Riviera');
-  await page.waitForTimeout(500);
-  await page.getByText(/Riviera|Hotel/i).first().waitFor({ timeout: 10_000 }).catch(() => undefined);
-  await screenshot(page, path.join(companyDir, '13-busqueda-global'));
-  await page.keyboard.press('Escape').catch(() => undefined);
 };
 
 const captureMobileTenant = async (page) => {

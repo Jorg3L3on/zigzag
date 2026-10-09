@@ -17,6 +17,7 @@ import {
   requireSystemUser,
 } from '@/lib/security';
 import { compare, hash } from 'bcryptjs';
+import { keepsATeamManager } from '@/lib/team-guards';
 
 jest.mock('@/lib/db', () => ({
   db: {
@@ -44,6 +45,14 @@ jest.mock('@/lib/security', () => ({
 jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
   hash: jest.fn(),
+}));
+
+jest.mock('@/lib/team-guards', () => ({
+  keepsATeamManager: jest.fn(),
+}));
+
+jest.mock('@/lib/session-revocation', () => ({
+  bumpUserTokenVersion: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({
@@ -81,6 +90,9 @@ const mockRequireSystemUser = requireSystemUser as jest.MockedFunction<
 >;
 const mockCompare = compare as jest.MockedFunction<typeof compare>;
 const mockHash = hash as jest.MockedFunction<typeof hash>;
+const mockKeepsATeamManager = keepsATeamManager as jest.MockedFunction<
+  typeof keepsATeamManager
+>;
 
 function mockUpdateReturning(row: unknown) {
   const returning = jest.fn(async () => [row]);
@@ -102,6 +114,7 @@ describe('user actions', () => {
       companyId: 10,
       companyIsSystem: false,
     });
+    mockKeepsATeamManager.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -244,6 +257,91 @@ describe('user actions', () => {
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('AU002');
       expect(mockDb.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('team manager guards (ZIG-I3-4)', () => {
+    const tenantAdmin = {
+      context: { userId: '1', companyId: 10, companyIsSystem: false },
+      companyId: 10,
+    };
+    const lastAdmin = {
+      id: 2n,
+      name: 'Bob',
+      email: 'bob@example.com',
+      company_id: 10,
+      role_id: 7,
+      deleted_at: null,
+    };
+
+    it('refuses to deactivate your own account', async () => {
+      mockRequireActionPermission.mockResolvedValue(tenantAdmin);
+      mockDb.query.user.findFirst.mockResolvedValue({ ...lastAdmin, id: 1n });
+
+      const result = await deleteUser(1n);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('US006');
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to deactivate the last team manager', async () => {
+      mockRequireActionPermission.mockResolvedValue(tenantAdmin);
+      mockDb.query.user.findFirst.mockResolvedValue(lastAdmin);
+      mockKeepsATeamManager.mockResolvedValue(false);
+
+      const result = await deleteUser(2n);
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('US007');
+      expect(mockKeepsATeamManager).toHaveBeenCalledWith({
+        companyId: 10,
+        targetUserId: 2n,
+        currentRoleId: 7,
+        nextRoleId: null,
+      });
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to demote the last team manager', async () => {
+      mockRequireActionPermission.mockResolvedValue(tenantAdmin);
+      mockDb.query.role.findFirst.mockResolvedValue({
+        id: 8,
+        company_id: 10,
+        deleted_at: null,
+      });
+      mockDb.query.user.findFirst.mockResolvedValue(lastAdmin);
+      mockKeepsATeamManager.mockResolvedValue(false);
+
+      const result = await updateUser(2n, {
+        name: 'Bob',
+        email: 'bob@example.com',
+        company_id: 10,
+        role_id: 8,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('US007');
+      expect(mockKeepsATeamManager).toHaveBeenCalledWith({
+        companyId: 10,
+        targetUserId: 2n,
+        currentRoleId: 7,
+        nextRoleId: 8,
+      });
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it('deactivates another member when a manager remains', async () => {
+      mockRequireActionPermission.mockResolvedValue(tenantAdmin);
+      mockDb.query.user.findFirst.mockResolvedValue(lastAdmin);
+      const { set } = mockUpdateReturning({ ...lastAdmin, deleted_at: new Date() });
+
+      const result = await deleteUser(2n);
+
+      expect(result.success).toBe(true);
+      expect(set).toHaveBeenCalledWith(
+        expect.objectContaining({ deleted_at: expect.any(Date) }),
+      );
     });
   });
 

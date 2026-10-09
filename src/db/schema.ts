@@ -3,6 +3,7 @@ import {
   bigint,
   bigserial,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -269,8 +270,13 @@ export const servicesTickets = pgTable(
   'ServicesTickets',
   {
     id: serial('id').primaryKey(),
-    service_id: integer('service_id').notNull(),
+    /** Catalog service; null for an inline line that lives only in this document (ZIG-I5). */
+    service_id: integer('service_id'),
     ticket_id: bigint('ticket_id', { mode: 'bigint' }).notNull(),
+    /** Inline line name (service_id null). Catalog lines leave it null and read service.name. */
+    name: varchar('name', { length: 100 }),
+    /** Inline line description (optional). */
+    description: text('description'),
     quantity: integer('quantity').notNull(),
     price: money('price').notNull(),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
@@ -282,6 +288,10 @@ export const servicesTickets = pgTable(
   (t) => [
     index('ServicesTickets_service_id_idx').on(t.service_id),
     index('ServicesTickets_ticket_id_idx').on(t.ticket_id),
+    check(
+      'ServicesTickets_service_or_name_chk',
+      sql`${t.service_id} is not null or ${t.name} is not null`,
+    ),
   ],
 );
 

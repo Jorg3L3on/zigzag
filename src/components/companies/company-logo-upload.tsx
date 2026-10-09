@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { removeCompanyLogo, uploadCompanyLogo } from '@/actions/companies';
 import {
   COMPANY_LOGO_ALLOWED_CONTENT_TYPES,
@@ -17,6 +17,9 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { cn } from '@/lib/utils';
+
+type LogoPreviewState = { url: string; status: 'loaded' | 'error' };
 
 type CompanyLogoUploadProps = {
   companyId: number;
@@ -34,8 +37,12 @@ export const CompanyLogoUpload = ({
   const [logoUrl, setLogoUrl] = React.useState(initialLogoUrl);
   const [isUploading, setIsUploading] = React.useState(false);
   const [isRemoving, setIsRemoving] = React.useState(false);
+  const [preview, setPreview] = React.useState<LogoPreviewState | null>(null);
 
   const displayUrl = resolveCompanyLogoUrl(logoUrl);
+  // Keyed by URL so a replaced logo shows the placeholder again until it loads.
+  const previewStatus =
+    preview && preview.url === displayUrl ? preview.status : 'loading';
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -133,16 +140,38 @@ export const CompanyLogoUpload = ({
       </p>
 
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+        <div
+          className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted"
+          aria-busy={displayUrl ? previewStatus === 'loading' : undefined}
+        >
           {displayUrl ? (
-            <Image
-              src={displayUrl}
-              alt="Logo actual de la empresa"
-              fill
-              sizes="80px"
-              className="object-contain p-1"
-              unoptimized={displayUrl.startsWith('/')}
-            />
+            <>
+              {previewStatus === 'loading' ? (
+                <Skeleton
+                  className="absolute inset-0 rounded-none"
+                  data-testid="company-logo-skeleton"
+                  aria-hidden
+                />
+              ) : null}
+              {previewStatus === 'error' ? (
+                <span className="px-2 text-center text-xs text-muted-foreground">
+                  Logo no disponible
+                </span>
+              ) : null}
+              <Image
+                src={displayUrl}
+                alt="Logo actual de la empresa"
+                fill
+                sizes="80px"
+                className={cn(
+                  'object-contain p-1 transition-opacity duration-200',
+                  previewStatus === 'loaded' ? 'opacity-100' : 'opacity-0',
+                )}
+                unoptimized={displayUrl.startsWith('/')}
+                onLoad={() => setPreview({ url: displayUrl, status: 'loaded' })}
+                onError={() => setPreview({ url: displayUrl, status: 'error' })}
+              />
+            </>
           ) : (
             <span className="px-2 text-center text-xs text-muted-foreground">
               Sin logo
@@ -151,11 +180,13 @@ export const CompanyLogoUpload = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Input
+          {/* Plain input, not <Input>: its w-full beats sr-only and overflows at 375px.
+              The button below is the keyboard and screen-reader entry point. */}
+          <input
             ref={inputRef}
             type="file"
             accept={acceptTypes}
-            className="sr-only"
+            className="hidden"
             onChange={handleUpload}
             aria-label="Seleccionar archivo de logo"
           />

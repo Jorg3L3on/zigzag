@@ -13,7 +13,9 @@ export type AgentTicketPayload = {
   created_at: Date;
   services_tickets?: Array<{
     id: number;
-    service_id: number;
+    /** Null for an inline line (ZIG-I5); `name` holds its label. */
+    service_id: number | null;
+    name?: string | null;
     quantity: number;
     price: number;
   }>;
@@ -35,7 +37,8 @@ type TicketSummaryPick = Pick<
 type TicketLinePick = Pick<
   ServicesTicketsRow,
   'id' | 'service_id' | 'quantity' | 'price'
->;
+> &
+  Partial<Pick<ServicesTicketsRow, 'name'>>;
 
 export const mapAgentTicketSummary = (row: TicketSummaryPick): AgentTicketPayload => ({
   id: row.id.toString(),
@@ -56,6 +59,7 @@ export const mapAgentTicketDetail = (
   services_tickets: row.services_tickets.map((line) => ({
     id: line.id,
     service_id: line.service_id,
+    ...(line.service_id == null ? { name: line.name ?? null } : {}),
     quantity: line.quantity,
     price: line.price,
   })),

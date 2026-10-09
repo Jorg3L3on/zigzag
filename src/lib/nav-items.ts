@@ -11,9 +11,15 @@ import {
   Ticket,
   Trash2,
   User,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 
+import {
+  COMPANY_HUB_PATH,
+  COMPANY_HUB_ROLES_PATH,
+  COMPANY_HUB_TEAM_PATH,
+} from '@/lib/company-hub';
 import { PERMISSIONS } from '@/lib/permissions';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 
@@ -25,6 +31,8 @@ export type NavItemDefinition = {
   systemOnly?: boolean;
   /** When true, item is a primary mobile bottom-tab destination (legacy flag; prefer MOBILE_TAB_ITEMS). */
   mobileTab?: boolean;
+  /** When true, item only shows in the mobile Más sheet (desktop sidebar IA unchanged). */
+  mobileOnly?: boolean;
   items?: {
     title: string;
     url: string;
@@ -77,15 +85,40 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
   },
   {
     title: 'Mi empresa',
-    url: '/company',
+    url: COMPANY_HUB_PATH,
     icon: Building,
     requiredPermission: PERMISSIONS.company.manage,
+    items: [
+      {
+        title: 'Datos',
+        url: COMPANY_HUB_PATH,
+        requiredPermission: PERMISSIONS.company.manage,
+      },
+      {
+        title: 'Equipo',
+        url: COMPANY_HUB_TEAM_PATH,
+        requiredPermission: PERMISSIONS.users.read,
+      },
+      {
+        title: 'Roles',
+        url: COMPANY_HUB_ROLES_PATH,
+        requiredPermission: PERMISSIONS.roles.read,
+      },
+    ],
+  },
+  {
+    title: 'Captura rápida',
+    url: '/anotar',
+    icon: PenLine,
+    requiredPermission: PERMISSIONS.tickets.write,
+    mobileOnly: true,
   },
 ];
 
 /**
- * Field program mobile bottom tabs: Hoy · Anotar · Clientes (+ Más in the tab bar).
- * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy, Tickets list vs Anotar).
+ * Mobile bottom tabs: Hoy · Tickets · Clientes (+ the create slot and Más in the dock).
+ * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy).
+ * Anotar is no longer a tab; it lives on as Captura rápida (create menu, Hoy, Más sheet).
  */
 export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
   {
@@ -94,10 +127,10 @@ export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
     icon: Home,
   },
   {
-    title: 'Anotar',
-    url: '/anotar',
-    icon: PenLine,
-    requiredPermission: PERMISSIONS.tickets.write,
+    title: 'Tickets',
+    url: '/tickets',
+    icon: Ticket,
+    requiredPermission: PERMISSIONS.tickets.read,
   },
   {
     title: 'Clientes',
@@ -107,7 +140,53 @@ export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
   },
 ];
 
-/** Administración / system nav — sidebar only (Más sheet). */
+/** Dock column of the center + (between Tickets and Clientes); tabs skip it. */
+export const MOBILE_DOCK_CREATE_SLOT = 2;
+
+export type MobileCreateAction = {
+  title: string;
+  hint: string;
+  url: string;
+  icon: LucideIcon;
+  requiredPermission: string;
+};
+
+/** Quick-create menu behind the dock +. */
+export const MOBILE_CREATE_ACTIONS: MobileCreateAction[] = [
+  {
+    title: 'Nuevo ticket',
+    hint: 'Cliente, servicios y recibo',
+    url: '/tickets/create',
+    icon: Ticket,
+    requiredPermission: PERMISSIONS.tickets.write,
+  },
+  {
+    title: 'Nuevo presupuesto',
+    hint: 'Cotiza y compártelo por WhatsApp',
+    url: '/presupuestos/create',
+    icon: ClipboardList,
+    requiredPermission: PERMISSIONS.tickets.write,
+  },
+  {
+    title: 'Captura rápida',
+    hint: 'Un solo paso, funciona sin señal',
+    url: '/anotar',
+    icon: PenLine,
+    requiredPermission: PERMISSIONS.tickets.write,
+  },
+  {
+    title: 'Nuevo cliente',
+    hint: 'Nombre, teléfono y dirección',
+    url: '/clients/new',
+    icon: UserPlus,
+    requiredPermission: PERMISSIONS.clients.write,
+  },
+];
+
+/**
+ * Administración / system nav — sidebar only (Más sheet). System operators only:
+ * tenants manage team and roles inside the Mi empresa hub.
+ */
 export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
   {
     title: 'Consola operadora',
@@ -120,6 +199,7 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
     url: '/users',
     icon: User,
     requiredPermission: PERMISSIONS.users.read,
+    systemOnly: true,
   },
   {
     title: 'Empresas',
@@ -133,12 +213,14 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
     url: '/roles',
     icon: Shield,
     requiredPermission: PERMISSIONS.roles.read,
+    systemOnly: true,
   },
   {
-    title: 'Permisos',
+    title: 'Catálogo de permisos',
     url: '/permissions',
     icon: Key,
     requiredPermission: PERMISSIONS.permissions.read,
+    systemOnly: true,
   },
   {
     title: 'Auditoría',
@@ -154,6 +236,21 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
   },
 ];
 
+/**
+ * Administración items a user may see: system-only items for system users,
+ * the rest by permission. Tenants get an empty list, so the group is hidden.
+ */
+export const filterSystemNavItems = (
+  items: NavItemDefinition[],
+  {
+    isSystemUser,
+    can,
+  }: { isSystemUser: boolean; can: (permission?: string) => boolean },
+): NavItemDefinition[] =>
+  items.filter((item) =>
+    item.systemOnly ? isSystemUser : can(item.requiredPermission),
+  );
+
 export const getLongestMatchingHref = (
   pathname: string,
   hrefs: string[],
@@ -168,9 +265,9 @@ export const getLongestMatchingHref = (
 };
 
 /**
- * Active tab for field bottom bar.
- * Hoy must not activate on `/tickets` list alone (Tickets is not a tab).
- * Anotar activates on `/anotar` (and nested paths under it).
+ * Active tab for the mobile bottom bar.
+ * Tickets activates on `/tickets` and everything under it (create, detail, services).
+ * Routes outside the tabs (e.g. `/anotar`, `/cobranza`) return null, which lights Más.
  */
 export const getActiveMobileTabHref = (
   pathname: string,
@@ -179,6 +276,3 @@ export const getActiveMobileTabHref = (
   pathname,
   tabs.map((item) => item.url),
 );
-
-/** Fixed height of the mobile bottom tab row (excluding safe-area). */
-export const MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX = 56;

@@ -9,7 +9,9 @@ import {
 } from '@/components/tripled';
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { requirePagePermission } from '@/lib/page-authz';
-import { loadDashboardMetricsForCompany } from '@/actions/dashboard';
+import { loadDashboardMetricsForCompany } from '@/lib/dashboard-metrics-loader';
+import { loadDashboardDayQueueForCompany } from '@/lib/dashboard-day-queue-loader';
+import { logger } from '@/lib/logger';
 import { loadExperienceModeForCompany } from '@/actions/experience-mode';
 import type { ExperienceMode } from '@/lib/experience-mode';
 
@@ -31,13 +33,27 @@ const DashboardMetricsSection = async ({
   userName?: string | null;
   initialExperienceMode: ExperienceMode;
 }) => {
-  const initialMetrics = companyIsSystem
-    ? null
-    : (await loadDashboardMetricsForCompany(companyId, 1)).data ?? null;
+  // Session company only; system operators load the company they select client-side.
+  const [initialMetrics, initialDayQueue] = companyIsSystem
+    ? [null, null]
+    : await Promise.all([
+        loadDashboardMetricsForCompany(companyId, 1).then(
+          (result) => result.data ?? null,
+        ),
+        loadDashboardDayQueueForCompany(companyId).catch((error: unknown) => {
+          // The client retries through getDashboardDayQueue.
+          logger.warn('Dashboard day queue failed on the server', {
+            companyId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }),
+      ]);
 
   return (
     <DashboardMetricsClient
       initialMetrics={initialMetrics}
+      initialDayQueue={initialDayQueue}
       userName={userName}
       initialExperienceMode={initialExperienceMode}
     />

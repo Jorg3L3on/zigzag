@@ -1,46 +1,57 @@
 # Deployment (Vercel)
 
-Zigzag keeps **`main` as the production branch** on Vercel. A merge to `main` deploys production.
+Zigzag keeps **`main` as the production branch** on Vercel. A merge to `main` deploys production, and **only Jorge merges into `main`**.
 
-Slice work from **`ship-feature`** must **not** merge to `main` until the whole PRD is ready.
+All work integrates on **`sandbox`** first. `sandbox` was created from `main` on 2026-10-08 and is the base of every initiative and fix. It is not deployed: Vercel builds only `main`.
 
-## Strategy: feature integration branch
-
-For each PRD / feature, use one long-lived integration branch:
+## Strategy: `sandbox` + initiative branches
 
 ```text
-feat/<feature-slug>   e.g. feat/mobile-ui-ux
+main  ←  sandbox  ←  feat/<initiative-slug>  ←  slice/<ticket>-<slug>
+(prod)   (integration)  (one per initiative)     (one per ticket / phase)
 ```
 
-| Step | Branch | Vercel |
-| ---- | ------ | ------ |
-| Slice PRs merge here | `feat/<feature-slug>` | **No deploy** (previews disabled) |
-| Release when PRD done | One PR: `feat/…` → `main` | **Production** (once) |
+| Step | Branch / PR | Who merges | Vercel |
+| ---- | ----------- | ---------- | ------ |
+| Initiative branch | `feat/<slug>` created from latest `sandbox` | — | No deploy |
+| Slice PR | `slice/…` → `feat/<slug>` | **Agent** (squash, once CI is green) | No deploy |
+| Final initiative PR | `feat/<slug>` → `sandbox` | Agent opens, **Jorge merges** | No deploy |
+| Standalone ticket or bug fix | `slice/…` or `jl/…` → `sandbox` | Agent opens, **Jorge merges** | No deploy |
+| Release | `sandbox` → `main` | **Jorge only** | **Production** |
 
-Agents open slice PRs **into the integration branch**, never into `main`.
+Rules for agents:
 
-Smoke-test slices **locally** (`npm run lint`, `npm test`, `npm run build`, Playwright as needed) before merging into `feat/<slug>`, and again before the final PR to `main`.
+- Branch from **`sandbox`** (or the initiative's `feat/<slug>`), never from `main`.
+- Never target, push to or merge into **`main`**. Never merge into **`sandbox`**: open the PR and leave the merge to Jorge.
+- Merge your own slice PRs into `feat/<slug>` (squash) once CI is green.
+- Verify locally before a PR leaves draft (`npm run lint`, `npm test -- --runInBand`, `npm run build`, Playwright as needed). Nothing below `main` gets a preview deploy.
+- When `sandbox` moves while an initiative is open, merge `sandbox` into `feat/<slug>` (no rebase, no force-push).
+
+The plan for each initiative and its tickets lives in Plania (project `zigzag`). Ticket keys go in branch names and PR titles (e.g. `slice/zig-08-dock-everywhere`, `… (ZIG-08)`).
 
 ## Who does what
 
 | Action | Who |
 | ------ | --- |
-| Create `feat/<slug>` from latest `main` | `ship-feature` (start of pipeline) |
-| Slice PR: `feat/<issue#>-…` → PR → `feat/<slug>` | `implement-issue` |
-| Merge each slice PR | **You** (no Vercel preview; verify locally) |
-| Final PR `feat/<slug>` → `main` | Agent **opens**; **you merge** (one prod deploy) |
-| `vercel deploy --prod` / `vercel promote` | **You**, only if explicitly requested |
+| Create `feat/<slug>` from latest `sandbox` | Agent (start of an initiative / `ship-feature`) |
+| Slice PR → `feat/<slug>` | Agent opens and squash-merges once CI is green |
+| Final PR `feat/<slug>` → `sandbox` | Agent **opens**; **Jorge merges** |
+| Standalone fix PR → `sandbox` | Agent **opens**; **Jorge merges** |
+| `sandbox` → `main` (production) | **Jorge** |
+| `vercel deploy --prod` / `vercel promote` | **Jorge**, only if explicitly requested |
 
-Agents must **never** merge to `main` or run production deploy commands.
+## How many prod deploys?
 
-## Per PRD: how many prod deploys?
+| Action | Production deploys |
+| ------ | ------------------ |
+| Merge slice PRs into `feat/<slug>` | 0 |
+| Merge `feat/<slug>` or a fix into `sandbox` | 0 |
+| Merge `sandbox` → `main` | **1** (everything merged into `sandbox` since the last release) |
 
-| Action | Count |
-| ------ | ----- |
-| Merge slice PRs into `feat/<slug>` | No Vercel deploy |
-| Merge `feat/<slug>` → `main` | **1** (production) |
+## Local development
 
-Example: mobile UI/UX, 5 slices → local verification on the feature branch, **1** prod deploy when you ship the feature PR to `main`.
+- Ports **3069** (`npm run dev`) and **3071** are Jorge's dev servers. Agents use another port (3072+) with `NEXTAUTH_URL` set to it, and never stop whatever holds 3069 or 3071.
+- `.env` points at production Neon. Put a local database in `.env.local` (`DATABASE_URL=postgresql://…localhost…/zigzag`): the app, Playwright, `drizzle-kit` and `scripts/` read it first (see README → Setup). E2E refuses a Neon `DATABASE_URL`.
 
 ## Migrations
 
@@ -54,16 +65,7 @@ Production schema changes are applied automatically during **Vercel production b
 
 **Manual fallback:** [`.github/workflows/migrate-production.yml`](../.github/workflows/migrate-production.yml) (`workflow_dispatch`). Add GitHub repository secrets `DATABASE_URL` and `DIRECT_URL` matching production Neon.
 
-**Before merging `feat/…` → `main`:** confirm migration SQL is committed under `drizzle/` and journal updated. Production apply happens on the next Vercel production deploy after merge.
-
-## Optional: team-wide `develop` branch
-
-If you prefer a shared integration branch instead of per-feature branches:
-
-- Slice PRs → `develop` (no Vercel deploy unless you change `vercel.json`)
-- Release: `develop` → `main` when a release batch is ready
-
-`ship-feature` defaults to **per-feature** `feat/<slug>` so unrelated work does not block releases.
+**Before merging a migration into `sandbox`:** confirm the SQL is committed under `drizzle/` and listed in `drizzle/meta/_journal.json`. Production applies it on the next Vercel production deploy, i.e. when Jorge merges `sandbox` → `main`.
 
 ## Vercel settings
 
@@ -91,7 +93,8 @@ This project setting applies to **every** branch/PR, including older Cursor bran
 "git": {
   "deploymentEnabled": {
     "*": false,
-    "main": true
+    "main": true,
+    "sandbox": false
   }
 },
 "ignoreCommand": "bash -c 'if [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ]; then exit 1; else exit 0; fi'"

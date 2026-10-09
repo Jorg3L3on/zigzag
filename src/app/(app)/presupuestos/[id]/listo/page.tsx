@@ -1,0 +1,28 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+
+import { getPresupuestoById } from '@/actions/presupuestos';
+import { PresupuestoView } from '@/components/presupuestos/presupuesto-view';
+import { requirePagePermission } from '@/lib/page-authz';
+import { buildPresupuestoViewProps } from '@/lib/presupuesto-view-props';
+
+export const metadata: Metadata = { title: 'Presupuesto guardado' };
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+/** Creation review (ZIG-I5-4): where Nuevo presupuesto lands after Guardar presupuesto. */
+export default async function PresupuestoReadyPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  await requirePagePermission('tickets.read');
+  const { id } = await params;
+  const numericId = Number(id);
+  if (!Number.isSafeInteger(numericId) || numericId <= 0) notFound();
+
+  const result = await getPresupuestoById(numericId);
+  if (!result.success) notFound();
+
+  return <PresupuestoView variant="review" {...buildPresupuestoViewProps(result.data)} />;
+}

@@ -1,16 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
-import dotenv from 'dotenv';
+import './scripts/load-env.cjs';
 
-dotenv.config();
 
 const devBaseUrl = 'http://127.0.0.1:3069';
 const prodBaseUrl = 'http://127.0.0.1:3070';
 // Turbopack dev 404s on /tickets* (api/tickets + app/tickets); prod and webpack dev work.
 const useProdServer = process.env.PLAYWRIGHT_USE_DEV !== '1';
 
-const mobileSpecPattern = /(?:^|\/)mobile-.*\.spec\.ts$|(?:^|\/)tickets-mobile\.spec\.ts$/;
+const mobileSpecPattern =
+  /(?:^|\/)mobile-.*\.spec\.ts$|(?:^|\/)tickets-(?:create-)?mobile\.spec\.ts$/;
 const visualSpecPattern =
-  /(?:^|\/)(?:tickets-visual|theme-dark)\.spec\.ts$/;
+  /(?:^|\/)(?:tickets-visual|theme-dark|company-hub-visual|presupuestos-visual)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './e2e',

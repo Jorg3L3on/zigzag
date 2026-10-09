@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ModeToggle } from '@/components/mode-toggle';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   loginDisplay,
   loginMono,
@@ -53,7 +53,7 @@ export const LoginStage = ({ children, className }: LoginStageProps) => {
       </div>
       <div className="login-grain absolute inset-0 z-[1]" aria-hidden />
 
-      <ModeToggle
+      <ThemeToggle
         className="fixed top-6 right-6 z-10 h-10 w-10 rounded-full border border-[color:var(--login-line)] bg-[color:var(--login-field-bg)] text-[color:var(--login-ink-muted)] hover:border-[color:var(--login-line-strong)] hover:bg-[color:var(--login-field-bg)] hover:text-[color:var(--login-ink)] focus-visible:ring-[color:var(--login-accent-blue)]"
       />
 

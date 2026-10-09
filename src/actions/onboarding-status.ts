@@ -37,7 +37,10 @@ export type FetchOnboardingStatusInput = {
   companyId?: number;
 };
 
-export async function loadOnboardingStatusForCompany(
+// Not exported: an exported function in a 'use server' module is a callable
+// action, and this one takes a raw company id. fetchOnboardingStatus authorizes
+// first (ZIG-07).
+async function loadOnboardingStatusForCompany(
   companyId: number,
 ): Promise<OnboardingStatusResponse> {
   try {

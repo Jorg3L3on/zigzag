@@ -56,6 +56,29 @@ test.describe('Mobile sticky navigation', () => {
         });
       }
 
+      // ZIG-I3: Usuarios / Roles live in the Mi empresa hub for tenants.
+      const companyHubPages = [
+        { name: 'company team', path: '/company/equipo' },
+        { name: 'company roles', path: '/company/roles' },
+      ] as const;
+
+      for (const { name, path } of companyHubPages) {
+        test(`${name} keeps mobile app bar fixed while scrolling`, async ({
+          page,
+        }) => {
+          await page.goto(path);
+
+          const forbidden = page.getByText('Acceso denegado');
+          if (await forbidden.isVisible().catch(() => false)) {
+            test.skip(true, `Current E2E user cannot access ${name}`);
+          }
+
+          const appBar = visibleMobileAppBar(page);
+          await expect(appBar.getByText('Mi empresa')).toBeVisible();
+          await expectPinnedNavWhileScrolling(page, appBar, 'fixed');
+        });
+      }
+
       test('ticket detail keeps back navigation reachable after scroll', async ({
         page,
       }) => {
@@ -189,13 +212,6 @@ test.describe('Mobile sticky navigation', () => {
         { name: 'tickets', path: '/tickets', label: 'Tickets' },
         { name: 'clients', path: '/clients', label: 'Clientes' },
         { name: 'services', path: '/services', label: 'Servicios' },
-        { name: 'users', path: '/users', label: 'Usuarios' },
-        { name: 'roles', path: '/roles', label: 'Roles' },
-        {
-          name: 'permissions',
-          path: '/permissions',
-          label: 'Permisos',
-        },
         {
           name: 'service schedules',
           path: '/service-schedules',

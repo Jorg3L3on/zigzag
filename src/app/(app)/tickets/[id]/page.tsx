@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { requirePagePermission } from '@/lib/page-authz';
 import {
@@ -23,6 +23,8 @@ import { TicketDetailCustomerSection } from '@/components/tickets/detail/ticket-
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
+import { getServiceLineName } from '@/lib/service-line-display';
+import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -41,6 +43,10 @@ export default async function TicketDetailsPage({
   }
 
   const ticket = result.data;
+  // Quotes have their own pages (ZIG-I5-4); never render one as a work ticket.
+  if (isPresupuestoTicket(ticket.document_kind)) {
+    redirect(`/presupuestos/${String(ticket.id)}`);
+  }
   const auditResult = await getTicketAuditHistory(Number(id));
   const auditEntries = auditResult.success ? (auditResult.data ?? []) : [];
   const downloadFileName = buildTicketPdfFileName(ticket);
@@ -49,8 +55,10 @@ export default async function TicketDetailsPage({
 
   const serviceLines = (() => {
     const byService = new Map<number, string>();
+    // Service reminders only apply to catalog lines; inline lines (ZIG-I5) are skipped.
     for (const line of ticket.services_tickets) {
-      byService.set(line.service_id, line.service?.name ?? 'Servicio');
+      if (line.service_id == null) continue;
+      byService.set(line.service_id, getServiceLineName(line));
     }
     return Array.from(byService.entries()).map(([serviceId, serviceName]) => ({
       serviceId,
@@ -66,8 +74,6 @@ export default async function TicketDetailsPage({
     paid: ticket.paid,
     downloadFileName,
   };
-
-  const showSticky = true;
 
   return (
     <>
@@ -91,10 +97,7 @@ export default async function TicketDetailsPage({
         </div>
       </header>
 
-      <TripledDashboardShell
-        maxWidthClassName="max-w-6xl"
-        hasMobileStickyAction={showSticky}
-      >
+      <TripledDashboardShell maxWidthClassName="max-w-6xl">
         <TripledMobileAppBar
           title={`Ticket #${ticket.id}`}
           subtitle={ticket.finished ? 'Finalizado' : 'En proceso'}
@@ -135,6 +138,7 @@ export default async function TicketDetailsPage({
               total={ticket.total}
               ticketDate={ticket.ticket_date}
               serviceLines={serviceLines}
+              lineCount={ticket.services_tickets.length}
               downloadFileName={downloadFileName}
             />
           ) : null}

@@ -22,7 +22,11 @@ import {
   isProtectedBootstrapAdminRole,
 } from '@/lib/company-bootstrap';
 import { revalidatePath } from 'next/cache';
-import { AuthorizationError } from '@/lib/errors';
+import { AuthorizationError, buildActionError } from '@/lib/errors';
+import {
+  countActiveUsersWithRole,
+  roleChangeKeepsAdmins,
+} from '@/lib/team-guards';
 import {
   actionAuthToGovernanceActor,
   fetchRolePermissionIds,
@@ -283,6 +287,7 @@ export async function createRole(data: {
     });
 
     revalidatePath('/roles');
+    revalidatePath('/company', 'layout');
     return { success: true, data: full };
   } catch (error) {
     return handleCodedServerActionError('roles.create', 'RL002', error);
@@ -325,6 +330,18 @@ export async function updateRole(
       throw new AuthorizationError('Access denied to this role');
     }
     const beforePermissionIds = await fetchRolePermissionIds(id);
+
+    // Nobody left able to manage the team or the roles would lock the tenant out.
+    if (
+      !(await roleChangeKeepsAdmins({
+        companyId: existingRole.company_id,
+        roleId: id,
+        beforePermissionIds,
+        afterPermissionIds: data.permissions,
+      }))
+    ) {
+      return buildActionError('RL006');
+    }
 
     await db.transaction(async (tx) => {
       await tx.delete(rolePermission).where(eq(rolePermission.role_id, id));
@@ -373,6 +390,7 @@ export async function updateRole(
     });
 
     revalidatePath('/roles');
+    revalidatePath('/company', 'layout');
     return { success: true, data: full };
   } catch (error) {
     return handleCodedServerActionError('roles.update', 'RL003', error);
@@ -414,6 +432,10 @@ export async function deleteRole(
     ) {
       throw new AuthorizationError('Cannot delete the tenant administrator role');
     }
+    // A role still assigned to someone cannot be deleted (they would lose all access).
+    if ((await countActiveUsersWithRole(id)) > 0) {
+      return buildActionError('RL005');
+    }
     const beforePermissionIds = await fetchRolePermissionIds(id);
 
     const [updatedRole] = await db
@@ -433,6 +455,7 @@ export async function deleteRole(
     });
 
     revalidatePath('/roles');
+    revalidatePath('/company', 'layout');
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('roles.delete', 'RL004', error);

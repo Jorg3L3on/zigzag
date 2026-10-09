@@ -11,13 +11,39 @@ const setExperienceMode = async (
   mode: 'Campo' | 'Oficina' | 'Automático (1 usuario = Campo)',
 ) => {
   await page.goto('/company');
+  // ZIG-I3-2: on mobile, Configuración is a collapsed section of the Datos tab.
+  // The toggle is enabled only once the page hydrates in mobile mode; retry
+  // opening the section so slow CI hydration cannot race it.
+  const configuracion = page.getByRole('button', { name: /^Configuración/ });
+  await expect(configuracion).toBeEnabled({ timeout: 30_000 });
   const experience = page
     .getByRole('combobox', { name: 'Experiencia de inicio' })
     .locator('visible=true')
     .first();
-  await expect(experience).toBeVisible({ timeout: 30_000 });
+  await expect(async () => {
+    if ((await configuracion.getAttribute('aria-expanded')) !== 'true') {
+      await configuracion.click();
+    }
+    await expect(experience).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+
+  // Click once and give the popup time: a second click on an opening Radix
+  // Select closes it again, so only re-click if it never appeared.
+  const option = page.getByRole('option', { name: mode, exact: true });
+  // Keep it clear of the fixed Guardar cambios bar at the bottom.
+  await experience.evaluate((element) =>
+    element.scrollIntoView({ block: 'center' }),
+  );
   await experience.click();
-  await page.getByRole('option', { name: mode, exact: true }).click();
+  const opened = await option
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!opened) {
+    await experience.click();
+    await expect(option).toBeVisible({ timeout: 10_000 });
+  }
+  await option.click();
   await page
     .getByRole('button', { name: /Guardar cambios|Guardar/i })
     .locator('visible=true')
@@ -43,6 +69,8 @@ test.describe('Mobile campo Hoy home (Epic A)', () => {
   test('hides revenue charts and shows Hoy-first campo layout', async ({
     page,
   }, testInfo) => {
+    // Two full round-trips through the company form; slow on CI runners.
+    test.setTimeout(90_000);
     test.skip(
       testInfo.project.name !== 'mobile-chrome',
       'Campo mobile composition is validated on Pixel viewport',
@@ -53,8 +81,15 @@ test.describe('Mobile campo Hoy home (Epic A)', () => {
 
       await page.goto('/dashboard');
       await expect(
-        page.getByText(/Tu día en el campo|Trabajo de hoy/i).first(),
+        page.getByText(/Tu día en el campo/i).first(),
       ).toBeVisible({ timeout: 30_000 });
+      const tuDia = page.getByTestId('dashboard-tu-dia').filter({ visible: true }).first();
+      await expect(tuDia).toBeVisible();
+      await expect(tuDia.getByRole('tab', { name: /Hoy/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expect(tuDia.getByText('Entró hoy')).toBeVisible();
       await expect(page.locator('#dashboard-revenue-chart-title')).toHaveCount(
         0,
       );

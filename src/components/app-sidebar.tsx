@@ -11,7 +11,7 @@ import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
 import { NavUser } from '@/components/nav-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
-import { GlobalSearch } from '@/components/search/global-search';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
   Sidebar,
@@ -19,6 +19,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
@@ -30,6 +31,7 @@ import {
 } from '@/lib/sidebar-company-brand';
 import { PERMISSIONS } from '@/lib/permissions';
 import {
+  filterSystemNavItems,
   getLongestMatchingHref,
   NAV_MAIN_ITEMS,
   NAV_SYSTEM_ITEMS,
@@ -45,6 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { can, loading: permissionsLoading, isSystem } = usePermissions();
+  const { isMobile } = useSidebar();
   const [companies, setCompanies] = React.useState<SidebarCompanyBrand[]>([]);
 
   // Seed brand from the JWT session so tenant users never sit on "Ninguna empresa"
@@ -155,22 +158,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           ...item,
           items: item.items?.filter((sub) => canAccess(sub.requiredPermission)),
         }))
+        .filter((item) => isMobile || !item.mobileOnly)
         .filter(
           (item) =>
             canAccess(item.requiredPermission) || Boolean(item.items?.length),
         ),
-    [canAccess],
+    [canAccess, isMobile],
   );
 
-  const visibleSystem = React.useMemo(() => {
-    const isSystemUser = session?.user?.company_is_system ?? false;
-    return data.system.filter((item) => {
-      if (item.systemOnly) {
-        return isSystemUser;
-      }
-      return canAccess(item.requiredPermission);
-    });
-  }, [canAccess, session?.user?.company_is_system]);
+  const visibleSystem = React.useMemo(
+    () =>
+      filterSystemNavItems(data.system, {
+        isSystemUser: session?.user?.company_is_system ?? false,
+        can: canAccess,
+      }),
+    [canAccess, session?.user?.company_is_system],
+  );
 
   const teams = React.useMemo(() => {
     const mappedTeams = companies.map((company) => {
@@ -242,9 +245,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <TeamSwitcher teams={teams} />
       </SidebarHeader>
       <SidebarContent>
-        <div className="px-2 pt-2">
-          <GlobalSearch />
-        </div>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">
           {systemItems.length > 0 && <NavProject items={systemItems} />}
           <NavMain items={navItems} />
@@ -255,7 +255,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <span className="truncate text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
             Notificaciones
           </span>
-          <NotificationBell />
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
         </div>
         <NavUser />
       </SidebarFooter>

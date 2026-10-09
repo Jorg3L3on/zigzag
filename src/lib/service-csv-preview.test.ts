@@ -44,7 +44,23 @@ describe('planServiceCsvImport', () => {
     expect(result.data.rows[0]?.status).toBe('ok');
   });
 
-  it('errors on description over 120', () => {
+  it('accepts a description of exactly 240 characters', () => {
+    const result = planServiceCsvImport(
+      [
+        {
+          nombre: 'Largo justo',
+          descripción: 'x'.repeat(240),
+          precio: '1',
+        },
+      ],
+      [],
+    );
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.rows[0]?.status).toBe('ok');
+  });
+
+  it('errors on description over 240', () => {
     const result = planServiceCsvImport(
       [
         {

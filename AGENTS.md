@@ -28,6 +28,7 @@ npm run seed:perf               # 10k tickets / 1k clients for query-budget base
 npm run query:audit             # EXPLAIN ANALYZE + ms budgets (docs/query-budget.md)
 ```
 > **Database:** PostgreSQL. Use a `postgresql://...` URL in `DATABASE_URL`; production migrations should prefer `DIRECT_URL`. The database name in examples is **`zigzag`**.
+> `.env.local` overrides `.env` for the app, Playwright, `drizzle-kit` and scripts (`scripts/load-env.cjs`). E2E mutates data, so run it only against a local or disposable database; `e2e/global-setup.ts` refuses a `*.neon.tech` URL unless `E2E_ALLOW_REMOTE_DB=1`.
 
 ## Architecture
 
@@ -36,7 +37,7 @@ Every resource (Ticket, Client, Service, User, Role, Permission) is scoped by `c
 
 ### Two data-access layers
 - **Server Actions** (`src/actions/`) are the **canonical** path for dashboard UI reads and all mutations on core resources (Tickets, Clients, Services, Users, Companies).
-- **API Routes** (`src/app/api/`) are reserved for **non-UI consumers**: NextAuth, health checks, cron jobs, realtime/SSE, and binary/streaming downloads (ticket invoice PDF, dashboard report PDF, company export bundles). Company operator sub-routes (logo upload, offboard, readiness, entitlements) remain REST where multipart or download semantics require them.
+- **API Routes** (`src/app/api/`) are reserved for **non-UI consumers**: NextAuth, health checks, cron jobs, realtime/SSE, and binary/streaming downloads (ticket invoice PDF, company export bundles). Company operator sub-routes (logo upload, offboard, readiness, entitlements) remain REST where multipart or download semantics require them.
 
 Do not add duplicate mutation handlers in API routes for resources that already have Server Actions. IDOR and RBAC coverage for tenant-owned CRUD lives in `src/lib/*-actions.test.ts` and `docs/idor-audit-matrix.md`.
 
@@ -49,11 +50,20 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 ### Company selection
 `src/contexts/company-context.tsx` stores the selected company in React state and localStorage. This is separate from the session's `company_id`; system users can switch context between companies.
 
+### Mi empresa hub (team and roles)
+- Tenants manage their company at `/company` (layout `src/app/(app)/company/layout.tsx`): tabs **Datos** (`company.manage`), **Equipo** (`/company/equipo`, `users.read`) and **Roles** (`/company/roles`, `/company/roles/[id]`, `/company/roles/nuevo`, `roles.read`). Tab model in `src/lib/company-hub.ts`.
+- Hub actions never take a company id: `src/actions/team.ts` and `src/actions/company-roles.ts` scope to the caller's company and write through the core `users.ts` / `roles.ts` actions.
+- Roles are edited as a Ver/Editar matrix over the existing keys (`src/lib/role-matrix.ts`); keys outside the matrix are preserved. Shared global roles (`company_id` null) are copy-on-write: saving one creates a company-owned copy and moves that company's users onto it.
+- Lockout guards in `src/lib/team-guards.ts`: nobody deactivates themselves (US006); a tenant never loses its last `users.write` / `roles.write` holder through a user or role change (US007, RL006); roles in use cannot be deleted (RL005).
+- `/users`, `/roles`, `/permissions` (Catálogo de permisos) are system-operator pages: tenants are redirected to the hub (`redirectTenantToCompanyHub`) and the pages also call `requireSystemPage()`. The sidebar *Administración* group is empty, hence hidden, for tenants (`filterSystemNavItems`).
+
 ### Mobile & responsive UI
 - Dashboard lists use **TanStack Table** on desktop and **card layout** below `md` (768px). See [.cursor/rules/lists-and-responsive-tables.mdc](.cursor/rules/lists-and-responsive-tables.mdc).
 - **List filters below `lg`:** dense filters open in a bottom Sheet via `ListFilterBarShell` (`src/components/list-filter/`); search + chips stay outside. Resource bars: `*-filter-bar.tsx` (tickets, clients, services, companies, etc.).
 - Breakpoint constant: `MOBILE_BREAKPOINT_PX` in `src/lib/breakpoints.ts`; hook: `src/hooks/use-mobile.tsx`.
 - Sidebar renders as a **sheet** on narrow viewports (`src/components/ui/sidebar.tsx`).
+- **Mobile dock:** floating liquid-glass dock (`src/components/mobile-bottom-dock.tsx`) with Hoy · Tickets · + · Clientes · Más; tabs and + actions come from `MOBILE_TAB_ITEMS` / `MOBILE_CREATE_ACTIONS` in `src/lib/nav-items.ts`. Glass recipes live in `src/components/toolbar-glass.ts` + `.liquid-glass*` in `globals.css`; content clears the dock via `--dock-clearance` (`src/lib/ui/dock-clearance.ts`), so pages never add their own bottom padding for it.
+- **Buttons are always `<Button>`** (default variant = solid blue `bg-primary`). No inline gradients on buttons; `src/lib/no-purple-gradients.test.ts` fails on `to-purple-` / `to-violet-` / `from-blue-600 to-`. Shared motion primitives (`BlurFade`, `NumberTicker`, `BottomSheet`, `ActionSwap`) live in `src/components/motion/` and respect `prefers-reduced-motion`.
 - **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/`. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service **reads** require network. Field **offline job create/edit** uses IndexedDB + outbox (`src/lib/field-jobs/`, see `tasks/prd-offline-first-jobs.md`).
 - Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md). Manual release checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). E2E: `npm run test:e2e` (desktop + `mobile-chrome` Pixel 5); mobile-only: `npm run test:e2e:mobile`.
 
@@ -103,7 +113,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 
 ## Agent skills
 
-Configuration for PRD/issue skills (`start-work`, `prd`, `to-prd`, `to-issues`, `implement-issue`, `fix-bug`, `ship-feature`, `release`, `validate-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Vercel:** [docs/agents/deployment.md](docs/agents/deployment.md) — slice PRs merge to `feat/<slug>`; **`main` stays production** (one merge when PRD is done).
+Configuration for PRD/issue skills (`start-work`, `prd`, `to-prd`, `to-issues`, `implement-issue`, `fix-bug`, `ship-feature`, `release`, `validate-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Branches:** [docs/agents/deployment.md](docs/agents/deployment.md): `sandbox` is the integration branch; slice PRs → `feat/<slug>` → `sandbox`; only Jorge merges `sandbox` → `main` (production).
 
 ### Issue tracker
 
@@ -121,7 +131,7 @@ Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-r
 
 ### Deployment (Vercel)
 
-**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). Slice PRs merge to **`feat/<feature-slug>`** with **no preview deploy** — verify locally. One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).
+**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). **`sandbox`** is the integration branch: initiatives branch `feat/<slug>` off `sandbox`, slice PRs merge into `feat/<slug>` (agents squash-merge once CI is green), and the final PR goes **`feat/<slug>` → `sandbox`**; standalone fixes PR straight into `sandbox`. Agents open but never merge PRs into `sandbox`, and never target `main`: **only Jorge merges `sandbox` → `main`**. Nothing below `main` gets a preview deploy, so verify locally. Ports 3069 and 3071 are Jorge's dev servers; agents use 3072+. See [docs/agents/deployment.md](docs/agents/deployment.md).
 
 ## Cursor Cloud specific instructions
 

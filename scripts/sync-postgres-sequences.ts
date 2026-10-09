@@ -2,7 +2,7 @@
  * Fix SERIAL/BIGSERIAL sequences after rows were inserted with explicit ids.
  * Run: npx tsx scripts/sync-postgres-sequences.ts
  */
-import 'dotenv/config';
+import './load-env.cjs';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';

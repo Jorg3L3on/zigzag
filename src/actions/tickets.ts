@@ -1,10 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, inArray, count, ilike, or } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, count, ilike, or } from 'drizzle-orm';
 import {
   client,
-  service,
   servicesTickets,
   ticket,
   ticketAuditEvent,
@@ -50,13 +49,19 @@ import {
 import { requireTicketRead, requireTicketWrite, requireTenantTicketRead } from '@/lib/tickets-rbac-server';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { isWorkTicket } from '@/lib/ticket-document-kind';
+import {
+  composerServiceLineSchema,
+  serviceLineInputSchema,
+  type ServiceLineInput,
+} from '@/lib/ticket-service-line-schema';
+import {
+  assertCatalogServicesBelongToCompany,
+  catalogServiceIds,
+  insertServiceLines,
+} from '@/lib/service-lines-server';
 import { z } from 'zod';
 
-const ticketServiceLineSchema = z.object({
-  service_id: z.number(),
-  quantity: z.number().finite().min(1),
-  price: z.number().finite().min(0),
-});
+const ticketServiceLineSchema = serviceLineInputSchema;
 
 /** Shell fields only — service lines attach via ticket-services actions (TCI-06). */
 const ticketSchema = z.object({
@@ -76,7 +81,7 @@ const ticketSchema = z.object({
 
 export type CreateTicketInput = z.infer<typeof ticketSchema> & {
   /** Optional replace-all lines on update only; ignored by createTicket. */
-  services?: Array<z.infer<typeof ticketServiceLineSchema>>;
+  services?: ServiceLineInput[];
 };
 
 export type Ticket = {
@@ -231,31 +236,6 @@ const assertTicketNotFullyPaid = async (
   }
 };
 
-const assertServicesBelongToCompany = async (
-  serviceIds: number[],
-  companyId: number,
-) => {
-  const uniqueServiceIds = Array.from(new Set(serviceIds));
-  if (uniqueServiceIds.length === 0) {
-    return;
-  }
-
-  const rows = await db
-    .select({ id: service.id })
-    .from(service)
-    .where(
-      and(
-        inArray(service.id, uniqueServiceIds),
-        eq(service.company_id, companyId),
-        isNull(service.deleted_at),
-      ),
-    );
-
-  if (rows.length !== uniqueServiceIds.length) {
-    throw new AuthorizationError('One or more services are unavailable');
-  }
-};
-
 /** Active client must belong to the ticket company (TCI-01). */
 const assertClientBelongsToCompany = async (
   clientId: number | undefined,
@@ -349,6 +329,159 @@ export async function createTicket(
       return handleCodedServerActionError('tickets.create.validation', 'TC009', error);
     }
     return handleCodedServerActionError('tickets.create', 'TC001', error);
+  }
+}
+
+/** Catalog or inline line (ZIG-I5) with the composer's quantity/price limits. */
+const composerLineSchema = composerServiceLineSchema;
+
+const createTicketWithLinesSchema = z.object({
+  company_id: z.number().int().positive(),
+  client_id: z.number().int().positive(),
+  ticket_date: z.coerce.date(),
+  work_notes: z.string().trim().max(2000).optional().default(''),
+  lines: z.array(composerLineSchema).min(1).max(50),
+  /** What the composer showed; audit only. The server always recomputes the total. */
+  client_total: z.number().finite().optional(),
+});
+
+export type CreateTicketWithLinesInput = z.input<
+  typeof createTicketWithLinesSchema
+>;
+
+const TICKET_EMAIL_MAX_LENGTH = 40;
+
+/**
+ * Nuevo ticket composer (ZIG-I2 D2): creates the ticket and all its lines in one
+ * transaction. Nothing is persisted before this call. Client snapshot fields come
+ * from the tenant's client row and the total is server-authoritative.
+ */
+export async function createTicketWithLines(
+  input: CreateTicketWithLinesInput,
+): Promise<{
+  success: boolean;
+  data?: { id: string; total: number };
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const validated = createTicketWithLinesSchema.parse(input);
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      validated.company_id,
+    );
+
+    await assertCompanyProductionReady(effectiveCompanyId);
+
+    const clientRow = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, validated.client_id),
+        eq(client.company_id, effectiveCompanyId),
+        isNull(client.deleted_at),
+      ),
+      columns: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        document: true,
+      },
+    });
+    if (!clientRow) {
+      throw new AuthorizationError('Client not found for this company');
+    }
+
+    await assertCatalogServicesBelongToCompany(
+      db,
+      catalogServiceIds(validated.lines),
+      effectiveCompanyId,
+    );
+
+    const ticketValues = {
+      client_id: clientRow.id,
+      client_name: clientRow.name.slice(0, 100),
+      client_tel: clientRow.phone ?? '',
+      email:
+        clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
+          ? clientRow.email
+          : null,
+      document: clientRow.document ?? null,
+      work_notes: validated.work_notes || null,
+      ticket_date: validated.ticket_date,
+      company_id: effectiveCompanyId,
+      userId: BigInt(context.userId),
+      document_kind: 'ticket' as const,
+      finished: false,
+      paid: 0,
+      total: 0,
+    };
+
+    const runTransaction = () =>
+      db.transaction(async (tx) => {
+        const [created] = await tx.insert(ticket).values(ticketValues).returning();
+
+        const { rows: lineRows, createdServiceIds } = await insertServiceLines(
+          tx,
+          {
+            companyId: effectiveCompanyId,
+            ticketId: created.id,
+            lines: validated.lines,
+          },
+        );
+
+        const syncedTotal = await syncTicketTotal(tx, created.id);
+
+        await recordTicketAudit(
+          tx,
+          context,
+          created.id,
+          effectiveCompanyId,
+          'created',
+          {
+            ticket: { ...created, total: syncedTotal },
+            source: 'composer',
+            lines: lineRows,
+            ...(createdServiceIds.length > 0
+              ? { savedToCatalogServiceIds: createdServiceIds }
+              : {}),
+            syncedTotal,
+            ignoredClientTotal: validated.client_total ?? null,
+          },
+        );
+
+        return { id: created.id, total: syncedTotal };
+      });
+
+    let created: { id: bigint; total: number };
+    try {
+      created = await runTransaction();
+    } catch (error) {
+      if (!isTicketPrimaryKeyConflict(error)) {
+        throw error;
+      }
+      await syncTicketIdSequence();
+      created = await runTransaction();
+    }
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+    revalidatePath('/dashboard');
+    revalidatePath('/tickets');
+    revalidatePath(`/tickets/${String(created.id)}`);
+
+    return {
+      success: true,
+      data: { id: String(created.id), total: created.total },
+    };
+  } catch (error) {
+    if (error instanceof CompanyProductionBlockedError) {
+      return handleServerActionError(error);
+    }
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) {
+      return handleServerActionError(error);
+    }
+    if (error instanceof z.ZodError) {
+      return buildActionError('TC009', error, 'validation');
+    }
+    return handleCodedServerActionError('tickets.composer.create', 'TC001', error);
   }
 }
 
@@ -613,18 +746,18 @@ export async function updateTicket(
       await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
     }
 
-    const servicesToSync = Array.isArray(data.services) ? data.services : null;
+    const servicesToSync = Array.isArray(data.services)
+      ? z.array(ticketServiceLineSchema).parse(data.services)
+      : null;
     const hasServicesUpdate = servicesToSync !== null;
-    if (hasServicesUpdate) {
-      z.array(ticketServiceLineSchema).parse(servicesToSync);
-    }
     const totalFromServices = hasServicesUpdate
       ? calculateTicketTotal(servicesToSync)
       : undefined;
 
     if (hasServicesUpdate) {
-      await assertServicesBelongToCompany(
-        servicesToSync.map((row) => row.service_id),
+      await assertCatalogServicesBelongToCompany(
+        db,
+        catalogServiceIds(servicesToSync),
         effectiveCompanyId,
       );
     }
@@ -655,14 +788,11 @@ export async function updateTicket(
           );
 
         if (servicesToSync.length) {
-          await tx.insert(servicesTickets).values(
-            servicesToSync.map((service) => ({
-              service_id: service.service_id,
-              ticket_id: ticketId,
-              quantity: service.quantity,
-              price: service.price,
-            })),
-          );
+          await insertServiceLines(tx, {
+            companyId: effectiveCompanyId,
+            ticketId,
+            lines: servicesToSync,
+          });
         }
       }
 

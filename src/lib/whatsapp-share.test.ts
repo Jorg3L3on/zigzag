@@ -5,6 +5,7 @@ import {
   buildWhatsAppHref,
   buildWhatsAppOfflineReceiptShare,
   buildWhatsAppQuoteShare,
+  buildWhatsAppReceiptShare,
   buildWhatsAppVisitShare,
   buildOfflineReceiptText,
   normalizePhoneForWhatsApp,
@@ -124,5 +125,31 @@ describe('whatsapp-share', () => {
     });
     expect(result?.href.startsWith('https://wa.me/5512345678?text=')).toBe(true);
     expect(result?.message).toContain('RECIBO SIMPLE');
+  });
+
+  it('builds a Spanish receipt message with total, paid and balance', () => {
+    const share = buildWhatsAppReceiptShare({
+      phone: '961 315 1559',
+      clientName: 'Leon',
+      ticketId: 1201,
+      total: 12950,
+      paid: 5000,
+      companyName: 'ClimaTotal',
+    });
+    expect(share?.href.startsWith('https://wa.me/')).toBe(true);
+    expect(share?.message).toContain('Hola, te escribe ClimaTotal.');
+    expect(share?.message).toContain('recibo del ticket #1201 a nombre de Leon');
+    expect(share?.message).toMatch(/saldo/);
+  });
+
+  it('omits the balance once the receipt is fully paid', () => {
+    const share = buildWhatsAppReceiptShare({
+      phone: '9613151559',
+      clientName: 'Leon',
+      ticketId: 1201,
+      total: 100,
+      paid: 100,
+    });
+    expect(share?.message).not.toMatch(/saldo/);
   });
 });

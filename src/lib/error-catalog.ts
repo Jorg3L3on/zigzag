@@ -309,6 +309,20 @@ export const ERROR_CATALOG = {
     message: 'Intenta de nuevo en unos momentos.',
     type: 'server',
   },
+  RL005: {
+    code: 'RL005',
+    module: 'roles',
+    title: 'Este rol está en uso',
+    message: 'Cambia de rol a las personas que lo tienen antes de eliminarlo.',
+    type: 'validation',
+  },
+  RL006: {
+    code: 'RL006',
+    module: 'roles',
+    title: 'Tu empresa se quedaría sin administrador',
+    message: 'Nadie más podría gestionar el equipo o los roles. Deja Equipo y Roles en Editar, o da ese permiso a otro rol con personas asignadas.',
+    type: 'validation',
+  },
   SV001: {
     code: 'SV001',
     module: 'services',
@@ -483,6 +497,20 @@ export const ERROR_CATALOG = {
     module: 'users',
     title: 'Datos del usuario inválidos',
     message: 'Revisa los campos marcados e intenta de nuevo.',
+    type: 'validation',
+  },
+  US006: {
+    code: 'US006',
+    module: 'users',
+    title: 'No puedes desactivar tu propia cuenta',
+    message: 'Pide a otro administrador que lo haga si de verdad quieres salir del equipo.',
+    type: 'validation',
+  },
+  US007: {
+    code: 'US007',
+    module: 'users',
+    title: 'Tu empresa se quedaría sin administrador',
+    message: 'Esta es la única persona que puede gestionar el equipo. Da ese permiso a alguien más antes de quitárselo o desactivarla.',
     type: 'validation',
   },
 } as const satisfies Record<string, ErrorCatalogEntry>;

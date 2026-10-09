@@ -1,7 +1,7 @@
 ---
 name: implement-issue
 description: >-
-  Implement a single GitHub issue, open a PR into the feature integration branch (not main),
+  Implement a single GitHub issue, open a PR into the initiative branch feat/<slug> (or sandbox),
   and babysit until merge-ready. Use for implement issue, ship slice, or work on #N.
 ---
 
@@ -9,9 +9,9 @@ description: >-
 
 Take one **slice issue** through code, checks, PR creation, and merge-ready CI.
 
-**Never merge to `main`** or run `vercel deploy --prod` / `vercel promote` — human only.
+**Never merge into `sandbox` or `main`** or run `vercel deploy --prod` / `vercel promote` — Jorge only.
 
-**Vercel:** `main` = production. Slice PRs target **`feat/<feature-slug>`** ([docs/agents/deployment.md](../../docs/agents/deployment.md)). When invoked from **`ship-feature`**, use that run's integration branch. Standalone: ask user for base branch or default `feat/<slug>` if obvious from issue/PRD.
+**Branches:** `main` = production, `sandbox` = integration. Slice PRs target the initiative branch **`feat/<feature-slug>`** ([docs/agents/deployment.md](../../docs/agents/deployment.md)). When invoked from **`ship-feature`**, use that run's integration branch. A standalone ticket with no initiative targets `sandbox`. If unsure, ask for the base branch.
 
 Read **`docs/agents/issue-tracker.md`**, **`docs/agents/triage-labels.md`**, **`docs/agents/domain.md`**, and **[AGENTS.md](../../AGENTS.md)** first.
 
@@ -30,14 +30,14 @@ Read **`docs/agents/issue-tracker.md`**, **`docs/agents/triage-labels.md`**, **`
 gh issue view <N> --json number,title,body,labels,state
 ```
 
-### 2. Branch from integration branch (not main)
+### 2. Branch from the integration branch (not `main`)
 
 ```bash
 git checkout <integration-branch> && git pull
 git checkout -b feat/<N>-<short-slug>
 ```
 
-For hotfixes on `main` only when user explicitly says production hotfix: branch from `main` and PR to `main` (single-slice exception).
+Urgent fixes also branch from `sandbox` and PR into `sandbox`; Jorge decides when `sandbox` goes to `main`.
 
 ### 3. Implement
 
@@ -71,18 +71,18 @@ gh issue edit <N> --add-label "status:in-progress" --remove-label "ready-for-age
 
 ### 8. Babysit
 
-Follow **babysit** skill. Rebase/merge latest `<integration-branch>` if needed — **not** `main` unless PR base is `main`.
+Follow **babysit** skill. Merge the latest `<integration-branch>` in if needed (no rebase, no force-push); never `main`.
 
-**Do not:** `gh pr merge`, auto-merge, push to `main`.
+When the base is a `feat/<slug>` branch, squash-merge the PR yourself once CI is green. **Do not** merge into `sandbox` or `main`, enable auto-merge there, or push to them.
 
 ### 9. Hand off
 
 ```text
-PR ready: merge into <integration-branch> (no Vercel preview; verify locally). Not main / not production.
+PR ready for <integration-branch> (no Vercel preview; verify locally). Not production.
 ```
 
-If this was the last slice for the feature, remind user: one PR **`<integration-branch>` → `main`** when the PRD is complete.
+If this was the last slice for the feature, open (or remind about) the PR **`feat/<slug>` → `sandbox`**; Jorge merges it and later releases `sandbox` → `main`.
 
-## After human merges slice PR
+## After the slice PR is merged
 
 Issue closes via `Closes #N` when merged into the integration branch.

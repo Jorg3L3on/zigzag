@@ -112,6 +112,12 @@ describe('ticket PDF data', () => {
     );
   });
 
+  it('prefixes presupuesto file names (ZIG-I5-4)', () => {
+    expect(
+      buildTicketPdfFileName({ ...baseTicket, document_kind: 'presupuesto' }),
+    ).toBe('presupuesto_Acme Corp_2026-03-15_42.pdf');
+  });
+
   it('falls back when client name has unsafe characters', () => {
     const fileName = buildTicketPdfFileName({
       ...baseTicket,

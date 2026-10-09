@@ -2,6 +2,11 @@ import { format } from 'date-fns';
 import type { InvoiceData } from '@/components/pdf/invoice-types';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import type { TicketDetailData } from '@/actions/tickets';
+import {
+  getServiceLineDescription,
+  getServiceLineName,
+} from '@/lib/service-line-display';
+import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 
 /** Builds PDF payload for `InvoiceTemplate` from a ticket loaded with company + services. */
 export const buildInvoiceDataFromTicketDetail = (
@@ -17,7 +22,7 @@ export const buildInvoiceDataFromTicketDetail = (
       : 0;
 
   const items = ticket.services_tickets.map((st) => ({
-    description: `${st.service?.name ?? 'Servicio'}|||${st.service?.description ?? ''}`,
+    description: `${getServiceLineName(st)}|||${getServiceLineDescription(st)}`,
     quantity: String(st.quantity),
     unitPrice: st.price.toFixed(2),
     total: (st.quantity * st.price).toFixed(2),
@@ -48,11 +53,17 @@ export const buildInvoiceDataFromTicketDetail = (
   };
 };
 
-export const buildTicketPdfFileName = (ticket: TicketDetailData): string => {
+export const buildTicketPdfFileName = (
+  ticket: Pick<TicketDetailData, 'id' | 'client_name' | 'ticket_date'> & {
+    document_kind?: string | null;
+  },
+): string => {
   const safeName = (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() || 'ticket';
   const datePart = ticket.ticket_date
     ? format(new Date(ticket.ticket_date), 'yyyy-MM-dd')
     : format(new Date(), 'yyyy-MM-dd');
+  // Quotes download as presupuesto_<cliente>_<fecha>_<id>.pdf (ZIG-I5-4).
+  const prefix = isPresupuestoTicket(ticket.document_kind) ? 'presupuesto_' : '';
 
-  return `${safeName}_${datePart}_${String(ticket.id)}.pdf`;
+  return `${prefix}${safeName}_${datePart}_${String(ticket.id)}.pdf`;
 };

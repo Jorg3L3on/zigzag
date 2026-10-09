@@ -4,12 +4,16 @@ import type { ReactNode } from 'react';
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { MobileBottomTabBar } from '@/components/mobile-bottom-tab-bar';
+import { MobileBottomDock } from '@/components/mobile-bottom-dock';
 import { OperatorTenantCompanySync } from '@/components/operator-tenant-company-sync';
 import { MobileChromeProvider, useMobileChrome } from '@/contexts/mobile-chrome-context';
 import { useDisplayModeStandalone } from '@/hooks/use-display-mode-standalone';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX } from '@/lib/nav-items';
+import {
+  DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS,
+  DOCK_CLEARANCE_HEIGHT_CLASS,
+} from '@/lib/ui/dock-clearance';
+import { cn } from '@/lib/utils';
 
 const IDLE_PREFETCH_SESSION_KEY = 'zigzag:mobile-shell-prefetched';
 const IDLE_PREFETCH_ROUTES = [
@@ -70,18 +74,18 @@ const IdlePrefetch = () => {
 
 const MobileBottomTabSpacer = () => {
   const { hasStickyAction } = useMobileChrome();
-  if (hasStickyAction) {
-    return null;
-  }
 
+  // The dock is always shown; a sticky action bar stacks above it.
   return (
     <div
       aria-hidden
       data-testid="mobile-bottom-tab-spacer"
-      className="shrink-0 md:hidden"
-      style={{
-        height: `calc(${MOBILE_BOTTOM_TAB_BAR_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))`,
-      }}
+      className={cn(
+        'shrink-0 md:hidden',
+        hasStickyAction
+          ? DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS
+          : DOCK_CLEARANCE_HEIGHT_CLASS,
+      )}
     />
   );
 };
@@ -115,7 +119,7 @@ const DisplayModeStandaloneMarker = () => {
 };
 
 /**
- * Mobile chrome for authenticated shell: bottom tabs + spacer, with sticky-action
+ * Mobile chrome for authenticated shell: floating dock + clearance spacer, with sticky-action
  * coexistence via MobileChromeProvider.
  */
 export const AppMobileChrome = ({ children }: { children: ReactNode }) => {
@@ -126,7 +130,7 @@ export const AppMobileChrome = ({ children }: { children: ReactNode }) => {
       <IdlePrefetch />
       <AppContentTransition>{children}</AppContentTransition>
       <MobileBottomTabSpacer />
-      <MobileBottomTabBar />
+      <MobileBottomDock />
     </MobileChromeProvider>
   );
 };

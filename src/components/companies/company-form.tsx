@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, type Resolver } from 'react-hook-form';
+import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -43,6 +43,22 @@ import {
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
+import { CompanyFormSection } from '@/components/companies/company-form-section';
+import { TripledMobileStickyActionBar } from '@/components/tripled';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  DEFAULT_COMPANY_FORM_SECTIONS,
+  firstInvalidCompanyField,
+  readCompanyFormSections,
+  summarizeCompanyAddress,
+  summarizeCompanyGeneral,
+  summarizeCompanySettings,
+  writeCompanyFormSections,
+  type CompanyFormSectionKey,
+  type CompanyFormSectionState,
+} from '@/lib/company-form-sections';
+
+const COMPANY_FORM_ID = 'company-form';
 
 const defaultSettings = {
   rfc: '',
@@ -80,16 +96,43 @@ interface CompanyFormProps {
    * returns to the company settings page.
    */
   mode?: 'system' | 'self';
+  /**
+   * Collapsible General / Dirección / Configuración below md with a sticky
+   * Guardar (ZIG-I3-2). Defaults to true for `mode="self"`; the operator form
+   * at /companies/[id] keeps the flat layout.
+   */
+  sectioned?: boolean;
 }
 
 export const CompanyForm = ({
   company,
   mode = 'system',
+  sectioned,
 }: CompanyFormProps) => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEdit = Boolean(company);
   const isSelfService = mode === 'self';
+  const isSectioned = sectioned ?? isSelfService;
+  const isMobile = useIsMobile();
+  const collapsible = isSectioned && isMobile;
+  // Read synchronously on the client: the saved state only shows once the
+  // form switches to mobile after hydration, so it cannot mismatch the server
+  // markup, and no later effect flips a section the user already toggled.
+  const [openSections, setOpenSections] = React.useState<CompanyFormSectionState>(
+    () =>
+      isSectioned && typeof window !== 'undefined'
+        ? readCompanyFormSections()
+        : DEFAULT_COMPANY_FORM_SECTIONS,
+  );
+
+  const setSectionOpen = (key: CompanyFormSectionKey, open: boolean) => {
+    setOpenSections((current) => {
+      const next = { ...current, [key]: open };
+      writeCompanyFormSections(next);
+      return next;
+    });
+  };
 
   const form = useForm<CompanyBootstrapFormValues>({
     resolver: (isEdit
@@ -176,14 +219,54 @@ export const CompanyForm = ({
     }
   };
 
+  // A field hidden in a closed section: open it, then focus and scroll to it.
+  const handleInvalid = (errors: FieldErrors<CompanyBootstrapFormValues>) => {
+    if (!collapsible) {
+      return;
+    }
+    const hit = firstInvalidCompanyField(errors as Record<string, unknown>);
+    if (!hit) {
+      return;
+    }
+    setSectionOpen(hit.section, true);
+    window.requestAnimationFrame(() => {
+      form.setFocus(hit.field as keyof CompanyBootstrapFormValues);
+      document
+        .querySelector(`[name="${hit.field}"]`)
+        ?.scrollIntoView({ block: 'center' });
+    });
+  };
+
+  const values = form.watch();
+  // Separators only on md+ for sectioned forms (cards replace them on mobile);
+  // CSS rather than isMobile so hydration does not change the DOM.
+  const sectionSeparatorClass = isSectioned ? 'hidden md:block' : undefined;
+  const submitLabel = isSubmitting
+    ? 'Guardando…'
+    : isEdit
+      ? 'Guardar cambios'
+      : 'Crear empresa';
+  const logoUpload = company ? (
+    <CompanyLogoUpload companyId={company.id} logoUrl={company.logo} />
+  ) : null;
+
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-8"
+        id={COMPANY_FORM_ID}
+        onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
+        className={isSectioned ? 'space-y-4 md:space-y-8' : 'space-y-8'}
+        noValidate={isSectioned}
       >
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">General</h3>
+        <CompanyFormSection
+          title="General"
+          summary={summarizeCompanyGeneral(values)}
+          sectioned={isSectioned}
+          collapsible={collapsible}
+          open={openSections.general}
+          onOpenChange={(open) => setSectionOpen('general', open)}
+          testId="company-form-section-general"
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
@@ -251,24 +334,28 @@ export const CompanyForm = ({
               )}
             />
           </div>
-        </div>
+          {/* Sectioned forms keep the logo inside General. */}
+          {isSectioned && logoUpload ? <div className="pt-6">{logoUpload}</div> : null}
+        </CompanyFormSection>
 
-        {company ? (
+        {!isSectioned && logoUpload ? (
           <>
             <Separator />
-            <CompanyLogoUpload
-              companyId={company.id}
-              logoUrl={company.logo}
-            />
+            {logoUpload}
           </>
         ) : null}
 
-        <Separator />
+        <Separator className={sectionSeparatorClass} />
 
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Dirección
-          </h3>
+        <CompanyFormSection
+          title="Dirección"
+          summary={summarizeCompanyAddress(values)}
+          sectioned={isSectioned}
+          collapsible={collapsible}
+          open={openSections.direccion}
+          onOpenChange={(open) => setSectionOpen('direccion', open)}
+          testId="company-form-section-direccion"
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
@@ -375,7 +462,7 @@ export const CompanyForm = ({
               )}
             />
           </div>
-        </div>
+        </CompanyFormSection>
 
         {!isEdit ? (
           <>
@@ -441,12 +528,17 @@ export const CompanyForm = ({
           </>
         ) : null}
 
-        <Separator />
+        <Separator className={sectionSeparatorClass} />
 
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            Configuración
-          </h3>
+        <CompanyFormSection
+          title="Configuración"
+          summary={summarizeCompanySettings(values.settings)}
+          sectioned={isSectioned}
+          collapsible={collapsible}
+          open={openSections.configuracion}
+          onOpenChange={(open) => setSectionOpen('configuracion', open)}
+          testId="company-form-section-configuracion"
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
@@ -520,20 +612,32 @@ export const CompanyForm = ({
               )}
             />
           </div>
-        </div>
+        </CompanyFormSection>
 
         <Button
-          className="min-h-11 w-full sm:w-auto"
+          className={
+            isSectioned
+              ? 'hidden min-h-11 md:inline-flex'
+              : 'min-h-11 w-full sm:w-auto'
+          }
           type="submit"
           disabled={isSubmitting}
         >
-          {isSubmitting
-            ? 'Guardando…'
-            : isEdit
-              ? 'Guardar cambios'
-              : 'Crear empresa'}
+          {submitLabel}
         </Button>
       </form>
+      {isSectioned ? (
+        <TripledMobileStickyActionBar>
+          <Button
+            type="submit"
+            form={COMPANY_FORM_ID}
+            className="h-12 w-full text-base"
+            disabled={isSubmitting}
+          >
+            {submitLabel}
+          </Button>
+        </TripledMobileStickyActionBar>
+      ) : null}
     </Form>
   );
 };

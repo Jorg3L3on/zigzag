@@ -11,13 +11,12 @@ import {
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
 import { usePermissions } from '@/hooks/use-permissions';
+import { COMPANY_HUB_TEAM_PATH } from '@/lib/company-hub';
 import { quickActionPriority } from '@/lib/dashboard-composition';
 import type { DashboardPersona } from '@/lib/dashboard-persona';
 import { PERMISSIONS } from '@/lib/permissions';
 import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
-import { cn } from '@/lib/utils';
 
 type QuickAction = {
   key: string;
@@ -86,7 +85,7 @@ export const DashboardQuickActions = ({
     candidates.push({
       key: 'create-user',
       label: 'Invitar usuario',
-      href: '/users',
+      href: COMPANY_HUB_TEAM_PATH,
       icon: <UserPlus className="h-4 w-4" aria-hidden />,
     });
   }
@@ -100,7 +99,7 @@ export const DashboardQuickActions = ({
     return aRank - bRank;
   });
 
-  // Viewers: composition hides this widget entirely. If shown, only keep
+  // Viewers: composition hides the row entirely. If shown, only keep
   // actions the user can execute (already filtered by `can`).
   if (actions.length === 0) {
     return null;
@@ -108,24 +107,12 @@ export const DashboardQuickActions = ({
 
   const primaryKey = actions[0]?.key;
 
+  // Chip row under the greeting: scrolls sideways on phones, wraps from sm up.
   return (
-    <section
-      className={cn(DASHBOARD_CARD_CLASS, 'rounded-xl border p-4 sm:p-5')}
-      aria-label="Acciones rápidas"
-    >
-      <div className="mb-3 space-y-1">
-        <h2 className="text-base font-semibold tracking-tight">
-          Acciones rápidas
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {persona === 'operator'
-            ? 'Atajos para el trabajo del día'
-            : 'Atajos a las tareas más frecuentes'}
-        </p>
-      </div>
-      <ul className="flex flex-wrap gap-2">
+    <nav aria-label="Acciones rápidas" data-testid="dashboard-quick-actions">
+      <ul className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
         {actions.map((action) => (
-          <li key={action.key}>
+          <li key={action.key} className="shrink-0 snap-start">
             <Button
               asChild
               variant={action.key === primaryKey ? 'default' : 'outline'}
@@ -140,6 +127,6 @@ export const DashboardQuickActions = ({
           </li>
         ))}
       </ul>
-    </section>
+    </nav>
   );
 };

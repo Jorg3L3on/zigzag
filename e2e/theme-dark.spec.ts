@@ -132,9 +132,9 @@ const DARK_ROUTES = [
   {
     path: '/tickets/create',
     ready: async (page: Page) => {
-      await expect(page.getByText('Información del cliente').first()).toBeVisible({
-        timeout: 15_000,
-      });
+      await expect(
+        page.getByRole('heading', { name: 'Cliente', exact: true }),
+      ).toBeVisible({ timeout: 15_000 });
     },
   },
 ] as const;
@@ -179,8 +179,9 @@ test.describe('Dark theme surfaces', () => {
 
     const sidebar = page.locator('[data-sidebar="sidebar"]:visible').first();
     const main = page.locator('main').first();
-    const darkToggle = page.getByRole('button', { name: /Activar modo oscuro/i });
-    const lightToggle = page.getByRole('button', { name: /Activar modo claro/i });
+    const darkToggle = sidebar.getByRole('button', { name: /Activar modo oscuro/i });
+    const lightToggle = sidebar.getByRole('button', { name: /Activar modo claro/i });
+    await expect(darkToggle.or(lightToggle)).toBeVisible();
 
     // Start from a known light state (system may already be dark).
     if (await lightToggle.isVisible().catch(() => false)) {
@@ -192,40 +193,47 @@ test.describe('Dark theme surfaces', () => {
 
     await darkToggle.click();
     await expect(page.locator('html')).toHaveClass(/dark/);
-    await expect(
-      page.getByRole('button', { name: /Activar modo claro/i }),
-    ).toBeVisible();
+    await expect(lightToggle).toBeVisible();
+    // The reveal attribute is cleared once the View Transition finishes.
+    await expect(page.locator('html')).not.toHaveAttribute('data-theme-vt');
     await expectSurfaceIsDark(sidebar, 'sidebar after enabling dark');
     await expectSurfaceIsDark(main, 'main after enabling dark');
 
-    await page.getByRole('button', { name: /Activar modo claro/i }).click();
+    await lightToggle.click();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
     await expectSurfaceIsLight(sidebar, 'sidebar after returning to light');
     await expectSurfaceIsLight(main, 'main after returning to light');
   });
 
-  test('theme toggle stays top-right on company page', async ({ page }) => {
+  test('theme toggle sits next to the bell in the sidebar footer, not the header', async ({
+    page,
+  }) => {
     await page.goto('/company');
     await expect(
       page.getByTestId('page-header').getByText('Mi empresa'),
     ).toBeVisible({ timeout: 15_000 });
 
-    const header = page.getByTestId('page-header');
-    const toggle = header.getByRole('button', {
+    await expect(
+      page
+        .getByTestId('page-header')
+        .getByRole('button', { name: /Activar modo (oscuro|claro)/i }),
+    ).toHaveCount(0);
+
+    const footer = page.locator('[data-sidebar="footer"]:visible').first();
+    const bell = footer.getByRole('button', { name: /^Notificaciones/ });
+    const toggle = footer.getByRole('button', {
       name: /Activar modo (oscuro|claro)/i,
     });
+    await expect(bell).toBeVisible();
     await expect(toggle).toBeVisible();
 
-    const headerBox = await header.boundingBox();
+    const bellBox = await bell.boundingBox();
     const toggleBox = await toggle.boundingBox();
-    expect(headerBox).toBeTruthy();
+    expect(bellBox).toBeTruthy();
     expect(toggleBox).toBeTruthy();
-
-    // Toggle should sit in the right quarter of the header, not beside the title.
-    expect(toggleBox!.x).toBeGreaterThan(headerBox!.x + headerBox!.width * 0.7);
-    expect(toggleBox!.x + toggleBox!.width).toBeLessThanOrEqual(
-      headerBox!.x + headerBox!.width + 1,
-    );
+    // Same row, toggle right after the bell.
+    expect(Math.abs(toggleBox!.y - bellBox!.y)).toBeLessThan(4);
+    expect(toggleBox!.x).toBeGreaterThan(bellBox!.x);
   });
 
   test('dark tickets list matches baseline', async ({ page }) => {

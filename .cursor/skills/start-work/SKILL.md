@@ -23,8 +23,8 @@ Ask **one** clarifying question if unclear, then invoke the skill below. Do not 
 
 | User intent | Command to run | What happens |
 | ----------- | -------------- | -------------- |
-| **Bug** — something is broken | **`fix-bug #N`** | Branch from `main` → fix → PR to `main` |
-| **Small change** — docs, chore, one PR | Describe the change; branch `chore/` or `fix/` from `main` | Direct implement + PR to `main` (no PRD) |
+| **Bug** — something is broken | **`fix-bug #N`** | Branch from `sandbox` → fix → PR to `sandbox` |
+| **Small change** — docs, chore, one PR | Describe the change; branch `slice/…` from `sandbox` | Direct implement + PR to `sandbox` (no PRD) |
 | **New idea** — scope unclear | **`prd`** | Interview → `tasks/prd-<name>.md` |
 | **New feature** — discussed in chat, ready to plan | **`to-prd`** | GitHub parent issue + optional local PRD |
 | **Medium feature** — 1–2 issues, clear scope | **`to-prd`** then **`implement-issue #N`** | Skip `ship-feature` |

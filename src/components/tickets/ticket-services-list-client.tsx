@@ -9,7 +9,6 @@ import {
   TripledDashboardShell,
   TripledMobileAppBar,
   TripledPageHeader,
-  TripledStepper,
 } from '@/components/tripled';
 import { TicketAddServicePanel } from '@/components/tickets/ticket-add-service-panel';
 import { TicketServicesTable } from '@/components/tickets/ticket-services-table';
@@ -43,12 +42,18 @@ export function TicketServicesListClient({
     isDialogOpen,
     isSubmitting,
     searchTerm,
-    isCreatingNewService,
+    lineMode,
+    customName,
+    customDescription,
+    saveToCatalog,
+    setLineMode,
+    setCustomName,
+    setCustomDescription,
+    setSaveToCatalog,
     setIsDialogOpen,
     setSearchTerm,
     setQuantity,
     setPrice,
-    setIsCreatingNewService,
     resetForm,
     handleServiceSelect,
     handleAddService,
@@ -56,7 +61,6 @@ export function TicketServicesListClient({
     handleServiceQuantityChange,
     handleServicePriceChange,
     handleDeleteService,
-    handleServiceCreated,
   } = useTicketServicesList({
     ticketId,
     companyId: selectedCompany?.id,
@@ -116,14 +120,6 @@ export function TicketServicesListClient({
           className="mb-3"
         />
         <div className="space-y-4">
-          <TripledStepper
-            steps={[
-              { id: 'create', title: 'Datos del ticket' },
-              { id: 'services', title: 'Servicios' },
-              { id: 'review', title: 'Revisión y PDF' },
-            ]}
-            currentStepId="services"
-          />
           <Card className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-black/5 dark:ring-white/10">
             <CardHeader className="border-b border-border/50 bg-gradient-to-br from-muted/35 via-background to-background px-5 py-6 sm:px-8 sm:py-7">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -132,7 +128,7 @@ export function TicketServicesListClient({
                     Servicios asignados
                   </CardTitle>
                   <CardDescription className="text-base">
-                    Lista de servicios asignados a este ticket
+                    Agrega, edita o quita servicios de este ticket
                   </CardDescription>
                 </div>
                 <TicketAddServicePanel
@@ -159,10 +155,14 @@ export function TicketServicesListClient({
                   onPriceAdjust={(nextValue) =>
                     setPrice(String(Math.max(nextValue, 0)))
                   }
-                  isCreatingNewService={isCreatingNewService}
-                  onStartCreateService={() => setIsCreatingNewService(true)}
-                  onCancelCreateService={() => setIsCreatingNewService(false)}
-                  onServiceCreated={handleServiceCreated}
+                  lineMode={lineMode}
+                  onLineModeChange={setLineMode}
+                  customName={customName}
+                  onCustomNameChange={setCustomName}
+                  customDescription={customDescription}
+                  onCustomDescriptionChange={setCustomDescription}
+                  saveToCatalog={saveToCatalog}
+                  onSaveToCatalogChange={setSaveToCatalog}
                   isSubmitting={isSubmitting}
                   onAddService={handleAddService}
                 />

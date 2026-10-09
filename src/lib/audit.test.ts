@@ -13,6 +13,31 @@ import {
   sanitizeUserForAudit,
   toAuditJson,
 } from '@/lib/audit';
+import { auditOutbox } from '@/db/schema';
+import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
+
+// Hermetic: the outbox fallback must never reach a real database, even when a
+// local .env provides DATABASE_URL (next/jest loads it).
+jest.mock('@/lib/db', () => ({
+  db: { insert: jest.fn() },
+}));
+
+jest.mock('@/lib/logger', () => ({
+  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
+}));
+
+const mockDb = db as unknown as { insert: jest.Mock };
+const mockLoggerError = logger.error as jest.Mock;
+
+/** db.insert(table).values(row) → resolves, or rejects with `error`. */
+const mockOutboxInsert = (error?: Error) => {
+  const values = jest.fn(async () => {
+    if (error) throw error;
+  });
+  mockDb.insert.mockReturnValue({ values });
+  return values;
+};
 
 describe('audit-catalog', () => {
   it('accepts known resource types, actions, and results', () => {
@@ -99,6 +124,10 @@ describe('audit recorder helpers', () => {
 });
 
 describe('recordAuditEvent', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('inserts a normalized audit row', async () => {
     const values: Record<string, unknown>[] = [];
     const tx = {
@@ -140,7 +169,8 @@ describe('recordAuditEvent', () => {
     });
   });
 
-  it('does not throw when catalog validation fails', async () => {
+  it('does not throw when catalog validation fails and captures to the outbox', async () => {
+    const outboxValues = mockOutboxInsert();
     const tx = {
       insert: () => ({
         values: async () => {
@@ -158,9 +188,54 @@ describe('recordAuditEvent', () => {
         source: 'action',
       }),
     ).resolves.toBeUndefined();
+
+    expect(mockDb.insert).toHaveBeenCalledWith(auditOutbox);
+    expect(outboxValues).toHaveBeenCalledWith({
+      event: expect.objectContaining({
+        resource_type: 'not-real',
+        action: 'created',
+        target_company_id: null,
+      }),
+    });
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      '[audit] direct write failed; capturing to outbox',
+      expect.objectContaining({ resourceType: 'not-real' }),
+    );
   });
 
-  it('does not throw when insert fails', async () => {
+  it('does not throw when insert fails and captures the event to the outbox', async () => {
+    const outboxValues = mockOutboxInsert();
+    const tx = {
+      insert: () => ({
+        values: async () => {
+          throw new Error('db down');
+        },
+      }),
+    };
+
+    await expect(
+      recordAuditEvent(tx, {
+        targetCompanyId: 1,
+        resourceType: 'ticket',
+        resourceId: BigInt(100),
+        action: 'created',
+        result: 'success',
+        source: 'action',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(outboxValues).toHaveBeenCalledTimes(1);
+    expect(outboxValues).toHaveBeenCalledWith({
+      event: expect.objectContaining({
+        resource_type: 'ticket',
+        resource_id: '100',
+        target_company_id: 1,
+      }),
+    });
+  });
+
+  it('does not throw when the outbox capture also fails', async () => {
+    mockOutboxInsert(new Error('outbox down'));
     const tx = {
       insert: () => ({
         values: async () => {
@@ -178,5 +253,28 @@ describe('recordAuditEvent', () => {
         source: 'action',
       }),
     ).resolves.toBeUndefined();
+
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      '[audit] outbox capture failed',
+      expect.objectContaining({ resourceType: 'ticket' }),
+    );
+  });
+
+  it('does not touch the outbox when the direct write succeeds', async () => {
+    const tx = {
+      insert: () => ({
+        values: async () => undefined,
+      }),
+    };
+
+    await recordAuditEvent(tx, {
+      targetCompanyId: 1,
+      resourceType: 'ticket',
+      action: 'created',
+      result: 'success',
+      source: 'action',
+    });
+
+    expect(mockDb.insert).not.toHaveBeenCalled();
   });
 });

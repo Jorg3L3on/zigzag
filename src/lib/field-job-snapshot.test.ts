@@ -2,11 +2,9 @@ import { describe, expect, it } from '@jest/globals';
 import {
   getDefaultFieldSendHighlight,
   getFieldSendOptions,
-  pickHoyCobranzaRows,
   toFieldJobSnapshotFromAnotarSuccess,
   type FieldJobSnapshot,
 } from '@/lib/field-job-snapshot';
-import type { CobranzaRow } from '@/lib/cobranza';
 
 const baseJob = (
   overrides: Partial<FieldJobSnapshot> = {},
@@ -78,44 +76,5 @@ describe('field-job-snapshot send options', () => {
       companyName: 'Demo',
     });
     expect(getDefaultFieldSendHighlight(job)).toBe('enviar_recibo');
-  });
-
-  it('picks top N cobranza rows preserving urgency sort length', () => {
-    const now = new Date('2026-08-20T12:00:00.000Z');
-    const rows: CobranzaRow[] = [
-      {
-        id: '1',
-        client_name: 'A',
-        client_tel: null,
-        ticket_date: new Date('2026-08-01'),
-        created_at: now,
-        total: 100,
-        paid: 0,
-        finished: true,
-        company_id: 1,
-        balanceDue: 100,
-        paymentStatus: 'pending',
-        daysOutstanding: 19,
-        agingBucket: '15-30',
-      },
-      {
-        id: '2',
-        client_name: 'B',
-        client_tel: null,
-        ticket_date: new Date('2026-08-10'),
-        created_at: now,
-        total: 50,
-        paid: 10,
-        finished: true,
-        company_id: 1,
-        balanceDue: 40,
-        paymentStatus: 'partial',
-        daysOutstanding: 10,
-        agingBucket: '0-14',
-      },
-    ];
-    const picked = pickHoyCobranzaRows(rows, 1);
-    expect(picked).toHaveLength(1);
-    expect(picked[0]?.id).toBe('1');
   });
 });

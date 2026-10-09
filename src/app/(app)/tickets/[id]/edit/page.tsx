@@ -2,6 +2,15 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import {
+  getServiceLineDescription,
+  getServiceLineName,
+} from '@/lib/service-line-display';
+import {
+  serviceLineInputFromRow,
+  serviceLineInputSchema,
+  type ServiceLineInput,
+} from '@/lib/ticket-service-line-schema';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,7 +60,6 @@ import {
   TripledMobileAppBar,
   TripledMobileStickyActionBar,
   TripledPageHeader,
-  TripledStepper,
 } from '@/components/tripled';
 import { ClientPhoneLink } from '@/components/client-phone-link';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
@@ -83,12 +91,11 @@ const formSchema = z.object({
   email: z.string().email('Correo inválido').max(40).optional(),
   document: z.string().max(100).optional(),
   ticket_date: z.date().optional(),
+  // Catalog or inline lines (ZIG-I5); the server re-validates them.
   services: z.array(
-    z.object({
-      service_id: z.number(),
-      quantity: z.number().finite().min(1),
-      price: z.number().finite().min(0),
-    }),
+    z.custom<ServiceLineInput>(
+      (value) => serviceLineInputSchema.safeParse(value).success,
+    ),
   ),
 });
 
@@ -98,7 +105,7 @@ const EDIT_TICKET_RETRY_GUIDANCE =
 
 interface ServiceTicket {
   id: number;
-  service_id: number;
+  service_id: number | null;
   quantity: number;
   price: number;
   service: {
@@ -180,11 +187,7 @@ export default function EditTicketPage({
             ticket_date: data.ticket_date
               ? new Date(data.ticket_date)
               : undefined,
-            services: data.services_tickets.map((st) => ({
-              service_id: st.service_id,
-              quantity: st.quantity,
-              price: Number(st.price),
-            })),
+            services: data.services_tickets.map(serviceLineInputFromRow),
           };
           const draft = readTicketFormDraft(draftKey);
           form.reset(
@@ -209,8 +212,8 @@ export default function EditTicketPage({
               quantity: st.quantity,
               price: Number(st.price),
               service: {
-                name: st.service?.name ?? '',
-                description: st.service?.description ?? '',
+                name: getServiceLineName(st),
+                description: getServiceLineDescription(st),
               },
             })),
           );
@@ -389,29 +392,12 @@ export default function EditTicketPage({
         ]}
       />
 
-      <TripledDashboardShell
-        maxWidthClassName="max-w-2xl"
-        hasMobileStickyAction={!isFinished}
-      >
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
           <TripledMobileAppBar
             title={`Ticket #${resolvedParams.id}`}
             subtitle="Editar ticket"
             backHref={`/tickets/${resolvedParams.id}`}
             className="mb-3"
-          />
-          <TripledStepper
-            steps={[
-              { id: 'create', title: 'Datos del ticket' },
-              { id: 'services', title: 'Servicios' },
-              { id: 'review', title: 'Detalle' },
-            ]}
-            currentStepId={
-              resolvedSearchParams.step === 'create'
-                ? 'create'
-                : resolvedSearchParams.step === 'services'
-                  ? 'services'
-                  : 'review'
-            }
           />
           <Card className="border-0 shadow-lg mb-6">
             <CardHeader className="space-y-4 pb-8">

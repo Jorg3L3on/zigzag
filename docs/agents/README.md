@@ -14,4 +14,4 @@ Files in this directory are read by Cursor skills (`to-prd`, `to-issues`, etc.) 
 
 **Not sure which workflow?** `/start-work` — routes to `fix-bug`, `ship-feature`, `implement-issue`, `release`, etc.
 
-**Automate a feature:** `/ship-feature tasks/prd-<name>.md` — slice PRs → **`feat/<slug>`**; **one** merge **`feat/<slug>` → `main`** for prod.
+**Automate a feature:** `/ship-feature tasks/prd-<name>.md` — slice PRs → **`feat/<slug>`**; final PR **`feat/<slug>` → `sandbox`** (Jorge merges); production follows Jorge's **`sandbox` → `main`**.
