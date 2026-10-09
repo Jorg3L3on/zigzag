@@ -13,6 +13,8 @@ import {
 } from '@/lib/ticket-service-line-schema';
 
 const TICKET_COMPOSER_DRAFT_PREFIX = 'zigzag:ticket-composer-draft:v1';
+/** Nuevo presupuesto keeps its own draft so it never mixes with a ticket draft. */
+const PRESUPUESTO_COMPOSER_DRAFT_PREFIX = 'zigzag:presupuesto-composer-draft:v1';
 const MAX_DRAFT_LINES = 50;
 
 /**
@@ -37,6 +39,8 @@ export type TicketComposerDraft = {
   client_label?: string;
   /** ISO string; restored as a Date by the composer. */
   ticket_date?: string;
+  /** Presupuestos only: ISO string; absent means Sin vencimiento. */
+  expires_at?: string;
   work_notes?: string;
   lines: TicketComposerDraftLine[];
 };
@@ -139,16 +143,24 @@ export const sanitizeTicketComposerDraft = (
   }
   const ticketDate = cleanIsoDate(raw.ticket_date);
   if (ticketDate) draft.ticket_date = ticketDate;
+  const expiresAt = cleanIsoDate(raw.expires_at);
+  if (expiresAt) draft.expires_at = expiresAt;
   const notes = cleanString(raw.work_notes);
   if (notes) draft.work_notes = notes;
   return draft;
 };
 
 export const isTicketComposerDraftEmpty = (draft: TicketComposerDraft): boolean =>
-  !draft.client_id && draft.lines.length === 0 && !draft.work_notes;
+  !draft.client_id &&
+  draft.lines.length === 0 &&
+  !draft.work_notes &&
+  !draft.expires_at;
 
 export const buildTicketComposerDraftKey = (companyId: number): string =>
   `${TICKET_COMPOSER_DRAFT_PREFIX}:${companyId}`;
+
+export const buildPresupuestoComposerDraftKey = (companyId: number): string =>
+  `${PRESUPUESTO_COMPOSER_DRAFT_PREFIX}:${companyId}`;
 
 export const readTicketComposerDraft = (
   key: string,

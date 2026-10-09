@@ -61,6 +61,10 @@ jest.mock('@/actions/tickets', () => ({
   createTicketWithLines: (...args: unknown[]) => mockCreateTicketWithLines(...args),
 }));
 
+jest.mock('@/actions/presupuestos', () => ({
+  createPresupuestoWithLines: jest.fn(),
+}));
+
 jest.mock('@/components/clients/client-form', () => ({
   ClientForm: () => <div>Formulario de cliente</div>,
 }));

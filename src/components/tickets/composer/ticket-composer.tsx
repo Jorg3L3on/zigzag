@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 
 import { getClient, getClients, type Client } from '@/actions/clients';
 import { getServices } from '@/actions/services';
+import { createPresupuestoWithLines } from '@/actions/presupuestos';
 import { createTicketWithLines } from '@/actions/tickets';
 import type { Service } from '@/db/schema';
 import { ClientForm } from '@/components/clients/client-form';
@@ -31,6 +32,7 @@ import {
   type ComposerLineInput,
 } from '@/components/tickets/composer/composer-line-sheet';
 import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
+import { ExpiresAtField } from '@/components/tickets/composer/expires-at-field';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import {
   TripledDashboardShell,
@@ -65,6 +67,7 @@ import { useCompany } from '@/contexts/company-context';
 import { multiplyMoney, sumLineTotals } from '@/lib/money';
 import { buildToastErrorContent } from '@/lib/network-awareness';
 import {
+  buildPresupuestoComposerDraftKey,
   buildTicketComposerDraftKey,
   clearTicketComposerDraft,
   draftLineToServiceLineInput,
@@ -144,12 +147,62 @@ const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
   </div>
 );
 
+export type ComposerKind = 'ticket' | 'presupuesto';
+
+const COMPOSER_COPY: Record<
+  ComposerKind,
+  {
+    title: string;
+    subtitle: string;
+    listHref: string;
+    listLabel: string;
+    backLabel: string;
+    saveLabel: string;
+    noun: string;
+    linesLabel: string;
+    documentLabel: string;
+    saveError: string;
+  }
+> = {
+  ticket: {
+    title: 'Nuevo ticket',
+    subtitle: 'Cliente, servicios y total',
+    listHref: '/tickets',
+    listLabel: 'Tickets',
+    backLabel: 'Volver a tickets',
+    saveLabel: 'Guardar ticket',
+    noun: 'Ticket',
+    linesLabel: 'Servicios del ticket',
+    documentLabel: 'ticket',
+    saveError: 'No se pudo guardar el ticket',
+  },
+  presupuesto: {
+    title: 'Nuevo presupuesto',
+    subtitle: 'Cliente, servicios y vigencia',
+    listHref: '/presupuestos',
+    listLabel: 'Presupuestos',
+    backLabel: 'Volver a presupuestos',
+    saveLabel: 'Guardar presupuesto',
+    noun: 'Presupuesto',
+    linesLabel: 'Servicios del presupuesto',
+    documentLabel: 'presupuesto',
+    saveError: 'No se pudo guardar el presupuesto',
+  },
+};
+
 /**
  * Nuevo ticket (ZIG-I2-4): one screen for client, date, service lines with a
  * running total and notes. Nothing is persisted until Guardar ticket, which
  * creates the ticket and its lines in one transaction.
  */
-export const TicketComposer = () => {
+type DocumentComposerProps = {
+  /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
+  kind?: ComposerKind;
+};
+
+export const DocumentComposer = ({ kind = 'ticket' }: DocumentComposerProps) => {
+  const copy = COMPOSER_COPY[kind];
+  const isQuote = kind === 'presupuesto';
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -169,6 +222,7 @@ export const TicketComposer = () => {
   const [isNewClientOpen, setIsNewClientOpen] = React.useState(false);
   const [ticketDate, setTicketDate] = React.useState<Date>(() => new Date());
   const [isDateOpen, setIsDateOpen] = React.useState(false);
+  const [expiresAt, setExpiresAt] = React.useState<Date | null>(null);
   const [notes, setNotes] = React.useState('');
   const [lines, setLines] = React.useState<TicketComposerDraftLine[]>([]);
   const [services, setServices] = React.useState<Service[]>([]);
@@ -183,7 +237,11 @@ export const TicketComposer = () => {
   const servicePrefillAppliedRef = React.useRef(false);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
-  const draftKey = companyId ? buildTicketComposerDraftKey(companyId) : null;
+  const draftKey = companyId
+    ? isQuote
+      ? buildPresupuestoComposerDraftKey(companyId)
+      : buildTicketComposerDraftKey(companyId)
+    : null;
   const total = sumLineTotals(lines);
   const canSave = Boolean(companyId && client && lines.length > 0);
   const editingLine = lines.find((line) => line.key === lineSheet.editingKey) ?? null;
@@ -200,11 +258,12 @@ export const TicketComposer = () => {
         });
       }
       if (draft.ticket_date) setTicketDate(new Date(draft.ticket_date));
+      if (isQuote && draft.expires_at) setExpiresAt(new Date(draft.expires_at));
       if (draft.work_notes) setNotes(draft.work_notes);
       if (draft.lines.length > 0) setLines(draft.lines);
     }
     setDraftReady(true);
-  }, [draftKey]);
+  }, [draftKey, isQuote]);
 
   // Persist every change after the restore so a reload keeps the work.
   React.useEffect(() => {
@@ -213,10 +272,21 @@ export const TicketComposer = () => {
       client_id: client?.id,
       client_label: client?.label,
       ticket_date: ticketDate.toISOString(),
+      ...(isQuote && expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
       work_notes: notes,
       lines,
     });
-  }, [draftKey, draftReady, client, ticketDate, notes, lines, saveState]);
+  }, [
+    draftKey,
+    draftReady,
+    client,
+    ticketDate,
+    expiresAt,
+    isQuote,
+    notes,
+    lines,
+    saveState,
+  ]);
 
   React.useEffect(() => {
     const handle = window.setTimeout(
@@ -383,32 +453,38 @@ export const TicketComposer = () => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       toast.error('Sin conexión', {
         description:
-          'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Captura rápida.',
+          isQuote
+            ? 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal.'
+            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Captura rápida.',
       });
       return;
     }
 
     setSaveState('saving');
     try {
-      const result = await createTicketWithLines({
+      const payload = {
         company_id: companyId,
         client_id: client.id,
         ticket_date: ticketDate,
         work_notes: notes,
         lines: lines.map(draftLineToServiceLineInput),
         client_total: total,
-      });
+      };
+      const result = isQuote
+        ? await createPresupuestoWithLines({ ...payload, expires_at: expiresAt })
+        : await createTicketWithLines(payload);
 
       if (result.success && result.data) {
         setSaveState('done');
         if (draftKey) clearTicketComposerDraft(draftKey);
         vibrateSuccess();
-        toast.success(`Ticket #${result.data.id} guardado`);
-        router.push(`/tickets/${result.data.id}/listo`);
+        toast.success(`${copy.noun} #${result.data.id} guardado`);
+        // The presupuesto review screen lands in ZIG-I5-4; until then, the list.
+        router.push(isQuote ? '/presupuestos' : `/tickets/${result.data.id}/listo`);
         return;
       }
 
-      const content = buildToastErrorContent(result, 'No se pudo guardar el ticket');
+      const content = buildToastErrorContent(result, copy.saveError);
       toast.error(content.title, {
         description:
           content.errorType === 'network'
@@ -417,7 +493,7 @@ export const TicketComposer = () => {
       });
       setSaveState('idle');
     } catch {
-      toast.error('No se pudo guardar el ticket', {
+      toast.error(copy.saveError, {
         description: 'Tu borrador sigue en este teléfono. Vuelve a intentarlo.',
       });
       setSaveState('idle');
@@ -437,7 +513,7 @@ export const TicketComposer = () => {
           Guardado
         </>
       ) : (
-        'Guardar ticket'
+        copy.saveLabel
       )}
     </ActionSwap>
   );
@@ -457,8 +533,8 @@ export const TicketComposer = () => {
       <TripledPageHeader
         className="hidden md:flex"
         items={[
-          { label: 'Tickets', href: '/tickets' },
-          { label: 'Nuevo ticket' },
+          { label: copy.listLabel, href: copy.listHref },
+          { label: copy.title },
         ]}
       />
 
@@ -467,14 +543,14 @@ export const TicketComposer = () => {
         contentClassName="space-y-4"
       >
         <TripledMobileAppBar
-          title="Nuevo ticket"
-          subtitle="Cliente, servicios y total"
-          backHref="/tickets"
-          backLabel="Volver a tickets"
+          title={copy.title}
+          subtitle={copy.subtitle}
+          backHref={copy.listHref}
+          backLabel={copy.backLabel}
         />
 
         <div className="hidden md:block">
-          <h1 className="text-2xl font-semibold tracking-tight">Nuevo ticket</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
           <p className="text-sm text-muted-foreground">
             Elige el cliente, agrega los servicios y guarda. Nada se guarda antes.
           </p>
@@ -548,6 +624,16 @@ export const TicketComposer = () => {
                 </PopoverContent>
               </Popover>
             </div>
+
+            {isQuote ? (
+              <div className="mt-4">
+                <ExpiresAtField
+                  value={expiresAt}
+                  onChange={setExpiresAt}
+                  minDate={ticketDate}
+                />
+              </div>
+            ) : null}
           </section>
         </BlurFade>
 
@@ -578,7 +664,7 @@ export const TicketComposer = () => {
               </div>
             ) : (
               <ul
-                aria-label="Servicios del ticket"
+                aria-label={copy.linesLabel}
                 className="mt-2 divide-y divide-border/60"
               >
                 <AnimatePresence initial={false}>
@@ -648,12 +734,14 @@ export const TicketComposer = () => {
           </Button>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground md:hidden">
-          ¿Sin señal o con prisa?{' '}
-          <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
-            Captura rápida
-          </Link>
-        </p>
+        {isQuote ? null : (
+          <p className="text-center text-xs text-muted-foreground md:hidden">
+            ¿Sin señal o con prisa?{' '}
+            <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
+              Captura rápida
+            </Link>
+          </p>
+        )}
       </TripledDashboardShell>
 
       <TripledMobileStickyActionBar>
@@ -681,7 +769,7 @@ export const TicketComposer = () => {
         servicesLoading={isServicesLoading}
         initialLine={editingLine}
         onSubmit={handleLineSubmit}
-        documentLabel="ticket"
+        documentLabel={copy.documentLabel}
       />
 
       <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>
@@ -708,3 +796,6 @@ export const TicketComposer = () => {
     </>
   );
 };
+
+/** Nuevo ticket composer (ZIG-I2-4). */
+export const TicketComposer = () => <DocumentComposer kind="ticket" />;
