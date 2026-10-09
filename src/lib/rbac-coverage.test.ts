@@ -85,6 +85,44 @@ describe('RBAC coverage', () => {
     expect(missing).toEqual([]);
   });
 
+  it('authorizes inside every exported server action, not just somewhere in the file', () => {
+    // Every exported async function of a 'use server' module is a callable
+    // action. One that takes a company id and skips auth is a cross-tenant read
+    // (ZIG-07: loadDashboardMetricsForCompany, loadOnboardingStatusForCompany).
+    const authCall =
+      /\b(auth|require[A-Z]\w*|checkPermission|resolveWritableCompanyId)\s*\(/;
+    // Exports that authorize through a local helper in the same file.
+    const authorizingHelpers: Record<string, string[]> = {
+      'src/actions/companies.ts': ['loadWritableCompany'],
+      'src/actions/company-portability.ts': ['exportCompanyData'],
+      'src/actions/ticket-services.ts': ['assertTicketAccess'],
+    };
+
+    const unguarded = walk(path.join(root, 'src/actions'))
+      .filter((filePath) => filePath.endsWith('.ts') && !filePath.endsWith('.test.ts'))
+      .flatMap((filePath) => {
+        const content = read(filePath);
+        if (!/^\s*['"]use server['"]/.test(content)) {
+          return [];
+        }
+        const helpers = authorizingHelpers[relative(filePath)] ?? [];
+        const exportPattern = /export\s+(?:async\s+)?function\s+(\w+)\s*\(/g;
+        const matches = [...content.matchAll(exportPattern)];
+        return matches
+          .map((match, index) => {
+            const end = matches[index + 1]?.index ?? content.length;
+            const body = content.slice(match.index, end);
+            const guarded =
+              authCall.test(body) ||
+              helpers.some((helper) => body.includes(`${helper}(`));
+            return guarded ? null : `${relative(filePath)}: ${match[1]}`;
+          })
+          .filter((entry): entry is string => entry != null);
+      });
+
+    expect(unguarded).toEqual([]);
+  });
+
   it('keeps non-public API routes behind API authorization helpers', () => {
     const routeFiles = walk(path.join(root, 'src/app/api')).filter((filePath) =>
       filePath.endsWith('/route.ts'),
