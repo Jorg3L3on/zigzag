@@ -161,7 +161,7 @@ export const TeamList = () => {
   const addButtonLabel = 'Agregar usuario';
 
   return (
-    <div className={cn('space-y-4', canWrite && 'pb-20 md:pb-0')}>
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative min-w-0 flex-1 basis-64">
           <span className="sr-only">Buscar en el equipo</span>

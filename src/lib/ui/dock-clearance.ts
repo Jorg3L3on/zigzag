@@ -15,6 +15,14 @@ export const DOCK_CLEARANCE_PADDING_MOBILE_CLASS =
 /** Spacer height that reserves the dock area at the end of the content column. */
 export const DOCK_CLEARANCE_HEIGHT_CLASS = 'h-(--dock-clearance)';
 
+/** Spacer height while a sticky action bar floats above the dock. */
+export const DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS =
+  'h-[calc(var(--dock-clearance)+var(--sticky-action-clearance))]';
+
+/** Bottom offset of the sticky action bar: just above the dock, with a gap. */
+export const STICKY_ACTION_BOTTOM_CLASS =
+  'bottom-[calc(var(--dock-clearance)+var(--sticky-action-gap))]';
+
 /** Outer padding of the dock itself (safe area, at least the float gap). */
 export const DOCK_FLOAT_PADDING_CLASS =
   'pb-[max(env(safe-area-inset-bottom,0px),var(--dock-float-gap))]';

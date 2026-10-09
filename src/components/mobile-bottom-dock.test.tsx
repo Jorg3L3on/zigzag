@@ -7,7 +7,6 @@ import { MobileBottomDock } from '@/components/mobile-bottom-dock';
 
 let mockPathname = '/dashboard';
 let mockGranted = ['tickets.read', 'tickets.write', 'clients.read', 'clients.write'];
-let mockHasStickyAction = false;
 const mockSetOpenMobile = jest.fn();
 let mockReduceMotion = false;
 
@@ -51,17 +50,12 @@ jest.mock('@/components/ui/sidebar', () => ({
   useSidebar: () => ({ setOpenMobile: mockSetOpenMobile }),
 }));
 
-jest.mock('@/contexts/mobile-chrome-context', () => ({
-  useMobileChrome: () => ({ hasStickyAction: mockHasStickyAction }),
-}));
-
 const renderDock = () => render(<MobileBottomDock />);
 
 describe('MobileBottomDock', () => {
   beforeEach(() => {
     mockPathname = '/dashboard';
     mockGranted = ['tickets.read', 'tickets.write', 'clients.read', 'clients.write'];
-    mockHasStickyAction = false;
     mockReduceMotion = false;
     mockSetOpenMobile.mockClear();
   });
@@ -183,12 +177,6 @@ describe('MobileBottomDock', () => {
     renderDock();
     fireEvent.click(screen.getByRole('button', { name: /Más/i }));
     expect(mockSetOpenMobile).toHaveBeenCalledWith(true);
-  });
-
-  it('hides while a sticky action bar is registered', () => {
-    mockHasStickyAction = true;
-    renderDock();
-    expect(screen.queryByTestId('mobile-bottom-tab-bar')).toBeNull();
   });
 
   it('works with reduced motion (instant pill and menu, no press scale)', async () => {

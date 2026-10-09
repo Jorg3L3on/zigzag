@@ -425,7 +425,6 @@ export const TicketCreationReview = ({
       <TripledDashboardShell
         maxWidthClassName="max-w-2xl"
         contentClassName="space-y-4"
-        hasMobileStickyAction={Boolean(primaryCta)}
       >
         <TripledMobileAppBar
           title={`Ticket #${ticketId}`}

@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useRegisterMobileStickyAction } from '@/contexts/mobile-chrome-context';
+import { STICKY_ACTION_BOTTOM_CLASS } from '@/lib/ui/dock-clearance';
 import { cn } from '@/lib/utils';
 
 type TripledDashboardShellProps = {
@@ -23,7 +24,6 @@ type TripledDashboardShellProps = {
   className?: string;
   contentClassName?: string;
   maxWidthClassName?: string;
-  hasMobileStickyAction?: boolean;
 };
 
 export const TripledDashboardShell = ({
@@ -31,15 +31,12 @@ export const TripledDashboardShell = ({
   className,
   contentClassName,
   maxWidthClassName = 'max-w-none',
-  hasMobileStickyAction = false,
 }: TripledDashboardShellProps) => {
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-1 flex-col gap-4 bg-muted/20 p-3 sm:gap-6 sm:bg-background sm:p-6',
-        hasMobileStickyAction
-          ? 'pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-6'
-          : 'pb-4 sm:pb-6',
+        // The shell spacer in AppMobileChrome clears the dock and any sticky action bar.
+        'flex min-w-0 flex-1 flex-col gap-4 bg-muted/20 p-3 pb-4 sm:gap-6 sm:bg-background sm:p-6',
         className,
       )}
     >
@@ -218,7 +215,9 @@ export const TripledMobileStickyActionBar = ({
     <div
       data-testid="mobile-sticky-action-bar"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-24px_rgba(15,23,42,0.45)] backdrop-blur md:hidden',
+        // Floats above the dock (same inset and width); z-index under the dock so its + menu opens on top.
+        'fixed inset-x-3 z-20 mx-auto max-w-lg rounded-2xl border bg-background/95 p-3 shadow-panel backdrop-blur md:hidden',
+        STICKY_ACTION_BOTTOM_CLASS,
         className,
       )}
     >

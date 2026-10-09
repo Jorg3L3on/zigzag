@@ -388,10 +388,7 @@ export default function EditTicketPage({
         ]}
       />
 
-      <TripledDashboardShell
-        maxWidthClassName="max-w-2xl"
-        hasMobileStickyAction={!isFinished}
-      >
+      <TripledDashboardShell maxWidthClassName="max-w-2xl">
           <TripledMobileAppBar
             title={`Ticket #${resolvedParams.id}`}
             subtitle="Editar ticket"

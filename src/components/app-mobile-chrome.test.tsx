@@ -1,6 +1,7 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import { AppMobileChrome } from '@/components/app-mobile-chrome';
+import { TripledMobileStickyActionBar } from '@/components/tripled';
 
 const mockPrefetch = jest.fn();
 
@@ -92,5 +93,42 @@ describe('AppMobileChrome idle prefetch', () => {
 
     expect(window.requestIdleCallback).not.toHaveBeenCalled();
     expect(mockPrefetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('AppMobileChrome dock and sticky action bar', () => {
+  beforeEach(() => {
+    mockUseIsMobile.mockReturnValue(false);
+  });
+
+  it('reserves only the dock clearance without a sticky action bar', () => {
+    render(
+      <AppMobileChrome>
+        <main />
+      </AppMobileChrome>,
+    );
+
+    expect(screen.getByTestId('mobile-bottom-tab-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-bottom-tab-spacer')).toHaveClass(
+      'h-(--dock-clearance)',
+    );
+  });
+
+  it('keeps the dock and reserves room for both while a sticky action bar is mounted', () => {
+    render(
+      <AppMobileChrome>
+        <TripledMobileStickyActionBar>
+          <button type="button">Guardar</button>
+        </TripledMobileStickyActionBar>
+      </AppMobileChrome>,
+    );
+
+    expect(screen.getByTestId('mobile-bottom-tab-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-sticky-action-bar')).toHaveClass(
+      'bottom-[calc(var(--dock-clearance)+var(--sticky-action-gap))]',
+    );
+    expect(screen.getByTestId('mobile-bottom-tab-spacer')).toHaveClass(
+      'h-[calc(var(--dock-clearance)+var(--sticky-action-clearance))]',
+    );
   });
 });

@@ -105,8 +105,7 @@ test.describe('Ticket creation (mobile)', () => {
       page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 15_000 });
 
-    // The detail page's sticky recibo action hides the dock; go back to Hoy.
-    await page.goto('/dashboard');
+    // The dock stays under the detail page's sticky recibo action.
     const ticketsTab = page
       .getByTestId('mobile-bottom-tab-bar')
       .getByRole('link', { name: 'Tickets' });

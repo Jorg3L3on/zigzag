@@ -7,7 +7,11 @@ import {
   login,
   loginAsSystemUser,
 } from './helpers/auth';
-import { visibleMobileAppBar, visiblePageHeader } from './helpers/mobile-chrome';
+import {
+  expectStickyActionAboveDock,
+  visibleMobileAppBar,
+  visiblePageHeader,
+} from './helpers/mobile-chrome';
 
 const hubTabs = (page: Page) => page.getByTestId('company-hub-tabs');
 
@@ -229,6 +233,7 @@ test.describe('Mi empresa hub', () => {
           name: 'Guardar cambios',
         }),
       ).toBeVisible();
+      await expectStickyActionAboveDock(page);
     });
 
     test('redirects tenant users from the old admin pages to the hub', async ({
