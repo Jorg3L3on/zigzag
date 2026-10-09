@@ -14,6 +14,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/clients',
   '/cobranza',
   '/companies',
+  '/company',
   '/forbidden',
   '/operator-console',
   '/permissions',

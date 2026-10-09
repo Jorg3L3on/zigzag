@@ -1,3 +1,4 @@
+import { COMPANY_HUB_TEAM_PATH } from '@/lib/company-hub';
 import { OPERATOR_GUIDE_ANCHORS } from '@/lib/onboarding-guides';
 
 export type OnboardingChecklistSignals = {
@@ -105,7 +106,7 @@ const CHECKLIST_STEP_DEFINITIONS: ChecklistStepDefinition[] = [
     key: 'team',
     title: '5. Invita a tu equipo',
     description: 'Agrega al menos un operador o administrador adicional.',
-    href: '/users',
+    href: COMPANY_HUB_TEAM_PATH,
     actionLabel: 'Invitar usuario',
     guideHref: OPERATOR_GUIDE_ANCHORS.roles,
     isComplete: (signals) => signals.totalUsers > 1,

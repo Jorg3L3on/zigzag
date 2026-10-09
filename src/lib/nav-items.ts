@@ -15,6 +15,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import {
+  COMPANY_HUB_PATH,
+  COMPANY_HUB_ROLES_PATH,
+  COMPANY_HUB_TEAM_PATH,
+} from '@/lib/company-hub';
 import { PERMISSIONS } from '@/lib/permissions';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 
@@ -80,9 +85,26 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
   },
   {
     title: 'Mi empresa',
-    url: '/company',
+    url: COMPANY_HUB_PATH,
     icon: Building,
     requiredPermission: PERMISSIONS.company.manage,
+    items: [
+      {
+        title: 'Datos',
+        url: COMPANY_HUB_PATH,
+        requiredPermission: PERMISSIONS.company.manage,
+      },
+      {
+        title: 'Equipo',
+        url: COMPANY_HUB_TEAM_PATH,
+        requiredPermission: PERMISSIONS.users.read,
+      },
+      {
+        title: 'Roles',
+        url: COMPANY_HUB_ROLES_PATH,
+        requiredPermission: PERMISSIONS.roles.read,
+      },
+    ],
   },
   {
     title: 'Captura rápida',
@@ -154,7 +176,10 @@ export const MOBILE_CREATE_ACTIONS: MobileCreateAction[] = [
   },
 ];
 
-/** Administración / system nav — sidebar only (Más sheet). */
+/**
+ * Administración / system nav — sidebar only (Más sheet). System operators only:
+ * tenants manage team and roles inside the Mi empresa hub.
+ */
 export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
   {
     title: 'Consola operadora',
@@ -167,6 +192,7 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
     url: '/users',
     icon: User,
     requiredPermission: PERMISSIONS.users.read,
+    systemOnly: true,
   },
   {
     title: 'Empresas',
@@ -180,12 +206,14 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
     url: '/roles',
     icon: Shield,
     requiredPermission: PERMISSIONS.roles.read,
+    systemOnly: true,
   },
   {
-    title: 'Permisos',
+    title: 'Catálogo de permisos',
     url: '/permissions',
     icon: Key,
     requiredPermission: PERMISSIONS.permissions.read,
+    systemOnly: true,
   },
   {
     title: 'Auditoría',
@@ -200,6 +228,21 @@ export const NAV_SYSTEM_ITEMS: NavItemDefinition[] = [
     systemOnly: true,
   },
 ];
+
+/**
+ * Administración items a user may see: system-only items for system users,
+ * the rest by permission. Tenants get an empty list, so the group is hidden.
+ */
+export const filterSystemNavItems = (
+  items: NavItemDefinition[],
+  {
+    isSystemUser,
+    can,
+  }: { isSystemUser: boolean; can: (permission?: string) => boolean },
+): NavItemDefinition[] =>
+  items.filter((item) =>
+    item.systemOnly ? isSystemUser : can(item.requiredPermission),
+  );
 
 export const getLongestMatchingHref = (
   pathname: string,

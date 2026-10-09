@@ -22,6 +22,7 @@ import {
   sanitizeUserForAudit,
 } from '@/lib/governance-audit';
 import { bumpUserTokenVersion } from '@/lib/session-revocation';
+import { keepsATeamManager } from '@/lib/team-guards';
 
 const PASSWORD_MIN_LENGTH = 8;
 const passwordSchema = z
@@ -299,6 +300,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
     });
 
     revalidatePath('/users');
+    revalidatePath('/company', 'layout');
     return { success: true, data: created };
   } catch (e) {
     if (
@@ -346,6 +348,18 @@ export async function updateUser(
       return buildActionError('AU002');
     }
 
+    const nextRoleId = validatedData.role_id ?? null;
+    if (
+      !(await keepsATeamManager({
+        companyId: existing.company_id,
+        targetUserId: existing.id,
+        currentRoleId: existing.role_id,
+        nextRoleId,
+      }))
+    ) {
+      return buildActionError('US007');
+    }
+
     const hashedPassword = validatedData.password
       ? await hash(validatedData.password, 10)
       : undefined;
@@ -366,7 +380,7 @@ export async function updateUser(
     // Revoke existing sessions when an admin resets the password or changes the
     // user's role, so the change takes effect immediately.
     const passwordChanged = Boolean(validatedData.password);
-    const roleChanged = existing.role_id !== (validatedData.role_id ?? null);
+    const roleChanged = existing.role_id !== nextRoleId;
     if (passwordChanged || roleChanged) {
       await bumpUserTokenVersion(id);
     }
@@ -382,6 +396,7 @@ export async function updateUser(
     });
 
     revalidatePath('/users');
+    revalidatePath('/company', 'layout');
     return { success: true, data: updated };
   } catch (e) {
     if (
@@ -515,7 +530,18 @@ export async function deleteUser(
 
     // Never allow deleting your own account here.
     if (existing.id === BigInt(authContext.userId)) {
-      return buildActionError('US004');
+      return buildActionError('US006');
+    }
+
+    if (
+      !(await keepsATeamManager({
+        companyId: existing.company_id,
+        targetUserId: existing.id,
+        currentRoleId: existing.role_id,
+        nextRoleId: null,
+      }))
+    ) {
+      return buildActionError('US007');
     }
 
     const [updated] = await db
@@ -541,6 +567,7 @@ export async function deleteUser(
     });
 
     revalidatePath('/users');
+    revalidatePath('/company', 'layout');
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('users.delete', 'US004', e);

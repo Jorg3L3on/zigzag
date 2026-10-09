@@ -5,7 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
-import { visibleMobileAppBar, visiblePageHeader } from './helpers/mobile-chrome';
+import { visibleMobileAppBar } from './helpers/mobile-chrome';
 
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
@@ -37,22 +37,23 @@ test.describe('Mobile dashboard redesign', () => {
   });
 
   test('shows mobile-first admin list controls', async ({ page }) => {
-    await page.goto('/users');
+    await page.goto('/company/equipo');
 
     const forbidden = page.getByText('Acceso denegado');
     if (await forbidden.isVisible().catch(() => false)) {
       test.skip(true, 'Current E2E user cannot access users module');
     }
 
-    await expect(visiblePageHeader(page).getByText('Usuarios')).toBeVisible();
+    await expect(visibleMobileAppBar(page).getByText('Mi empresa')).toBeVisible();
     await expect(
-      page.getByRole('textbox', { name: 'Buscar usuarios' }).first(),
+      page.getByRole('searchbox', { name: 'Buscar en el equipo' }),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
-    await page.getByRole('button', { name: /Abrir filtros/ }).click();
-    await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Filtrar correo:/i })).toHaveCount(3);
-    await expect(page.getByText(/de \d+ usuarios/).first()).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Filtrar por estado' }).getByRole('button', {
+        name: /Todos/,
+      }),
+    ).toBeVisible();
+    await expect(page.getByTestId('team-member-card').first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 

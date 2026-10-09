@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { DASHBOARD_CARD_CLASS } from '@/components/dashboard/dashboard-surface';
 import { usePermissions } from '@/hooks/use-permissions';
+import { COMPANY_HUB_TEAM_PATH } from '@/lib/company-hub';
 import { quickActionPriority } from '@/lib/dashboard-composition';
 import type { DashboardPersona } from '@/lib/dashboard-persona';
 import { PERMISSIONS } from '@/lib/permissions';
@@ -86,7 +87,7 @@ export const DashboardQuickActions = ({
     candidates.push({
       key: 'create-user',
       label: 'Invitar usuario',
-      href: '/users',
+      href: COMPANY_HUB_TEAM_PATH,
       icon: <UserPlus className="h-4 w-4" aria-hidden />,
     });
   }

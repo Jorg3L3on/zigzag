@@ -31,6 +31,7 @@ import {
 } from '@/lib/sidebar-company-brand';
 import { PERMISSIONS } from '@/lib/permissions';
 import {
+  filterSystemNavItems,
   getLongestMatchingHref,
   NAV_MAIN_ITEMS,
   NAV_SYSTEM_ITEMS,
@@ -165,15 +166,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     [canAccess, isMobile],
   );
 
-  const visibleSystem = React.useMemo(() => {
-    const isSystemUser = session?.user?.company_is_system ?? false;
-    return data.system.filter((item) => {
-      if (item.systemOnly) {
-        return isSystemUser;
-      }
-      return canAccess(item.requiredPermission);
-    });
-  }, [canAccess, session?.user?.company_is_system]);
+  const visibleSystem = React.useMemo(
+    () =>
+      filterSystemNavItems(data.system, {
+        isSystemUser: session?.user?.company_is_system ?? false,
+        can: canAccess,
+      }),
+    [canAccess, session?.user?.company_is_system],
+  );
 
   const teams = React.useMemo(() => {
     const mappedTeams = companies.map((company) => {

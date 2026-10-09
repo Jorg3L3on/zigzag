@@ -126,7 +126,7 @@ describe('company-onboarding-checklist', () => {
       'billing_followup',
     ]);
     expect(snapshot.steps[3]?.complete).toBe(false);
-    expect(snapshot.steps[4]?.href).toBe('/users');
+    expect(snapshot.steps[4]?.href).toBe('/company/equipo');
     expect(snapshot.steps[5]?.secondaryHref).toBe('/service-schedules');
     expect(snapshot.steps[0]?.guideHref).toContain('#paso-3');
   });
