@@ -193,6 +193,44 @@ test.describe('Mi empresa hub', () => {
       await expect(page).toHaveURL(/\/company\/roles$/);
     });
 
+    test('Datos shows readiness banner and collapsible sections @375px', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto('/company');
+
+      const forbidden = page.getByText('Acceso denegado');
+      if (await forbidden.isVisible().catch(() => false)) {
+        test.skip(true, 'Current E2E user cannot manage the company');
+      }
+
+      // Slow streaming can leave a hidden copy of the page next to the live one.
+      const visibleByTestId = (id: string) =>
+        page.getByTestId(id).filter({ visible: true }).first();
+
+      await expect(visibleByTestId('company-readiness-banner')).toBeVisible();
+      await expect(
+        visibleByTestId('company-form-section-general').getByLabel('Nombre'),
+      ).toBeVisible();
+
+      const direccion = visibleByTestId('company-form-section-direccion');
+      const direccionToggle = direccion.getByRole('button', { name: /^Dirección/ });
+      // Enabled once hydrated in mobile mode; open state is remembered per browser.
+      await expect(direccionToggle).toBeEnabled();
+      if ((await direccionToggle.getAttribute('aria-expanded')) === 'true') {
+        await direccionToggle.click();
+      }
+      await expect(direccion.getByLabel('Calle')).toBeHidden();
+      await direccionToggle.click();
+      await expect(direccion.getByLabel('Calle')).toBeVisible();
+
+      await expect(
+        page.getByTestId('mobile-sticky-action-bar').getByRole('button', {
+          name: 'Guardar cambios',
+        }),
+      ).toBeVisible();
+    });
+
     test('redirects tenant users from the old admin pages to the hub', async ({
       page,
     }) => {
