@@ -5,7 +5,7 @@ Standard path for features, fixes, and releases on Zigzag using Cursor skills an
 ## Overview
 
 ```text
-Idea → PRD → Issues → feat/<slug> slices → one PR feat/<slug> → main (prod) → CHANGELOG
+Idea → PRD → Issues → feat/<slug> slices → PR feat/<slug> → sandbox → (Jorge) sandbox → main (prod) → CHANGELOG
 ```
 
 | Step | Output | Tool |
@@ -14,13 +14,14 @@ Idea → PRD → Issues → feat/<slug> slices → one PR feat/<slug> → main (
 | 2. Decompose | GitHub slice issues | **`to-issues`** (auto by default) |
 | 3. Validate | Fixed labels/links | **`validate-issues`** |
 | 4. Implement + PR | Merge-ready PR into `feat/<slug>` | **`implement-issue`** (+ babysit) |
-| 5. **Merge slice PR → `feat/<slug>`** | Integration branch | **Manual** (no Vercel preview; verify locally) |
-| 6. **Ship feature → `main`** | Production deploy | **Manual** (**once per PRD**) |
-| 7. Document | Version history | **CHANGELOG.md** + Git tag |
+| 5. **Merge slice PR → `feat/<slug>`** | Initiative branch | Agent squash-merges once CI is green (no Vercel preview; verify locally) |
+| 6. **Ship feature → `sandbox`** | Integration branch | Agent opens; **Jorge merges** |
+| 7. **Release `sandbox` → `main`** | Production deploy | **Jorge only** |
+| 8. Document | Version history | **CHANGELOG.md** + Git tag |
 
 **One command for steps 1–5:** **`ship-feature`** on a PRD path.
 
-**Vercel:** **`main` = production.** Slice merges go to **`feat/<feature-slug>`** only — see [deployment.md](./deployment.md).
+**Branches:** **`main` = production**, **`sandbox`** = integration. Slices merge into **`feat/<feature-slug>`**, which PRs into `sandbox` — see [deployment.md](./deployment.md).
 
 One-time setup: run **`setup-matt-pocock-skills`** (or use the committed `docs/agents/` files) and create GitHub labels via [scripts/create-github-labels.sh](../../scripts/create-github-labels.sh).
 
@@ -56,9 +57,9 @@ Do not run both paths for the same feature unless you intentionally want a local
 2. **`to-issues`** auto — child issues linked to `#P`
 3. **`validate-issues`**
 4. **`feat/<slug>`** + **`implement-issue`** per slice → PR into feature branch
-5. **You merge** each slice PR into `feat/<slug>`; reply `continue`
-6. Agent **opens** final PR **`feat/<slug>` → `main`** (required)
-7. **You merge** that PR once (production) — [deployment.md](./deployment.md)
+5. Agent squash-merges each slice PR into `feat/<slug>` once CI is green
+6. Agent **opens** final PR **`feat/<slug>` → `sandbox`** (required)
+7. **Jorge merges** it into `sandbox`, and later releases `sandbox` → `main` (production) — [deployment.md](./deployment.md)
 
 Add `interactive` to quiz slices; `stop-after-issues` to stop after parent + children are created. Parent PRD issue is **not** optional when starting from a PRD file.
 
@@ -94,7 +95,7 @@ Patch = bug fixes; minor = features; major = breaking changes.
 | `to-issues` | `.cursor/skills/to-issues/` | PRD/plan → GitHub slice issues (auto default) |
 | `validate-issues` | `.cursor/skills/validate-issues/` | Audit/fix issue metadata |
 | `implement-issue` | `.cursor/skills/implement-issue/` | Slice issue → merge-ready PR into `feat/<slug>` |
-| `fix-bug` | `.cursor/skills/fix-bug/` | Bug issue → merge-ready PR into `main` |
+| `fix-bug` | `.cursor/skills/fix-bug/` | Bug issue → merge-ready PR into `sandbox` |
 | `ship-feature` | `.cursor/skills/ship-feature/` | Full epic pipeline on `feat/<slug>` |
 | `release` | `.cursor/skills/release/` | CHANGELOG + tag + GitHub Release |
 | `list-and-responsive-tables` | `.cursor/skills/list-and-responsive-tables/` | Dashboard list UI pattern |
@@ -106,5 +107,5 @@ Patch = bug fixes; minor = features; major = breaking changes.
 | [issue-tracker.md](./issue-tracker.md) | `gh` commands and repo |
 | [triage-labels.md](./triage-labels.md) | Label strings |
 | [domain.md](./domain.md) | Glossary and doc layout |
-| [deployment.md](./deployment.md) | Vercel: `main` = prod; slices on `feat/<slug>` |
+| [deployment.md](./deployment.md) | Branches: `main` = prod, `sandbox` = integration, slices on `feat/<slug>` |
 | [AGENTS.md](../../AGENTS.md) | Code architecture (canonical) |

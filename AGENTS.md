@@ -113,7 +113,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 
 ## Agent skills
 
-Configuration for PRD/issue skills (`start-work`, `prd`, `to-prd`, `to-issues`, `implement-issue`, `fix-bug`, `ship-feature`, `release`, `validate-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Vercel:** [docs/agents/deployment.md](docs/agents/deployment.md) — slice PRs merge to `feat/<slug>`; **`main` stays production** (one merge when PRD is done).
+Configuration for PRD/issue skills (`start-work`, `prd`, `to-prd`, `to-issues`, `implement-issue`, `fix-bug`, `ship-feature`, `release`, `validate-issues`). Full workflow: [docs/agents/workflow.md](docs/agents/workflow.md). **Branches:** [docs/agents/deployment.md](docs/agents/deployment.md): `sandbox` is the integration branch; slice PRs → `feat/<slug>` → `sandbox`; only Jorge merges `sandbox` → `main` (production).
 
 ### Issue tracker
 
@@ -131,7 +131,7 @@ Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-r
 
 ### Deployment (Vercel)
 
-**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). Slice PRs merge to **`feat/<feature-slug>`** with **no preview deploy** — verify locally. One PR **`feat/…` → `main`** when the PRD ships. See [docs/agents/deployment.md](docs/agents/deployment.md).
+**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). **`sandbox`** is the integration branch: initiatives branch `feat/<slug>` off `sandbox`, slice PRs merge into `feat/<slug>` (agents squash-merge once CI is green), and the final PR goes **`feat/<slug>` → `sandbox`**; standalone fixes PR straight into `sandbox`. Agents open but never merge PRs into `sandbox`, and never target `main`: **only Jorge merges `sandbox` → `main`**. Nothing below `main` gets a preview deploy, so verify locally. Ports 3069 and 3071 are Jorge's dev servers; agents use 3072+. See [docs/agents/deployment.md](docs/agents/deployment.md).
 
 ## Cursor Cloud specific instructions
 

@@ -3,21 +3,22 @@ name: ship-feature
 description: >-
   Orchestrate a feature from PRD to merge-ready PRs on feat/<slug>. Always publishes a
   parent PRD GitHub issue, creates slice issues, implements slices, and opens the final
-  feat/<slug> to main PR. Human only merges PRs (not main automatically). Use ship feature.
+  feat/<slug> to sandbox PR. Only Jorge merges into sandbox and main. Use ship feature.
 ---
 
 # Ship Feature
 
 End-to-end automation for a feature PRD.
 
-**`main` is production on Vercel** — slice PRs never target `main`. See [docs/agents/deployment.md](../../docs/agents/deployment.md).
+**`main` is production on Vercel; `sandbox` is the integration branch.** No PR from this pipeline targets `main`. See [docs/agents/deployment.md](../../docs/agents/deployment.md).
 
-**Human gates (only):**
+**Merges:**
 
-1. **Merge** each slice PR into `feat/<feature-slug>` (no Vercel preview; verify locally).
-2. **Merge** the final PR **`feat/<slug>` → `main`** (production) — agent opens this PR; you merge it.
+1. The agent squash-merges each slice PR into `feat/<feature-slug>` once CI is green (no Vercel preview; verify locally).
+2. **Jorge merges** the final PR **`feat/<slug>` → `sandbox`**; the agent opens it.
+3. **Jorge** later releases `sandbox` → `main` (production).
 
-Agents **never** `gh pr merge` or push to `main`.
+Agents **never** merge into `sandbox` or `main`, and never push to them.
 
 Read **`docs/agents/workflow.md`** and **`docs/agents/deployment.md`**.
 
@@ -28,7 +29,7 @@ From PRD path: `tasks/prd-mobile-ui-ux.md` → branch **`feat/mobile-ui-ux`**.
 Before first slice (after step 3):
 
 ```bash
-git checkout main && git pull
+git checkout sandbox && git pull
 git checkout -b feat/<slug>
 git push -u origin feat/<slug>
 ```
@@ -52,8 +53,8 @@ Optional flags:
 
 ```text
 to-prd (required)  →  to-issues --auto  →  validate-issues  →  feat/<slug>
-  →  implement-issue × N  →  human merges each slice PR
-  →  open PR feat/<slug> → main (required)  →  human merges to main
+  →  implement-issue × N  →  agent squash-merges each slice PR (CI green)
+  →  open PR feat/<slug> → sandbox (required)  →  Jorge merges; later sandbox → main
 ```
 
 ### Step 1 — Parent PRD on GitHub (**required**)
@@ -83,7 +84,7 @@ Run **`validate-issues`**. If `stop-after-issues`, stop with parent `P` and chil
 
 ### Step 4 — Create and push integration branch
 
-Create `feat/<slug>` from `main` and push (see above).
+Create `feat/<slug>` from `sandbox` and push (see above).
 
 ### Step 5 — Implement slices in order
 
@@ -92,15 +93,15 @@ For each issue in dependency order:
 1. Blockers closed (merged into `feat/<slug>`).
 2. `git checkout feat/<slug> && git pull`.
 3. **`implement-issue`** with base **`feat/<slug>`**.
-4. Pause for human merge into `feat/<slug>`; wait for **`continue`** before next slice.
+4. Once CI is green, squash-merge the slice PR into `feat/<slug>`, then move to the next slice.
 
-### Step 6 — Open final PR to `main` (**required**, automated)
+### Step 6 — Open final PR to `sandbox` (**required**, automated)
 
-After the **last slice PR is merged** into `feat/<slug>` (user confirmed), you **must** open the release PR — do not only remind the user.
+After the **last slice PR is merged** into `feat/<slug>`, you **must** open the PR into `sandbox` — do not only remind the user. Merge latest `sandbox` into `feat/<slug>` first if it moved.
 
 ```bash
 git checkout feat/<slug> && git pull
-gh pr create --base main --head feat/<slug> \
+gh pr create --base sandbox --head feat/<slug> \
   --title "feat(<scope>): <feature name> (PRD #P)" \
   --body "$(cat <<'EOF'
 ## Summary
@@ -118,25 +119,25 @@ Part of #P
 
 ## Before merge (human)
 
-- [ ] Review diff locally (or on production after merge to `main`); Vercel does not build non-`main` branches
+- [ ] Review diff locally; Vercel builds only `main`, so `sandbox` and `feat/*` have no previews
 - [ ] `npm run migrate:deploy` if schema changed
 - [ ] Update CHANGELOG [Unreleased]
 
 ## Production
 
-Merging this PR deploys **production** (`main`).
+Merging this PR does **not** deploy: production follows Jorge's `sandbox` → `main` merge.
 
 EOF
 )"
 ```
 
-Babysit this PR until merge-ready (CI green, conflicts resolved with `main`).
+Babysit this PR until merge-ready (CI green, conflicts resolved by merging `sandbox` in).
 
 Tell the user:
 
 ```text
-Final PR <url> is open: feat/<slug> → main. Merge when ready (production deploy).
-Slice PRs stay on the feature branch; this is the only merge to main for this PRD.
+Final PR <url> is open: feat/<slug> → sandbox. Merge when ready (no deploy).
+Production follows your sandbox → main merge.
 ```
 
 ### Step 7 — Close out
@@ -149,9 +150,10 @@ Comment on parent **`P`** with links to all slice PRs and the final PR URL.
 | ------ | -------- |
 | Publish parent PRD issue | **Required** (unless parent `#` given) |
 | Create slice issues, `feat/<slug>`, slice PRs | Yes |
-| Open final PR `feat/<slug>` → `main` | **Required** after last slice merged |
+| Open final PR `feat/<slug>` → `sandbox` | **Required** after last slice merged |
 | Babysit PRs | Yes |
-| `gh pr merge` | **No** |
+| `gh pr merge` of a slice PR into `feat/<slug>` | Yes, squash, once CI is green |
+| `gh pr merge` into `sandbox` or `main` | **No** (Jorge only) |
 
 ## Example
 
@@ -159,4 +161,4 @@ Comment on parent **`P`** with links to all slice PRs and the final PR URL.
 /ship-feature tasks/prd-mobile-ui-ux.md
 ```
 
-→ Parent issue #P → child issues → `feat/mobile-ui-ux` → slice PRs (you merge) → final PR to `main` (you merge once).
+→ Parent issue #P → child issues → `feat/mobile-ui-ux` → slice PRs (agent merges) → final PR to `sandbox` (Jorge merges) → Jorge releases `sandbox` → `main`.
