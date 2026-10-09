@@ -25,3 +25,38 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
     row.converted_to_ticket_id != null ? String(row.converted_to_ticket_id) : null,
   downloadFileName: buildTicketPdfFileName(row),
 });
+
+/** Server row → composer edit state (ZIG-I5-5); inline lines stay inline. */
+export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
+  id: String(row.id),
+  client: {
+    id: row.client_id ?? 0,
+    label: row.client_tel
+      ? `${row.client_name ?? 'Cliente'} · ${row.client_tel}`
+      : (row.client_name ?? 'Cliente'),
+  },
+  ticketDate: (row.ticket_date ? new Date(row.ticket_date) : new Date()).toISOString(),
+  expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+  notes: row.work_notes ?? '',
+  lines: row.services_tickets.map((line) =>
+    line.service_id == null
+      ? {
+          key: `line-${String(line.id)}`,
+          kind: 'custom' as const,
+          service_id: null,
+          service_name: getServiceLineName(line),
+          ...(line.description ? { description: line.description } : {}),
+          save_to_catalog: false,
+          quantity: line.quantity,
+          price: Number(line.price) || 0,
+        }
+      : {
+          key: `line-${String(line.id)}`,
+          kind: 'catalog' as const,
+          service_id: line.service_id,
+          service_name: getServiceLineName(line),
+          quantity: line.quantity,
+          price: Number(line.price) || 0,
+        },
+  ),
+});

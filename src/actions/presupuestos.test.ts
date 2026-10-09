@@ -4,6 +4,7 @@ import {
   convertPresupuestoToTicket,
   createPresupuestoWithLines,
   getPresupuestoById,
+  updatePresupuesto,
 } from '@/actions/presupuestos';
 import { service, servicesTickets, ticket } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -384,5 +385,91 @@ describe('getPresupuestoById (ZIG-I5-4)', () => {
 
     expect(result.success).toBe(false);
     expect((result as { errorCode?: string }).errorCode).toBe('TC008');
+  });
+});
+
+describe('updatePresupuesto (ZIG-I5-5 edit)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (requireTicketWrite as jest.Mock).mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+    mockDb.query.service.findMany.mockResolvedValue([{ id: 7 }]);
+  });
+
+  it('replaces the lines keeping inline ones inline and saves notes and Vence', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(quote);
+    const inserted: Array<{ table: unknown; values: unknown }> = [];
+    const updates: unknown[] = [];
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn((table: unknown) => ({
+          values: jest.fn((values: unknown) => {
+            inserted.push({ table, values });
+            return { returning: jest.fn(async () => values as object[]) };
+          }),
+        })),
+        update: jest.fn(() => ({
+          set: jest.fn((values: unknown) => {
+            updates.push(values);
+            return {
+              where: jest.fn(() =>
+                Object.assign(Promise.resolve(), {
+                  returning: jest.fn(async () => [{ ...quote, ...(values as object) }]),
+                }),
+              ),
+            };
+          }),
+        })),
+      };
+      return callback(tx);
+    });
+
+    const expires = new Date('2026-11-08T00:00:00Z');
+    const result = await updatePresupuesto(300, {
+      company_id: 10,
+      expires_at: expires,
+      work_notes: '  Precio incluye material ',
+      services: [
+        { kind: 'custom', name: 'Revisión de fuga', save_to_catalog: false, quantity: 1, price: 600 },
+        { service_id: 7, quantity: 2, price: 2100 },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    expect(inserted).toEqual([
+      {
+        table: servicesTickets,
+        values: [
+          {
+            ticket_id: 300n,
+            service_id: null,
+            name: 'Revisión de fuga',
+            description: null,
+            quantity: 1,
+            price: 600,
+          },
+          { ticket_id: 300n, service_id: 7, quantity: 2, price: 2100 },
+        ],
+      },
+    ]);
+    expect(updates[1]).toMatchObject({
+      expires_at: expires,
+      work_notes: 'Precio incluye material',
+      total: 4800,
+    });
+  });
+
+  it('refuses to edit a converted quote', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({
+      ...quote,
+      converted_to_ticket_id: 301n,
+    });
+
+    const result = await updatePresupuesto(300, { company_id: 10, work_notes: 'x' });
+
+    expect(result.success).toBe(false);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

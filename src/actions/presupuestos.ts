@@ -63,6 +63,7 @@ const presupuestoSchema = z.object({
   document: z.string().max(100).optional(),
   ticket_date: z.date(),
   expires_at: z.date().nullable().optional(),
+  work_notes: z.string().trim().max(2000).nullable().optional(),
   company_id: z.number(),
   services: z.array(serviceLineSchema).optional(),
 });
@@ -427,6 +428,9 @@ export async function updatePresupuesto(
           ...(data.email !== undefined ? { email: data.email } : {}),
           ...(data.document !== undefined ? { document: data.document } : {}),
           ...(data.ticket_date != null ? { ticket_date: data.ticket_date } : {}),
+          ...(data.work_notes !== undefined
+            ? { work_notes: data.work_notes?.trim() || null }
+            : {}),
           ...(data.expires_at !== undefined
             ? { expires_at: data.expires_at }
             : {}),

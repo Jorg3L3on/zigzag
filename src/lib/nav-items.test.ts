@@ -46,7 +46,7 @@ describe('nav-items', () => {
     expect(MOBILE_TAB_ITEMS[MOBILE_DOCK_CREATE_SLOT]?.title).toBe('Clientes');
   });
 
-  it('defines create actions Nuevo ticket, Captura rápida, Nuevo cliente', () => {
+  it('defines create actions Nuevo ticket, Nuevo presupuesto, Captura rápida, Nuevo cliente', () => {
     expect(
       MOBILE_CREATE_ACTIONS.map(({ title, url, requiredPermission }) => ({
         title,
@@ -57,6 +57,11 @@ describe('nav-items', () => {
       {
         title: 'Nuevo ticket',
         url: '/tickets/create',
+        requiredPermission: 'tickets.write',
+      },
+      {
+        title: 'Nuevo presupuesto',
+        url: '/presupuestos/create',
         requiredPermission: 'tickets.write',
       },
       {
