@@ -1,9 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { TicketAddServicePanel } from '@/components/tickets/ticket-add-service-panel';
-
-jest.mock('@/components/services/service-form', () => ({
-  ServiceForm: () => <div>Formulario de servicio</div>,
-}));
 
 const service = {
   id: 1,
@@ -31,10 +27,14 @@ const baseProps = {
   price: '100',
   onPriceChange: jest.fn(),
   onPriceAdjust: jest.fn(),
-  isCreatingNewService: false,
-  onStartCreateService: jest.fn(),
-  onCancelCreateService: jest.fn(),
-  onServiceCreated: jest.fn(),
+  lineMode: 'catalog' as const,
+  onLineModeChange: jest.fn(),
+  customName: '',
+  onCustomNameChange: jest.fn(),
+  customDescription: '',
+  onCustomDescriptionChange: jest.fn(),
+  saveToCatalog: false,
+  onSaveToCatalogChange: jest.fn(),
   isSubmitting: false,
   onAddService: jest.fn(),
 };
@@ -54,27 +54,80 @@ describe('TicketAddServicePanel', () => {
     expect(
       screen.getByRole('heading', { name: /agregar servicio al ticket/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/selecciona un servicio existente/i)).toBeInTheDocument();
+    expect(screen.getByText(/selecciona un servicio de tu catálogo/i)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /del catálogo/i })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
-  it('shows the create-service form when creating inline', () => {
+  it('switches to Nuevo mode through the segmented control (ZIG-I5)', () => {
+    const onLineModeChange = jest.fn();
     render(
       <TicketAddServicePanel
         {...baseProps}
         isOpen
-        isCreatingNewService
+        onLineModeChange={onLineModeChange}
       />,
     );
 
-    expect(
-      screen.getByRole('heading', { name: /crear nuevo servicio/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Formulario de servicio')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /nuevo/i }));
+    expect(onLineModeChange).toHaveBeenCalledWith('custom');
+  });
+
+  it('Nuevo mode shows name, description and an off Guardar en mi catálogo switch', () => {
+    const onSaveToCatalogChange = jest.fn();
+    const onCustomNameChange = jest.fn();
+    render(
+      <TicketAddServicePanel
+        {...baseProps}
+        isOpen
+        lineMode="custom"
+        onCustomNameChange={onCustomNameChange}
+        onSaveToCatalogChange={onSaveToCatalogChange}
+      />,
+    );
+
+    expect(screen.queryByRole('combobox', { name: 'Servicio' })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Nombre del servicio'), {
+      target: { value: 'Cambio de capacitor' },
+    });
+    expect(onCustomNameChange).toHaveBeenCalledWith('Cambio de capacitor');
+
+    const toggle = screen.getByRole('switch', { name: /guardar en mi catálogo/i });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText(/sólo en este ticket/i)).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(onSaveToCatalogChange).toHaveBeenCalledWith(true);
+
+    // No name yet: the add button stays disabled.
+    expect(screen.getByRole('button', { name: /agregar al ticket/i })).toBeDisabled();
+  });
+
+  it('enables Agregar in Nuevo mode once a name is typed', () => {
+    render(
+      <TicketAddServicePanel
+        {...baseProps}
+        isOpen
+        lineMode="custom"
+        customName="Visita"
+        saveToCatalog
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /agregar al ticket/i })).toBeEnabled();
+    expect(screen.getByText(/también quedará en servicios/i)).toBeInTheDocument();
   });
 
   it('shows a live subtotal of Cantidad × Precio', () => {
     const { rerender } = render(
-      <TicketAddServicePanel {...baseProps} isOpen quantity="3" price="4200" />,
+      <TicketAddServicePanel
+        {...baseProps}
+        isOpen
+        selectedService="1"
+        quantity="3"
+        price="4200"
+      />,
     );
 
     expect(screen.getByTestId('ticket-add-service-subtotal-value')).toHaveTextContent(
