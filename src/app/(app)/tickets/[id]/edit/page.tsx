@@ -51,7 +51,6 @@ import {
   TripledMobileAppBar,
   TripledMobileStickyActionBar,
   TripledPageHeader,
-  TripledStepper,
 } from '@/components/tripled';
 import { ClientPhoneLink } from '@/components/client-phone-link';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
@@ -398,20 +397,6 @@ export default function EditTicketPage({
             subtitle="Editar ticket"
             backHref={`/tickets/${resolvedParams.id}`}
             className="mb-3"
-          />
-          <TripledStepper
-            steps={[
-              { id: 'create', title: 'Datos del ticket' },
-              { id: 'services', title: 'Servicios' },
-              { id: 'review', title: 'Detalle' },
-            ]}
-            currentStepId={
-              resolvedSearchParams.step === 'create'
-                ? 'create'
-                : resolvedSearchParams.step === 'services'
-                  ? 'services'
-                  : 'review'
-            }
           />
           <Card className="border-0 shadow-lg mb-6">
             <CardHeader className="space-y-4 pb-8">

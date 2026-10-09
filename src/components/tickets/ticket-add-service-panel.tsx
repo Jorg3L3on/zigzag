@@ -19,9 +19,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  formatServiceCurrency,
   sanitizeDecimal,
   sanitizeInteger,
 } from '@/components/tickets/ticket-services-utils';
+import { NumberTicker } from '@/components/motion';
+import { multiplyMoney } from '@/lib/money';
 import { CheckCircle2, Loader2, Minus, Plus, PlusCircle } from 'lucide-react';
 
 type TicketAddServicePanelProps = {
@@ -70,7 +73,7 @@ export const TicketAddServicePanel = ({
 }: TicketAddServicePanelProps) => (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
     <DialogTrigger asChild>
-      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transition-all duration-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg sm:w-auto">
+      <Button className="w-full sm:w-auto">
         <PlusCircle className="mr-2 h-5 w-5" data-icon="inline-start" />
         Agregar servicio
       </Button>
@@ -271,10 +274,34 @@ export const TicketAddServicePanel = ({
             </div>
           </div>
 
+          <div
+            data-testid="ticket-add-service-subtotal"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Subtotal
+              </p>
+              <p className="truncate text-xs tabular-nums text-muted-foreground">
+                {sanitizeInteger(quantity)} ×{' '}
+                {formatServiceCurrency(sanitizeDecimal(price))}
+              </p>
+            </div>
+            <NumberTicker
+              value={multiplyMoney(
+                sanitizeDecimal(price),
+                sanitizeInteger(quantity),
+              )}
+              format={formatServiceCurrency}
+              className="shrink-0 text-lg font-semibold text-foreground"
+              data-testid="ticket-add-service-subtotal-value"
+            />
+          </div>
+
           <Button
             type="button"
             onClick={onAddService}
-            className="h-12 w-full transform bg-gradient-to-r from-blue-600 to-purple-600 font-medium text-white transition-all duration-200 hover:scale-[1.02] hover:from-blue-700 hover:to-purple-700"
+            className="h-12 w-full font-medium"
             disabled={isSubmitting}
           >
             {isSubmitting ? (

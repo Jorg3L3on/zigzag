@@ -30,7 +30,7 @@ export function AccountFormDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+        <Button>
           <Pencil className="mr-2 h-4 w-4" data-icon="inline-start" />
           Editar información
         </Button>

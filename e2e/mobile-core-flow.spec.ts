@@ -1,103 +1,43 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import {
+  addComposerLine,
+  createClientInComposer,
+  finishOnReview,
+  openComposer,
+  saveComposer,
+} from './helpers/ticket-composer';
 import { formatServiceCurrency } from '../src/components/tickets/ticket-services-utils';
 
 const uniqueSuffix = () => Date.now().toString().slice(-8);
+
+/**
+ * After a hard navigation Next may still hold streamed sections in hidden
+ * placeholders (duplicate ids/text for a moment); act on the visible copy.
+ */
+const visible = (locator: Locator) => locator.filter({ visible: true }).first();
 
 const UNIT_PRICE = 100;
 const INITIAL_QUANTITY = 2;
 const UPDATED_QUANTITY = 3;
 const PARTIAL_PAYMENT = 50;
 
-const createClientAndTicket = async (page: Page) => {
+const composeTicket = async (page: Page) => {
   const clientName = `Mobile E2E Client ${uniqueSuffix()}`;
   const clientPhone = `961${uniqueSuffix().slice(-7)}`;
 
-  await page.goto('/tickets/create');
-  await expect(page.getByText('Información del cliente').first()).toBeVisible({
-    timeout: 15_000,
+  await openComposer(page);
+  await createClientInComposer(page, { name: clientName, phone: clientPhone });
+  const serviceName = await addComposerLine(page, {
+    quantity: INITIAL_QUANTITY,
+    price: UNIT_PRICE,
   });
-
-  await page.getByRole('button', { name: 'Nuevo cliente' }).first().click();
-  const clientDialog = page.getByRole('dialog', {
-    name: 'Crear nuevo cliente',
-  });
-  await expect(clientDialog).toBeVisible();
-  await clientDialog.getByLabel('Nombre').fill(clientName);
-  await clientDialog.getByLabel('Teléfono').fill(clientPhone);
-  await clientDialog.getByRole('button', { name: 'Crear' }).click();
-
-  const clientCreateError = page.getByText(
-    /Error al crear el cliente|Selecciona una empresa/,
-  );
-  await Promise.race([
-    expect(page.getByText('Cliente seleccionado')).toBeVisible({
-      timeout: 30_000,
-    }),
-    clientCreateError
-      .waitFor({ state: 'visible', timeout: 30_000 })
-      .then(async () => {
-        throw new Error(
-          `Client create failed: ${await clientCreateError.textContent()}`,
-        );
-      }),
-  ]);
-  await expect(clientDialog).toBeHidden({ timeout: 10_000 });
-
-  // Mobile sticky bar uses "Crear"; desktop submit is hidden below md.
-  await page.getByRole('button', { name: 'Crear', exact: true }).click();
-  await page.waitForURL(/\/tickets\/\d+\/services/, { timeout: 30_000 });
-
-  const ticketId = page.url().match(/\/tickets\/(\d+)\/services/)?.[1];
-  expect(ticketId).toBeTruthy();
-  return { ticketId: ticketId!, clientName };
-};
-
-const addServiceWithPrice = async (
-  page: Page,
-  {
-    quantity,
-    price,
-  }: {
-    quantity: number;
-    price: number;
-  },
-) => {
-  await page.getByRole('button', { name: 'Agregar servicio' }).click();
-  const serviceDialog = page.getByRole('dialog', {
-    name: 'Agregar servicio al ticket',
-  });
-  await expect(serviceDialog).toBeVisible();
-
-  await serviceDialog.getByRole('combobox', { name: 'Servicio' }).click();
-  const serviceListbox = page.getByRole('listbox');
-  await expect(serviceListbox).toBeVisible({ timeout: 15_000 });
-  const serviceOption = serviceListbox.getByRole('option').first();
-  await expect(serviceOption).toBeVisible();
-  const serviceName = (await serviceOption.textContent())?.trim();
-  expect(serviceName).toBeTruthy();
-  await serviceOption.click();
-
-  await serviceDialog
-    .getByRole('spinbutton', { name: 'Cantidad' })
-    .fill(String(quantity));
-  await serviceDialog
-    .getByRole('spinbutton', { name: 'Precio' })
-    .fill(String(price));
-  await serviceDialog
-    .getByRole('button', { name: 'Agregar al ticket' })
-    .click();
-  await expect(serviceDialog).toBeHidden({ timeout: 30_000 });
-  await expect(
-    page.getByRole('heading', { name: serviceName! }),
-  ).toBeVisible();
-
-  return serviceName!;
+  return { clientName, serviceName };
 };
 
 const expectServicesTotal = async (page: Page, amount: number) => {
@@ -110,51 +50,39 @@ const finishWithPartialPayment = async (
   ticketId: string,
   partialAmount: number,
 ) => {
-  await page.getByRole('button', { name: 'Continuar al detalle' }).click();
-  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-    timeout: 30_000,
-  });
+  await finishOnReview(page, ticketId, { mode: 'partial', amount: partialAmount });
 
-  await page.getByRole('button', { name: 'Pago parcial' }).click();
-  await page.locator('#detail-paid-amount').fill(String(partialAmount));
-
-  await page.getByRole('button', { name: 'Finalizar y generar recibo' }).click();
-
-  const schedulesDialog = page.getByRole('dialog', {
-    name: 'Recordatorios de servicio',
-  });
-  await expect(schedulesDialog).toBeVisible({ timeout: 15_000 });
-  await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
-
-  await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), {
-    timeout: 60_000,
-  });
+  await page.goto(`/tickets/${ticketId}`);
   // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
-  await expect(page.getByText(/Finalizado ·/)).toBeVisible();
-  await expect(page.getByText('Pago parcial').first()).toBeVisible();
+  // After a hard navigation Next may still hold streamed chunks in hidden
+  // placeholders, so match the visible chip (strict mode would fail at once).
+  await expect(
+    page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(visible(page.getByText('Pago parcial'))).toBeVisible();
 };
 
 const settleRemainingBalance = async (page: Page) => {
-  const paymentsSection = page.locator('#cobranza');
+  const paymentsSection = visible(page.locator('#cobranza'));
+  await expect(paymentsSection).toBeVisible({ timeout: 15_000 });
   await paymentsSection.scrollIntoViewIfNeeded();
-  await expect(
+  const settleButton = visible(
     page.getByRole('button', { name: 'Saldar el ticket por completo' }),
-  ).toBeVisible({ timeout: 15_000 });
+  );
+  await expect(settleButton).toBeVisible({ timeout: 15_000 });
 
-  await page
-    .getByRole('button', { name: 'Saldar el ticket por completo' })
-    .click();
+  await settleButton.click();
 
-  await expect(page.getByText('Pago completado').first()).toBeVisible({
+  await expect(visible(page.getByText('Pago completado'))).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText('Saldado').first()).toBeVisible();
+  await expect(visible(page.getByText('Saldado'))).toBeVisible();
 };
 
 const downloadInvoicePdf = async (page: Page, ticketId: string) => {
-  const downloadButton = page
-    .getByRole('button', { name: /Descargar \/ imprimir|Generar recibo/ })
-    .first();
+  const downloadButton = visible(
+    page.getByRole('button', { name: /Descargar \/ imprimir|Generar recibo/ }),
+  );
   await expect(downloadButton).toBeVisible({ timeout: 15_000 });
 
   await Promise.all([
@@ -209,21 +137,24 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
   test('creates ticket, updates service total, collects payment, downloads PDF', async ({
     page,
   }) => {
-    const { ticketId } = await createClientAndTicket(page);
-
-    await addServiceWithPrice(page, {
-      quantity: INITIAL_QUANTITY,
-      price: UNIT_PRICE,
-    });
+    const { serviceName } = await composeTicket(page);
     await expectServicesTotal(page, UNIT_PRICE * INITIAL_QUANTITY);
 
-    await page.getByRole('button', { name: 'Aumentar cantidad del servicio' }).click();
-    await expect
-      .poll(async () =>
-        page.getByRole('spinbutton', { name: 'Cantidad del servicio' }).inputValue(),
-      )
-      .toBe(String(UPDATED_QUANTITY));
+    // Editar the draft line in its sheet before saving.
+    await page.getByRole('button', { name: `Opciones de ${serviceName}` }).click();
+    await page.getByRole('menuitem', { name: /Editar/ }).click();
+    const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
+    await editSheet
+      .getByRole('button', { name: 'Aumentar cantidad del servicio' })
+      .click();
+    await expect(
+      editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
+    ).toHaveValue(String(UPDATED_QUANTITY));
+    await editSheet.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
+
+    const ticketId = await saveComposer(page);
 
     const finalTotal = UNIT_PRICE * UPDATED_QUANTITY;
     await finishWithPartialPayment(page, ticketId, PARTIAL_PAYMENT);

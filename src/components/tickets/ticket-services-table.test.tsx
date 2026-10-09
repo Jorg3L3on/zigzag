@@ -55,7 +55,7 @@ describe('TicketServicesTable', () => {
       screen.getByText(/no hay servicios asignados a este ticket/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /continuar al detalle/i }),
+      screen.getByRole('button', { name: /ver ticket/i }),
     ).toBeDisabled();
   });
 
@@ -82,12 +82,12 @@ describe('TicketServicesTable', () => {
     expect(screen.getByText('$150.00')).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole('button', { name: /continuar al detalle/i }),
+      screen.getByRole('button', { name: /ver ticket/i }),
     );
     expect(onContinue).toHaveBeenCalledTimes(1);
 
     await user.click(
-      screen.getByRole('button', { name: /volver a datos del ticket/i }),
+      screen.getByRole('button', { name: /editar datos del ticket/i }),
     );
     expect(onBack).toHaveBeenCalledTimes(1);
 

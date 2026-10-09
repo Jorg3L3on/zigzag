@@ -352,6 +352,161 @@ export async function createTicket(
   }
 }
 
+const composerLineSchema = z.object({
+  service_id: z.number().int().positive(),
+  quantity: z.number().int().min(1).max(9999),
+  price: z.number().finite().min(0).max(99_999_999.99),
+});
+
+const createTicketWithLinesSchema = z.object({
+  company_id: z.number().int().positive(),
+  client_id: z.number().int().positive(),
+  ticket_date: z.coerce.date(),
+  work_notes: z.string().trim().max(2000).optional().default(''),
+  lines: z.array(composerLineSchema).min(1).max(50),
+  /** What the composer showed; audit only. The server always recomputes the total. */
+  client_total: z.number().finite().optional(),
+});
+
+export type CreateTicketWithLinesInput = z.input<
+  typeof createTicketWithLinesSchema
+>;
+
+const TICKET_EMAIL_MAX_LENGTH = 40;
+
+/**
+ * Nuevo ticket composer (ZIG-I2 D2): creates the ticket and all its lines in one
+ * transaction. Nothing is persisted before this call. Client snapshot fields come
+ * from the tenant's client row and the total is server-authoritative.
+ */
+export async function createTicketWithLines(
+  input: CreateTicketWithLinesInput,
+): Promise<{
+  success: boolean;
+  data?: { id: string; total: number };
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const validated = createTicketWithLinesSchema.parse(input);
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      validated.company_id,
+    );
+
+    await assertCompanyProductionReady(effectiveCompanyId);
+
+    const clientRow = await db.query.client.findFirst({
+      where: and(
+        eq(client.id, validated.client_id),
+        eq(client.company_id, effectiveCompanyId),
+        isNull(client.deleted_at),
+      ),
+      columns: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        document: true,
+      },
+    });
+    if (!clientRow) {
+      throw new AuthorizationError('Client not found for this company');
+    }
+
+    await assertServicesBelongToCompany(
+      validated.lines.map((line) => line.service_id),
+      effectiveCompanyId,
+    );
+
+    const ticketValues = {
+      client_id: clientRow.id,
+      client_name: clientRow.name.slice(0, 100),
+      client_tel: clientRow.phone ?? '',
+      email:
+        clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
+          ? clientRow.email
+          : null,
+      document: clientRow.document ?? null,
+      work_notes: validated.work_notes || null,
+      ticket_date: validated.ticket_date,
+      company_id: effectiveCompanyId,
+      userId: BigInt(context.userId),
+      document_kind: 'ticket' as const,
+      finished: false,
+      paid: 0,
+      total: 0,
+    };
+
+    const runTransaction = () =>
+      db.transaction(async (tx) => {
+        const [created] = await tx.insert(ticket).values(ticketValues).returning();
+
+        const lineRows = await tx
+          .insert(servicesTickets)
+          .values(
+            validated.lines.map((line) => ({
+              ticket_id: created.id,
+              service_id: line.service_id,
+              quantity: line.quantity,
+              price: roundMoney(line.price),
+            })),
+          )
+          .returning();
+
+        const syncedTotal = await syncTicketTotal(tx, created.id);
+
+        await recordTicketAudit(
+          tx,
+          context,
+          created.id,
+          effectiveCompanyId,
+          'created',
+          {
+            ticket: { ...created, total: syncedTotal },
+            source: 'composer',
+            lines: lineRows,
+            syncedTotal,
+            ignoredClientTotal: validated.client_total ?? null,
+          },
+        );
+
+        return { id: created.id, total: syncedTotal };
+      });
+
+    let created: { id: bigint; total: number };
+    try {
+      created = await runTransaction();
+    } catch (error) {
+      if (!isTicketPrimaryKeyConflict(error)) {
+        throw error;
+      }
+      await syncTicketIdSequence();
+      created = await runTransaction();
+    }
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+    revalidatePath('/dashboard');
+    revalidatePath('/tickets');
+    revalidatePath(`/tickets/${String(created.id)}`);
+
+    return {
+      success: true,
+      data: { id: String(created.id), total: created.total },
+    };
+  } catch (error) {
+    if (error instanceof CompanyProductionBlockedError) {
+      return handleServerActionError(error);
+    }
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) {
+      return handleServerActionError(error);
+    }
+    if (error instanceof z.ZodError) {
+      return buildActionError('TC009', error, 'validation');
+    }
+    return handleCodedServerActionError('tickets.composer.create', 'TC001', error);
+  }
+}
+
 export async function getTickets(
   companyId: number | null,
 ): Promise<{

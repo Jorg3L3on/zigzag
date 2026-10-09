@@ -132,9 +132,9 @@ const DARK_ROUTES = [
   {
     path: '/tickets/create',
     ready: async (page: Page) => {
-      await expect(page.getByText('Información del cliente').first()).toBeVisible({
-        timeout: 15_000,
-      });
+      await expect(
+        page.getByRole('heading', { name: 'Cliente', exact: true }),
+      ).toBeVisible({ timeout: 15_000 });
     },
   },
 ] as const;

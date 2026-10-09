@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Max length for Service description (form, actions, CSV). No DB migration in v1. */
-export const SERVICE_DESCRIPTION_MAX_LENGTH = 120;
+export const SERVICE_DESCRIPTION_MAX_LENGTH = 240;
 
 export const SERVICE_DESCRIPTION_MAX_MESSAGE = `La descripción no puede exceder ${SERVICE_DESCRIPTION_MAX_LENGTH} caracteres`;
 
