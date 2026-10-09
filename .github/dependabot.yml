@@ -4,4 +4,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    # 0 turns off version-update PRs. Security-update PRs ignore this limit
+    # and keep coming as long as Dependabot security updates are enabled in
+    # the repo settings (Settings → Code security).
+    open-pull-requests-limit: 0
