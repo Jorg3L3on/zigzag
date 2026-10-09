@@ -17,6 +17,10 @@ import {
   isPresupuestoTicket,
   normalizeTicketDocumentKind,
 } from '@/lib/ticket-document-kind';
+import {
+  getServiceLineDescription,
+  getServiceLineName,
+} from '@/lib/service-line-display';
 
 type TicketServiceLine = ServicesTicketsRow & {
   service: Service | null;
@@ -119,8 +123,8 @@ export const buildFintechInvoicePayload = (
     .map((line, index) => {
       const quantity = isFiniteNumber(line.quantity) ? line.quantity : 0;
       const unitPrice = isFiniteNumber(line.price) ? line.price : 0;
-      const serviceName = line.service?.name?.trim() || 'Servicio';
-      const description = line.service?.description?.trim() || '';
+      const serviceName = getServiceLineName(line);
+      const description = getServiceLineDescription(line);
 
       return {
         number: index + 1,

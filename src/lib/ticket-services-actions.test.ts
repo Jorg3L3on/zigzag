@@ -277,6 +277,133 @@ describe('ticket-services money validation (TCI-02)', () => {
     expect(invalidateCompanyCache).toHaveBeenCalledWith(10, 'dashboard');
   });
 
+  it('createServiceTicket adds an inline line without a catalog lookup (ZIG-I5)', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({
+      id: 42n,
+      company_id: 10,
+      total: 100,
+      paid: 0,
+      deleted_at: null,
+    });
+    const inserted: Array<{ values: unknown }> = [];
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn(() => ({
+          values: jest.fn((values: Record<string, unknown>) => {
+            inserted.push({ values });
+            return {
+              returning: jest.fn(async () => [{ id: 11, ...values }]),
+            };
+          }),
+        })),
+      };
+      return callback(tx);
+    });
+    mockDb.query.servicesTickets.findFirst.mockResolvedValue({
+      id: 11,
+      service_id: null,
+      name: 'Cambio de capacitor',
+      quantity: 1,
+      price: 850,
+      service: null,
+    });
+
+    const result = await createServiceTicket('42', {
+      kind: 'custom',
+      name: 'Cambio de capacitor',
+      quantity: 1,
+      price: 850,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDb.query.service.findFirst).not.toHaveBeenCalled();
+    expect(inserted).toEqual([
+      {
+        values: {
+          ticket_id: 42n,
+          service_id: null,
+          name: 'Cambio de capacitor',
+          description: null,
+          quantity: 1,
+          price: 850,
+        },
+      },
+    ]);
+    expect(recordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      42n,
+      10,
+      'updated',
+      expect.objectContaining({
+        serviceName: 'Cambio de capacitor',
+        inline: true,
+        savedToCatalog: false,
+      }),
+    );
+  });
+
+  it('createServiceTicket with Guardar en mi catálogo creates the Service in the same tx', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({
+      id: 42n,
+      company_id: 10,
+      total: 100,
+      paid: 0,
+      deleted_at: null,
+    });
+    const inserted: unknown[] = [];
+    mockDb.transaction.mockImplementation(async (callback) => {
+      const tx = {
+        insert: jest.fn(() => ({
+          values: jest.fn((values: Record<string, unknown>) => {
+            inserted.push(values);
+            return {
+              returning: jest.fn(async () =>
+                'company_id' in values ? [{ id: 77 }] : [{ id: 12, ...values }],
+              ),
+            };
+          }),
+        })),
+      };
+      return callback(tx);
+    });
+    mockDb.query.servicesTickets.findFirst.mockResolvedValue({
+      id: 12,
+      service_id: 77,
+      quantity: 1,
+      price: 3500,
+      service: { id: 77, name: 'Instalación' },
+    });
+
+    const result = await createServiceTicket('42', {
+      kind: 'custom',
+      name: 'Instalación',
+      save_to_catalog: true,
+      quantity: 1,
+      price: 3500,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+    expect(inserted).toEqual([
+      { company_id: 10, name: 'Instalación', description: 'Instalación', price: 3500 },
+      { ticket_id: 42n, service_id: 77, quantity: 1, price: 3500 },
+    ]);
+  });
+
+  it('createServiceTicket rejects an inline line without a name', async () => {
+    const result = await createServiceTicket('42', {
+      kind: 'custom',
+      name: '',
+      quantity: 1,
+      price: 10,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe('TS006');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
   it('rejects service mutations on saldado tickets', async () => {
     mockDb.query.ticket.findFirst.mockResolvedValue({
       id: 42n,

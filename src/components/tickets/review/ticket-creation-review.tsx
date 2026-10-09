@@ -55,7 +55,8 @@ import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
 export type TicketReviewLine = {
   id: number;
-  serviceId: number;
+  /** Null for an inline line (ZIG-I5): no service reminder for it. */
+  serviceId: number | null;
   name: string;
   quantity: number;
   price: number;
@@ -220,7 +221,9 @@ export const TicketCreationReview = ({
 
   const serviceLines = React.useMemo(() => {
     const byService = new Map<number, string>();
-    lines.forEach((line) => byService.set(line.serviceId, line.name));
+    lines.forEach((line) => {
+      if (line.serviceId != null) byService.set(line.serviceId, line.name);
+    });
     return Array.from(byService.entries()).map(([serviceId, serviceName]) => ({
       serviceId,
       serviceName,

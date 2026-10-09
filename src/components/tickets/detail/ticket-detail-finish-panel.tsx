@@ -49,7 +49,10 @@ type TicketDetailFinishPanelProps = {
   clientName: string | null;
   total: number | null;
   ticketDate: Date | null;
+  /** Catalog lines, for service reminders. */
   serviceLines: ServiceLine[];
+  /** All active lines (catalog + inline); finishing needs at least one. */
+  lineCount?: number;
   downloadFileName: string;
 };
 
@@ -70,6 +73,7 @@ export const TicketDetailFinishPanel = ({
   total,
   ticketDate,
   serviceLines,
+  lineCount,
   downloadFileName,
 }: TicketDetailFinishPanelProps) => {
   const router = useRouter();
@@ -90,7 +94,7 @@ export const TicketDetailFinishPanel = ({
   }
 
   const ticketTotal = total ?? 0;
-  const hasServices = serviceLines.length > 0;
+  const hasServices = (lineCount ?? serviceLines.length) > 0;
 
   const updatePaidAmountInput = (amount: number) => {
     const safe = Math.max(0, Number.isFinite(amount) ? amount : 0);

@@ -54,6 +54,8 @@ const baseTicket = (overrides: Partial<FintechInvoiceTicket> = {}) =>
       {
         id: 1,
         service_id: 10,
+        name: null,
+        description: null,
         ticket_id: 2n,
         quantity: 1,
         price: 250,
@@ -77,6 +79,35 @@ const baseTicket = (overrides: Partial<FintechInvoiceTicket> = {}) =>
   }) as FintechInvoiceTicket;
 
 describe('fintech invoice payload', () => {
+  it('renders inline lines (no catalog service) with their own name and description (ZIG-I5)', () => {
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        services_tickets: [
+          {
+            id: 2,
+            service_id: null,
+            name: 'Cambio de capacitor',
+            description: '35 µF',
+            ticket_id: 2n,
+            quantity: 1,
+            price: 850,
+            created_at: new Date(),
+            updated_at: null,
+            deleted_at: null,
+            service: null,
+          },
+        ],
+      }),
+    );
+    expect(payload.items[0]).toMatchObject({
+      name: 'Cambio de capacitor',
+      description: '35 µF',
+      quantity: 1,
+      unitPrice: 850,
+    });
+  });
+
+
   it('formats bigint ticket IDs with leading zeroes', () => {
     expect(formatTicketNumber(2n)).toBe('000002');
     expect(formatTicketNumber(1234567n)).toBe('1234567');
