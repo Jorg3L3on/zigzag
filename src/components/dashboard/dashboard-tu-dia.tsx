@@ -485,27 +485,31 @@ export const DashboardTuDia = ({
         className,
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 sm:px-5">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-base font-semibold tracking-tight sm:text-lg">Tu día</h2>
-          <span className="text-xs text-muted-foreground first-letter:uppercase" suppressHydrationWarning>
+      {/* Fixed-height, non-wrapping title row: Subir ahora shows briefly while the
+          mount-time sync runs, and it must not push the tiles down (CLS).
+          min-h-14 = pt-4 + the 40px button (border-box). */}
+      <div className="flex min-h-14 items-center justify-between gap-2 px-4 pt-4 sm:px-5">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h2 className="shrink-0 text-base font-semibold tracking-tight sm:text-lg">Tu día</h2>
+          <span className="truncate text-xs text-muted-foreground first-letter:uppercase" suppressHydrationWarning>
             {today}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {headerExtra}
-          <FieldSyncNowButton
-            pendingCount={fieldSync.pendingCount}
-            syncing={fieldSync.syncing}
-            onFlush={() =>
-              fieldSync.flushNow().then(() => {
-                localStore.reload();
-                void load();
-              })
-            }
-          />
-        </div>
+        <FieldSyncNowButton
+          className="shrink-0"
+          pendingCount={fieldSync.pendingCount}
+          syncing={fieldSync.syncing}
+          onFlush={() =>
+            fieldSync.flushNow().then(() => {
+              localStore.reload();
+              void load();
+            })
+          }
+        />
       </div>
+      {headerExtra ? (
+        <div className="flex flex-wrap items-center gap-2 px-4 pt-2 sm:px-5">{headerExtra}</div>
+      ) : null}
 
       <div
         role="tablist"
