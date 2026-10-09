@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { motion, useReducedMotion } from 'framer-motion';
 import {
   Circle,
   CircleCheck,
@@ -22,7 +21,7 @@ import {
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
 import { finishTicket } from '@/actions/tickets';
-import { ActionSwap, BlurFade, DrawCheck, NumberTicker } from '@/components/motion';
+import { ActionSwap, BlurFade } from '@/components/motion';
 import {
   TicketFinishSchedulesDialog,
   type TicketFinishScheduleLine,
@@ -52,15 +51,15 @@ import { cn } from '@/lib/utils';
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
+import {
+  ReviewLinesSection,
+  ReviewSuccessHeader,
+  usePdfViewerEnabled,
+  type ReviewLine,
+} from '@/components/tickets/review/document-review-parts';
 
-export type TicketReviewLine = {
-  id: number;
-  /** Null for an inline line (ZIG-I5): no service reminder for it. */
-  serviceId: number | null;
-  name: string;
-  quantity: number;
-  price: number;
-};
+/** Null serviceId = inline line (ZIG-I5): no service reminder for it. */
+export type TicketReviewLine = ReviewLine;
 
 type TicketCreationReviewProps = {
   ticketId: string;
@@ -79,20 +78,6 @@ type PayMode = 'full' | 'partial' | 'pending';
 type Phase = 'idle' | 'finishing' | 'sharing';
 
 const SECTION_CLASS = GLASS_CARD_CLASS;
-
-const subscribeNoop = () => () => {};
-const readPdfViewerEnabled = () =>
-  typeof navigator !== 'undefined' &&
-  (navigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled === true;
-const serverPdfViewerEnabled = () => false;
-
-/** Inline PDF only where the browser can render it (not Android Chrome, not headless). */
-const usePdfViewerEnabled = () =>
-  React.useSyncExternalStore(
-    subscribeNoop,
-    readPdfViewerEnabled,
-    serverPdfViewerEnabled,
-  );
 
 const parseAmount = (value: string): number => {
   const parsed = Number.parseFloat(value);
@@ -186,7 +171,6 @@ export const TicketCreationReview = ({
   downloadFileName,
 }: TicketCreationReviewProps) => {
   const router = useRouter();
-  const reduceMotion = useReducedMotion();
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
@@ -437,62 +421,19 @@ export const TicketCreationReview = ({
         />
 
         <BlurFade>
-          <header className="flex items-center gap-3 px-1 py-2" data-testid="review-header">
-            <motion.span
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={
-                reduceMotion
-                  ? { duration: 0 }
-                  : { type: 'spring', stiffness: 420, damping: 22 }
-              }
-              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-            >
-              <DrawCheck className="size-6" delay={0.1} />
-            </motion.span>
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight">
-                Ticket #{ticketId} {finished ? 'finalizado' : 'guardado'}
-              </h1>
-              <p className="truncate text-sm text-muted-foreground">
-                {[clientName, dateLabel].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-          </header>
+          <ReviewSuccessHeader
+            title={`Ticket #${ticketId} ${finished ? 'finalizado' : 'guardado'}`}
+            subtitle={[clientName, dateLabel].filter(Boolean).join(' · ')}
+          />
         </BlurFade>
 
         <BlurFade delay={0.05}>
-          <section aria-labelledby="review-lines-heading" className={SECTION_CLASS}>
-            <h2 id="review-lines-heading" className="text-base font-semibold">
-              Servicios
-            </h2>
-            <ul className="mt-2 divide-y divide-border/60" aria-label="Servicios del ticket">
-              {lines.map((line) => (
-                <li key={line.id} className="flex items-start gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium leading-snug">{line.name}</p>
-                    <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
-                      {line.quantity} × {formatServiceCurrency(line.price)}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-semibold tabular-nums">
-                    {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-1 flex items-baseline justify-between border-t border-border/60 pt-3">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Total
-              </span>
-              <NumberTicker
-                value={total}
-                format={formatServiceCurrency}
-                className="text-2xl font-semibold"
-                data-testid="review-total"
-              />
-            </div>
-          </section>
+          <ReviewLinesSection
+            lines={lines}
+            total={total}
+            linesLabel="Servicios del ticket"
+            showInlineChips
+          />
         </BlurFade>
 
         {!finished && canFinish ? (

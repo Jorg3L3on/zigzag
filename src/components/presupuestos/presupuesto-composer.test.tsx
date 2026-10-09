@@ -203,7 +203,7 @@ describe('PresupuestoComposer (ZIG-I5-3)', () => {
     expect(payload.expires_at.getTime()).toBe(
       addDays(startOfDay(new Date()), 7).getTime(),
     );
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/presupuestos'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/presupuestos/400/listo'));
     expect(window.localStorage.getItem(buildPresupuestoComposerDraftKey(10))).toBeNull();
   });
 

@@ -9,7 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { requirePagePermission } from '@/lib/page-authz';
 import {
@@ -24,6 +24,7 @@ import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
 import { getServiceLineName } from '@/lib/service-line-display';
+import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,6 +43,10 @@ export default async function TicketDetailsPage({
   }
 
   const ticket = result.data;
+  // Quotes have their own pages (ZIG-I5-4); never render one as a work ticket.
+  if (isPresupuestoTicket(ticket.document_kind)) {
+    redirect(`/presupuestos/${String(ticket.id)}`);
+  }
   const auditResult = await getTicketAuditHistory(Number(id));
   const auditEntries = auditResult.success ? (auditResult.data ?? []) : [];
   const downloadFileName = buildTicketPdfFileName(ticket);
