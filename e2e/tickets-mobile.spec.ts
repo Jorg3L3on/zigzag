@@ -65,9 +65,13 @@ test.describe('Mobile ticket screens', () => {
     await expect(
       page.getByRole('button', { name: 'Guardar ticket' }).first(),
     ).toBeDisabled();
-    // No wizard copy and nothing says Crear before saving.
+    // No wizard copy and nothing says Crear before saving (the dock's + is labelled Crear).
     await expect(page.getByText(/Paso \d de \d/)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Crear', exact: true })).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('button', { name: 'Crear', exact: true })
+        .and(page.locator(':not([data-testid="mobile-dock-create"])')),
+    ).toHaveCount(0);
     // The dock stays; the sticky CTA floats above it.
     await expectStickyActionAboveDock(page);
     await expectNoHorizontalOverflow(page);
