@@ -17,6 +17,18 @@ const visibleHubTab = (page: Page, name: string) =>
     .filter({ visible: true })
     .first();
 
+async function expectNoHorizontalOverflow(page: Page) {
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth + 1,
+      ),
+    )
+    .toBe(true);
+}
+
 const sessionIsSystem = async (page: Page): Promise<boolean> =>
   page.evaluate(async () => {
     const response = await fetch('/api/auth/session');
@@ -212,6 +224,8 @@ test.describe('Mi empresa hub', () => {
       await expect(
         visibleByTestId('company-form-section-general').getByLabel('Nombre'),
       ).toBeVisible();
+      // ZIG-09: the logo file input used to stretch the page to 433px.
+      await expectNoHorizontalOverflow(page);
 
       const direccion = visibleByTestId('company-form-section-direccion');
       const direccionToggle = direccion.getByRole('button', { name: /^Dirección/ });
