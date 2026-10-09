@@ -2,6 +2,7 @@ import { and, count, eq, isNull, or } from 'drizzle-orm';
 import { company, role, user } from '@/db/schema';
 import { db } from '@/lib/db';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
+import { hideShadowedSharedRoles } from '@/lib/role-visibility';
 import {
   COMPANY_HUB_TABS,
   type CompanyHubTabKey,
@@ -56,9 +57,10 @@ export async function getCompanyHubSummary(
   }
 
   if (tabs.includes('roles')) {
-    // Same scope as the tenant roles list: own roles plus the global ones.
-    const [row] = await db
-      .select({ value: count() })
+    // Same list the Roles tab shows: own roles plus shared ones not shadowed
+    // by an own copy (copy-on-write).
+    const rows = await db
+      .select({ name: role.name, company_id: role.company_id })
       .from(role)
       .where(
         and(
@@ -66,7 +68,7 @@ export async function getCompanyHubSummary(
           or(eq(role.company_id, companyId), isNull(role.company_id)),
         ),
       );
-    counts.roles = Number(row?.value ?? 0);
+    counts.roles = hideShadowedSharedRoles(rows).length;
   }
 
   return {
