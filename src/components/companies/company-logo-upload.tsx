@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { removeCompanyLogo, uploadCompanyLogo } from '@/actions/companies';
 import {
   COMPANY_LOGO_ALLOWED_CONTENT_TYPES,
@@ -151,11 +150,13 @@ export const CompanyLogoUpload = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Input
+          {/* Plain input, not <Input>: its w-full beats sr-only and overflows at 375px.
+              The button below is the keyboard and screen-reader entry point. */}
+          <input
             ref={inputRef}
             type="file"
             accept={acceptTypes}
-            className="sr-only"
+            className="hidden"
             onChange={handleUpload}
             aria-label="Seleccionar archivo de logo"
           />
