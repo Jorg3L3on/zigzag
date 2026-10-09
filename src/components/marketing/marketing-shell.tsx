@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import type { ReactNode } from 'react';
+import { ZigZagMark } from '@/components/brand/zigzag-mark';
 import { LANDING_NAV_LINKS } from '@/components/marketing/marketing-landing-content';
 import {
   marketingDisplay,
@@ -53,14 +53,7 @@ export const MarketingShell = ({
             className="flex items-center gap-2.5 tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mkt-signal)]"
             aria-label="ZigZag inicio"
           >
-            <Image
-              src="/logo.png"
-              alt=""
-              width={36}
-              height={36}
-              className="rounded-md"
-              priority
-            />
+            <ZigZagMark size={36} className="shrink-0" />
             <span className="font-[family-name:var(--font-marketing-display)] text-xl font-bold">
               ZigZag
             </span>
@@ -104,7 +97,8 @@ export const MarketingShell = ({
 
       <footer className="mt-8 border-t border-[var(--mkt-line)] bg-[color-mix(in_srgb,var(--mkt-mist)_70%,white)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-[var(--mkt-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="font-[family-name:var(--font-marketing-display)] font-semibold text-[var(--mkt-ink)]">
+          <p className="flex items-center gap-2 font-[family-name:var(--font-marketing-display)] font-semibold text-[var(--mkt-ink)]">
+            <ZigZagMark size={20} className="shrink-0" />
             © {new Date().getFullYear()} ZigZag
           </p>
           <ul className="flex flex-wrap gap-x-4 gap-y-2">
