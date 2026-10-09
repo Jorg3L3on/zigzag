@@ -5,7 +5,11 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
-import { visibleMobileAppBar, visiblePageHeader } from './helpers/mobile-chrome';
+import {
+  expectStickyActionAboveDock,
+  visibleMobileAppBar,
+  visiblePageHeader,
+} from './helpers/mobile-chrome';
 import {
   addComposerLine,
   createClientInComposer,
@@ -61,11 +65,15 @@ test.describe('Mobile ticket screens', () => {
     await expect(
       page.getByRole('button', { name: 'Guardar ticket' }).first(),
     ).toBeDisabled();
-    // No wizard copy and nothing says Crear before saving.
+    // No wizard copy and nothing says Crear before saving (the dock's + is labelled Crear).
     await expect(page.getByText(/Paso \d de \d/)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Crear', exact: true })).toHaveCount(0);
-    // Sticky CTA replaces the dock on this screen.
-    await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('button', { name: 'Crear', exact: true })
+        .and(page.locator(':not([data-testid="mobile-dock-create"])')),
+    ).toHaveCount(0);
+    // The dock stays; the sticky CTA floats above it.
+    await expectStickyActionAboveDock(page);
     await expectNoHorizontalOverflow(page);
     expect(
       consoleErrors.filter((text) => /hydrat/i.test(text)),

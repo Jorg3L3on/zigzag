@@ -5,7 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
-import { visibleMobileStickyActionBar } from './helpers/mobile-chrome';
+import { expectStickyActionAboveDock } from './helpers/mobile-chrome';
 
 test.describe('Mobile bottom dock', () => {
   test.beforeEach(async ({ page }) => {
@@ -119,18 +119,15 @@ test.describe('Mobile bottom dock', () => {
     await expect(tabBar.getByRole('menu')).toHaveCount(0);
   });
 
-  test('hides tabs on ticket create when sticky action bar is present', async ({
+  test('keeps the dock under the sticky action bar on ticket create', async ({
     page,
   }) => {
     await page.goto('/tickets/create');
 
-    await expect(visibleMobileStickyActionBar(page)).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);
+    await expectStickyActionAboveDock(page);
   });
 
-  test('hides tabs on ticket edit when sticky action bar is present', async ({
+  test('keeps the dock under the sticky action bar on ticket edit', async ({
     page,
   }) => {
     await page.goto('/tickets');
@@ -146,10 +143,7 @@ test.describe('Mobile bottom dock', () => {
     await editButton.click();
     await page.waitForURL(/\/tickets\/\d+\/edit/, { timeout: 30_000 });
 
-    await expect(visibleMobileStickyActionBar(page)).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByTestId('mobile-bottom-tab-bar')).toHaveCount(0);
+    await expectStickyActionAboveDock(page);
   });
 
   test('Más opens the existing navigation sheet', async ({ page }) => {

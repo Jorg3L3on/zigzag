@@ -24,7 +24,6 @@ import {
   TOOLBAR_GLASS_ICON,
 } from '@/components/toolbar-glass';
 import { useSidebar } from '@/components/ui/sidebar';
-import { useMobileChrome } from '@/contexts/mobile-chrome-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
   getActiveMobileTabHref,
@@ -110,7 +109,6 @@ export const MobileBottomDock = () => {
   const pathname = usePathname();
   const { can } = usePermissions();
   const { setOpenMobile } = useSidebar();
-  const { hasStickyAction } = useMobileChrome();
   const reduceMotion = useReducedMotion();
   const pillLayoutId = useId();
   const menuId = useId();
@@ -162,10 +160,6 @@ export const MobileBottomDock = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);
-
-  if (hasStickyAction) {
-    return null;
-  }
 
   const handleToggleMenu = () => {
     setMenuOpenOn(menuOpen ? null : pathname);

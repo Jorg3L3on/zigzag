@@ -164,7 +164,7 @@ export const RoleEditor = ({
   return (
     <section
       aria-label={isNew ? 'Nuevo rol' : `Editar rol ${role?.name}`}
-      className={cn('flex flex-col gap-5', variant === 'page' && 'pb-24 md:pb-0')}
+      className="flex flex-col gap-5"
     >
       {role && isShared ? (
         <div

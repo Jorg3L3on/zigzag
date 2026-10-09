@@ -255,7 +255,7 @@ export const CompanyForm = ({
       <form
         id={COMPANY_FORM_ID}
         onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
-        className={isSectioned ? 'space-y-4 pb-20 md:space-y-8 md:pb-0' : 'space-y-8'}
+        className={isSectioned ? 'space-y-4 md:space-y-8' : 'space-y-8'}
         noValidate={isSectioned}
       >
         <CompanyFormSection

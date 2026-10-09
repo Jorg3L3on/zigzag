@@ -9,7 +9,10 @@ import { OperatorTenantCompanySync } from '@/components/operator-tenant-company-
 import { MobileChromeProvider, useMobileChrome } from '@/contexts/mobile-chrome-context';
 import { useDisplayModeStandalone } from '@/hooks/use-display-mode-standalone';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DOCK_CLEARANCE_HEIGHT_CLASS } from '@/lib/ui/dock-clearance';
+import {
+  DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS,
+  DOCK_CLEARANCE_HEIGHT_CLASS,
+} from '@/lib/ui/dock-clearance';
 import { cn } from '@/lib/utils';
 
 const IDLE_PREFETCH_SESSION_KEY = 'zigzag:mobile-shell-prefetched';
@@ -71,15 +74,18 @@ const IdlePrefetch = () => {
 
 const MobileBottomTabSpacer = () => {
   const { hasStickyAction } = useMobileChrome();
-  if (hasStickyAction) {
-    return null;
-  }
 
+  // The dock is always shown; a sticky action bar stacks above it.
   return (
     <div
       aria-hidden
       data-testid="mobile-bottom-tab-spacer"
-      className={cn('shrink-0 md:hidden', DOCK_CLEARANCE_HEIGHT_CLASS)}
+      className={cn(
+        'shrink-0 md:hidden',
+        hasStickyAction
+          ? DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS
+          : DOCK_CLEARANCE_HEIGHT_CLASS,
+      )}
     />
   );
 };

@@ -542,7 +542,6 @@ const AnotarPageContent = () => {
       <TripledDashboardShell
         maxWidthClassName="max-w-2xl"
         contentClassName="space-y-4"
-        hasMobileStickyAction
       >
         <TripledMobileAppBar
           title="Anotar trabajo"

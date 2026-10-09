@@ -67,8 +67,6 @@ export default async function TicketDetailsPage({
     downloadFileName,
   };
 
-  const showSticky = true;
-
   return (
     <>
       <header className="hidden h-16 shrink-0 items-center gap-2 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:flex">
@@ -91,10 +89,7 @@ export default async function TicketDetailsPage({
         </div>
       </header>
 
-      <TripledDashboardShell
-        maxWidthClassName="max-w-6xl"
-        hasMobileStickyAction={showSticky}
-      >
+      <TripledDashboardShell maxWidthClassName="max-w-6xl">
         <TripledMobileAppBar
           title={`Ticket #${ticket.id}`}
           subtitle={ticket.finished ? 'Finalizado' : 'En proceso'}
