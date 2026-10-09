@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './load-env.cjs';
 import bcrypt from 'bcryptjs';
 import {
   addDays,

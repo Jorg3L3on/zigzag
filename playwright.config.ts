@@ -1,7 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
-import dotenv from 'dotenv';
+import './scripts/load-env.cjs';
 
-dotenv.config();
 
 const devBaseUrl = 'http://127.0.0.1:3069';
 const prodBaseUrl = 'http://127.0.0.1:3070';

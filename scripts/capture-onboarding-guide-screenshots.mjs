@@ -9,13 +9,12 @@
 import { mkdir, copyFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
+import './load-env.cjs';
 import sharp from 'sharp';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import { chromium, devices } from '@playwright/test';
 
-dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');

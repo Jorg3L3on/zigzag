@@ -9,10 +9,9 @@
  *   LIGHTHOUSE_PATHS=/tickets/create,/tickets node scripts/mobile-lighthouse-baseline.mjs
  */
 import { spawnSync } from 'node:child_process';
-import dotenv from 'dotenv';
+import './load-env.cjs';
 import { chromium } from '@playwright/test';
 
-dotenv.config();
 
 const baseUrl = process.env.LIGHTHOUSE_BASE_URL ?? 'http://127.0.0.1:3070';
 const email = process.env.E2E_EMAIL;

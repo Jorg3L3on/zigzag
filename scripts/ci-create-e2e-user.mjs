@@ -1,7 +1,7 @@
 // Creates (or updates) a deterministic E2E user with a known password so the
 // authenticated Playwright suite can log in during CI. Attaches the user to the
 // demo showcase company with the global Admin role (id 1).
-import 'dotenv/config';
+import './load-env.cjs';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 
