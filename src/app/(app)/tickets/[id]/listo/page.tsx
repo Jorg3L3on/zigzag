@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTicketById } from '@/actions/tickets';
 import { TicketCreationReview } from '@/components/tickets/review/ticket-creation-review';
 import { requirePagePermission } from '@/lib/page-authz';
+import { getServiceLineName } from '@/lib/service-line-display';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export default async function TicketReadyPage({
   const lines = ticket.services_tickets.map((line) => ({
     id: Number(line.id),
     serviceId: line.service_id,
-    name: line.service?.name ?? 'Servicio',
+    name: getServiceLineName(line),
     quantity: line.quantity,
     price: Number(line.price) || 0,
   }));

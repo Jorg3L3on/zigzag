@@ -30,6 +30,10 @@ import {
 } from '@/components/tickets/ticket-services-utils';
 import { multiplyMoney, roundMoney } from '@/lib/money';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import {
+  getServiceLineDescription,
+  getServiceLineName,
+} from '@/lib/service-line-display';
 
 type TicketServiceRowProps = {
   serviceTicket: ServiceTicket;
@@ -84,7 +88,7 @@ const TicketServiceEditSheet = ({
     <BottomSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={`Editar ${serviceTicket.service.name}`}
+      title={`Editar ${getServiceLineName(serviceTicket)}`}
       description="Ajusta cantidad y precio de esta línea."
       data-testid="ticket-service-edit-sheet"
       footer={
@@ -152,7 +156,8 @@ export const TicketServiceRow = ({
   // staying mounted after close so the exit animation can play.
   const [editSession, setEditSession] = useState(0);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
-  const { name, description } = serviceTicket.service;
+  const name = getServiceLineName(serviceTicket);
+  const description = getServiceLineDescription(serviceTicket);
   const subtotal = multiplyMoney(serviceTicket.price, serviceTicket.quantity);
 
   return (

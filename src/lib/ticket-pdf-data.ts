@@ -2,6 +2,10 @@ import { format } from 'date-fns';
 import type { InvoiceData } from '@/components/pdf/invoice-types';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import type { TicketDetailData } from '@/actions/tickets';
+import {
+  getServiceLineDescription,
+  getServiceLineName,
+} from '@/lib/service-line-display';
 
 /** Builds PDF payload for `InvoiceTemplate` from a ticket loaded with company + services. */
 export const buildInvoiceDataFromTicketDetail = (
@@ -17,7 +21,7 @@ export const buildInvoiceDataFromTicketDetail = (
       : 0;
 
   const items = ticket.services_tickets.map((st) => ({
-    description: `${st.service?.name ?? 'Servicio'}|||${st.service?.description ?? ''}`,
+    description: `${getServiceLineName(st)}|||${getServiceLineDescription(st)}`,
     quantity: String(st.quantity),
     unitPrice: st.price.toFixed(2),
     total: (st.quantity * st.price).toFixed(2),

@@ -211,6 +211,43 @@ describe('createTicketWithLines', () => {
     expect((payload as { lines: unknown[] }).lines).toHaveLength(2);
   });
 
+  it('saves an inline line without touching the catalog (ZIG-I5)', async () => {
+    const captured: Captured = {};
+    mockTransaction(captured);
+    mockServiceRows([{ id: 7 }]);
+
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [
+        { service_id: 7, quantity: 1, price: 4200 },
+        { kind: 'custom', name: 'Cambio de capacitor', quantity: 1, price: 850 },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    expect(captured.lineValues).toEqual([
+      { ticket_id: 1201n, service_id: 7, quantity: 1, price: 4200 },
+      {
+        ticket_id: 1201n,
+        service_id: null,
+        name: 'Cambio de capacitor',
+        description: null,
+        quantity: 1,
+        price: 850,
+      },
+    ]);
+  });
+
+  it('rejects an inline line without a name', async () => {
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [{ kind: 'custom', name: '  ', quantity: 1, price: 850 }],
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
   it('rejects a client from another tenant before writing anything', async () => {
     mockDb.query.client.findFirst.mockResolvedValue(undefined);
 

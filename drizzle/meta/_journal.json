@@ -190,6 +190,13 @@
       "when": 1781772800000,
       "tag": "0027_mcp_connector",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1781859200000,
+      "tag": "0028_adhoc_service_lines",
+      "breakpoints": true
     }
   ]
 }

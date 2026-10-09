@@ -18,17 +18,22 @@ import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
 import {
-  createServiceTicketSchema,
+  isCustomServiceLine,
+  serviceLineInputSchema,
   serviceLineMoneySchema,
 } from '@/lib/ticket-service-line-schema';
+import { buildServiceLineValues } from '@/lib/service-lines-server';
 import { revalidatePath } from 'next/cache';
 
 export interface ServiceTicket {
   id: number;
-  service_id: number;
+  /** Null for an inline line (ZIG-I5); read the name with getServiceLineName. */
+  service_id: number | null;
+  name?: string | null;
+  description?: string | null;
   quantity: number;
   price: number;
-  service: Service;
+  service: Service | null;
 }
 
 type CreateServiceTicketData = import('@/lib/ticket-service-line-schema').CreateServiceTicketData;
@@ -152,9 +157,13 @@ const assertServiceAvailable = async (serviceId: number, companyId: number) => {
 };
 
 const resolveServiceNameById = async (
-  serviceId: number,
+  serviceId: number | null,
   companyId: number,
+  inlineName?: string | null,
 ): Promise<string | null> => {
+  if (serviceId == null) {
+    return inlineName?.trim() || null;
+  }
   const serviceRow = await db.query.service.findFirst({
     where: and(eq(service.id, serviceId), eq(service.company_id, companyId)),
     columns: { name: true },
@@ -200,23 +209,37 @@ export async function createServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const validated = createServiceTicketSchema.parse(data);
+    const validated = serviceLineInputSchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
     const { companyId: effectiveCompanyId, context, total, paid } =
       await assertTicketAccess(ticketIdValue, 'tickets.write', companyId);
     assertTicketNotFullyPaid(total, paid);
-    const serviceRow = await assertServiceAvailable(
-      validated.service_id,
-      effectiveCompanyId,
-    );
-    const values = {
-      ticket_id: ticketIdValue,
-      service_id: validated.service_id,
-      quantity: validated.quantity,
-      price: validated.price,
-    };
+    const inlineLine = isCustomServiceLine(validated) ? validated : null;
+    const catalogServiceId = isCustomServiceLine(validated)
+      ? null
+      : validated.service_id;
+    const serviceRow =
+      catalogServiceId == null
+        ? null
+        : await assertServiceAvailable(catalogServiceId, effectiveCompanyId);
 
     const serviceTicket = await db.transaction(async (tx) => {
+      // Inline lines (ZIG-I5) are built inside the tx so a Guardar en mi
+      // catálogo Service rolls back together with the line.
+      const values = inlineLine
+        ? (
+            await buildServiceLineValues(tx, {
+              companyId: effectiveCompanyId,
+              ticketId: ticketIdValue,
+              lines: [inlineLine],
+            })
+          ).values[0]
+        : {
+            ticket_id: ticketIdValue,
+            service_id: catalogServiceId,
+            quantity: validated.quantity,
+            price: validated.price,
+          };
       let createdRow: (typeof servicesTickets.$inferSelect) | undefined;
       try {
         [createdRow] = await tx.insert(servicesTickets).values(values).returning();
@@ -237,7 +260,10 @@ export async function createServiceTicket(
       await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
         serviceLine: 'created',
         line: createdRow,
-        serviceName: serviceRow.name,
+        serviceName: serviceRow?.name ?? inlineLine?.name,
+        ...(inlineLine
+          ? { inline: true, savedToCatalog: inlineLine.save_to_catalog }
+          : {}),
         syncedTotal,
       });
       return createdRow;
@@ -312,6 +338,7 @@ export async function updateServiceTicket(
         const serviceName = await resolveServiceNameById(
           updatedRow.service_id,
           effectiveCompanyId,
+          updatedRow.name,
         );
         await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
           serviceLine: 'updated',
@@ -387,6 +414,7 @@ export async function deleteServiceTicket(
         const serviceName = await resolveServiceNameById(
           deletedRow.service_id,
           effectiveCompanyId,
+          deletedRow.name,
         );
         await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
           serviceLine: 'deleted',

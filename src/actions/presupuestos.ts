@@ -31,12 +31,15 @@ import {
   type PresupuestoStatus,
 } from '@/lib/ticket-document-kind';
 import { client, service } from '@/db/schema';
+import { serviceLineInputSchema } from '@/lib/ticket-service-line-schema';
+import {
+  catalogServiceIds,
+  copyServiceLineValues,
+  insertServiceLines,
+} from '@/lib/service-lines-server';
 
-const serviceLineSchema = z.object({
-  service_id: z.number(),
-  quantity: z.number().finite().min(1),
-  price: z.number().finite().min(0),
-});
+/** Catalog or inline line (ZIG-I5). */
+const serviceLineSchema = serviceLineInputSchema;
 
 const presupuestoSchema = z.object({
   client_id: z.number().optional(),
@@ -55,7 +58,7 @@ const presupuestoSchema = z.object({
   services: z.array(serviceLineSchema).optional(),
 });
 
-export type CreatePresupuestoInput = z.infer<typeof presupuestoSchema>;
+export type CreatePresupuestoInput = z.input<typeof presupuestoSchema>;
 
 export type PresupuestoListItem = {
   id: string;
@@ -174,7 +177,7 @@ export async function createPresupuesto(
     await assertClientBelongsToCompany(validated.client_id, effectiveCompanyId);
     if (validated.services?.length) {
       await assertServicesBelongToCompany(
-        validated.services.map((line) => line.service_id),
+        catalogServiceIds(validated.services),
         effectiveCompanyId,
       );
     }
@@ -204,14 +207,11 @@ export async function createPresupuesto(
         .returning();
 
       if (validated.services?.length) {
-        await tx.insert(servicesTickets).values(
-          validated.services.map((line) => ({
-            service_id: line.service_id,
-            ticket_id: row.id,
-            quantity: line.quantity,
-            price: line.price,
-          })),
-        );
+        await insertServiceLines(tx, {
+          companyId: effectiveCompanyId,
+          ticketId: row.id,
+          lines: validated.services,
+        });
       }
 
       await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
@@ -273,11 +273,12 @@ export async function updatePresupuesto(
       await assertClientBelongsToCompany(data.client_id, effectiveCompanyId);
     }
 
-    const servicesToSync = Array.isArray(data.services) ? data.services : null;
+    const servicesToSync = Array.isArray(data.services)
+      ? z.array(serviceLineSchema).parse(data.services)
+      : null;
     if (servicesToSync) {
-      z.array(serviceLineSchema).parse(servicesToSync);
       await assertServicesBelongToCompany(
-        servicesToSync.map((line) => line.service_id),
+        catalogServiceIds(servicesToSync),
         effectiveCompanyId,
       );
     }
@@ -294,14 +295,11 @@ export async function updatePresupuesto(
             ),
           );
         if (servicesToSync.length > 0) {
-          await tx.insert(servicesTickets).values(
-            servicesToSync.map((line) => ({
-              service_id: line.service_id,
-              ticket_id: ticketId,
-              quantity: line.quantity,
-              price: line.price,
-            })),
-          );
+          await insertServiceLines(tx, {
+            companyId: effectiveCompanyId,
+            ticketId,
+            lines: servicesToSync,
+          });
         }
       }
 
@@ -492,14 +490,10 @@ export async function convertPresupuestoToTicket(
 
       const activeLines = source.services_tickets ?? [];
       if (activeLines.length > 0) {
-        await tx.insert(servicesTickets).values(
-          activeLines.map((line) => ({
-            service_id: line.service_id,
-            ticket_id: workTicket.id,
-            quantity: line.quantity,
-            price: line.price,
-          })),
-        );
+        // Catalog and inline lines (ZIG-I5) are copied verbatim.
+        await tx
+          .insert(servicesTickets)
+          .values(copyServiceLineValues(activeLines, workTicket.id));
       }
 
       const [presupuesto] = await tx

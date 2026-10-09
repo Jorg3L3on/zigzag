@@ -11,11 +11,14 @@ import {
 import { TripledEmptyState } from '@/components/tripled';
 import { usePermissions } from '@/hooks/use-permissions';
 import { canAssignTicketServices } from '@/lib/tickets-rbac';
+import { getServiceLineName } from '@/lib/service-line-display';
 
 type ServiceLine = {
   id: number;
   quantity: number;
   price: number;
+  service_id?: number | null;
+  name?: string | null;
   service: { name: string | null } | null;
 };
 
@@ -78,7 +81,7 @@ export const TicketDetailServicesSection = ({
                 <div className="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                   <div className="min-w-0 space-y-0.5">
                     <p className="font-medium leading-snug text-foreground">
-                      {line.service?.name ?? 'Servicio'}
+                      {getServiceLineName(line)}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <span className="tabular-nums">{line.quantity}</span>
