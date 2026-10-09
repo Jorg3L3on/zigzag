@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
-import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
+import { ZigZagMark } from '@/components/brand/zigzag-mark';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 import { getSafeAppRedirectPath } from '@/lib/login-redirect';
 
@@ -97,14 +97,9 @@ export function LoginForm({
           <div className="login-ticket-section">
             <div className="mb-[22px] flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <Image
-                  src="/logo.png"
-                  alt=""
-                  width={36}
-                  height={36}
-                  className="size-[30px] object-contain sm:size-9"
-                  unoptimized
-                  priority
+                <ZigZagMark
+                  size={36}
+                  className="size-[30px] shrink-0 sm:size-9"
                 />
                 <span className="font-[family-name:var(--font-login-display)] text-[17px] font-bold tracking-[-0.01em] text-[color:var(--login-ink)]">
                   ZigZag
