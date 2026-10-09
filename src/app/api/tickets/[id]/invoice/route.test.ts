@@ -146,6 +146,39 @@ describe('GET /api/tickets/[id]/invoice', () => {
     expect(mockRecordDocumentGeneratedAudit).toHaveBeenCalled();
   });
 
+  it('serves the PDF inline for previews when disposition=inline', async () => {
+    mockRequireApiPermission.mockResolvedValue({
+      session: { user: { id: '7', company_id: 10, company_is_system: false } },
+      companyId: 10,
+      unauthorized: null,
+    });
+    mockGetTicketById.mockResolvedValue({
+      success: true,
+      data: { id: 42, company_id: 10, total: 100, client: { name: 'Acme' } },
+    });
+    mockBuildFintechInvoicePayload.mockReturnValue({
+      issuer: { logoUrl: null },
+    } as ReturnType<typeof buildFintechInvoicePayload>);
+    mockLoadCompanyLogoImageDataUrl.mockResolvedValue(null);
+    mockRenderFintechInvoicePdf.mockReturnValue(Buffer.from('pdf'));
+
+    const inline = await GET(
+      makeGetRequest(
+        'http://localhost/api/tickets/42/invoice?company_id=10&disposition=inline',
+      ),
+      makeContext('42'),
+    );
+    const headersOf = (response: unknown) =>
+      (response as { headers: Record<string, string> }).headers;
+    expect(headersOf(inline)['Content-Disposition']).toMatch(/^inline; /);
+
+    const attachment = await GET(
+      makeGetRequest('http://localhost/api/tickets/42/invoice?company_id=10'),
+      makeContext('42'),
+    );
+    expect(headersOf(attachment)['Content-Disposition']).toMatch(/^attachment; /);
+  });
+
   it('returns 403 when Company B requests Company A invoice context', async () => {
     mockRequireApiPermission.mockResolvedValue(mockTenantBCrossTenantDenied());
 

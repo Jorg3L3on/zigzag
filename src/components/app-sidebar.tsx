@@ -19,6 +19,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { TripledMotionDiv, tripledFadeInUp } from '@/components/tripled';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
@@ -46,6 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { can, loading: permissionsLoading, isSystem } = usePermissions();
+  const { isMobile } = useSidebar();
   const [companies, setCompanies] = React.useState<SidebarCompanyBrand[]>([]);
 
   // Seed brand from the JWT session so tenant users never sit on "Ninguna empresa"
@@ -156,11 +158,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           ...item,
           items: item.items?.filter((sub) => canAccess(sub.requiredPermission)),
         }))
+        .filter((item) => isMobile || !item.mobileOnly)
         .filter(
           (item) =>
             canAccess(item.requiredPermission) || Boolean(item.items?.length),
         ),
-    [canAccess],
+    [canAccess, isMobile],
   );
 
   const visibleSystem = React.useMemo(

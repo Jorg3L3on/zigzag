@@ -1,4 +1,9 @@
-import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import {
+  fetchAndDeliverTicketInvoice,
+  fetchTicketInvoiceFile,
+  shareTicketInvoiceFile,
+} from '@/lib/ticket-invoice-download';
+import { buildTicketInvoicePreviewUrl } from '@/lib/ticket-invoice-url';
 
 describe('fetchAndDeliverTicketInvoice', () => {
   const clickMock = jest.fn();
@@ -98,5 +103,65 @@ describe('fetchAndDeliverTicketInvoice', () => {
 
     expect(result).toBe('dismissed');
     expect(clickMock).not.toHaveBeenCalled();
+  });
+
+  it('downloads without offering the share sheet in download mode', async () => {
+    const share = jest.fn();
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: jest.fn().mockReturnValue(true),
+    });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+
+    const result = await fetchAndDeliverTicketInvoice({
+      ticketId: 7,
+      downloadFileName: 'ticket-7.pdf',
+      mode: 'download',
+    });
+
+    expect(result).toBe('downloaded');
+    expect(share).not.toHaveBeenCalled();
+    expect(clickMock).toHaveBeenCalled();
+  });
+
+  it('fetches the PDF as a named File', async () => {
+    const file = await fetchTicketInvoiceFile({
+      ticketId: 9,
+      companyId: 3,
+      downloadFileName: 'recibo-9.pdf',
+    });
+    expect(file.name).toBe('recibo-9.pdf');
+    expect(file.type).toBe('application/pdf');
+  });
+
+  it('reports needs-gesture when the browser blocks a late share', async () => {
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: jest.fn().mockReturnValue(true),
+    });
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: jest
+        .fn()
+        .mockRejectedValue(new DOMException('no activation', 'NotAllowedError')),
+    });
+    const file = new File(['pdf'], 'r.pdf', { type: 'application/pdf' });
+
+    await expect(shareTicketInvoiceFile(file, { title: 'Recibo' })).resolves.toBe(
+      'needs-gesture',
+    );
+  });
+
+  it('reports unsupported without Web Share for files', async () => {
+    const file = new File(['pdf'], 'r.pdf', { type: 'application/pdf' });
+    await expect(shareTicketInvoiceFile(file, { title: 'Recibo' })).resolves.toBe(
+      'unsupported',
+    );
+  });
+
+  it('builds an inline preview URL', () => {
+    expect(buildTicketInvoicePreviewUrl(7, 3)).toBe(
+      '/api/tickets/7/invoice?disposition=inline&company_id=3',
+    );
   });
 });
