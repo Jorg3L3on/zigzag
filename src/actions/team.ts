@@ -11,6 +11,7 @@ import {
 import { checkPermission, requireActionPermission } from '@/lib/security';
 import { PERMISSIONS } from '@/lib/permissions';
 import type { TeamMember, TeamRoleOption } from '@/lib/team-members';
+import { hideShadowedSharedRoles } from '@/lib/role-visibility';
 import { createUser, deleteUser, updateUser } from '@/actions/users';
 
 type ActionResult<T = undefined> = {
@@ -86,7 +87,7 @@ export async function getTeam(): Promise<ActionResult<TeamData>> {
           createdAt: row.created_at.toISOString(),
           isSelf: row.id.toString() === context.userId,
         })),
-        roles: roleRows.map((row) => ({
+        roles: hideShadowedSharedRoles(roleRows).map((row) => ({
           id: row.id,
           name: row.name,
           description: row.description,

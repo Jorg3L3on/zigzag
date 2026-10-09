@@ -19,6 +19,7 @@ import {
   sanitizeRoleForAudit,
 } from '@/lib/governance-audit';
 import { ROLE_MATRIX_KEYS } from '@/lib/role-matrix';
+import { hideShadowedSharedRoles } from '@/lib/role-visibility';
 import { checkPermission, requireActionPermission } from '@/lib/security';
 import {
   countUsersWithPermissionOutsideRole,
@@ -102,7 +103,7 @@ export async function getCompanyRoles(): Promise<ActionResult<CompanyRolesData>>
       counts.map((row) => [row.roleId, Number(row.value)] as const),
     );
 
-    const roles = roleRows
+    const roles = hideShadowedSharedRoles(roleRows)
       .map((row) => ({
         id: row.id,
         name: row.name,
