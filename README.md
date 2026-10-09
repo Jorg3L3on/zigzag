@@ -216,7 +216,7 @@ Before a mobile release, use the manual checklist: [tasks/mobile-release-checkli
 
 Use [`.env.production.example`](.env.production.example) for production variables. Full checklist, rollback, and incidents: **[docs/production-runbook.md](docs/production-runbook.md)**. Branch strategy: **[docs/agents/deployment.md](docs/agents/deployment.md)**.
 
-**Only `main` deploys.** `vercel.json` sets `git.deploymentEnabled` so pushes and PRs from other branches do **not** create Vercel preview builds. Smoke-test locally (`npm run build` / Playwright) before merging to `main`.
+**Only `main` deploys.** `vercel.json` sets `git.deploymentEnabled` so pushes and PRs from other branches (including `sandbox`) do **not** create Vercel builds. Work integrates on **`sandbox`**: initiative branches `feat/<slug>` and fixes PR into it, and Jorge merges `sandbox` → `main` to release. Smoke-test locally (`npm run build` / Playwright) before a PR leaves draft.
 
 Summary:
 
@@ -227,7 +227,7 @@ Summary:
    - `CRON_SECRET` — for `/api/cron/notifications` (see `vercel.json` crons)
 2. Production builds run `npm run vercel-build` (`migrate:deploy` then `next build`).
 3. Optionally run `npm run db:prod:setup` once for seed data on a fresh database.
-4. Merge to `main` (or deploy Production); smoke-test `/api/health`, login, and a clients/services/tickets flow. Try a logo upload if branding matters.
+4. Merge `sandbox` → `main` (or deploy Production); smoke-test `/api/health`, login, and a clients/services/tickets flow. Try a logo upload if branding matters.
 
 Pre-merge locally: `npm run lint`, `npm test`, `npm run build` (and `npm run test:e2e` when touching UI).
 

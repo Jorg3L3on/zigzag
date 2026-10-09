@@ -22,17 +22,18 @@ Optional: `SENTRY_DSN`, PostHog keys — see [`.env.production.example`](../.env
 
 **Only `main` is built on Vercel.** `vercel.json` sets `git.deploymentEnabled` so other branches and PRs do not create preview deployments. Verify work locally before merging to `main`.
 
-Slice work still uses a **feature integration branch** (`feat/<feature-slug>`) so incomplete PRDs do not hit prod. See [agents/deployment.md](agents/deployment.md).
+Slice work uses an initiative branch (`feat/<feature-slug>`) that merges into **`sandbox`**, so incomplete work never reaches prod. See [agents/deployment.md](agents/deployment.md).
 
 | Branch | Role |
 | ------ | ---- |
 | `feat/<feature-slug>` | Slice PRs merge here (no Vercel deploy) |
-| `main` | Production; merge the feature branch when the PRD is complete |
+| `sandbox` | Integration: initiative branches and fixes merge here, Jorge merges (no Vercel deploy) |
+| `main` | Production; Jorge merges `sandbox` into it to release |
 
 ## Deploy Sequence (production)
 
-1. Confirm `npm run lint`, `npm test -- --runInBand`, `npm run test:e2e`, and `npm run build` pass on the feature branch (or `main` after merge).
-2. Merge **`feat/<feature-slug>` → `main`** when the PRD is complete (migration SQL must be in `drizzle/`).
+1. Confirm `npm run lint`, `npm test -- --runInBand`, `npm run test:e2e`, and `npm run build` pass on `sandbox`.
+2. Jorge merges **`sandbox` → `main`** (migration SQL must be in `drizzle/` and the journal).
 3. Vercel production build runs **`migrate:deploy` automatically** (`scripts/vercel-build.mjs`) before `next build`. Ensure `DATABASE_URL` and `DIRECT_URL` are set in Vercel Production env.
 4. Optional: trigger **Actions → Production migrations** if you need to apply migrations without redeploying (requires GitHub secrets).
 5. Visit production `/api/health`, `/login`, and `/dashboard`.
