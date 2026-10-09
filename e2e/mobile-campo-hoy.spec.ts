@@ -12,8 +12,8 @@ const setExperienceMode = async (
 ) => {
   await page.goto('/company');
   // ZIG-I3-2: on mobile, Configuración is a collapsed section of the Datos tab.
-  // The toggle is enabled only once the page hydrates in mobile mode; retry the
-  // open-section / open-select steps so slow CI hydration cannot race them.
+  // The toggle is enabled only once the page hydrates in mobile mode; retry
+  // opening the section so slow CI hydration cannot race it.
   const configuracion = page.getByRole('button', { name: /^Configuración/ });
   await expect(configuracion).toBeEnabled({ timeout: 30_000 });
   const experience = page
@@ -27,13 +27,22 @@ const setExperienceMode = async (
     await expect(experience).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 
+  // Click once and give the popup time: a second click on an opening Radix
+  // Select closes it again, so only re-click if it never appeared.
   const option = page.getByRole('option', { name: mode, exact: true });
-  await expect(async () => {
-    if (!(await option.isVisible())) {
-      await experience.click();
-    }
-    await expect(option).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
+  // Keep it clear of the fixed Guardar cambios bar at the bottom.
+  await experience.evaluate((element) =>
+    element.scrollIntoView({ block: 'center' }),
+  );
+  await experience.click();
+  const opened = await option
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!opened) {
+    await experience.click();
+    await expect(option).toBeVisible({ timeout: 10_000 });
+  }
   await option.click();
   await page
     .getByRole('button', { name: /Guardar cambios|Guardar/i })
@@ -60,6 +69,8 @@ test.describe('Mobile campo Hoy home (Epic A)', () => {
   test('hides revenue charts and shows Hoy-first campo layout', async ({
     page,
   }, testInfo) => {
+    // Two full round-trips through the company form; slow on CI runners.
+    test.setTimeout(90_000);
     test.skip(
       testInfo.project.name !== 'mobile-chrome',
       'Campo mobile composition is validated on Pixel viewport',
