@@ -28,6 +28,7 @@ npm run seed:perf               # 10k tickets / 1k clients for query-budget base
 npm run query:audit             # EXPLAIN ANALYZE + ms budgets (docs/query-budget.md)
 ```
 > **Database:** PostgreSQL. Use a `postgresql://...` URL in `DATABASE_URL`; production migrations should prefer `DIRECT_URL`. The database name in examples is **`zigzag`**.
+> `.env.local` overrides `.env` for the app, Playwright, `drizzle-kit` and scripts (`scripts/load-env.cjs`). E2E mutates data, so run it only against a local or disposable database; `e2e/global-setup.ts` refuses a `*.neon.tech` URL unless `E2E_ALLOW_REMOTE_DB=1`.
 
 ## Architecture
 

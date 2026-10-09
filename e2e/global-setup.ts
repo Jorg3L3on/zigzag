@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
+import '../scripts/load-env.cjs';
 import { Pool } from 'pg';
 import {
   DEMO_ADMIN_EMAIL,
@@ -7,11 +7,18 @@ import {
   DEMO_VIEWER_EMAIL,
 } from '../src/lib/demo-company';
 
-dotenv.config();
-
 const viewerEmail = process.env.E2E_VIEWER_EMAIL ?? DEMO_VIEWER_EMAIL;
 const systemEmail = process.env.E2E_SYSTEM_EMAIL ?? 'jorge@jorge.com';
 const tenantEmail = process.env.E2E_EMAIL ?? DEMO_ADMIN_EMAIL;
+
+/** Neon hosts production; e2e resets passwords and writes demo data, so it must not run there. */
+const isRemoteNeonDatabase = (databaseUrl: string): boolean => {
+  try {
+    return new URL(databaseUrl).hostname.endsWith('.neon.tech');
+  } catch {
+    return false;
+  }
+};
 
 /** Align seeded users with E2E_PASSWORD so authenticated Playwright specs can log in. */
 export default async function globalSetup() {
@@ -20,6 +27,13 @@ export default async function globalSetup() {
 
   if (!password || !databaseUrl) {
     return;
+  }
+
+  if (isRemoteNeonDatabase(databaseUrl) && process.env.E2E_ALLOW_REMOTE_DB !== '1') {
+    throw new Error(
+      'e2e refuses to run against a Neon database (production). Point DATABASE_URL at a local ' +
+        'database in .env.local, or set E2E_ALLOW_REMOTE_DB=1 for a disposable Neon branch.',
+    );
   }
 
   const hash = await bcrypt.hash(password, 12);

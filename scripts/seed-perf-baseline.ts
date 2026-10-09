@@ -11,7 +11,7 @@
  * Prefer a disposable Neon branch (see docs/query-budget.md). Do not run against
  * production unless you intentionally want this tenant present.
  */
-import 'dotenv/config';
+import './load-env.cjs';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';

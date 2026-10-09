@@ -71,6 +71,8 @@ Copy [`.env.example`](.env.example) to `.env` (or `.env.local`) and set at least
 - `NEXTAUTH_URL` — `http://localhost:3069` for local dev
 - `NEXTAUTH_SECRET` or `AUTH_SECRET` — random secret (`openssl rand -base64 32`)
 
+`.env.local` wins over `.env` everywhere: `next dev`, Playwright and its global setup, `drizzle-kit` and the `scripts/` that load env files (through [`scripts/load-env.cjs`](scripts/load-env.cjs)). A variable already set in the shell wins over both. To work against a local database while `.env` keeps the remote one, put only `DATABASE_URL=postgresql://…localhost…/zigzag` in `.env.local`. Deleting `.env.local` switches everything back.
+
 ```bash
 npm run db:generate   # after schema changes in src/db/schema.ts
 npm run db:migrate    # apply migrations
@@ -129,6 +131,8 @@ npm run test:e2e
 CI-style Jest: `npm test -- --runInBand`.
 
 Playwright runs **two projects**: `chromium` (Desktop Chrome) and `mobile-chrome` (Pixel 5 profile). By default it builds and starts a **production server on port 3070** (same as CI). Turbopack dev (`npm run dev`) incorrectly 404s on `/tickets*` routes; use `PLAYWRIGHT_USE_DEV=1` only if you accept that limitation.
+
+**Database.** E2E writes data: the global setup resets the E2E users' passwords to `E2E_PASSWORD` and upserts demo users, and several mobile specs save tickets and settings. Run it only against a disposable database. CI uses its own Postgres service. Locally, use a local database through `.env.local` (see Setup). The global setup refuses a Neon (`*.neon.tech`) `DATABASE_URL` unless `E2E_ALLOW_REMOTE_DB=1`, which is meant for a throwaway Neon branch, never production.
 
 The smoke suite includes an unauthenticated redirect test; authenticated tests run when credentials are set:
 

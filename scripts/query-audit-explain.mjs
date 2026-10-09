@@ -9,7 +9,7 @@
  *   npm run query:audit
  *   npm run query:audit -- --json > /tmp/query-audit.json
  */
-import 'dotenv/config';
+import './load-env.cjs';
 import { Pool } from 'pg';
 
 const PERF_COMPANY_NAME = '__perf_baseline__';
