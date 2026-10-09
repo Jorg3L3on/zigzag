@@ -24,18 +24,9 @@ import {
 import { TripledEmptyState } from '@/components/tripled';
 import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
-import { DashboardNeedsAttention } from '@/components/dashboard/dashboard-needs-attention';
 import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform-home';
 import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
-import { DashboardServiceSchedulesWidget } from '@/components/dashboard/dashboard-service-schedules-widget';
-import { DashboardTechnicianDayWidget } from '@/components/dashboard/dashboard-technician-day-widget';
-import { HoyPorCobrarStrip } from '@/components/field/hoy-por-cobrar-strip';
-import { useTechnicianDayQueue } from '@/hooks/use-technician-day-queue';
-import { canWriteTickets } from '@/lib/tickets-rbac';
-import {
-  buildDashboardAttentionItems,
-  countSchedulesDueToday,
-} from '@/lib/dashboard-attention';
+import { DashboardTuDia } from '@/components/dashboard/dashboard-tu-dia';
 import {
   buildCampoDashboardComposition,
   buildDashboardComposition,
@@ -49,12 +40,11 @@ import {
   fetchDashboardMetrics,
   type DashboardMetrics,
 } from '@/actions/dashboard';
+import type { DashboardDayQueue } from '@/lib/dashboard-day-queue';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
-import { useDashboardUrgentSchedules } from '@/hooks/use-dashboard-urgent-schedules';
 import { useDeferredMount } from '@/hooks/use-deferred-mount';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/lib/permissions';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
 
@@ -116,12 +106,15 @@ const DashboardLoadingSkeleton = () => (
 
 export type DashboardMetricsClientProps = {
   initialMetrics?: DashboardMetrics | null;
+  /** Tu día counts and rows loaded with the page (tenant users). */
+  initialDayQueue?: DashboardDayQueue | null;
   userName?: string | null;
   initialExperienceMode?: ExperienceMode;
 };
 
 export const DashboardMetricsClient = ({
   initialMetrics = null,
+  initialDayQueue = null,
   userName = null,
   initialExperienceMode = 'office',
 }: DashboardMetricsClientProps) => {
@@ -130,9 +123,6 @@ export const DashboardMetricsClient = ({
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const deferSecondaryWidgets = useDeferredMount();
-  const urgentSchedules = useDashboardUrgentSchedules(deferSecondaryWidgets);
-  const technicianDay = useTechnicianDayQueue(deferSecondaryWidgets);
-  const [cobranzaRefreshKey, setCobranzaRefreshKey] = React.useState(0);
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(
     initialMetrics,
@@ -281,28 +271,6 @@ export const DashboardMetricsClient = ({
     return null;
   }
 
-  const activeTicketsKpi =
-    metrics.kpis.find((kpi) => kpi.key === 'activeTickets')?.value ?? 0;
-
-  const schedulesReady =
-    urgentSchedules.canRead &&
-    !urgentSchedules.missingCompany &&
-    !urgentSchedules.permissionsLoading;
-
-  const schedulesDueTodayCount = schedulesReady
-    ? countSchedulesDueToday(urgentSchedules.proximos)
-    : 0;
-  const urgentScheduleCount = schedulesReady
-    ? urgentSchedules.atrasados.length + schedulesDueTodayCount
-    : 0;
-
-  const attentionItems = buildDashboardAttentionItems({
-    paymentStatusBreakdown: metrics.paymentStatusBreakdown,
-    activeTickets: activeTicketsKpi,
-    overdueSchedules: schedulesReady ? urgentSchedules.atrasados.length : null,
-    dueTodaySchedules: schedulesReady ? schedulesDueTodayCount : null,
-  });
-
   const visibleKpis =
     composition.kpiKeys === 'all'
       ? metrics.kpis
@@ -331,54 +299,68 @@ export const DashboardMetricsClient = ({
     </Select>
   ) : null;
 
+  const kpiValue = (key: DashboardKpiKey) =>
+    metrics.kpis.find((kpi) => kpi.key === key)?.value ?? 0;
+  const campoChips = composition.campoOperations ? (
+    <>
+      <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-xs sm:min-h-9">
+        <span className="text-muted-foreground">Entró hoy</span>
+        <span className="font-semibold tabular-nums">
+          {formatTicketListAmount(kpiValue('cashCollected'))}
+        </span>
+      </span>
+      <Link
+        href="/cobranza"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-xs sm:min-h-9 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Ver cobranza: por cobrar"
+      >
+        <span className="text-muted-foreground">Por cobrar</span>
+        <span className="font-semibold tabular-nums">
+          {formatTicketListAmount(kpiValue('outstandingBalance'))}
+        </span>
+      </Link>
+    </>
+  ) : null;
+
   const renderWidget = (widgetId: (typeof composition.widgets)[number]) => {
     switch (widgetId) {
-      case 'campoSummary': {
-        const cashCollected =
-          metrics.kpis.find((kpi) => kpi.key === 'cashCollected')?.value ?? 0;
-        const outstandingBalance =
-          metrics.kpis.find((kpi) => kpi.key === 'outstandingBalance')?.value ??
-          0;
+      case 'tuDia':
         return (
-          <section
+          <DashboardTuDia
             key={widgetId}
-            aria-label="Resumen de hoy"
-            className="flex flex-wrap gap-2"
-          >
-            <div className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm sm:min-h-9">
-              <span className="text-muted-foreground">Entró hoy</span>
-              <span className="font-semibold tabular-nums">
-                {formatTicketListAmount(cashCollected)}
-              </span>
-            </div>
-            <Link
-              href="/cobranza"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-9"
-              aria-label="Ver cobranza: por cobrar"
-            >
-              <span className="text-muted-foreground">Por cobrar</span>
-              <span className="font-semibold tabular-nums">
-                {formatTicketListAmount(outstandingBalance)}
-              </span>
-            </Link>
-          </section>
-        );
-      }
-      case 'needsAttention':
-        return (
-          <DashboardNeedsAttention
-            key={widgetId}
-            items={attentionItems}
-            emptyTitle={composition.emptyCopy.attentionTitle}
-            emptyDescription={composition.emptyCopy.attentionDescription}
+            initialQueue={initialDayQueue}
+            campo={composition.campoOperations}
+            headerExtra={campoChips}
+            className={
+              composition.widgets.includes('activity')
+                ? 'xl:col-span-2 xl:self-start'
+                : 'xl:col-span-3'
+            }
           />
+        );
+      case 'activity':
+        // Below xl: after Desempeño. Wide screens: beside Tu día.
+        return (
+          <div
+            key={widgetId}
+            className="order-last min-w-0 xl:order-none xl:col-span-1"
+          >
+            {deferSecondaryWidgets ? (
+              <DashboardActivityFeed
+                emptyTitle={composition.emptyCopy.activityTitle}
+                emptyDescription={composition.emptyCopy.activityDescription}
+              />
+            ) : (
+              <Skeleton className="h-64 rounded-xl" />
+            )}
+          </div>
         );
       case 'kpis':
         return (
           <section
             key={widgetId}
             aria-label={composition.sectionTitles.kpis}
-            className="space-y-3"
+            className="space-y-3 xl:col-span-3"
           >
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {composition.sectionTitles.kpis}
@@ -421,14 +403,17 @@ export const DashboardMetricsClient = ({
           return (
             <Skeleton
               key={widgetId}
-              className="h-[280px] rounded-xl lg:col-span-2"
+              className="h-[280px] rounded-xl xl:col-span-3"
             />
           );
         }
         return (
           <div
             key={widgetId}
-            className={loading ? 'pointer-events-none opacity-60' : ''}
+            className={cn(
+              'xl:col-span-3',
+              loading && 'pointer-events-none opacity-60',
+            )}
           >
             <DashboardCharts
               revenueByMonth={metrics.revenueByMonth}
@@ -438,112 +423,16 @@ export const DashboardMetricsClient = ({
             />
           </div>
         );
-      case 'operations':
-        if (!deferSecondaryWidgets) {
-          return (
-            <section
-              key={widgetId}
-              aria-label={composition.sectionTitles.operations}
-              className="space-y-3"
-            >
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                {composition.sectionTitles.operations}
-              </h2>
-              <Skeleton className="h-64 rounded-xl" />
-            </section>
-          );
-        }
-        return (
-          <section
-            key={widgetId}
-            aria-label={composition.sectionTitles.operations}
-            className="space-y-3"
-          >
-            <h2 className="text-sm font-semibold tracking-tight text-foreground">
-              {composition.sectionTitles.operations}
-            </h2>
-            <div className="space-y-4">
-              <HoyPorCobrarStrip
-                canWrite={canWriteTickets(permissions.can)}
-                refreshKey={cobranzaRefreshKey}
-                onPaymentApplied={() => {
-                  technicianDay.reload();
-                  setCobranzaRefreshKey((key) => key + 1);
-                }}
-              />
-              <DashboardTechnicianDayWidget
-                variant={composition.campoOperations ? 'campo' : 'default'}
-                canRead={technicianDay.canRead}
-                missingCompany={technicianDay.missingCompany}
-                permissionsLoading={technicianDay.permissionsLoading}
-                loading={technicianDay.loading}
-                error={technicianDay.error}
-                items={technicianDay.data?.items ?? []}
-                todayCount={technicianDay.data?.todayCount ?? 0}
-                overdueCount={technicianDay.data?.overdueCount ?? 0}
-                onRetry={technicianDay.reload}
-                pendingUploadCount={technicianDay.pendingUploadCount}
-                syncing={technicianDay.syncing}
-                onFlushNow={() => {
-                  void technicianDay.flushNow().then(() => {
-                    technicianDay.reload();
-                  });
-                }}
-                onPaymentApplied={() => {
-                  technicianDay.reload();
-                  setCobranzaRefreshKey((key) => key + 1);
-                }}
-              />
-              {composition.campoOperations ? (
-                urgentScheduleCount > 0 ? (
-                  <DashboardServiceSchedulesWidget
-                    canRead={urgentSchedules.canRead}
-                    canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
-                    missingCompany={urgentSchedules.missingCompany}
-                    permissionsLoading={urgentSchedules.permissionsLoading}
-                    loading={urgentSchedules.loading}
-                    error={urgentSchedules.error}
-                    proximos={urgentSchedules.proximos}
-                    atrasados={urgentSchedules.atrasados}
-                    onRetry={urgentSchedules.reload}
-                  />
-                ) : null
-              ) : (
-                <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
-                  <DashboardServiceSchedulesWidget
-                    canRead={urgentSchedules.canRead}
-                    canCreateTicket={permissions.can(PERMISSIONS.tickets.write)}
-                    missingCompany={urgentSchedules.missingCompany}
-                    permissionsLoading={urgentSchedules.permissionsLoading}
-                    loading={urgentSchedules.loading}
-                    error={urgentSchedules.error}
-                    proximos={urgentSchedules.proximos}
-                    atrasados={urgentSchedules.atrasados}
-                    onRetry={urgentSchedules.reload}
-                  />
-                  <div className="min-w-0 lg:col-span-2 only:lg:col-span-3">
-                    <DashboardActivityFeed
-                      emptyTitle={composition.emptyCopy.activityTitle}
-                      emptyDescription={
-                        composition.emptyCopy.activityDescription
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8">
+    <div className="grid grid-cols-1 gap-6 md:gap-8 xl:grid-cols-3">
       {error && metrics ? (
         <p
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive xl:col-span-3"
           role="alert"
         >
           {error}
@@ -551,7 +440,9 @@ export const DashboardMetricsClient = ({
       ) : null}
 
       {composition.showQuickActions ? (
-        <DashboardQuickActions persona={persona} />
+        <div className="min-w-0 xl:col-span-3">
+          <DashboardQuickActions persona={persona} />
+        </div>
       ) : null}
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}

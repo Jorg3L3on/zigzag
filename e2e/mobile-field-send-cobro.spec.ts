@@ -13,7 +13,7 @@ test.describe('Field send & cobro (Epic D)', () => {
     await ensureTenantCompany(page);
   });
 
-  test('Hoy surfaces Enviar menu on trabajo de hoy cards', async ({
+  test('Tu día rows open the Enviar sheet from ···', async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -22,16 +22,16 @@ test.describe('Field send & cobro (Epic D)', () => {
     );
 
     await page.goto('/dashboard');
-    await expect(page.getByTestId('technician-day-widget')).toBeVisible({
-      timeout: 30_000,
-    });
+    const tuDia = page.getByTestId('dashboard-tu-dia');
+    await expect(tuDia).toBeVisible({ timeout: 30_000 });
 
-    const sendTrigger = page.getByTestId('field-send-menu-trigger').first();
-    if ((await sendTrigger.count()) === 0) {
-      test.skip(true, 'No unfinished day tickets in seed for Enviar menu');
+    const more = tuDia.getByRole('button', { name: /^Más acciones para / }).first();
+    if ((await more.count()) === 0) {
+      test.skip(true, 'No Tu día rows in seed for Enviar menu');
     }
 
-    await sendTrigger.click();
+    await more.click();
+    await page.getByRole('menuitem', { name: /Enviar por WhatsApp/ }).click();
     await expect(page.getByTestId('field-send-menu-sheet')).toBeVisible();
     // Options depend on finished vs open: Voy en camino | Enviar recibo | Recordar saldo
     await expect(
@@ -39,23 +39,22 @@ test.describe('Field send & cobro (Epic D)', () => {
     ).toBeVisible();
   });
 
-  test('Por cobrar strip renders when balances exist', async ({ page }) => {
+  test('Tu día Por cobrar lists balances and links to cobranza', async ({ page }) => {
     await page.goto('/dashboard');
-    const strip = page.getByTestId('hoy-por-cobrar-strip');
-    // Strip is omitted when nothing is owed — tolerate either state.
-    await page.waitForTimeout(1500);
-    if (await strip.isVisible().catch(() => false)) {
-      await expect(
-        page.getByRole('link', { name: /Ver toda la cobranza/i }),
-      ).toHaveAttribute('href', '/cobranza');
-      const whatsapp = page
-        .locator('[data-testid="hoy-por-cobrar-strip"] a[href*="wa.me"]')
-        .first();
-      if (await whatsapp.count()) {
-        const href = await whatsapp.getAttribute('href');
-        expect(href).toContain('wa.me');
-        expect(decodeURIComponent(href ?? '')).toMatch(/saldo|pendiente|ticket/i);
-      }
-    }
+    const tuDia = page.getByTestId('dashboard-tu-dia');
+    await expect(tuDia).toBeVisible({ timeout: 30_000 });
+
+    await tuDia.getByRole('tab', { name: /Por cobrar/ }).click();
+    await expect(tuDia.getByRole('tab', { name: /Por cobrar/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(tuDia.getByRole('link', { name: /Ver cobranza/ })).toHaveAttribute(
+      'href',
+      '/cobranza',
+    );
+    // Rows are capped at 5 whatever the tile count says.
+    const rows = tuDia.getByRole('list', { name: /Por cobrar/ }).getByRole('listitem');
+    expect(await rows.count()).toBeLessThanOrEqual(5);
   });
 });

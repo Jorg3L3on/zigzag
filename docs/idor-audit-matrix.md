@@ -76,6 +76,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
 | `dashboard.ts` | loadDashboardMetricsForCompany, fetchDashboardMetrics | ✅ | `src/lib/dashboard-actions.test.ts` | #190 |
+| `dashboard-day-queue.ts` | getDashboardDayQueue | ✅ | `src/lib/dashboard-day-queue-actions.test.ts` | ZIG-I4-6 |
 | `client-service-schedules.ts` | list*, upsert, pause, resume, delete | ✅ | `src/lib/client-service-schedules-actions.test.ts` | #190 |
 | `trash.ts` | getTrash, restoreClient, restoreService, restoreTicket | ✅ | `src/lib/trash-actions.test.ts` | #190 |
 | `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ✅ | `src/lib/notifications-actions.test.ts` | #190 |

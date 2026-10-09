@@ -38,6 +38,8 @@ export type JobWhatsAppSendMenuProps = {
   onOpenChange?: (open: boolean) => void;
   variant?: 'default' | 'outline' | 'secondary';
   size?: 'default' | 'sm' | 'lg' | 'icon';
+  /** False when another control (e.g. a ··· menu item) opens the sheet. */
+  showTrigger?: boolean;
 };
 
 const buildPdfFileName = (job: FieldJobSnapshot): string => {
@@ -63,6 +65,7 @@ export const JobWhatsAppSendMenu = ({
   onOpenChange,
   variant = 'outline',
   size = 'sm',
+  showTrigger = true,
 }: JobWhatsAppSendMenuProps) => {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
@@ -233,18 +236,20 @@ export const JobWhatsAppSendMenu = ({
 
   return (
     <>
-      <Button
-        type="button"
-        variant={variant}
-        size={size}
-        className={cn('min-h-11 rounded-lg sm:min-h-9', triggerClassName)}
-        onClick={() => setOpen(true)}
-        aria-label={`Enviar por WhatsApp job ${job.ticketId ?? job.localJobId ?? ''}`}
-        data-testid="field-send-menu-trigger"
-      >
-        <MessageCircle className="h-4 w-4" aria-hidden data-icon="inline-start" />
-        {triggerLabel}
-      </Button>
+      {showTrigger ? (
+        <Button
+          type="button"
+          variant={variant}
+          size={size}
+          className={cn('min-h-11 rounded-lg sm:min-h-9', triggerClassName)}
+          onClick={() => setOpen(true)}
+          aria-label={`Enviar por WhatsApp job ${job.ticketId ?? job.localJobId ?? ''}`}
+          data-testid="field-send-menu-trigger"
+        >
+          <MessageCircle className="h-4 w-4" aria-hidden data-icon="inline-start" />
+          {triggerLabel}
+        </Button>
+      ) : null}
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent

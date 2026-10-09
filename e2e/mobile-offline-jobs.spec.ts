@@ -80,11 +80,10 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
     });
 
     await page.goto('/dashboard');
-    await expect(page.getByTestId('technician-day-widget')).toBeVisible({
+    await expect(page.getByTestId('dashboard-tu-dia')).toBeVisible({
       timeout: 30_000,
     });
-    await page.getByTestId('technician-day-widget').scrollIntoViewIfNeeded();
-    // Prefer Subir ahora — CardDescription can be clipped in the mobile header row.
+    await page.getByTestId('dashboard-tu-dia').scrollIntoViewIfNeeded();
     await expect(page.getByTestId('field-sync-now-button')).toBeVisible({
       timeout: 15_000,
     });
@@ -93,7 +92,7 @@ test.describe('Mobile offline field jobs (Epic B)', () => {
     );
     await expect(
       page
-        .getByTestId('technician-day-widget')
+        .getByTestId('dashboard-tu-dia')
         .getByText('Pendiente de subir', { exact: true }),
     ).toBeVisible({ timeout: 15_000 });
   });

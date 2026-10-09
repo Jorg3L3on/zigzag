@@ -4,11 +4,10 @@ import type { DashboardPersona } from '@/lib/dashboard-persona';
 /** Ordered, reusable dashboard slots. Presentation stays in shared widgets. */
 export type DashboardWidgetId =
   | 'platformHome'
-  | 'needsAttention'
+  | 'tuDia'
+  | 'activity'
   | 'kpis'
-  | 'charts'
-  | 'operations'
-  | 'campoSummary';
+  | 'charts';
 
 export type DashboardComposition = {
   persona: DashboardPersona;
@@ -19,33 +18,26 @@ export type DashboardComposition = {
   showQuickActions: boolean;
   /** Which KPI keys to render (subset of metrics.kpis). */
   kpiKeys: DashboardKpiKey[] | 'all';
-  /** Campo: hide activity feed and non-urgent schedules inside operations. */
+  /** Campo: Tu día opens on Hoy and carries the money chips in its header. */
   campoOperations?: boolean;
   sectionTitles: {
     kpis: string;
-    operations: string;
   };
   emptyCopy: {
-    attentionTitle: string;
-    attentionDescription: string;
     activityTitle: string;
     activityDescription: string;
   };
 };
 
 const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
-  widgets: ['needsAttention', 'kpis', 'charts', 'operations'],
+  widgets: ['tuDia', 'activity', 'kpis', 'charts'],
   showPeriodSelect: true,
   showQuickActions: true,
   kpiKeys: 'all',
   sectionTitles: {
     kpis: 'Desempeño',
-    operations: 'Actividad',
   },
   emptyCopy: {
-    attentionTitle: 'Todo marcha bien hoy',
-    attentionDescription:
-      'No hay cobros, tickets activos ni recordatorios urgentes que requieran tu atención.',
     activityTitle: 'Sin actividad reciente',
     activityDescription:
       'Cuando tu equipo opere en ZigZag, los eventos importantes aparecerán aquí.',
@@ -53,19 +45,15 @@ const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 };
 
 const OPERATOR_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
-  widgets: ['needsAttention', 'operations', 'kpis'],
+  widgets: ['tuDia', 'activity', 'kpis'],
   showPeriodSelect: false,
   showQuickActions: true,
   // Operations-first: open work and collections pressure (no assignee field exists).
   kpiKeys: ['activeTickets', 'outstandingBalance'],
   sectionTitles: {
     kpis: 'Tu operación',
-    operations: 'Trabajo de hoy',
   },
   emptyCopy: {
-    attentionTitle: 'Sin trabajo urgente hoy',
-    attentionDescription:
-      'No hay tickets ni recordatorios que requieran tu seguimiento ahora.',
     activityTitle: 'Sin actividad reciente',
     activityDescription:
       'Tus movimientos en tickets y servicios aparecerán aquí conforme trabajes.',
@@ -73,17 +61,14 @@ const OPERATOR_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
 };
 
 const VIEWER_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
-  widgets: ['kpis', 'charts', 'operations'],
+  widgets: ['kpis', 'charts', 'tuDia', 'activity'],
   showPeriodSelect: true,
   showQuickActions: false,
   kpiKeys: 'all',
   sectionTitles: {
     kpis: 'Resumen del negocio',
-    operations: 'Actividad',
   },
   emptyCopy: {
-    attentionTitle: 'Nada pendiente',
-    attentionDescription: 'El resumen está al día por ahora.',
     activityTitle: 'Sin actividad reciente',
     activityDescription:
       'La actividad de la empresa aparecerá aquí cuando el equipo trabaje en ZigZag.',
@@ -97,12 +82,8 @@ const SYSTEM_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
   kpiKeys: 'all',
   sectionTitles: {
     kpis: 'Plataforma',
-    operations: 'Actividad de plataforma',
   },
   emptyCopy: {
-    attentionTitle: 'Selecciona una empresa',
-    attentionDescription:
-      'Elige una empresa en el menú superior para ver su operación, o abre la consola operadora.',
     activityTitle: 'Sin contexto de empresa',
     activityDescription:
       'La actividad de plataforma vive en la consola operadora y la auditoría del sistema.',
@@ -125,7 +106,7 @@ export const buildDashboardComposition = (
   }
 };
 
-/** Hoy-first campo home: operations first, no charts / office chrome. */
+/** Hoy-first campo home: Tu día only, no charts / office chrome. */
 export const buildCampoDashboardComposition = (
   persona: DashboardPersona,
 ): DashboardComposition => {
@@ -135,19 +116,15 @@ export const buildCampoDashboardComposition = (
 
   return {
     persona,
-    widgets: ['campoSummary', 'operations'],
+    widgets: ['tuDia'],
     showPeriodSelect: false,
     showQuickActions: false,
     kpiKeys: ['cashCollected', 'outstandingBalance'],
     campoOperations: true,
     sectionTitles: {
       kpis: 'Hoy',
-      operations: 'Trabajo de hoy',
     },
     emptyCopy: {
-      attentionTitle: 'Sin visitas pendientes',
-      attentionDescription:
-        'No hay trabajos de hoy ni atrasados. Puedes anotar un trabajo nuevo.',
       activityTitle: 'Sin actividad reciente',
       activityDescription: 'Tus visitas aparecerán aquí conforme trabajes.',
     },
