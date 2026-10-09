@@ -9,7 +9,7 @@ import {
 } from '@/components/tripled';
 import { DashboardPageIntro } from '@/components/dashboard/dashboard-page-intro';
 import { requirePagePermission } from '@/lib/page-authz';
-import { loadDashboardMetricsForCompany } from '@/actions/dashboard';
+import { loadDashboardMetricsForCompany } from '@/lib/dashboard-metrics-loader';
 import { loadDashboardDayQueueForCompany } from '@/lib/dashboard-day-queue-loader';
 import { logger } from '@/lib/logger';
 import { loadExperienceModeForCompany } from '@/actions/experience-mode';
