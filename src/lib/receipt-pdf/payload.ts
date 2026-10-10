@@ -1,11 +1,18 @@
 /**
  * Data for the presupuesto / recibo PDF (design 2a, docs/pdf-design-2a).
- * Built from the same ticket shape as the old fintech payload; the renderer
- * only formats and draws what is here.
+ * Built from the ticket returned by getTicketById; the renderer only formats
+ * and draws what is here.
  */
 import { differenceInCalendarDays, format } from 'date-fns';
+import type {
+  Client,
+  Company,
+  Service,
+  ServicesTicketsRow,
+  TicketPaymentRow,
+  TicketRow,
+} from '@/db/schema';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
-import type { FintechInvoiceTicket } from '@/lib/fintech-invoice-payload';
 import { multiplyMoney, roundMoney } from '@/lib/money';
 import {
   getServiceLineDescription,
@@ -20,7 +27,12 @@ import {
   getTicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
 
-export type ReceiptPdfTicket = FintechInvoiceTicket;
+export type ReceiptPdfTicket = TicketRow & {
+  company: Company | null;
+  client?: Client | null;
+  services_tickets: Array<ServicesTicketsRow & { service: Service | null }>;
+  ticket_payments?: TicketPaymentRow[];
+};
 
 export type ReceiptPdfDocType = 'presupuesto' | 'recibo';
 

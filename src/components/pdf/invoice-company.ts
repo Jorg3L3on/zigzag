@@ -1,6 +1,6 @@
 /**
  * Issuer branding for PDF invoices — defaults when company data is unavailable.
- * Layout lives in invoice-template.tsx; DB-backed values via `invoiceIssuerFromCompany`.
+ * Layout lives in src/lib/receipt-pdf; DB-backed values via `invoiceIssuerFromCompany`.
  */
 import type { Company } from '@/db/schema';
 import {
@@ -75,9 +75,3 @@ export const invoiceIssuerFromCompany = (
     tagline: company.settings?.tagline?.trim() || null,
   };
 };
-
-/** Primary accent aligned with the app brand palette. */
-export const INVOICE_ACCENT = '#2563EB';
-
-/** Light blue-violet table header band aligned with the app palette. */
-export const INVOICE_TABLE_HEAD_BG = '#EEF2FF';
