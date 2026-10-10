@@ -1,4 +1,8 @@
-import type { ServicesTicketsRow, TicketRow } from '@/db/schema';
+import type {
+  ServicesTicketsRow,
+  TicketLineMaterialRow,
+  TicketRow,
+} from '@/db/schema';
 
 /** v1 list/get ticket fields — aligned with list_tickets (no tel, email, notes). */
 export type AgentTicketPayload = {
@@ -18,6 +22,13 @@ export type AgentTicketPayload = {
     name?: string | null;
     quantity: number;
     price: number;
+    /** Materials under the line (ZIG-I10); they add on top of quantity × price. */
+    materials: Array<{
+      name: string;
+      quantity: number;
+      unit: string | null;
+      price: number;
+    }>;
   }>;
 };
 
@@ -38,7 +49,11 @@ type TicketLinePick = Pick<
   ServicesTicketsRow,
   'id' | 'service_id' | 'quantity' | 'price'
 > &
-  Partial<Pick<ServicesTicketsRow, 'name'>>;
+  Partial<Pick<ServicesTicketsRow, 'name'>> & {
+    materials?: Array<
+      Pick<TicketLineMaterialRow, 'name' | 'unit' | 'quantity' | 'price'>
+    >;
+  };
 
 export const mapAgentTicketSummary = (row: TicketSummaryPick): AgentTicketPayload => ({
   id: row.id.toString(),
@@ -62,6 +77,12 @@ export const mapAgentTicketDetail = (
     ...(line.service_id == null ? { name: line.name ?? null } : {}),
     quantity: line.quantity,
     price: line.price,
+    materials: (line.materials ?? []).map((item) => ({
+      name: item.name ?? 'Material',
+      quantity: Number(item.quantity),
+      unit: item.unit,
+      price: Number(item.price),
+    })),
   })),
 });
 
