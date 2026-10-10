@@ -1,4 +1,5 @@
 import type { PresupuestoDetailData } from '@/actions/presupuestos';
+import { materialDraftsFromStoredRows } from '@/lib/material-drafts';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { getPresupuestoStatus } from '@/lib/ticket-document-kind';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
@@ -38,8 +39,11 @@ export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
   ticketDate: (row.ticket_date ? new Date(row.ticket_date) : new Date()).toISOString(),
   expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
   notes: row.work_notes ?? '',
-  lines: row.services_tickets.map((line) =>
-    line.service_id == null
+  lines: row.services_tickets.map((line) => {
+    // Saved materials come back as drafts (ZIG-I10); catalog ones stay linked.
+    const materials = materialDraftsFromStoredRows(line.materials);
+    const withMaterials = materials.length > 0 ? { materials } : {};
+    return line.service_id == null
       ? {
           key: `line-${String(line.id)}`,
           kind: 'custom' as const,
@@ -49,6 +53,7 @@ export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
           save_to_catalog: false,
           quantity: line.quantity,
           price: Number(line.price) || 0,
+          ...withMaterials,
         }
       : {
           key: `line-${String(line.id)}`,
@@ -57,6 +62,7 @@ export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
           service_name: getServiceLineName(line),
           quantity: line.quantity,
           price: Number(line.price) || 0,
-        },
-  ),
+          ...withMaterials,
+        };
+  }),
 });
