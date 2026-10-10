@@ -47,6 +47,7 @@ describe('DashboardQuickActions', () => {
     const nav = screen.getByRole('navigation', { name: 'Acciones rápidas' });
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Crear ticket',
+      'Crear presupuesto',
       'Crear cliente',
       'Crear servicio',
       'Ver tickets',
@@ -70,11 +71,26 @@ describe('DashboardQuickActions', () => {
 
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Crear ticket',
+      'Crear presupuesto',
       'Ver tickets',
       'Recordatorios',
       'Crear cliente',
       'Crear servicio',
     ]);
+  });
+
+  it('links Crear presupuesto to the composer and hides it without tickets.write', () => {
+    const { unmount } = render(<DashboardQuickActions persona="admin" />);
+    expect(
+      screen.getByRole('link', { name: 'Crear presupuesto' }),
+    ).toHaveAttribute('href', '/presupuestos/create');
+    unmount();
+
+    mockGranted = ['tickets.read'];
+    render(<DashboardQuickActions persona="viewer" />);
+    expect(
+      screen.queryByRole('link', { name: 'Crear presupuesto' }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders nothing without permitted actions', () => {
