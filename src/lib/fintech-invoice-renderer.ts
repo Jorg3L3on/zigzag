@@ -144,8 +144,9 @@ export function renderFintechInvoicePdf(
   options: FintechInvoiceRenderOptions = {},
 ): ArrayBuffer {
   const issuerLogoDataUrl = options.issuerLogoDataUrl ?? null;
-  // Height-based pages: rows grow with their materials (ZIG-I10).
-  const pages = paginateInvoiceItems(payload.items);
+  // Height-based pages: rows grow with their materials (ZIG-I10). Set by
+  // drawMainPage, which knows how much room the main page has.
+  let pages: FintechInvoiceItem[][] = [];
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
@@ -918,6 +919,24 @@ export function renderFintechInvoicePdf(
       lineY -= clientExtraLineH + clientLineGap;
     });
 
+    const showBalanceDue = payload.balanceDue > 0;
+    let summaryH = 88;
+    if (payload.materialsSubtotal > 0) summaryH += 36;
+    if (payload.hasAdjustment) summaryH += 36;
+    if (showBalanceDue) summaryH += 28;
+
+    // Documents with materials size the main page from the room left above the
+    // footer divider (y = 120), so the taller summary never reaches it. Others
+    // keep the original 6-row split.
+    const footerClearance = 128;
+    const roomForRows =
+      clientCardY - 12 - (52 + TABLE_HEADER_H + 8 + 22) - 12 - summaryH - footerClearance;
+    const mainBudget =
+      payload.materialsSubtotal > 0
+        ? Math.min(MAIN_PAGE_MAX_ROWS * ROW_STEP, Math.max(roomForRows, 0))
+        : MAIN_PAGE_MAX_ROWS * ROW_STEP;
+    pages = paginateInvoiceItems(payload.items, mainBudget);
+
     const mainItems = pages[0];
     const hasMoreItems = payload.items.length > mainItems.length;
     const continuationReserve = hasMoreItems ? 22 : 10;
@@ -952,11 +971,6 @@ export function renderFintechInvoicePdf(
       );
     }
 
-    const showBalanceDue = payload.balanceDue > 0;
-    let summaryH = 88;
-    if (payload.materialsSubtotal > 0) summaryH += 36;
-    if (payload.hasAdjustment) summaryH += 36;
-    if (showBalanceDue) summaryH += 28;
     const summaryY = itemsY - 12 - summaryH;
     drawPaymentSummary(margin, summaryY, contentW, summaryH);
 
