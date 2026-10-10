@@ -51,7 +51,10 @@ describe('TicketsMobileCard', () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText('$100')).toBeInTheDocument();
-    expect(screen.getAllByText('$250').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('$250')).toBeInTheDocument();
+    expect(screen.getByText('$150')).toBeInTheDocument();
+    expect(screen.getByText(/faltan/i)).toBeInTheDocument();
+    expect(screen.queryByText('Total')).not.toBeInTheDocument();
     expect(screen.queryByText('40%')).not.toBeInTheDocument();
 
     phoneLink.click();
@@ -59,5 +62,42 @@ describe('TicketsMobileCard', () => {
 
     await screen.getByRole('button', { name: /editar ticket 42/i }).click();
     expect(mockPush).toHaveBeenCalled();
+  });
+
+  it('shows the amount once and no progress bar for saldado tickets', () => {
+    render(
+      <TicketsMobileCard
+        ticket={{ ...ticket, total: 1972, paid: 1972 }}
+        canWrite
+        onDelete={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Saldado')).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.getAllByText('$1,972.00')).toHaveLength(1);
+    expect(screen.queryByText(/faltan/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('ticket-payment-summary')).toHaveAttribute(
+      'data-payment-status',
+      'paid',
+    );
+  });
+
+  it('shows progress and balance for pending tickets', () => {
+    render(
+      <TicketsMobileCard
+        ticket={{ ...ticket, total: 100, paid: 0 }}
+        canWrite
+        onDelete={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
+    expect(
+      screen.getByRole('progressbar', { name: /progreso de pago 0 por ciento/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(screen.getAllByText('$100')).toHaveLength(2);
   });
 });
