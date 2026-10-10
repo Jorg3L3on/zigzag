@@ -70,6 +70,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 ### PDF invoices
 - Generated on demand on the server: `GET /api/tickets/[id]/invoice`.
 - Payload: `src/lib/fintech-invoice-payload.ts`; renderer: `src/lib/fintech-invoice-renderer.ts`.
+- Design 2a (ZIG-I11, replacing the renderer above): spec in [docs/pdf-design-2a/](docs/pdf-design-2a/README.md) (`README.md` measurements, `receipt-template.html` reference, `sample-data.json`). Code in `src/lib/receipt-pdf/` (`payload.ts` → `ReceiptPdfPayload`; `fonts/` embeds IBM Plex from `assets/fonts/ibm-plex/`, regenerate with `npm run pdf-fonts:generate`; server-only).
 - UI download: `src/components/pdf-download-button.tsx` (must not accept uploaded PDFs in production).
 
 ### BigInt IDs

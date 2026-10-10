@@ -33,6 +33,7 @@
     "guides:capture:prod": "GUIDES_BASE_URL=http://127.0.0.1:3070 node scripts/capture-onboarding-guide-screenshots.mjs",
     "lighthouse:mobile": "node scripts/mobile-lighthouse-baseline.mjs",
     "icons:generate": "node scripts/generate-pwa-icons.mjs",
+    "pdf-fonts:generate": "node scripts/generate-pdf-fonts.mjs",
     "rag:index": "ts-node -P rag/tsconfig.json rag/scripts/index-docs.ts",
     "rag:search": "ts-node -P rag/tsconfig.json rag/scripts/search.ts",
     "rag:ask": "ts-node -P rag/tsconfig.json rag/scripts/ask.ts"

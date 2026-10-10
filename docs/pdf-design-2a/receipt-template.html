@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{docTitle}} {{folio}}</title>
+<!-- Design reference: Zigzag Presupuesto / Recibo (option 2a). Letter, single page, monochrome. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  @page { size: letter; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; }
+  body { font-family: 'IBM Plex Sans', Helvetica, Arial, sans-serif; color: #141414; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .mono { font-family: 'IBM Plex Mono', Menlo, Consolas, monospace; }
+
+  .page { width: 8.5in; height: 11in; padding: 56px 64px 48px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { height: 44px; max-width: 160px; object-fit: contain; object-position: left center; display: block; }
+  .brand .initial { width: 44px; height: 44px; border: 1.5px solid #141414; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; }
+  .brand .name { font-size: 15px; font-weight: 600; }
+  .brand .tagline { font-size: 11.5px; color: #777; margin-top: 3px; }
+  .doc { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .doc .title { font-size: 34px; font-weight: 500; letter-spacing: -.02em; line-height: 1; text-transform: uppercase; }
+  .doc .folio { font-size: 12px; }
+  .doc .date { font-size: 12px; color: #555; }
+
+  /* Double rule */
+  .rule-double { margin-top: 32px; height: 2px; background: #141414; }
+  .rule-double + .rule-thin { margin-top: 3px; height: 1px; background: #141414; }
+
+  /* Meta grid */
+  .meta { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 28px; }
+  .meta > div { display: flex; flex-direction: column; gap: 8px; }
+  .meta > div:nth-child(1) { padding-right: 24px; }
+  .meta > div:nth-child(2) { padding: 0 24px; border-left: 1px solid #e2e2de; }
+  .meta > div:nth-child(3) { padding-left: 24px; border-left: 1px solid #e2e2de; }
+  .label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #777; }
+  .meta .primary { font-size: 15px; font-weight: 600; }
+  .meta .secondary { font-size: 13px; color: #444; line-height: 1.5; }
+  .pill { display: inline-flex; align-self: flex-start; align-items: center; gap: 7px; border: 1px solid #141414; border-radius: 999px; padding: 4px 10px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+  .pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #141414; }
+
+  /* Items table */
+  .items { margin-top: 12px; border-collapse: collapse; width: 100%; }
+  .items th { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #777; font-weight: 400; text-align: right; padding: 0 0 10px; border-bottom: 1px solid #141414; }
+  .items th:first-child { text-align: left; }
+  .items td { padding: 16px 0; border-bottom: 1px dashed #d6d6d1; vertical-align: baseline; text-align: right; font-size: 13px; }
+  .items td:first-child { text-align: left; padding-right: 16px; }
+  .items col.c-qty { width: 80px; } .items col.c-price { width: 130px; } .items col.c-amount { width: 120px; }
+  .concept { display: flex; gap: 12px; }
+  .concept .idx { font-size: 11px; color: #999; padding-top: 3px; }
+  .concept .name { font-size: 14px; font-weight: 600; }
+  .concept .desc { font-size: 12.5px; color: #666; margin-top: 3px; }
+  .items td.amount { font-weight: 500; }
+
+  /* Totals */
+  .totals-wrap { display: flex; justify-content: flex-end; margin-top: 28px; }
+  .totals { width: 320px; background: #f4f4f1; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  .totals .row { display: flex; align-items: baseline; gap: 8px; }
+  .totals .row span:first-child { color: #555; }
+  .totals .leader { flex: 1; border-bottom: 1px dotted #aaa; transform: translateY(-3px); }
+  .totals .sep { height: 1px; background: #141414; margin: 6px 0 2px; }
+  .totals .due { display: flex; justify-content: space-between; align-items: baseline; }
+  .totals .due span:first-child { font-weight: 600; font-size: 14px; }
+  .totals .due span:last-child { font-size: 24px; font-weight: 500; }
+
+  .spacer { flex: 1; }
+
+  /* Footer */
+  .footer { display: grid; grid-template-columns: 1fr 1.2fr 2fr; gap: 24px; padding-top: 16px; border-top: 1px solid #141414; font-size: 12px; color: #444; line-height: 1.45; }
+  .footer > div { display: flex; flex-direction: column; gap: 4px; }
+  .colophon { margin-top: 18px; display: flex; justify-content: space-between; font-size: 10px; color: #999; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="brand">
+      <!-- If company.logoUrl is set render <img>; else render the initial circle -->
+      {{#company.logoUrl}}<img src="{{company.logoUrl}}" alt="{{company.name}}">{{/company.logoUrl}}
+      {{^company.logoUrl}}<div class="initial">{{company.initial}}</div>{{/company.logoUrl}}
+      <div>
+        <div class="name">{{company.name}}</div>
+        <div class="tagline">{{company.tagline}}</div>
+      </div>
+    </div>
+    <div class="doc">
+      <div class="title">{{docTitle}}</div>
+      <div class="folio mono">Folio {{folio}}</div>
+      <div class="date mono">{{issueDate}}</div>
+    </div>
+  </div>
+
+  <div class="rule-double"></div><div class="rule-thin"></div>
+
+  <div class="meta">
+    <div>
+      <div class="label">Cliente</div>
+      <div class="primary">{{client.name}}</div>
+      <div class="secondary">{{client.phone}}<br>{{client.country}}</div>
+    </div>
+    <div>
+      <div class="label">Fecha de emisión</div>
+      <div class="primary">{{issueDate}}</div>
+      <div class="secondary">Vigencia {{validityDays}} días<br>Vence {{expiryDate}}</div>
+    </div>
+    <div>
+      <div class="label">Estado</div>
+      <div class="pill">{{statusLabel}}</div>
+      <div class="secondary">{{itemCount}} conceptos</div>
+    </div>
+  </div>
+
+  <div class="rule-double"></div><div class="rule-thin"></div>
+
+  <table class="items">
+    <colgroup><col><col class="c-qty"><col class="c-price"><col class="c-amount"></colgroup>
+    <thead><tr><th>Concepto</th><th>Cantidad</th><th>Precio unitario</th><th>Importe</th></tr></thead>
+    <tbody>
+      {{#items}}
+      <tr>
+        <td><div class="concept"><span class="idx mono">{{index}}</span><div><div class="name">{{name}}</div><div class="desc">{{description}}</div></div></div></td>
+        <td class="mono">{{quantity}}</td>
+        <td class="mono">{{unitPrice}}</td>
+        <td class="mono amount">{{amount}}</td>
+      </tr>
+      {{/items}}
+    </tbody>
+  </table>
+
+  <div class="totals-wrap">
+    <div class="totals">
+      <div class="row"><span>Subtotal</span><span class="leader"></span><span class="mono">{{subtotal}}</span></div>
+      <div class="row"><span>{{taxLabel}}</span><span class="leader"></span><span class="mono">{{tax}}</span></div>
+      <div class="row"><span>Total</span><span class="leader"></span><span class="mono">{{total}}</span></div>
+      <div class="row"><span>Pagado</span><span class="leader"></span><span class="mono">{{paid}}</span></div>
+      <div class="sep"></div>
+      <div class="due"><span>Saldo por pagar</span><span class="mono">{{balanceDue}}</span></div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="footer">
+    <div><div class="label">Teléfono</div><div>{{company.phone}}</div></div>
+    <div><div class="label">Correo</div><div>{{company.email}}</div></div>
+    <div><div class="label">Dirección</div><div>{{company.address}}</div></div>
+  </div>
+  <div class="colophon"><span>{{docTitle}} {{folio}} · Página 1 de 1</span><span>Powered by zigzag</span></div>
+
+</div>
+</body>
+</html>
