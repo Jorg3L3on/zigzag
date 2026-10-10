@@ -67,9 +67,15 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - **PWA:** `src/app/manifest.ts` — `start_url` `/dashboard`, icons under `public/icons/` (plus `src/app/{favicon.ico,icon.png,icon.svg,apple-icon.png}`, `public/logo.png`, `public/brand/`), all built from `assets/brand/` by `npm run icons:generate`; never edit the outputs by hand. Production service worker (`@serwist/turbopack`) caches the app shell only; Ticket/Client/Service **reads** require network. Field **offline job create/edit** uses IndexedDB + outbox (`src/lib/field-jobs/`, see `tasks/prd-offline-first-jobs.md`).
 - Mobile initiative PRDs and status: [tasks/INDEX.md](tasks/INDEX.md), [tasks/prd-mobile-program-decisions.md](tasks/prd-mobile-program-decisions.md). Manual release checklist: [tasks/mobile-release-checklist.md](tasks/mobile-release-checklist.md). E2E: `npm run test:e2e` (desktop + `mobile-chrome` Pixel 5); mobile-only: `npm run test:e2e:mobile`.
 
+### Document lines and materials
+- A ticket or presupuesto line is a `ServicesTickets` row: a catalog line (`service_id` set, reads the Service) or an inline line (`service_id` null, its own `name`/`description`, ZIG-I5). Line input union and limits: `src/lib/ticket-service-line-schema.ts`; inserts go through `insertServiceLines` (`src/lib/service-lines-server.ts`); readers use `src/lib/service-line-display.ts`.
+- **Materiales (ZIG-I10, migration 0029):** `Material` is the company catalog (name unique per company among active rows, case-insensitive; no page yet). `ServiceMaterial` holds a catalog Service's default materials (quantity, price override; null = catalog price), edited in the Servicios form. `TicketLineMaterial` rows hang under one `ServicesTickets` line and are **snapshots** (name, unit, quantity, price copied on save; `material_id` null = inline material with the Nuevo chip).
+- **Pricing rule:** line amount = `quantity × price` + Σ `material.quantity × material.price`. Material quantities are absolute for the line (not multiplied by the service quantity). `syncTicketTotal` sums active materials of active lines, so Ticket `total`, Cobranza and the PDF follow. Helpers: `lineTotalWithMaterials` / `sumMaterialTotals` in `src/lib/money.ts`.
+- Catalog material ids are always checked against the caller's company (`loadCatalogMaterials`); Guardar en mi catálogo finds or creates the Material by name in the same transaction (`findOrCreateMaterial`). `updateServiceTicket` replaces a line's whole material set when `materials` is sent; conversion copies materials with the lines. Materials are not in Anotar/offline capture or the services CSV.
+
 ### PDF invoices
 - Generated on demand on the server: `GET /api/tickets/[id]/invoice`.
-- Payload: `src/lib/fintech-invoice-payload.ts`; renderer: `src/lib/fintech-invoice-renderer.ts`.
+- Payload: `src/lib/fintech-invoice-payload.ts`; renderer: `src/lib/fintech-invoice-renderer.ts`. Materials print as muted sub-rows under their service (the row's IMPORTE is the service alone), rows grow with them and pages split by height (`paginateInvoiceItems`); Servicios / Materiales rows appear above Total only when a document has materials.
 - UI download: `src/components/pdf-download-button.tsx` (must not accept uploaded PDFs in production).
 
 ### BigInt IDs

@@ -15,6 +15,9 @@ import {
   buildTicketComposerDraftKey,
 } from '@/lib/ticket-composer-draft';
 
+// userEvent flows can pass 5 s on a loaded runner (ZIG-I10 QA).
+jest.setTimeout(30_000);
+
 const mockPush = jest.fn();
 const mockCreateTicketWithLines = jest.fn();
 const mockCreatePresupuestoWithLines = jest.fn();

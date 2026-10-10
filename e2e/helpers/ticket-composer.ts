@@ -61,6 +61,15 @@ export const addComposerLine = async (
   expect(serviceName).toBeTruthy();
   await option.click();
 
+  // A catalog service can prefill default materials (ZIG-I10). These flows
+  // price the service alone, so clear them; mobile-materiales covers them.
+  const prefilled = sheet
+    .getByTestId('composer-line-material-rows')
+    .getByRole('button', { name: /^Quitar / });
+  while ((await prefilled.count()) > 0) {
+    await prefilled.first().click();
+  }
+
   await sheet
     .getByRole('spinbutton', { name: 'Cantidad del servicio' })
     .fill(String(quantity));
