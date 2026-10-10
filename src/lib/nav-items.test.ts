@@ -11,17 +11,22 @@ import {
 } from '@/lib/nav-items';
 
 describe('nav-items', () => {
-  it('defines mobile tabs Hoy, Tickets, Clientes in order', () => {
+  it('defines mobile tabs Hoy, Tickets, Presupuestos in order', () => {
     expect(MOBILE_TAB_ITEMS.map((item) => item.title)).toEqual([
       'Hoy',
       'Tickets',
-      'Clientes',
+      'Presupuestos',
     ]);
     expect(MOBILE_TAB_ITEMS.map((item) => item.url)).toEqual([
       '/dashboard',
       '/tickets',
-      '/clients',
+      '/presupuestos',
     ]);
+  });
+
+  it('keeps Clientes out of the dock tabs but in the Más list', () => {
+    expect(MOBILE_TAB_ITEMS.some((item) => item.url === '/clients')).toBe(false);
+    expect(NAV_MAIN_ITEMS.some((item) => item.url === '/clients')).toBe(true);
   });
 
   it('gates the Tickets tab with tickets.read', () => {
@@ -38,12 +43,14 @@ describe('nav-items', () => {
     );
   });
 
-  it('places the dock create slot between Tickets and Clientes', () => {
+  it('places the dock create slot between Tickets and Presupuestos', () => {
     expect(MOBILE_DOCK_CREATE_SLOT).toBe(2);
     expect(MOBILE_TAB_ITEMS[MOBILE_DOCK_CREATE_SLOT - 1]?.title).toBe(
       'Tickets',
     );
-    expect(MOBILE_TAB_ITEMS[MOBILE_DOCK_CREATE_SLOT]?.title).toBe('Clientes');
+    expect(MOBILE_TAB_ITEMS[MOBILE_DOCK_CREATE_SLOT]?.title).toBe(
+      'Presupuestos',
+    );
   });
 
   it('defines create actions Nuevo ticket, Nuevo presupuesto, Captura rápida, Nuevo cliente', () => {
@@ -126,9 +133,15 @@ describe('nav-items', () => {
     expect(getActiveMobileTabHref('/cobranza')).toBeNull();
   });
 
-  it('activates Clientes on client routes', () => {
-    expect(getActiveMobileTabHref('/clients')).toBe('/clients');
-    expect(getActiveMobileTabHref('/clients/3/edit')).toBe('/clients');
+  it('activates Presupuestos on its list, detail and create routes', () => {
+    expect(getActiveMobileTabHref('/presupuestos')).toBe('/presupuestos');
+    expect(getActiveMobileTabHref('/presupuestos/1069')).toBe('/presupuestos');
+    expect(getActiveMobileTabHref('/presupuestos/create')).toBe('/presupuestos');
+  });
+
+  it('returns null (Más) on client routes now that Clientes is not a tab', () => {
+    expect(getActiveMobileTabHref('/clients')).toBeNull();
+    expect(getActiveMobileTabHref('/clients/3/edit')).toBeNull();
   });
 
   it('respects the visible tab subset (permissions)', () => {
