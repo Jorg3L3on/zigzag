@@ -9,7 +9,7 @@ import {
   Circle,
   CircleCheck,
   Download,
-  ExternalLink,
+  FileText,
   Loader2,
   Share2,
 } from 'lucide-react';
@@ -460,15 +460,13 @@ export const TicketCreationReview = ({
                 Recibo
               </h2>
               {finished && canInvoice ? (
-                <a
-                  href={buildTicketInvoicePreviewUrl(ticketId, companyId)}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={`/tickets/${ticketId}/recibo?from=listo`}
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
                 >
                   Abrir PDF
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                </Link>
               ) : null}
             </div>
             <div className="mt-3">

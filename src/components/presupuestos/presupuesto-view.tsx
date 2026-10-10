@@ -8,7 +8,7 @@ import {
   Ban,
   CalendarClock,
   Download,
-  ExternalLink,
+  FileText,
   Loader2,
   Pencil,
   Share2,
@@ -400,15 +400,13 @@ export const PresupuestoView = ({
                 Presupuesto en PDF
               </h2>
               {canInvoice ? (
-                <a
-                  href={buildTicketInvoicePreviewUrl(presupuestoId, companyId)}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={`/presupuestos/${presupuestoId}/pdf`}
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
                 >
                   Abrir PDF
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                </Link>
               ) : null}
             </div>
             <div className="mt-3">

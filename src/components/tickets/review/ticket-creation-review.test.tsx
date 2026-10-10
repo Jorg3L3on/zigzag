@@ -251,9 +251,8 @@ describe('TicketCreationReview', () => {
 
     expect(screen.queryByTestId('recibo-pdf-preview')).toBeNull();
     expect(screen.getByTestId('recibo-summary')).toHaveTextContent('$12,950.00');
-    expect(screen.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
-      'href',
-      '/api/tickets/1201/invoice?disposition=inline&company_id=10',
-    );
+    const open = screen.getByRole('link', { name: /Abrir PDF/ });
+    expect(open).toHaveAttribute('href', '/tickets/1201/recibo?from=listo');
+    expect(open).not.toHaveAttribute('target');
   });
 });
