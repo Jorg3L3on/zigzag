@@ -6,7 +6,7 @@ import { DocumentPdfViewer } from '@/components/pdf/document-pdf-viewer';
 import { ReciboSummary } from '@/components/tickets/review/document-review-parts';
 import { formatLongDate } from '@/lib/format-long-date';
 import { requirePagePermission } from '@/lib/page-authz';
-import { getServiceLineName } from '@/lib/service-line-display';
+import { buildReviewLine } from '@/lib/review-lines';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 import {
   TICKET_PAYMENT_STATUS_LABEL,
@@ -53,13 +53,7 @@ export default async function TicketReciboPage({
   const ticketId = String(ticket.id);
   const total = Number(ticket.total) || 0;
   const paid = Number(ticket.paid) || 0;
-  const lines = ticket.services_tickets.map((line) => ({
-    id: Number(line.id),
-    serviceId: line.service_id,
-    name: getServiceLineName(line),
-    quantity: line.quantity,
-    price: Number(line.price) || 0,
-  }));
+  const lines = ticket.services_tickets.map(buildReviewLine);
   const dateLabel = formatLongDate(
     ticket.ticket_date ? new Date(ticket.ticket_date).toISOString() : null,
   );

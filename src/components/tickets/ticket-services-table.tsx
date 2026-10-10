@@ -1,4 +1,5 @@
 import type { ServiceTicket } from '@/actions/ticket-services';
+import type { MaterialDraft } from '@/lib/material-drafts';
 import { Button } from '@/components/ui/button';
 import { TicketServiceRow } from '@/components/tickets/ticket-service-row';
 import {
@@ -14,6 +15,7 @@ type TicketServicesTableProps = {
     serviceTicketId: number,
     quantity: number,
     price: number,
+    materials?: MaterialDraft[],
   ) => void;
   onQuantityInput: (
     serviceTicketId: number,

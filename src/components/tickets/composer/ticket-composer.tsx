@@ -26,7 +26,6 @@ import {
   updatePresupuesto,
 } from '@/actions/presupuestos';
 import { createTicketWithLines } from '@/actions/tickets';
-import type { Service } from '@/db/schema';
 import { ClientForm } from '@/components/clients/client-form';
 import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
 import { ActionSwap, BlurFade, NumberTicker } from '@/components/motion';
@@ -67,7 +66,12 @@ import {
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
-import { multiplyMoney, sumLineTotals } from '@/lib/money';
+import { addMoney, lineTotalWithMaterials } from '@/lib/money';
+import {
+  materialDraftsFromServiceDefaults,
+  materialDraftsTotal,
+} from '@/lib/material-drafts';
+import type { ServiceWithMaterials } from '@/actions/services';
 import { buildToastErrorContent } from '@/lib/network-awareness';
 import {
   buildPresupuestoComposerDraftKey,
@@ -117,9 +121,20 @@ const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
       <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
         {line.quantity} × {formatServiceCurrency(line.price)}
       </p>
+      {line.materials && line.materials.length > 0 ? (
+        <p
+          className="mt-0.5 text-xs tabular-nums text-muted-foreground"
+          data-testid="composer-line-materials"
+        >
+          {line.materials.length === 1
+            ? '1 material'
+            : `${line.materials.length} materiales`}{' '}
+          · {formatServiceCurrency(materialDraftsTotal(line.materials))}
+        </p>
+      ) : null}
     </div>
     <span className="shrink-0 pt-0.5 text-base font-semibold tabular-nums text-foreground">
-      {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
+      {formatServiceCurrency(lineTotalWithMaterials(line))}
     </span>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -262,7 +277,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const [lines, setLines] = React.useState<TicketComposerDraftLine[]>(
     isEdit ? edit.lines : [],
   );
-  const [services, setServices] = React.useState<Service[]>([]);
+  const [services, setServices] = React.useState<ServiceWithMaterials[]>([]);
   const [isServicesLoading, setIsServicesLoading] = React.useState(true);
   const [lineSheet, setLineSheet] = React.useState<{
     open: boolean;
@@ -280,7 +295,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       ? buildPresupuestoComposerDraftKey(companyId)
       : buildTicketComposerDraftKey(companyId)
     : null;
-  const total = sumLineTotals(lines);
+  // Lines plus their materials (ZIG-I10).
+  const total = addMoney(...lines.map(lineTotalWithMaterials));
   const canSave = Boolean(companyId && client && lines.length > 0);
   const editingLine = lines.find((line) => line.key === lineSheet.editingKey) ?? null;
 
@@ -429,6 +445,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               service_name: match.name,
               quantity: 1,
               price: Number(match.price) || 0,
+              ...(match.materials.length > 0
+                ? { materials: materialDraftsFromServiceDefaults(match.materials) }
+                : {}),
             },
           ],
     );
@@ -834,6 +853,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         open={lineSheet.open}
         onOpenChange={(open) => setLineSheet((current) => ({ ...current, open }))}
         services={services}
+        companyId={companyId}
         servicesLoading={isServicesLoading}
         initialLine={editingLine}
         onSubmit={handleLineSubmit}

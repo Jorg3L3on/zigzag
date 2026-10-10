@@ -297,6 +297,103 @@ export const servicesTickets = pgTable(
   ],
 );
 
+/** Material quantities allow decimals (2.5 m de tubería). */
+const materialQuantity = (name: string) =>
+  numeric(name, { precision: 10, scale: 2, mode: 'number' });
+
+/** Company material catalog (ZIG-I10). No page yet: edited from the Servicios form and the composer. */
+export const material = pgTable(
+  'Material',
+  {
+    id: serial('id').primaryKey(),
+    company_id: integer('company_id')
+      .notNull()
+      .references(() => company.id),
+    name: varchar('name', { length: 100 }).notNull(),
+    /** Short unit label: pza, m, kg, lt, hr. */
+    unit: varchar('unit', { length: 20 }),
+    /** What the client is charged per unit. */
+    price: money('price').notNull(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
+    deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
+  },
+  (t) => [
+    index('Material_company_id_created_at_active_idx')
+      .on(t.company_id, t.created_at)
+      .where(sql`${t.deleted_at} is null`),
+    // Autocomplete never offers two active materials with the same name.
+    uniqueIndex('Material_company_id_name_active_key')
+      .on(t.company_id, sql`lower(${t.name})`)
+      .where(sql`${t.deleted_at} is null`),
+  ],
+);
+
+/** Default materials of a catalog Service, prefilled when the service is added to a document. */
+export const serviceMaterial = pgTable(
+  'ServiceMaterial',
+  {
+    id: serial('id').primaryKey(),
+    service_id: integer('service_id')
+      .notNull()
+      .references(() => service.id),
+    material_id: integer('material_id')
+      .notNull()
+      .references(() => material.id),
+    quantity: materialQuantity('quantity').notNull().default(1),
+    /** Price for this service; null means the catalog price. */
+    price: money('price'),
+    sort_order: integer('sort_order').notNull().default(0),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
+    deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
+  },
+  (t) => [
+    index('ServiceMaterial_material_id_idx').on(t.material_id),
+    uniqueIndex('ServiceMaterial_service_id_material_id_active_key')
+      .on(t.service_id, t.material_id)
+      .where(sql`${t.deleted_at} is null`),
+  ],
+);
+
+/**
+ * Materials of one document line (ZIG-I10). A snapshot: name, unit, quantity and
+ * price are copied when the line is saved, so later catalog edits never change
+ * a saved ticket or presupuesto. material_id is null for an inline material.
+ */
+export const ticketLineMaterial = pgTable(
+  'TicketLineMaterial',
+  {
+    id: serial('id').primaryKey(),
+    services_tickets_id: integer('services_tickets_id')
+      .notNull()
+      .references(() => servicesTickets.id),
+    material_id: integer('material_id').references(() => material.id),
+    name: varchar('name', { length: 100 }),
+    unit: varchar('unit', { length: 20 }),
+    quantity: materialQuantity('quantity').notNull(),
+    price: money('price').notNull(),
+    sort_order: integer('sort_order').notNull().default(0),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp('updated_at', { precision: 3, mode: 'date' }),
+    deleted_at: timestamp('deleted_at', { precision: 3, mode: 'date' }),
+  },
+  (t) => [
+    index('TicketLineMaterial_services_tickets_id_idx').on(t.services_tickets_id),
+    index('TicketLineMaterial_material_id_idx').on(t.material_id),
+    check(
+      'TicketLineMaterial_material_or_name_chk',
+      sql`${t.material_id} is not null or ${t.name} is not null`,
+    ),
+  ],
+);
+
 export const clientServiceSchedule = pgTable(
   'ClientServiceSchedule',
   {
@@ -726,6 +823,7 @@ export const companyRelations = relations(company, ({ one, many }) => ({
   users: many(user),
   tickets: many(ticket),
   services: many(service),
+  materials: many(material),
   clients: many(client),
   roles: many(role),
   permissions: many(permission),
@@ -803,6 +901,7 @@ export const serviceRelations = relations(service, ({ one, many }) => ({
   company: one(company, { fields: [service.company_id], references: [company.id] }),
   services_tickets: many(servicesTickets),
   client_schedules: many(clientServiceSchedule),
+  materials: many(serviceMaterial),
 }));
 
 export const clientServiceScheduleRelations = relations(
@@ -881,16 +980,50 @@ export const auditEventRelations = relations(auditEvent, ({ one }) => ({
   }),
 }));
 
-export const servicesTicketsRelations = relations(servicesTickets, ({ one }) => ({
+export const servicesTicketsRelations = relations(
+  servicesTickets,
+  ({ one, many }) => ({
+    service: one(service, {
+      fields: [servicesTickets.service_id],
+      references: [service.id],
+    }),
+    ticket: one(ticket, {
+      fields: [servicesTickets.ticket_id],
+      references: [ticket.id],
+    }),
+    materials: many(ticketLineMaterial),
+  }),
+);
+
+export const materialRelations = relations(material, ({ one, many }) => ({
+  company: one(company, { fields: [material.company_id], references: [company.id] }),
+  service_materials: many(serviceMaterial),
+}));
+
+export const serviceMaterialRelations = relations(serviceMaterial, ({ one }) => ({
   service: one(service, {
-    fields: [servicesTickets.service_id],
+    fields: [serviceMaterial.service_id],
     references: [service.id],
   }),
-  ticket: one(ticket, {
-    fields: [servicesTickets.ticket_id],
-    references: [ticket.id],
+  material: one(material, {
+    fields: [serviceMaterial.material_id],
+    references: [material.id],
   }),
 }));
+
+export const ticketLineMaterialRelations = relations(
+  ticketLineMaterial,
+  ({ one }) => ({
+    line: one(servicesTickets, {
+      fields: [ticketLineMaterial.services_tickets_id],
+      references: [servicesTickets.id],
+    }),
+    material: one(material, {
+      fields: [ticketLineMaterial.material_id],
+      references: [material.id],
+    }),
+  }),
+);
 
 /** UI / API row types derived from the Drizzle schema. */
 export type Company = typeof company.$inferSelect;
@@ -908,6 +1041,9 @@ export type TicketAuditEventRow = typeof ticketAuditEvent.$inferSelect;
 export type GovernanceAuditEventRow = typeof governanceAuditEvent.$inferSelect;
 export type AuditEventRow = typeof auditEvent.$inferSelect;
 export type ServicesTicketsRow = typeof servicesTickets.$inferSelect;
+export type MaterialRow = typeof material.$inferSelect;
+export type ServiceMaterialRow = typeof serviceMaterial.$inferSelect;
+export type TicketLineMaterialRow = typeof ticketLineMaterial.$inferSelect;
 export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;
 export type NotificationRow = typeof notification.$inferSelect;

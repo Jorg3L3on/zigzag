@@ -84,4 +84,31 @@ describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
       },
     ]);
   });
+
+  it('loads saved materials into the edit state as drafts (ZIG-I10)', () => {
+    const withMaterials = {
+      ...(row as unknown as Record<string, unknown>),
+      services_tickets: [
+        {
+          id: 92,
+          service_id: 7,
+          name: null,
+          description: null,
+          quantity: 1,
+          price: 2100,
+          service: { name: 'Mantenimiento', description: 'Preventivo' },
+          materials: [
+            { material_id: 21, name: 'Gas R410A', unit: 'kg', quantity: '1.50', price: '380.00' },
+            { material_id: null, name: 'Cinta', unit: null, quantity: 1, price: 40 },
+          ],
+        },
+      ],
+    } as never;
+    const [editLine] = buildPresupuestoEditState(withMaterials).lines;
+    expect(editLine.materials).toEqual([
+      expect.objectContaining({ material_id: 21, name: 'Gas R410A', quantity: 1.5, price: 380 }),
+      expect.objectContaining({ material_id: null, name: 'Cinta', quantity: 1, price: 40 }),
+    ]);
+  });
 });
+
