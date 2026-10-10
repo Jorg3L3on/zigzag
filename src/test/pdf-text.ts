@@ -1,9 +1,12 @@
 /**
- * Reads the text layer of an uncompressed jsPDF document (render with
- * `compress: false`): one array of text runs per page, in drawing order, with
- * the font each run uses. Only handles what jsPDF writes for embedded TrueType
- * fonts (Identity-H `<hex> Tj` runs mapped through each font's ToUnicode CMap).
+ * Reads the text layer of a jsPDF document: one array of text runs per page,
+ * in drawing order, with the font each run uses. Only handles what jsPDF
+ * writes for embedded TrueType fonts (Identity-H `<hex> Tj` runs mapped
+ * through each font's ToUnicode CMap); FlateDecode streams are inflated, so
+ * it also reads the compressed PDFs the invoice route serves (e2e).
  */
+import { inflateSync } from 'node:zlib';
+
 export type PdfTextRun = { text: string; font: string; size: number; x: number; y: number };
 
 export type PdfTextPage = {
@@ -20,8 +23,11 @@ const objectBodies = (pdf: string): Map<string, string> => {
   return bodies;
 };
 
-const streamOf = (body: string): string =>
-  body.match(/stream\r?\n([\s\S]*?)\r?\nendstream/)?.[1] ?? '';
+const streamOf = (body: string): string => {
+  const raw = body.match(/stream\r?\n([\s\S]*?)\r?\nendstream/)?.[1] ?? '';
+  if (!/\/Filter\s*\/FlateDecode/.test(body)) return raw;
+  return inflateSync(Buffer.from(raw, 'latin1')).toString('latin1');
+};
 
 const parseCMap = (stream: string): Map<string, string> => {
   const map = new Map<string, string>();

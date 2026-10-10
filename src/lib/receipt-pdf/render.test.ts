@@ -528,3 +528,18 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
     expect(pages.flatMap((page) => page.runs.filter((entry) => entry.text === '· Gas R410A'))).toHaveLength(10);
   });
 });
+
+describe('renderReceiptPdf — tagline (ZIG-I11-3)', () => {
+  it('prints the tagline under the company name and omits it cleanly when empty', () => {
+    const withTagline = extractPdfText(renderReceiptPdf(presupuesto()))[0];
+    expectInOrder(withTagline, ['ClimaTotal Demo', 'Climatización · Servicio técnico', 'PRESUPUESTO']);
+
+    const bare = presupuesto({ company: { ...presupuesto().company, tagline: null } });
+    const without = extractPdfText(renderReceiptPdf(bare))[0];
+    expect(pageText(without)).not.toContain('Climatización');
+    // The name moves down to stay centered on the 44px mark: one line, no gap left for a tagline.
+    const nameWith = withTagline.runs.find((run) => run.text === 'ClimaTotal Demo')!;
+    const nameWithout = without.runs.find((run) => run.text === 'ClimaTotal Demo')!;
+    expect(nameWithout.y).toBeLessThan(nameWith.y);
+  });
+});
