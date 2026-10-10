@@ -27,6 +27,7 @@ import type {
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
+import { TicketsListSkeleton } from '@/components/tickets/tickets-list-skeleton';
 import {
   TripledEmptyState,
   TripledListLoadingState,
@@ -81,6 +82,9 @@ export default function TicketsList() {
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
+  // The full-page skeleton only covers the first load (and SSR). Once the
+  // filter bar has mounted it must stay mounted so typing keeps its focus.
+  const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = React.useState<string | null>(
@@ -383,10 +387,18 @@ export default function TicketsList() {
     }
   }, [fetchTickets]);
 
+  React.useEffect(() => {
+    if (!loading) setHasLoadedOnce(true);
+  }, [loading]);
+
   const visibleRows = table.getRowModel().rows;
 
   if (missingCompany) {
     return <SystemCompanyContextEmptyState resourceLabel="tickets" />;
+  }
+
+  if (loading && !hasLoadedOnce) {
+    return <TicketsListSkeleton />;
   }
 
   return (
