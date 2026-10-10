@@ -73,6 +73,9 @@ describe('ServiceForm description limit', () => {
 });
 
 describe('ServiceForm Materiales (ZIG-I10-2)', () => {
+  // Several sheet round-trips per test; jsdom is slow under a parallel run.
+  jest.setTimeout(30_000);
+
   beforeEach(() => {
     mockCreateService.mockReset();
     mockUpdateService.mockReset();

@@ -140,6 +140,9 @@ type UnitFieldProps = {
   onChange: (value: string) => void;
 };
 
+const isUnitSuggestion = (value: string): boolean =>
+  (MATERIAL_UNIT_SUGGESTIONS as readonly string[]).includes(value.trim().toLowerCase());
+
 const UnitField = ({ idPrefix, value, onChange }: UnitFieldProps) => (
   <div className="space-y-2">
     <Label htmlFor={`${idPrefix}-unit`}>
@@ -167,7 +170,8 @@ const UnitField = ({ idPrefix, value, onChange }: UnitFieldProps) => (
       })}
       <Input
         id={`${idPrefix}-unit`}
-        value={value}
+        // Otra holds only a custom unit; a chip pick shows on the chip alone.
+        value={isUnitSuggestion(value) ? '' : value}
         maxLength={MATERIAL_UNIT_MAX_LENGTH}
         autoComplete="off"
         placeholder="Otra"

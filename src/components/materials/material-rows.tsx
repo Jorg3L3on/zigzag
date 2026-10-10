@@ -49,13 +49,12 @@ export const MaterialRows = ({
             className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-l-xl px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
           >
             <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate text-sm font-medium">{item.name}</span>
+              <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="min-w-0 break-words text-sm font-medium">{item.name}</span>
                 {showInlineChips ? (
                   <InlineLineChips
                     isInline={item.material_id == null}
                     saveToCatalog={item.save_to_catalog}
-                    className="shrink-0"
                   />
                 ) : null}
               </span>
