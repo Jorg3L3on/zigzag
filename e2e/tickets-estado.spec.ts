@@ -84,7 +84,7 @@ test.describe('Tickets list Estado column', () => {
     }
   });
 
-  test('mobile cards reuse the same payment summary without percent text', async ({
+  test('mobile cards show the total once: bar while open, Total when saldado', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -93,10 +93,25 @@ test.describe('Tickets list Estado column', () => {
       timeout: 15_000,
     });
 
-    const summaries = page.getByTestId('ticket-payment-summary');
+    // The desktop table stays in the DOM (hidden by CSS) with its own summaries.
+    const summaries = page
+      .getByTestId('ticket-payment-summary')
+      .filter({ visible: true });
     await expect(summaries.first()).toBeVisible({ timeout: 15_000 });
-    await expect(summaries.first().getByRole('progressbar')).toBeVisible();
-    await expect(summaries.first().getByText(/\b\d+%/)).toHaveCount(0);
-    await expect(summaries.first().getByText(/\bde\b/)).toBeVisible();
+    const count = await summaries.count();
+
+    for (let i = 0; i < count; i += 1) {
+      const summary = summaries.nth(i);
+      await expect(summary.getByText(/\b\d+%/)).toHaveCount(0);
+      const status = await summary.getAttribute('data-payment-status');
+      if (status === 'paid') {
+        await expect(summary.getByRole('progressbar')).toHaveCount(0);
+        await expect(summary.getByText('Total')).toBeVisible();
+      } else {
+        await expect(summary.getByRole('progressbar')).toBeVisible();
+        await expect(summary.getByText(/\bde\b/)).toBeVisible();
+        await expect(summary.getByText(/Faltan/)).toBeVisible();
+      }
+    }
   });
 });
