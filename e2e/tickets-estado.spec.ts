@@ -93,7 +93,10 @@ test.describe('Tickets list Estado column', () => {
       timeout: 15_000,
     });
 
-    const summaries = page.getByTestId('ticket-payment-summary');
+    // The desktop table stays in the DOM (hidden by CSS) with its own summaries.
+    const summaries = page
+      .getByTestId('ticket-payment-summary')
+      .filter({ visible: true });
     await expect(summaries.first()).toBeVisible({ timeout: 15_000 });
     const count = await summaries.count();
 
