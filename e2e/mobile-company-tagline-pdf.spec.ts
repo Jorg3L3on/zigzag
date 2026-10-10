@@ -56,13 +56,23 @@ test.describe('Lema o giro on the PDF @375px', () => {
     page,
   }) => {
     // Any document works: the header is the same on presupuestos and recibos.
+    // No networkidle: the realtime SSE stream keeps the network busy.
     const firstDocument = async (path: '/presupuestos' | '/tickets') => {
       await page.goto(path);
-      await page.waitForLoadState('networkidle').catch(() => undefined);
-      const hrefs = await page
-        .locator(`a[href^="${path}/"]`)
-        .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
-      const match = hrefs.map((href) => href.match(/^\/(presupuestos|tickets)\/(\d+)$/)).find(Boolean);
+      const documentLinks = async () =>
+        (
+          await page
+            .locator(`a[href^="${path}/"]`)
+            .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''))
+        )
+          .map((href) => href.match(/^\/(presupuestos|tickets)\/(\d+)$/))
+          .filter((match): match is RegExpMatchArray => Boolean(match));
+      const found = await expect
+        .poll(async () => (await documentLinks()).length, { timeout: 15_000 })
+        .toBeGreaterThan(0)
+        .then(() => true)
+        .catch(() => false);
+      const match = found ? (await documentLinks())[0] : null;
       return match ? { kind: match[1], id: match[2] } : null;
     };
     const document = (await firstDocument('/presupuestos')) ?? (await firstDocument('/tickets'));
