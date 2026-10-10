@@ -129,17 +129,21 @@ export const finishOnReview = async (
   }
 
   await page.getByRole('button', { name: 'Finalizar y compartir' }).first().click();
-  await expect(
-    page.getByRole('heading', { name: `Ticket #${ticketId} finalizado` }),
-  ).toBeVisible({ timeout: 60_000 });
 
+  // Reminders come first (ZIG-I12): the dialog opens as soon as the ticket is
+  // finalized and makes the page behind it inert, so answer it before looking
+  // for the heading. Lines without a catalog service never show it.
+  const heading = page.getByRole('heading', { name: `Ticket #${ticketId} finalizado` });
   const schedulesDialog = page.getByRole('dialog', {
     name: 'Recordatorios de servicio',
   });
-  await expect(schedulesDialog).toBeVisible({ timeout: 30_000 });
-  // Reminders come first; the receipt is shared once the dialog is answered (ZIG-I12).
-  await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
-  await expect(schedulesDialog).toBeHidden();
+  await expect(heading.or(schedulesDialog)).toBeVisible({ timeout: 60_000 });
+  if (await schedulesDialog.isVisible()) {
+    await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
+    await expect(schedulesDialog).toBeHidden();
+  }
+  await expect(heading).toBeVisible({ timeout: 60_000 });
+  // The receipt is shared once the dialog is answered.
   await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
     timeout: 60_000,
   });
