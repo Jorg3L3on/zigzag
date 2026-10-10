@@ -9,7 +9,7 @@ import {
   Circle,
   CircleCheck,
   Download,
-  ExternalLink,
+  FileText,
   Loader2,
   Share2,
 } from 'lucide-react';
@@ -35,7 +35,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
-import { multiplyMoney, roundMoney, subtractMoney } from '@/lib/money';
+import { roundMoney } from '@/lib/money';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -52,6 +52,7 @@ import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 import {
+  ReciboSummary,
   ReviewLinesSection,
   ReviewSuccessHeader,
   usePdfViewerEnabled,
@@ -89,69 +90,6 @@ const PAY_OPTIONS: Array<{ mode: PayMode; label: string; hint: string }> = [
   { mode: 'partial', label: 'Pago parcial', hint: 'Dejó un anticipo' },
   { mode: 'pending', label: 'Pendiente', hint: 'Cobras después' },
 ];
-
-type ReciboSummaryProps = {
-  ticketId: string;
-  clientName: string | null;
-  dateLabel: string | null;
-  lines: TicketReviewLine[];
-  total: number;
-  paid: number;
-};
-
-/** HTML stand-in for the PDF where the browser cannot show it inline. */
-const ReciboSummary = ({
-  ticketId,
-  clientName,
-  dateLabel,
-  lines,
-  total,
-  paid,
-}: ReciboSummaryProps) => {
-  const balance = Math.max(subtractMoney(total, paid), 0);
-  return (
-    <div
-      data-testid="recibo-summary"
-      className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
-    >
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="font-semibold">Recibo · Ticket #{ticketId}</p>
-        {dateLabel ? (
-          <p className="text-xs text-muted-foreground">{dateLabel}</p>
-        ) : null}
-      </div>
-      {clientName ? (
-        <p className="mt-0.5 text-muted-foreground">{clientName}</p>
-      ) : null}
-      <ul className="mt-3 space-y-1.5">
-        {lines.map((line) => (
-          <li key={line.id} className="flex justify-between gap-3">
-            <span className="min-w-0 truncate">
-              {line.quantity} × {line.name}
-            </span>
-            <span className="shrink-0 tabular-nums">
-              {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
-        <div className="flex justify-between font-semibold">
-          <dt>Total</dt>
-          <dd>{formatServiceCurrency(total)}</dd>
-        </div>
-        <div className="flex justify-between text-muted-foreground">
-          <dt>Pagado</dt>
-          <dd>{formatServiceCurrency(paid)}</dd>
-        </div>
-        <div className="flex justify-between text-muted-foreground">
-          <dt>Saldo</dt>
-          <dd>{formatServiceCurrency(balance)}</dd>
-        </div>
-      </dl>
-    </div>
-  );
-};
 
 /**
  * Creation review (ZIG-I2-5), shown right after Guardar ticket: client, date,
@@ -522,15 +460,13 @@ export const TicketCreationReview = ({
                 Recibo
               </h2>
               {finished && canInvoice ? (
-                <a
-                  href={buildTicketInvoicePreviewUrl(ticketId, companyId)}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={`/tickets/${ticketId}/recibo?from=listo`}
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
                 >
                   Abrir PDF
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                </Link>
               ) : null}
             </div>
             <div className="mt-3">

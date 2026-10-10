@@ -172,8 +172,16 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByTestId('recibo-summary')).toBeVisible();
     await expect(page.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
       'href',
-      new RegExp(`/api/tickets/${ticketId}/invoice\\?disposition=inline`),
+      `/tickets/${ticketId}/recibo?from=listo`,
     );
+
+    // ZIG-I9: Abrir PDF stays inside the app and back returns to the review.
+    await page.getByRole('link', { name: /Abrir PDF/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/recibo\\?from=listo$`));
+    await expect(page.getByTestId('mobile-app-bar')).toContainText(`Recibo #${ticketId}`);
+    await page.getByRole('link', { name: 'Volver al resumen del ticket' }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/listo$`));
+    await expect(page.getByTestId('recibo-summary')).toBeVisible();
 
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
