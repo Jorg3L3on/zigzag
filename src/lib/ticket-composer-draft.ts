@@ -6,8 +6,15 @@
  * company; cleared after a successful save.
  */
 
+import {
+  materialDraftToLineInput,
+  type MaterialDraft,
+} from '@/lib/material-drafts';
 import { SERVICE_DESCRIPTION_MAX_LENGTH } from '@/lib/service-description';
 import {
+  MATERIAL_NAME_MAX_LENGTH,
+  MATERIAL_UNIT_MAX_LENGTH,
+  MATERIALS_PER_LINE_MAX,
   SERVICE_LINE_NAME_MAX_LENGTH,
   type ServiceLineInput,
 } from '@/lib/ticket-service-line-schema';
@@ -32,6 +39,8 @@ export type TicketComposerDraftLine = {
   save_to_catalog?: boolean;
   quantity: number;
   price: number;
+  /** Materials under the line (ZIG-I10); absent in drafts from before it. */
+  materials?: MaterialDraft[];
 };
 
 export type TicketComposerDraft = {
@@ -73,6 +82,45 @@ const cleanIsoDate = (value: unknown): string | undefined => {
   return Number.isNaN(Date.parse(value)) ? undefined : value;
 };
 
+const cleanMaterial = (value: unknown): MaterialDraft | null => {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  const key = cleanString(item.key);
+  const name = cleanString(item.name)?.trim().slice(0, MATERIAL_NAME_MAX_LENGTH);
+  const quantity =
+    typeof item.quantity === 'number' &&
+    Number.isFinite(item.quantity) &&
+    item.quantity >= 0.01 &&
+    item.quantity <= 9999.99
+      ? item.quantity
+      : undefined;
+  const price =
+    typeof item.price === 'number' && Number.isFinite(item.price) && item.price >= 0
+      ? item.price
+      : undefined;
+  if (!key || !name || quantity === undefined || price === undefined) return null;
+  const unit = cleanString(item.unit)?.trim().slice(0, MATERIAL_UNIT_MAX_LENGTH);
+  const materialId = cleanPositiveInt(item.material_id) ?? null;
+  return {
+    key,
+    material_id: materialId,
+    name,
+    unit: unit || null,
+    quantity,
+    price,
+    save_to_catalog: materialId == null && item.save_to_catalog === true,
+  };
+};
+
+const cleanMaterials = (value: unknown): MaterialDraft[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const materials = value
+    .map(cleanMaterial)
+    .filter((item): item is MaterialDraft => item !== null)
+    .slice(0, MATERIALS_PER_LINE_MAX);
+  return materials.length > 0 ? materials : undefined;
+};
+
 const cleanLine = (value: unknown): TicketComposerDraftLine | null => {
   if (!value || typeof value !== 'object') return null;
   const line = value as Record<string, unknown>;
@@ -86,6 +134,7 @@ const cleanLine = (value: unknown): TicketComposerDraftLine | null => {
   if (!quantity || price === undefined || !key || name === undefined) {
     return null;
   }
+  const materials = cleanMaterials(line.materials);
   if (line.kind === 'custom') {
     const customName = name.trim().slice(0, SERVICE_LINE_NAME_MAX_LENGTH);
     if (!customName) return null;
@@ -102,18 +151,28 @@ const cleanLine = (value: unknown): TicketComposerDraftLine | null => {
       save_to_catalog: line.save_to_catalog === true,
       quantity,
       price,
+      ...(materials ? { materials } : {}),
     };
   }
   const serviceId = cleanPositiveInt(line.service_id);
   if (!serviceId) return null;
-  return { key, service_id: serviceId, service_name: name, quantity, price };
+  return {
+    key,
+    service_id: serviceId,
+    service_name: name,
+    quantity,
+    price,
+    ...(materials ? { materials } : {}),
+  };
 };
 
-/** Draft line → the server's line input (catalog or inline). */
+/** Draft line → the server's line input (catalog or inline) with its materials. */
 export const draftLineToServiceLineInput = (
   line: TicketComposerDraftLine,
-): ServiceLineInput =>
-  line.kind === 'custom' || line.service_id == null
+): ServiceLineInput => {
+  const materials = (line.materials ?? []).map(materialDraftToLineInput);
+  const withMaterials = materials.length > 0 ? { materials } : {};
+  return line.kind === 'custom' || line.service_id == null
     ? {
         kind: 'custom',
         name: line.service_name,
@@ -121,8 +180,15 @@ export const draftLineToServiceLineInput = (
         save_to_catalog: line.save_to_catalog === true,
         quantity: line.quantity,
         price: line.price,
+        ...withMaterials,
       }
-    : { service_id: line.service_id, quantity: line.quantity, price: line.price };
+    : {
+        service_id: line.service_id,
+        quantity: line.quantity,
+        price: line.price,
+        ...withMaterials,
+      };
+};
 
 export const sanitizeTicketComposerDraft = (
   raw: Record<string, unknown>,

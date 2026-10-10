@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BookmarkPlus, X } from 'lucide-react';
 
 import { MaterialNameAutocomplete } from '@/components/materials/material-name-autocomplete';
@@ -68,6 +68,7 @@ export const useMaterialEntry = (
   const [quantity, setQuantity] = useState(initial ? String(initial.quantity) : '1');
   const [price, setPrice] = useState(initial ? String(initial.price) : '');
   const [saveToCatalog, setSaveToCatalog] = useState(initial?.save_to_catalog ?? false);
+  const keyRef = useRef<string | null>(initial?.key ?? null);
 
   const quantityValue = roundMoney(parseDecimal(quantity));
   const priceValue = roundMoney(parseDecimal(price));
@@ -89,7 +90,7 @@ export const useMaterialEntry = (
   const toDraft = (): MaterialDraft => {
     const linked = catalogPick || (variant === 'service' && materialId != null);
     return {
-      key: initial?.key ?? newMaterialKey(),
+      key: keyRef.current ?? newMaterialKey(),
       material_id: linked ? materialId : null,
       name: trimmedName,
       unit: unit.trim() || null,
@@ -99,8 +100,21 @@ export const useMaterialEntry = (
     };
   };
 
+  /** Start over for another material (the composer sheet reuses one entry). */
+  const reset = (next: MaterialDraft | null) => {
+    setMode(variant === 'line' && next && next.material_id == null ? 'custom' : 'catalog');
+    setMaterialId(next?.material_id ?? null);
+    setName(next?.name ?? '');
+    setUnit(next?.unit ?? '');
+    setQuantity(next ? String(next.quantity) : '1');
+    setPrice(next ? String(next.price) : '');
+    setSaveToCatalog(next?.save_to_catalog ?? false);
+    keyRef.current = next?.key ?? null;
+  };
+
   return {
     variant,
+    reset,
     mode,
     setMode: (next: ServiceLineMode) => {
       setMode(next);
