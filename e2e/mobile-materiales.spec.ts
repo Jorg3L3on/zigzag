@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -52,6 +53,57 @@ const expectInsideViewport = async (page: Page, locator: Locator) => {
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(Math.ceil(width));
 };
+
+/** Same policy as the other a11y specs: serious/critical WCAG A/AA, no color-contrast yet. */
+const expectNoSeriousViolations = async (page: Page) => {
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .disableRules(['color-contrast'])
+    .analyze();
+  const violations = results.violations.filter(
+    (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+  );
+  expect(
+    violations,
+    `axe violations: ${violations.map((v) => `${v.id} (${v.impact})`).join(', ')}`,
+  ).toEqual([]);
+};
+
+test.describe('Materiales accessibility @375px (no save)', () => {
+  test.setTimeout(120_000);
+
+  test.beforeEach(async ({ page }) => {
+    test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
+    await login(page);
+    await ensureTenantCompany(page);
+  });
+
+  test('Servicios material sheet and the composer material step', async ({ page }) => {
+    await page.goto('/services/new');
+    await page.getByRole('button', { name: 'Agregar material' }).click();
+    const serviceSheet = page.getByRole('dialog', { name: 'Agregar material' });
+    await expect(serviceSheet).toBeVisible();
+    await serviceSheet.getByRole('combobox', { name: 'Nombre del material' }).fill('Ga');
+    await page.waitForTimeout(500);
+    await expectNoSeriousViolations(page);
+    await serviceSheet.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(serviceSheet).toBeHidden();
+
+    await page.goto('/presupuestos/create');
+    await expect(page.getByRole('heading', { name: 'Cliente', exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole('button', { name: 'Agregar servicio' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
+    await sheet.getByRole('button', { name: 'Agregar material' }).click();
+    const step = page.getByRole('dialog', { name: 'Agregar material' });
+    await expect(step).toBeVisible();
+    await expectNoSeriousViolations(page);
+    await step.getByRole('radio', { name: 'Nuevo' }).click();
+    await page.waitForTimeout(300);
+    await expectNoSeriousViolations(page);
+  });
+});
 
 test.describe('Materiales (mobile)', () => {
   test.setTimeout(300_000);
