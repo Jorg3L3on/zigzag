@@ -100,6 +100,12 @@ export const TABLE = {
   amountWidth: 120,
   /** Air kept left of the widest value when a numeric column has to grow. */
   minColumnGap: 16,
+  /** The Concepto column keeps at least this share of the table (ZIG-I12). */
+  minConceptShare: 0.45,
+  /** A numeric value never shrinks below this fraction of its design size. */
+  minNumberScale: 0.7,
+  /** Quantity column cap: a long unit wraps under the number instead of widening it. */
+  qtyMaxWidth: 120,
   headerPaddingBottom: 10,
   headerBorder: 1,
   rowPaddingY: 16,
@@ -111,10 +117,8 @@ export const TABLE = {
   indexSize: 11,
   indexPaddingTop: 3,
   nameSize: 14,
-  nameMaxLines: 2,
   descriptionSize: 12.5,
   descriptionGap: 3,
-  descriptionMaxLines: 3,
   /** Material sub-rows (ZIG-I10): 12px #666, 6px after the description, 4px apart. */
   materialSize: 12,
   materialsGap: 6,
@@ -137,6 +141,21 @@ export const TOTALS = {
   separatorMarginBottom: 2,
   dueLabelSize: 14,
   dueValueSize: 24,
+} as const;
+
+/**
+ * Notas / Condiciones y notas (ZIG-I12): free text under the totals panel,
+ * 12.5px #444 like the descriptions, wrapped to the content width and paginated
+ * by line. Blank lines in the source become a half-line gap.
+ */
+export const NOTES = {
+  marginTop: 28,
+  labelGap: 8,
+  size: 12.5,
+  lineHeight: 1.5,
+  paragraphGap: 9,
+  /** Lines that must fit under the label before the block starts on a page. */
+  minLines: 2,
 } as const;
 
 export const FOOTER = {

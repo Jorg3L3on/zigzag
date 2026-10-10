@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ReceiptPdfItem, ReceiptPdfPayload } from '@/lib/receipt-pdf/payload';
-import { renderReceiptPdf } from '@/lib/receipt-pdf/render';
+import { renderReceiptPdf, type ReceiptPdfLayoutMetrics } from '@/lib/receipt-pdf/render';
 import { extractPdfText, pageText, type PdfTextPage } from '@/test/pdf-text';
 
 /** Fixture PDFs land here for the manual fidelity pass (gitignored). */
@@ -40,6 +40,7 @@ const presupuesto = (overrides: Partial<ReceiptPdfPayload> = {}): ReceiptPdfPayl
     address: 'Av. Insurgentes Sur 1602, Piso 8, Crédito Constructor, Ciudad de México, CDMX, 03940',
   },
   client: { name: 'Cliente test', phone: '961 315 1552', country: 'México' },
+  notes: null,
   items: [
     item(1, { name: 'Jorge', description: 'Hh', unitPrice: 66, amount: 66 }),
     item(2, { name: 'Prueba', description: 'Una descripción del servicio', unitPrice: 259, amount: 259 }),
@@ -296,7 +297,7 @@ describe('renderReceiptPdf — pagination and long text', () => {
     expect(names).toEqual(fourteen.map((entry) => entry.name));
   });
 
-  it('wraps long names to 2 lines and descriptions to 3 with an ellipsis', () => {
+  it('grows the row to print long names and descriptions in full (ZIG-I12)', () => {
     const longName =
       'Instalación completa de minisplit inverter de 2 toneladas con kit de tubería de cobre, soportes y bomba de condensados';
     const longDescription = Array.from({ length: 12 }, () => 'Incluye vacío, carga de gas y pruebas.').join(' ');
@@ -305,12 +306,31 @@ describe('renderReceiptPdf — pagination and long text', () => {
       presupuesto({ items: [item(1, { name: longName, description: longDescription })], itemCount: 1 }),
     );
 
-    const row = pages[0].runs.filter((run) => run.font === 'PlexSans-SemiBold' && run.size === 10.5 && run.x < 100);
-    expect(row).toHaveLength(2);
-    expect(row[1].text.endsWith('…')).toBe(true);
+    const squash = (value: string) => value.replace(/\s+/g, '');
+    const nameRuns = pages[0].runs.filter((run) => run.font === 'PlexSans-SemiBold' && run.size === 10.5 && run.x < 100);
+    expect(nameRuns.length).toBeGreaterThanOrEqual(2);
+    expect(squash(nameRuns.map((run) => run.text).join(''))).toBe(squash(longName));
     const description = pages[0].runs.filter((run) => run.size === 9.375);
-    expect(description).toHaveLength(3);
-    expect(description[2].text.endsWith('…')).toBe(true);
+    expect(description.length).toBeGreaterThan(3);
+    expect(squash(description.map((run) => run.text).join(''))).toBe(squash(longDescription));
+    expect(pageText(pages[0])).not.toContain('…');
+  });
+
+  it('breaks a 100-char unbroken name by characters inside the Concepto column', () => {
+    const name = 'X'.repeat(100);
+    let metrics: ReceiptPdfLayoutMetrics | undefined;
+    const bytes = renderReceiptPdf(
+      presupuesto({ items: [item(1, { name })], itemCount: 1 }),
+      { compress: false, onLayout: (value) => (metrics = value) },
+    );
+    const pages = extractPdfText(bytes);
+    const parts = pages[0].runs.filter((run) => run.font === 'PlexSans-SemiBold' && run.size === 10.5 && run.x < 100);
+
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.map((run) => run.text).join('')).toBe(name);
+    // 10.5pt Plex Sans caps average ~7pt: no part may run past the Concepto column.
+    const conceptRightPt = (48 + metrics!.conceptWidth) * 0.75;
+    for (const part of parts) expect(part.x + part.text.length * 5.5).toBeLessThan(conceptRightPt);
   });
 
   it('never prints a numeric column over its neighbour for wide amounts', () => {
@@ -541,5 +561,179 @@ describe('renderReceiptPdf — tagline (ZIG-I11-3)', () => {
     const nameWith = withTagline.runs.find((run) => run.text === 'ClimaTotal Demo')!;
     const nameWithout = without.runs.find((run) => run.text === 'ClimaTotal Demo')!;
     expect(nameWithout.y).toBeLessThan(nameWith.y);
+  });
+});
+
+describe('renderReceiptPdf — notes and conditions (ZIG-I12)', () => {
+  const lines = (page: PdfTextPage, size: number) => page.runs.filter((run) => run.size === size);
+
+  it('prints Condiciones y notas after the totals on a presupuesto', () => {
+    const { pages } = render(
+      'presupuesto-notes',
+      presupuesto({ notes: '50% anticipo, saldo contra entrega.\n\nEl cliente compra el equipo.' }),
+    );
+
+    expect(pages).toHaveLength(1);
+    expectInOrder(pages[0], [
+      'Total del presupuesto',
+      'CONDICIONES Y NOTAS',
+      '50% anticipo, saldo contra entrega.',
+      'El cliente compra el equipo.',
+      'TELÉFONO',
+    ]);
+    // The paragraph gap is half a line: the two paragraphs are not adjacent lines.
+    const [first, second] = lines(pages[0], 9.375);
+    expect(first.y - second.y).toBeGreaterThan(0);
+  });
+
+  it('labels a recibo block Notas', () => {
+    const { pages } = render('recibo-notes', recibo({ notes: 'Cambio de capacitor.' }));
+    const text = pageText(pages[0]);
+    expect(text).toContain('NOTAS');
+    expect(text).not.toContain('CONDICIONES Y NOTAS');
+  });
+
+  it('prints no notes block without notes', () => {
+    const { pages } = render('presupuesto-no-notes', presupuesto());
+    expect(pageText(pages[0])).not.toContain('NOTAS');
+  });
+
+  it('paginates a 2,000-char note without losing a word or touching the footer', () => {
+    const sentence = 'Garantía de 30 días en mano de obra y 6 meses en refacciones nuevas.';
+    const notes = Array.from({ length: 29 }, () => sentence).join(' ').slice(0, 2000);
+    const { pages } = render(
+      'presupuesto-long-notes',
+      presupuesto({ notes, items: [item(1)], itemCount: 1 }),
+    );
+
+    const body = pages.flatMap((page) => lines(page, 9.375)).map((run) => run.text).join(' ');
+    expect(body.replace(/\s+/g, ' ')).toBe(notes.replace(/\s+/g, ' ').trim());
+    const last = pages[pages.length - 1];
+    const footerLabel = last.runs.find((run) => run.text === 'TELÉFONO');
+    const lastNote = lines(last, 9.375).at(-1);
+    expect(footerLabel).toBeTruthy();
+    // PDF y grows upward: the last note line sits above the footer label.
+    expect(lastNote!.y).toBeGreaterThan(footerLabel!.y);
+  });
+
+  it('can start the notes on a fresh page, repeating the header without the table', () => {
+    // Somewhere between a nearly empty and a full page the totals leave no room for the notes.
+    const notesOnlyPage = [6, 7, 8, 9, 10, 11].map((count) => {
+      const many = Array.from({ length: count }, (_, index) => item(index + 1, { name: `Servicio ${index + 1}` }));
+      const { pages } = render(
+        `presupuesto-notes-next-page-${count}`,
+        presupuesto({ items: many, itemCount: count, notes: 'Condición uno.\nCondición dos.\nCondición tres.' }),
+      );
+      return pages.find((page) => pageText(page).includes('Condición uno.') && !pageText(page).includes('CONCEPTO CANTIDAD'));
+    });
+
+    const found = notesOnlyPage.find(Boolean);
+    expect(found).toBeTruthy();
+    const text = pageText(found as PdfTextPage);
+    expect(text).toContain('PRESUPUESTO');
+    expect(text).toContain('CONDICIONES Y NOTAS');
+    expect(text).toContain('TELÉFONO');
+  });
+});
+
+describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
+  const layoutOf = (payload: ReceiptPdfPayload) => {
+    let metrics: ReceiptPdfLayoutMetrics | undefined;
+    const bytes = renderReceiptPdf(payload, { compress: false, onLayout: (value) => (metrics = value) });
+    return { metrics: metrics as ReceiptPdfLayoutMetrics, pages: extractPdfText(bytes) };
+  };
+
+  const bigItem = item(1, {
+    name: 'Servicio grande',
+    quantity: 99,
+    unitPrice: 99_999_990,
+    amount: 9_899_999_010,
+    serviceAmount: 9_899_999_010,
+  });
+  const bigPayload = () =>
+    presupuesto({
+      items: [bigItem],
+      itemCount: 1,
+      servicesSubtotal: 9_899_999_010,
+      subtotal: 9_899_999_010,
+      total: 9_899_999_010,
+      bigFigure: { label: 'Total del presupuesto', value: 9_899_999_010 },
+    });
+
+  it('keeps the design layout for ordinary amounts', () => {
+    const { metrics } = layoutOf(presupuesto());
+    expect(metrics.compactAmounts).toBe(false);
+    expect(metrics.numberScale).toBe(1);
+    expect(metrics.priceWidth).toBe(130);
+    expect(metrics.amountWidth).toBe(120);
+  });
+
+  it('keeps Concepto at 45% of the table with 10-digit amounts', () => {
+    const { metrics, pages } = layoutOf(bigPayload());
+
+    expect(metrics.conceptWidth).toBeGreaterThanOrEqual(688 * 0.45 - 0.01);
+    expect(metrics.compactAmounts).toBe(true);
+    // The row still prints the exact amounts (currency code only in totals).
+    const text = pageText(pages[0]);
+    expect(text).toContain('$99,999,990.00');
+    expect(text).toContain('$9,899,999,010.00 MXN');
+  });
+
+  it('puts a long unit under the quantity instead of spilling into Concepto', () => {
+    const unit = 'u'.repeat(20);
+    const payload = presupuesto({
+      items: [
+        item(1, {
+          materials: [{ name: 'Tubo', quantity: 9999.99, unit, unitPrice: 1, amount: 9999.99 }],
+        }),
+      ],
+      itemCount: 1,
+      materialsSubtotal: 9999.99,
+    });
+    const { metrics, pages } = layoutOf(payload);
+
+    const unitRuns = pages[0].runs.filter((run) => /^u+$/.test(run.text));
+    expect(unitRuns.length).toBeGreaterThan(0);
+    expect(metrics.qtyWidth).toBeLessThanOrEqual(120);
+    const qtyLeftPt = (48 + metrics.conceptWidth) * 0.75;
+    for (const run of unitRuns) expect(run.x).toBeGreaterThanOrEqual(qtyLeftPt - 0.5);
+  });
+
+  it('scales the big figure to fit its panel', () => {
+    const { pages } = layoutOf(
+      recibo({
+        items: [bigItem],
+        itemCount: 1,
+        total: 9_899_999_010,
+        subtotal: 9_899_999_010,
+        paid: 0,
+        balanceDue: 9_899_999_010,
+        bigFigure: { label: 'Saldo por pagar', value: 9_899_999_010 },
+      }),
+    );
+    const figure = pages[0].runs.find((run) => run.text === '$9,899,999,010.00 MXN' && run.size > 12);
+    expect(figure).toBeTruthy();
+    // 24px design size is 18pt: it shrank, and its left edge stays inside the 320px panel.
+    expect(figure!.size).toBeLessThan(18);
+    expect(figure!.x).toBeGreaterThanOrEqual((816 - 64 - 320) * 0.75);
+  });
+});
+
+describe('renderReceiptPdf — unsupported characters and status (ZIG-I12)', () => {
+  it('draws no stray glyph for names the fonts cannot print', () => {
+    const { pages } = render(
+      'presupuesto-glyphs',
+      presupuesto({ items: [item(1, { name: 'Urgente', description: 'Multilenguaje: , , русский' })], itemCount: 1 }),
+    );
+    expect(pageText(pages[0])).not.toContain('�');
+    expect(pageText(pages[0])).toContain('русский');
+  });
+
+  it('prints the Pago parcial pill on a partially paid recibo', () => {
+    const { pages } = render(
+      'recibo-parcial',
+      recibo({ recibo: { statusLabel: 'Pago parcial', paidOnDate: null } }),
+    );
+    expect(pageText(pages[0])).toContain('PAGO PARCIAL');
   });
 });
