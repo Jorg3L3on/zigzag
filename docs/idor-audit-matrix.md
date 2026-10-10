@@ -42,15 +42,15 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, getClientsForExport, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
-| `services.ts` | getServices, getService, createService, updateService, deleteService, getServicesForExport, bulkImportServices, searchMaterials | ✅ | `services-actions.test.ts` | #202, ZIG-I10 |
+| `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
+| `services.ts` | getServices, getService, createService, updateService, deleteService, bulkImportServices, searchMaterials | ✅ | `services-actions.test.ts` | #202, ZIG-I10 |
 | `services.ts` materials (ZIG-I10) | createService / updateService `materials[]`: catalog Material ids are checked against the caller's company (`loadCatalogMaterials`), new names land in the caller's company, and ServiceMaterial rows are replaced only after the company-scoped Service update matched | ✅ | `services-actions.test.ts` (service default materials) | ZIG-I10 |
 
 ## Server Actions — Tickets (#187)
 
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
-| `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketsForExport, getTicketAuditHistory | ✅ | `src/lib/tickets-actions.test.ts` | #187 |
+| `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketAuditHistory | ✅ | `src/lib/tickets-actions.test.ts` | #187 |
 | `ticket-services.ts` | getTicketServices, createServiceTicket, updateServiceTicket, deleteServiceTicket | ✅ | `src/lib/ticket-services-actions.test.ts` | #187 |
 | Line materials (ZIG-I10) | `materials[]` on createTicketWithLines, createPresupuestoWithLines, updatePresupuesto, updateTicket, createServiceTicket, updateServiceTicket: catalog Material ids must be active rows of the caller's company (`loadCatalogMaterials` in `insertServiceLines`) | ✅ | `src/lib/service-lines-server.test.ts`, `src/lib/ticket-services-actions.test.ts`, `src/actions/presupuestos.test.ts` | ZIG-I10 |
 

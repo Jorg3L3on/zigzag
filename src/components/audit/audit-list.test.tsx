@@ -133,7 +133,7 @@ describe('AuditList', () => {
     });
   });
 
-  it('renders investigation presets and export control', async () => {
+  it('renders investigation presets without an export control', async () => {
     render(<AuditList />);
 
     expect(
@@ -147,8 +147,8 @@ describe('AuditList', () => {
       screen.getByRole('button', { name: 'Solo denegados' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Exportar auditoría a CSV' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: 'Exportar auditoría a CSV' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows IP metadata when expanding an event with request_meta', async () => {

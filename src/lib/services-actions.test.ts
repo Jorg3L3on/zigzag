@@ -5,7 +5,6 @@ import {
   deleteService,
   getService,
   getServices,
-  getServicesForExport,
   previewServiceCsvImport,
   searchMaterials,
   updateService,
@@ -122,15 +121,6 @@ describe('cross-tenant IDOR — service actions', () => {
 
     expect(result.success).toBe(true);
     expect(mockDb.update).toHaveBeenCalled();
-  });
-
-  it('getServicesForExport uses authorized tenant scope only', async () => {
-    mockActionAuthorized(mockRequireTenantActionPermission);
-    mockDb.select.mockReturnValue(mockSelectChain([]));
-
-    const result = await getServicesForExport();
-
-    expect(result.success).toBe(true);
   });
 
   it('bulkImportServices denies when permission check fails cross-tenant', async () => {

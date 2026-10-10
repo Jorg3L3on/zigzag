@@ -8,7 +8,7 @@ business workflow.
 - Server actions must call `requireActionPermission()` or an equivalent helper
   that calls `checkPermission()`.
 - For **tenant resources** (clients, services, tickets, ticket-services, trash,
-  CSV import/export, and similar), mutations and tenant-scoped reads must use
+  CSV import, and similar), mutations and tenant-scoped reads must use
   `requireTenantActionPermission()` (or `requireTicketWrite` /
   `requireTenantTicketRead`). System operators **must** pass the selected
   company id; omitting it rejects with missing company context instead of

@@ -72,9 +72,6 @@ const isKnownValue = <T extends string>(
 export const normalizeAuditLimit = (limit?: number): number =>
   Math.min(Math.max(limit ?? 50, 1), 100);
 
-export const normalizeAuditExportLimit = (limit?: number): number =>
-  Math.min(Math.max(limit ?? 1000, 1), 5000);
-
 export const normalizeAuditEventFilters = (
   filters: AuditEventFilters,
 ): NormalizedAuditEventFilters => {
@@ -321,34 +318,4 @@ export const searchAuditEvents = async (
     .limit(limit + 1);
 
   return toAuditPage(rows, limit);
-};
-
-/** Page through filtered audit events up to an export cap (System console CSV). */
-export const exportAuditEvents = async (
-  search: string,
-  filters: Omit<AuditEventFilters, 'cursor' | 'limit'>,
-  maxRows = 5000,
-): Promise<AuditEventListItem[]> => {
-  const cap = normalizeAuditExportLimit(maxRows);
-  const collected: AuditEventListItem[] = [];
-  let cursor: number | undefined;
-
-  while (collected.length < cap) {
-    const pageLimit = Math.min(100, cap - collected.length);
-    const page = search.trim()
-      ? await searchAuditEvents(search, {
-          ...filters,
-          cursor,
-          limit: pageLimit,
-        })
-      : await queryAuditEvents({ ...filters, cursor, limit: pageLimit });
-
-    collected.push(...page.items);
-    if (!page.nextCursor || page.items.length === 0) {
-      break;
-    }
-    cursor = page.nextCursor;
-  }
-
-  return collected.slice(0, cap);
 };

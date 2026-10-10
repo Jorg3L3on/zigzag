@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ClientList } from '@/components/clients/client-list';
-import { ClientsCsvToolbar } from '@/components/clients/clients-csv-toolbar';
+import { ClientsCsvImport } from '@/components/clients/clients-csv-import';
 import {
   TripledDashboardShell,
   TripledPageHeader,
@@ -57,9 +57,11 @@ export default async function ClientsPage() {
             ) : null
           }
         >
-          <div className="mb-4">
-            <ClientsCsvToolbar canImport={canWriteClients} />
-          </div>
+          {canWriteClients ? (
+            <div className="mb-4">
+              <ClientsCsvImport />
+            </div>
+          ) : null}
           <ClientList />
         </TripledResourceCard>
       </TripledDashboardShell>
