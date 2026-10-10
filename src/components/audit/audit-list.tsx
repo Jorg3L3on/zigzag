@@ -7,7 +7,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ClipboardList, Download, ListFilter, Search, X } from 'lucide-react';
+import { ClipboardList, ListFilter, Search, X } from 'lucide-react';
 import { getCompanies } from '@/actions/companies';
 import { getUsers } from '@/actions/users';
 import { Input } from '@/components/ui/input';
@@ -256,7 +256,6 @@ export const AuditList = () => {
   const searchParams = useSearchParams();
   const [events, setEvents] = React.useState<AuditEventRow[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [exporting, setExporting] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [searchValue, setSearchValue] = React.useState(
     () => searchParams.get('search') ?? '',
@@ -572,52 +571,6 @@ export const AuditList = () => {
     setIncidentsOnly(false);
   };
 
-  const handleExportCsv = async () => {
-    setExporting(true);
-    try {
-      const params = buildFilterQuery(filterSnapshot);
-      const response = await fetch(
-        `/api/audit/events/export?${params.toString()}`,
-      );
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const errorType = classifyClientError(
-          null,
-          response.status,
-          payload?.errorType,
-        );
-        setLoadError(
-          getErrorMessageByType(
-            errorType,
-            payload?.error || 'No se pudo exportar la auditoría',
-          ),
-        );
-        return;
-      }
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      const stamp = new Date().toISOString().slice(0, 10);
-      anchor.href = objectUrl;
-      anchor.download = `auditoria-${stamp}.csv`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      console.error(error);
-      setLoadError(
-        getErrorMessageByType(
-          classifyClientError(error),
-          'No se pudo exportar la auditoría',
-        ),
-      );
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const presetButtonClass = (active: boolean) =>
     cn(
       'h-8 rounded-full px-3 text-xs',
@@ -641,18 +594,6 @@ export const AuditList = () => {
           />
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 flex-1 rounded-xl sm:h-11 sm:flex-none"
-            onClick={() => void handleExportCsv()}
-            disabled={exporting || loading}
-            aria-label="Exportar auditoría a CSV"
-          >
-            <Download className="size-4" aria-hidden />
-            {exporting ? 'Exportando…' : 'Exportar CSV'}
-          </Button>
-
           <Sheet>
             <SheetTrigger asChild>
               <Button

@@ -19,7 +19,6 @@ import {
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 import { roundMoney } from '@/lib/money';
-import { SERVICE_CSV_HEADERS } from '@/lib/service-csv';
 import {
   planServiceCsvImport,
   type ServiceCsvPreviewResult,
@@ -459,40 +458,6 @@ export async function searchMaterials(
     };
   } catch (error) {
     return handleCodedServerActionError('materials.search', 'SV001', error);
-  }
-}
-
-/** Returns all active services for the caller's company as CSV-ready rows. */
-export async function getServicesForExport(companyId?: number | null): Promise<{
-  success: boolean;
-  data?: Array<Record<(typeof SERVICE_CSV_HEADERS)[number], string>>;
-  error?: string;
-  errorType?: ActionErrorType;
-}> {
-  try {
-    const { companyId: effectiveCompanyId } =
-      await requireTenantActionPermission('services.read', companyId);
-    const rows = await db
-      .select()
-      .from(service)
-      .where(
-        and(
-          eq(service.company_id, effectiveCompanyId),
-          isNull(service.deleted_at),
-        ),
-      )
-      .orderBy(desc(service.created_at));
-
-    return {
-      success: true,
-      data: rows.map((row) => ({
-        nombre: row.name,
-        descripción: row.description,
-        precio: String(row.price),
-      })),
-    };
-  } catch (error) {
-    return handleCodedServerActionError('services.export', 'SV001', error);
   }
 }
 

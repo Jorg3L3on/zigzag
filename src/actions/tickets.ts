@@ -33,21 +33,17 @@ import {
 } from '@/lib/errors';
 import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
 import { addMoney, roundMoney, subtractMoney } from '@/lib/money';
-import { TICKET_CSV_HEADERS } from '@/lib/csv-schemas';
 import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
-  getTicketPaymentStatus,
   isTicketFullyPaid,
-  TICKET_PAYMENT_STATUS_LABEL,
   type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
-import { format as formatDate } from 'date-fns';
 import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
-import { requireTicketRead, requireTicketWrite, requireTenantTicketRead } from '@/lib/tickets-rbac-server';
+import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { isWorkTicket } from '@/lib/ticket-document-kind';
 import {
@@ -1241,57 +1237,6 @@ export async function applyTicketPayment(
       return handleServerActionError(e);
     }
     return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
-  }
-}
-
-/** Active tickets for the caller's company as CSV-ready rows. */
-export async function getTicketsForExport(
-  companyId?: number | null,
-): Promise<{
-  success: boolean;
-  data?: Array<Record<(typeof TICKET_CSV_HEADERS)[number], string>>;
-  error?: string;
-  errorType?: ActionErrorType;
-}> {
-  try {
-    const { companyId: effectiveCompanyId } =
-      await requireTenantTicketRead(companyId);
-    const rows = await db
-      .select()
-      .from(ticket)
-      .where(
-        and(
-          eq(ticket.company_id, effectiveCompanyId),
-          isNull(ticket.deleted_at),
-          eq(ticket.document_kind, 'ticket'),
-        ),
-      )
-      .orderBy(desc(ticket.created_at));
-
-    return {
-      success: true,
-      data: rows.map((row) => {
-        const total = row.total ?? 0;
-        const paid = row.paid ?? 0;
-        const ref = row.ticket_date ?? row.created_at;
-        return {
-          id: row.id.toString(),
-          cliente: row.client_name ?? '',
-          telefono: row.client_tel ?? '',
-          email: row.email ?? '',
-          fecha: ref ? formatDate(ref, 'yyyy-MM-dd') : '',
-          total: total.toFixed(2),
-          pagado: paid.toFixed(2),
-          saldo: getTicketBalanceDue(row.total, row.paid).toFixed(2),
-          estado: TICKET_PAYMENT_STATUS_LABEL[
-            getTicketPaymentStatus(row.total, row.paid)
-          ],
-          finalizado: row.finished ? 'Sí' : 'No',
-        };
-      }),
-    };
-  } catch (e) {
-    return handleCodedServerActionError('tickets.export', 'TC001', e);
   }
 }
 
