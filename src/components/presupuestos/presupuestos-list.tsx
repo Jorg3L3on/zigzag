@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarClock, ChevronRight, FileText, Plus } from 'lucide-react';
+import { CalendarClock, ChevronRight, FileText, Plus, Search } from 'lucide-react';
 import {
   getPresupuestosList,
   type PresupuestoListItem,
@@ -17,9 +17,11 @@ import {
   TripledEmptyState,
   TripledListLoadingState,
 } from '@/components/tripled';
+import { ListFilterBarShell } from '@/components/list-filter';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
+import { filterPresupuestosBySearch } from '@/lib/presupuestos-search';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
@@ -70,6 +72,16 @@ export const PresupuestosList = () => {
   const [filter, setFilter] = React.useState<PresupuestoStatus[]>(
     DEFAULT_PRESUPUESTO_FILTER,
   );
+  const [searchValue, setSearchValue] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(
+      () => setDebouncedSearch(searchValue.trim()),
+      300,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [searchValue]);
 
   const load = React.useCallback(async () => {
     if (permissionsLoading) return;
@@ -117,9 +129,18 @@ export const PresupuestosList = () => {
   }, [items]);
 
   const visible = React.useMemo(
-    () => items.filter((item) => filter.includes(item.status)),
-    [items, filter],
+    () =>
+      filterPresupuestosBySearch(
+        items.filter((item) => filter.includes(item.status)),
+        debouncedSearch,
+      ),
+    [items, filter, debouncedSearch],
   );
+
+  const clearSearch = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+  };
 
   const toggleFilter = (status: PresupuestoStatus) =>
     setFilter((current) =>
@@ -128,7 +149,7 @@ export const PresupuestosList = () => {
         : [...current, status],
     );
 
-  if (permissionsLoading || loading) {
+  if (permissionsLoading) {
     return <TripledListLoadingState label="Cargando presupuestos…" />;
   }
 
@@ -174,7 +195,31 @@ export const PresupuestosList = () => {
         ) : null}
       </div>
 
-      {items.length === 0 ? (
+      {loading || items.length > 0 ? (
+        <ListFilterBarShell
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          searchPlaceholder="Buscar presupuestos…"
+          searchAriaLabel="Buscar presupuestos por cliente, ID o teléfono"
+          showFilterSheet={false}
+          sheetFilterCount={0}
+          sheetDescription=""
+          hasActiveFilters={debouncedSearch.length > 0}
+          onClearFilters={clearSearch}
+          clearFiltersAriaLabel="Limpiar búsqueda"
+          filterChips={
+            debouncedSearch
+              ? [{ key: 'search', label: `Búsqueda: ${debouncedSearch}` }]
+              : []
+          }
+          sheetContent={null}
+          desktopContent={null}
+        />
+      ) : null}
+
+      {loading ? (
+        <TripledListLoadingState label="Cargando presupuestos…" />
+      ) : items.length === 0 ? (
         <TripledEmptyState
           icon={<FileText className="h-4 w-4" />}
           title="Sin presupuestos"
@@ -219,11 +264,29 @@ export const PresupuestosList = () => {
           </div>
 
           {visible.length === 0 ? (
-            <TripledEmptyState
-              icon={<FileText className="h-4 w-4" />}
-              title="Nada en este filtro"
-              description="Activa otro estado arriba para ver más presupuestos."
-            />
+            debouncedSearch ? (
+              <TripledEmptyState
+                icon={<Search className="h-4 w-4" />}
+                title="Sin resultados"
+                description={`Ningún presupuesto coincide con “${debouncedSearch}” en los estados activos.`}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSearch}
+                  >
+                    Limpiar búsqueda
+                  </Button>
+                }
+              />
+            ) : (
+              <TripledEmptyState
+                icon={<FileText className="h-4 w-4" />}
+                title="Nada en este filtro"
+                description="Activa otro estado arriba para ver más presupuestos."
+              />
+            )
           ) : (
             <ul
               aria-label="Presupuestos"
