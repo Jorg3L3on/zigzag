@@ -679,6 +679,19 @@ export function renderReceiptPdf(
         overflow.unshift(finalLines.pop() as NoteLine);
       }
       while (overflow.length > 0 && overflow[0].text === null) overflow.shift();
+      // Never strand a single line on the next page: carry one more over with it.
+      const textLines = (lines: NoteLine[]) => lines.filter((line) => line.text !== null).length;
+      while (
+        overflow.length > 0 &&
+        textLines(overflow) < NOTES.minLines &&
+        textLines(finalLines) > NOTES.minLines
+      ) {
+        overflow.unshift(finalLines.pop() as NoteLine);
+        while (finalLines.length > 0 && finalLines[finalLines.length - 1].text === null) {
+          overflow.unshift(finalLines.pop() as NoteLine);
+        }
+      }
+      while (overflow.length > 0 && overflow[0].text === null) overflow.shift();
       if (finalLines.filter((line) => line.text !== null).length < Math.min(NOTES.minLines, noteLines.length)) {
         overflow.unshift(...finalLines.splice(0));
       }

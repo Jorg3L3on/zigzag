@@ -637,9 +637,11 @@ describe('renderReceiptPdf — notes and conditions (ZIG-I12)', () => {
 });
 
 describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
-  const layoutOf = (payload: ReceiptPdfPayload) => {
+  const layoutOf = (payload: ReceiptPdfPayload, name: string) => {
     let metrics: ReceiptPdfLayoutMetrics | undefined;
     const bytes = renderReceiptPdf(payload, { compress: false, onLayout: (value) => (metrics = value) });
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+    fs.writeFileSync(path.join(OUT_DIR, `${name}.pdf`), Buffer.from(bytes));
     return { metrics: metrics as ReceiptPdfLayoutMetrics, pages: extractPdfText(bytes) };
   };
 
@@ -661,7 +663,7 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
     });
 
   it('keeps the design layout for ordinary amounts', () => {
-    const { metrics } = layoutOf(presupuesto());
+    const { metrics } = layoutOf(presupuesto(), 'layout-ordinary');
     expect(metrics.compactAmounts).toBe(false);
     expect(metrics.numberScale).toBe(1);
     expect(metrics.priceWidth).toBe(130);
@@ -669,7 +671,7 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
   });
 
   it('keeps Concepto at 45% of the table with 10-digit amounts', () => {
-    const { metrics, pages } = layoutOf(bigPayload());
+    const { metrics, pages } = layoutOf(bigPayload(), 'layout-wide');
 
     expect(metrics.conceptWidth).toBeGreaterThanOrEqual(688 * 0.45 - 0.01);
     expect(metrics.compactAmounts).toBe(true);
@@ -690,7 +692,7 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
       itemCount: 1,
       materialsSubtotal: 9999.99,
     });
-    const { metrics, pages } = layoutOf(payload);
+    const { metrics, pages } = layoutOf(payload, 'layout-long-unit');
 
     const unitRuns = pages[0].runs.filter((run) => /^u+$/.test(run.text));
     expect(unitRuns.length).toBeGreaterThan(0);
@@ -710,6 +712,7 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
         balanceDue: 9_899_999_010,
         bigFigure: { label: 'Saldo por pagar', value: 9_899_999_010 },
       }),
+      'layout-big-figure',
     );
     const figure = pages[0].runs.find((run) => run.text === '$9,899,999,010.00 MXN' && run.size > 12);
     expect(figure).toBeTruthy();

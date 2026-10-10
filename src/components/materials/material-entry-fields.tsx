@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { BookmarkPlus, X } from 'lucide-react';
 
+import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
 import { MaterialNameAutocomplete } from '@/components/materials/material-name-autocomplete';
 import {
   ServiceLineModeToggle,
@@ -295,6 +296,7 @@ export const MaterialEntryFields = ({
                 aria-describedby={`${idPrefix}-name-hint`}
               />
             )}
+            {isLine ? <PdfCharsWarning text={entry.name} /> : null}
             {!isLine ? (
               <p id={`${idPrefix}-name-hint`} className="text-xs text-muted-foreground">
                 {linkedInService

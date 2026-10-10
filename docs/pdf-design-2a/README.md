@@ -47,7 +47,7 @@ Right — document block (right-aligned, gap 8px):
 Columns 2 and 3 have a 1px `#e2e2de` left border; inner horizontal padding 24px.
 1. **Cliente** — name 15px/600; phone and country 13px `#444`, line-height 1.5.
 2. **Fecha de emisión** — date 15px/600; "Vigencia 30 días" / "Vence DD / MM / YYYY" 13px `#444`.
-3. **Estado** — status **pill**: 1px ink border, radius 999px, padding 4px 10px, 11px uppercase 600, letter-spacing .1em, with a 6px ink dot before the label. Label `Pendiente de pago` when balance > 0, `Pagado` when 0. Below: "`N` conceptos" 13px `#444`.
+3. **Estado** — status **pill**: 1px ink border, radius 999px, padding 4px 10px, 11px uppercase 600, letter-spacing .1em, with a 6px ink dot before the label. Label `Pendiente de pago` when nothing is paid, `Pago parcial` when 0 < paid < total, `Pagado` when settled (ZIG-I12). Below: "`N` conceptos" 13px `#444`.
 
 ### 4. Double rule (same as §2)
 
@@ -55,13 +55,17 @@ Columns 2 and 3 have a 1px `#e2e2de` left border; inner horizontal padding 24px.
 Columns: Concepto (flexible) · Cantidad 80px · Precio unitario 130px · Importe 120px. Numeric columns right-aligned, mono 13px; Importe weight 500.
 - Header row: label style, padding-bottom 10px, 1px ink bottom border.
 - Rows: padding 16px 0, **1px dashed** `#d6d6d1` bottom border, baseline aligned.
-- Concepto cell: two-digit index (`01`, `02`… mono 11px `#999`) then name 14px/600 and description 12.5px `#666` (3px below). Description optional.
+- Concepto cell: two-digit index (`01`, `02`… mono 11px `#999`) then name 14px/600 and description 12.5px `#666` (3px below). Description optional. Names, descriptions and material names wrap over as many lines as they need (no clamp, ZIG-I12); a word wider than the column breaks by characters.
+- Wide amounts (ZIG-I12): the Concepto column keeps at least 45% of the table. When 10-digit amounts would take more, table cells drop the ` MXN` suffix (totals keep it); if that is still too wide the numbers scale down, never below 70% of 13px. Cantidad is capped at 120px: a unit that does not fit beside the number wraps on lines under it.
 
 ### 6. Totals panel (right-aligned, top margin 28px)
 320px wide, fill `#f4f4f1`, padding 18px 20px, rows gap 10px, 13px:
 - Rows `Subtotal`, `IVA` (or `IVA (16%)` when applied), `Total`, `Pagado` — label `#555` left, dotted leader (`1px dotted #aaa`) filling the middle, mono value right.
 - 1px ink separator (margin 6px 0 2px).
-- `Saldo por pagar` 14px/600 left; value mono **24px/500** right.
+- `Saldo por pagar` 14px/600 left; value mono **24px/500** right, scaled down when a 10-digit figure would pass the panel's inner width.
+
+### 6b. Notas / Condiciones y notas (ZIG-I12)
+Only when the document has notes (`work_notes`). Top margin 28px under the totals panel, full content width. Label `NOTAS` (recibo) / `CONDICIONES Y NOTAS` (presupuesto) in the label style, 8px above the body: 12.5px `#444`, line-height 1.5, wrapped. A blank line in the source is a 9px gap (runs of blank lines collapse to one). The block paginates by line: it needs the label plus 2 lines to start on a page, otherwise it starts on the next page; continuation pages repeat the header and meta, skip the table header, and carry the label with `(CONT.)`. The footer stays on the last page.
 
 ### 7. Spacer (flex: 1)
 
@@ -84,12 +88,13 @@ See `sample-data.json`. Dynamic fields:
 Currency format: `$1,234.00 MXN` (symbol, thousands separator, 2 decimals, code suffix). Alternative accepted: `MXN 1,234.00`.
 
 ## Terminology (Mexico, non-CFDI document)
-Use exactly: **Folio**, **Fecha de emisión**, **Vigencia / Vence**, **Cliente**, **Estado**, **Concepto**, **Cantidad**, **Precio unitario**, **Importe**, **Subtotal**, **IVA**, **Total**, **Pagado**, **Saldo por pagar**. Status: **Pendiente de pago** / **Pagado**.
+Use exactly: **Folio**, **Fecha de emisión**, **Vigencia / Vence**, **Cliente**, **Estado**, **Concepto**, **Cantidad**, **Precio unitario**, **Importe**, **Subtotal**, **IVA**, **Total**, **Pagado**, **Saldo por pagar**. Status: **Pendiente de pago** / **Pago parcial** / **Pagado**.
 Recommended (optional) legal note near the totals or footer: *"Este documento no es un Comprobante Fiscal Digital (CFDI) y no tiene validez fiscal."* The client removed the conditions block from the approved layout; add it back only if business requires it.
 
 ## Behavior / edge cases
 - Many items: keep header row on each page if the table paginates; repeat the footer on the last page only. The design was approved for one page — keep item rows compact (16px padding) before shrinking type.
-- Long descriptions wrap inside the Concepto column; numeric columns are fixed width.
+- Long names and descriptions wrap inside the Concepto column; numeric columns keep their design width until a value needs more (see §5).
+- Characters the embedded IBM Plex fonts cannot draw (emoji, CJK, Arabic, Devanagari…) are stripped from every printed text and leftover spaces collapse (`src/lib/pdf-text-support.ts`); the composer warns while typing.
 - Logo aspect: any — constrained to 44px height / 160px width, never cropped or stretched.
 - Print: force background colors (`print-color-adjust: exact`) so the `#f4f4f1` totals panel prints; in pure B&W it degrades to light grey, which is intended.
 
