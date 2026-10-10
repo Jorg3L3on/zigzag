@@ -52,6 +52,15 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketsForExport, getTicketAuditHistory | ✅ | `src/lib/tickets-actions.test.ts` | #187 |
 | `ticket-services.ts` | getTicketServices, createServiceTicket, updateServiceTicket, deleteServiceTicket | ✅ | `src/lib/ticket-services-actions.test.ts` | #187 |
 
+## Pages — in-app PDF viewers (ZIG-I9)
+
+Both pages load their data only through the tenant-scoped actions above (`getPresupuestoById` filters `company_id` and `document_kind`; `getTicketById` filters `company_id`) and render `notFound()` when the action denies the id. The PDF bytes still come from `/api/tickets/[id]/invoice`, which keeps its own check.
+
+| Page | Status | Test file | Slice |
+| ---- | ------ | --------- | ----- |
+| `/presupuestos/[id]/pdf` | ✅ | `src/app/(app)/presupuestos/[id]/pdf/page.test.tsx` | ZIG-I9-1 |
+| `/tickets/[id]/recibo` | ✅ | `src/app/(app)/tickets/[id]/recibo/page.test.tsx` | ZIG-I9-1 |
+
 ## Server Actions — Users, Roles, Permissions (#188)
 
 | Module | Exports | Status | Test file | Slice |

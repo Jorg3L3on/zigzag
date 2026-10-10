@@ -3,8 +3,6 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import {
   ArrowRightLeft,
   Ban,
@@ -24,6 +22,7 @@ import {
 } from '@/actions/presupuestos';
 import { ActionSwap, BlurFade } from '@/components/motion';
 import {
+  QuoteSummary,
   REVIEW_SECTION_CLASS,
   ReviewLinesSection,
   ReviewSuccessHeader,
@@ -48,9 +47,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatLongDate } from '@/lib/format-long-date';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
-import { multiplyMoney } from '@/lib/money';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import {
   PRESUPUESTO_STATUS_LABEL,
@@ -93,69 +92,6 @@ const STATUS_BADGE_VARIANT: Record<
   convertido: 'secondary',
   cancelado: 'outline',
 };
-
-const formatLongDate = (value: string | null): string | null => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? null
-    : format(date, "d 'de' MMMM yyyy", { locale: es });
-};
-
-type QuoteSummaryProps = {
-  presupuestoId: string;
-  clientName: string | null;
-  dateLabel: string | null;
-  expiresLabel: string | null;
-  lines: ReviewLine[];
-  total: number;
-};
-
-/** HTML stand-in for the PDF where the browser cannot show it inline. */
-const QuoteSummary = ({
-  presupuestoId,
-  clientName,
-  dateLabel,
-  expiresLabel,
-  lines,
-  total,
-}: QuoteSummaryProps) => (
-  <div
-    data-testid="presupuesto-summary"
-    className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
-  >
-    <div className="flex items-baseline justify-between gap-3">
-      <p className="font-semibold">Presupuesto #{presupuestoId}</p>
-      {dateLabel ? <p className="text-xs text-muted-foreground">{dateLabel}</p> : null}
-    </div>
-    {clientName ? <p className="mt-0.5 text-muted-foreground">{clientName}</p> : null}
-    <ul className="mt-3 space-y-1.5">
-      {lines.map((line) => (
-        <li key={line.id} className="flex justify-between gap-3">
-          <span className="min-w-0 truncate">
-            {line.quantity} × {line.name}
-          </span>
-          <span className="shrink-0 tabular-nums">
-            {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
-          </span>
-        </li>
-      ))}
-    </ul>
-    <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
-      <div className="flex justify-between font-semibold">
-        <dt>Total</dt>
-        <dd>{formatServiceCurrency(total)}</dd>
-      </div>
-      <div className="flex justify-between text-muted-foreground">
-        <dt>Vigencia</dt>
-        <dd>{expiresLabel ?? 'Sin vencimiento'}</dd>
-      </div>
-    </dl>
-    <p className="mt-3 text-xs text-muted-foreground">
-      Documento informativo — no es un recibo de pago.
-    </p>
-  </div>
-);
 
 /**
  * Presupuesto review (ZIG-I5-4, /presupuestos/[id]/listo) and detail
