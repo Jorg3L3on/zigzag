@@ -15,7 +15,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -64,7 +63,6 @@ const COMPANY_FORM_ID = 'company-form';
 const defaultSettings = {
   tagline: '',
   rfc: '',
-  invoice_footer_note: '',
   default_currency: 'MXN',
   experience_mode: 'auto' as 'auto' | 'campo' | 'office',
 };
@@ -157,8 +155,6 @@ export const CompanyForm = ({
           settings: {
             tagline: company.settings?.tagline ?? '',
             rfc: company.settings?.rfc ?? '',
-            invoice_footer_note:
-              company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
             experience_mode: company.settings?.experience_mode ?? 'auto',
@@ -623,19 +619,6 @@ export const CompanyForm = ({
                     inicio. Déjalo en automático para que empresas de un solo
                     usuario usen Campo.
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.invoice_footer_note"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Notas al pie de recibo</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={3} />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -105,7 +105,6 @@ const ensurePerfCompany = async () => {
       settings: {
         rfc: 'PERF000000XXX',
         default_currency: 'MXN',
-        invoice_footer_note: 'query-budget perf baseline',
       },
     })
     .returning({ id: company.id });

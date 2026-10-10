@@ -12,7 +12,6 @@ export const companySettingsSchema = z.object({
     .trim()
     .max(COMPANY_TAGLINE_MAX, `Máximo ${COMPANY_TAGLINE_MAX} caracteres`)
     .optional(),
-  invoice_footer_note: z.string().optional(),
   default_currency: z.string().optional(),
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
@@ -46,13 +45,9 @@ export function normalizeCompanySettingsForDb(
   }
   const out: CompanySettingsJson = {};
   const rfc = input.rfc?.trim();
-  const note = input.invoice_footer_note?.trim();
   const cur = input.default_currency?.trim();
   if (rfc) {
     out.rfc = rfc;
-  }
-  if (note) {
-    out.invoice_footer_note = note;
   }
   if (cur) {
     out.default_currency = cur;

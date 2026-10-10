@@ -29,7 +29,6 @@ export const COMPANY_FORM_FIELD_SECTIONS: Array<[string, CompanyFormSectionKey]>
   ['settings.rfc', 'configuracion'],
   ['settings.default_currency', 'configuracion'],
   ['settings.experience_mode', 'configuracion'],
-  ['settings.invoice_footer_note', 'configuracion'],
 ];
 
 type ErrorTree = { [key: string]: unknown };
@@ -84,14 +83,12 @@ export const summarizeCompanySettings = (settings?: {
   rfc?: string;
   default_currency?: string;
   experience_mode?: string;
-  invoice_footer_note?: string;
 }) =>
   joinFilled(
     [
       settings?.rfc?.trim() ? `RFC ${settings.rfc.trim()}` : 'Sin RFC',
       settings?.default_currency || 'MXN',
       EXPERIENCE_LABELS[settings?.experience_mode ?? 'auto'] ?? null,
-      settings?.invoice_footer_note?.trim() ? 'Con pie de recibo' : null,
     ],
     ' · ',
   );
