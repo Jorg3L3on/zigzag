@@ -13,9 +13,10 @@ import {
 /**
  * ZIG-I5-6 visual baselines for presupuestos at 375px, light and dark.
  * Data-bearing regions are masked so baselines do not drift as the tenant
- * gains quotes. The composer shot cancels before saving. The detail shot
- * always opens the same fixture presupuesto (one inline line, no Vence, open)
- * and creates it once on a database that does not have it yet (ZIG-13).
+ * gains quotes. The composer shot cancels before saving. The list and detail
+ * shots use the same fixture presupuesto (one inline line, no Vence, open):
+ * the list is filtered to it and the detail opens it. It is created once on a
+ * database that does not have it yet (ZIG-13).
  *
  * Update snapshots:
  *   npm run test:e2e:visual:update -- e2e/presupuestos-visual.spec.ts
@@ -23,8 +24,8 @@ import {
 const FIXTURE_CLIENT = 'Presupuesto visual E2E';
 const LINES_LABEL = 'Servicios del presupuesto';
 
-/** Finds the fixture through the list search; creates it the first time. */
-const openFixturePresupuesto = async (page: Page) => {
+/** Lists presupuestos filtered by the list search to the fixture's client. */
+const searchFixture = async (page: Page) => {
   await page.goto('/presupuestos');
   await expect(page.getByRole('group', { name: 'Filtrar por estado' })).toBeVisible({
     timeout: 15_000,
@@ -33,21 +34,41 @@ const openFixturePresupuesto = async (page: Page) => {
     .getByRole('textbox', { name: /Buscar presupuestos/ })
     .filter({ visible: true })
     .first();
-  await search.fill(FIXTURE_CLIENT);
-  const row = page
+  // A fill before hydration is wiped when React takes over; retry until the
+  // search is applied (its chip shows).
+  await expect(async () => {
+    await search.fill(FIXTURE_CLIENT);
+    await expect(page.getByText(`Búsqueda: ${FIXTURE_CLIENT}`).first()).toBeVisible({
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 20_000 });
+  return page
     .getByTestId('presupuesto-row')
     .filter({ visible: true })
     .filter({ hasText: FIXTURE_CLIENT })
     .first();
-  const exists = await row
-    .waitFor({ timeout: 10_000 })
-    .then(() => true)
-    .catch(() => false);
+};
 
-  if (exists) {
-    const href = await row.getByRole('link').first().getAttribute('href');
-    await page.goto(href!);
-    return;
+/**
+ * Returns the fixture's detail URL, creating it through the composer the first
+ * time (any tenant, even one without presupuestos).
+ */
+const ensureFixturePresupuesto = async (page: Page): Promise<string> => {
+  await page.goto('/presupuestos');
+  const filters = page.getByRole('group', { name: 'Filtrar por estado' });
+  const emptyState = page.getByRole('heading', { name: 'Sin presupuestos' });
+  await expect(filters.or(emptyState).first()).toBeVisible({ timeout: 15_000 });
+
+  // A tenant without presupuestos shows an empty state with no search.
+  if (await filters.isVisible()) {
+    const row = await searchFixture(page);
+    const exists = await row
+      .waitFor({ timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (exists) {
+      return (await row.getByRole('link').first().getAttribute('href'))!;
+    }
   }
 
   await page.goto('/presupuestos/create');
@@ -66,12 +87,18 @@ const openFixturePresupuesto = async (page: Page) => {
   await page.getByRole('button', { name: 'Guardar presupuesto' }).first().click();
   await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
   const id = page.url().match(/\/presupuestos\/(\d+)/)?.[1];
-  await page.goto(`/presupuestos/${id}`);
+  return `/presupuestos/${id}`;
 };
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(`Presupuestos visual (${colorScheme})`, () => {
-    test.use({ viewport: { width: 375, height: 812 }, colorScheme });
+    // Reduced motion: BlurFade (framer-motion) snaps to its final state, so a
+    // shot never lands mid-entrance (Playwright only freezes CSS animations).
+    test.use({
+      viewport: { width: 375, height: 812 },
+      colorScheme,
+      contextOptions: { reducedMotion: 'reduce' },
+    });
     test.setTimeout(180_000);
 
     test.beforeEach(async ({ page }) => {
@@ -81,10 +108,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
 
     test('list', async ({ page }) => {
-      await page.goto('/presupuestos');
-      await expect(
-        page.getByRole('group', { name: 'Filtrar por estado' }),
-      ).toBeVisible({ timeout: 15_000 });
+      // Filtered to the fixture so the shot shows one row in any tenant.
+      await ensureFixturePresupuesto(page);
+      await expect(await searchFixture(page)).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('presupuesto-row').filter({ visible: true })).toHaveCount(1);
+      // Cards lift 2px on hover (hover-lift); keep the pointer off them.
+      await page.mouse.move(0, 0);
       await expect(page).toHaveScreenshot(`presupuestos-list-${colorScheme}.png`, {
         fullPage: false,
         mask: [
@@ -113,10 +142,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
 
     test('detail', async ({ page }) => {
-      await openFixturePresupuesto(page);
+      await page.goto(await ensureFixturePresupuesto(page));
       await expect(page.getByTestId('presupuesto-status').first()).toBeVisible({
         timeout: 15_000,
       });
+      await page.mouse.move(0, 0);
       await page.waitForTimeout(800);
       await expect(page).toHaveScreenshot(`presupuestos-detail-${colorScheme}.png`, {
         fullPage: false,
