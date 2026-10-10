@@ -12,6 +12,7 @@ import {
   type Company,
   type Service,
   type ServicesTicketsRow,
+  type TicketLineMaterialRow,
   type TicketPaymentRow,
   type TicketRow,
   type User,
@@ -59,6 +60,7 @@ import {
   catalogServiceIds,
   insertServiceLines,
 } from '@/lib/service-lines-server';
+import { activeLineMaterialsWith } from '@/lib/line-materials-query';
 import { z } from 'zod';
 
 const ticketServiceLineSchema = serviceLineInputSchema;
@@ -110,6 +112,8 @@ export type TicketDetailData = TicketRow & {
   services_tickets: Array<
     ServicesTicketsRow & {
       service: Service | null;
+      /** Active materials (ZIG-I10); absent in fixtures that predate them. */
+      materials?: TicketLineMaterialRow[];
     }
   >;
   /** Present when loaded with `with`; lista suele omitirla. */
@@ -419,14 +423,12 @@ export async function createTicketWithLines(
       db.transaction(async (tx) => {
         const [created] = await tx.insert(ticket).values(ticketValues).returning();
 
-        const { rows: lineRows, createdServiceIds } = await insertServiceLines(
-          tx,
-          {
+        const { rows: lineRows, createdServiceIds, createdMaterialIds } =
+          await insertServiceLines(tx, {
             companyId: effectiveCompanyId,
             ticketId: created.id,
             lines: validated.lines,
-          },
-        );
+          });
 
         const syncedTotal = await syncTicketTotal(tx, created.id);
 
@@ -442,6 +444,9 @@ export async function createTicketWithLines(
             lines: lineRows,
             ...(createdServiceIds.length > 0
               ? { savedToCatalogServiceIds: createdServiceIds }
+              : {}),
+            ...(createdMaterialIds.length > 0
+              ? { savedToCatalogMaterialIds: createdMaterialIds }
               : {}),
             syncedTotal,
             ignoredClientTotal: validated.client_total ?? null,
@@ -508,6 +513,7 @@ export async function getTickets(
           where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
+            ...activeLineMaterialsWith,
           },
         },
       },
@@ -706,6 +712,7 @@ export async function getTicketById(
           where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
+            ...activeLineMaterialsWith,
           },
         },
         ticket_payments: {
@@ -771,6 +778,7 @@ export async function updateTicket(
       with: {
         services_tickets: {
           where: isNull(servicesTickets.deleted_at),
+          with: { ...activeLineMaterialsWith },
         },
       },
     });
@@ -862,6 +870,7 @@ export async function updateTicket(
           where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
+            ...activeLineMaterialsWith,
           },
         },
       },

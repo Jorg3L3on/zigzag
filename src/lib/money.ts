@@ -43,3 +43,27 @@ export const sumLineTotals = (
   roundMoney(
     lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
   );
+
+type MaterialAmountSource = { quantity: number | string; price: number | string };
+
+/** Σ quantity × price of a line's materials, rounded to cents (ZIG-I10). */
+export const sumMaterialTotals = (
+  materials: ReadonlyArray<MaterialAmountSource> | null | undefined,
+): number =>
+  roundMoney(
+    (materials ?? []).reduce(
+      (sum, item) => sum + Number(item.quantity) * Number(item.price),
+      0,
+    ),
+  );
+
+/**
+ * A document line's amount: quantity × service price plus its materials.
+ * Material quantities are absolute for the line (not multiplied by quantity).
+ */
+export const lineTotalWithMaterials = (line: {
+  quantity: number;
+  price: number;
+  materials?: ReadonlyArray<MaterialAmountSource> | null;
+}): number =>
+  addMoney(line.quantity * line.price, sumMaterialTotals(line.materials));

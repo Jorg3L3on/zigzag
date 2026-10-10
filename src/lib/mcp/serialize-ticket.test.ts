@@ -50,7 +50,7 @@ describe('mapAgentTicketDetail', () => {
 
     expect(() => JSON.stringify({ ticket: payload })).not.toThrow();
     expect(payload.services_tickets).toEqual([
-      { id: 1, service_id: 10, quantity: 2, price: 100 },
+      { id: 1, service_id: 10, quantity: 2, price: 100, materials: [] },
     ]);
     expect(payload).not.toHaveProperty('client_tel');
     expect(payload).not.toHaveProperty('userId');
@@ -123,5 +123,36 @@ describe('MCP ticket JSON safety', () => {
     const envelope = { error: 'Ticket no encontrado' };
     expect(() => JSON.stringify(envelope)).not.toThrow();
     expect(envelope).toEqual({ error: 'Ticket no encontrado' });
+  });
+});
+
+describe('MCP line materials (ZIG-I10)', () => {
+  it('get_ticket lines carry their materials with numeric qty and price', () => {
+    const ticket = mapAgentTicketDetail({
+      id: 9011n,
+      client_id: 1,
+      client_name: 'Fixture Client',
+      ticket_date: null,
+      total: 1770,
+      paid: 0,
+      finished: false,
+      company_id: 1,
+      created_at: new Date('2026-01-01T00:00:00.000Z'),
+      services_tickets: [
+        {
+          id: 1,
+          service_id: 7,
+          quantity: 1,
+          price: 1200,
+          materials: [
+            { name: 'Gas R410A', unit: 'kg', quantity: '1.50' as unknown as number, price: 380 },
+          ],
+        },
+      ],
+    });
+    expect(ticket.services_tickets?.[0].materials).toEqual([
+      { name: 'Gas R410A', unit: 'kg', quantity: 1.5, price: 380 },
+    ]);
+    expect(() => JSON.stringify({ ticket })).not.toThrow();
   });
 });

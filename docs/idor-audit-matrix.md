@@ -43,7 +43,8 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
 | `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, getClientsForExport, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
-| `services.ts` | getServices, getService, createService, updateService, deleteService, getServicesForExport, bulkImportServices | ✅ | `services-actions.test.ts` | #202 |
+| `services.ts` | getServices, getService, createService, updateService, deleteService, getServicesForExport, bulkImportServices, searchMaterials | ✅ | `services-actions.test.ts` | #202, ZIG-I10 |
+| `services.ts` materials (ZIG-I10) | createService / updateService `materials[]`: catalog Material ids are checked against the caller's company (`loadCatalogMaterials`), new names land in the caller's company, and ServiceMaterial rows are replaced only after the company-scoped Service update matched | ✅ | `services-actions.test.ts` (service default materials) | ZIG-I10 |
 
 ## Server Actions — Tickets (#187)
 
@@ -51,6 +52,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | ------ | ------- | ------ | --------- | ----- |
 | `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketsForExport, getTicketAuditHistory | ✅ | `src/lib/tickets-actions.test.ts` | #187 |
 | `ticket-services.ts` | getTicketServices, createServiceTicket, updateServiceTicket, deleteServiceTicket | ✅ | `src/lib/ticket-services-actions.test.ts` | #187 |
+| Line materials (ZIG-I10) | `materials[]` on createTicketWithLines, createPresupuestoWithLines, updatePresupuesto, updateTicket, createServiceTicket, updateServiceTicket: catalog Material ids must be active rows of the caller's company (`loadCatalogMaterials` in `insertServiceLines`) | ✅ | `src/lib/service-lines-server.test.ts`, `src/lib/ticket-services-actions.test.ts`, `src/actions/presupuestos.test.ts` | ZIG-I10 |
 
 ## Pages — in-app PDF viewers (ZIG-I9)
 
@@ -123,6 +125,9 @@ ticket-services, and trash.
 | TicketAuditEvent.company_id | ✅ NOT VALID | `0019_idor_audit_fks` |
 | TicketAuditEvent.actor_user_id | ✅ NOT VALID | `0019_idor_audit_fks` |
 | ServicesTickets | ⏭️ N/A | Junction via ticket/service FKs in `0014` |
+| Material.company_id | ✅ | `0029_materiales` |
+| ServiceMaterial | ⏭️ N/A | Junction via Service / Material FKs in `0029` (both company-scoped) |
+| TicketLineMaterial | ⏭️ N/A | Child of ServicesTickets; Material FK in `0029` |
 | AuditEvent | ✅ | `0009_audit_event` |
 
 ## CI (#191)
