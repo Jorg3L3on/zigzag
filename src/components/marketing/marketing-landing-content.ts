@@ -58,7 +58,7 @@ export const LANDING_FLOW_STEPS = [
   {
     key: 'recibo',
     title: 'Recibo PDF',
-    body: 'Descarga el recibo generado en el servidor, con logo y RFC.',
+    body: 'Descarga el recibo generado en el servidor, con tu logo.',
     image: {
       src: '/guides/images/empresa/10-factura-pdf.webp',
       alt: 'Recibo PDF generado por ZigZag',
