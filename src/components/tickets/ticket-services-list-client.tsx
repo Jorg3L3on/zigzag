@@ -46,6 +46,8 @@ export function TicketServicesListClient({
     customName,
     customDescription,
     saveToCatalog,
+    addMaterials,
+    setAddMaterials,
     setLineMode,
     setCustomName,
     setCustomDescription,
@@ -163,6 +165,9 @@ export function TicketServicesListClient({
                   onCustomDescriptionChange={setCustomDescription}
                   saveToCatalog={saveToCatalog}
                   onSaveToCatalogChange={setSaveToCatalog}
+                  materials={addMaterials}
+                  onMaterialsChange={setAddMaterials}
+                  companyId={selectedCompany?.id}
                   isSubmitting={isSubmitting}
                   onAddService={handleAddService}
                 />

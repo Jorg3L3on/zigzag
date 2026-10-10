@@ -1,4 +1,9 @@
+'use client';
+
+import { useState } from 'react';
 import type { Service } from '@/db/schema';
+import { LineMaterialsEditor } from '@/components/materials/line-materials-editor';
+import { materialDraftsTotal, type MaterialDraft } from '@/lib/material-drafts';
 import {
   InlineServiceFields,
   ServiceLineModeToggle,
@@ -28,7 +33,7 @@ import {
   sanitizeInteger,
 } from '@/components/tickets/ticket-services-utils';
 import { NumberTicker } from '@/components/motion';
-import { multiplyMoney } from '@/lib/money';
+import { addMoney, multiplyMoney } from '@/lib/money';
 import { CheckCircle2, Loader2, Minus, Plus, PlusCircle } from 'lucide-react';
 
 type TicketAddServicePanelProps = {
@@ -54,6 +59,10 @@ type TicketAddServicePanelProps = {
   onCustomDescriptionChange: (value: string) => void;
   saveToCatalog: boolean;
   onSaveToCatalogChange: (value: boolean) => void;
+  /** Materials of the line being added (ZIG-I10); prefilled from the service. */
+  materials: MaterialDraft[];
+  onMaterialsChange: (next: MaterialDraft[]) => void;
+  companyId?: number | null;
   /** Noun for copy ("ticket" / "presupuesto"). */
   documentLabel?: string;
   isSubmitting: boolean;
@@ -82,10 +91,18 @@ export const TicketAddServicePanel = ({
   onCustomDescriptionChange,
   saveToCatalog,
   onSaveToCatalogChange,
+  materials,
+  onMaterialsChange,
+  companyId,
   documentLabel = 'ticket',
   isSubmitting,
   onAddService,
-}: TicketAddServicePanelProps) => (
+}: TicketAddServicePanelProps) => {
+  // While a material is being typed, its own buttons replace Agregar al ticket.
+  const [materialEntryOpen, setMaterialEntryOpen] = useState(false);
+  const serviceAmount = multiplyMoney(sanitizeDecimal(price), sanitizeInteger(quantity));
+  const materialsAmount = materialDraftsTotal(materials);
+  return (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
     <DialogTrigger asChild>
       <Button className="w-full sm:w-auto">
@@ -93,7 +110,7 @@ export const TicketAddServicePanel = ({
         Agregar servicio
       </Button>
     </DialogTrigger>
-    <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-x-hidden sm:max-w-lg">
+    <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto overflow-x-hidden sm:max-w-lg">
       <DialogHeader>
         <DialogTitle
           data-initial-focus
@@ -280,6 +297,15 @@ export const TicketAddServicePanel = ({
           </div>
         </div>
 
+        <LineMaterialsEditor
+          idPrefix="ticket-add-service-materials"
+          value={materials}
+          onChange={onMaterialsChange}
+          companyId={companyId}
+          documentLabel={documentLabel}
+          onEntryOpenChange={setMaterialEntryOpen}
+        />
+
         <div
           data-testid="ticket-add-service-subtotal"
           className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
@@ -289,21 +315,20 @@ export const TicketAddServicePanel = ({
               Subtotal
             </p>
             <p className="truncate text-xs tabular-nums text-muted-foreground">
-              {sanitizeInteger(quantity)} ×{' '}
-              {formatServiceCurrency(sanitizeDecimal(price))}
+              {materials.length > 0
+                ? `Servicio ${formatServiceCurrency(serviceAmount)} · Materiales ${formatServiceCurrency(materialsAmount)}`
+                : `${sanitizeInteger(quantity)} × ${formatServiceCurrency(sanitizeDecimal(price))}`}
             </p>
           </div>
           <NumberTicker
-            value={multiplyMoney(
-              sanitizeDecimal(price),
-              sanitizeInteger(quantity),
-            )}
+            value={addMoney(serviceAmount, materialsAmount)}
             format={formatServiceCurrency}
             className="shrink-0 text-lg font-semibold text-foreground"
             data-testid="ticket-add-service-subtotal-value"
           />
         </div>
 
+        {materialEntryOpen ? null : (
         <Button
           type="button"
           onClick={onAddService}
@@ -328,7 +353,9 @@ export const TicketAddServicePanel = ({
             </>
           )}
         </Button>
+        )}
       </div>
     </DialogContent>
   </Dialog>
-);
+  );
+};

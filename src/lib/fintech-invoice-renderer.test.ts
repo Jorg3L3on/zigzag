@@ -317,3 +317,99 @@ describe('fintech invoice renderer branding', () => {
     ).not.toThrow();
   });
 });
+
+describe('fintech invoice renderer materials (ZIG-I10)', () => {
+  const item = (number: number, materialCount: number) => ({
+    number,
+    name: `Servicio ${number}`,
+    description: 'Descripción del servicio',
+    quantity: 1,
+    unitPrice: 1000,
+    serviceTotal: 1000,
+    total: 1000 + materialCount * 100,
+    materials: Array.from({ length: materialCount }, (_, index) => ({
+      name: `Material ${index + 1}`,
+      quantity: 1,
+      unit: 'pza',
+      unitPrice: 100,
+      total: 100,
+    })),
+  });
+
+  it('paginates by height so a 10-line document with 3 materials each never overflows', async () => {
+    const { paginateInvoiceItems, invoiceItemHeight } = await import(
+      '@/lib/fintech-invoice-renderer'
+    );
+    const items = Array.from({ length: 10 }, (_, index) => item(index + 1, 3));
+    const pages = paginateInvoiceItems(items);
+
+    // Every item lands on exactly one page, in order.
+    expect(pages.flat().map((entry) => entry.number)).toEqual(
+      items.map((entry) => entry.number),
+    );
+    // Each page's rows fit its budget (main: 6 plain rows, continuation: 12).
+    const budgets = [6 * 52, ...Array(pages.length).fill(12 * 52)];
+    pages.forEach((page, index) => {
+      const used = page.reduce((sum, entry) => sum + invoiceItemHeight(entry), 0);
+      expect(used).toBeLessThanOrEqual(budgets[index]);
+    });
+    expect(pages[0].length).toBeLessThan(6);
+  });
+
+  it('leaves the main page table empty when its first line is taller than the page allows', async () => {
+    const { paginateInvoiceItems } = await import('@/lib/fintech-invoice-renderer');
+    const pages = paginateInvoiceItems([item(1, 30), item(2, 0)]);
+    expect(pages[0]).toEqual([]);
+    expect(pages[1].map((entry) => entry.number)).toEqual([1, 2]);
+  });
+
+  it('documents without materials keep the 6 + 12 rows per page split', async () => {
+    const { paginateInvoiceItems } = await import('@/lib/fintech-invoice-renderer');
+    const pages = paginateInvoiceItems(
+      Array.from({ length: 20 }, (_, index) => item(index + 1, 0)),
+    );
+    expect(pages.map((page) => page.length)).toEqual([6, 12, 2]);
+  });
+
+  it('renders a document with material sub-rows and the Materiales summary as valid PDF bytes', async () => {
+    const { renderFintechInvoicePdf } = await import('@/lib/fintech-invoice-renderer');
+    const items = Array.from({ length: 10 }, (_, index) => item(index + 1, 3));
+    const pdf = renderFintechInvoicePdf({
+      issuer: {
+        name: 'Acme',
+        address: 'Main 1',
+        phone: '555',
+        email: 'a@acme.test',
+        footerAddress: 'Main 1',
+        currencyCode: 'MXN',
+        logoUrl: null,
+      },
+      client: { name: 'Cliente', phone: null, country: null, address: null },
+      ticketNumber: '000001',
+      issueDate: '10/10/2026',
+      documentTitle: 'Presupuesto',
+      documentKind: 'presupuesto',
+      statusLabel: 'PRESUPUESTO',
+      balanceLabel: 'TOTAL DEL PRESUPUESTO',
+      serviceCountLabel: '10 conceptos',
+      items,
+      servicesSubtotal: 10000,
+      materialsSubtotal: 3000,
+      subtotal: 13000,
+      adjustmentAmount: 0,
+      hasAdjustment: false,
+      total: 13000,
+      paid: 0,
+      balanceDue: 13000,
+      paymentProgress: 0,
+      paymentProgressLabel: 'Cotización',
+      dueText: 'Documento informativo — no es un recibo de pago',
+    });
+    const bytes = Buffer.from(pdf);
+    expect(bytes.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+    // Main page + continuation pages.
+    const pageCount = (bytes.toString('latin1').match(/\/Type \/Page[^s]/g) ?? []).length;
+    expect(pageCount).toBeGreaterThanOrEqual(2);
+  });
+});
+

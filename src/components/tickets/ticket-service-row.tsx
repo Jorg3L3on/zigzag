@@ -28,8 +28,17 @@ import {
   sanitizeDecimal,
   sanitizeInteger,
 } from '@/components/tickets/ticket-services-utils';
-import { multiplyMoney, roundMoney } from '@/lib/money';
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { addMoney, multiplyMoney, roundMoney } from '@/lib/money';
+import { MoreVertical, Package, Pencil, Trash2 } from 'lucide-react';
+import { LineMaterialsEditor } from '@/components/materials/line-materials-editor';
+import { ReviewLineMaterials } from '@/components/tickets/review/document-review-parts';
+import { useCompany } from '@/contexts/company-context';
+import {
+  materialDraftsFromStoredRows,
+  materialDraftsTotal,
+  type MaterialDraft,
+} from '@/lib/material-drafts';
+import { buildReviewLine } from '@/lib/review-lines';
 import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import {
   getServiceLineDescription,
@@ -42,6 +51,8 @@ type TicketServiceRowProps = {
     serviceTicketId: number,
     quantity: number,
     price: number,
+    /** Whole new material set (ZIG-I10); omitted = unchanged. */
+    materials?: MaterialDraft[],
   ) => void;
   onQuantityInput: (
     serviceTicketId: number,
@@ -134,13 +145,80 @@ const TicketServiceEditSheet = ({
             Subtotal
           </span>
           <NumberTicker
-            value={multiplyMoney(price, quantity)}
+            value={addMoney(
+              multiplyMoney(price, quantity),
+              materialDraftsTotal(serviceTicket.materials),
+            )}
             format={formatServiceCurrency}
             className="text-lg font-semibold text-foreground"
             data-testid="ticket-service-edit-subtotal"
           />
         </div>
       </div>
+    </BottomSheet>
+  );
+};
+
+type TicketLineMaterialsSheetProps = {
+  serviceTicket: ServiceTicket;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (materials: MaterialDraft[]) => void;
+};
+
+/** Materiales of a saved line (ZIG-I10-4): edit the set, then Guardar replaces it. */
+const TicketLineMaterialsSheet = ({
+  serviceTicket,
+  open,
+  onOpenChange,
+  onSave,
+}: TicketLineMaterialsSheetProps) => {
+  const { selectedCompany } = useCompany();
+  const [materials, setMaterials] = useState<MaterialDraft[]>(() =>
+    materialDraftsFromStoredRows(serviceTicket.materials),
+  );
+  const [entryOpen, setEntryOpen] = useState(false);
+  const name = getServiceLineName(serviceTicket);
+
+  return (
+    <BottomSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Materiales de ${name}`}
+      description="Se suman al precio del servicio en este ticket."
+      data-testid="ticket-line-materials-sheet"
+      footer={
+        entryOpen ? null : (
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="h-11 flex-1"
+              onClick={() => {
+                onSave(materials);
+                onOpenChange(false);
+              }}
+            >
+              Guardar
+            </Button>
+          </div>
+        )
+      }
+    >
+      <LineMaterialsEditor
+        idPrefix={`ticket-line-materials-${serviceTicket.id}`}
+        value={materials}
+        onChange={setMaterials}
+        companyId={selectedCompany?.id}
+        onEntryOpenChange={setEntryOpen}
+      />
     </BottomSheet>
   );
 };
@@ -157,9 +235,20 @@ export const TicketServiceRow = ({
   // staying mounted after close so the exit animation can play.
   const [editSession, setEditSession] = useState(0);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [materialsOpen, setMaterialsOpen] = useState(false);
+  const [materialsSession, setMaterialsSession] = useState(0);
   const name = getServiceLineName(serviceTicket);
   const description = getServiceLineDescription(serviceTicket);
-  const subtotal = multiplyMoney(serviceTicket.price, serviceTicket.quantity);
+  const materialCount = serviceTicket.materials?.length ?? 0;
+  // Service amount plus its materials (ZIG-I10).
+  const subtotal = addMoney(
+    multiplyMoney(serviceTicket.price, serviceTicket.quantity),
+    materialDraftsTotal(serviceTicket.materials),
+  );
+  const openMaterials = () => {
+    setMaterialsSession((session) => session + 1);
+    setMaterialsOpen(true);
+  };
 
   return (
     <div
@@ -181,6 +270,10 @@ export const TicketServiceRow = ({
           <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
             {description}
           </p>
+          <ReviewLineMaterials
+            materials={buildReviewLine(serviceTicket).materials}
+            showInlineChips
+          />
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:hidden">
           <span className="text-base font-semibold tabular-nums text-foreground">
@@ -207,6 +300,10 @@ export const TicketServiceRow = ({
               >
                 <Pencil className="h-4 w-4" aria-hidden />
                 Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={openMaterials}>
+                <Package className="h-4 w-4" aria-hidden />
+                Materiales{materialCount > 0 ? ` (${materialCount})` : ''}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
@@ -239,6 +336,15 @@ export const TicketServiceRow = ({
           }
         />
         <div className="flex min-w-0 items-end justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 shrink-0 self-end"
+            onClick={openMaterials}
+          >
+            <Package className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+            Materiales{materialCount > 0 ? ` (${materialCount})` : ''}
+          </Button>
           <div className="min-w-0 flex-1 rounded-md border border-border/60 bg-muted/30 p-3 text-right">
             <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Subtotal
@@ -263,6 +369,16 @@ export const TicketServiceRow = ({
         open={editOpen}
         onOpenChange={setEditOpen}
         onSave={(quantity, price) => onUpdate(serviceTicket.id, quantity, price)}
+      />
+
+      <TicketLineMaterialsSheet
+        key={`materials-${materialsSession}`}
+        serviceTicket={serviceTicket}
+        open={materialsOpen}
+        onOpenChange={setMaterialsOpen}
+        onSave={(materials) =>
+          onUpdate(serviceTicket.id, serviceTicket.quantity, serviceTicket.price, materials)
+        }
       />
 
       <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>

@@ -1,5 +1,6 @@
 import type { PresupuestoDetailData } from '@/actions/presupuestos';
 import { materialDraftsFromStoredRows } from '@/lib/material-drafts';
+import { buildReviewLine } from '@/lib/review-lines';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { getPresupuestoStatus } from '@/lib/ticket-document-kind';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
@@ -14,13 +15,7 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
   workNotes: row.work_notes,
   total: Number(row.total) || 0,
-  lines: row.services_tickets.map((line) => ({
-    id: Number(line.id),
-    serviceId: line.service_id,
-    name: getServiceLineName(line),
-    quantity: line.quantity,
-    price: Number(line.price) || 0,
-  })),
+  lines: row.services_tickets.map(buildReviewLine),
   status: getPresupuestoStatus(row),
   convertedToTicketId:
     row.converted_to_ticket_id != null ? String(row.converted_to_ticket_id) : null,

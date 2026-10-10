@@ -2,6 +2,15 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TicketServiceRow } from '@/components/tickets/ticket-service-row';
 
+// Materials UI (ZIG-I10) searches the catalog through this server action.
+jest.mock('@/actions/services', () => ({
+  searchMaterials: jest.fn(async () => ({ success: true, data: [] })),
+}));
+
+jest.mock('@/contexts/company-context', () => ({
+  useCompany: () => ({ selectedCompany: { id: 10, name: 'Demo Co' } }),
+}));
+
 jest.mock('@/components/tripled', () => ({
   TripledNativeDelete: ({
     onDelete,

@@ -14,6 +14,8 @@ const H = 841.8898;
 const MAIN_PAGE_MAX_ROWS = 6;
 const CONTINUATION_PAGE_MAX_ROWS = 12;
 const ROW_STEP = 52;
+/** One material sub-row under its service (ZIG-I10). */
+const MATERIAL_ROW_STEP = 12;
 const ZIGZAG_SITE_URL = 'https://zigzag-hazel.vercel.app';
 const TABLE_HEADER_H = 34;
 const TYPOGRAPHY_SCALE = 0.82;
@@ -87,6 +89,48 @@ const money = (currencyCode: string, value: number): string =>
     maximumFractionDigits: 2,
   })}`;
 
+/** Height of one item in the services table: its row plus one sub-row per material. */
+export const invoiceItemHeight = (item: Pick<FintechInvoiceItem, 'materials'>): number =>
+  ROW_STEP + (item.materials?.length ?? 0) * MATERIAL_ROW_STEP;
+
+/**
+ * Splits items into pages by height (ZIG-I10): page 0 is the main page with
+ * room for `MAIN_PAGE_MAX_ROWS` plain rows, the rest are continuation pages
+ * with room for `CONTINUATION_PAGE_MAX_ROWS`. A main page whose first item
+ * does not fit stays empty so nothing overlaps the payment summary.
+ */
+export const paginateInvoiceItems = (
+  items: FintechInvoiceItem[],
+  firstBudget = MAIN_PAGE_MAX_ROWS * ROW_STEP,
+  nextBudget = CONTINUATION_PAGE_MAX_ROWS * ROW_STEP,
+): FintechInvoiceItem[][] => {
+  const pages: FintechInvoiceItem[][] = [];
+  let current: FintechInvoiceItem[] = [];
+  let used = 0;
+  let budget = firstBudget;
+  for (const item of items) {
+    const height = invoiceItemHeight(item);
+    if (used + height > budget && (current.length > 0 || pages.length === 0)) {
+      pages.push(current);
+      current = [];
+      used = 0;
+      budget = nextBudget;
+    }
+    current.push(item);
+    used += height;
+  }
+  pages.push(current);
+  return pages;
+};
+
+const itemsHeight = (items: FintechInvoiceItem[]): number =>
+  items.reduce((sum, item) => sum + invoiceItemHeight(item), 0);
+
+const formatMaterialQty = (quantity: number, unit: string | null): string => {
+  const value = Math.round(quantity * 100) / 100;
+  return unit?.trim() ? `${value} ${unit.trim()}` : String(value);
+};
+
 const serviceTableLayout = (margin: number, contentW: number): ServiceTableLayout => ({
   serviceX: margin + 22,
   serviceW: 196,
@@ -100,6 +144,8 @@ export function renderFintechInvoicePdf(
   options: FintechInvoiceRenderOptions = {},
 ): ArrayBuffer {
   const issuerLogoDataUrl = options.issuerLogoDataUrl ?? null;
+  // Height-based pages: rows grow with their materials (ZIG-I10).
+  const pages = paginateInvoiceItems(payload.items);
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
@@ -457,19 +503,19 @@ export function renderFintechInvoicePdf(
     firstRowY: number,
     contentW: number,
     margin: number,
-    maxRows: number,
   ) => {
     const layout = serviceTableLayout(margin, contentW);
     const nameSize = 10.5;
     const nameLineHeight = 12;
     const descSize = 7.5;
     const descLineHeight = 9;
-    const visibleItems = items.slice(0, maxRows);
+    const materialSize = 7.5;
 
-    visibleItems.forEach((item, index) => {
-      const rowTop = firstRowY - index * ROW_STEP;
+    let rowTop = firstRowY;
+    items.forEach((item, index) => {
       const rowCenter = rowTop - ROW_STEP / 2 + 2;
-      const isLastRow = index === visibleItems.length - 1;
+      const isLastRow = index === items.length - 1;
+      const itemH = invoiceItemHeight(item);
 
       const nameLineCount = countWrappedLines(
         item.name,
@@ -517,9 +563,56 @@ export function renderFintechInvoicePdf(
           descBaseline - (descLineCount - 1) * descLineHeight * TYPOGRAPHY_SCALE;
       }
 
+      // Materials (ZIG-I10): one muted sub-row each, under the service text.
+      const materials = item.materials ?? [];
+      if (materials.length > 0) {
+        let materialBaseline = Math.min(contentBottom - 10, rowTop - ROW_STEP + 6);
+        materials.forEach((material) => {
+          text(
+            `· ${material.name}`,
+            layout.serviceX + 6,
+            materialBaseline,
+            materialSize,
+            COLORS.ink2,
+            'normal',
+            'left',
+            layout.qtyX - layout.serviceX - 30,
+          );
+          text(
+            formatMaterialQty(material.quantity, material.unit),
+            layout.qtyX,
+            materialBaseline,
+            materialSize,
+            COLORS.muted,
+            'normal',
+            'center',
+          );
+          text(
+            money(currencyCode, material.unitPrice),
+            layout.priceRightX,
+            materialBaseline,
+            materialSize,
+            COLORS.muted,
+            'normal',
+            'right',
+          );
+          text(
+            money(currencyCode, material.total),
+            layout.amountRightX,
+            materialBaseline,
+            materialSize,
+            COLORS.ink2,
+            'normal',
+            'right',
+          );
+          contentBottom = materialBaseline;
+          materialBaseline -= MATERIAL_ROW_STEP;
+        });
+      }
+
       // Draw the separator below the row content so long descriptions never sit on top of it.
+      const nextRowTop = rowTop - itemH;
       if (!isLastRow) {
-        const nextRowTop = rowTop - ROW_STEP;
         const dividerY = Math.min(contentBottom - 5, nextRowTop + 3);
         setStroke('#EEF2F7');
         doc.setLineWidth(0.8);
@@ -536,8 +629,9 @@ export function renderFintechInvoicePdf(
         'normal',
         'right',
       );
+      // The row amount is the service alone; its materials print their own amounts.
       text(
-        money(currencyCode, item.total),
+        money(currencyCode, item.serviceTotal ?? item.total),
         layout.amountRightX,
         rowCenter - 2,
         9,
@@ -545,6 +639,7 @@ export function renderFintechInvoicePdf(
         'bold',
         'right',
       );
+      rowTop = nextRowTop;
     });
   };
 
@@ -582,6 +677,24 @@ export function renderFintechInvoicePdf(
     };
 
     const rows: SummaryRow[] = [];
+
+    // Materiales (ZIG-I10): split the lines into Servicios + Materiales above Total.
+    if (payload.materialsSubtotal > 0) {
+      rows.push({
+        label: 'Servicios',
+        amount: money(currencyCode, payload.servicesSubtotal),
+        labelColor: COLORS.muted,
+        amountColor: COLORS.ink2,
+        bold: false,
+      });
+      rows.push({
+        label: 'Materiales',
+        amount: money(currencyCode, payload.materialsSubtotal),
+        labelColor: COLORS.muted,
+        amountColor: COLORS.ink2,
+        bold: false,
+      });
+    }
 
     if (payload.hasAdjustment) {
       const adjustmentSign = payload.adjustmentAmount >= 0 ? '+' : '\u2212';
@@ -805,10 +918,10 @@ export function renderFintechInvoicePdf(
       lineY -= clientExtraLineH + clientLineGap;
     });
 
-    const rowsOnPage = Math.min(payload.items.length, MAIN_PAGE_MAX_ROWS);
-    const hasMoreItems = payload.items.length > MAIN_PAGE_MAX_ROWS;
+    const mainItems = pages[0];
+    const hasMoreItems = payload.items.length > mainItems.length;
     const continuationReserve = hasMoreItems ? 22 : 10;
-    const itemsH = 52 + TABLE_HEADER_H + 8 + rowsOnPage * ROW_STEP + continuationReserve;
+    const itemsH = 52 + TABLE_HEADER_H + 8 + itemsHeight(mainItems) + continuationReserve;
     const itemsY = clientCardY - 12 - itemsH;
 
     shadowCard(margin, itemsY, contentW, itemsH, 16);
@@ -825,16 +938,13 @@ export function renderFintechInvoicePdf(
     );
     const headerRowY = itemsY + itemsH - 52 - TABLE_HEADER_H;
     drawServiceTableHeaders(headerRowY, contentW, margin);
-    drawServiceRows(
-      payload.items,
-      headerRowY - 8,
-      contentW,
-      margin,
-      MAIN_PAGE_MAX_ROWS,
-    );
+    drawServiceRows(mainItems, headerRowY - 8, contentW, margin);
     if (hasMoreItems) {
+      const remaining = payload.items.length - mainItems.length;
       text(
-        `+ ${payload.items.length - MAIN_PAGE_MAX_ROWS} conceptos en la página siguiente`,
+        remaining === 1
+          ? '+ 1 concepto en la página siguiente'
+          : `+ ${remaining} conceptos en la página siguiente`,
         margin + 22,
         itemsY + 14,
         7.5,
@@ -844,6 +954,7 @@ export function renderFintechInvoicePdf(
 
     const showBalanceDue = payload.balanceDue > 0;
     let summaryH = 88;
+    if (payload.materialsSubtotal > 0) summaryH += 36;
     if (payload.hasAdjustment) summaryH += 36;
     if (showBalanceDue) summaryH += 28;
     const summaryY = itemsY - 12 - summaryH;
@@ -863,7 +974,7 @@ export function renderFintechInvoicePdf(
     const margin = 42;
     const contentW = W - 2 * margin;
     const contextH = 28;
-    const cardH = 52 + contextH + TABLE_HEADER_H + 8 + items.length * ROW_STEP + 18;
+    const cardH = 52 + contextH + TABLE_HEADER_H + 8 + itemsHeight(items) + 18;
     const cardY = 128;
     shadowCard(margin, cardY, contentW, cardH, 16);
 
@@ -897,18 +1008,16 @@ export function renderFintechInvoicePdf(
 
     const headerRowY = cardY + cardH - 66 - TABLE_HEADER_H;
     drawServiceTableHeaders(headerRowY, contentW, margin);
-    drawServiceRows(items, headerRowY - 8, contentW, margin, items.length);
+    drawServiceRows(items, headerRowY - 8, contentW, margin);
     drawFooter();
   };
 
   drawMainPage();
-  const remainingItems = payload.items.slice(MAIN_PAGE_MAX_ROWS);
-  for (let index = 0; index < remainingItems.length; index += CONTINUATION_PAGE_MAX_ROWS) {
-    drawContinuationPage(
-      remainingItems.slice(index, index + CONTINUATION_PAGE_MAX_ROWS),
-      MAIN_PAGE_MAX_ROWS + index,
-      payload.items.length,
-    );
+  let startIndex = pages[0].length;
+  for (const pageItems of pages.slice(1)) {
+    if (pageItems.length === 0) continue;
+    drawContinuationPage(pageItems, startIndex, payload.items.length);
+    startIndex += pageItems.length;
   }
 
   return doc.output('arraybuffer');
