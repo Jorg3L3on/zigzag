@@ -75,7 +75,11 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 
 ### PDF invoices
 - Generated on demand on the server: `GET /api/tickets/[id]/invoice`.
-- Payload: `src/lib/fintech-invoice-payload.ts`; renderer: `src/lib/fintech-invoice-renderer.ts`. Materials print as muted sub-rows under their service (the row's IMPORTE is the service alone), rows grow with them and pages split by height (`paginateInvoiceItems`); Servicios / Materiales rows appear above Total only when a document has materials.
+- Design 2a, the only layout for every tenant: spec in [docs/pdf-design-2a/](docs/pdf-design-2a/README.md) (`README.md` measurements, `receipt-template.html` reference, `sample-data.json`).
+- Code in `src/lib/receipt-pdf/` (server-only): `payload.ts` (`buildReceiptPdfPayload` → `ReceiptPdfPayload`), `render.ts` (`renderReceiptPdf`, jsPDF, US Letter), `layout.ts` (every measurement, in CSS px), `fonts/` (IBM Plex from `assets/fonts/ibm-plex/`; regenerate with `npm run pdf-fonts:generate`). Unit tests read the text layer with `src/test/pdf-text.ts` and write fixture PDFs to `test-results/pdf/`.
+- Rules (pinned in Plania, ZIG-I11): no IVA row and no CFDI note; a presupuesto prints no Estado (meta column 3 is the concept count, big figure *Total del presupuesto*); a recibo keeps the Estado pill (*Pendiente de pago* / *Pagado*) and *Saldo por pagar*. Materials (ZIG-I10) print as `· Nombre` sub-rows under their concept, with *Servicios* / *Materiales* totals rows only when a document has materials. The company tagline is `settings.tagline` (*Lema o giro*, max 60) from Mi empresa › Datos › Configuración.
+- Deliberate deviations from the HTML reference: no kerning (jsPDF), the big figure stacks label over value when both do not fit the 280px panel, numeric columns grow (16px air) for wide amounts, and the colophon (`Página n de N`) is on every page while the footer is last-page only.
+- Fidelity check: fill `docs/pdf-design-2a/receipt-template.html` with `sample-data.json`, screenshot it in Chromium at 816×1056, and overlay it on the PDF rasterized at 96 dpi (`pdftoppm -r 96`); positions match to ≤1px except kerning.
 - UI download: `src/components/pdf-download-button.tsx` (must not accept uploaded PDFs in production).
 
 ### BigInt IDs

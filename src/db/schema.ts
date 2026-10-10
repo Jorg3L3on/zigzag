@@ -45,11 +45,12 @@ export type CompanyLifecycleStatus =
 
 export type CompanySettingsJson = {
   rfc?: string;
-  invoice_footer_note?: string;
   default_currency?: string;
   onboarding_checklist_dismissed_at?: string;
   /** Field program: campo = Hoy-first mobile; office = full dashboard. */
   experience_mode?: 'campo' | 'office';
+  /** Lema o giro printed under the company name on PDFs (max 60). */
+  tagline?: string;
 };
 
 export const company = pgTable(

@@ -2,9 +2,16 @@ import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
+export const COMPANY_TAGLINE_MAX = 60;
+
 export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
-  invoice_footer_note: z.string().optional(),
+  /** Lema o giro printed under the company name on PDFs. */
+  tagline: z
+    .string()
+    .trim()
+    .max(COMPANY_TAGLINE_MAX, `Máximo ${COMPANY_TAGLINE_MAX} caracteres`)
+    .optional(),
   default_currency: z.string().optional(),
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
@@ -38,16 +45,16 @@ export function normalizeCompanySettingsForDb(
   }
   const out: CompanySettingsJson = {};
   const rfc = input.rfc?.trim();
-  const note = input.invoice_footer_note?.trim();
   const cur = input.default_currency?.trim();
   if (rfc) {
     out.rfc = rfc;
   }
-  if (note) {
-    out.invoice_footer_note = note;
-  }
   if (cur) {
     out.default_currency = cur;
+  }
+  // Kept even when empty so clearing the field overrides the stored value on merge.
+  if (input.tagline !== undefined) {
+    out.tagline = input.tagline.trim();
   }
   if (input.experience_mode === 'campo' || input.experience_mode === 'office') {
     out.experience_mode = input.experience_mode;

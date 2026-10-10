@@ -22,8 +22,8 @@ describe('company-form-sections', () => {
       }),
     ).toEqual({ field: 'city', section: 'direccion' });
     expect(
-      firstInvalidCompanyField({ settings: { invoice_footer_note: { message: 'x' } } }),
-    ).toEqual({ field: 'settings.invoice_footer_note', section: 'configuracion' });
+      firstInvalidCompanyField({ settings: { tagline: { message: 'x' } } }),
+    ).toEqual({ field: 'settings.tagline', section: 'configuracion' });
     expect(firstInvalidCompanyField({})).toBeNull();
   });
 
@@ -46,9 +46,8 @@ describe('company-form-sections', () => {
         rfc: 'CTD010101AAA',
         default_currency: 'MXN',
         experience_mode: 'campo',
-        invoice_footer_note: 'Gracias',
       }),
-    ).toBe('RFC CTD010101AAA · MXN · Inicio Campo · Con pie de recibo');
+    ).toBe('RFC CTD010101AAA · MXN · Inicio Campo');
     expect(summarizeCompanySettings(undefined)).toBe('Sin RFC · MXN · Inicio automático');
   });
 
