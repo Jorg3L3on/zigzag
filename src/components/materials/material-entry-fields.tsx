@@ -221,12 +221,16 @@ export const MaterialEntryFields = ({
   return (
     <div className="space-y-4">
       {isLine ? (
-        <ServiceLineModeToggle
-          idPrefix={`${idPrefix}-source`}
-          ariaLabel="Origen del material"
-          value={entry.mode}
-          onValueChange={entry.setMode}
-        />
+        // Keep focus in the search input while tapping the toggle: its list
+        // closing on blur shrinks the sheet and the first tap on Nuevo missed.
+        <div onMouseDown={(event) => event.preventDefault()}>
+          <ServiceLineModeToggle
+            idPrefix={`${idPrefix}-source`}
+            ariaLabel="Origen del material"
+            value={entry.mode}
+            onValueChange={entry.setMode}
+          />
+        </div>
       ) : null}
 
       {catalogPick ? (
@@ -235,7 +239,7 @@ export const MaterialEntryFields = ({
           {picked ? (
             <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/30 px-4 py-2">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{entry.name}</p>
+                <p className="text-sm font-medium [overflow-wrap:anywhere]">{entry.name}</p>
                 {entry.unit ? (
                   <p className="text-xs text-muted-foreground">Unidad: {entry.unit}</p>
                 ) : null}
@@ -261,6 +265,7 @@ export const MaterialEntryFields = ({
               placeholder="Buscar en tu catálogo…"
               autoFocus={autoFocus}
               emptyText="Sin materiales que coincidan. Usa Nuevo para escribirlo."
+              emptyCatalogText="Tu catálogo está vacío. Usa Nuevo para agregar uno."
             />
           )}
         </div>
@@ -362,7 +367,10 @@ export const MaterialEntryFields = ({
         </div>
       ) : null}
 
-      <p className="text-right text-sm tabular-nums text-muted-foreground" aria-live="polite">
+      <p
+        className="text-right text-sm tabular-nums text-muted-foreground [overflow-wrap:anywhere]"
+        aria-live="polite"
+      >
         {formatMaterialQuantity(entry.quantityValue, entry.unit)} ×{' '}
         {formatServiceCurrency(entry.priceValue)} ={' '}
         <span className="font-semibold text-foreground">

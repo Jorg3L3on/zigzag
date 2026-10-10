@@ -90,23 +90,25 @@ export const TicketDetailServicesSection = ({
           <ul className="divide-y divide-border/60">
             {services.map((line) => (
               <li key={line.id}>
-                <div className="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="font-medium leading-snug text-foreground">
+                <div className="flex flex-col gap-2 p-3.5 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
+                  <div className="min-w-0 space-y-0.5 sm:col-start-1 sm:row-start-1">
+                    <p className="font-medium leading-snug text-foreground [overflow-wrap:anywhere]">
                       {getServiceLineName(line)}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
                       <span className="tabular-nums">{line.quantity}</span>
                       {' × '}
                       <FormattedCurrency amount={line.price} />
                       {' / unidad'}
                     </p>
+                  </div>
+                  <div className="order-2 min-w-0 empty:hidden sm:order-none sm:col-span-2 sm:row-start-2">
                     <ReviewLineMaterials
                       materials={buildReviewLine(line).materials}
                       showInlineChips
                     />
                   </div>
-                  <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">
+                  <p className="order-3 text-base font-semibold tabular-nums text-foreground [overflow-wrap:anywhere] sm:order-none sm:col-start-2 sm:row-start-1 sm:text-right">
                     <FormattedCurrency
                       amount={lineTotalWithMaterials({
                         quantity: line.quantity,
@@ -121,7 +123,7 @@ export const TicketDetailServicesSection = ({
           </ul>
           <div className="flex items-center justify-between gap-4 border-t border-border/60 bg-muted/30 px-3.5 py-3.5">
             <p className="text-sm font-medium text-muted-foreground">Total</p>
-            <p className="text-lg font-semibold tabular-nums tracking-tight">
+            <p className="text-right text-lg font-semibold tabular-nums tracking-tight [overflow-wrap:anywhere]">
               <FormattedCurrency amount={total} />
             </p>
           </div>

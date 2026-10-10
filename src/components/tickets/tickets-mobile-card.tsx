@@ -135,7 +135,7 @@ export const TicketsMobileCard = ({
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Total
             </p>
-            <dd className="mt-1 text-xl font-semibold tabular-nums">
+            <dd className="mt-1 text-xl font-semibold tabular-nums [overflow-wrap:anywhere]">
               <FormattedCurrency amount={ticket.total} />
             </dd>
           </div>
@@ -150,8 +150,8 @@ export const TicketsMobileCard = ({
               paid={ticket.paid}
               className="max-w-none"
             />
-            <div className="flex items-baseline justify-between gap-3 text-sm tabular-nums">
-              <p className="min-w-0 truncate text-muted-foreground">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm tabular-nums">
+              <p className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
                 <span className="font-medium text-foreground">
                   {formatTicketListAmount(ticket.paid ?? 0)}
                 </span>
@@ -162,7 +162,7 @@ export const TicketsMobileCard = ({
                 <span>{formatTicketListAmount(ticket.total)}</span>
               </p>
               {ticket.total != null ? (
-                <p className="shrink-0 text-muted-foreground">
+                <p className="text-muted-foreground [overflow-wrap:anywhere]">
                   Faltan{' '}
                   <span className="font-semibold text-foreground">
                     {formatTicketListAmount(

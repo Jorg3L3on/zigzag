@@ -134,7 +134,7 @@ const saveButtons = () => screen.getAllByRole('button', { name: 'Guardar ticket'
 const pickClient = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
   const listbox = await screen.findByRole('listbox', { name: 'Cliente' });
-  await user.click(within(listbox).getByText('Cliente Demo · 5550001111'));
+  await user.click(within(listbox).getByText('Cliente Demo'));
 };
 
 const addLine = async (

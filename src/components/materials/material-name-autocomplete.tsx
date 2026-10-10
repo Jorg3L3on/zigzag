@@ -21,8 +21,10 @@ type MaterialNameAutocompleteProps = {
   companyId?: number | null;
   placeholder?: string;
   autoFocus?: boolean;
-  /** Shown under the input when the search finds nothing. */
+  /** Shown under the input when a search for the typed text finds nothing. */
   emptyText?: string;
+  /** Shown instead when nothing is typed and the whole catalog is empty. */
+  emptyCatalogText?: string;
   'aria-describedby'?: string;
 };
 
@@ -41,6 +43,7 @@ export const MaterialNameAutocomplete = ({
   placeholder = 'Ej. Gas R410A',
   autoFocus = false,
   emptyText,
+  emptyCatalogText,
   'aria-describedby': describedBy,
 }: MaterialNameAutocompleteProps) => {
   const listId = useId();
@@ -48,6 +51,7 @@ export const MaterialNameAutocomplete = ({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [searched, setSearched] = useState(false);
   const requestRef = useRef(0);
 
   useEffect(() => {
@@ -60,6 +64,7 @@ export const MaterialNameAutocomplete = ({
           if (request !== requestRef.current) return;
           setOptions(result.success && result.data ? result.data : []);
           setActive(-1);
+          setSearched(true);
         })
         .catch(() => {
           if (request === requestRef.current) setOptions([]);
@@ -77,7 +82,15 @@ export const MaterialNameAutocomplete = ({
     setActive(-1);
   };
 
-  const showList = open && (options.length > 0 || (!loading && Boolean(emptyText)));
+  const showList = open && options.length > 0;
+  // The hint stays put on blur: hiding it shrank the sheet and made the first
+  // tap on Nuevo miss (ZIG-I12).
+  const emptyHint =
+    searched && !loading && options.length === 0
+      ? value.trim() === ''
+        ? (emptyCatalogText ?? null)
+        : (emptyText ?? null)
+      : null;
 
   return (
     <div className="space-y-1.5">
@@ -156,17 +169,16 @@ export const MaterialNameAutocomplete = ({
             </span>
           </li>
         ))}
-        {options.length === 0 && emptyText ? (
-          <li
-            role="option"
-            aria-selected={false}
-            aria-disabled
-            className="px-3 py-2 text-xs text-muted-foreground"
-          >
-            {emptyText}
-          </li>
-        ) : null}
       </ul>
+      {emptyText || emptyCatalogText ? (
+        <p
+          className="min-h-4 text-xs leading-4 text-muted-foreground"
+          aria-live="polite"
+          data-testid="material-autocomplete-empty"
+        >
+          {emptyHint}
+        </p>
+      ) : null}
     </div>
   );
 };
