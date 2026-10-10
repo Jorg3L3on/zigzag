@@ -163,4 +163,80 @@ describe('PresupuestosList', () => {
 
     expect(await screen.findByText('Nada en este filtro')).toBeTruthy();
   });
+  describe('search (ZIG-I8-3)', () => {
+    const SEARCH = 'Buscar presupuestos por cliente, ID o teléfono';
+
+    beforeEach(() => {
+      mockGetPresupuestosList.mockResolvedValue({
+        success: true,
+        data: [
+          row('1069', 'Plaza Comercial Aurora', 'abierto', 'Abierto'),
+          row('1070', 'José Pérez', 'abierto', 'Abierto'),
+        ],
+      });
+    });
+
+    it('keeps the search bar mounted while loading, so focus survives', async () => {
+      let resolve: (value: Awaited<ReturnType<typeof getPresupuestosList>>) => void = () => {};
+      mockGetPresupuestosList.mockReturnValue(
+        new Promise((r) => {
+          resolve = r;
+        }),
+      );
+      render(<PresupuestosList />);
+
+      const input = screen.getByRole('textbox', { name: SEARCH });
+      input.focus();
+      fireEvent.change(input, { target: { value: 'Plaza' } });
+      expect(screen.getByText('Cargando presupuestos…')).toBeTruthy();
+
+      resolve({
+        success: true,
+        data: [row('1069', 'Plaza Comercial Aurora', 'abierto', 'Abierto')],
+      });
+      await screen.findByText('Plaza Comercial Aurora');
+
+      const after = screen.getByRole('textbox', { name: SEARCH });
+      expect(after).toBe(input);
+      expect(after).toHaveFocus();
+      expect(after).toHaveValue('Plaza');
+    });
+
+    it('filters rows by client name (accent-insensitive) after the debounce', async () => {
+      render(<PresupuestosList />);
+      const input = await screen.findByRole('textbox', { name: SEARCH });
+
+      fireEvent.change(input, { target: { value: 'jose' } });
+      await waitFor(() => {
+        expect(screen.getAllByTestId('presupuesto-row')).toHaveLength(1);
+      });
+      expect(screen.getByText('José Pérez')).toBeTruthy();
+      expect(screen.getByText('Búsqueda: jose')).toBeTruthy();
+    });
+
+    it('filters by #id', async () => {
+      render(<PresupuestosList />);
+      const input = await screen.findByRole('textbox', { name: SEARCH });
+
+      fireEvent.change(input, { target: { value: '#1069' } });
+      await waitFor(() => {
+        expect(screen.getAllByTestId('presupuesto-row')).toHaveLength(1);
+      });
+      expect(screen.getByText('Plaza Comercial Aurora')).toBeTruthy();
+    });
+
+    it('shows Sin resultados with Limpiar búsqueda when nothing matches', async () => {
+      render(<PresupuestosList />);
+      const input = await screen.findByRole('textbox', { name: SEARCH });
+
+      fireEvent.change(input, { target: { value: 'zzz' } });
+      expect(await screen.findByText('Sin resultados')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Limpiar búsqueda' }));
+      await waitFor(() => {
+        expect(screen.getAllByTestId('presupuesto-row')).toHaveLength(2);
+      });
+      expect(input).toHaveValue('');
+    });
+  });
 });

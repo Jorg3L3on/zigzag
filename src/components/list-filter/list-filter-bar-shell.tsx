@@ -38,6 +38,8 @@ export type ListFilterBarShellProps = {
   sheetContent: ReactNode;
   desktopContent: ReactNode;
   showDesktopClear?: boolean;
+  /** false drops the mobile filter sheet and the desktop filter row (lists whose chips stay inline). */
+  showFilterSheet?: boolean;
 };
 
 export const ListFilterBarShell = ({
@@ -57,6 +59,7 @@ export const ListFilterBarShell = ({
   sheetContent,
   desktopContent,
   showDesktopClear = true,
+  showFilterSheet = true,
 }: ListFilterBarShellProps) => (
   <div className="flex flex-col gap-3">
     <div className="flex min-w-0 w-full gap-2">
@@ -75,92 +78,96 @@ export const ListFilterBarShell = ({
         {searchTrailing}
       </div>
 
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="relative h-12 w-12 shrink-0 rounded-xl bg-background shadow-none lg:hidden"
-            aria-label={
-              sheetFilterCount > 0
-                ? `Abrir filtros (${sheetFilterCount} activos)`
-                : 'Abrir filtros'
-            }
-          >
-            <ListFilter className="h-4 w-4" aria-hidden data-icon="inline-start" />
-            {sheetFilterCount > 0 ? (
-              <Badge
-                variant="secondary"
-                className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-[10px] leading-none"
-              >
-                {sheetFilterCount > 9 ? '9+' : sheetFilterCount}
-              </Badge>
-            ) : null}
-          </Button>
-        </SheetTrigger>
-        <SheetContent
-          side="bottom"
-          showCloseButton={false}
-          className="flex max-h-[min(90vh,680px)] flex-col rounded-t-2xl border-t p-0"
-        >
-          <div
-            className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted"
-            aria-hidden
-          />
-          <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-left">
-            <SheetTitle
-              data-initial-focus
-              tabIndex={-1}
-              className="outline-none focus:outline-none"
+      {showFilterSheet ? (
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="relative h-12 w-12 shrink-0 rounded-xl bg-background shadow-none lg:hidden"
+              aria-label={
+                sheetFilterCount > 0
+                  ? `Abrir filtros (${sheetFilterCount} activos)`
+                  : 'Abrir filtros'
+              }
             >
-              Filtros
-            </SheetTitle>
-            <SheetDescription>{sheetDescription}</SheetDescription>
-          </SheetHeader>
-
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
-            {sheetContent}
-            {hasActiveFilters ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={onClearFilters}
-                aria-label="Limpiar todos los filtros activos"
+              <ListFilter className="h-4 w-4" aria-hidden data-icon="inline-start" />
+              {sheetFilterCount > 0 ? (
+                <Badge
+                  variant="secondary"
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-[10px] leading-none"
+                >
+                  {sheetFilterCount > 9 ? '9+' : sheetFilterCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            className="flex max-h-[min(90vh,680px)] flex-col rounded-t-2xl border-t p-0"
+          >
+            <div
+              className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted"
+              aria-hidden
+            />
+            <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-left">
+              <SheetTitle
+                data-initial-focus
+                tabIndex={-1}
+                className="outline-none focus:outline-none"
               >
-                <X className="mr-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
-                Limpiar todos los filtros
-              </Button>
-            ) : null}
-          </div>
+                Filtros
+              </SheetTitle>
+              <SheetDescription>{sheetDescription}</SheetDescription>
+            </SheetHeader>
 
-          <SheetFooter className="border-t bg-muted/30 px-4 py-3">
-            <SheetClose asChild>
-              <Button type="button" size="lg" className="min-h-11 w-full">
-                Listo
-              </Button>
-            </SheetClose>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-    </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
+              {sheetContent}
+              {hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={onClearFilters}
+                  aria-label="Limpiar todos los filtros activos"
+                >
+                  <X className="mr-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+                  Limpiar todos los filtros
+                </Button>
+              ) : null}
+            </div>
 
-    <div className="hidden gap-6 lg:flex lg:flex-wrap lg:items-start">
-      {desktopContent}
-      {showDesktopClear && hasActiveFilters ? (
-        <Button
-          type="button"
-          variant="ghost"
-          className="min-h-11 shrink-0 self-end text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={onClearFilters}
-          aria-label={clearFiltersAriaLabel}
-        >
-          <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-          Limpiar filtros
-        </Button>
+            <SheetFooter className="border-t bg-muted/30 px-4 py-3">
+              <SheetClose asChild>
+                <Button type="button" size="lg" className="min-h-11 w-full">
+                  Listo
+                </Button>
+              </SheetClose>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       ) : null}
     </div>
+
+    {showFilterSheet ? (
+      <div className="hidden gap-6 lg:flex lg:flex-wrap lg:items-start">
+        {desktopContent}
+        {showDesktopClear && hasActiveFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-11 shrink-0 self-end text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={onClearFilters}
+            aria-label={clearFiltersAriaLabel}
+          >
+            <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+            Limpiar filtros
+          </Button>
+        ) : null}
+      </div>
+    ) : null}
 
     <TripledFilterChips chips={filterChips} />
   </div>
