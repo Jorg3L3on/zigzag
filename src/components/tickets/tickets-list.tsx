@@ -17,7 +17,6 @@ import {
   hasActiveTicketFilters,
 } from '@/components/tickets/tickets-list-filter-utils';
 import { TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
-import { TicketsListSkeleton } from '@/components/tickets/tickets-list-skeleton';
 import { TicketsListTable } from '@/components/tickets/tickets-list-table';
 import { TicketsMobileCard } from '@/components/tickets/tickets-mobile-card';
 import { createTicketsColumns } from '@/components/tickets/tickets-columns';
@@ -28,7 +27,11 @@ import type {
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
-import { TripledEmptyState } from '@/components/tripled';
+import { TicketsListSkeleton } from '@/components/tickets/tickets-list-skeleton';
+import {
+  TripledEmptyState,
+  TripledListLoadingState,
+} from '@/components/tripled';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { classifyClientError, presentActionError } from '@/lib/network-awareness';
@@ -79,6 +82,9 @@ export default function TicketsList() {
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
+  // The full-page skeleton only covers the first load (and SSR). Once the
+  // filter bar has mounted it must stay mounted so typing keeps its focus.
+  const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = React.useState<string | null>(
@@ -381,13 +387,17 @@ export default function TicketsList() {
     }
   }, [fetchTickets]);
 
+  React.useEffect(() => {
+    if (!loading) setHasLoadedOnce(true);
+  }, [loading]);
+
   const visibleRows = table.getRowModel().rows;
 
   if (missingCompany) {
     return <SystemCompanyContextEmptyState resourceLabel="tickets" />;
   }
 
-  if (loading) {
+  if (loading && !hasLoadedOnce) {
     return <TicketsListSkeleton />;
   }
 
@@ -425,7 +435,14 @@ export default function TicketsList() {
         onRefresh={handlePullToRefresh}
         testId="tickets-pull-to-refresh"
       >
-        {listState.kind === 'error' ? (
+        {listState.kind === 'loading' ? (
+          <TripledListLoadingState
+            label="Cargando tickets"
+            desktopColumns={7}
+            desktopRows={8}
+            mobileCards={4}
+          />
+        ) : listState.kind === 'error' ? (
           <TripledEmptyState
             icon={<TicketIcon className="h-4 w-4" />}
             title="Error de carga"
