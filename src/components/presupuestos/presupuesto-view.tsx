@@ -22,7 +22,6 @@ import {
 } from '@/actions/presupuestos';
 import { ActionSwap, BlurFade } from '@/components/motion';
 import {
-  formatLongDate,
   QuoteSummary,
   REVIEW_SECTION_CLASS,
   ReviewLinesSection,
@@ -48,6 +47,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatLongDate } from '@/lib/format-long-date';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';

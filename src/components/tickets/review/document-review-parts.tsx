@@ -1,8 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { motion, useReducedMotion } from 'framer-motion';
 
 import { DrawCheck, NumberTicker } from '@/components/motion';
@@ -125,15 +123,6 @@ export const ReviewLinesSection = ({
     </div>
   </section>
 );
-
-/** "9 de octubre 2026", or null for a missing/invalid ISO date. */
-export const formatLongDate = (value: string | null): string | null => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? null
-    : format(date, "d 'de' MMMM yyyy", { locale: es });
-};
 
 type QuoteSummaryProps = {
   presupuestoId: string;

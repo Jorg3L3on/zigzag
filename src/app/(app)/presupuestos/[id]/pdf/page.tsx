@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 
 import { getPresupuestoById } from '@/actions/presupuestos';
 import { DocumentPdfViewer } from '@/components/pdf/document-pdf-viewer';
-import { QuoteSummary, formatLongDate } from '@/components/tickets/review/document-review-parts';
+import { QuoteSummary } from '@/components/tickets/review/document-review-parts';
+import { formatLongDate } from '@/lib/format-long-date';
 import { requirePagePermission } from '@/lib/page-authz';
 import { buildPresupuestoViewProps } from '@/lib/presupuesto-view-props';
 import { PRESUPUESTO_STATUS_LABEL } from '@/lib/ticket-document-kind';

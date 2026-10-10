@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 
 import { getTicketById } from '@/actions/tickets';
 import { DocumentPdfViewer } from '@/components/pdf/document-pdf-viewer';
-import { ReciboSummary, formatLongDate } from '@/components/tickets/review/document-review-parts';
+import { ReciboSummary } from '@/components/tickets/review/document-review-parts';
+import { formatLongDate } from '@/lib/format-long-date';
 import { requirePagePermission } from '@/lib/page-authz';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
