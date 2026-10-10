@@ -9,6 +9,7 @@ import { formatServiceCurrency } from '@/components/tickets/ticket-services-util
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { formatMaterialQuantity, materialDraftAmount } from '@/lib/material-drafts';
 import { multiplyMoney, subtractMoney } from '@/lib/money';
+import { cn } from '@/lib/utils';
 import {
   reviewLineAmount,
   type ReviewLine,
@@ -58,6 +59,38 @@ export const ReviewLineMaterials = ({
         </li>
       ))}
     </ul>
+  );
+};
+
+/** Longer than this and the description folds behind Ver más. */
+const DESCRIPTION_FOLD_CHARS = 140;
+
+/** A line's description, muted under its name, folded to 3 lines (ZIG-I12). */
+export const ReviewLineDescription = ({ text }: { text: string | undefined }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  if (!text) return null;
+  const foldable = text.length > DESCRIPTION_FOLD_CHARS || text.split('\n').length > 3;
+  return (
+    <div className="mt-1" data-testid="review-line-description">
+      <p
+        className={cn(
+          'whitespace-pre-line text-xs text-muted-foreground [overflow-wrap:anywhere]',
+          foldable && !expanded && 'line-clamp-3',
+        )}
+      >
+        {text}
+      </p>
+      {foldable ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+          className="mt-0.5 min-h-6 text-xs font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {expanded ? 'Ver menos' : 'Ver más'}
+        </button>
+      ) : null}
+    </div>
   );
 };
 
@@ -154,6 +187,7 @@ export const ReviewLinesSection = ({
             <p className="mt-0.5 text-sm tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
               {line.quantity} × {formatServiceCurrency(line.price)}
             </p>
+            <ReviewLineDescription text={line.description} />
           </div>
           <span
             className="max-w-[55vw] text-right font-semibold tabular-nums [overflow-wrap:anywhere]"

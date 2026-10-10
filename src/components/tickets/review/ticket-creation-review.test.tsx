@@ -58,8 +58,23 @@ jest.mock('@/lib/ticket-invoice-download', () => ({
 }));
 
 jest.mock('@/components/service-schedules/ticket-finish-schedules-dialog', () => ({
-  TicketFinishSchedulesDialog: ({ open }: { open: boolean }) =>
-    open ? <div role="dialog" aria-label="Recordatorios de servicio" /> : null,
+  TicketFinishSchedulesDialog: ({
+    open,
+    onSkip,
+    confirmLabel,
+  }: {
+    open: boolean;
+    onSkip: () => void;
+    confirmLabel?: string;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Recordatorios de servicio">
+        <button type="button" onClick={onSkip}>
+          Omitir
+        </button>
+        <span data-testid="dialog-confirm-label">{confirmLabel}</span>
+      </div>
+    ) : null,
 }));
 
 jest.mock('@/components/tripled', () => {
@@ -123,7 +138,7 @@ describe('TicketCreationReview', () => {
     expect(screen.getByTestId('review-total')).toHaveTextContent('$12,950.00');
     expect(screen.getByRole('radio', { name: /Pagado completo/ })).toHaveAttribute(
       'aria-checked',
-      'true',
+      'false',
     );
     expect(screen.getByRole('radio', { name: /Pago parcial/ })).toBeTruthy();
     expect(screen.getByRole('radio', { name: /Pendiente/ })).toBeTruthy();
@@ -134,6 +149,52 @@ describe('TicketCreationReview', () => {
       expect(screen.queryByText(noise)).toBeNull();
     }
     expect(screen.queryByRole('heading', { name: 'Pagos' })).toBeNull();
+  });
+
+  it('starts with no payment chosen and Finalizar disabled until one is picked (ZIG-I12 Q2)', async () => {
+    const user = userEvent.setup();
+    renderReview();
+
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).toHaveAttribute('aria-checked', 'false');
+    }
+    expect(screen.getByTestId('review-pay-hint')).toBeTruthy();
+    screen
+      .getAllByRole('button', { name: /Finalizar y compartir/ })
+      .forEach((button) => expect(button).toBeDisabled());
+    expect(mockFinishTicket).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('radio', { name: /Pendiente/ }));
+
+    expect(screen.queryByTestId('review-pay-hint')).toBeNull();
+    screen
+      .getAllByRole('button', { name: /Finalizar y compartir/ })
+      .forEach((button) => expect(button).toBeEnabled());
+  });
+
+  it('keeps Finalizar disabled for a partial payment with no amount', async () => {
+    const user = userEvent.setup();
+    renderReview();
+
+    await user.click(screen.getByRole('radio', { name: /Pago parcial/ }));
+
+    screen
+      .getAllByRole('button', { name: /Finalizar y compartir/ })
+      .forEach((button) => expect(button).toBeDisabled());
+  });
+
+  it('shows Saldo in the sticky bar once a partial amount is typed', async () => {
+    const user = userEvent.setup();
+    renderReview();
+
+    expect(screen.getByTestId('review-sticky-amount')).toHaveTextContent('$12,950.00');
+    await user.click(screen.getByRole('radio', { name: /Pago parcial/ }));
+    await user.type(screen.getByLabelText('Cuánto pagó'), '5000');
+
+    expect(screen.getByTestId('review-sticky-amount')).toHaveTextContent('$7,950.00');
+    expect(screen.getByTestId('review-sticky-amount').previousElementSibling).toHaveTextContent(
+      'Saldo',
+    );
   });
 
   it('has exactly one primary action: Finalizar y compartir', () => {
@@ -160,13 +221,19 @@ describe('TicketCreationReview', () => {
     await waitFor(() =>
       expect(mockFinishTicket).toHaveBeenCalledWith(1201, 12950, 5000, 10),
     );
+    // Recordatorios come first; the share sheet opens after the user answers.
+    const dialog = await screen.findByRole('dialog', { name: 'Recordatorios de servicio' });
+    expect(screen.getByTestId('dialog-confirm-label')).toHaveTextContent(
+      'Guardar recordatorio',
+    );
+    expect(mockShareFile).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Omitir' }));
+
     await waitFor(() => expect(mockShareFile).toHaveBeenCalledWith(pdfFile, expect.objectContaining({
       title: 'Recibo ticket #1201',
     })));
     expect(mockRefresh).toHaveBeenCalled();
-    expect(
-      await screen.findByRole('dialog', { name: 'Recordatorios de servicio' }),
-    ).toBeTruthy();
     expect(
       screen.getByRole('heading', { name: 'Ticket #1201 finalizado' }),
     ).toBeTruthy();
@@ -204,7 +271,14 @@ describe('TicketCreationReview', () => {
     const open = jest.spyOn(window, 'open').mockImplementation(() => null);
     renderReview();
 
+    await user.click(screen.getByRole('radio', { name: /Pendiente/ }));
     await user.click(screen.getAllByRole('button', { name: /Finalizar y compartir/ })[0]);
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Recordatorios de servicio' })).getByRole(
+        'button',
+        { name: 'Omitir' },
+      ),
+    );
 
     await waitFor(() => expect(open).toHaveBeenCalled());
     expect(String(open.mock.calls[0][0])).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);

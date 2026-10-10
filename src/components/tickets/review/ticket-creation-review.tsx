@@ -35,7 +35,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
-import { roundMoney } from '@/lib/money';
+import { roundMoney, subtractMoney } from '@/lib/money';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -118,7 +118,8 @@ export const TicketCreationReview = ({
 
   const [finished, setFinished] = React.useState(initialFinished);
   const [paid, setPaid] = React.useState(initialPaid);
-  const [payMode, setPayMode] = React.useState<PayMode>('full');
+  // No default: Finalizar records nothing the user did not choose (ZIG-I12 Q2).
+  const [payMode, setPayMode] = React.useState<PayMode | null>(null);
   const [partialInput, setPartialInput] = React.useState('');
   const [phase, setPhase] = React.useState<Phase>('idle');
   const [isDownloading, setIsDownloading] = React.useState(false);
@@ -128,6 +129,7 @@ export const TicketCreationReview = ({
     ClientServiceScheduleListItem[]
   >([]);
   const [savingSchedules, setSavingSchedules] = React.useState(false);
+  const shareAfterSchedulesRef = React.useRef<number | null>(null);
 
   const parsedDate = ticketDate ? new Date(ticketDate) : null;
   const dateLabel =
@@ -136,8 +138,14 @@ export const TicketCreationReview = ({
       : null;
 
   const chosenPaid =
-    payMode === 'full' ? total : payMode === 'pending' ? 0 : parseAmount(partialInput);
+    payMode === 'full' ? total : payMode === 'partial' ? parseAmount(partialInput) : 0;
   const partialTooHigh = payMode === 'partial' && chosenPaid > total;
+  const hasPayChoice =
+    payMode === 'full' ||
+    payMode === 'pending' ||
+    (payMode === 'partial' && chosenPaid > 0);
+  // Once a partial amount is typed the sticky bar shows what is still owed.
+  const showsBalance = !finished && payMode === 'partial' && chosenPaid > 0 && !partialTooHigh;
   const shownPaid = finished ? paid : chosenPaid;
   const busy = phase !== 'idle';
 
@@ -208,7 +216,7 @@ export const TicketCreationReview = ({
   };
 
   const handleFinishAndShare = async () => {
-    if (busy || partialTooHigh) return;
+    if (busy || partialTooHigh || !hasPayChoice) return;
     const paidAmount = roundMoney(chosenPaid);
     setPhase('finishing');
     try {
@@ -235,21 +243,26 @@ export const TicketCreationReview = ({
       vibrateSuccess();
       toast.success(`Ticket #${ticketId} finalizado`);
 
-      if (canInvoice) {
-        await shareReceipt(paidAmount);
-      } else {
-        setPhase('idle');
-      }
-
       router.refresh();
 
+      // Reminders first, so the share sheet is the last thing the user sees
+      // instead of coming back from WhatsApp to a dialog (ZIG-I12).
       if (clientId && serviceLines.length > 0) {
+        setPhase('idle');
         const schedules = await listClientServiceSchedulesForClient(
           clientId,
           companyId,
         );
         setExistingSchedules(schedules.data ?? []);
+        shareAfterSchedulesRef.current = paidAmount;
         setSchedulesOpen(true);
+        return;
+      }
+
+      if (canInvoice) {
+        await shareReceipt(paidAmount);
+      } else {
+        setPhase('idle');
       }
     } catch (error) {
       const errorType = classifyClientError(error);
@@ -294,13 +307,27 @@ export const TicketCreationReview = ({
     } finally {
       setSavingSchedules(false);
     }
+    await shareAfterSchedules();
+  };
+
+  const shareAfterSchedules = async () => {
+    const paidAmount = shareAfterSchedulesRef.current;
+    shareAfterSchedulesRef.current = null;
+    if (paidAmount != null && canInvoice) {
+      await shareReceipt(paidAmount);
+    }
+  };
+
+  const handleSchedulesSkip = () => {
+    setSchedulesOpen(false);
+    void shareAfterSchedules();
   };
 
   const primaryCta = !finished && canFinish ? (
     <Button
       type="button"
       className="h-12 w-full rounded-xl text-base font-semibold md:w-auto md:min-w-56"
-      disabled={busy || partialTooHigh || lines.length === 0}
+      disabled={busy || partialTooHigh || !hasPayChoice || lines.length === 0}
       onClick={() => void handleFinishAndShare()}
     >
       <ActionSwap swapKey={phase}>
@@ -413,7 +440,7 @@ export const TicketCreationReview = ({
                         </span>
                       </span>
                       {option.mode === 'full' ? (
-                        <span className="text-sm font-semibold tabular-nums">
+                        <span className="text-sm font-semibold tabular-nums [overflow-wrap:anywhere]">
                           {formatServiceCurrency(total)}
                         </span>
                       ) : null}
@@ -421,6 +448,11 @@ export const TicketCreationReview = ({
                   );
                 })}
               </div>
+              {payMode === null ? (
+                <p className="mt-2 text-xs text-muted-foreground" data-testid="review-pay-hint">
+                  Elige cómo pagó el cliente para finalizar.
+                </p>
+              ) : null}
               {payMode === 'partial' ? (
                 <div className="mt-3 space-y-1.5">
                   <label htmlFor="review-paid-amount" className="text-sm font-medium">
@@ -560,10 +592,15 @@ export const TicketCreationReview = ({
         <TripledMobileStickyActionBar>
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">
-              {finished ? 'Pagado' : 'Total'}
+              {finished ? 'Pagado' : showsBalance ? 'Saldo' : 'Total'}
             </p>
-            <p className="truncate text-base font-semibold tabular-nums">
-              {formatServiceCurrency(finished ? paid : total)}
+            <p
+              className="text-base font-semibold leading-tight tabular-nums [overflow-wrap:anywhere]"
+              data-testid="review-sticky-amount"
+            >
+              {formatServiceCurrency(
+                finished ? paid : showsBalance ? subtractMoney(total, chosenPaid) : total,
+              )}
             </p>
           </div>
           <div className="shrink-0">{primaryCta}</div>
@@ -578,7 +615,8 @@ export const TicketCreationReview = ({
         existingSchedules={existingSchedules}
         saving={savingSchedules}
         onConfirm={(scheduleLines) => void handleSchedulesConfirm(scheduleLines)}
-        onSkip={() => setSchedulesOpen(false)}
+        onSkip={handleSchedulesSkip}
+        confirmLabel="Guardar recordatorio"
       />
     </>
   );

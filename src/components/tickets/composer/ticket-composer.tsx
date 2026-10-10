@@ -189,6 +189,7 @@ const COMPOSER_COPY: Record<
     linesLabel: string;
     documentLabel: string;
     saveError: string;
+    notesPlaceholder: string;
   }
 > = {
   ticket: {
@@ -202,6 +203,7 @@ const COMPOSER_COPY: Record<
     linesLabel: 'Servicios del ticket',
     documentLabel: 'ticket',
     saveError: 'No se pudo guardar el ticket',
+    notesPlaceholder: 'Lo que hiciste o lo que falta',
   },
   presupuesto: {
     title: 'Nuevo presupuesto',
@@ -214,6 +216,7 @@ const COMPOSER_COPY: Record<
     linesLabel: 'Servicios del presupuesto',
     documentLabel: 'presupuesto',
     saveError: 'No se pudo guardar el presupuesto',
+    notesPlaceholder: 'Condiciones, exclusiones o tiempo de entrega',
   },
 };
 
@@ -814,7 +817,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               value={notes}
               maxLength={2000}
               onChange={(event) => setNotes(event.target.value)}
-              placeholder="Lo que hiciste o lo que falta"
+              placeholder={copy.notesPlaceholder}
               className="mt-3 min-h-[88px] rounded-xl"
             />
             <PdfCharsWarning text={notes} />

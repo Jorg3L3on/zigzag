@@ -1,6 +1,7 @@
 import { lineTotalWithMaterials } from '@/lib/money';
 import {
   getMaterialLineName,
+  getServiceLineDescription,
   getServiceLineName,
   isInlineMaterialLine,
   type ServiceLineDisplaySource,
@@ -22,6 +23,8 @@ export type ReviewLine = {
   /** Null for an inline line (ZIG-I5). */
   serviceId: number | null;
   name: string;
+  /** What the line says about itself; shown muted under the name. */
+  description?: string;
   quantity: number;
   price: number;
   /** Present only when the line has materials. */
@@ -56,6 +59,9 @@ export const buildReviewLine = (line: StoredLine): ReviewLine => {
     id: Number(line.id),
     serviceId: line.service_id ?? null,
     name: getServiceLineName(line),
+    ...(getServiceLineDescription(line)
+      ? { description: getServiceLineDescription(line) }
+      : {}),
     quantity: line.quantity,
     price: Number(line.price) || 0,
     ...(materials.length > 0 ? { materials } : {}),
