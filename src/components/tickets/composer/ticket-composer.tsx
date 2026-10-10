@@ -27,6 +27,7 @@ import {
 } from '@/actions/presupuestos';
 import { createTicketWithLines } from '@/actions/tickets';
 import { ClientForm } from '@/components/clients/client-form';
+import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
 import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
 import { ActionSwap, BlurFade, NumberTicker } from '@/components/motion';
 import {
@@ -816,6 +817,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               placeholder="Lo que hiciste o lo que falta"
               className="mt-3 min-h-[88px] rounded-xl"
             />
+            <PdfCharsWarning text={notes} />
           </section>
         </BlurFade>
 

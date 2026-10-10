@@ -13,7 +13,9 @@ import type {
   TicketRow,
 } from '@/db/schema';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
+import { collapseBlankLines } from '@/lib/collapse-blank-lines';
 import { multiplyMoney, roundMoney } from '@/lib/money';
+import { sanitizePdfText } from '@/lib/pdf-text-support';
 import {
   getServiceLineDescription,
   getServiceLineName,
@@ -88,7 +90,7 @@ export type ReceiptPdfPayload = {
   validity: { days: number; expiryDate: string } | null;
   /** Recibo only: a presupuesto prints no Estado. */
   recibo: {
-    statusLabel: 'Pendiente de pago' | 'Pagado';
+    statusLabel: 'Pendiente de pago' | 'Pago parcial' | 'Pagado';
     paidOnDate: string | null;
   } | null;
   itemCount: number;
@@ -107,6 +109,11 @@ export type ReceiptPdfPayload = {
     country: string | null;
   };
   items: ReceiptPdfItem[];
+  /**
+   * `work_notes`: presupuesto conditions / recibo notes, with unsupported
+   * characters stripped and blank-line runs collapsed. Null when empty.
+   */
+  notes: string | null;
   servicesSubtotal: number;
   materialsSubtotal: number;
   subtotal: number;
@@ -145,12 +152,16 @@ const moneyFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
-/** `$1,234.00 MXN`; negatives as `-$50.00 MXN`. */
-export const formatReceiptMoney = (value: number, currencyCode: string): string => {
+/** `$1,234.00`; negatives as `-$50.00`. Table cells use it when the code would not fit. */
+export const formatReceiptAmount = (value: number): string => {
   const amount = roundMoney(value);
   const sign = amount < 0 ? '-' : '';
-  return `${sign}$${moneyFormatter.format(Math.abs(amount))} ${currencyCode}`;
+  return `${sign}$${moneyFormatter.format(Math.abs(amount))}`;
 };
+
+/** `$1,234.00 MXN`; negatives as `-$50.00 MXN`. */
+export const formatReceiptMoney = (value: number, currencyCode: string): string =>
+  `${formatReceiptAmount(value)} ${currencyCode}`;
 
 /** Quantities print without trailing zeros: `1`, `2.5`. */
 export const formatReceiptQuantity = (value: number): string =>
@@ -176,9 +187,10 @@ const buildMaterials = (
       const quantity = toNumber(source.quantity);
       const unitPrice = toNumber(source.price);
       return {
-        name: source.name?.trim() || source.material?.name?.trim() || 'Material',
+        name:
+          sanitizePdfText(source.name || source.material?.name) || 'Material',
         quantity,
-        unit: source.unit?.trim() || null,
+        unit: sanitizePdfText(source.unit) || null,
         unitPrice,
         amount: multiplyMoney(unitPrice, quantity),
       };
@@ -220,8 +232,8 @@ export const buildReceiptPdfPayload = (
       const materials = buildMaterials(line.materials);
       return {
         index: String(position + 1).padStart(2, '0'),
-        name: getServiceLineName(line),
-        description: getServiceLineDescription(line),
+        name: sanitizePdfText(getServiceLineName(line)) || 'Servicio',
+        description: sanitizePdfText(getServiceLineDescription(line)),
         quantity,
         unitPrice,
         amount: roundMoney(
@@ -268,12 +280,17 @@ export const buildReceiptPdfPayload = (
   } else {
     paid = roundMoney(Math.max(isFiniteNumber(ticket.paid) ? ticket.paid : 0, 0));
     balanceDue = roundMoney(getTicketBalanceDue(total, paid));
-    const isPaid = getTicketPaymentStatus(total, paid) === 'paid';
+    const paymentStatus = getTicketPaymentStatus(total, paid);
+    const isPaid = paymentStatus === 'paid';
     const paidOn = isPaid
       ? (latestPaymentDate(ticket) ?? toDate(ticket.updated_at) ?? issuedAt)
       : null;
     recibo = {
-      statusLabel: isPaid ? 'Pagado' : 'Pendiente de pago',
+      statusLabel: isPaid
+        ? 'Pagado'
+        : paymentStatus === 'partial'
+          ? 'Pago parcial'
+          : 'Pendiente de pago',
       paidOnDate: paidOn ? formatReceiptDate(paidOn) : null,
     };
     bigFigure = { label: 'Saldo por pagar', value: balanceDue };
@@ -288,20 +305,21 @@ export const buildReceiptPdfPayload = (
     recibo,
     itemCount: items.length,
     company: {
-      name: companyName,
-      tagline: issuer.tagline?.trim() || null,
-      initial: companyInitial(companyName),
+      name: sanitizePdfText(companyName),
+      tagline: sanitizePdfText(issuer.tagline) || null,
+      initial: companyInitial(sanitizePdfText(companyName)),
       logoUrl: issuer.logoUrl,
-      phone: issuer.footerPhone?.trim() || '',
-      email: issuer.footerEmail?.trim() || '',
-      address: issuer.footerAddress?.trim() || '',
+      phone: sanitizePdfText(issuer.footerPhone),
+      email: sanitizePdfText(issuer.footerEmail),
+      address: sanitizePdfText(issuer.footerAddress),
     },
     client: {
-      name: ticket.client_name?.trim() || 'Cliente',
-      phone: resolveClientPhone(ticket),
-      country: ticket.client?.country?.trim() || null,
+      name: sanitizePdfText(ticket.client_name) || 'Cliente',
+      phone: sanitizePdfText(resolveClientPhone(ticket)) || null,
+      country: sanitizePdfText(ticket.client?.country) || null,
     },
     items,
+    notes: collapseBlankLines(sanitizePdfText(ticket.work_notes)) || null,
     servicesSubtotal,
     materialsSubtotal,
     subtotal,
