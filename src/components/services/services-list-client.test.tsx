@@ -167,4 +167,28 @@ describe('ServicesListClient', () => {
       expect(mockGetServices).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('shows the default materials count on cards and in the table (ZIG-I10-2)', async () => {
+    arrange({
+      result: {
+        success: true,
+        data: [
+          makeService({
+            materials: [
+              { id: 1, material_id: 9, name: 'Gas', unit: 'kg', quantity: 1, price: 380, catalog_price: 380 },
+              { id: 2, material_id: 10, name: 'Tubo', unit: 'm', quantity: 3, price: 85, catalog_price: 85 },
+            ],
+          }),
+          makeService({ id: 2, name: 'Servicio Beta', materials: [] }),
+        ],
+      },
+    });
+
+    render(<ServicesListClient />);
+
+    const counts = await screen.findAllByTestId('service-card-materials');
+    expect(counts).toHaveLength(1);
+    expect(counts[0]).toHaveTextContent('2 materiales');
+  });
 });
+

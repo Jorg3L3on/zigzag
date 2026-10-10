@@ -1,15 +1,19 @@
 /**
  * @jest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { ServiceForm } from '@/components/services/service-form';
 
 const mockCreateService = jest.fn();
+const mockUpdateService = jest.fn();
+const mockSearchMaterials = jest.fn();
 
 jest.mock('@/actions/services', () => ({
   createService: (...args: unknown[]) => mockCreateService(...args),
-  updateService: jest.fn(),
+  updateService: (...args: unknown[]) => mockUpdateService(...args),
+  searchMaterials: (...args: unknown[]) => mockSearchMaterials(...args),
 }));
 
 jest.mock('@/contexts/company-context', () => ({
@@ -67,3 +71,133 @@ describe('ServiceForm description limit', () => {
     expect(mockCreateService).not.toHaveBeenCalled();
   });
 });
+
+describe('ServiceForm Materiales (ZIG-I10-2)', () => {
+  beforeEach(() => {
+    mockCreateService.mockReset();
+    mockUpdateService.mockReset();
+    mockSearchMaterials.mockReset();
+    mockCreateService.mockResolvedValue({
+      success: true,
+      data: { id: 1, name: 'Instalación', description: 'x', price: '3500' },
+    });
+    mockUpdateService.mockResolvedValue({
+      success: true,
+      data: { id: 4, name: 'Carga', description: 'x', price: '900' },
+    });
+    mockSearchMaterials.mockImplementation(async (query: string) => ({
+      success: true,
+      data: 'gas r410a'.includes(query.toLowerCase())
+        ? [{ id: 9, name: 'Gas R410A', unit: 'kg', price: 380 }]
+        : [],
+    }));
+  });
+
+  const openSheet = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: 'Agregar material' }));
+    return screen.findByRole('dialog', { name: 'Agregar material' });
+  };
+
+  it('adds a catalog material and a new one, removes one, and saves them with the service', async () => {
+    const user = userEvent.setup();
+    render(<ServiceForm />);
+
+    // Catalog pick fills unit and price.
+    let sheet = await openSheet(user);
+    await user.type(within(sheet).getByRole('combobox', { name: 'Nombre del material' }), 'gas');
+    const option = await within(sheet).findByRole('option', { name: /Gas R410A/ });
+    await user.click(option);
+    expect(within(sheet).getByLabelText('Precio / kg')).toHaveValue('380');
+    const qty = within(sheet).getByLabelText('Cantidad');
+    await user.clear(qty);
+    await user.type(qty, '1.5');
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+
+    // A new name, with a unit chip.
+    sheet = await openSheet(user);
+    await user.type(
+      within(sheet).getByRole('combobox', { name: 'Nombre del material' }),
+      'Tubo de cobre',
+    );
+    await user.click(within(sheet).getByRole('button', { name: 'm' }));
+    await user.type(within(sheet).getByLabelText('Precio / m'), '85');
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+
+    // A third one we then remove.
+    sheet = await openSheet(user);
+    await user.type(within(sheet).getByRole('combobox', { name: 'Nombre del material' }), 'Cinta');
+    await user.type(within(sheet).getByLabelText('Precio'), '40');
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+
+    const rows = screen.getByTestId('service-material-rows');
+    expect(within(rows).getByText('1.5 kg × $380.00')).toBeTruthy();
+    expect(within(rows).getByText('1 m × $85.00')).toBeTruthy();
+    await user.click(within(rows).getByRole('button', { name: 'Quitar Cinta' }));
+    expect(within(rows).queryByText('Cinta')).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText('Describe el servicio...'), {
+      target: { value: 'Incluye base' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Ej: Limpieza de oficinas'), {
+      target: { value: 'Instalación' },
+    });
+    fireEvent.change(screen.getAllByPlaceholderText('0.00')[0], {
+      target: { value: '3500' },
+    });
+    await user.click(screen.getByRole('button', { name: /Crear servicio/ }));
+
+    await waitFor(() => expect(mockCreateService).toHaveBeenCalledTimes(1));
+    expect(mockCreateService.mock.calls[0][0].materials).toEqual([
+      { material_id: 9, name: 'Gas R410A', unit: 'kg', quantity: 1.5, price: 380 },
+      { material_id: null, name: 'Tubo de cobre', unit: 'm', quantity: 1, price: 85 },
+    ]);
+  });
+
+  it('loads saved materials on edit and only sends them when they change', async () => {
+    const user = userEvent.setup();
+    const service = {
+      id: 4,
+      name: 'Carga de gas',
+      description: 'Carga',
+      price: 900,
+      company_id: 1,
+      created_at: new Date(),
+      updated_at: null,
+      deleted_at: null,
+      materials: [
+        {
+          id: 1,
+          material_id: 9,
+          name: 'Gas R410A',
+          unit: 'kg',
+          quantity: 2,
+          price: 400,
+          catalog_price: 380,
+        },
+      ],
+    };
+    render(<ServiceForm service={service} />);
+
+    const rows = screen.getByTestId('service-material-rows');
+    expect(within(rows).getByText('2 kg × $400.00')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: /Actualizar servicio/ }));
+    await waitFor(() => expect(mockUpdateService).toHaveBeenCalledTimes(1));
+    expect(mockUpdateService.mock.calls[0][0]).not.toHaveProperty('materials');
+
+    // Edit the row: quantity 3.
+    await user.click(within(rows).getByRole('button', { name: 'Editar Gas R410A' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Editar material' });
+    const qty = within(sheet).getByLabelText('Cantidad');
+    await user.clear(qty);
+    await user.type(qty, '3');
+    await user.click(within(sheet).getByRole('button', { name: 'Guardar cambios' }));
+    await user.click(screen.getByRole('button', { name: /Actualizar servicio/ }));
+
+    await waitFor(() => expect(mockUpdateService).toHaveBeenCalledTimes(2));
+    expect(mockUpdateService.mock.calls[1][0].materials).toEqual([
+      { material_id: 9, name: 'Gas R410A', unit: 'kg', quantity: 3, price: 400 },
+    ]);
+  });
+});
+
