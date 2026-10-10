@@ -45,6 +45,15 @@ export const DashboardQuickActions = ({
     });
   }
 
+  if (can(PERMISSIONS.tickets.write)) {
+    candidates.push({
+      key: 'create-presupuesto',
+      label: 'Crear presupuesto',
+      href: '/presupuestos/create',
+      icon: <ClipboardList className="h-4 w-4" aria-hidden />,
+    });
+  }
+
   if (can(PERMISSIONS.clients.write)) {
     candidates.push({
       key: 'create-client',

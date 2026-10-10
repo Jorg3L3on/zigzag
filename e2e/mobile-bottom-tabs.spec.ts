@@ -14,7 +14,7 @@ test.describe('Mobile bottom dock', () => {
     await ensureTenantCompany(page);
   });
 
-  test('shows Hoy / Tickets / + / Clientes / Más on dashboard', async ({ page }) => {
+  test('shows Hoy / Tickets / + / Presupuestos / Más on dashboard', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
@@ -23,7 +23,8 @@ test.describe('Mobile bottom dock', () => {
     await expect(tabBar.getByRole('link', { name: 'Tickets' })).toBeVisible();
     await expect(tabBar.getByRole('button', { name: 'Crear' })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Anotar' })).toHaveCount(0);
-    await expect(tabBar.getByRole('link', { name: 'Clientes' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Presupuestos' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Clientes' })).toHaveCount(0);
     await expect(tabBar.getByRole('button', { name: /Más/i })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Hoy' })).toHaveAttribute(
       'aria-current',
@@ -31,19 +32,19 @@ test.describe('Mobile bottom dock', () => {
     );
   });
 
-  test('navigates Clientes and Tickets', async ({ page }) => {
+  test('navigates Presupuestos and Tickets', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
 
-    const clientsTab = tabBar.getByRole('link', { name: 'Clientes' });
-    await expect(clientsTab).toHaveAttribute('href', '/clients');
+    const presupuestosTab = tabBar.getByRole('link', { name: 'Presupuestos' });
+    await expect(presupuestosTab).toHaveAttribute('href', '/presupuestos');
     await Promise.all([
-      page.waitForURL(/\/clients/),
-      clientsTab.click(),
+      page.waitForURL(/\/presupuestos/),
+      presupuestosTab.click(),
     ]);
-    await expect(clientsTab).toHaveAttribute('aria-current', 'page');
+    await expect(presupuestosTab).toHaveAttribute('aria-current', 'page');
 
     const ticketsTab = tabBar.getByRole('link', { name: 'Tickets' });
     await expect(ticketsTab).toHaveAttribute('href', '/tickets');

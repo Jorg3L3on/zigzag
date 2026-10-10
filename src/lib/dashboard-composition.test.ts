@@ -2,6 +2,7 @@ import {
   buildCampoDashboardComposition,
   buildDashboardComposition,
   buildDashboardIntroSubtitle,
+  quickActionPriority,
 } from '@/lib/dashboard-composition';
 import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import { PERMISSIONS } from '@/lib/permissions';
@@ -88,6 +89,16 @@ describe('dashboard persona + composition', () => {
     expect(composition.showQuickActions).toBe(true);
     expect(composition.showPeriodSelect).toBe(true);
     expect(composition.widgets).toEqual(['tuDia', 'activity', 'kpis', 'charts']);
+  });
+
+  it('puts create-presupuesto right after create-ticket for operator and admin only', () => {
+    for (const persona of ['operator', 'admin'] as const) {
+      const priority = quickActionPriority(persona);
+      expect(priority.indexOf('create-presupuesto')).toBe(
+        priority.indexOf('create-ticket') + 1,
+      );
+    }
+    expect(quickActionPriority('viewer')).not.toContain('create-presupuesto');
   });
 
   it('does not include the onboarding / inicio rapido widget', () => {

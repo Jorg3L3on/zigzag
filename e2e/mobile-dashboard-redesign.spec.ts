@@ -43,6 +43,11 @@ test.describe('Mobile dashboard redesign', () => {
 
     await expect(page.getByRole('button', { name: /Exportar (PDF|CSV)/ })).toHaveCount(0);
     await expect(quickActions.getByRole('link').first()).toBeVisible();
+    // Crear presupuesto sits right after Crear ticket (when the user can write tickets).
+    const chipLabels = await quickActions.getByRole('link').allTextContents();
+    if (chipLabels[0] === 'Crear ticket') {
+      expect(chipLabels[1]).toBe('Crear presupuesto');
+    }
 
     // The chip row is the first block after the greeting, before any section.
     const leadsPage = await page.evaluate(() => {

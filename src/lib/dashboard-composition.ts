@@ -174,6 +174,7 @@ export const quickActionPriority = (
     case 'operator':
       return [
         'create-ticket',
+        'create-presupuesto',
         'view-tickets',
         'view-schedules',
         'create-client',
@@ -182,6 +183,7 @@ export const quickActionPriority = (
     case 'admin':
       return [
         'create-ticket',
+        'create-presupuesto',
         'create-client',
         'create-service',
         'create-user',
