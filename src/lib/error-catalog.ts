@@ -422,6 +422,13 @@ export const ERROR_CATALOG = {
     message: 'Este ticket ya está saldado y no se puede editar.',
     type: 'validation',
   },
+  TC011: {
+    code: 'TC011',
+    module: 'tickets',
+    title: 'El total es demasiado grande',
+    message: 'El total no puede pasar de $9,999,999,999.99.',
+    type: 'validation',
+  },
   TS001: {
     code: 'TS001',
     module: 'ticket-services',

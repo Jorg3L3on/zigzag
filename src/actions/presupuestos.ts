@@ -29,7 +29,11 @@ import {
 } from '@/lib/company-production-guard';
 import { invalidateCompanyCache } from '@/lib/cache';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
+import {
+  assertTicketTotalWithinCap,
+  calculateTicketTotal,
+  syncTicketTotal,
+} from '@/lib/ticket-financials';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import {
   getPresupuestoStatus,
@@ -219,6 +223,7 @@ export async function createPresupuestoWithLines(
 }> {
   try {
     const validated = createPresupuestoWithLinesSchema.parse(input);
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
@@ -429,7 +434,7 @@ export async function updatePresupuesto(
       }
 
       const totalFromServices = servicesToSync
-        ? calculateTicketTotal(servicesToSync)
+        ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
         : undefined;
 
       const [row] = await tx
