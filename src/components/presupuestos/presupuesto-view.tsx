@@ -347,11 +347,11 @@ export const PresupuestoView = ({
               Datos del presupuesto
             </h2>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Cliente
                 </dt>
-                <dd className="mt-0.5 font-medium">
+                <dd className="mt-0.5 font-medium [overflow-wrap:anywhere]">
                   {clientId ? (
                     <Link
                       href={`/clients/${clientId}`}
