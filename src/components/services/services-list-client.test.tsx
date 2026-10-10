@@ -5,6 +5,9 @@ import { getServices } from '@/actions/services';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 
+// userEvent flows can pass 5 s on a loaded runner (ZIG-I10 QA).
+jest.setTimeout(30_000);
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
