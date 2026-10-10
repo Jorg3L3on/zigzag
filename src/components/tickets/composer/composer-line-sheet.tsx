@@ -425,12 +425,24 @@ export const ComposerLineSheet = ({
               Subtotal
             </p>
             <p
-              className="truncate text-xs tabular-nums text-muted-foreground"
+              className="text-xs tabular-nums leading-snug text-muted-foreground"
               data-testid="composer-line-breakdown"
             >
-              {materials.length > 0
-                ? `Servicio ${formatServiceCurrency(serviceAmount)} · Materiales ${formatServiceCurrency(materialsTotal)}`
-                : `${quantityValue} × ${formatServiceCurrency(priceValue)}`}
+              {materials.length > 0 ? (
+                // Wraps between the two parts at narrow widths instead of truncating.
+                <>
+                  <span className="whitespace-nowrap">
+                    Servicio {formatServiceCurrency(serviceAmount)}
+                  </span>{' '}
+                  · <span className="whitespace-nowrap">
+                    Materiales {formatServiceCurrency(materialsTotal)}
+                  </span>
+                </>
+              ) : (
+                <span className="block truncate">
+                  {quantityValue} × {formatServiceCurrency(priceValue)}
+                </span>
+              )}
             </p>
           </div>
           <NumberTicker

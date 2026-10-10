@@ -119,6 +119,9 @@ jest.mock('sonner', () => ({
 
 jest.mock('@/lib/vibrate-success', () => ({ vibrateSuccess: jest.fn() }));
 
+// Sheet round-trips (materials, ZIG-I10) are slow in jsdom under a parallel run.
+jest.setTimeout(30_000);
+
 const renderComposer = () =>
   render(
     <MobileChromeProvider>
