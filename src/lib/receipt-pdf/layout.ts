@@ -115,6 +115,10 @@ export const TABLE = {
   descriptionSize: 12.5,
   descriptionGap: 3,
   descriptionMaxLines: 3,
+  /** Material sub-rows (ZIG-I10): 12px #666, 6px after the description, 4px apart. */
+  materialSize: 12,
+  materialsGap: 6,
+  materialRowGap: 4,
   numberSize: 13,
 } as const;
 

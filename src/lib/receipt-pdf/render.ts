@@ -74,6 +74,8 @@ const S = {
   itemDescription: { font: RECEIPT_FONTS.sans400, size: TABLE.descriptionSize, color: COLORS.description },
   number: { font: RECEIPT_FONTS.mono400, size: TABLE.numberSize, color: COLORS.ink },
   amount: { font: RECEIPT_FONTS.mono500, size: TABLE.numberSize, color: COLORS.ink },
+  materialName: { font: RECEIPT_FONTS.sans400, size: TABLE.materialSize, color: COLORS.description },
+  materialNumber: { font: RECEIPT_FONTS.mono400, size: TABLE.materialSize, color: COLORS.description },
   totalsLabel: { font: RECEIPT_FONTS.sans400, size: TOTALS.size, color: COLORS.muted },
   totalsValue: { font: RECEIPT_FONTS.mono400, size: TOTALS.size, color: COLORS.ink },
   dueLabel: { font: RECEIPT_FONTS.sans600, size: TOTALS.dueLabelSize, color: COLORS.ink },
@@ -163,6 +165,8 @@ type RowLayout = {
   item: ReceiptPdfItem;
   nameLines: string[];
   descriptionLines: string[];
+  /** `· Nombre`, one line each, ellipsized to the Concepto column. */
+  materialNames: string[];
   height: number;
 };
 
@@ -174,6 +178,10 @@ type TotalsLayout = {
 
 const NAME_LINE = normalLineHeight(TABLE.nameSize);
 const DESCRIPTION_LINE = normalLineHeight(TABLE.descriptionSize);
+const MATERIAL_LINE = normalLineHeight(TABLE.materialSize);
+
+const materialQuantity = (quantity: number, unit: string | null): string =>
+  unit ? `${formatReceiptQuantity(quantity)} ${unit}` : formatReceiptQuantity(quantity);
 const LABEL_LINE = normalLineHeight(LABEL.size);
 const SECONDARY_LINE = META.secondarySize * META.secondaryLineHeight;
 const PILL_HEIGHT = PILL.border * 2 + PILL.paddingY * 2 + normalLineHeight(PILL.size);
@@ -333,29 +341,41 @@ export function renderReceiptPdf(
   // ---------- measure: columns ----------
   // Numeric columns keep their design width unless a value needs more (as a CSS
   // auto table would), with TABLE.minColumnGap of air before the value.
-  const numericColumnWidth = (design: number, header: string, values: string[], style: TextStyle) =>
+  const numericColumnWidth = (
+    design: number,
+    header: string,
+    values: string[],
+    style: TextStyle,
+    materialValues: string[],
+  ) =>
     Math.max(
       design,
       pen.width(header, S.label) + TABLE.minColumnGap,
       ...values.map((value) => pen.width(value, style) + TABLE.minColumnGap),
+      ...materialValues.map((value) => pen.width(value, S.materialNumber) + TABLE.minColumnGap),
     );
   const amountWidth = numericColumnWidth(
     TABLE.amountWidth,
     'IMPORTE',
     payload.items.map((item) => money(item.amount)),
     S.amount,
+    payload.items.flatMap((item) => item.materials.map((material) => money(material.amount))),
   );
   const priceWidth = numericColumnWidth(
     TABLE.priceWidth,
     'PRECIO UNITARIO',
     payload.items.map((item) => money(item.unitPrice)),
     S.number,
+    payload.items.flatMap((item) => item.materials.map((material) => money(material.unitPrice))),
   );
   const qtyWidth = numericColumnWidth(
     TABLE.qtyWidth,
     'CANTIDAD',
     payload.items.map((item) => formatReceiptQuantity(item.quantity)),
     S.number,
+    payload.items.flatMap((item) =>
+      item.materials.map((material) => materialQuantity(material.quantity, material.unit)),
+    ),
   );
   const COL_AMOUNT_RIGHT = CONTENT_RIGHT;
   const COL_PRICE_RIGHT = COL_AMOUNT_RIGHT - amountWidth;
@@ -375,19 +395,35 @@ export function renderReceiptPdf(
       conceptTextWidth,
       TABLE.descriptionMaxLines,
     );
+    const materialNames = item.materials.map((material) =>
+      pen.ellipsize(`· ${material.name}`, S.materialName, conceptTextWidth),
+    );
     const conceptHeight =
       Math.max(itemNameLines.length, 1) * NAME_LINE +
-      (descriptionLines.length ? TABLE.descriptionGap + descriptionLines.length * DESCRIPTION_LINE : 0);
+      (descriptionLines.length ? TABLE.descriptionGap + descriptionLines.length * DESCRIPTION_LINE : 0) +
+      (materialNames.length
+        ? TABLE.materialsGap +
+          materialNames.length * MATERIAL_LINE +
+          (materialNames.length - 1) * TABLE.materialRowGap
+        : 0);
     return {
       item,
       nameLines: itemNameLines.length ? itemNameLines : [''],
       descriptionLines,
+      materialNames,
       height: TABLE.rowPaddingY * 2 + conceptHeight + TABLE.rowBorder,
     };
   });
 
   // ---------- measure: totals ----------
-  const totalsRows: TotalsLayout['rows'] = [{ label: 'Subtotal', value: money(payload.subtotal) }];
+  const totalsRows: TotalsLayout['rows'] = [];
+  if (payload.materialsSubtotal > 0) {
+    totalsRows.push(
+      { label: 'Servicios', value: money(payload.servicesSubtotal) },
+      { label: 'Materiales', value: money(payload.materialsSubtotal) },
+    );
+  }
+  totalsRows.push({ label: 'Subtotal', value: money(payload.subtotal) });
   if (payload.adjustment !== null) {
     totalsRows.push({ label: 'Ajuste', value: money(payload.adjustment) });
   }
@@ -621,6 +657,16 @@ export function renderReceiptPdf(
     pen.text(formatReceiptQuantity(row.item.quantity), COL_QTY_RIGHT, baseline, S.number, 'right');
     pen.text(money(row.item.unitPrice), COL_PRICE_RIGHT, baseline, S.number, 'right');
     pen.text(money(row.item.amount), COL_AMOUNT_RIGHT, baseline, S.amount, 'right');
+    // Material sub-rows: same row (no divider), each number in its column.
+    row.item.materials.forEach((material, i) => {
+      textTop += i === 0 ? TABLE.materialsGap : TABLE.materialRowGap;
+      const materialBaseline = baselineFrom(textTop, TABLE.materialSize);
+      pen.text(row.materialNames[i], conceptTextX, materialBaseline, S.materialName);
+      pen.text(materialQuantity(material.quantity, material.unit), COL_QTY_RIGHT, materialBaseline, S.materialNumber, 'right');
+      pen.text(money(material.unitPrice), COL_PRICE_RIGHT, materialBaseline, S.materialNumber, 'right');
+      pen.text(money(material.amount), COL_AMOUNT_RIGHT, materialBaseline, S.materialNumber, 'right');
+      textTop += MATERIAL_LINE;
+    });
 
     const borderY = top + row.height - TABLE.rowBorder / 2;
     pen.hline(CONTENT_LEFT, CONTENT_RIGHT, borderY, COLORS.rowDivider, TABLE.rowBorder, TABLE.rowDash);

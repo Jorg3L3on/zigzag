@@ -17,6 +17,7 @@ const item = (n: number, overrides: Partial<ReceiptPdfItem> = {}): ReceiptPdfIte
   quantity: 1,
   unitPrice: 100,
   amount: 100,
+  serviceAmount: overrides.amount ?? 100,
   materials: [],
   ...overrides,
 });
@@ -358,5 +359,172 @@ describe('renderReceiptPdf — logo', () => {
     expect(placement).not.toBeNull();
     expect(Number(placement![1])).toBeCloseTo(120, 1);
     expect(Number(placement![2])).toBeCloseTo(12, 1);
+  });
+});
+
+describe('renderReceiptPdf — documents without materials', () => {
+  const normalizedHash = (bytes: ArrayBuffer) =>
+    jest
+      .requireActual<typeof import('node:crypto')>('node:crypto')
+      .createHash('sha256')
+      .update(
+        Buffer.from(bytes)
+          .toString('latin1')
+          .replace(/\/CreationDate \([^)]*\)/, '')
+          .replace(/\/ID \[[^\]]*\]/, ''),
+      )
+      .digest('hex');
+
+  it('prints exactly what phase 2 printed (ZIG-I11-4 regression guard)', () => {
+    const hashes = {
+      recibo: normalizedHash(renderReceiptPdf(recibo(), { compress: false })),
+      presupuesto: normalizedHash(renderReceiptPdf(presupuesto(), { compress: false })),
+      adjustment: normalizedHash(
+        renderReceiptPdf(
+          recibo({ adjustment: -25, total: 300, balanceDue: 200, bigFigure: { label: 'Saldo por pagar', value: 200 } }),
+          { compress: false },
+        ),
+      ),
+    };
+    // Hashes of the phase 2 renderer output (CreationDate and ID stripped).
+    expect(hashes).toEqual({
+      recibo: '44932b1149f4eb1cc56508c7abb289fc68e1bedd4c93c7da4ce0541393035c2e',
+      presupuesto: '5e3901252f6332eb9ed8f55c59dd9d15caf2d83a53d853abe915c4b6d60c58b2',
+      adjustment: 'f9fe044f419038f82175498ab1997f0e16542705510a23fed98771a4776170f9',
+    });
+  });
+});
+
+describe('renderReceiptPdf — materials (ZIG-I10)', () => {
+  const material = (name: string, quantity: number, unit: string | null, unitPrice: number) => ({
+    name,
+    quantity,
+    unit,
+    unitPrice,
+    amount: Math.round(quantity * unitPrice * 100) / 100,
+  });
+  const withMaterials = (n: number, materials: ReturnType<typeof material>[], serviceAmount = 1200) =>
+    item(n, {
+      name: `Instalación ${n}`,
+      description: 'Minisplit 1 tonelada',
+      unitPrice: serviceAmount,
+      serviceAmount,
+      materials,
+      amount: Math.round((serviceAmount + materials.reduce((sum, m) => sum + m.amount, 0)) * 100) / 100,
+    });
+
+  it('prints each material under its concept with qty, unit, price and amount', () => {
+    const concept = withMaterials(1, [
+      material('Tubería de cobre 1/4', 3, 'm', 85),
+      material('Gas R410A', 2, 'kg', 450),
+      material('Cinta', 1, null, 35),
+    ]);
+    const { pages } = render(
+      'presupuesto-materials',
+      presupuesto({
+        items: [concept],
+        itemCount: 1,
+        servicesSubtotal: 1200,
+        materialsSubtotal: 1190,
+        subtotal: 2390,
+        total: 2390,
+        bigFigure: { label: 'Total del presupuesto', value: 2390 },
+      }),
+    );
+
+    expectInOrder(pages[0], [
+      'Instalación 1',
+      'Minisplit 1 tonelada',
+      '1',
+      '$1,200.00 MXN',
+      '$2,390.00 MXN',
+      '· Tubería de cobre 1/4',
+      '3 m',
+      '$85.00 MXN',
+      '$255.00 MXN',
+      '· Gas R410A',
+      '2 kg',
+      '$450.00 MXN',
+      '$900.00 MXN',
+      '· Cinta',
+      '1',
+      '$35.00 MXN',
+      '$35.00 MXN',
+      'Servicios',
+      '$1,200.00 MXN',
+      'Materiales',
+      '$1,190.00 MXN',
+      'Subtotal',
+      '$2,390.00 MXN',
+      'Total',
+    ]);
+    const run = (text: string) => pages[0].runs.find((entry) => entry.text === text);
+    expect(run('· Gas R410A')).toMatchObject({ font: 'PlexSans-Regular', size: 9 });
+    expect(run('2 kg')).toMatchObject({ font: 'PlexMono-Regular', size: 9 });
+    expect(pages[0].runs.filter((entry) => entry.text === '$900.00 MXN')).toEqual([
+      expect.objectContaining({ font: 'PlexMono-Regular', size: 9 }),
+    ]);
+    // The concept's Importe (13px / 500) includes its materials.
+    expect(run('$2,390.00 MXN')).toMatchObject({ font: 'PlexMono-Medium', size: 9.75 });
+  });
+
+  it('mixes concepts with and without materials; Servicios + Materiales = Subtotal', () => {
+    const { pages } = render(
+      'recibo-mixed-materials',
+      recibo({
+        items: [
+          withMaterials(1, [material('Gas R410A', 1, 'kg', 450)], 800),
+          item(2, { name: 'Diagnóstico', unitPrice: 300, amount: 300, serviceAmount: 300 }),
+        ],
+        itemCount: 2,
+        servicesSubtotal: 1100,
+        materialsSubtotal: 450,
+        subtotal: 1550,
+        total: 1550,
+        paid: 0,
+        balanceDue: 1550,
+        bigFigure: { label: 'Saldo por pagar', value: 1550 },
+      }),
+    );
+    expectInOrder(pages[0], ['Instalación 1', '· Gas R410A', 'Diagnóstico', 'Servicios', '$1,100.00 MXN', 'Materiales', '$450.00 MXN', 'Subtotal', '$1,550.00 MXN']);
+    expect(pages[0].runs.filter((entry) => entry.text.startsWith('· '))).toHaveLength(1);
+  });
+
+  it('paginates 10 concepts × 2 materials without overlap', () => {
+    const items = Array.from({ length: 10 }, (_, i) =>
+      withMaterials(i + 1, [material('Gas R410A', 1, 'kg', 450), material('Tubería', 2, 'm', 85)]),
+    );
+    const { pages } = render(
+      'presupuesto-10x2-materials',
+      presupuesto({
+        items,
+        itemCount: 10,
+        servicesSubtotal: 12000,
+        materialsSubtotal: 6200,
+        subtotal: 18200,
+        total: 18200,
+        bigFigure: { label: 'Total del presupuesto', value: 18200 },
+      }),
+    );
+
+    expect(pages.length).toBeGreaterThanOrEqual(2);
+    // Every concept keeps its materials on the same page, right after it.
+    for (const page of pages) {
+      const texts = page.runs.map((entry) => entry.text);
+      texts.forEach((text, i) => {
+        if (/^Instalación \d+$/.test(text)) {
+          expect(texts.slice(i).indexOf('· Tubería')).toBeGreaterThan(0);
+        }
+      });
+      // Runs never go below the colophon line or above the page top.
+      for (const entry of page.runs) {
+        expect(entry.y).toBeGreaterThan(30);
+        expect(entry.y).toBeLessThan(792 - 40);
+      }
+    }
+    const lastPage = pageText(pages[pages.length - 1]);
+    expect(lastPage).toContain('Servicios');
+    expect(lastPage).toContain('TELÉFONO');
+    expect(pages.flatMap((page) => page.runs.filter((entry) => entry.text === '· Gas R410A'))).toHaveLength(10);
   });
 });
