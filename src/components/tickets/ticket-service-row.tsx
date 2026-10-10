@@ -270,10 +270,6 @@ export const TicketServiceRow = ({
           <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
             {description}
           </p>
-          <ReviewLineMaterials
-            materials={buildReviewLine(serviceTicket).materials}
-            showInlineChips
-          />
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:hidden">
           <span className="text-base font-semibold tabular-nums text-foreground">
@@ -316,6 +312,12 @@ export const TicketServiceRow = ({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Full row width so names and amounts never squeeze beside the menu (ZIG-I10). */}
+      <ReviewLineMaterials
+        materials={buildReviewLine(serviceTicket).materials}
+        showInlineChips
+      />
 
       <div className="mt-4 hidden space-y-3 sm:block">
         <TicketServiceLineEditor

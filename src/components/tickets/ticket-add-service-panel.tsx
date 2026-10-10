@@ -314,10 +314,21 @@ export const TicketAddServicePanel = ({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Subtotal
             </p>
-            <p className="truncate text-xs tabular-nums text-muted-foreground">
-              {materials.length > 0
-                ? `Servicio ${formatServiceCurrency(serviceAmount)} · Materiales ${formatServiceCurrency(materialsAmount)}`
-                : `${sanitizeInteger(quantity)} × ${formatServiceCurrency(sanitizeDecimal(price))}`}
+            <p className="text-xs tabular-nums leading-snug text-muted-foreground">
+              {materials.length > 0 ? (
+                <>
+                  <span className="whitespace-nowrap">
+                    Servicio {formatServiceCurrency(serviceAmount)}
+                  </span>{' '}
+                  · <span className="whitespace-nowrap">
+                    Materiales {formatServiceCurrency(materialsAmount)}
+                  </span>
+                </>
+              ) : (
+                <span className="block truncate">
+                  {sanitizeInteger(quantity)} × {formatServiceCurrency(sanitizeDecimal(price))}
+                </span>
+              )}
             </p>
           </div>
           <NumberTicker
