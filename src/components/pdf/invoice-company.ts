@@ -20,6 +20,8 @@ export interface InvoiceIssuerData {
   logoUrl: string | null;
   /** Company default currency code, e.g. MXN, USD. */
   currencyCode: string;
+  /** Lema o giro under the company name; null when unset. */
+  tagline: string | null;
 }
 
 export const DEFAULT_INVOICE_ISSUER: InvoiceIssuerData = {
@@ -30,6 +32,7 @@ export const DEFAULT_INVOICE_ISSUER: InvoiceIssuerData = {
   footerAddress: 'C. Camarote #121, México',
   logoUrl: null,
   currencyCode: 'MXN',
+  tagline: null,
 };
 
 const splitCompanyNameLines = (name: string): string[] => {
@@ -69,6 +72,7 @@ export const invoiceIssuerFromCompany = (
     footerAddress: formatCompanyAddressOneLine(company),
     logoUrl: resolveCompanyLogoUrl(company.logo),
     currencyCode,
+    tagline: company.settings?.tagline?.trim() || null,
   };
 };
 
