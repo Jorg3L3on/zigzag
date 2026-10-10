@@ -318,3 +318,45 @@ describe('buildReceiptPdfPayload — recibo', () => {
     expect(payload.recibo?.statusLabel).toBe('Pendiente de pago');
   });
 });
+
+describe('buildReceiptPdfPayload — materials (ZIG-I10)', () => {
+  const withMaterials = (materials: NonNullable<Line['materials']>) =>
+    ({ ...catalogLine(1, 'Instalación', 'Minisplit', 1200), materials }) as Line;
+
+  it('lists active materials in sort order and adds them to the line amount', () => {
+    const payload = buildReceiptPdfPayload(
+      presupuesto({
+        services_tickets: [
+          withMaterials([
+            { name: 'Cinta', unit: null, quantity: '1', price: '35.00', sort_order: 2 },
+            { name: null, material: { name: 'Gas R410A' }, unit: 'kg', quantity: 2, price: 450, sort_order: 1 },
+            { name: 'Borrado', unit: 'pz', quantity: 1, price: 999, sort_order: 0, deleted_at: new Date() },
+            { name: 'Tubería', unit: 'm', quantity: '2.5', price: '85.5', sort_order: 1 },
+          ]),
+          catalogLine(2, 'Diagnóstico', '', 300),
+        ],
+        total: 2723.75,
+      }),
+    );
+
+    expect(payload.items[0].materials).toEqual([
+      { name: 'Gas R410A', quantity: 2, unit: 'kg', unitPrice: 450, amount: 900 },
+      { name: 'Tubería', quantity: 2.5, unit: 'm', unitPrice: 85.5, amount: 213.75 },
+      { name: 'Cinta', quantity: 1, unit: null, unitPrice: 35, amount: 35 },
+    ]);
+    expect(payload.items[0]).toMatchObject({ serviceAmount: 1200, amount: 2348.75, unitPrice: 1200 });
+    expect(payload.items[1]).toMatchObject({ serviceAmount: 300, amount: 300, materials: [] });
+    expect(payload).toMatchObject({
+      servicesSubtotal: 1500,
+      materialsSubtotal: 1148.75,
+      subtotal: 2648.75,
+      adjustment: 75,
+    });
+  });
+
+  it('has a zero materials subtotal without materials', () => {
+    const payload = buildReceiptPdfPayload(baseTicket());
+    expect(payload.materialsSubtotal).toBe(0);
+    expect(payload.servicesSubtotal).toBe(payload.subtotal);
+  });
+});
