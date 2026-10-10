@@ -51,9 +51,40 @@ jest.mock('@/actions/services', () => ({
   getServices: jest.fn(async () => ({
     success: true,
     data: [
-      { id: 7, name: 'Mantenimiento', price: '4200.00', description: 'x' },
-      { id: 8, name: 'Recarga de gas', price: '350.00', description: 'y' },
+      { id: 7, name: 'Mantenimiento', price: '4200.00', description: 'x', materials: [] },
+      { id: 8, name: 'Recarga de gas', price: '350.00', description: 'y', materials: [] },
+      {
+        id: 9,
+        name: 'Instalación minisplit',
+        price: '3500.00',
+        description: 'z',
+        // ZIG-I10: service defaults prefill the line.
+        materials: [
+          {
+            id: 1,
+            material_id: 21,
+            name: 'Gas R410A',
+            unit: 'kg',
+            quantity: 1.5,
+            price: 380,
+            catalog_price: 380,
+          },
+          {
+            id: 2,
+            material_id: 22,
+            name: 'Tubo de cobre',
+            unit: 'm',
+            quantity: 3,
+            price: 85,
+            catalog_price: 85,
+          },
+        ],
+      },
     ],
+  })),
+  searchMaterials: jest.fn(async () => ({
+    success: true,
+    data: [{ id: 23, name: 'Cinta aislante', unit: 'pza', price: 40 }],
   })),
 }));
 
@@ -87,6 +118,9 @@ jest.mock('sonner', () => ({
 }));
 
 jest.mock('@/lib/vibrate-success', () => ({ vibrateSuccess: jest.fn() }));
+
+// Sheet round-trips (materials, ZIG-I10) are slow in jsdom under a parallel run.
+jest.setTimeout(30_000);
 
 const renderComposer = () =>
   render(
@@ -325,4 +359,146 @@ describe('TicketComposer', () => {
     ).not.toBeNull();
     await waitFor(() => saveButtons().forEach((b) => expect(b).toBeEnabled()));
   });
+
+  it('prefills service materials, edits them and saves them under the line (ZIG-I10-3)', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({
+      success: true,
+      data: { id: '1300', total: 4385 },
+    });
+    renderComposer();
+    await pickClient(user);
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    const listbox = await screen.findByRole('listbox', { name: 'Servicio' });
+    await user.click(within(listbox).getByText('Instalación minisplit · $3,500.00'));
+
+    const rows = within(sheet).getByTestId('composer-line-material-rows');
+    expect(within(rows).getByText('1.5 kg × $380.00')).toBeTruthy();
+    expect(within(rows).getByText('3 m × $85.00')).toBeTruthy();
+    // 3500 + 570 + 255
+    await waitFor(() =>
+      expect(within(sheet).getByTestId('composer-line-subtotal')).toHaveTextContent(
+        '$4,325.00',
+      ),
+    );
+
+    // Quitar the tubing, then add an inline material saved to the catalog.
+    await user.click(within(rows).getByRole('button', { name: 'Quitar Tubo de cobre' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar material' }));
+    const step = await screen.findByRole('dialog', { name: 'Agregar material' });
+    await user.click(within(step).getByRole('radio', { name: 'Nuevo' }));
+    await user.type(within(step).getByLabelText('Nombre del material'), 'Soporte de pared');
+    await user.click(within(step).getByRole('button', { name: 'pza' }));
+    await user.type(within(step).getByLabelText('Precio / pza'), '320');
+    await user.click(within(step).getByRole('switch', { name: /Guardar en mi catálogo/ }));
+    await user.click(within(step).getByRole('button', { name: 'Agregar material' }));
+
+    const sheetAgain = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    const rowsAgain = within(sheetAgain).getByTestId('composer-line-material-rows');
+    expect(within(rowsAgain).getByText('Soporte de pared')).toBeTruthy();
+    expect(within(rowsAgain).getByText('Nuevo')).toBeTruthy();
+    expect(within(rowsAgain).getByText('→ catálogo')).toBeTruthy();
+    expect(within(sheetAgain).getByTestId('composer-line-breakdown')).toHaveTextContent(
+      'Servicio $3,500.00 · Materiales $890.00',
+    );
+    await user.click(within(sheetAgain).getByRole('button', { name: 'Agregar' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByTestId('composer-line-materials')).toHaveTextContent(
+      '2 materiales · $890.00',
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-total')).toHaveTextContent('$4,390.00'),
+    );
+
+    await user.click(saveButtons()[0]);
+    await waitFor(() => expect(mockCreateTicketWithLines).toHaveBeenCalledTimes(1));
+    expect(mockCreateTicketWithLines.mock.calls[0][0].lines).toEqual([
+      {
+        service_id: 9,
+        quantity: 1,
+        price: 3500,
+        materials: [
+          { kind: 'catalog', material_id: 21, quantity: 1.5, price: 380 },
+          {
+            kind: 'custom',
+            name: 'Soporte de pared',
+            unit: 'pza',
+            save_to_catalog: true,
+            quantity: 1,
+            price: 320,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('adds a catalog material from the autocomplete (Del catálogo)', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+    await pickClient(user);
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    await user.click(
+      within(await screen.findByRole('listbox', { name: 'Servicio' })).getByText(
+        'Recarga de gas · $350.00',
+      ),
+    );
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar material' }));
+    const step = await screen.findByRole('dialog', { name: 'Agregar material' });
+    await user.type(within(step).getByRole('combobox', { name: 'Material' }), 'cin');
+    await user.click(await within(step).findByRole('option', { name: /Cinta aislante/ }));
+    await user.click(within(step).getByRole('button', { name: 'Agregar material' }));
+
+    const rows = within(
+      await screen.findByRole('dialog', { name: 'Agregar servicio' }),
+    ).getByTestId('composer-line-material-rows');
+    expect(within(rows).getByText('1 pza × $40.00')).toBeTruthy();
+    expect(within(rows).queryByText('Nuevo')).toBeNull();
+  });
+
+  it('restores a draft line with materials after a reload', async () => {
+    writeTicketComposerDraft(buildTicketComposerDraftKey(10), {
+      client_id: 5,
+      client_label: 'Cliente Demo · 5550001111',
+      lines: [
+        {
+          key: 'line-a',
+          service_id: 7,
+          service_name: 'Mantenimiento',
+          quantity: 1,
+          price: 4200,
+          materials: [
+            {
+              key: 'mat-a',
+              material_id: null,
+              name: 'Filtro',
+              unit: 'pza',
+              quantity: 2,
+              price: 150,
+              save_to_catalog: false,
+            },
+          ],
+        },
+      ],
+    });
+    renderComposer();
+
+    const lines = await screen.findByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByTestId('composer-line-materials')).toHaveTextContent(
+      '1 material · $300.00',
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-total')).toHaveTextContent('$4,500.00'),
+    );
+  });
 });
+

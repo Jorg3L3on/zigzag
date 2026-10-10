@@ -472,4 +472,58 @@ describe('fintech invoice payload', () => {
     expect(payload.balanceLabel).toBe('TOTAL DEL PRESUPUESTO');
     expect(payload.dueText).toMatch(/no es un recibo/i);
   });
+
+  it('adds material sub-rows and splits Servicios / Materiales subtotals (ZIG-I10)', () => {
+    const line = baseTicket().services_tickets[0];
+    const material = (overrides: Record<string, unknown>) => ({
+      id: 1,
+      services_tickets_id: 1,
+      material_id: null,
+      name: 'Material',
+      unit: null,
+      quantity: 1,
+      price: 0,
+      sort_order: 0,
+      created_at: new Date(),
+      updated_at: null,
+      deleted_at: null,
+      ...overrides,
+    });
+    const payload = buildFintechInvoicePayload(
+      baseTicket({
+        total: 1075,
+        paid: 0,
+        services_tickets: [
+          {
+            ...line,
+            materials: [
+              material({ id: 1, material_id: 9, name: 'Gas R410A', unit: 'kg', quantity: '1.50', price: '380.00' }),
+              material({ id: 2, name: 'Cinta', quantity: 1, price: 255 }),
+              material({ id: 3, name: 'Borrado', quantity: 1, price: 999, deleted_at: new Date() }),
+            ],
+          },
+        ] as never,
+      }),
+    );
+    expect(payload.items[0]).toMatchObject({
+      serviceTotal: 250,
+      total: 1075,
+      materials: [
+        { name: 'Gas R410A', quantity: 1.5, unit: 'kg', unitPrice: 380, total: 570 },
+        { name: 'Cinta', quantity: 1, unit: null, unitPrice: 255, total: 255 },
+      ],
+    });
+    expect(payload.servicesSubtotal).toBe(250);
+    expect(payload.materialsSubtotal).toBe(825);
+    expect(payload.subtotal).toBe(1075);
+    expect(payload.hasAdjustment).toBe(false);
+  });
+
+  it('keeps documents without materials unchanged (ZIG-I10)', () => {
+    const payload = buildFintechInvoicePayload(baseTicket());
+    expect(payload.materialsSubtotal).toBe(0);
+    expect(payload.servicesSubtotal).toBe(payload.subtotal);
+    expect(payload.items[0]).toMatchObject({ serviceTotal: 250, total: 250, materials: [] });
+  });
 });
+

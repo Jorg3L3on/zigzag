@@ -1,4 +1,4 @@
-import { sumLineTotals } from '@/lib/money';
+import { addMoney, lineTotalWithMaterials } from '@/lib/money';
 
 export const sanitizeInteger = (value: string, fallback = 1) => {
   const parsed = Number.parseInt(value, 10);
@@ -20,6 +20,11 @@ export const formatServiceCurrency = (amount: number) =>
     maximumFractionDigits: 2,
   }).format(amount);
 
+/** Σ lines, each with its materials on top (ZIG-I10). */
 export const calculateServicesTotal = (
-  services: Array<{ quantity: number; price: number }>,
-) => sumLineTotals(services);
+  services: Array<{
+    quantity: number;
+    price: number;
+    materials?: ReadonlyArray<{ quantity: number | string; price: number | string }> | null;
+  }>,
+) => addMoney(...services.map(lineTotalWithMaterials));

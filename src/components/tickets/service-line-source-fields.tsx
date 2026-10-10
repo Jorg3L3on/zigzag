@@ -17,6 +17,8 @@ type ServiceLineModeToggleProps = {
   value: ServiceLineMode;
   onValueChange: (value: ServiceLineMode) => void;
   idPrefix: string;
+  /** Accessible name of the radiogroup (materials reuse it, ZIG-I10). */
+  ariaLabel?: string;
 };
 
 const MODE_OPTIONS: Array<{
@@ -36,10 +38,11 @@ export const ServiceLineModeToggle = ({
   value,
   onValueChange,
   idPrefix,
+  ariaLabel = 'Origen del servicio',
 }: ServiceLineModeToggleProps) => (
   <div
     role="radiogroup"
-    aria-label="Origen del servicio"
+    aria-label={ariaLabel}
     className="grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1"
     onKeyDown={(event) => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;

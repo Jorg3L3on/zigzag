@@ -12,6 +12,9 @@ import { TripledEmptyState } from '@/components/tripled';
 import { usePermissions } from '@/hooks/use-permissions';
 import { canAssignTicketServices } from '@/lib/tickets-rbac';
 import { getServiceLineName } from '@/lib/service-line-display';
+import { ReviewLineMaterials } from '@/components/tickets/review/document-review-parts';
+import { buildReviewLine } from '@/lib/review-lines';
+import { lineTotalWithMaterials } from '@/lib/money';
 
 type ServiceLine = {
   id: number;
@@ -20,6 +23,15 @@ type ServiceLine = {
   service_id?: number | null;
   name?: string | null;
   service: { name: string | null } | null;
+  /** Active materials (ZIG-I10). */
+  materials?: Array<{
+    id: number;
+    material_id: number | null;
+    name: string | null;
+    unit: string | null;
+    quantity: number | string;
+    price: number | string;
+  }>;
 };
 
 type TicketDetailServicesSectionProps = {
@@ -89,9 +101,19 @@ export const TicketDetailServicesSection = ({
                       <FormattedCurrency amount={line.price} />
                       {' / unidad'}
                     </p>
+                    <ReviewLineMaterials
+                      materials={buildReviewLine(line).materials}
+                      showInlineChips
+                    />
                   </div>
                   <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">
-                    <FormattedCurrency amount={line.price * line.quantity} />
+                    <FormattedCurrency
+                      amount={lineTotalWithMaterials({
+                        quantity: line.quantity,
+                        price: Number(line.price),
+                        materials: line.materials,
+                      })}
+                    />
                   </p>
                 </div>
               </li>

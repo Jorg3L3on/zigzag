@@ -36,6 +36,10 @@ import {
   type ServiceStatusFilter,
 } from '@/actions/services';
 import type { Service } from '@/db/schema';
+import {
+  formatMaterialCount,
+  serviceMaterialCount,
+} from '@/components/services/services-columns';
 import { useCompany } from '@/contexts/company-context';
 import {
   TripledEmptyState,
@@ -384,6 +388,14 @@ export function ServicesListClient() {
                         <dd className="line-clamp-2 text-sm text-muted-foreground">
                           {service.description}
                         </dd>
+                        {serviceMaterialCount(service) > 0 ? (
+                          <dd
+                            className="mt-1 text-xs text-muted-foreground"
+                            data-testid="service-card-materials"
+                          >
+                            {formatMaterialCount(serviceMaterialCount(service))}
+                          </dd>
+                        ) : null}
                       </div>
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

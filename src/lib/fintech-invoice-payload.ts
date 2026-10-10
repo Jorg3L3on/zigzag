@@ -4,6 +4,7 @@ import type {
   Company,
   Service,
   ServicesTicketsRow,
+  TicketLineMaterialRow,
   TicketPaymentRow,
   TicketRow,
 } from '@/db/schema';
@@ -18,12 +19,15 @@ import {
   normalizeTicketDocumentKind,
 } from '@/lib/ticket-document-kind';
 import {
+  getMaterialLineName,
   getServiceLineDescription,
   getServiceLineName,
 } from '@/lib/service-line-display';
 
 type TicketServiceLine = ServicesTicketsRow & {
   service: Service | null;
+  /** Active materials under the line (ZIG-I10). */
+  materials?: TicketLineMaterialRow[];
 };
 
 export type FintechInvoiceTicket = TicketRow & {
@@ -33,13 +37,26 @@ export type FintechInvoiceTicket = TicketRow & {
   ticket_payments?: TicketPaymentRow[];
 };
 
+/** A material printed as a sub-row under its service (ZIG-I10). */
+export type FintechInvoiceMaterial = {
+  name: string;
+  quantity: number;
+  unit: string | null;
+  unitPrice: number;
+  total: number;
+};
+
 export type FintechInvoiceItem = {
   number: number;
   name: string;
   description: string;
   quantity: number;
   unitPrice: number;
+  /** quantity × unitPrice: the service row's own amount. */
+  serviceTotal: number;
+  /** Line amount: serviceTotal + Σ materials. */
   total: number;
+  materials: FintechInvoiceMaterial[];
 };
 
 export type FintechInvoicePayload = {
@@ -67,6 +84,10 @@ export type FintechInvoicePayload = {
   balanceLabel: string;
   serviceCountLabel: string;
   items: FintechInvoiceItem[];
+  /** Σ service rows (without materials). */
+  servicesSubtotal: number;
+  /** Σ materials; 0 when the document has none (no Materiales row then). */
+  materialsSubtotal: number;
   subtotal: number;
   adjustmentAmount: number;
   hasAdjustment: boolean;
@@ -125,6 +146,23 @@ export const buildFintechInvoicePayload = (
       const unitPrice = isFiniteNumber(line.price) ? line.price : 0;
       const serviceName = getServiceLineName(line);
       const description = getServiceLineDescription(line);
+      const serviceTotal = roundMoney(quantity * unitPrice);
+      const materials = (line.materials ?? [])
+        .filter((item) => !item.deleted_at)
+        .map((item) => {
+          const materialQuantity = Number(item.quantity) || 0;
+          const materialPrice = Number(item.price) || 0;
+          return {
+            name: getMaterialLineName(item),
+            quantity: materialQuantity,
+            unit: item.unit,
+            unitPrice: materialPrice,
+            total: roundMoney(materialQuantity * materialPrice),
+          };
+        });
+      const materialsTotal = roundMoney(
+        materials.reduce((sum, item) => sum + item.total, 0),
+      );
 
       return {
         number: index + 1,
@@ -132,10 +170,21 @@ export const buildFintechInvoicePayload = (
         description,
         quantity,
         unitPrice,
-        total: quantity * unitPrice,
+        serviceTotal,
+        total: roundMoney(serviceTotal + materialsTotal),
+        materials,
       };
     });
 
+  const servicesSubtotal = roundMoney(
+    items.reduce((sum, item) => sum + item.serviceTotal, 0),
+  );
+  const materialsSubtotal = roundMoney(
+    items.reduce(
+      (sum, item) => sum + item.materials.reduce((acc, m) => acc + m.total, 0),
+      0,
+    ),
+  );
   const subtotal = roundMoney(items.reduce((sum, item) => sum + item.total, 0));
   const total = roundMoney(
     isFiniteNumber(ticket.total) ? ticket.total : subtotal,
@@ -187,6 +236,8 @@ export const buildFintechInvoicePayload = (
         ? '1 concepto'
         : `${items.length} conceptos`,
     items,
+    servicesSubtotal,
+    materialsSubtotal,
     subtotal,
     adjustmentAmount,
     hasAdjustment,

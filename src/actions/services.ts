@@ -1,8 +1,8 @@
 // create services crud actions
 'use server';
 
-import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
-import { service } from '@/db/schema';
+import { and, asc, desc, eq, ilike, isNotNull, isNull } from 'drizzle-orm';
+import { material, service } from '@/db/schema';
 import type { Service } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
@@ -29,6 +29,17 @@ import { serviceWriteSchema, SERVICE_DESCRIPTION_MAX_MESSAGE } from '@/lib/servi
 import { AppError } from '@/lib/errors';
 import type { CsvImportCommitSummary } from '@/lib/csv-import-types';
 import { emptyCsvImportCommitSummary } from '@/lib/csv-import-types';
+import {
+  serviceMaterialsInputSchema,
+  type MaterialOption,
+  type ParsedServiceMaterial,
+  type ServiceMaterialInput,
+  type ServiceMaterialView,
+} from '@/lib/service-materials';
+import {
+  loadServiceMaterials,
+  replaceServiceMaterials,
+} from '@/lib/service-materials-server';
 
 export type ServiceBulkImportSummary = {
   inserted: number;
@@ -48,11 +59,32 @@ export interface CreateServiceData {
   description: string;
   price: number;
   company_id: number;
+  /** Default materials (ZIG-I10). Omitted on update = left as they are. */
+  materials?: ServiceMaterialInput[];
 }
 
 export interface UpdateServiceData extends Partial<CreateServiceData> {
   id: number;
 }
+
+/** A catalog Service with its default materials (ZIG-I10). */
+export type ServiceWithMaterials = Service & { materials: ServiceMaterialView[] };
+
+const parseServiceMaterials = (
+  materials: ServiceMaterialInput[] | undefined,
+  code: 'SV002' | 'SV003',
+):
+  | { ok: true; data: ParsedServiceMaterial[] | undefined }
+  | { ok: false; error: ReturnType<typeof buildActionError> } => {
+  if (materials === undefined) return { ok: true, data: undefined };
+  const parsed = serviceMaterialsInputSchema.safeParse(materials);
+  if (parsed.success) return { ok: true, data: parsed.data };
+  const message = parsed.error.issues[0]?.message ?? 'Revisa los materiales';
+  return {
+    ok: false,
+    error: buildActionError(code, new AppError(message, 400, true, code), 'validation'),
+  };
+};
 
 export type ServiceStatusFilter = 'active' | 'deleted' | 'all';
 
@@ -61,7 +93,7 @@ export async function getServices(
   status: ServiceStatusFilter = 'active',
 ): Promise<{
   success: boolean;
-  data?: Service[];
+  data?: ServiceWithMaterials[];
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -88,7 +120,19 @@ export async function getServices(
       .where(whereCondition)
       .orderBy(desc(service.created_at));
 
-    return { success: true, data: services };
+    const materialsByService = await loadServiceMaterials(
+      db,
+      services.map((row) => row.id),
+      effectiveCompanyId,
+    );
+
+    return {
+      success: true,
+      data: services.map((row) => ({
+        ...row,
+        materials: materialsByService.get(row.id) ?? [],
+      })),
+    };
   } catch (error) {
     return handleCodedServerActionError('services.list', 'SV001', error);
   }
@@ -96,7 +140,7 @@ export async function getServices(
 
 export async function getService(id: number): Promise<{
   success: boolean;
-  data?: Service;
+  data?: ServiceWithMaterials;
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -124,7 +168,15 @@ export async function getService(id: number): Promise<{
       return buildActionError('SV001');
     }
 
-    return { success: true, data: row };
+    const materialsByService =
+      row.company_id == null
+        ? new Map<number, ServiceMaterialView[]>()
+        : await loadServiceMaterials(db, [row.id], row.company_id);
+
+    return {
+      success: true,
+      data: { ...row, materials: materialsByService.get(row.id) ?? [] },
+    };
   } catch (error) {
     return handleCodedServerActionError('services.get', 'SV001', error);
   }
@@ -157,24 +209,46 @@ export async function createService(
       );
     }
 
-    const [created] = await db
-      .insert(service)
-      .values({
-        name: parsed.data.name,
-        description: parsed.data.description,
-        price: parsed.data.price,
-        company_id: effectiveCompanyId,
-      })
-      .returning();
+    const materials = parseServiceMaterials(data.materials, 'SV002');
+    if (!materials.ok) return materials.error;
 
-    await recordResourceAudit(db, {
-      actor: context,
-      resourceType: 'service',
-      resourceId: created.id,
-      targetCompanyId: effectiveCompanyId,
-      action: 'created',
-      after: created,
-      source: 'action',
+    // Service + its materials in one transaction (ZIG-I10).
+    const created = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(service)
+        .values({
+          name: parsed.data.name,
+          description: parsed.data.description,
+          price: parsed.data.price,
+          company_id: effectiveCompanyId,
+        })
+        .returning();
+
+      const materialResult =
+        materials.data && materials.data.length > 0
+          ? await replaceServiceMaterials(tx, {
+              companyId: effectiveCompanyId,
+              serviceId: row.id,
+              materials: materials.data,
+            })
+          : null;
+
+      await recordResourceAudit(tx, {
+        actor: context,
+        resourceType: 'service',
+        resourceId: row.id,
+        targetCompanyId: effectiveCompanyId,
+        action: 'created',
+        after: materialResult
+          ? {
+              ...row,
+              materials: materialResult.rows,
+              createdMaterialIds: materialResult.createdMaterialIds,
+            }
+          : row,
+        source: 'action',
+      });
+      return row;
     });
 
     revalidatePath('/services');
@@ -193,7 +267,7 @@ export async function updateService(
   errorType?: ActionErrorType;
 }> {
   try {
-    const { id, ...updateData } = data;
+    const { id, materials: materialsInput, ...updateData } = data;
     const { context, companyId: effectiveCompanyId } =
       await requireTenantActionPermission(
         'services.write',
@@ -247,30 +321,51 @@ export async function updateService(
       }
     }
 
+    const materials = parseServiceMaterials(materialsInput, 'SV003');
+    if (!materials.ok) return materials.error;
+
     const existing = await db.query.service.findFirst({
       where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
     });
-    const [updated] = await db
-      .update(service)
-      .set({
-        ...updateData,
-        company_id: effectiveCompanyId,
-      })
-      .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)))
-      .returning();
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(service)
+        .set({
+          ...updateData,
+          company_id: effectiveCompanyId,
+        })
+        .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)))
+        .returning();
 
-    if (updated) {
-      await recordResourceAudit(db, {
+      if (!row) return row;
+
+      // The update matched this company's service, so its materials are ours to replace.
+      const materialResult = materials.data
+        ? await replaceServiceMaterials(tx, {
+            companyId: effectiveCompanyId,
+            serviceId: row.id,
+            materials: materials.data,
+          })
+        : null;
+
+      await recordResourceAudit(tx, {
         actor: context,
         resourceType: 'service',
         resourceId: id,
         targetCompanyId: effectiveCompanyId,
         action: 'updated',
         before: existing,
-        after: updated,
+        after: materialResult
+          ? {
+              ...row,
+              materials: materialResult.rows,
+              createdMaterialIds: materialResult.createdMaterialIds,
+            }
+          : row,
         source: 'action',
       });
-    }
+      return row;
+    });
 
     revalidatePath('/services');
     return { success: true, data: updated };
@@ -318,6 +413,52 @@ export async function deleteService(
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('services.delete', 'SV004', error);
+  }
+}
+
+/**
+ * Company Material catalog for autocomplete (ZIG-I10): active rows whose name
+ * contains the query, alphabetical, at most `limit`. Empty query = first rows.
+ */
+export async function searchMaterials(
+  query: string,
+  companyId?: number | null,
+  limit = 8,
+): Promise<{
+  success: boolean;
+  data?: MaterialOption[];
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireTenantActionPermission(
+      'services.read',
+      companyId ?? undefined,
+    );
+    const term = query.trim().slice(0, 100).replace(/[\\%_]/g, (c) => `\\${c}`);
+    const rows = await db
+      .select({
+        id: material.id,
+        name: material.name,
+        unit: material.unit,
+        price: material.price,
+      })
+      .from(material)
+      .where(
+        and(
+          eq(material.company_id, effectiveCompanyId),
+          isNull(material.deleted_at),
+          term ? ilike(material.name, `%${term}%`) : undefined,
+        ),
+      )
+      .orderBy(asc(material.name))
+      .limit(Math.min(Math.max(limit, 1), 20));
+    return {
+      success: true,
+      data: rows.map((row) => ({ ...row, price: Number(row.price) })),
+    };
+  } catch (error) {
+    return handleCodedServerActionError('materials.search', 'SV001', error);
   }
 }
 

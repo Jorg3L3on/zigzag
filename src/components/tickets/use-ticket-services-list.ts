@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import type { Service } from '@/db/schema';
 import { toast } from 'sonner';
 import {
   type ServiceTicket,
@@ -8,7 +7,12 @@ import {
   deleteServiceTicket,
   getTicketServices,
 } from '@/actions/ticket-services';
-import { getServices } from '@/actions/services';
+import { getServices, type ServiceWithMaterials } from '@/actions/services';
+import {
+  materialDraftToLineInput,
+  materialDraftsFromServiceDefaults,
+  type MaterialDraft,
+} from '@/lib/material-drafts';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -30,7 +34,7 @@ export const useTicketServicesList = ({
   companyId,
   prefillServiceId,
 }: UseTicketServicesListOptions) => {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceWithMaterials[]>([]);
   const [ticketServices, setTicketServices] = useState<ServiceTicket[]>([]);
   const [selectedService, setSelectedService] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('1');
@@ -43,6 +47,8 @@ export const useTicketServicesList = ({
   const [customName, setCustomName] = useState('');
   const [customDescription, setCustomDescription] = useState('');
   const [saveToCatalog, setSaveToCatalog] = useState(false);
+  // Materials of the line being added (ZIG-I10), prefilled from the service.
+  const [addMaterials, setAddMaterials] = useState<MaterialDraft[]>([]);
 
   const filteredServices = services.filter(
     (service) =>
@@ -100,6 +106,13 @@ export const useTicketServicesList = ({
             service_id: serviceId,
             quantity: 1,
             price: catalogService.price,
+            ...(catalogService.materials?.length
+              ? {
+                  materials: materialDraftsFromServiceDefaults(
+                    catalogService.materials,
+                  ).map(materialDraftToLineInput),
+                }
+              : {}),
           },
           companyId,
         );
@@ -124,6 +137,7 @@ export const useTicketServicesList = ({
     setCustomName('');
     setCustomDescription('');
     setSaveToCatalog(false);
+    setAddMaterials([]);
   };
 
   const handleServiceSelect = (serviceId: string) => {
@@ -133,6 +147,7 @@ export const useTicketServicesList = ({
     );
     if (selectedServiceData) {
       setPrice(selectedServiceData.price.toString());
+      setAddMaterials(materialDraftsFromServiceDefaults(selectedServiceData.materials));
     }
   };
 
@@ -149,6 +164,10 @@ export const useTicketServicesList = ({
       const parsedQuantity = sanitizeInteger(quantity);
       const parsedPrice = sanitizeDecimal(price);
       const description = customDescription.trim();
+      const materials =
+        addMaterials.length > 0
+          ? { materials: addMaterials.map(materialDraftToLineInput) }
+          : {};
 
       const result = await createServiceTicket(
         ticketId,
@@ -160,11 +179,13 @@ export const useTicketServicesList = ({
               save_to_catalog: saveToCatalog,
               quantity: parsedQuantity,
               price: parsedPrice,
+              ...materials,
             }
           : {
               service_id: parseInt(selectedService),
               quantity: parsedQuantity,
               price: parsedPrice,
+              ...materials,
             },
         companyId,
       );
@@ -177,7 +198,7 @@ export const useTicketServicesList = ({
           setServices((prev) =>
             prev.some((item) => item.id === savedService.id)
               ? prev
-              : [savedService, ...prev],
+              : [{ ...savedService, materials: [] }, ...prev],
           );
         }
         toast.success(
@@ -211,6 +232,8 @@ export const useTicketServicesList = ({
     serviceTicketId: number,
     newQuantity: number,
     newPrice: number,
+    /** The line's whole new material set (ZIG-I10); omitted = unchanged. */
+    newMaterials?: MaterialDraft[],
   ) => {
     try {
       const result = await updateServiceTicket(
@@ -219,6 +242,9 @@ export const useTicketServicesList = ({
         {
           quantity: newQuantity,
           price: newPrice,
+          ...(newMaterials
+            ? { materials: newMaterials.map(materialDraftToLineInput) }
+            : {}),
         },
         companyId,
       );
@@ -315,6 +341,8 @@ export const useTicketServicesList = ({
     customName,
     customDescription,
     saveToCatalog,
+    addMaterials,
+    setAddMaterials,
     setLineMode,
     setCustomName,
     setCustomDescription,

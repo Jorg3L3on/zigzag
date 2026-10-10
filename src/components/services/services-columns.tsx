@@ -44,6 +44,13 @@ function ServiceSortableHeader<TData>({
   );
 }
 
+/** Default materials count; list rows carry `materials` since ZIG-I10. */
+export const serviceMaterialCount = (service: Service): number =>
+  (service as Service & { materials?: unknown[] }).materials?.length ?? 0;
+
+export const formatMaterialCount = (count: number): string =>
+  count === 1 ? '1 material' : `${count} materiales`;
+
 export type ServicesColumnsOptions = {
   renderActions: (service: Service) => ReactNode;
 };
@@ -100,6 +107,21 @@ export const createServicesColumns = ({
         {row.original.deleted_at ? 'Eliminado' : 'Activo'}
       </span>
     ),
+  },
+  {
+    id: 'materials',
+    accessorFn: (row) => serviceMaterialCount(row),
+    header: ({ column }) => (
+      <ServiceSortableHeader column={column} label="Materiales" />
+    ),
+    cell: ({ row }) => {
+      const count = serviceMaterialCount(row.original);
+      return (
+        <span className="tabular-nums text-muted-foreground">
+          {count > 0 ? count : '—'}
+        </span>
+      );
+    },
   },
   {
     id: 'price',
