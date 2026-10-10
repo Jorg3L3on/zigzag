@@ -44,7 +44,6 @@ const company = {
     rfc: 'CTD010101AAA',
     default_currency: 'MXN',
     experience_mode: 'auto',
-    invoice_footer_note: '',
   },
   is_system: false,
 } as unknown as Company;
@@ -174,6 +173,8 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
   it('saves Lema o giro from the operator company form too', async () => {
     mockUpdateCompany.mockResolvedValue({ success: true } as Awaited<ReturnType<typeof updateCompany>>);
     render(<CompanyForm company={company} />);
+    // Notas al pie de recibo was dropped: no PDF ever printed it.
+    expect(screen.queryByLabelText('Notas al pie de recibo')).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Lema o giro'), {
       target: { value: 'Plomería y gas' },
