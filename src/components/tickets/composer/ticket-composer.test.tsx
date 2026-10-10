@@ -134,7 +134,7 @@ const saveButtons = () => screen.getAllByRole('button', { name: 'Guardar ticket'
 const pickClient = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
   const listbox = await screen.findByRole('listbox', { name: 'Cliente' });
-  await user.click(within(listbox).getByText('Cliente Demo · 5550001111'));
+  await user.click(within(listbox).getByText('Cliente Demo'));
 };
 
 const addLine = async (
@@ -499,6 +499,112 @@ describe('TicketComposer', () => {
     await waitFor(() =>
       expect(screen.getByTestId('composer-total')).toHaveTextContent('$4,500.00'),
     );
+  });
+  it('keeps 1.5 as 1.5 and shows it on the line (ZIG-I12 Q1)', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1.5');
+
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByText('1.5 × $4,200.00')).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-total')).toHaveTextContent('$6,300.00'),
+    );
+  });
+
+  it.each([
+    ['quantity above the limit', 'Cantidad del servicio', '99999', 'Máximo 9,999.99'],
+    ['three decimals', 'Cantidad del servicio', '1.234', 'Usa máximo 2 decimales'],
+    ['price above the limit', 'Precio del servicio', '999999999', 'Máximo $99,999,999.99'],
+    ['negative price', 'Precio del servicio', '-50', 'El precio no puede ser negativo'],
+  ])('explains %s under the field and keeps Agregar off', async (_label, field, typed, message) => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    await user.click(
+      within(await screen.findByRole('listbox', { name: 'Servicio' })).getByText(
+        'Mantenimiento · $4,200.00',
+      ),
+    );
+    const input = within(sheet).getByRole('spinbutton', { name: field });
+    await user.clear(input);
+    await user.type(input, typed);
+
+    expect(within(sheet).getByRole('alert')).toHaveTextContent(message);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Agregar' })).toBeDisabled();
+  });
+
+  it('refuses a line whose subtotal passes the total cap', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    await user.click(
+      within(await screen.findByRole('listbox', { name: 'Servicio' })).getByText(
+        'Mantenimiento · $4,200.00',
+      ),
+    );
+    const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
+    const price = within(sheet).getByRole('spinbutton', { name: 'Precio del servicio' });
+    await user.clear(qty);
+    await user.type(qty, '9999');
+    await user.clear(price);
+    await user.type(price, '99999999.99');
+
+    expect(within(sheet).getByTestId('composer-line-total-error')).toHaveTextContent(
+      '$9,999,999,999.99',
+    );
+    expect(within(sheet).getByRole('button', { name: 'Agregar' })).toBeDisabled();
+  });
+
+  it('marks the rejected line and names it in the toast when the server refuses (ZIG-I12)', async () => {
+    const user = userEvent.setup();
+    const { toast } = jest.requireMock('sonner') as { toast: { error: jest.Mock } };
+    toast.error.mockReset();
+    mockCreateTicketWithLines.mockResolvedValue({
+      success: false,
+      error: 'Revisa los datos e intenta de nuevo. Código: TC009',
+      errorCode: 'TC009',
+      errorTitle: 'Datos del ticket inválidos',
+      errorType: 'validation',
+      issues: [{ path: ['lines', 1, 'price'], code: 'too_big', message: 'x' }],
+    });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await user.click(saveButtons()[0]);
+
+    const marked = await screen.findByTestId('composer-line-error');
+    expect(marked).toHaveTextContent('Precio: Máximo $99,999,999.99');
+    expect(marked.closest('[data-invalid="true"]')).toBeTruthy();
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        description: 'Línea 2 · Precio: Máximo $99,999,999.99',
+      }),
+    );
+  });
+
+  it('shows a counter on the notes from 80% of the limit', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const notes = screen.getByRole('textbox', { name: /Notas/ });
+    expect(screen.queryByTestId('char-counter')).toBeNull();
+    await user.click(notes);
+    await user.paste('x'.repeat(1600));
+
+    expect(screen.getByTestId('char-counter')).toHaveTextContent('1,600/2,000');
   });
 });
 

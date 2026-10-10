@@ -290,11 +290,12 @@ export async function buildServiceLineValues(
 
   for (const line of input.lines) {
     const price = roundMoney(line.price);
+    const quantity = roundMoney(line.quantity);
     if (!isCustomServiceLine(line)) {
       values.push({
         ticket_id: input.ticketId,
         service_id: line.service_id,
-        quantity: line.quantity,
+        quantity,
         price,
       });
       continue;
@@ -315,7 +316,7 @@ export async function buildServiceLineValues(
       values.push({
         ticket_id: input.ticketId,
         service_id: created.id,
-        quantity: line.quantity,
+        quantity,
         price,
       });
       continue;
@@ -326,7 +327,7 @@ export async function buildServiceLineValues(
       service_id: null,
       name: line.name,
       description: line.description ?? null,
-      quantity: line.quantity,
+      quantity,
       price,
     });
   }

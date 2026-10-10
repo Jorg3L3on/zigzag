@@ -1,7 +1,13 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { servicesTickets, ticket, ticketLineMaterial } from '@/db/schema';
 import { db } from '@/lib/db';
-import { addMoney, sumLineTotals, sumMaterialTotals } from '@/lib/money';
+import { TicketTotalCapError } from '@/lib/errors';
+import {
+  addMoney,
+  MAX_TICKET_TOTAL,
+  sumLineTotals,
+  sumMaterialTotals,
+} from '@/lib/money';
 
 type FinancialLine = {
   quantity: number;
@@ -20,6 +26,14 @@ export const calculateTicketTotal = (lines: FinancialLine[]): number =>
     sumLineTotals(lines),
     ...lines.map((line) => sumMaterialTotals(line.materials)),
   );
+
+/** Refuses a total `Ticket.total` cannot hold, before it reaches Postgres (ZIG-I12). */
+export const assertTicketTotalWithinCap = (total: number): number => {
+  if (!Number.isFinite(total) || Math.abs(total) > MAX_TICKET_TOTAL) {
+    throw new TicketTotalCapError();
+  }
+  return total;
+};
 
 export async function syncTicketTotal(
   executor: TicketMutationExecutor,
@@ -55,6 +69,7 @@ export async function syncTicketTotal(
     );
 
   const total = addMoney(sumLineTotals(allForTicket), sumMaterialTotals(materials));
+  assertTicketTotalWithinCap(total);
   await executor.update(ticket).set({ total }).where(eq(ticket.id, ticketId));
   return total;
 }

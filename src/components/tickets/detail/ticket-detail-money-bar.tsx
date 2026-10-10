@@ -17,6 +17,15 @@ type TicketDetailMoneyBarProps = {
   paymentsHref?: string;
 };
 
+/** Longest amount that still fits three columns at 375px (e.g. $12,345.67). */
+const THREE_COLUMN_MAX_CHARS = 10;
+
+const formatBarAmount = (amount: number | null) =>
+  `$${(amount ?? 0).toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 export const TicketDetailMoneyBar = ({
   total,
   paid,
@@ -25,6 +34,16 @@ export const TicketDetailMoneyBar = ({
 }: TicketDetailMoneyBarProps) => {
   const balanceDue = getTicketBalanceDue(total, paid);
   const status = getTicketPaymentStatus(total, paid);
+  // Money is never truncated: big amounts stack one per row on narrow screens.
+  const stacked =
+    Math.max(
+      formatBarAmount(total).length,
+      formatBarAmount(paid).length,
+      formatBarAmount(balanceDue).length,
+    ) > THREE_COLUMN_MAX_CHARS;
+  const cellClass = stacked ? 'flex items-baseline justify-between gap-3 sm:block' : '';
+  const valueClass =
+    'text-sm font-semibold tabular-nums tracking-tight [overflow-wrap:anywhere] sm:text-base';
 
   return (
     <div
@@ -34,20 +53,29 @@ export const TicketDetailMoneyBar = ({
       )}
       aria-label={`Resumen de montos · ${TICKET_PAYMENT_STATUS_LABEL[status]}`}
     >
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <div className="min-w-0">
+      <div
+        className={cn(
+          'grid gap-2 sm:grid-cols-3 sm:gap-3',
+          stacked ? 'grid-cols-1' : 'grid-cols-3',
+        )}
+        data-stacked={stacked ? 'true' : undefined}
+      >
+        <div className={cn('min-w-0', cellClass)}>
           <p className="text-xs text-muted-foreground">Total</p>
-          <p className="truncate text-sm font-semibold tabular-nums tracking-tight sm:text-base">
+          <p className={cn(valueClass, stacked && 'text-right sm:text-left')}>
             <FormattedCurrency amount={total ?? 0} />
           </p>
         </div>
         <a
           href={paymentsHref}
-          className="min-w-0 rounded-md outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            'min-w-0 rounded-md outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring',
+            cellClass,
+          )}
           aria-label="Ver pagado en historial de pagos"
         >
           <p className="text-xs text-muted-foreground">Pagado</p>
-          <p className="truncate text-sm font-semibold tabular-nums tracking-tight sm:text-base">
+          <p className={cn(valueClass, stacked && 'text-right sm:text-left')}>
             {(paid ?? 0) > 0 ? (
               <FormattedCurrency amount={paid} />
             ) : (
@@ -57,11 +85,14 @@ export const TicketDetailMoneyBar = ({
         </a>
         <a
           href={paymentsHref}
-          className="min-w-0 rounded-md outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            'min-w-0 rounded-md outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring',
+            cellClass,
+          )}
           aria-label="Ver saldo en historial de pagos"
         >
           <p className="text-xs text-muted-foreground">Saldo</p>
-          <p className="truncate text-sm font-semibold tabular-nums tracking-tight sm:text-base">
+          <p className={cn(valueClass, stacked && 'text-right sm:text-left')}>
             <FormattedCurrency amount={balanceDue} />
           </p>
         </a>

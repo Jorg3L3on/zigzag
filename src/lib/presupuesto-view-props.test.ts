@@ -50,8 +50,22 @@ describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
       downloadFileName: 'presupuesto_Plaza Comercial Aurora_2026-10-09_1057.pdf',
     });
     expect(props.lines).toEqual([
-      { id: 90, serviceId: null, name: 'Revisión de fuga', quantity: 1, price: 600 },
-      { id: 91, serviceId: 7, name: 'Mantenimiento', quantity: 2, price: 2100 },
+      {
+        id: 90,
+        serviceId: null,
+        name: 'Revisión de fuga',
+        description: 'Con nitrógeno',
+        quantity: 1,
+        price: 600,
+      },
+      {
+        id: 91,
+        serviceId: 7,
+        name: 'Mantenimiento',
+        description: 'Preventivo',
+        quantity: 2,
+        price: 2100,
+      },
     ]);
   });
 

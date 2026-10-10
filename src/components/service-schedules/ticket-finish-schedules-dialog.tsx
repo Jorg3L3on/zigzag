@@ -48,6 +48,8 @@ type TicketFinishSchedulesDialogProps = {
   serviceLines: Array<{ serviceId: number; serviceName: string }>;
   existingSchedules: ClientServiceScheduleListItem[];
   saving?: boolean;
+  /** Primary button text; the ticket detail finishes on confirm, so it keeps the default. */
+  confirmLabel?: string;
   onConfirm: (lines: TicketFinishScheduleLine[]) => void;
   onSkip: () => void;
 };
@@ -82,6 +84,7 @@ export const TicketFinishSchedulesDialog = ({
   serviceLines,
   existingSchedules,
   saving = false,
+  confirmLabel = 'Finalizar y continuar',
   onConfirm,
   onSkip,
 }: TicketFinishSchedulesDialogProps) => {
@@ -239,7 +242,7 @@ export const TicketFinishSchedulesDialog = ({
                 Guardando…
               </>
             ) : (
-              'Finalizar y continuar'
+              confirmLabel
             )}
           </Button>
         </DialogFooter>

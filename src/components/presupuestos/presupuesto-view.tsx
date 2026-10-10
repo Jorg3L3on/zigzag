@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { collapseBlankLines } from '@/lib/collapse-blank-lines';
 import { formatLongDate } from '@/lib/format-long-date';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -346,11 +347,11 @@ export const PresupuestoView = ({
               Datos del presupuesto
             </h2>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Cliente
                 </dt>
-                <dd className="mt-0.5 font-medium">
+                <dd className="mt-0.5 font-medium [overflow-wrap:anywhere]">
                   {clientId ? (
                     <Link
                       href={`/clients/${clientId}`}
@@ -377,8 +378,11 @@ export const PresupuestoView = ({
               </div>
             </dl>
             {workNotes ? (
-              <p className="mt-3 whitespace-pre-line border-t border-border/60 pt-3 text-sm text-muted-foreground">
-                {workNotes}
+              <p
+                className="mt-3 whitespace-pre-line border-t border-border/60 pt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]"
+                data-testid="presupuesto-notes"
+              >
+                {collapseBlankLines(workNotes)}
               </p>
             ) : null}
           </section>

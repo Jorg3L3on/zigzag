@@ -3,6 +3,8 @@
 import { BookmarkPlus, ListChecks, PencilLine } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
+import { CharCounter } from '@/components/ui/char-counter';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -110,7 +112,10 @@ export const InlineServiceFields = ({
 }: InlineServiceFieldsProps) => (
   <div className="space-y-4">
     <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}-custom-name`}>Nombre del servicio</Label>
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={`${idPrefix}-custom-name`}>Nombre del servicio</Label>
+        <CharCounter value={name} max={SERVICE_LINE_NAME_MAX_LENGTH} />
+      </div>
       <Input
         id={`${idPrefix}-custom-name`}
         value={name}
@@ -121,6 +126,7 @@ export const InlineServiceFields = ({
         onChange={(event) => onNameChange(event.target.value)}
         className="h-12 rounded-xl text-base md:h-10 md:text-sm"
       />
+      <PdfCharsWarning text={name} />
     </div>
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-2">
@@ -139,6 +145,7 @@ export const InlineServiceFields = ({
         onChange={(event) => onDescriptionChange(event.target.value)}
         className="min-h-[64px] rounded-xl"
       />
+      <PdfCharsWarning text={description} />
     </div>
     <div className="flex items-start justify-between gap-4 rounded-xl border border-border/60 bg-muted/25 px-4 py-3">
       <div className="min-w-0 space-y-0.5">

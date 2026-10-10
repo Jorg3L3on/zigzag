@@ -38,6 +38,8 @@ import {
 import { canFinishTicket } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
 
+type PayMode = 'full' | 'partial' | 'pending';
+
 type ServiceLine = {
   serviceId: number;
   serviceName: string;
@@ -81,7 +83,8 @@ export const TicketDetailFinishPanel = ({
   const { selectedCompany } = useCompany();
   const canFinish = canFinishTicket(can);
 
-  const [isFullyPaid, setIsFullyPaid] = React.useState(true);
+  // No default: nothing is recorded as paid unless the user picks it (ZIG-I12 Q2).
+  const [payMode, setPayMode] = React.useState<PayMode | null>(null);
   const [paidAmountInput, setPaidAmountInput] = React.useState('0');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [schedulesDialogOpen, setSchedulesDialogOpen] = React.useState(false);
@@ -102,7 +105,11 @@ export const TicketDetailFinishPanel = ({
   };
 
   const getFinalPaidAmount = () =>
-    isFullyPaid ? ticketTotal : parsePaidInput(paidAmountInput);
+    payMode === 'full'
+      ? ticketTotal
+      : payMode === 'partial'
+        ? parsePaidInput(paidAmountInput)
+        : 0;
 
   const downloadServerTicketPdf = () =>
     fetchAndDeliverTicketInvoice({
@@ -116,7 +123,7 @@ export const TicketDetailFinishPanel = ({
   const executeFinishAndDownload = async (): Promise<boolean> => {
     const finalPaidAmount = getFinalPaidAmount();
 
-    if (!isFullyPaid && finalPaidAmount > ticketTotal) {
+    if (payMode === 'partial' && finalPaidAmount > ticketTotal) {
       toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
       return false;
     }
@@ -241,7 +248,11 @@ export const TicketDetailFinishPanel = ({
   };
 
   const paidExceedsTotal =
-    !isFullyPaid && parsePaidInput(paidAmountInput) > ticketTotal;
+    payMode === 'partial' && parsePaidInput(paidAmountInput) > ticketTotal;
+  const hasPayChoice =
+    payMode === 'full' ||
+    payMode === 'pending' ||
+    (payMode === 'partial' && parsePaidInput(paidAmountInput) > 0);
 
   return (
     <>
@@ -262,44 +273,52 @@ export const TicketDetailFinishPanel = ({
 
           <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
             <p className="text-sm font-medium text-foreground">Pago del ticket</p>
-            <div className="grid gap-2">
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                  isFullyPaid
-                    ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'border-border bg-background hover:bg-muted/50',
-                )}
-                onClick={() => setIsFullyPaid(true)}
-              >
-                {isFullyPaid ? (
-                  <CircleCheck className="h-4 w-4" aria-hidden />
-                ) : (
-                  <Circle className="h-4 w-4" aria-hidden />
-                )}
-                Pagado completo (<FormattedCurrency amount={total} />)
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                  !isFullyPaid
-                    ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'border-border bg-background hover:bg-muted/50',
-                )}
-                onClick={() => setIsFullyPaid(false)}
-              >
-                {!isFullyPaid ? (
-                  <CircleCheck className="h-4 w-4" aria-hidden />
-                ) : (
-                  <Circle className="h-4 w-4" aria-hidden />
-                )}
-                Pago parcial
-              </button>
+            <div role="radiogroup" aria-label="Pago del ticket" className="grid gap-2">
+              {(
+                [
+                  { mode: 'full', label: 'Pagado completo' },
+                  { mode: 'partial', label: 'Pago parcial' },
+                  { mode: 'pending', label: 'Pendiente' },
+                ] as const
+              ).map((option) => {
+                const selected = payMode === option.mode;
+                return (
+                  <button
+                    key={option.mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                      selected
+                        ? 'border-primary/40 bg-primary/10 text-foreground'
+                        : 'border-border bg-background hover:bg-muted/50',
+                    )}
+                    onClick={() => setPayMode(option.mode)}
+                  >
+                    {selected ? (
+                      <CircleCheck className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Circle className="h-4 w-4" aria-hidden />
+                    )}
+                    {option.mode === 'full' ? (
+                      <>
+                        Pagado completo (<FormattedCurrency amount={total} />)
+                      </>
+                    ) : (
+                      option.label
+                    )}
+                  </button>
+                );
+              })}
             </div>
+            {payMode === null ? (
+              <p className="text-xs text-muted-foreground" data-testid="finish-pay-hint">
+                Elige cómo pagó el cliente para finalizar.
+              </p>
+            ) : null}
 
-            {!isFullyPaid ? (
+            {payMode === 'partial' ? (
               <div className="space-y-2">
                 <label
                   htmlFor="detail-paid-amount"
@@ -358,7 +377,7 @@ export const TicketDetailFinishPanel = ({
           <Button
             type="button"
             onClick={() => void handleFinishClick()}
-            disabled={isSubmitting || !hasServices || paidExceedsTotal}
+            disabled={isSubmitting || !hasServices || paidExceedsTotal || !hasPayChoice}
             className="h-11 w-full gap-2 sm:w-auto"
           >
             {isSubmitting ? (

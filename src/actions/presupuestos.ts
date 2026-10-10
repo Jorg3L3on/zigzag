@@ -18,18 +18,24 @@ import {
   AuthenticationError,
   AuthorizationError,
   buildActionError,
+  buildValidationActionError,
   type CodedActionError,
   handleCodedServerActionError,
   handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
+import type { ValidationIssue } from '@/lib/action-result';
 import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
 import { invalidateCompanyCache } from '@/lib/cache';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
+import {
+  assertTicketTotalWithinCap,
+  calculateTicketTotal,
+  syncTicketTotal,
+} from '@/lib/ticket-financials';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import {
   getPresupuestoStatus,
@@ -216,9 +222,12 @@ export async function createPresupuestoWithLines(
   data?: { id: string; total: number };
   error?: string;
   errorType?: ActionErrorType;
+  /** Which line and field the server rejected (validation failures). */
+  issues?: ValidationIssue[];
 }> {
   try {
     const validated = createPresupuestoWithLinesSchema.parse(input);
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
@@ -314,7 +323,7 @@ export async function createPresupuestoWithLines(
       return handleServerActionError(error);
     }
     if (error instanceof z.ZodError) {
-      return buildActionError('TC009', error, 'validation');
+      return buildValidationActionError(error);
     }
     return handleCodedServerActionError('presupuestos.composer.create', 'TC001', error);
   }
@@ -372,6 +381,7 @@ export async function updatePresupuesto(
   data?: PresupuestoListItem;
   error?: string;
   errorType?: ActionErrorType;
+  issues?: ValidationIssue[];
 }> {
   try {
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
@@ -429,7 +439,7 @@ export async function updatePresupuesto(
       }
 
       const totalFromServices = servicesToSync
-        ? calculateTicketTotal(servicesToSync)
+        ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
         : undefined;
 
       const [row] = await tx
@@ -481,11 +491,7 @@ export async function updatePresupuesto(
     return { success: true, data: toListItem(updated) };
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return handleCodedServerActionError(
-        'presupuestos.update.validation',
-        'TC009',
-        e,
-      );
+      return buildValidationActionError(e);
     }
     return handleCodedServerActionError('presupuestos.update', 'TC004', e);
   }

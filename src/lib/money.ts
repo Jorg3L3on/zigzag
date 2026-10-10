@@ -10,17 +10,19 @@
  * Always run currency math through these helpers before persisting a value.
  */
 
+/** Largest total `Ticket.total` (numeric(12,2)) can store. */
+export const MAX_TICKET_TOTAL = 9_999_999_999.99;
+
 /** Round a peso amount to whole cents (2 decimals), avoiding float drift. */
 export const roundMoney = (value: number): number => {
   if (!Number.isFinite(value)) {
     return 0;
   }
-  // Scale to cents, then round half away from zero. A relative epsilon nudge
-  // corrects values like 1.005 that float storage holds as 1.00499999..., which
-  // would otherwise round down to 1.00.
-  const scaled = Math.abs(value) * 100;
-  const epsilon = scaled * 1e-9 + 1e-9;
-  const rounded = Math.round(scaled + epsilon);
+  // Scale to cents, then round half away from zero. toFixed(6) collapses float
+  // noise such as 1.005 * 100 = 100.49999999999999 without growing with the
+  // magnitude, so large amounts never gain phantom cents (ZIG-I12).
+  const scaled = Number((Math.abs(value) * 100).toFixed(6));
+  const rounded = Math.round(scaled);
   const signed = value < 0 ? -rounded : rounded;
   return signed / 100;
 };
@@ -36,24 +38,24 @@ export const subtractMoney = (a: number, b: number): number => roundMoney(a - b)
 export const multiplyMoney = (price: number, quantity: number): number =>
   roundMoney(price * quantity);
 
-/** Sum a collection of `quantity * price` lines, rounded to cents. */
+/**
+ * Sum a collection of `quantity * price` lines. Each line is rounded to cents
+ * first, so the total equals the sum of the amounts a document prints (ZIG-I12:
+ * with 2-decimal quantities, rounding once at the end can differ by a cent).
+ */
 export const sumLineTotals = (
   lines: ReadonlyArray<{ quantity: number; price: number }>,
-): number =>
-  roundMoney(
-    lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
-  );
+): number => addMoney(...lines.map((line) => multiplyMoney(line.price, line.quantity)));
 
 type MaterialAmountSource = { quantity: number | string; price: number | string };
 
-/** Σ quantity × price of a line's materials, rounded to cents (ZIG-I10). */
+/** Σ of each material's quantity × price, rounded per material (ZIG-I10). */
 export const sumMaterialTotals = (
   materials: ReadonlyArray<MaterialAmountSource> | null | undefined,
 ): number =>
-  roundMoney(
-    (materials ?? []).reduce(
-      (sum, item) => sum + Number(item.quantity) * Number(item.price),
-      0,
+  addMoney(
+    ...(materials ?? []).map((item) =>
+      multiplyMoney(Number(item.price), Number(item.quantity)),
     ),
   );
 
@@ -66,4 +68,7 @@ export const lineTotalWithMaterials = (line: {
   price: number;
   materials?: ReadonlyArray<MaterialAmountSource> | null;
 }): number =>
-  addMoney(line.quantity * line.price, sumMaterialTotals(line.materials));
+  addMoney(
+    multiplyMoney(line.price, line.quantity),
+    sumMaterialTotals(line.materials),
+  );

@@ -88,7 +88,7 @@ describe('TicketDetailFinishPanel', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /pago parcial/i }));
+    await user.click(screen.getByRole('radio', { name: /pago parcial/i }));
     const input = screen.getByLabelText(/cuánto pagó el cliente/i);
     await user.clear(input);
     await user.type(input, '150');

@@ -22,6 +22,7 @@ import {
   HEADER,
   LABEL,
   META,
+  NOTES,
   PAGE,
   PILL,
   PX_TO_PT,
@@ -30,6 +31,7 @@ import {
   normalLineHeight,
 } from './layout';
 import {
+  formatReceiptAmount,
   formatReceiptMoney,
   formatReceiptQuantity,
   type ReceiptPdfItem,
@@ -41,6 +43,20 @@ export type ReceiptPdfRenderOptions = {
   logoDataUrl?: string | null;
   /** Deflate content streams. Tests turn it off to read the text layer. */
   compress?: boolean;
+  /** Receives the measured layout (px); tests assert column widths with it. */
+  onLayout?: (metrics: ReceiptPdfLayoutMetrics) => void;
+};
+
+export type ReceiptPdfLayoutMetrics = {
+  conceptWidth: number;
+  qtyWidth: number;
+  priceWidth: number;
+  amountWidth: number;
+  /** Currency code left out of table cells to give Concepto room. */
+  compactAmounts: boolean;
+  /** Numeric text scale (1 = design size). */
+  numberScale: number;
+  pageCount: number;
 };
 
 type Align = 'left' | 'right' | 'center';
@@ -80,6 +96,7 @@ const S = {
   totalsValue: { font: RECEIPT_FONTS.mono400, size: TOTALS.size, color: COLORS.ink },
   dueLabel: { font: RECEIPT_FONTS.sans600, size: TOTALS.dueLabelSize, color: COLORS.ink },
   dueValue: { font: RECEIPT_FONTS.mono500, size: TOTALS.dueValueSize, color: COLORS.ink },
+  notes: { font: RECEIPT_FONTS.sans400, size: NOTES.size, color: COLORS.secondary },
   footerValue: { font: RECEIPT_FONTS.sans400, size: FOOTER.size, color: COLORS.secondary },
   colophon: { font: RECEIPT_FONTS.sans400, size: COLOPHON.size, color: COLORS.hint, tracking: COLOPHON.tracking },
 } satisfies Record<string, TextStyle>;
@@ -110,16 +127,39 @@ class Pen {
     this.doc.text(value, pt(left), pt(baseline), tracking ? { charSpace: pt(tracking) } : {});
   }
 
-  /** Wraps to `maxWidth`; the last kept line gets an ellipsis when text is cut. */
-  wrap(value: string, style: TextStyle, maxWidth: number, maxLines: number): string[] {
+  /**
+   * Wraps to `maxWidth`. A word wider than the column is broken by characters
+   * (jsPDF would leave it overflowing into the next column). With a finite
+   * `maxLines` the last kept line gets an ellipsis when text is cut.
+   */
+  wrap(value: string, style: TextStyle, maxWidth: number, maxLines = Number.POSITIVE_INFINITY): string[] {
     const clean = value.replace(/\s+/g, ' ').trim();
     if (!clean) return [];
     this.use(style);
-    const lines = this.doc.splitTextToSize(clean, pt(maxWidth)) as string[];
+    const lines = (this.doc.splitTextToSize(clean, pt(maxWidth)) as string[]).flatMap((line) =>
+      this.breakLong(line, style, maxWidth),
+    );
     if (lines.length <= maxLines) return lines;
     const kept = lines.slice(0, maxLines);
     kept[maxLines - 1] = this.ellipsize(`${kept[maxLines - 1]}…`, style, maxWidth);
     return kept;
+  }
+
+  /** Splits one line wider than `maxWidth` into pieces that fit, character by character. */
+  private breakLong(line: string, style: TextStyle, maxWidth: number): string[] {
+    if (this.width(line, style) <= maxWidth) return [line];
+    const pieces: string[] = [];
+    let current = '';
+    for (const char of line) {
+      if (current && this.width(current + char, style) > maxWidth) {
+        pieces.push(current);
+        current = char;
+      } else {
+        current += char;
+      }
+    }
+    if (current) pieces.push(current);
+    return pieces;
   }
 
   ellipsize(value: string, style: TextStyle, maxWidth: number): string {
@@ -161,14 +201,24 @@ type MetaColumn = {
   secondary: string[];
 };
 
+type MaterialLayout = {
+  /** `· Nombre`, wrapped over as many lines as it needs. */
+  nameLines: string[];
+  /** Quantity (and unit when it fits); a long unit goes on lines below the number. */
+  qtyLines: string[];
+  height: number;
+};
+
 type RowLayout = {
   item: ReceiptPdfItem;
   nameLines: string[];
   descriptionLines: string[];
-  /** `· Nombre`, one line each, ellipsized to the Concepto column. */
-  materialNames: string[];
+  materials: MaterialLayout[];
   height: number;
 };
+
+/** One line of the notes block; `null` text is the gap a blank line leaves. */
+type NoteLine = { text: string | null; height: number };
 
 type TotalsLayout = {
   rows: Array<{ label: string; value: string }>;
@@ -179,6 +229,7 @@ type TotalsLayout = {
 const NAME_LINE = normalLineHeight(TABLE.nameSize);
 const DESCRIPTION_LINE = normalLineHeight(TABLE.descriptionSize);
 const MATERIAL_LINE = normalLineHeight(TABLE.materialSize);
+const NOTES_LINE = NOTES.size * NOTES.lineHeight;
 
 const materialQuantity = (quantity: number, unit: string | null): string =>
   unit ? `${formatReceiptQuantity(quantity)} ${unit}` : formatReceiptQuantity(quantity);
@@ -340,47 +391,92 @@ export function renderReceiptPdf(
 
   // ---------- measure: columns ----------
   // Numeric columns keep their design width unless a value needs more (as a CSS
-  // auto table would), with TABLE.minColumnGap of air before the value.
-  const numericColumnWidth = (
-    design: number,
-    header: string,
-    values: string[],
-    style: TextStyle,
-    materialValues: string[],
-  ) =>
-    Math.max(
-      design,
-      pen.width(header, S.label) + TABLE.minColumnGap,
-      ...values.map((value) => pen.width(value, style) + TABLE.minColumnGap),
-      ...materialValues.map((value) => pen.width(value, S.materialNumber) + TABLE.minColumnGap),
-    );
-  const amountWidth = numericColumnWidth(
-    TABLE.amountWidth,
-    'IMPORTE',
-    payload.items.map((item) => money(item.amount)),
-    S.amount,
-    payload.items.flatMap((item) => item.materials.map((material) => money(material.amount))),
-  );
-  const priceWidth = numericColumnWidth(
-    TABLE.priceWidth,
-    'PRECIO UNITARIO',
-    payload.items.map((item) => money(item.unitPrice)),
-    S.number,
-    payload.items.flatMap((item) => item.materials.map((material) => money(material.unitPrice))),
-  );
-  const qtyWidth = numericColumnWidth(
-    TABLE.qtyWidth,
-    'CANTIDAD',
-    payload.items.map((item) => formatReceiptQuantity(item.quantity)),
-    S.number,
-    payload.items.flatMap((item) =>
-      item.materials.map((material) => materialQuantity(material.quantity, material.unit)),
-    ),
-  );
+  // auto table would), with TABLE.minColumnGap of air before the value. When
+  // that would leave Concepto under minConceptShare of the table (10-digit
+  // amounts), the currency code leaves the cells, then the numbers shrink.
+  const scaled = (style: TextStyle, factor: number): TextStyle => ({ ...style, size: style.size * factor });
+  const minConceptWidth = CONTENT_WIDTH * TABLE.minConceptShare;
+  const hasUnit = (material: ReceiptPdfItem['materials'][number]) => Boolean(material.unit);
+  const qtyWithUnit = (material: ReceiptPdfItem['materials'][number]) =>
+    materialQuantity(material.quantity, material.unit);
+  const columnWidths = (compact: boolean, factor: number) => {
+    const fmt = (value: number) => (compact ? formatReceiptAmount(value) : money(value));
+    const numeric = (
+      design: number,
+      header: string,
+      values: string[],
+      style: TextStyle,
+      materialValues: string[],
+    ) =>
+      Math.max(
+        design,
+        pen.width(header, S.label) + TABLE.minColumnGap,
+        ...values.map((value) => pen.width(value, scaled(style, factor)) + TABLE.minColumnGap),
+        ...materialValues.map(
+          (value) => pen.width(value, scaled(S.materialNumber, factor)) + TABLE.minColumnGap,
+        ),
+      );
+    const materials = payload.items.flatMap((item) => item.materials);
+    // A quantity with its unit widens the column only while it stays compact.
+    const qtyMaterialValues = [
+      ...materials.map((material) => formatReceiptQuantity(material.quantity)),
+      ...materials
+        .filter(hasUnit)
+        .map(qtyWithUnit)
+        .filter(
+          (value) =>
+            pen.width(value, scaled(S.materialNumber, factor)) + TABLE.minColumnGap <= TABLE.qtyMaxWidth,
+        ),
+    ];
+    return {
+      fmt,
+      amount: numeric(
+        TABLE.amountWidth,
+        'IMPORTE',
+        payload.items.map((item) => fmt(item.amount)),
+        S.amount,
+        materials.map((material) => fmt(material.amount)),
+      ),
+      price: numeric(
+        TABLE.priceWidth,
+        'PRECIO UNITARIO',
+        payload.items.map((item) => fmt(item.unitPrice)),
+        S.number,
+        materials.map((material) => fmt(material.unitPrice)),
+      ),
+      qty: Math.min(
+        numeric(
+          TABLE.qtyWidth,
+          'CANTIDAD',
+          payload.items.map((item) => formatReceiptQuantity(item.quantity)),
+          S.number,
+          qtyMaterialValues,
+        ),
+        TABLE.qtyMaxWidth,
+      ),
+      factor,
+      compact,
+    };
+  };
+  const conceptWidthOf = (c: { amount: number; price: number; qty: number }) =>
+    CONTENT_WIDTH - c.amount - c.price - c.qty;
+  let columns = columnWidths(false, 1);
+  if (conceptWidthOf(columns) < minConceptWidth) {
+    columns = columnWidths(true, 1);
+    for (let factor = 0.95; conceptWidthOf(columns) < minConceptWidth && factor >= TABLE.minNumberScale - 1e-9; factor -= 0.05) {
+      columns = columnWidths(true, factor);
+    }
+  }
+  const cell = columns.fmt;
+  const numberStyle = scaled(S.number, columns.factor);
+  const amountStyle = scaled(S.amount, columns.factor);
+  const materialNumberStyle = scaled(S.materialNumber, columns.factor);
   const COL_AMOUNT_RIGHT = CONTENT_RIGHT;
-  const COL_PRICE_RIGHT = COL_AMOUNT_RIGHT - amountWidth;
-  const COL_QTY_RIGHT = COL_PRICE_RIGHT - priceWidth;
-  const CONCEPT_WIDTH = COL_QTY_RIGHT - qtyWidth - CONTENT_LEFT;
+  const COL_PRICE_RIGHT = COL_AMOUNT_RIGHT - columns.amount;
+  const COL_QTY_RIGHT = COL_PRICE_RIGHT - columns.price;
+  const CONCEPT_WIDTH = COL_QTY_RIGHT - columns.qty - CONTENT_LEFT;
+  /** Width a quantity may use inside its column, minus the air kept on the left. */
+  const qtyTextWidth = columns.qty - TABLE.minColumnGap / 2;
 
   // ---------- measure: rows ----------
   const indexWidth = pen.width('00', S.index);
@@ -388,29 +484,37 @@ export function renderReceiptPdf(
   const conceptTextWidth = CONCEPT_WIDTH - TABLE.conceptPaddingRight - indexWidth - TABLE.conceptGap;
 
   const rows: RowLayout[] = payload.items.map((item) => {
-    const itemNameLines = pen.wrap(item.name, S.itemName, conceptTextWidth, TABLE.nameMaxLines);
-    const descriptionLines = pen.wrap(
-      item.description,
-      S.itemDescription,
-      conceptTextWidth,
-      TABLE.descriptionMaxLines,
-    );
-    const materialNames = item.materials.map((material) =>
-      pen.ellipsize(`· ${material.name}`, S.materialName, conceptTextWidth),
-    );
+    const itemNameLines = pen.wrap(item.name, S.itemName, conceptTextWidth);
+    const descriptionLines = pen.wrap(item.description, S.itemDescription, conceptTextWidth);
+    const materials: MaterialLayout[] = item.materials.map((material) => {
+      const nameLines = pen.wrap(`· ${material.name}`, S.materialName, conceptTextWidth);
+      const combined = materialQuantity(material.quantity, material.unit);
+      const qtyLines =
+        !material.unit || pen.width(combined, materialNumberStyle) <= qtyTextWidth
+          ? [combined]
+          : [
+              formatReceiptQuantity(material.quantity),
+              ...pen.wrap(material.unit, materialNumberStyle, qtyTextWidth),
+            ];
+      return {
+        nameLines: nameLines.length ? nameLines : [''],
+        qtyLines,
+        height: Math.max(nameLines.length, qtyLines.length, 1) * MATERIAL_LINE,
+      };
+    });
     const conceptHeight =
       Math.max(itemNameLines.length, 1) * NAME_LINE +
       (descriptionLines.length ? TABLE.descriptionGap + descriptionLines.length * DESCRIPTION_LINE : 0) +
-      (materialNames.length
+      (materials.length
         ? TABLE.materialsGap +
-          materialNames.length * MATERIAL_LINE +
-          (materialNames.length - 1) * TABLE.materialRowGap
+          materials.reduce((sum, material) => sum + material.height, 0) +
+          (materials.length - 1) * TABLE.materialRowGap
         : 0);
     return {
       item,
       nameLines: itemNameLines.length ? itemNameLines : [''],
       descriptionLines,
-      materialNames,
+      materials,
       height: TABLE.rowPaddingY * 2 + conceptHeight + TABLE.rowBorder,
     };
   });
@@ -436,8 +540,12 @@ export function renderReceiptPdf(
   const dueStacked =
     pen.width(payload.bigFigure.label, S.dueLabel) + TOTALS.leaderGap + pen.width(dueValue, S.dueValue) >
     panelInner;
+  // A 10-digit figure is scaled down to the panel instead of overflowing it.
+  const dueScale = Math.min(1, panelInner / Math.max(pen.width(dueValue, S.dueValue), 1));
+  const dueValueStyle = scaled(S.dueValue, dueScale);
+  const dueValueSize = TOTALS.dueValueSize * dueScale;
   const dueHeight = dueStacked
-    ? normalLineHeight(TOTALS.dueLabelSize) + normalLineHeight(TOTALS.dueValueSize)
+    ? normalLineHeight(TOTALS.dueLabelSize) + normalLineHeight(dueValueSize)
     : normalLineHeight(TOTALS.dueValueSize);
   const totals: TotalsLayout = {
     rows: totalsRows,
@@ -501,7 +609,103 @@ export function renderReceiptPdf(
       pages.push([]);
     }
   }
-  const pageCount = pages.length;
+  /** Page that carries the totals panel; notes-only pages follow it. */
+  const totalsPageIndex = pages.length - 1;
+  const rowsEnd = bodyTop + pages[totalsPageIndex].reduce((sum, row) => sum + row.height, 0);
+  const totalsTop = rowsEnd + TOTALS.marginTop;
+
+  // ---------- measure + paginate: notes ----------
+  const noteLines: NoteLine[] = [];
+  for (const paragraph of (payload.notes ?? '').split('\n')) {
+    if (paragraph.trim() === '') {
+      if (noteLines.length > 0 && noteLines[noteLines.length - 1].text !== null) {
+        noteLines.push({ text: null, height: NOTES.paragraphGap });
+      }
+      continue;
+    }
+    for (const line of pen.wrap(paragraph, S.notes, CONTENT_WIDTH)) {
+      noteLines.push({ text: line, height: NOTES_LINE });
+    }
+  }
+  while (noteLines.length > 0 && noteLines[noteLines.length - 1].text === null) noteLines.pop();
+  const notesLabel = payload.docType === 'presupuesto' ? 'Condiciones y notas' : 'Notas';
+  const NOTES_LABEL_BLOCK = LABEL_LINE + NOTES.labelGap;
+
+  /** Note lines per page index; pages past the rows hold notes only. */
+  const notesByPage = new Map<number, NoteLine[]>();
+  /** Top of the notes label on each page that has notes. */
+  const notesTopByPage = new Map<number, number>();
+  if (noteLines.length > 0) {
+    let pageIndex = totalsPageIndex;
+    let top = totalsTop + totals.height + NOTES.marginTop;
+    let remaining = [...noteLines];
+    while (remaining.length > 0) {
+      const room = ROWS_BOTTOM - top - NOTES_LABEL_BLOCK;
+      let used = 0;
+      let count = 0;
+      while (count < remaining.length && used + remaining[count].height <= room) {
+        used += remaining[count].height;
+        count += 1;
+      }
+      const minimum = Math.min(NOTES.minLines, remaining.length);
+      const textLinesFit = remaining.slice(0, count).filter((line) => line.text !== null).length;
+      if (textLinesFit < minimum) {
+        // Not even the label plus a couple of lines: start on a fresh page.
+        pageIndex += 1;
+        top = tableTop;
+        continue;
+      }
+      notesByPage.set(pageIndex, remaining.slice(0, count));
+      notesTopByPage.set(pageIndex, top);
+      remaining = remaining.slice(count);
+      while (remaining.length > 0 && remaining[0].text === null) remaining.shift();
+      if (remaining.length > 0) {
+        pageIndex += 1;
+        top = tableTop;
+      }
+    }
+    // The last page also carries the footer: pull lines forward until it clears it.
+    const finalIndex = Math.max(...notesByPage.keys());
+    const finalLines = notesByPage.get(finalIndex) as NoteLine[];
+    const finalTop = notesTopByPage.get(finalIndex) as number;
+    const footerLimit = footerTop - FOOTER.minSpacer;
+    const heightOf = (lines: NoteLine[]) => lines.reduce((sum, line) => sum + line.height, 0);
+    if (finalTop + NOTES_LABEL_BLOCK + heightOf(finalLines) > footerLimit) {
+      const overflow: NoteLine[] = [];
+      while (
+        finalLines.length > 0 &&
+        finalTop + NOTES_LABEL_BLOCK + heightOf(finalLines) > footerLimit
+      ) {
+        overflow.unshift(finalLines.pop() as NoteLine);
+      }
+      while (overflow.length > 0 && overflow[0].text === null) overflow.shift();
+      // Never strand a single line on the next page: carry one more over with it.
+      const textLines = (lines: NoteLine[]) => lines.filter((line) => line.text !== null).length;
+      while (
+        overflow.length > 0 &&
+        textLines(overflow) < NOTES.minLines &&
+        textLines(finalLines) > NOTES.minLines
+      ) {
+        overflow.unshift(finalLines.pop() as NoteLine);
+        while (finalLines.length > 0 && finalLines[finalLines.length - 1].text === null) {
+          overflow.unshift(finalLines.pop() as NoteLine);
+        }
+      }
+      while (overflow.length > 0 && overflow[0].text === null) overflow.shift();
+      if (finalLines.filter((line) => line.text !== null).length < Math.min(NOTES.minLines, noteLines.length)) {
+        overflow.unshift(...finalLines.splice(0));
+      }
+      if (finalLines.length === 0) {
+        notesByPage.delete(finalIndex);
+        notesTopByPage.delete(finalIndex);
+      }
+      if (overflow.length > 0) {
+        notesByPage.set(finalIndex + 1, overflow);
+        notesTopByPage.set(finalIndex + 1, tableTop);
+      }
+    }
+  }
+  const pageCount = Math.max(pages.length, ...[...notesByPage.keys()].map((index) => index + 1));
 
   // ---------- draw ----------
   const drawDoubleRule = (top: number) => {
@@ -654,18 +858,29 @@ export function renderReceiptPdf(
       textTop += DESCRIPTION_LINE;
     }
 
-    pen.text(formatReceiptQuantity(row.item.quantity), COL_QTY_RIGHT, baseline, S.number, 'right');
-    pen.text(money(row.item.unitPrice), COL_PRICE_RIGHT, baseline, S.number, 'right');
-    pen.text(money(row.item.amount), COL_AMOUNT_RIGHT, baseline, S.amount, 'right');
+    pen.text(formatReceiptQuantity(row.item.quantity), COL_QTY_RIGHT, baseline, numberStyle, 'right');
+    pen.text(cell(row.item.unitPrice), COL_PRICE_RIGHT, baseline, numberStyle, 'right');
+    pen.text(cell(row.item.amount), COL_AMOUNT_RIGHT, baseline, amountStyle, 'right');
     // Material sub-rows: same row (no divider), each number in its column.
     row.item.materials.forEach((material, i) => {
+      const layout = row.materials[i];
       textTop += i === 0 ? TABLE.materialsGap : TABLE.materialRowGap;
       const materialBaseline = baselineFrom(textTop, TABLE.materialSize);
-      pen.text(row.materialNames[i], conceptTextX, materialBaseline, S.materialName);
-      pen.text(materialQuantity(material.quantity, material.unit), COL_QTY_RIGHT, materialBaseline, S.materialNumber, 'right');
-      pen.text(money(material.unitPrice), COL_PRICE_RIGHT, materialBaseline, S.materialNumber, 'right');
-      pen.text(money(material.amount), COL_AMOUNT_RIGHT, materialBaseline, S.materialNumber, 'right');
-      textTop += MATERIAL_LINE;
+      layout.nameLines.forEach((line, lineIndex) => {
+        pen.text(line, conceptTextX, baselineFrom(textTop + lineIndex * MATERIAL_LINE, TABLE.materialSize), S.materialName);
+      });
+      layout.qtyLines.forEach((line, lineIndex) => {
+        pen.text(
+          line,
+          COL_QTY_RIGHT,
+          baselineFrom(textTop + lineIndex * MATERIAL_LINE, TABLE.materialSize),
+          materialNumberStyle,
+          'right',
+        );
+      });
+      pen.text(cell(material.unitPrice), COL_PRICE_RIGHT, materialBaseline, materialNumberStyle, 'right');
+      pen.text(cell(material.amount), COL_AMOUNT_RIGHT, materialBaseline, materialNumberStyle, 'right');
+      textTop += layout.height;
     });
 
     const borderY = top + row.height - TABLE.rowBorder / 2;
@@ -697,8 +912,8 @@ export function renderReceiptPdf(
       pen.text(
         totals.due.value,
         innerRight,
-        baselineFrom(dueTop + normalLineHeight(TOTALS.dueLabelSize), TOTALS.dueValueSize),
-        S.dueValue,
+        baselineFrom(dueTop + normalLineHeight(TOTALS.dueLabelSize), dueValueSize),
+        dueValueStyle,
         'right',
       );
     } else {
@@ -733,24 +948,50 @@ export function renderReceiptPdf(
     pen.text('Powered by zigzag', CONTENT_RIGHT, baseline, S.colophon, 'right');
   };
 
-  pages.forEach((pageRows, pageIndex) => {
+  const drawNotes = (pageIndex: number) => {
+    const lines = notesByPage.get(pageIndex);
+    if (!lines) return;
+    let top = notesTopByPage.get(pageIndex) as number;
+    const continued = pageIndex > Math.min(...notesByPage.keys());
+    const label = continued ? `${notesLabel} (cont.)` : notesLabel;
+    pen.text(label.toUpperCase(), CONTENT_LEFT, baselineFrom(top, LABEL.size), S.label);
+    top += NOTES_LABEL_BLOCK;
+    for (const line of lines) {
+      if (line.text !== null) {
+        pen.text(line.text, CONTENT_LEFT, baselineFrom(top, NOTES.size, NOTES_LINE), S.notes);
+      }
+      top += line.height;
+    }
+  };
+
+  for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
     if (pageIndex > 0) doc.addPage('letter', 'portrait');
     drawHeader();
     drawDoubleRule(firstRuleTop);
     drawMeta();
     drawDoubleRule(secondRuleTop);
-    drawTableHeader();
-    let top = bodyTop;
-    for (const row of pageRows) {
-      drawRow(row, top);
-      top += row.height;
+    if (pageIndex <= totalsPageIndex) {
+      drawTableHeader();
+      let top = bodyTop;
+      for (const row of pages[pageIndex]) {
+        drawRow(row, top);
+        top += row.height;
+      }
+      if (pageIndex === totalsPageIndex) drawTotals(totalsTop);
     }
-    if (pageIndex === pageCount - 1) {
-      drawTotals(top + TOTALS.marginTop);
-      drawFooter();
-    }
+    drawNotes(pageIndex);
+    if (pageIndex === pageCount - 1) drawFooter();
     drawColophon(pageIndex + 1);
-  });
+  }
 
+  options.onLayout?.({
+    conceptWidth: CONCEPT_WIDTH,
+    qtyWidth: columns.qty,
+    priceWidth: columns.price,
+    amountWidth: columns.amount,
+    compactAmounts: columns.compact,
+    numberScale: columns.factor,
+    pageCount,
+  });
   return doc.output('arraybuffer');
 }
