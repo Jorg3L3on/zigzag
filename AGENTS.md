@@ -12,7 +12,7 @@ npm run lint         # ESLint
 
 # Database: Drizzle is canonical
 npm run db:generate      # Generate SQL migrations from src/db/schema.ts
-npm run db:migrate       # Apply pending local migrations
+npm run db:migrate       # Apply pending local migrations (refuses remote DBs; pass the local URL explicitly)
 npm run migrate:deploy   # Apply production migrations with DIRECT_URL when set
 npm run db:studio        # Open Drizzle Studio
 npm run seed             # Seed through scripts/seed.ts
@@ -143,4 +143,5 @@ ZigZag is a multi-tenant ticket management / invoicing app. The only required se
 
 - **PostgreSQL must be started manually**: Run `sudo pg_ctlcluster 16 main start` before any DB commands. The database name is `zigzag`.
 - **Seed user passwords**: The seed script uses pre-existing bcrypt hashes whose plaintext is unknown. To log in locally, update a user's password hash in the DB after seeding: `node -e "require('bcryptjs').hash('YOUR_PASSWORD', 10).then(h => console.log(h))"` then `UPDATE "User" SET password = '<hash>' WHERE email = '<email>';`.
+- **Migration guards**: `drizzle.config.ts` refuses `migrate`, `push` and `studio` against a non-local database unless `ALLOW_REMOTE_DB_MIGRATE=1` (Vercel builds and GitHub Actions are exempt), because drizzle-kit loads `.env` (production Neon) before `.env.local`. To migrate the local copy: `DATABASE_URL="$(grep ^DATABASE_URL= .env.local | cut -d= -f2-)" npm run db:migrate`. CI also runs `npm run check:migrations` on PRs: a migration with `DROP TABLE/COLUMN`, `TRUNCATE`, `DELETE FROM`, `UPDATE ... SET` or a column type change fails unless it carries `-- data-loss-ok: <reason>`.
 - **DB setup sequence**: After starting PostgreSQL, run `npm run db:migrate` then `npm run seed`. Use `npx drizzle-kit push --force` only if migrations fail to apply cleanly.
