@@ -35,7 +35,7 @@ More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel
 - Multi-tenant data isolation by company
 - Role-based permissions: tenants manage their team and roles in **Mi empresa** (`/company`: Datos · Equipo · Roles, roles edited as a Ver/Editar matrix by module); the global `/users`, `/roles` and permission catalog pages are for system operators only
 - Tickets, clients, and service catalog
-- Dashboard metrics and **server-generated** ticket invoices (PDF)
+- Dashboard metrics and **server-generated** presupuesto / recibo PDFs (design 2a: one monochrome US Letter page, IBM Plex embedded; spec in [`docs/pdf-design-2a/`](docs/pdf-design-2a/README.md))
 - Mobile-friendly UI (responsive lists, touch targets, accessibility)
 - Installable PWA (`start_url` → `/dashboard`; service worker caches app shell; field jobs can be created offline and sync via IndexedDB outbox — see `tasks/prd-offline-first-jobs.md`)
 - UI with shadcn/ui and Tailwind CSS
@@ -210,9 +210,9 @@ Before a mobile release, use the manual checklist: [tasks/mobile-release-checkli
 | Android | Chrome (last 2 major versions) |
 | Desktop | Chrome, Edge (current versions) |
 
-**English:** Ticket PDFs are generated on the server in v1. If download fails on iOS, retry on Wi‑Fi or contact your administrator.
+**English:** Presupuesto and recibo PDFs are generated on the server (`GET /api/tickets/[id]/invoice`, jsPDF + embedded IBM Plex; code in `src/lib/receipt-pdf/`, fonts regenerated with `npm run pdf-fonts:generate`). If download fails on iOS, retry on Wi‑Fi or contact your administrator.
 
-**Español:** Los recibos PDF se generan en el servidor en v1. Si la descarga falla en iOS, reintenta con Wi‑Fi o contacta al administrador.
+**Español:** Los PDF de presupuestos y recibos se generan en el servidor. Si la descarga falla en iOS, reintenta con Wi‑Fi o contacta al administrador.
 
 ## Deployment (Vercel + Neon)
 
