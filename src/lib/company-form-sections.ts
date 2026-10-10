@@ -25,6 +25,7 @@ export const COMPANY_FORM_FIELD_SECTIONS: Array<[string, CompanyFormSectionKey]>
   ['state', 'direccion'],
   ['country', 'direccion'],
   ['postal_code', 'direccion'],
+  ['settings.tagline', 'configuracion'],
   ['settings.rfc', 'configuracion'],
   ['settings.default_currency', 'configuracion'],
   ['settings.experience_mode', 'configuracion'],
