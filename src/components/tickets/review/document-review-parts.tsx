@@ -1,13 +1,15 @@
 'use client';
 
 import * as React from 'react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { motion, useReducedMotion } from 'framer-motion';
 
 import { DrawCheck, NumberTicker } from '@/components/motion';
 import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
-import { multiplyMoney } from '@/lib/money';
+import { multiplyMoney, subtractMoney } from '@/lib/money';
 
 /**
  * Pieces shared by the ticket (ZIG-I2-5) and presupuesto (ZIG-I5-4) review and
@@ -123,3 +125,130 @@ export const ReviewLinesSection = ({
     </div>
   </section>
 );
+
+/** "9 de octubre 2026", or null for a missing/invalid ISO date. */
+export const formatLongDate = (value: string | null): string | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? null
+    : format(date, "d 'de' MMMM yyyy", { locale: es });
+};
+
+type QuoteSummaryProps = {
+  presupuestoId: string;
+  clientName: string | null;
+  dateLabel: string | null;
+  expiresLabel: string | null;
+  lines: ReviewLine[];
+  total: number;
+};
+
+/** HTML stand-in for the PDF where the browser cannot show it inline. */
+export const QuoteSummary = ({
+  presupuestoId,
+  clientName,
+  dateLabel,
+  expiresLabel,
+  lines,
+  total,
+}: QuoteSummaryProps) => (
+  <div
+    data-testid="presupuesto-summary"
+    className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
+  >
+    <div className="flex items-baseline justify-between gap-3">
+      <p className="font-semibold">Presupuesto #{presupuestoId}</p>
+      {dateLabel ? <p className="text-xs text-muted-foreground">{dateLabel}</p> : null}
+    </div>
+    {clientName ? <p className="mt-0.5 text-muted-foreground">{clientName}</p> : null}
+    <ul className="mt-3 space-y-1.5">
+      {lines.map((line) => (
+        <li key={line.id} className="flex justify-between gap-3">
+          <span className="min-w-0 truncate">
+            {line.quantity} × {line.name}
+          </span>
+          <span className="shrink-0 tabular-nums">
+            {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
+          </span>
+        </li>
+      ))}
+    </ul>
+    <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
+      <div className="flex justify-between font-semibold">
+        <dt>Total</dt>
+        <dd>{formatServiceCurrency(total)}</dd>
+      </div>
+      <div className="flex justify-between text-muted-foreground">
+        <dt>Vigencia</dt>
+        <dd>{expiresLabel ?? 'Sin vencimiento'}</dd>
+      </div>
+    </dl>
+    <p className="mt-3 text-xs text-muted-foreground">
+      Documento informativo — no es un recibo de pago.
+    </p>
+  </div>
+);
+
+type ReciboSummaryProps = {
+  ticketId: string;
+  clientName: string | null;
+  dateLabel: string | null;
+  lines: ReviewLine[];
+  total: number;
+  paid: number;
+};
+
+/** HTML stand-in for the PDF where the browser cannot show it inline. */
+export const ReciboSummary = ({
+  ticketId,
+  clientName,
+  dateLabel,
+  lines,
+  total,
+  paid,
+}: ReciboSummaryProps) => {
+  const balance = Math.max(subtractMoney(total, paid), 0);
+  return (
+    <div
+      data-testid="recibo-summary"
+      className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-semibold">Recibo · Ticket #{ticketId}</p>
+        {dateLabel ? (
+          <p className="text-xs text-muted-foreground">{dateLabel}</p>
+        ) : null}
+      </div>
+      {clientName ? (
+        <p className="mt-0.5 text-muted-foreground">{clientName}</p>
+      ) : null}
+      <ul className="mt-3 space-y-1.5">
+        {lines.map((line) => (
+          <li key={line.id} className="flex justify-between gap-3">
+            <span className="min-w-0 truncate">
+              {line.quantity} × {line.name}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
+        <div className="flex justify-between font-semibold">
+          <dt>Total</dt>
+          <dd>{formatServiceCurrency(total)}</dd>
+        </div>
+        <div className="flex justify-between text-muted-foreground">
+          <dt>Pagado</dt>
+          <dd>{formatServiceCurrency(paid)}</dd>
+        </div>
+        <div className="flex justify-between text-muted-foreground">
+          <dt>Saldo</dt>
+          <dd>{formatServiceCurrency(balance)}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+};
