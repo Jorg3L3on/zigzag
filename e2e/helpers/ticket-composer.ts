@@ -137,8 +137,12 @@ export const finishOnReview = async (
     name: 'Recordatorios de servicio',
   });
   await expect(schedulesDialog).toBeVisible({ timeout: 30_000 });
+  // Reminders come first; the receipt is shared once the dialog is answered (ZIG-I12).
   await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
   await expect(schedulesDialog).toBeHidden();
+  await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
+    timeout: 60_000,
+  });
 
   return page.evaluate(
     () => (window as unknown as { __openedUrls: string[] }).__openedUrls,

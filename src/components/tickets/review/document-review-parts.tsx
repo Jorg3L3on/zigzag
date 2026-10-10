@@ -187,6 +187,7 @@ export const ReviewLinesSection = ({
             <p className="mt-0.5 text-sm tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
               {line.quantity} × {formatServiceCurrency(line.price)}
             </p>
+            <ReviewLineDescription text={line.description} />
           </div>
           <span
             className="max-w-[55vw] text-right font-semibold tabular-nums [overflow-wrap:anywhere]"
