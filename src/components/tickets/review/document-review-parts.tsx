@@ -7,7 +7,13 @@ import { DrawCheck, NumberTicker } from '@/components/motion';
 import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
+import { formatMaterialQuantity, materialDraftAmount } from '@/lib/material-drafts';
 import { multiplyMoney, subtractMoney } from '@/lib/money';
+import {
+  reviewLineAmount,
+  type ReviewLine,
+  type ReviewLineMaterial,
+} from '@/lib/review-lines';
 
 /**
  * Pieces shared by the ticket (ZIG-I2-5) and presupuesto (ZIG-I5-4) review and
@@ -17,13 +23,42 @@ import { multiplyMoney, subtractMoney } from '@/lib/money';
 
 export const REVIEW_SECTION_CLASS = GLASS_CARD_CLASS;
 
-export type ReviewLine = {
-  id: number;
-  /** Null for an inline line (ZIG-I5). */
-  serviceId: number | null;
-  name: string;
-  quantity: number;
-  price: number;
+export type { ReviewLine, ReviewLineMaterial };
+
+/** Materials of one line, indented under it (ZIG-I10). */
+export const ReviewLineMaterials = ({
+  materials,
+  showInlineChips = false,
+}: {
+  materials: ReviewLineMaterial[] | undefined;
+  showInlineChips?: boolean;
+}) => {
+  if (!materials || materials.length === 0) return null;
+  return (
+    <ul
+      className="mt-1.5 space-y-1 border-l-2 border-border/60 pl-3"
+      aria-label="Materiales"
+      data-testid="review-line-materials"
+    >
+      {materials.map((item) => (
+        <li key={item.id} className="flex items-start justify-between gap-3 text-xs">
+          <span className="min-w-0 text-muted-foreground">
+            <span className="text-foreground/80">{item.name}</span>
+            {showInlineChips ? (
+              <InlineLineChips isInline={item.inline} className="ml-1" />
+            ) : null}
+            <span className="block tabular-nums">
+              {formatMaterialQuantity(item.quantity, item.unit)} ×{' '}
+              {formatServiceCurrency(item.price)}
+            </span>
+          </span>
+          <span className="shrink-0 tabular-nums text-muted-foreground">
+            {formatServiceCurrency(materialDraftAmount(item))}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 };
 
 const subscribeNoop = () => () => {};
@@ -103,9 +138,13 @@ export const ReviewLinesSection = ({
             <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
               {line.quantity} × {formatServiceCurrency(line.price)}
             </p>
+            <ReviewLineMaterials
+              materials={line.materials}
+              showInlineChips={showInlineChips}
+            />
           </div>
           <span className="shrink-0 font-semibold tabular-nums">
-            {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
+            {formatServiceCurrency(reviewLineAmount(line))}
           </span>
         </li>
       ))}
@@ -153,13 +192,28 @@ export const QuoteSummary = ({
     {clientName ? <p className="mt-0.5 text-muted-foreground">{clientName}</p> : null}
     <ul className="mt-3 space-y-1.5">
       {lines.map((line) => (
-        <li key={line.id} className="flex justify-between gap-3">
-          <span className="min-w-0 truncate">
-            {line.quantity} × {line.name}
-          </span>
-          <span className="shrink-0 tabular-nums">
-            {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
-          </span>
+        <li key={line.id}>
+          <div className="flex justify-between gap-3">
+            <span className="min-w-0 truncate">
+              {line.quantity} × {line.name}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
+            </span>
+          </div>
+          {(line.materials ?? []).map((item) => (
+            <div
+              key={item.id}
+              className="flex justify-between gap-3 pl-3 text-xs text-muted-foreground"
+            >
+              <span className="min-w-0 truncate">
+                · {item.name} {formatMaterialQuantity(item.quantity, item.unit)}
+              </span>
+              <span className="shrink-0 tabular-nums">
+                {formatServiceCurrency(materialDraftAmount(item))}
+              </span>
+            </div>
+          ))}
         </li>
       ))}
     </ul>
@@ -214,13 +268,28 @@ export const ReciboSummary = ({
       ) : null}
       <ul className="mt-3 space-y-1.5">
         {lines.map((line) => (
-          <li key={line.id} className="flex justify-between gap-3">
-            <span className="min-w-0 truncate">
-              {line.quantity} × {line.name}
-            </span>
-            <span className="shrink-0 tabular-nums">
-              {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
-            </span>
+          <li key={line.id}>
+            <div className="flex justify-between gap-3">
+              <span className="min-w-0 truncate">
+                {line.quantity} × {line.name}
+              </span>
+              <span className="shrink-0 tabular-nums">
+                {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
+              </span>
+            </div>
+            {(line.materials ?? []).map((item) => (
+              <div
+                key={item.id}
+                className="flex justify-between gap-3 pl-3 text-xs text-muted-foreground"
+              >
+                <span className="min-w-0 truncate">
+                  · {item.name} {formatMaterialQuantity(item.quantity, item.unit)}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {formatServiceCurrency(materialDraftAmount(item))}
+                </span>
+              </div>
+            ))}
           </li>
         ))}
       </ul>

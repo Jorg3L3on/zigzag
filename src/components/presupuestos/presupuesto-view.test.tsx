@@ -217,4 +217,35 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByRole('button', { name: 'Convertir a ticket' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Cancelar presupuesto' })).toBeNull();
   });
+
+  it('lists materials under their line and the line amount includes them (ZIG-I10-4)', () => {
+    renderView({
+      variant: 'review',
+      total: 3770,
+      lines: [
+        {
+          id: 1,
+          serviceId: 11,
+          name: 'Mantenimiento de cuarto frío',
+          quantity: 1,
+          price: 2100,
+          materials: [
+            { id: 7, name: 'Gas R410A', quantity: 1.5, unit: 'kg', price: 380, inline: false },
+            { id: 8, name: 'Soporte', quantity: 2, unit: 'pza', price: 550, inline: true },
+          ],
+        },
+      ],
+    });
+
+    const lines = screen.getByRole('list', { name: 'Servicios del presupuesto' });
+    const materials = within(lines).getByRole('list', { name: 'Materiales' });
+    expect(within(materials).getByText('Gas R410A')).toBeTruthy();
+    expect(within(materials).getByText('1.5 kg × $380.00')).toBeTruthy();
+    expect(within(materials).getByText('$570.00')).toBeTruthy();
+    // Only the inline material gets the Nuevo chip.
+    expect(within(materials).getAllByText('Nuevo')).toHaveLength(1);
+    // 2100 + 570 + 1100
+    expect(within(lines).getByText('$3,770.00')).toBeTruthy();
+  });
 });
+

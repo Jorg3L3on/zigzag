@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getTicketById } from '@/actions/tickets';
 import { TicketCreationReview } from '@/components/tickets/review/ticket-creation-review';
 import { requirePagePermission } from '@/lib/page-authz';
-import { getServiceLineName } from '@/lib/service-line-display';
+import { buildReviewLine } from '@/lib/review-lines';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 
@@ -29,13 +29,7 @@ export default async function TicketReadyPage({
   if (isPresupuestoTicket(ticket.document_kind)) {
     redirect(`/presupuestos/${String(ticket.id)}`);
   }
-  const lines = ticket.services_tickets.map((line) => ({
-    id: Number(line.id),
-    serviceId: line.service_id,
-    name: getServiceLineName(line),
-    quantity: line.quantity,
-    price: Number(line.price) || 0,
-  }));
+  const lines = ticket.services_tickets.map(buildReviewLine);
 
   return (
     <TicketCreationReview

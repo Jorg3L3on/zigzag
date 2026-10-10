@@ -1,6 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { TicketAddServicePanel } from '@/components/tickets/ticket-add-service-panel';
 
+// Materials UI (ZIG-I10) searches the catalog through this server action.
+jest.mock('@/actions/services', () => ({
+  searchMaterials: jest.fn(async () => ({ success: true, data: [] })),
+}));
+
+jest.mock('@/contexts/company-context', () => ({
+  useCompany: () => ({ selectedCompany: { id: 10, name: 'Demo Co' } }),
+}));
+
 const service = {
   id: 1,
   name: 'Consultoría',
@@ -35,6 +44,8 @@ const baseProps = {
   onCustomDescriptionChange: jest.fn(),
   saveToCatalog: false,
   onSaveToCatalogChange: jest.fn(),
+  materials: [],
+  onMaterialsChange: jest.fn(),
   isSubmitting: false,
   onAddService: jest.fn(),
 };
@@ -144,4 +155,33 @@ describe('TicketAddServicePanel', () => {
       screen.getByTestId('ticket-add-service-subtotal-value'),
     ).toHaveAttribute('data-value', '20.01');
   });
+
+  it('shows the line materials and adds them to the subtotal (ZIG-I10-4)', () => {
+    render(
+      <TicketAddServicePanel
+        {...baseProps}
+        isOpen
+        selectedService="1"
+        quantity="2"
+        price="100"
+        materials={[
+          {
+            key: 'm1',
+            material_id: 9,
+            name: 'Gas R410A',
+            unit: 'kg',
+            quantity: 1.5,
+            price: 380,
+            save_to_catalog: false,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('1.5 kg × $380.00')).toBeTruthy();
+    expect(screen.getByTestId('ticket-add-service-subtotal')).toHaveTextContent(
+      'Servicio $200.00 · Materiales $570.00',
+    );
+  });
 });
+
