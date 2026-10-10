@@ -360,3 +360,47 @@ describe('buildReceiptPdfPayload — materials (ZIG-I10)', () => {
     expect(payload.servicesSubtotal).toBe(payload.subtotal);
   });
 });
+
+describe('buildReceiptPdfPayload — stored amounts at large magnitudes (ZIG-I12)', () => {
+  const bigTicket = () =>
+    baseTicket({
+      total: 9_899_999_010,
+      paid: 1_234.57,
+      services_tickets: [
+        catalogLine(1, 'Servicio grande', 'x', 99_999_990, 99),
+      ],
+    });
+
+  it('prints the stored price, total, paid and balance exactly', () => {
+    const payload = buildReceiptPdfPayload(bigTicket());
+
+    expect(payload.items[0]).toMatchObject({
+      unitPrice: 99_999_990,
+      amount: 9_899_999_010,
+    });
+    expect(payload.total).toBe(9_899_999_010);
+    expect(payload.paid).toBe(1_234.57);
+    expect(payload.balanceDue).toBe(9_899_997_775.43);
+    expect(payload.adjustment).toBeNull();
+    expect(formatReceiptMoney(payload.items[0].unitPrice, 'MXN')).toBe(
+      '$99,999,990.00 MXN',
+    );
+  });
+
+  it('keeps Servicios + Materiales equal to the stored total with materials', () => {
+    const ticket = bigTicket();
+    ticket.services_tickets[0].materials = [
+      { name: 'Material', quantity: 9_999.99, price: 12_345.67 },
+    ];
+    // 99 × 99,999,990 + 9,999.99 × 12,345.67 (123,456,576.54)
+    ticket.total = 10_023_455_586.54;
+    const payload = buildReceiptPdfPayload(ticket);
+
+    expect(payload.servicesSubtotal + payload.materialsSubtotal).toBeCloseTo(
+      payload.subtotal,
+      2,
+    );
+    expect(payload.subtotal).toBe(payload.total);
+    expect(payload.adjustment).toBeNull();
+  });
+});

@@ -31,7 +31,11 @@ import {
   handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
-import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
+import {
+  assertTicketTotalWithinCap,
+  calculateTicketTotal,
+  syncTicketTotal,
+} from '@/lib/ticket-financials';
 import { addMoney, roundMoney, subtractMoney } from '@/lib/money';
 import {
   AMOUNT_TOLERANCE,
@@ -366,6 +370,7 @@ export async function createTicketWithLines(
 }> {
   try {
     const validated = createTicketWithLinesSchema.parse(input);
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
@@ -754,7 +759,7 @@ export async function updateTicket(
       : null;
     const hasServicesUpdate = servicesToSync !== null;
     const totalFromServices = hasServicesUpdate
-      ? calculateTicketTotal(servicesToSync)
+      ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
       : undefined;
 
     if (hasServicesUpdate) {

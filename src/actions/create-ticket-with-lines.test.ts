@@ -42,7 +42,7 @@ jest.mock('@/lib/company-production-guard', () => ({
 }));
 
 jest.mock('@/lib/ticket-financials', () => ({
-  calculateTicketTotal: jest.fn(),
+  ...jest.requireActual('@/lib/ticket-financials'),
   syncTicketTotal: jest.fn(),
 }));
 
@@ -309,5 +309,35 @@ describe('createTicketWithLines', () => {
     await createTicketWithLines(validInput);
 
     expect(captured.ticketValues?.email).toBeNull();
+  });
+  it('refuses a total above the Ticket.total cap before touching the database (ZIG-I12)', async () => {
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [{ service_id: 7, quantity: 9999, price: 99_999_999.99 }],
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      errorCode: 'TC011',
+      errorType: 'validation',
+    });
+    expect(result.error).toContain('$9,999,999,999.99');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('saves the documented maximum price without phantom cents (ZIG-I12)', async () => {
+    const captured: Captured = {};
+    mockServiceRows([{ id: 7 }]);
+    mockTransaction(captured);
+
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [{ service_id: 7, quantity: 1, price: 99_999_999.99 }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(captured.lineValues).toEqual([
+      { ticket_id: 1201n, service_id: 7, quantity: 1, price: 99_999_999.99 },
+    ]);
   });
 });

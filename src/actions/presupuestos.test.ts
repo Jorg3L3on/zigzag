@@ -293,6 +293,20 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
     mockDb.query.service.findMany.mockResolvedValue([{ id: 7 }]);
   });
 
+  it('refuses a total above the Ticket.total cap before touching the database (ZIG-I12)', async () => {
+    const result = await createPresupuestoWithLines({
+      ...validInput,
+      lines: [{ service_id: 7, quantity: 9999, price: 99_999_999.99 }],
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      errorCode: 'TC011',
+      errorType: 'validation',
+    });
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
   it('creates the quote and its catalog + inline lines in one transaction', async () => {
     const inserted: Inserted[] = [];
     mockTx(inserted);
