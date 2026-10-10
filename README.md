@@ -89,7 +89,8 @@ npm run dev           # http://localhost:3069
 | `npm start` | Production server (port 3069) |
 | `npm run lint` | ESLint |
 | `npm run db:generate` | Generate SQL migrations |
-| `npm run db:migrate` | Apply migrations locally |
+| `npm run db:migrate` | Apply migrations locally (refuses a remote database such as Neon; see `docs/agents/deployment.md`) |
+| `npm run check:migrations` | Fail if new migrations vs `origin/main` can lose data (CI runs it on PRs) |
 | `npm run migrate:deploy` | Apply migrations in production (`DIRECT_URL` when set) |
 | `npm run db:studio` | Drizzle Studio |
 | `npm run seed` | Seed via `scripts/seed.ts` |

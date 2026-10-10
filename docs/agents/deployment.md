@@ -65,6 +65,15 @@ Production schema changes are applied automatically during **Vercel production b
 
 **Manual fallback:** [`.github/workflows/migrate-production.yml`](../.github/workflows/migrate-production.yml) (`workflow_dispatch`). Add GitHub repository secrets `DATABASE_URL` and `DIRECT_URL` matching production Neon.
 
+### Migration guards
+
+Production holds a real client's data, so two guards protect it:
+
+- **Remote-database guard** (`scripts/db-target-guard.cjs`, enforced in `drizzle.config.ts`). `drizzle-kit migrate`, `push` and `studio` refuse to run when the resolved URL (`DIRECT_URL`, else `DATABASE_URL`) is not localhost. This matters because drizzle-kit loads `.env` (production Neon) before `.env.local`, so a bare `npm run db:migrate` used to hit production. Exempt: Vercel builds (`VERCEL=1`) and GitHub Actions (`GITHUB_ACTIONS=true`), which are the sanctioned production paths. Override for one command with `ALLOW_REMOTE_DB_MIGRATE=1`, after taking a Neon snapshot. Migrate the local copy with `DATABASE_URL="$(grep ^DATABASE_URL= .env.local | cut -d= -f2-)" npm run db:migrate`.
+- **Destructive-migration check** (`npm run check:migrations`, a CI step on pull requests). It scans migrations added or changed against the base branch and fails on `DROP TABLE`, `DROP COLUMN`, `DROP SCHEMA`, `TRUNCATE`, `DELETE FROM`, `UPDATE ... SET` and `ALTER COLUMN ... TYPE`. A migration that really needs one carries a line `-- data-loss-ok: <reason>`. Prefer additive changes: add the new column now, drop the old one in a later release, after a backup.
+
+Before merging `sandbox` into `main` with a migration in it, take a Neon branch/snapshot of production: the Vercel build applies the migration as soon as `main` deploys.
+
 **Before merging a migration into `sandbox`:** confirm the SQL is committed under `drizzle/` and listed in `drizzle/meta/_journal.json`. Production applies it on the next Vercel production deploy, i.e. when Jorge merges `sandbox` → `main`.
 
 ## Vercel settings
