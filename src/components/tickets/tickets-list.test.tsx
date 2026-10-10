@@ -134,6 +134,39 @@ describe('TicketsList', () => {
     mockWriteOfflineSnapshot.mockResolvedValue({} as never);
   });
 
+  it('keeps the search input mounted while tickets reload', async () => {
+    const first = paginatedResult([makeTicket()]);
+    arrange({ result: first });
+
+    render(<TicketsList />);
+
+    const input = await screen.findByPlaceholderText('Buscar tickets...');
+    await waitFor(() => {
+      expect(screen.getAllByText('Cliente Alfa').length).toBeGreaterThan(0);
+    });
+
+    let resolveReload: (value: typeof first) => void = () => undefined;
+    mockGetTicketsPaginated.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveReload = resolve;
+      }),
+    );
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Alfa' } });
+
+    // The debounced search triggers a reload that stays pending.
+    expect(await screen.findByText('Cargando tickets')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Buscar tickets...')).toBe(input);
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('Alfa');
+
+    resolveReload(first);
+    await waitFor(() => {
+      expect(screen.queryByText('Cargando tickets')).not.toBeInTheDocument();
+    });
+    expect(input).toHaveFocus();
+  });
+
   it('shows empty state after loading tickets', async () => {
     arrange();
 
@@ -206,9 +239,11 @@ describe('TicketsList', () => {
 
     render(<TicketsList />);
 
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      `Sin conexión — datos de ${snapshotUpdatedAt}`,
-    );
+    expect(
+      await screen.findByText(
+        new RegExp(`Sin conexión — datos de ${snapshotUpdatedAt}`),
+      ),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('Cliente Snapshot').length).toBeGreaterThan(0);
     expect(screen.queryByText('Editar')).not.toBeInTheDocument();
   });

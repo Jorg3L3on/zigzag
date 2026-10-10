@@ -48,6 +48,30 @@ test.describe('Mobile ticket screens', () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test('search keeps focus and the full value while results reload', async ({
+    page,
+  }) => {
+    await page.goto('/tickets');
+    const search = page.getByPlaceholder('Buscar tickets...');
+    await expect(search).toBeVisible();
+    const firstCard = page
+      .getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ })
+      .first();
+    await expect(firstCard).toBeVisible({ timeout: 15_000 });
+    const clientName = (await firstCard.locator('p').first().innerText()).trim();
+    const word = clientName.slice(0, 6);
+    test.skip(word.length < 4, 'first ticket client name is too short to type');
+
+    await search.click();
+    await page.keyboard.type(word, { delay: 80 });
+    // Let the 300 ms debounce fire and the reload finish.
+    await page.waitForTimeout(600);
+    await expect(page.getByText(`Búsqueda: ${word.trim()}`)).toBeVisible();
+
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue(word);
+  });
+
   test('shows the single-screen Nuevo ticket composer', async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on('console', (message) => {
