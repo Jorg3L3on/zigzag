@@ -2,7 +2,18 @@ import type { PublicErrorPayload } from '@/lib/error-catalog';
 
 export type ActionSuccess<T> = { success: true; data: T };
 
-export type ActionFailure = { success: false } & PublicErrorPayload;
+/** One rejected field of a validated input: where it is and what is wrong (ZIG-I12). */
+export type ValidationIssue = {
+  path: Array<string | number>;
+  code: string;
+  message: string;
+};
+
+export type ActionFailure = {
+  success: false;
+  /** Present on validation failures of composer inputs, so the UI can mark the line and field. */
+  issues?: ValidationIssue[];
+} & PublicErrorPayload;
 
 export type ActionResult<T = void> = T extends void
   ? ActionSuccess<undefined> | ActionFailure

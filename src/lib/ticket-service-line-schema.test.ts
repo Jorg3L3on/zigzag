@@ -50,9 +50,17 @@ describe('serviceLineInputSchema (ZIG-I5)', () => {
     expect(serviceLineInputSchema.safeParse(payload).success).toBe(false);
   });
 
-  it('composer schema adds whole-quantity and price limits on both kinds', () => {
+  it('composer schema bounds quantity (0.01–9,999.99, two decimals) and price on both kinds', () => {
     expect(
       composerServiceLineSchema.safeParse({ service_id: 1, quantity: 1.5, price: 1 })
+        .success,
+    ).toBe(true);
+    expect(
+      composerServiceLineSchema.safeParse({ service_id: 1, quantity: 1.234, price: 1 })
+        .success,
+    ).toBe(false);
+    expect(
+      composerServiceLineSchema.safeParse({ service_id: 1, quantity: 0.005, price: 1 })
         .success,
     ).toBe(false);
     expect(

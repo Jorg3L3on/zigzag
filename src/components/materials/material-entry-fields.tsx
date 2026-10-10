@@ -12,6 +12,7 @@ import {
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CharCounter } from '@/components/ui/char-counter';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -20,6 +21,7 @@ import {
   newMaterialKey,
   type MaterialDraft,
 } from '@/lib/material-drafts';
+import { validatePriceText, validateQuantityText } from '@/lib/composer-limits';
 import { roundMoney } from '@/lib/money';
 import {
   MATERIAL_UNIT_SUGGESTIONS,
@@ -44,11 +46,14 @@ const parseDecimal = (value: string): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-/** Keeps digits and one decimal separator, at most two decimals. */
+/**
+ * Keeps digits and one decimal separator. Extra decimals stay visible and get
+ * a message (Usa máximo 2 decimales) instead of being cut silently.
+ */
 const cleanDecimalInput = (value: string): string => {
   const normalized = value.replace(',', '.').replace(/[^\d.]/g, '');
   const [whole, ...rest] = normalized.split('.');
-  return rest.length > 0 ? `${whole}.${rest.join('').slice(0, 2)}` : whole;
+  return rest.length > 0 ? `${whole}.${rest.join('')}` : whole;
 };
 
 export type MaterialEntryState = ReturnType<typeof useMaterialEntry>;
@@ -75,9 +80,11 @@ export const useMaterialEntry = (
   const priceValue = roundMoney(parseDecimal(price));
   const trimmedName = name.trim();
   const catalogPick = variant === 'line' && mode === 'catalog';
+  const quantityError = validateQuantityText(quantity);
+  const priceError = validatePriceText(price);
   const canSubmit =
-    quantityValue >= 0.01 &&
-    quantityValue <= 9999.99 &&
+    !quantityError &&
+    !priceError &&
     price.trim() !== '' &&
     (catalogPick ? materialId != null : trimmedName.length > 0);
 
@@ -143,6 +150,8 @@ export const useMaterialEntry = (
     setSaveToCatalog,
     quantityValue,
     priceValue,
+    quantityError,
+    priceError,
     canSubmit,
     pick,
     toDraft,
@@ -204,6 +213,8 @@ type MaterialEntryFieldsProps = {
   /** Document noun for the Guardar en mi catálogo hint. */
   documentLabel?: string;
   autoFocus?: boolean;
+  /** The material would push the line or document past the total cap. */
+  totalError?: string | null;
 };
 
 /** The fields of one material; the container owns the buttons. */
@@ -213,6 +224,7 @@ export const MaterialEntryFields = ({
   companyId,
   documentLabel = 'documento',
   autoFocus = false,
+  totalError = null,
 }: MaterialEntryFieldsProps) => {
   const isLine = entry.variant === 'line';
   const catalogPick = isLine && entry.mode === 'catalog';
@@ -273,7 +285,10 @@ export const MaterialEntryFields = ({
       ) : (
         <>
           <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-name`}>Nombre del material</Label>
+            <div className="flex items-baseline justify-between gap-2">
+              <Label htmlFor={`${idPrefix}-name`}>Nombre del material</Label>
+              <CharCounter value={entry.name} max={MATERIAL_NAME_MAX_LENGTH} />
+            </div>
             {isLine ? (
               <Input
                 id={`${idPrefix}-name`}
@@ -320,8 +335,15 @@ export const MaterialEntryFields = ({
             value={entry.quantity}
             autoComplete="off"
             onChange={(event) => entry.setQuantity(event.target.value)}
+            aria-invalid={entry.quantityError ? true : undefined}
+            aria-describedby={entry.quantityError ? `${idPrefix}-quantity-error` : undefined}
             className="h-12 rounded-xl text-base tabular-nums md:h-10 md:text-sm"
           />
+          {entry.quantityError ? (
+            <p id={`${idPrefix}-quantity-error`} role="alert" className="text-xs text-destructive">
+              {entry.quantityError}
+            </p>
+          ) : null}
         </div>
         <div className="min-w-0 space-y-2">
           <Label htmlFor={`${idPrefix}-price`}>
@@ -338,9 +360,16 @@ export const MaterialEntryFields = ({
               autoComplete="off"
               placeholder="0.00"
               onChange={(event) => entry.setPrice(event.target.value)}
+              aria-invalid={entry.priceError ? true : undefined}
+              aria-describedby={entry.priceError ? `${idPrefix}-price-error` : undefined}
               className="h-12 rounded-xl pl-7 text-base tabular-nums md:h-10 md:text-sm"
             />
           </div>
+          {entry.priceError ? (
+            <p id={`${idPrefix}-price-error`} role="alert" className="text-xs text-destructive">
+              {entry.priceError}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -381,6 +410,11 @@ export const MaterialEntryFields = ({
           )}
         </span>
       </p>
+      {totalError ? (
+        <p role="alert" className="text-right text-xs text-destructive">
+          {totalError}
+        </p>
+      ) : null}
     </div>
   );
 };

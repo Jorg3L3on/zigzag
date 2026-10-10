@@ -27,10 +27,12 @@ import {
   AuthenticationError,
   AuthorizationError,
   buildActionError,
+  buildValidationActionError,
   handleCodedServerActionError,
   handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
+import type { ValidationIssue } from '@/lib/action-result';
 import {
   assertTicketTotalWithinCap,
   calculateTicketTotal,
@@ -367,6 +369,8 @@ export async function createTicketWithLines(
   data?: { id: string; total: number };
   error?: string;
   errorType?: ActionErrorType;
+  /** Which line and field the server rejected (validation failures). */
+  issues?: ValidationIssue[];
 }> {
   try {
     const validated = createTicketWithLinesSchema.parse(input);
@@ -485,7 +489,7 @@ export async function createTicketWithLines(
       return handleServerActionError(error);
     }
     if (error instanceof z.ZodError) {
-      return buildActionError('TC009', error, 'validation');
+      return buildValidationActionError(error);
     }
     return handleCodedServerActionError('tickets.composer.create', 'TC001', error);
   }

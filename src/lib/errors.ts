@@ -1,3 +1,4 @@
+import type { ZodError } from 'zod';
 import type { ActionFailure } from '@/lib/action-result';
 import {
   getErrorCatalogEntry,
@@ -8,6 +9,7 @@ import {
 import { logger } from '@/lib/logger';
 import { captureException } from '@/lib/observability';
 import { getRequestId } from '@/lib/request-context';
+import { toValidationIssues } from '@/lib/validation-issues';
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -191,6 +193,17 @@ export function buildActionError(
   return {
     success: false,
     ...buildPublicError(resolvedCode, cause, errorType),
+  };
+}
+
+/** TC009 for a failed Zod parse, carrying which line and field were rejected (ZIG-I12). */
+export function buildValidationActionError(
+  error: ZodError,
+  code: ErrorCode = 'TC009',
+): CodedActionError {
+  return {
+    ...buildActionError(code, error, 'validation'),
+    issues: toValidationIssues(error),
   };
 }
 

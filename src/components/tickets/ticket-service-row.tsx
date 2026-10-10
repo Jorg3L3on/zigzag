@@ -26,7 +26,8 @@ import { TicketServiceLineEditor } from '@/components/tickets/ticket-service-lin
 import {
   formatServiceCurrency,
   sanitizeDecimal,
-  sanitizeInteger,
+  cleanQuantityText,
+  sanitizeQuantity,
 } from '@/components/tickets/ticket-services-utils';
 import { addMoney, multiplyMoney, roundMoney } from '@/lib/money';
 import { MoreVertical, Package, Pencil, Trash2 } from 'lucide-react';
@@ -88,7 +89,7 @@ const TicketServiceEditSheet = ({
     price: String(serviceTicket.price),
   });
 
-  const quantity = sanitizeInteger(draft.quantity);
+  const quantity = sanitizeQuantity(draft.quantity);
   const price = roundMoney(sanitizeDecimal(draft.price));
 
   const handleSave = () => {
@@ -133,7 +134,7 @@ const TicketServiceEditSheet = ({
           onQuantityInput={(value) =>
             setDraft((current) => ({
               ...current,
-              quantity: value.replace(/[^\d]/g, ''),
+              quantity: cleanQuantityText(value),
             }))
           }
           onPriceInput={(value) =>

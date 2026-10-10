@@ -28,6 +28,7 @@ import {
 import { createTicketWithLines } from '@/actions/tickets';
 import { ClientForm } from '@/components/clients/client-form';
 import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
+import { CharCounter } from '@/components/ui/char-counter';
 import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
 import { ActionSwap, BlurFade, NumberTicker } from '@/components/motion';
 import {
@@ -70,6 +71,8 @@ import {
 } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
+import type { ValidationIssue } from '@/lib/action-result';
+import { mapServerIssues } from '@/lib/composer-server-errors';
 import { addMoney, lineTotalWithMaterials } from '@/lib/money';
 import {
   materialDraftsFromServiceDefaults,
@@ -92,6 +95,7 @@ import { vibrateSuccess } from '@/lib/vibrate-success';
 
 const CLIENT_SEARCH_DEBOUNCE_MS = 250;
 const CLIENT_SEARCH_PAGE_SIZE = 50;
+const NOTES_MAX_LENGTH = 2000;
 const SECTION_CLASS = GLASS_CARD_CLASS;
 
 type ComposerClient = { id: number; label: string };
@@ -110,10 +114,15 @@ type ComposerLineRowProps = {
   line: TicketComposerDraftLine;
   onEdit: () => void;
   onRemove: () => void;
+  /** What the server rejected on this line (ZIG-I12). */
+  error?: string;
 };
 
-const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
-  <div className="flex items-start gap-3 py-3">
+const ComposerLineRow = ({ line, onEdit, onRemove, error }: ComposerLineRowProps) => (
+  <div
+    className={cn('flex items-start gap-3 py-3', error && 'rounded-lg bg-destructive/5')}
+    data-invalid={error ? 'true' : undefined}
+  >
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
         <span className="min-w-0 font-medium leading-snug text-foreground [overflow-wrap:anywhere]">
@@ -136,6 +145,15 @@ const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
             ? '1 material'
             : `${line.materials.length} materiales`}{' '}
           · {formatServiceCurrency(materialDraftsTotal(line.materials))}
+        </p>
+      ) : null}
+      {error ? (
+        <p
+          role="alert"
+          data-testid="composer-line-error"
+          className="mt-1 text-xs font-medium text-destructive [overflow-wrap:anywhere]"
+        >
+          {error}
         </p>
       ) : null}
     </div>
@@ -297,6 +315,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     editingKey: string | null;
   }>({ open: false, session: 0, editingKey: null });
   const [saveState, setSaveState] = React.useState<SaveState>('idle');
+  // What the server rejected, per line and for the notes (ZIG-I12); cleared as the user edits.
+  const [lineErrors, setLineErrors] = React.useState<Record<string, string>>({});
+  const [notesError, setNotesError] = React.useState<string | null>(null);
   const [draftReady, setDraftReady] = React.useState(false);
   const servicePrefillAppliedRef = React.useRef(false);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
@@ -504,6 +525,13 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     }));
 
   const handleLineSubmit = (input: ComposerLineInput) => {
+    if (lineSheet.editingKey) {
+      const editedKey = lineSheet.editingKey;
+      setLineErrors((current) => {
+        const { [editedKey]: _removed, ...rest } = current;
+        return rest;
+      });
+    }
     setLines((current) => {
       if (lineSheet.editingKey) {
         return current.map((line) =>
@@ -514,8 +542,21 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     });
   };
 
-  const handleRemoveLine = (key: string) =>
+  const handleRemoveLine = (key: string) => {
+    setLineErrors((current) => {
+      const { [key]: _removed, ...rest } = current;
+      return rest;
+    });
     setLines((current) => current.filter((line) => line.key !== key));
+  };
+
+  /** Marks the rejected lines and notes; returns the sentence for the toast, if any. */
+  const applyServerIssues = (issues: ValidationIssue[] | undefined): string | null => {
+    const mapped = mapServerIssues(issues, lines);
+    setLineErrors(mapped.rowErrors);
+    setNotesError(mapped.notesError);
+    return mapped.summary;
+  };
 
   const handleSave = async () => {
     if (!companyId || !client || lines.length === 0 || saveState !== 'idle') {
@@ -532,6 +573,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     }
 
     setSaveState('saving');
+    setLineErrors({});
+    setNotesError(null);
     try {
       const payload = {
         company_id: companyId,
@@ -558,7 +601,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           return;
         }
         const content = buildToastErrorContent(updated, copy.saveError);
-        toast.error(content.title, { description: content.description });
+        const mapped = applyServerIssues(updated.issues);
+        toast.error(content.title, { description: mapped ?? content.description });
         setSaveState('idle');
         return;
       }
@@ -581,11 +625,12 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       }
 
       const content = buildToastErrorContent(result, copy.saveError);
+      const mappedSummary = applyServerIssues(result.issues);
       toast.error(content.title, {
         description:
           content.errorType === 'network'
             ? 'Tu borrador sigue en este teléfono. Vuelve a intentarlo cuando tengas señal.'
-            : content.description,
+            : (mappedSummary ?? content.description),
       });
       setSaveState('idle');
     } catch {
@@ -782,6 +827,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                         line={line}
                         onEdit={() => openEditLine(line.key)}
                         onRemove={() => handleRemoveLine(line.key)}
+                        error={lineErrors[line.key]}
                       />
                     </motion.li>
                   ))}
@@ -805,22 +851,35 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
 
         <BlurFade delay={0.1}>
           <section aria-labelledby="composer-notes-heading" className={SECTION_CLASS}>
-            <Label
-              id="composer-notes-heading"
-              htmlFor="composer-notes"
-              className="text-base font-semibold"
-            >
-              Notas <span className="font-normal text-muted-foreground">(opcional)</span>
-            </Label>
+            <div className="flex items-baseline justify-between gap-2">
+              <Label
+                id="composer-notes-heading"
+                htmlFor="composer-notes"
+                className="text-base font-semibold"
+              >
+                Notas <span className="font-normal text-muted-foreground">(opcional)</span>
+              </Label>
+              <CharCounter value={notes} max={NOTES_MAX_LENGTH} />
+            </div>
             <Textarea
               id="composer-notes"
               value={notes}
-              maxLength={2000}
-              onChange={(event) => setNotes(event.target.value)}
+              maxLength={NOTES_MAX_LENGTH}
+              onChange={(event) => {
+                setNotes(event.target.value);
+                setNotesError(null);
+              }}
+              aria-invalid={notesError ? true : undefined}
+              aria-describedby={notesError ? 'composer-notes-error' : undefined}
               placeholder={copy.notesPlaceholder}
               className="mt-3 min-h-[88px] rounded-xl"
             />
             <PdfCharsWarning text={notes} />
+            {notesError ? (
+              <p id="composer-notes-error" role="alert" className="mt-1 text-xs text-destructive">
+                {notesError}
+              </p>
+            ) : null}
           </section>
         </BlurFade>
 
@@ -876,6 +935,11 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         initialLine={editingLine}
         onSubmit={handleLineSubmit}
         documentLabel={copy.documentLabel}
+        otherLinesTotal={addMoney(
+          ...lines
+            .filter((line) => line.key !== lineSheet.editingKey)
+            .map(lineTotalWithMaterials),
+        )}
       />
 
       <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>

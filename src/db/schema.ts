@@ -278,7 +278,8 @@ export const servicesTickets = pgTable(
     name: varchar('name', { length: 100 }),
     /** Inline line description (optional). */
     description: text('description'),
-    quantity: integer('quantity').notNull(),
+    /** Two decimals (1.5 h); numeric(10,2) since migration 0030 (ZIG-I12). */
+    quantity: numeric('quantity', { precision: 10, scale: 2, mode: 'number' }).notNull(),
     price: money('price').notNull(),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()

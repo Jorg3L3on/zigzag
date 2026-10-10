@@ -4,9 +4,22 @@ import {
   SERVICE_DESCRIPTION_MAX_MESSAGE,
 } from '@/lib/service-description';
 
-/** Runtime money-line rules (TCI-02). Quantity ≥ 1, price ≥ 0, both finite. */
+/**
+ * Service quantity: 0.01 to 9,999.99 with at most two decimals, like a material
+ * (ZIG-I12 Q1; ServicesTickets.quantity is numeric(10,2) since migration 0030).
+ */
+export const serviceQuantitySchema = z
+  .number()
+  .finite()
+  .min(0.01)
+  .max(9999.99)
+  .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6, {
+    message: 'Usa máximo 2 decimales',
+  });
+
+/** Runtime money-line rules (TCI-02). Quantity 0.01–9,999.99, price ≥ 0, both finite. */
 export const serviceLineMoneySchema = z.object({
-  quantity: z.number().finite().min(1),
+  quantity: serviceQuantitySchema,
   price: z.number().finite().min(0),
 });
 
@@ -111,10 +124,10 @@ export const serviceLineInputSchema = z.union([
   catalogServiceLineSchema,
 ]);
 
-/** Composer limits on top of the line rules (ZIG-I2-4): whole quantities, bounded price. */
+/** Composer limits on top of the line rules (ZIG-I2-4): bounded quantity and price. */
 export const composerServiceLineSchema = serviceLineInputSchema.and(
   z.object({
-    quantity: z.number().int().min(1).max(9999),
+    quantity: serviceQuantitySchema,
     price: z.number().finite().min(0).max(99_999_999.99),
   }),
 );

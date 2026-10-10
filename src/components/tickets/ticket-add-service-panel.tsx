@@ -30,7 +30,8 @@ import {
 import {
   formatServiceCurrency,
   sanitizeDecimal,
-  sanitizeInteger,
+  cleanQuantityText,
+  sanitizeQuantity,
 } from '@/components/tickets/ticket-services-utils';
 import { NumberTicker } from '@/components/motion';
 import { addMoney, multiplyMoney } from '@/lib/money';
@@ -100,7 +101,7 @@ export const TicketAddServicePanel = ({
 }: TicketAddServicePanelProps) => {
   // While a material is being typed, its own buttons replace Agregar al ticket.
   const [materialEntryOpen, setMaterialEntryOpen] = useState(false);
-  const serviceAmount = multiplyMoney(sanitizeDecimal(price), sanitizeInteger(quantity));
+  const serviceAmount = multiplyMoney(sanitizeDecimal(price), sanitizeQuantity(quantity));
   const materialsAmount = materialDraftsTotal(materials);
   return (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -212,7 +213,7 @@ export const TicketAddServicePanel = ({
                 variant="outline"
                 size="icon"
                 className="h-12 w-12 shrink-0"
-                onClick={() => onQuantityAdjust(sanitizeInteger(quantity) - 1)}
+                onClick={() => onQuantityAdjust(sanitizeQuantity(quantity) - 1)}
                 aria-label="Reducir cantidad"
               >
                 <Minus className="h-4 w-4" data-icon="inline-start" />
@@ -225,9 +226,9 @@ export const TicketAddServicePanel = ({
                 pattern="[0-9]*"
                 value={quantity}
                 onChange={(e) =>
-                  onQuantityChange(e.target.value.replace(/[^\d]/g, ''))
+                  onQuantityChange(cleanQuantityText(e.target.value))
                 }
-                onBlur={() => onQuantityAdjust(sanitizeInteger(quantity))}
+                onBlur={() => onQuantityAdjust(sanitizeQuantity(quantity))}
                 className="h-12 border-2 text-center transition-colors focus:border-primary"
                 aria-label="Cantidad"
               />
@@ -236,7 +237,7 @@ export const TicketAddServicePanel = ({
                 variant="outline"
                 size="icon"
                 className="h-12 w-12 shrink-0"
-                onClick={() => onQuantityAdjust(sanitizeInteger(quantity) + 1)}
+                onClick={() => onQuantityAdjust(sanitizeQuantity(quantity) + 1)}
                 aria-label="Aumentar cantidad"
               >
                 <Plus className="h-4 w-4" data-icon="inline-start" />
@@ -326,7 +327,7 @@ export const TicketAddServicePanel = ({
                 </>
               ) : (
                 <span className="block truncate">
-                  {sanitizeInteger(quantity)} × {formatServiceCurrency(sanitizeDecimal(price))}
+                  {sanitizeQuantity(quantity)} × {formatServiceCurrency(sanitizeDecimal(price))}
                 </span>
               )}
             </p>

@@ -19,16 +19,23 @@ import { TicketServiceLineEditor } from '@/components/tickets/ticket-service-lin
 import {
   formatServiceCurrency,
   sanitizeDecimal,
-  sanitizeInteger,
+  cleanQuantityText,
+  sanitizeQuantity,
 } from '@/components/tickets/ticket-services-utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
+  materialDraftAmount,
   materialDraftsFromServiceDefaults,
   materialDraftsTotal,
   type MaterialDraft,
 } from '@/lib/material-drafts';
+import {
+  validateLineAmount,
+  validatePriceText,
+  validateQuantityText,
+} from '@/lib/composer-limits';
 import { addMoney, multiplyMoney, roundMoney } from '@/lib/money';
 import type { ServiceMaterialView } from '@/lib/service-materials';
 import type { TicketComposerDraftLine } from '@/lib/ticket-composer-draft';
@@ -51,6 +58,8 @@ type ComposerLineSheetProps = {
   onSubmit: (line: ComposerLineInput) => void;
   /** Noun for copy ("ticket" / "presupuesto"). */
   documentLabel?: string;
+  /** Total of the document's other lines, for the total cap (ZIG-I12). */
+  otherLinesTotal?: number;
 };
 
 const servicePrice = (item: ComposerService | undefined): number =>
@@ -81,6 +90,7 @@ export const ComposerLineSheet = ({
   initialLine,
   onSubmit,
   documentLabel = 'ticket',
+  otherLinesTotal = 0,
 }: ComposerLineSheetProps) => {
   const [materials, setMaterials] = useState<MaterialDraft[]>(
     () => initialLine?.materials ?? [],
@@ -127,7 +137,7 @@ export const ComposerLineSheet = ({
   );
 
   const selectedService = services.find((item) => String(item.id) === serviceId);
-  const quantityValue = sanitizeInteger(quantity);
+  const quantityValue = sanitizeQuantity(quantity);
   const priceValue = roundMoney(sanitizeDecimal(price));
   const isEditing = initialLine !== null;
   const editingCatalogLine =
@@ -135,14 +145,39 @@ export const ComposerLineSheet = ({
       ? initialLine
       : null;
   const trimmedName = customName.trim();
-  const canSubmit =
-    mode === 'custom'
-      ? trimmedName.length > 0
-      : Boolean(selectedService || (editingCatalogLine && serviceId));
 
   const materialsTotal = materialDraftsTotal(materials);
   const serviceAmount = multiplyMoney(priceValue, quantityValue);
   const lineTotal = addMoney(serviceAmount, materialsTotal);
+
+  // The server limits, explained here instead of failing at save (ZIG-I12).
+  const quantityError = validateQuantityText(quantity);
+  const priceError = validatePriceText(price);
+  const lineAmountError =
+    quantityError || priceError ? null : validateLineAmount(lineTotal, otherLinesTotal);
+  const canSubmit =
+    !quantityError &&
+    !priceError &&
+    !lineAmountError &&
+    (mode === 'custom'
+      ? trimmedName.length > 0
+      : Boolean(selectedService || (editingCatalogLine && serviceId)));
+
+  // A material that would push the line (or the document) over the cap.
+  const draftMaterialAmount = materialEntry.canSubmit
+    ? materialDraftAmount({
+        quantity: materialEntry.quantityValue,
+        price: materialEntry.priceValue,
+      })
+    : 0;
+  const editingMaterialKey = step.kind === 'material' ? step.editing?.key : undefined;
+  const otherMaterialsTotal = materialDraftsTotal(
+    materials.filter((item) => item.key !== editingMaterialKey),
+  );
+  const materialTotalError = validateLineAmount(
+    addMoney(serviceAmount, otherMaterialsTotal, draftMaterialAmount),
+    otherLinesTotal,
+  );
 
   const updateMaterials = (next: MaterialDraft[]) => {
     setMaterials(next);
@@ -177,7 +212,7 @@ export const ComposerLineSheet = ({
   };
 
   const submitMaterial = () => {
-    if (!materialEntry.canSubmit) return;
+    if (!materialEntry.canSubmit || materialTotalError) return;
     const draft = materialEntry.toDraft();
     const exists = materials.some((item) => item.key === draft.key);
     updateMaterials(
@@ -242,7 +277,7 @@ export const ComposerLineSheet = ({
             <Button
               type="button"
               className="h-11 flex-1"
-              disabled={!materialEntry.canSubmit}
+              disabled={!materialEntry.canSubmit || Boolean(materialTotalError)}
               onClick={submitMaterial}
             >
               {editingMaterial ? 'Guardar material' : 'Agregar material'}
@@ -256,6 +291,7 @@ export const ComposerLineSheet = ({
           companyId={companyId}
           documentLabel={documentLabel}
           autoFocus={!editingMaterial}
+          totalError={materialTotalError}
         />
       </BottomSheet>
     );
@@ -341,8 +377,10 @@ export const ComposerLineSheet = ({
           price={price}
           onQuantityStep={(next) => setQuantity(String(next))}
           onPriceStep={(next) => setPrice(String(next))}
-          onQuantityInput={(value) => setQuantity(value.replace(/[^\d]/g, ''))}
+          onQuantityInput={(value) => setQuantity(cleanQuantityText(value))}
           onPriceInput={setPrice}
+          quantityError={quantityError}
+          priceError={priceError}
         />
 
         <section aria-labelledby="composer-line-materials-heading" className="space-y-2">
@@ -452,6 +490,11 @@ export const ComposerLineSheet = ({
             data-testid="composer-line-subtotal"
           />
         </div>
+        {lineAmountError ? (
+          <p role="alert" className="text-xs text-destructive" data-testid="composer-line-total-error">
+            {lineAmountError}
+          </p>
+        ) : null}
       </div>
     </BottomSheet>
   );

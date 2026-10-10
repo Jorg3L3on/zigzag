@@ -17,6 +17,7 @@ import {
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { CLIENT_NAME_MAX_LENGTH } from '@/lib/client-limits';
 
 export type Client = typeof client.$inferSelect;
 
@@ -219,6 +220,10 @@ export async function createClient(
     const { context, companyId: effectiveCompanyId } =
       await requireTenantActionPermission('clients.write', data.company_id);
 
+    if (data.name.trim().length > CLIENT_NAME_MAX_LENGTH) {
+      return buildActionError('CL008');
+    }
+
     const [created] = await db
       .insert(client)
       .values({
@@ -278,6 +283,14 @@ export async function updateClient(
         isNull(client.deleted_at),
       ),
     });
+    // Names saved before the cap stay editable as they are; a changed name must fit.
+    if (
+      data.name !== undefined &&
+      data.name.trim().length > CLIENT_NAME_MAX_LENGTH &&
+      data.name !== existing?.name
+    ) {
+      return buildActionError('CL008');
+    }
     const [updated] = await db
       .update(client)
       .set({ ...updateData, company_id: effectiveCompanyId })

@@ -19,7 +19,8 @@ import {
 } from '@/lib/network-awareness';
 import {
   sanitizeDecimal,
-  sanitizeInteger,
+  cleanQuantityText,
+  sanitizeQuantity,
 } from '@/components/tickets/ticket-services-utils';
 import type { ServiceLineMode } from '@/components/tickets/service-line-source-fields';
 
@@ -161,7 +162,7 @@ export const useTicketServicesList = ({
 
     setIsSubmitting(true);
     try {
-      const parsedQuantity = sanitizeInteger(quantity);
+      const parsedQuantity = sanitizeQuantity(quantity);
       const parsedPrice = sanitizeDecimal(price);
       const description = customDescription.trim();
       const materials =
@@ -280,7 +281,7 @@ export const useTicketServicesList = ({
     value: string,
   ) => {
     if (value === '') return;
-    void handleUpdateService(serviceTicketId, sanitizeInteger(value), currentPrice);
+    void handleUpdateService(serviceTicketId, sanitizeQuantity(value), currentPrice);
   };
 
   const handleServicePriceChange = (
