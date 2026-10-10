@@ -117,6 +117,14 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByRole('button', { name: 'Convertir a ticket' })).toBeNull();
   });
 
+  it('Abrir PDF is an in-app link to the viewer page, never a new tab (ZIG-I9)', () => {
+    renderView({ variant: 'detail' });
+
+    const open = screen.getByRole('link', { name: /Abrir PDF/ });
+    expect(open).toHaveAttribute('href', '/presupuestos/400/pdf');
+    expect(open).not.toHaveAttribute('target');
+  });
+
   it('detail shows the status chip and converts behind a confirmation', async () => {
     const user = userEvent.setup();
     mockConvert.mockResolvedValue({
