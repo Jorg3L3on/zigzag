@@ -13,6 +13,9 @@ type TicketServiceLineEditorProps = {
   onPriceStep: (nextPrice: number) => void;
   onQuantityInput: (value: string) => void;
   onPriceInput: (value: string) => void;
+  /** Message under Cantidad / Precio (aria-invalid + aria-describedby). */
+  quantityError?: string | null;
+  priceError?: string | null;
   className?: string;
 };
 
@@ -34,6 +37,8 @@ export const TicketServiceLineEditor = ({
   onPriceStep,
   onQuantityInput,
   onPriceInput,
+  quantityError = null,
+  priceError = null,
   className,
 }: TicketServiceLineEditorProps) => {
   const quantityValue = toNumber(quantity);
@@ -62,13 +67,15 @@ export const TicketServiceLineEditor = ({
           <Input
             id={`${idPrefix}-quantity`}
             type="number"
-            min="1"
-            inputMode="numeric"
-            pattern="[0-9]*"
+            min="0.01"
+            step="0.01"
+            inputMode="decimal"
             value={quantity}
             onChange={(e) => onQuantityInput(e.target.value)}
             className="w-full text-center sm:w-24"
             aria-label="Cantidad del servicio"
+            aria-invalid={quantityError ? true : undefined}
+            aria-describedby={quantityError ? `${idPrefix}-quantity-error` : undefined}
           />
           <Button
             type="button"
@@ -81,6 +88,15 @@ export const TicketServiceLineEditor = ({
             <Plus className="h-4 w-4" data-icon="inline-start" />
           </Button>
         </div>
+        {quantityError ? (
+          <p
+            id={`${idPrefix}-quantity-error`}
+            role="alert"
+            className="mt-1 text-xs text-destructive"
+          >
+            {quantityError}
+          </p>
+        ) : null}
       </div>
       <div>
         <Label
@@ -116,6 +132,8 @@ export const TicketServiceLineEditor = ({
               onChange={(e) => onPriceInput(e.target.value)}
               className="w-full pl-8 text-center"
               aria-label="Precio del servicio"
+              aria-invalid={priceError ? true : undefined}
+              aria-describedby={priceError ? `${idPrefix}-price-error` : undefined}
             />
           </div>
           <Button
@@ -129,6 +147,15 @@ export const TicketServiceLineEditor = ({
             <Plus className="h-4 w-4" data-icon="inline-start" />
           </Button>
         </div>
+        {priceError ? (
+          <p
+            id={`${idPrefix}-price-error`}
+            role="alert"
+            className="mt-1 text-xs text-destructive"
+          >
+            {priceError}
+          </p>
+        ) : null}
       </div>
     </div>
   );

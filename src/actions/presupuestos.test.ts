@@ -468,7 +468,7 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
     ['no lines', { lines: [] }],
     ['Vence before the date', { expires_at: new Date('2026-10-01T00:00:00Z') }],
     ['inline line without name', { lines: [{ kind: 'custom', name: ' ', quantity: 1, price: 1 }] }],
-    ['fractional quantity', { lines: [{ service_id: 7, quantity: 1.5, price: 1 }] }],
+    ['three-decimal quantity', { lines: [{ service_id: 7, quantity: 1.234, price: 1 }] }],
   ])('rejects %s', async (_label, patch) => {
     const result = await createPresupuestoWithLines({
       ...validInput,

@@ -121,10 +121,19 @@ const cleanMaterials = (value: unknown): MaterialDraft[] | undefined => {
   return materials.length > 0 ? materials : undefined;
 };
 
+/** Service quantities allow two decimals since migration 0030 (ZIG-I12). */
+const cleanServiceQuantity = (value: unknown): number | undefined =>
+  typeof value === 'number' &&
+  Number.isFinite(value) &&
+  value >= 0.01 &&
+  value <= 9999.99
+    ? Math.round(value * 100) / 100
+    : undefined;
+
 const cleanLine = (value: unknown): TicketComposerDraftLine | null => {
   if (!value || typeof value !== 'object') return null;
   const line = value as Record<string, unknown>;
-  const quantity = cleanPositiveInt(line.quantity);
+  const quantity = cleanServiceQuantity(line.quantity);
   const price =
     typeof line.price === 'number' && Number.isFinite(line.price) && line.price >= 0
       ? line.price

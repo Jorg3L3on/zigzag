@@ -268,7 +268,9 @@ describe('createTicketWithLines', () => {
 
   it.each([
     ['zero quantity', { service_id: 7, quantity: 0, price: 10 }],
-    ['fractional quantity', { service_id: 7, quantity: 1.5, price: 10 }],
+    ['three-decimal quantity', { service_id: 7, quantity: 1.234, price: 10 }],
+    ['quantity above 9,999.99', { service_id: 7, quantity: 10_000, price: 10 }],
+    ['quantity below 0.01', { service_id: 7, quantity: 0.001, price: 10 }],
     ['negative price', { service_id: 7, quantity: 1, price: -1 }],
     ['infinite price', { service_id: 7, quantity: 1, price: Infinity }],
   ])('rejects invalid lines (%s)', async (_label, line) => {
@@ -310,6 +312,22 @@ describe('createTicketWithLines', () => {
 
     expect(captured.ticketValues?.email).toBeNull();
   });
+  it('saves a 1.5 quantity as 1.5, never 15 (ZIG-I12 Q1)', async () => {
+    const captured: Captured = {};
+    mockServiceRows([{ id: 7 }]);
+    mockTransaction(captured);
+
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [{ service_id: 7, quantity: 1.5, price: 100 }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(captured.lineValues).toEqual([
+      { ticket_id: 1201n, service_id: 7, quantity: 1.5, price: 100 },
+    ]);
+  });
+
   it('refuses a total above the Ticket.total cap before touching the database (ZIG-I12)', async () => {
     const result = await createTicketWithLines({
       ...validInput,
