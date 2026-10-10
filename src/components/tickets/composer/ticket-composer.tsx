@@ -63,7 +63,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { SearchableSelect } from '@/components/ui/searchable-select';
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
 import { addMoney, lineTotalWithMaterials } from '@/lib/money';
@@ -112,13 +115,15 @@ const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
   <div className="flex items-start gap-3 py-3">
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span className="font-medium leading-snug text-foreground">{line.service_name}</span>
+        <span className="min-w-0 font-medium leading-snug text-foreground [overflow-wrap:anywhere]">
+          {line.service_name}
+        </span>
         <InlineLineChips
           isInline={line.kind === 'custom' || line.service_id == null}
           saveToCatalog={line.save_to_catalog}
         />
       </div>
-      <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
+      <p className="mt-0.5 text-sm tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
         {line.quantity} × {formatServiceCurrency(line.price)}
       </p>
       {line.materials && line.materials.length > 0 ? (
@@ -133,7 +138,10 @@ const ComposerLineRow = ({ line, onEdit, onRemove }: ComposerLineRowProps) => (
         </p>
       ) : null}
     </div>
-    <span className="shrink-0 pt-0.5 text-base font-semibold tabular-nums text-foreground">
+    <span
+      className="max-w-[55%] shrink-0 pt-0.5 text-right text-base font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]"
+      data-testid="composer-line-amount"
+    >
       {formatServiceCurrency(lineTotalWithMaterials(line))}
     </span>
     <DropdownMenu>
@@ -454,9 +462,11 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   }, [prefillServiceId, draftReady, services]);
 
   const clientOptions = React.useMemo(() => {
-    const options = clients.map((item) => ({
+    const options: SearchableSelectOption[] = clients.map((item) => ({
       value: String(item.id),
       label: clientLabel(item),
+      title: item.name,
+      detail: item.phone ?? undefined,
     }));
     if (client && !options.some((option) => option.value === String(client.id))) {
       options.unshift({ value: String(client.id), label: client.label });
@@ -775,14 +785,14 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               </ul>
             )}
 
-            <div className="mt-3 flex items-baseline justify-between border-t border-border/60 pt-3">
+            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Total
               </span>
               <NumberTicker
                 value={total}
                 format={formatServiceCurrency}
-                className="text-2xl font-semibold text-foreground"
+                className="min-w-0 text-right text-xl font-semibold text-foreground [overflow-wrap:anywhere] min-[400px]:text-2xl"
                 data-testid="composer-total"
               />
             </div>
@@ -834,7 +844,10 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       <TripledMobileStickyActionBar>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-muted-foreground">{ctaHint}</p>
-          <p className="truncate text-base font-semibold tabular-nums">
+          <p
+            className="text-base font-semibold leading-tight tabular-nums [overflow-wrap:anywhere]"
+            data-testid="composer-sticky-total"
+          >
             {formatServiceCurrency(total)}
           </p>
         </div>

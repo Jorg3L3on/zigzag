@@ -14,6 +14,10 @@ import { cn } from '@/lib/utils';
 export type SearchableSelectOption = {
   value: string;
   label: string;
+  /** Row heading when it differs from `label` (the trigger keeps `label`). */
+  title?: string;
+  /** Second row line, e.g. a phone; never truncated away by a long title. */
+  detail?: string;
 };
 
 export type SearchableSelectProps = {
@@ -85,6 +89,8 @@ export const SearchableSelect = ({
     if (!open) {
       return;
     }
+    // A reopened list always starts with an empty search.
+    setSearch('');
     const frame = window.requestAnimationFrame(() => {
       searchInputRef.current?.focus();
     });
@@ -182,7 +188,7 @@ export const SearchableSelect = ({
                   <button
                     type="button"
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground',
+                      'flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground',
                       isSelected && 'bg-accent/60',
                     )}
                     onClick={() => handleSelect(option.value)}
@@ -194,7 +200,18 @@ export const SearchableSelect = ({
                       )}
                       aria-hidden
                     />
-                    <span className="truncate">{option.label}</span>
+                    {option.detail ? (
+                      <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 [overflow-wrap:anywhere]">
+                          {option.title ?? option.label}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {option.detail}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="truncate">{option.label}</span>
+                    )}
                   </button>
                 </li>
               );

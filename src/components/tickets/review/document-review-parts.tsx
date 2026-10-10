@@ -42,7 +42,7 @@ export const ReviewLineMaterials = ({
     >
       {materials.map((item) => (
         <li key={item.id} className="flex items-start justify-between gap-3 text-xs">
-          <span className="min-w-0 text-muted-foreground">
+          <span className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
             <span className="text-foreground/80">{item.name}</span>
             {showInlineChips ? (
               <InlineLineChips isInline={item.inline} className="ml-1" />
@@ -52,7 +52,7 @@ export const ReviewLineMaterials = ({
               {formatServiceCurrency(item.price)}
             </span>
           </span>
-          <span className="shrink-0 tabular-nums text-muted-foreground">
+          <span className="shrink-0 text-right tabular-nums text-muted-foreground">
             {formatServiceCurrency(materialDraftAmount(item))}
           </span>
         </li>
@@ -62,12 +62,23 @@ export const ReviewLineMaterials = ({
 };
 
 const subscribeNoop = () => () => {};
+const TOUCH_USER_AGENT = /Android|iPhone|iPad|iPod|Mobile/i;
+
+/** Phones and tablets: the inline <object> leaves a blank box there (ZIG-I12). */
+export const isTouchDevice = () =>
+  typeof navigator !== 'undefined' &&
+  (TOUCH_USER_AGENT.test(navigator.userAgent) ||
+    (typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches));
+
 const readPdfViewerEnabled = () =>
   typeof navigator !== 'undefined' &&
-  (navigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled === true;
+  (navigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled === true &&
+  !isTouchDevice();
 const serverPdfViewerEnabled = () => false;
 
-/** Inline PDF only where the browser can render it (not Android Chrome, not headless). */
+/** Inline PDF only where the browser can render it (not touch devices, not headless). */
 export const usePdfViewerEnabled = () =>
   React.useSyncExternalStore(
     subscribeNoop,
@@ -127,36 +138,47 @@ export const ReviewLinesSection = ({
     </h2>
     <ul className="mt-2 divide-y divide-border/60" aria-label={linesLabel}>
       {lines.map((line) => (
-        <li key={line.id} className="flex items-start gap-3 py-3">
-          <div className="min-w-0 flex-1">
+        <li
+          key={line.id}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 py-3"
+        >
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-              <span className="font-medium leading-snug">{line.name}</span>
+              <span className="min-w-0 font-medium leading-snug [overflow-wrap:anywhere]">
+                {line.name}
+              </span>
               {showInlineChips ? (
                 <InlineLineChips isInline={line.serviceId == null} />
               ) : null}
             </div>
-            <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
+            <p className="mt-0.5 text-sm tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
               {line.quantity} × {formatServiceCurrency(line.price)}
             </p>
+          </div>
+          <span
+            className="max-w-[55vw] text-right font-semibold tabular-nums [overflow-wrap:anywhere]"
+            data-testid="review-line-amount"
+          >
+            {formatServiceCurrency(reviewLineAmount(line))}
+          </span>
+          {/* Same grid: material amounts end on the line amount's right edge. */}
+          <div className="col-span-2 min-w-0">
             <ReviewLineMaterials
               materials={line.materials}
               showInlineChips={showInlineChips}
             />
           </div>
-          <span className="shrink-0 font-semibold tabular-nums">
-            {formatServiceCurrency(reviewLineAmount(line))}
-          </span>
         </li>
       ))}
     </ul>
-    <div className="mt-1 flex items-baseline justify-between border-t border-border/60 pt-3">
+    <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3">
       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Total
       </span>
       <NumberTicker
         value={total}
         format={formatServiceCurrency}
-        className="text-2xl font-semibold"
+        className="min-w-0 text-right text-xl font-semibold [overflow-wrap:anywhere] min-[400px]:text-2xl"
         data-testid="review-total"
       />
     </div>
@@ -189,15 +211,17 @@ export const QuoteSummary = ({
       <p className="font-semibold">Presupuesto #{presupuestoId}</p>
       {dateLabel ? <p className="text-xs text-muted-foreground">{dateLabel}</p> : null}
     </div>
-    {clientName ? <p className="mt-0.5 text-muted-foreground">{clientName}</p> : null}
+    {clientName ? (
+      <p className="mt-0.5 text-muted-foreground [overflow-wrap:anywhere]">{clientName}</p>
+    ) : null}
     <ul className="mt-3 space-y-1.5">
       {lines.map((line) => (
         <li key={line.id}>
           <div className="flex justify-between gap-3">
-            <span className="min-w-0 truncate">
+            <span className="min-w-0 [overflow-wrap:anywhere]">
               {line.quantity} × {line.name}
             </span>
-            <span className="shrink-0 tabular-nums">
+            <span className="shrink-0 text-right tabular-nums">
               {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
             </span>
           </div>
@@ -206,7 +230,7 @@ export const QuoteSummary = ({
               key={item.id}
               className="flex justify-between gap-3 pl-3 text-xs text-muted-foreground"
             >
-              <span className="min-w-0 truncate">
+              <span className="min-w-0 [overflow-wrap:anywhere]">
                 · {item.name} {formatMaterialQuantity(item.quantity, item.unit)}
               </span>
               <span className="shrink-0 tabular-nums">
@@ -218,11 +242,11 @@ export const QuoteSummary = ({
       ))}
     </ul>
     <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
-      <div className="flex justify-between font-semibold">
+      <div className="flex justify-between gap-3 font-semibold">
         <dt>Total</dt>
-        <dd>{formatServiceCurrency(total)}</dd>
+        <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(total)}</dd>
       </div>
-      <div className="flex justify-between text-muted-foreground">
+      <div className="flex justify-between gap-3 text-muted-foreground">
         <dt>Vigencia</dt>
         <dd>{expiresLabel ?? 'Sin vencimiento'}</dd>
       </div>
@@ -264,16 +288,18 @@ export const ReciboSummary = ({
         ) : null}
       </div>
       {clientName ? (
-        <p className="mt-0.5 text-muted-foreground">{clientName}</p>
+        <p className="mt-0.5 text-muted-foreground [overflow-wrap:anywhere]">
+          {clientName}
+        </p>
       ) : null}
       <ul className="mt-3 space-y-1.5">
         {lines.map((line) => (
           <li key={line.id}>
             <div className="flex justify-between gap-3">
-              <span className="min-w-0 truncate">
+              <span className="min-w-0 [overflow-wrap:anywhere]">
                 {line.quantity} × {line.name}
               </span>
-              <span className="shrink-0 tabular-nums">
+              <span className="shrink-0 text-right tabular-nums">
                 {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
               </span>
             </div>
@@ -282,7 +308,7 @@ export const ReciboSummary = ({
                 key={item.id}
                 className="flex justify-between gap-3 pl-3 text-xs text-muted-foreground"
               >
-                <span className="min-w-0 truncate">
+                <span className="min-w-0 [overflow-wrap:anywhere]">
                   · {item.name} {formatMaterialQuantity(item.quantity, item.unit)}
                 </span>
                 <span className="shrink-0 tabular-nums">
@@ -294,17 +320,17 @@ export const ReciboSummary = ({
         ))}
       </ul>
       <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
-        <div className="flex justify-between font-semibold">
+        <div className="flex justify-between gap-3 font-semibold">
           <dt>Total</dt>
-          <dd>{formatServiceCurrency(total)}</dd>
+          <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(total)}</dd>
         </div>
-        <div className="flex justify-between text-muted-foreground">
+        <div className="flex justify-between gap-3 text-muted-foreground">
           <dt>Pagado</dt>
-          <dd>{formatServiceCurrency(paid)}</dd>
+          <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(paid)}</dd>
         </div>
-        <div className="flex justify-between text-muted-foreground">
+        <div className="flex justify-between gap-3 text-muted-foreground">
           <dt>Saldo</dt>
-          <dd>{formatServiceCurrency(balance)}</dd>
+          <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(balance)}</dd>
         </div>
       </dl>
     </div>

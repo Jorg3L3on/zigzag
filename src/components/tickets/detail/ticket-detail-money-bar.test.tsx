@@ -22,3 +22,23 @@ describe('TicketDetailMoneyBar', () => {
     expect(screen.queryByText('Sin pagos')).toBeNull();
   });
 });
+
+describe('TicketDetailMoneyBar with 10-digit amounts (ZIG-I12)', () => {
+  it('stacks Total, Pagado and Saldo and never truncates them', () => {
+    const { container } = render(
+      <TicketDetailMoneyBar total={9_900_124_059.38} paid={1_234.5} />,
+    );
+
+    const grid = container.querySelector('[data-stacked="true"]');
+    expect(grid).not.toBeNull();
+    expect(screen.getByText('$9,900,124,059.38')).toBeTruthy();
+    expect(screen.getByText('$9,900,122,824.88')).toBeTruthy();
+    expect(container.querySelector('.truncate')).toBeNull();
+  });
+
+  it('keeps three columns for ordinary amounts', () => {
+    const { container } = render(<TicketDetailMoneyBar total={1500} paid={500} />);
+
+    expect(container.querySelector('[data-stacked]')).toBeNull();
+  });
+});
