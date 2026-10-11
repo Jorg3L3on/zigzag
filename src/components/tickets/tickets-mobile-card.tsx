@@ -1,6 +1,5 @@
 import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
-import { ClientPhoneLink } from '@/components/client-phone-link';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketPaymentProgressBar } from '@/components/tickets/ticket-payment-progress-bar';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
@@ -122,15 +121,8 @@ export const TicketsMobileCard = ({
         {phone ? (
           <>
             <span aria-hidden>·</span>
-            <ClientPhoneLink
-              phone={ticket.client_tel}
-              className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              textClassName="tabular-nums"
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
-            >
-              {phone}
-            </ClientPhoneLink>
+            {/* Plain text: a tap near the middle of the card must open the ticket, not dial. */}
+            <span className="tabular-nums">{phone}</span>
           </>
         ) : null}
         {dateLabel ? (

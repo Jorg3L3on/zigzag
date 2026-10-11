@@ -60,16 +60,12 @@ for (const width of [375, 333]) {
       const search = page.getByPlaceholder('Cliente, folio o teléfono');
       await expect(search).toBeVisible({ timeout: 15_000 });
 
-      // Check 2: at least 3 cards above the dock (375×812).
-      const openCards = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).filter({ visible: true });
-      await expect(openCards.first()).toBeVisible({ timeout: 15_000 });
-      await expect(openCards.first()).toContainText(suffix);
-      // The three newest tickets are the fixtures: no filter yet, so this is the list as it opens.
+      // Check 2: room for 3 heavy cards above the dock (375×812). The list opens on whatever is
+      // newest, so measure the room first, then the heavy cards' own heights once filtered.
+      const anyCard = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).filter({ visible: true });
+      await expect(anyCard.first()).toBeVisible({ timeout: 15_000 });
       const dockTop = (await page.getByTestId('mobile-bottom-tab-bar').boundingBox())!.y;
-      const wanted = width === 375 ? 3 : 2;
-      const last = (await openCards.nth(wanted - 1).boundingBox())!;
-      expect(last.y + last.height, `${wanted} cards end above the dock`).toBeLessThanOrEqual(dockTop + 1);
-
+      const room = dockTop - (await anyCard.first().boundingBox())!.y;
 
       await search.fill(suffix);
       await expect(page.getByText(`Búsqueda: ${suffix}`)).toBeVisible({ timeout: 15_000 });
@@ -100,6 +96,12 @@ for (const width of [375, 333]) {
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('Total');
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('$1,300,488.89');
       await expectNoPageOverflow(page, 'tickets list');
+
+      // The three heavy cards, one under the other, fit the room above the dock.
+      const heights = await Promise.all([0, 1, 2].map(async (i) => (await cards.nth(i).boundingBox())!.height));
+      const wanted = width === 375 ? 3 : 2;
+      const needed = heights.slice(0, wanted).reduce((sum, h) => sum + h, 0) + (wanted - 1) * 10;
+      expect(needed, `${wanted} heavy cards (${needed}px) fit the ${Math.round(room)}px above the dock`).toBeLessThanOrEqual(room + 1);
 
       // Check 4: chips drive the status filter and the search keeps its value and element.
       const group = page.getByRole('group', { name: 'Filtro de cobro' });

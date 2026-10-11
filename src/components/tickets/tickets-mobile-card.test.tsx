@@ -42,8 +42,8 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     expect(meta).toHaveTextContent('Pago parcial');
     expect(meta).toHaveTextContent('555 123 4567');
     expect(meta).toHaveTextContent('1 may');
-    const phoneLink = screen.getByRole('link', { name: /llamar a 5551234567/i });
-    expect(phoneLink).toHaveAttribute('href', 'tel:5551234567');
+    // The phone is text: tapping the card opens the ticket instead of dialing.
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(
       screen.getByRole('progressbar', { name: /progreso de pago 40 por ciento/i }),
     ).toBeInTheDocument();
@@ -51,9 +51,6 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     expect(money).toHaveTextContent('Pagado $100.00');
     expect(money).toHaveTextContent('Saldo $150.00');
     expect(screen.queryByText('Teléfono')).not.toBeInTheDocument();
-
-    phoneLink.click();
-    expect(mockPush).not.toHaveBeenCalled();
 
     await screen.getByRole('button', { name: /editar ticket 42/i }).click();
     expect(mockPush).toHaveBeenCalled();
