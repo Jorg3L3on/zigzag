@@ -30,7 +30,8 @@ for (const width of MOBILE_WIDTHS) {
       await page.goto('/clients');
       const card = page.getByRole('button', { name: /Abrir cliente/i }).first();
       await expect(card).toBeVisible({ timeout: 30_000 });
-      await card.click();
+      // The middle of a card can be the phone link (it starts a call); tap the name.
+      await card.getByRole('heading').click();
 
       await expect(page).toHaveURL(/\/clients\/\d+$/);
       await expect(page.getByTestId('client-detail-title')).toBeVisible();
@@ -46,7 +47,11 @@ for (const width of MOBILE_WIDTHS) {
 
     test('saves notes and keeps them after a reload', async ({ page }) => {
       await page.goto('/clients');
-      await page.getByRole('button', { name: /Abrir cliente/i }).first().click();
+      await page
+        .getByRole('button', { name: /Abrir cliente/i })
+        .first()
+        .getByRole('heading')
+        .click();
       await expect(page).toHaveURL(/\/clients\/\d+$/);
 
       const note = `Portón azul, tocar dos veces ${Date.now().toString().slice(-6)}`;
