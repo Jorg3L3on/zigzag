@@ -26,6 +26,7 @@ export function LoginForm({
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [isStamped, setIsStamped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,6 +60,7 @@ export function LoginForm({
       const result = await signIn('credentials', {
         email,
         password,
+        remember: remember ? 'true' : 'false',
         redirect: false,
       });
 
@@ -198,6 +200,26 @@ export function LoginForm({
                   </div>
                 </div>
               </div>
+
+              <label
+                htmlFor="remember"
+                className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] text-[color:var(--login-ink)]"
+              >
+                <input
+                  id="remember"
+                  name="remember"
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                  className="size-5 shrink-0 accent-[color:var(--login-accent-blue)]"
+                />
+                <span>
+                  Mantener mi sesión en este dispositivo
+                  <span className="block text-[12.5px] text-[color:var(--login-ink-muted)]">
+                    Se queda abierta hasta 30 días. Úsalo solo en tu equipo.
+                  </span>
+                </span>
+              </label>
 
               {error ? (
                 <div

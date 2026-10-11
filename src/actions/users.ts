@@ -573,3 +573,22 @@ export async function deleteUser(
     return handleCodedServerActionError('users.delete', 'US004', e);
   }
 }
+
+/**
+ * Sign out everywhere (ZIG-I17-9): bumps token_version so every session of the
+ * signed-in user, on any device, fails validation from now on. The caller then
+ * signs out of this browser too.
+ */
+export async function signOutEverywhere(): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth();
+    await bumpUserTokenVersion(BigInt(authContext.userId));
+    return { success: true };
+  } catch (e) {
+    return handleCodedServerActionError('users.signOutEverywhere', 'US003', e);
+  }
+}
