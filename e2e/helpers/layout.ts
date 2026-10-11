@@ -60,3 +60,9 @@ export const expectLayoutIntact = async (page: Page, label: string) => {
   expect(report.cut, `${label}: truncated money`).toEqual([]);
   expect(report.outside, `${label}: elements past the viewport`).toEqual([]);
 };
+
+/**
+ * Phone widths the redesign specs run at. 333px doubles their runtime, so CI runs it
+ * only for PRs into main and pushes to main (E2E_ALL_WIDTHS=1); feature PRs run 375px.
+ */
+export const MOBILE_WIDTHS = process.env.E2E_ALL_WIDTHS === '1' ? [375, 333] : [375];

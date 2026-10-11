@@ -11,6 +11,7 @@ import {
   expectInsideViewport,
   expectNoPageOverflow,
 } from './helpers/ticket-composer';
+import { MOBILE_WIDTHS } from './helpers/layout';
 
 /**
  * ZIG-I13-4: the ticket detail as drawn in the canvas (TicketDetail), with the
@@ -22,7 +23,7 @@ import {
 /** The page height of this ticket before the redesign (2026-10-10 QA run). */
 const BASELINE_PAGE_HEIGHT = 3911;
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Ticket detail redesign @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(360_000);

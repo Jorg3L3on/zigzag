@@ -11,6 +11,7 @@ import {
   expectInsideViewport,
   expectNoPageOverflow,
 } from './helpers/ticket-composer';
+import { MOBILE_WIDTHS } from './helpers/layout';
 
 /**
  * ZIG-I13-5: presupuesto detail as drawn in the canvas, and Duplicar from an
@@ -41,7 +42,7 @@ const expectDraftOpened = async (page: Page) => {
   await expect(page.getByTestId('composer-party-card')).toBeVisible();
 };
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Presupuesto detail redesign @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(420_000);
