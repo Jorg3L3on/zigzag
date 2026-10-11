@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { e2eCredentialsSkipReason, ensureTenantCompany, hasE2eCredentials, login } from './helpers/auth';
 import { expectNoSeriousViolations } from './helpers/a11y';
-import { expectLayoutIntact } from './helpers/layout';
+import { expectLayoutIntact, MOBILE_WIDTHS } from './helpers/layout';
 import {
   addCustomComposerLine,
   createClientInComposer,
@@ -16,7 +16,7 @@ import {
  * in CI or against a scratch database.
  */
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Documents a11y @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(420_000);

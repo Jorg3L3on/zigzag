@@ -5,7 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
-import { expectLayoutIntact } from './helpers/layout';
+import { expectLayoutIntact, MOBILE_WIDTHS } from './helpers/layout';
 import {
   addCustomComposerLine,
   addHeavyLines,
@@ -52,7 +52,7 @@ const stubShare = async (page: Page) => {
   });
 };
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Documents lifecycle @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(900_000);

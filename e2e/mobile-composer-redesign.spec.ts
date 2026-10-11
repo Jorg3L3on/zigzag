@@ -13,6 +13,7 @@ import {
   expectNoPageOverflow,
   openComposer,
 } from './helpers/ticket-composer';
+import { MOBILE_WIDTHS } from './helpers/layout';
 
 /**
  * ZIG-I13-2: the composer and line sheet as drawn in the approved canvas
@@ -31,7 +32,7 @@ const LONG_NAMES = [
   'Limpieza de condensadores azotea',
 ];
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Composer redesign @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(240_000);

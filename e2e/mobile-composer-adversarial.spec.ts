@@ -7,6 +7,7 @@ import {
 } from './helpers/auth';
 import { addInlineComposerLine } from './helpers/ticket-composer';
 import { extractPdfText, pageText, type PdfTextPage } from '../src/test/pdf-text';
+import { MOBILE_WIDTHS } from './helpers/layout';
 
 /**
  * ZIG-I12 replay of the 2026-10-10 QA run, at 375px and 333px: a ticket and a
@@ -179,7 +180,7 @@ const NOTES = `${'Z'.repeat(150)}${'\n'.repeat(6)}${'Cláusula de garantía de 3
   2000,
 );
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Composer adversarial run @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(300_000);
