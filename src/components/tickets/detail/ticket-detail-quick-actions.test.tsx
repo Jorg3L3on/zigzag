@@ -30,18 +30,25 @@ const renderActions = (props: Partial<React.ComponentProps<typeof TicketDetailQu
         paid={40}
         clientName="Cliente"
         clientTel="998 123 4567"
-        downloadFileName="t.pdf"
         {...props}
       />
     </TicketCollectProvider>,
   );
 
 describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
-  it('shows Cobrar, Compartir recibo and Llamar for a finalized ticket with a balance', () => {
+  it('shows Cobrar, WhatsApp and Llamar for a finalized ticket with a balance', () => {
     renderActions();
 
     expect(screen.getByRole('button', { name: 'Cobrar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Compartir recibo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compartir recibo' })).toBeNull();
+    const whatsApp = screen.getByRole('link', { name: 'WhatsApp' });
+    const href = whatsApp.getAttribute('href') ?? '';
+    expect(href).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    const text = decodeURIComponent(href.split('?text=')[1]);
+    expect(text).toContain('Demo');
+    expect(text).toContain('recibo del ticket #7');
+    expect(text).toContain('a nombre de Cliente');
+    expect(text).toContain('saldo');
     expect(screen.getByRole('link', { name: 'Llamar' })).toHaveAttribute('href', 'tel:9981234567');
   });
 
@@ -57,15 +64,16 @@ describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
     renderActions({ clientTel: null, paid: 100 });
 
     expect(screen.queryByRole('link', { name: 'Llamar' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Compartir recibo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Compartir recibo' })).toBeNull();
   });
 
   it('an unfinished ticket only offers Llamar', () => {
     renderActions({ finished: false });
 
     expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Compartir recibo' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Llamar' })).toBeInTheDocument();
   });
 });

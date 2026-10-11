@@ -213,7 +213,7 @@ export const DocumentPdfViewer = ({
         ) : (
           <>
             {summary}
-            {canInvoice ? (
+            {canInvoice && kind === 'presupuesto' ? (
               <p className="px-1 text-caption text-muted-foreground" data-testid="pdf-viewer-hint">
                 {FALLBACK_HINT}
               </p>

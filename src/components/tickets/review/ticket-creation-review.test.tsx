@@ -174,7 +174,7 @@ describe('TicketCreationReview', () => {
     }
     expect(screen.getByTestId('review-pay-hint')).toBeTruthy();
     screen
-      .getAllByRole('button', { name: /Terminar y compartir/ })
+      .getAllByRole('button', { name: /Terminar y enviar/ })
       .forEach((button) => expect(button).toBeDisabled());
     expect(mockFinishTicket).not.toHaveBeenCalled();
 
@@ -182,7 +182,7 @@ describe('TicketCreationReview', () => {
 
     expect(screen.queryByTestId('review-pay-hint')).toBeNull();
     screen
-      .getAllByRole('button', { name: /Terminar y compartir/ })
+      .getAllByRole('button', { name: /Terminar y enviar/ })
       .forEach((button) => expect(button).toBeEnabled());
   });
 
@@ -193,7 +193,7 @@ describe('TicketCreationReview', () => {
     await user.click(screen.getByRole('radio', { name: 'Una parte' }));
 
     screen
-      .getAllByRole('button', { name: /Terminar y compartir/ })
+      .getAllByRole('button', { name: /Terminar y enviar/ })
       .forEach((button) => expect(button).toBeDisabled());
   });
 
@@ -211,14 +211,14 @@ describe('TicketCreationReview', () => {
     );
   });
 
-  it('has exactly one primary action: Terminar y compartir', () => {
+  it('has exactly one primary action: Terminar y enviar', () => {
     renderReview();
 
-    const primaries = screen.getAllByRole('button', { name: /Terminar y compartir/ });
+    const primaries = screen.getAllByRole('button', { name: /Terminar y enviar/ });
     // Same CTA rendered for desktop and in the mobile sticky bar.
     expect(primaries.length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /^Terminar$/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Compartir recibo/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Enviar por WhatsApp/ })).toBeNull();
     expect(screen.getAllByRole('link', { name: 'Guardar sin terminar' }).length).toBeGreaterThan(0);
   });
 
@@ -241,7 +241,7 @@ describe('TicketCreationReview', () => {
     expect(screen.getByRole('button', { name: /Intervalo de Recarga de gas: en 3 meses/ })).toBeTruthy();
     await user.click(mantenimiento);
 
-    await user.click(screen.getAllByRole('button', { name: /Terminar y compartir/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /Terminar y enviar/ })[0]);
 
     await waitFor(() =>
       expect(mockFinishTicket).toHaveBeenCalledWith(1201, 12950, 5000, 10),
@@ -265,7 +265,7 @@ describe('TicketCreationReview', () => {
     expect(
       screen.getByRole('heading', { name: 'Ticket #1201 finalizado' }),
     ).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: /Compartir recibo/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Enviar por WhatsApp/ }).length).toBeGreaterThan(0);
   });
 
   it('saves no reminder when none is ticked and has no schedules for typed-in lines', async () => {
@@ -273,7 +273,7 @@ describe('TicketCreationReview', () => {
     renderReview();
 
     await user.click(screen.getByRole('radio', { name: 'Todo' }));
-    await user.click(screen.getAllByRole('button', { name: /Terminar y compartir/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /Terminar y enviar/ })[0]);
 
     await waitFor(() => expect(mockShareFile).toHaveBeenCalled());
     expect(mockUpsertSchedule).not.toHaveBeenCalled();
@@ -293,7 +293,7 @@ describe('TicketCreationReview', () => {
     renderReview();
 
     await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
-    await user.click(screen.getAllByRole('button', { name: /Terminar y compartir/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /Terminar y enviar/ })[0]);
 
     await waitFor(() =>
       expect(mockFinishTicket).toHaveBeenCalledWith(1201, 12950, 0, 10),
@@ -309,7 +309,7 @@ describe('TicketCreationReview', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('No puede ser mayor que el total');
     screen
-      .getAllByRole('button', { name: /Terminar y compartir/ })
+      .getAllByRole('button', { name: /Terminar y enviar/ })
       .forEach((button) => expect(button).toBeDisabled());
   });
 
@@ -320,7 +320,7 @@ describe('TicketCreationReview', () => {
     renderReview();
 
     await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
-    await user.click(screen.getAllByRole('button', { name: /Terminar y compartir/ })[0]);
+    await user.click(screen.getAllByRole('button', { name: /Terminar y enviar/ })[0]);
 
     await waitFor(() => expect(open).toHaveBeenCalled());
     expect(String(open.mock.calls[0][0])).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
@@ -342,17 +342,17 @@ describe('TicketCreationReview', () => {
     });
   });
 
-  it('shows Pagado and Saldo and Compartir recibo as the single CTA once finished', () => {
+  it('shows Pagado and Saldo and Enviar por WhatsApp as the single CTA once finished', () => {
     renderReview({ finished: true, paid: 5000 });
 
     expect(screen.queryByTestId('recibo-pdf-preview')).toBeNull();
     expect(screen.queryByRole('radio')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Programar el próximo servicio' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Terminar y compartir/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Terminar y enviar/ })).toBeNull();
     const summary = screen.getByTestId('review-summary');
     expect(summary).toHaveTextContent('Pagado$5,000.00');
     expect(summary).toHaveTextContent('Saldo$7,950.00');
-    expect(screen.getAllByRole('button', { name: /Compartir recibo/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Enviar por WhatsApp/ }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /Abrir PDF/ })).not.toHaveAttribute('target');
   });
 });
