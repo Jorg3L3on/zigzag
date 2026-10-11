@@ -72,7 +72,6 @@ import { SystemCompanyContextEmptyState } from '@/components/system-company-cont
 import { formatClientAddressOneLine } from '@/lib/client-address';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ClientPhoneLink } from '@/components/client-phone-link';
 
 type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
