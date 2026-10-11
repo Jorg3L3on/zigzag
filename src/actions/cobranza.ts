@@ -54,6 +54,8 @@ export async function getCobranzaList(
         company_id: row.company_id,
         document_kind: row.document_kind,
         client_id: row.client_id,
+        folio_number: row.folio_number,
+        folio_prefix: row.folio_prefix,
       })),
     );
 

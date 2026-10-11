@@ -18,6 +18,7 @@ import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
 type UseReceiptShareInput = {
   ticketId: string;
+  folio?: string | null;
   downloadFileName: string;
   clientName: string | null;
   clientTel: string | null;
@@ -30,6 +31,7 @@ type UseReceiptShareInput = {
  */
 export const useReceiptShare = ({
   ticketId,
+  folio = null,
   downloadFileName,
   clientName,
   clientTel,
@@ -63,7 +65,7 @@ export const useReceiptShare = ({
       try {
         const file = await loadReceipt();
         const result = await shareTicketInvoiceFile(file, {
-          title: `Recibo ticket #${ticketId}`,
+          title: `Recibo ticket ${folio || `#${ticketId}`}`,
           text: clientName ? `Recibo de ${clientName}` : undefined,
         });
         if (result === 'shared') {
@@ -78,6 +80,7 @@ export const useReceiptShare = ({
             phone: clientTel,
             clientName,
             ticketId,
+            folio,
             total,
             paid: paidAmount,
             companyName: selectedCompany?.name,

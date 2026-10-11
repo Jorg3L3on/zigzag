@@ -6,6 +6,10 @@ import { cn } from '@/lib/utils';
 
 type TicketDetailHeaderProps = {
   ticketId: number | bigint;
+  /** Company folio as people read it (R-0012, or the P folio of the source presupuesto). */
+  folio?: string | null;
+  /** Folio of the presupuesto this ticket came from, for the link text. */
+  fromPresupuestoFolio?: string | null;
   clientName: string | null;
   clientId: number | null;
   finished: boolean;
@@ -27,6 +31,8 @@ type TicketDetailHeaderProps = {
  */
 export const TicketDetailHeader = ({
   ticketId,
+  folio = null,
+  fromPresupuestoFolio = null,
   clientName,
   clientId,
   finished,
@@ -38,13 +44,13 @@ export const TicketDetailHeader = ({
   actions,
   className,
 }: TicketDetailHeaderProps) => {
-  const idLabel = String(ticketId);
+  const idLabel = folio || `#${String(ticketId)}`;
 
   return (
     <header className={cn('flex min-w-0 flex-col gap-2 md:gap-3', className)}>
       <div className="hidden flex-wrap items-center gap-2 md:flex">
         <p className="font-mono text-sm font-medium tabular-nums text-muted-foreground">
-          Ticket #{idLabel}
+          Ticket {idLabel}
         </p>
         <TicketDetailStatusPill finished={finished} total={total} paid={paid} />
       </div>
@@ -76,7 +82,7 @@ export const TicketDetailHeader = ({
                 className="font-medium text-primary underline-offset-4 hover:underline"
                 data-testid="ticket-from-presupuesto"
               >
-                Desde presupuesto #{String(fromPresupuestoId)}
+                Desde presupuesto {fromPresupuestoFolio || `#${String(fromPresupuestoId)}`}
               </Link>
             </>
           ) : null}

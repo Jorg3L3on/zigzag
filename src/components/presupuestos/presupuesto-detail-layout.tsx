@@ -106,6 +106,7 @@ const PresupuestoConditions = ({ notes }: { notes: string }) => {
 
 export type PresupuestoDetailLayoutProps = {
   presupuestoId: string;
+  folio?: string | null;
   clientId: number | null;
   clientName: string | null;
   ticketDate: string | null;
@@ -139,6 +140,7 @@ export type PresupuestoDetailLayoutProps = {
  */
 export const PresupuestoDetailLayout = ({
   presupuestoId,
+  folio = null,
   clientId,
   clientName,
   ticketDate,
@@ -258,7 +260,7 @@ export const PresupuestoDetailLayout = ({
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-3 md:space-y-4">
         <TripledMobileAppBar
-          title={`Presupuesto #${presupuestoId}`}
+          title={`Presupuesto ${folio || `#${presupuestoId}`}`}
           backHref="/presupuestos"
           backLabel="Volver a presupuestos"
           endSlot={
@@ -273,7 +275,7 @@ export const PresupuestoDetailLayout = ({
           <header className="min-w-0 space-y-1" data-testid="presupuesto-header">
             <div className="hidden flex-wrap items-center gap-2 md:flex">
               <p className="font-mono text-sm font-medium tabular-nums text-muted-foreground">
-                Presupuesto #{presupuestoId}
+                Presupuesto {folio || `#${presupuestoId}`}
               </p>
               <PresupuestoStatusPill status={status} />
               {shareButton}
@@ -354,7 +356,7 @@ export const PresupuestoDetailLayout = ({
           >
             <span className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en Ticket #{convertedToTicketId}
+              Convertido en ticket
             </span>
             <Link
               href={`/tickets/${convertedToTicketId}`}

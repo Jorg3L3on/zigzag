@@ -1,8 +1,17 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
+import { FOLIO_PREFIX_MAX_LENGTH, normalizeFolioPrefix } from '@/lib/folio';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const COMPANY_TAGLINE_MAX = 60;
+
+/** Up to four letters or digits; empty keeps the default (P / R). */
+const folioPrefixField = z
+  .string()
+  .trim()
+  .max(FOLIO_PREFIX_MAX_LENGTH, `Máximo ${FOLIO_PREFIX_MAX_LENGTH} caracteres`)
+  .regex(/^[A-Za-z0-9]*$/, 'Usa solo letras y números')
+  .optional();
 
 export const companySettingsSchema = z.object({
   rfc: z.string().optional(),
@@ -13,6 +22,8 @@ export const companySettingsSchema = z.object({
     .max(COMPANY_TAGLINE_MAX, `Máximo ${COMPANY_TAGLINE_MAX} caracteres`)
     .optional(),
   default_currency: z.string().optional(),
+  folio_prefix_presupuesto: folioPrefixField,
+  folio_prefix_ticket: folioPrefixField,
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
     .optional(),
@@ -55,6 +66,13 @@ export function normalizeCompanySettingsForDb(
   // Kept even when empty so clearing the field overrides the stored value on merge.
   if (input.tagline !== undefined) {
     out.tagline = input.tagline.trim();
+  }
+  // Kept even when empty so clearing a prefix returns to the default on merge.
+  if (input.folio_prefix_presupuesto !== undefined) {
+    out.folio_prefix_presupuesto = normalizeFolioPrefix(input.folio_prefix_presupuesto);
+  }
+  if (input.folio_prefix_ticket !== undefined) {
+    out.folio_prefix_ticket = normalizeFolioPrefix(input.folio_prefix_ticket);
   }
   if (input.experience_mode === 'campo' || input.experience_mode === 'office') {
     out.experience_mode = input.experience_mode;

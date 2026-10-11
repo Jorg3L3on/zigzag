@@ -3,6 +3,7 @@
  * Saldo/status always come from ticket-payment-status helpers.
  */
 
+import { formatDocumentFolio } from '@/lib/folio';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -26,6 +27,8 @@ export type CobranzaTicketInput = {
   company_id: number | null;
   document_kind?: string | null;
   client_id?: number | null;
+  folio_number?: number | null;
+  folio_prefix?: string | null;
 };
 
 export type CobranzaRow = {
@@ -39,6 +42,7 @@ export type CobranzaRow = {
   finished: boolean;
   company_id: number | null;
   client_id: number | null;
+  folio: string;
   balanceDue: number;
   paymentStatus: TicketPaymentStatus;
   daysOutstanding: number;
@@ -134,6 +138,7 @@ export const toCobranzaRow = (
     finished: ticket.finished,
     company_id: ticket.company_id,
     client_id: ticket.client_id ?? null,
+    folio: formatDocumentFolio(ticket),
     balanceDue,
     paymentStatus,
     daysOutstanding,

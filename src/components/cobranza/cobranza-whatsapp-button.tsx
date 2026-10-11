@@ -24,6 +24,7 @@ export const CobranzaWhatsAppButton = ({
     phone: row.client_tel,
     clientName: row.client_name,
     ticketId: row.id,
+    folio: row.folio,
     balanceDue: row.balanceDue,
     companyName,
   });

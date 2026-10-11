@@ -51,6 +51,7 @@ export type TicketReviewLine = ReviewLine;
 
 type TicketCreationReviewProps = {
   ticketId: string;
+  folio?: string | null;
   clientId: number | null;
   clientName: string | null;
   clientTel: string | null;
@@ -74,6 +75,7 @@ const SECTION_CLASS = GLASS_CARD_CLASS;
  */
 export const TicketCreationReview = ({
   ticketId,
+  folio = null,
   clientId,
   clientName,
   clientTel,
@@ -85,6 +87,7 @@ export const TicketCreationReview = ({
   downloadFileName,
 }: TicketCreationReviewProps) => {
   const router = useRouter();
+  const docLabel = folio || `#${ticketId}`;
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
@@ -101,7 +104,7 @@ export const TicketCreationReview = ({
     share: shareReceiptFile,
     download: handleDownload,
     downloading: isDownloading,
-  } = useReceiptShare({ ticketId, downloadFileName, clientName, clientTel, total });
+  } = useReceiptShare({ ticketId, folio, downloadFileName, clientName, clientTel, total });
   const [scheduleLines, setScheduleLines] = React.useState<TicketFinishScheduleLine[]>([]);
 
   const parsedDate = ticketDate ? new Date(ticketDate) : null;
@@ -181,7 +184,7 @@ export const TicketCreationReview = ({
       setFinished(true);
       setPaid(paidAmount);
       vibrateSuccess();
-      toast.success(`Ticket #${ticketId} finalizado`);
+      toast.success(`Ticket ${docLabel} finalizado`);
 
       router.refresh();
 
@@ -274,7 +277,7 @@ export const TicketCreationReview = ({
         contentClassName="space-y-3 md:space-y-4"
       >
         <TripledMobileAppBar
-          title={`Ticket #${ticketId} ${finished ? 'finalizado' : 'guardado'}`}
+          title={`Ticket ${docLabel} ${finished ? 'finalizado' : 'guardado'}`}
           subtitle={clientName ?? undefined}
           backHref="/tickets"
           backLabel="Volver a tickets"
@@ -283,7 +286,7 @@ export const TicketCreationReview = ({
         <BlurFade>
           <ReviewSuccessHeader
             hideOnMobile
-            title={`Ticket #${ticketId} ${finished ? 'finalizado' : 'guardado'}`}
+            title={`Ticket ${docLabel} ${finished ? 'finalizado' : 'guardado'}`}
             subtitle={[clientName, dateLabel].filter(Boolean).join(' · ')}
           />
         </BlurFade>

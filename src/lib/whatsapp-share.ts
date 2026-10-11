@@ -38,10 +38,15 @@ export const buildWhatsAppHref = (
   return { href, message, digits };
 };
 
+const documentLabel = (input: { ticketId: string | number | null | undefined; folio?: string | null }): string =>
+  input.folio?.trim() || `#${input.ticketId}`;
+
 export type WhatsAppBalanceShareInput = {
   phone: string | null | undefined;
   clientName: string | null | undefined;
   ticketId: string | number;
+  /** Company folio (R-0012 / P-0003); falls back to `#id` when absent. */
+  folio?: string | null;
   balanceDue: number;
   companyName?: string | null;
 };
@@ -58,7 +63,7 @@ export const buildWhatsAppBalanceMessage = (
 
   return [
     intro,
-    `Te recordamos el saldo pendiente del ticket #${input.ticketId} a nombre de ${client}: ${balance}.`,
+    `Te recordamos el saldo pendiente del ticket ${documentLabel(input)} a nombre de ${client}: ${balance}.`,
     'Cuando puedas, por favor confirma el pago. ¡Gracias!',
   ].join(' ');
 };
@@ -75,6 +80,8 @@ export type WhatsAppReceiptShareInput = {
   phone: string | null | undefined;
   clientName: string | null | undefined;
   ticketId: string | number;
+  /** Company folio (R-0012 / P-0003); falls back to `#id` when absent. */
+  folio?: string | null;
   total: number;
   paid: number;
   companyName?: string | null;
@@ -99,7 +106,7 @@ export const buildWhatsAppReceiptMessage = (
 
   return [
     intro,
-    `Te compartimos el recibo del ticket #${input.ticketId} a nombre de ${client}: ${amounts.join(', ')}.`,
+    `Te compartimos el recibo del ticket ${documentLabel(input)} a nombre de ${client}: ${amounts.join(', ')}.`,
     '¡Gracias!',
   ].join(' ');
 };
@@ -157,6 +164,8 @@ export type WhatsAppDayVisitShareInput = {
   phone: string | null | undefined;
   clientName: string | null | undefined;
   ticketId: string | number;
+  /** Company folio (R-0012 / P-0003); falls back to `#id` when absent. */
+  folio?: string | null;
   companyName?: string | null;
 };
 
@@ -172,7 +181,7 @@ export const buildWhatsAppDayVisitMessage = (
 
   return [
     intro,
-    `Hoy tenemos programada tu visita (ticket #${input.ticketId}) a nombre de ${client}.`,
+    `Hoy tenemos programada tu visita (ticket ${documentLabel(input)}) a nombre de ${client}.`,
     'Estamos en camino. ¡Gracias!',
   ].join(' ');
 };
@@ -189,6 +198,8 @@ export type WhatsAppQuoteShareInput = {
   phone: string | null | undefined;
   clientName: string | null | undefined;
   ticketId: string | number;
+  /** Company folio (R-0012 / P-0003); falls back to `#id` when absent. */
+  folio?: string | null;
   total: number;
   servicesSummary?: string | null;
   validUntil?: Date | string | null;
@@ -220,7 +231,7 @@ export const buildWhatsAppQuoteMessage = (
 
   return [
     intro,
-    `Te enviamos el presupuesto #${input.ticketId} por ${total}${servicesPart}.`,
+    `Te enviamos el presupuesto ${documentLabel(input)} por ${total}${servicesPart}.`,
     `${validityPart} ¿Te confirmamos?`.trim(),
   ]
     .join(' ')
@@ -239,6 +250,7 @@ export const buildWhatsAppQuoteShare = (
 export type OfflineReceiptInput = {
   clientName: string | null | undefined;
   ticketId: string | number | null | undefined;
+  folio?: string | null;
   localJobId?: string | null;
   workNotesSummary?: string | null;
   total: number;
@@ -253,7 +265,7 @@ export const buildOfflineReceiptText = (input: OfflineReceiptInput): string => {
   const client = (input.clientName ?? 'cliente').trim() || 'cliente';
   const company = input.companyName?.trim() || 'ZigZag';
   const idLabel = input.ticketId
-    ? `Ticket #${input.ticketId}`
+    ? `Ticket ${documentLabel(input)}`
     : input.localJobId
       ? `Trabajo local (${input.localJobId}) — pendiente de subir`
       : 'Trabajo pendiente de subir';

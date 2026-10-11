@@ -1,3 +1,4 @@
+import { formatDisplayFolio } from '@/lib/folio';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
@@ -23,7 +24,7 @@ export const generateMetadata = async ({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> => {
   const { id } = await params;
-  return { title: `Recibo #${id} · PDF` };
+  return { title: `Recibo · PDF` };
 };
 
 /**
@@ -51,6 +52,7 @@ export default async function TicketReciboPage({
   if (isPresupuestoTicket(ticket.document_kind) || !ticket.finished) notFound();
 
   const ticketId = String(ticket.id);
+  const folio = formatDisplayFolio(ticket);
   const total = Number(ticket.total) || 0;
   const paid = Number(ticket.paid) || 0;
   const lines = ticket.services_tickets.map(buildReviewLine);
@@ -63,7 +65,7 @@ export default async function TicketReciboPage({
     <DocumentPdfViewer
       ticketId={ticketId}
       kind="recibo"
-      title={`Recibo #${ticketId}`}
+      title={`Recibo ${folio}`}
       subtitle={`Finalizado · ${TICKET_PAYMENT_STATUS_LABEL[getTicketPaymentStatus(total, paid)]}`}
       backHref={fromReview ? `/tickets/${ticketId}/listo` : `/tickets/${ticketId}`}
       backLabel={fromReview ? 'Volver al resumen del ticket' : 'Volver al ticket'}
@@ -71,6 +73,7 @@ export default async function TicketReciboPage({
       summary={
         <ReciboSummary
           ticketId={ticketId}
+          folio={folio}
           clientName={ticket.client_name}
           dateLabel={dateLabel}
           lines={lines}
@@ -80,6 +83,7 @@ export default async function TicketReciboPage({
       }
       whatsApp={{
         kind: 'recibo',
+        folio,
         phone: ticket.client_tel,
         clientName: ticket.client_name,
         total,

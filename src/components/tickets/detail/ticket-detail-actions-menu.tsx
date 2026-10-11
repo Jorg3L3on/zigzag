@@ -33,6 +33,8 @@ import {
 
 type TicketDetailActionsMenuProps = {
   ticketId: number;
+  /** Company folio shown in share titles and messages. */
+  folio?: string | null;
   clientName: string | null;
   clientTel: string | null;
   total: number | null;
@@ -49,6 +51,7 @@ type TicketDetailActionsMenuProps = {
  */
 export const TicketDetailActionsMenu = ({
   ticketId,
+  folio = null,
   clientName,
   clientTel,
   total,
@@ -63,6 +66,7 @@ export const TicketDetailActionsMenu = ({
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const { download } = useReceiptShare({
     ticketId: String(ticketId),
+    folio,
     downloadFileName,
     clientName,
     clientTel,

@@ -11,6 +11,8 @@ import { canDownloadTicketInvoice } from '@/lib/tickets-rbac';
 
 type TicketDetailResendPromptProps = {
   ticketId: number;
+  /** Company folio shown in share titles and messages. */
+  folio?: string | null;
   clientName: string | null;
   clientTel: string | null;
   total: number | null;
@@ -24,6 +26,7 @@ type TicketDetailResendPromptProps = {
  */
 export const TicketDetailResendPrompt = ({
   ticketId,
+  folio = null,
   clientName,
   clientTel,
   total,
@@ -36,6 +39,7 @@ export const TicketDetailResendPrompt = ({
   const [dismissed, setDismissed] = React.useState(false);
   const { share, sharing } = useReceiptShare({
     ticketId: String(ticketId),
+    folio,
     downloadFileName,
     clientName,
     clientTel,

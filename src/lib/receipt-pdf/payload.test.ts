@@ -1,6 +1,7 @@
 import {
   buildReceiptPdfPayload,
   formatReceiptFolio,
+  formatReceiptFolioFor,
   formatReceiptMoney,
   formatReceiptQuantity,
   type ReceiptPdfTicket,
@@ -438,5 +439,20 @@ describe('buildReceiptPdfPayload — notes and unsupported characters (ZIG-I12)'
     expect(payload.notes).toBe('Urgente');
     expect(payload.items[0].name).toBe('Instalación');
     expect(payload.items[0].description).toBe('Con y gas');
+  });
+});
+
+describe('formatReceiptFolioFor (ZIG-I17)', () => {
+  it('prints the company folio, the presupuesto folio on a converted recibo, or the padded id', () => {
+    expect(formatReceiptFolioFor({ id: 9n, folio_number: 12, folio_prefix: 'R' })).toBe('R-0012');
+    expect(
+      formatReceiptFolioFor({
+        id: 9n,
+        folio_number: 12,
+        folio_prefix: 'R',
+        source_presupuesto_folio: { folio_number: 3, folio_prefix: 'P' },
+      }),
+    ).toBe('P-0003');
+    expect(formatReceiptFolioFor({ id: 9n })).toBe('000009');
   });
 });

@@ -1,5 +1,6 @@
 'use server';
 
+import { formatDocumentFolio } from '@/lib/folio';
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -87,6 +88,8 @@ export type CreatePresupuestoInput = z.input<typeof presupuestoSchema>;
 
 export type PresupuestoListItem = {
   id: string;
+  /** Company folio, e.g. P-0003. */
+  folio: string;
   clientName: string | null;
   clientTel: string | null;
   ticketDate: string | null;
@@ -141,6 +144,7 @@ const toListItem = (row: TicketRow): PresupuestoListItem => {
   const status = getPresupuestoStatus(row);
   return {
     id: String(row.id),
+    folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }),
     clientName: row.client_name,
     clientTel: row.client_tel,
     ticketDate: row.ticket_date?.toISOString() ?? null,

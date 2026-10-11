@@ -43,7 +43,7 @@ export default async function PresupuestoPdfPage({
     <DocumentPdfViewer
       ticketId={props.presupuestoId}
       kind="presupuesto"
-      title={`Presupuesto #${props.presupuestoId}`}
+      title={`Presupuesto ${props.folio || `#${props.presupuestoId}`}`}
       subtitle={PRESUPUESTO_STATUS_LABEL[props.status]}
       backHref={`/presupuestos/${props.presupuestoId}`}
       backLabel="Volver al presupuesto"
@@ -51,6 +51,7 @@ export default async function PresupuestoPdfPage({
       summary={
         <QuoteSummary
           presupuestoId={props.presupuestoId}
+          folio={props.folio}
           clientName={props.clientName}
           dateLabel={formatLongDate(props.ticketDate)}
           expiresLabel={formatLongDate(props.expiresAt)}
@@ -60,6 +61,7 @@ export default async function PresupuestoPdfPage({
       }
       whatsApp={{
         kind: 'presupuesto',
+        folio: props.folio,
         phone: props.clientTel,
         clientName: props.clientName,
         total: props.total,

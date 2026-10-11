@@ -158,7 +158,7 @@ for (const width of MOBILE_WIDTHS) {
       const ticketId = await saveComposer(page);
 
       // Listo: the payment choice is on the first screen with the heavy ticket.
-      await expect(page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first()).toBeVisible({
+      await expect(page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first()).toBeVisible({
         timeout: 15_000,
       });
       const payBox = await page.getByRole('heading', { name: '¿Cómo pagó el cliente?' }).boundingBox();

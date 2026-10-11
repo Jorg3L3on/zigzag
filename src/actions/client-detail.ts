@@ -37,10 +37,12 @@ import {
   listClientServiceSchedulesForClient,
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
+import { formatDocumentFolio } from '@/lib/folio';
 import type { Client } from '@/actions/clients';
 
 export type ClientDetailTicket = {
   id: string;
+  folio: string;
   ticketDate: string | null;
   createdAt: string;
   workNotes: string | null;
@@ -53,6 +55,7 @@ export type ClientDetailTicket = {
 
 export type ClientDetailPresupuesto = {
   id: string;
+  folio: string;
   ticketDate: string | null;
   expiresAt: string | null;
   total: number;
@@ -64,6 +67,7 @@ export type ClientDetailPresupuesto = {
 export type ClientDetailPayment = {
   id: number;
   ticketId: string;
+  ticketFolio: string;
   amount: number;
   createdAt: string;
 };
@@ -149,6 +153,7 @@ export async function getClientDetail(id: number): Promise<{
             .limit(200)
         : [];
 
+    const folioByTicketId = new Map(workTickets.map((t) => [t.id, formatDocumentFolio(t)]));
     const schedulesResult = await listClientServiceSchedulesForClient(
       id,
       ownerCompanyId,
@@ -161,6 +166,7 @@ export async function getClientDetail(id: number): Promise<{
         balance: summarizeClientBalance(workTickets),
         tickets: workTickets.map((t) => ({
           id: String(t.id),
+          folio: formatDocumentFolio(t),
           ticketDate: iso(t.ticket_date),
           createdAt: t.created_at.toISOString(),
           workNotes: t.work_notes,
@@ -174,6 +180,7 @@ export async function getClientDetail(id: number): Promise<{
           const status = getPresupuestoStatus(q);
           return {
             id: String(q.id),
+            folio: formatDocumentFolio(q),
             ticketDate: iso(q.ticket_date),
             expiresAt: iso(q.expires_at),
             total: q.total ?? 0,
@@ -188,6 +195,7 @@ export async function getClientDetail(id: number): Promise<{
         payments: paymentRows.map((p) => ({
           id: p.id,
           ticketId: String(p.ticket_id),
+          ticketFolio: folioByTicketId.get(p.ticket_id) ?? `#${p.ticket_id}`,
           amount: p.amount ?? 0,
           createdAt: p.created_at.toISOString(),
         })),

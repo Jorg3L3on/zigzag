@@ -300,7 +300,7 @@ export const PresupuestosList = () => {
                 >
                   <Link
                     href={`/presupuestos/${item.id}`}
-                    aria-label={`Presupuesto #${item.id} · ${item.clientName ?? 'Sin cliente'} · ${item.statusLabel}`}
+                    aria-label={`Presupuesto ${item.folio} · ${item.clientName ?? 'Sin cliente'} · ${item.statusLabel}`}
                     className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                   >
                     <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ export const PresupuestosList = () => {
                         >
                           {item.statusLabel}
                         </Badge>
-                        <span>#{item.id}</span>
+                        <span>{item.folio}</span>
                         {item.ticketDate ? (
                           <>
                             <span aria-hidden>·</span>

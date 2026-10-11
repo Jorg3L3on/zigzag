@@ -5,6 +5,13 @@ import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { requireTicketWrite } from '@/lib/tickets-rbac-server';
 
+jest.mock('@/lib/folio-allocator', () => ({
+  allocateDocumentFolio: jest.fn(async (_tx: unknown, input: { documentKind: string }) => ({
+    folio_number: 1,
+    folio_prefix: input.documentKind === 'presupuesto' ? 'P' : 'R',
+  })),
+}));
+
 jest.mock('@/lib/db', () => ({
   db: {
     query: {

@@ -1,6 +1,7 @@
 'use server';
 
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
+import { normalizeFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, count, ilike, or } from 'drizzle-orm';
 import {
@@ -105,6 +106,11 @@ export type Ticket = {
   updated_at: Date | null;
   deleted_at: Date | null;
   company_id: number | null;
+  /** Company folio (ZIG-I17-4); null only on rows from before migration 0032. */
+  folio_number?: number | null;
+  folio_prefix?: string | null;
+  document_kind?: string | null;
+  converted_from_ticket_id?: bigint | null;
 };
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
@@ -122,6 +128,8 @@ export type TicketDetailData = TicketRow & {
   >;
   /** Present when loaded with `with`; lista suele omitirla. */
   ticket_payments?: TicketPaymentRow[];
+  /** Folio of the presupuesto this ticket came from; the recibo shows it (ZIG-I17-5). */
+  source_presupuesto_folio?: FolioParts | null;
 };
 
 export type GetTicketByIdResult =
@@ -948,6 +956,8 @@ export async function getTicketsPaginated(params: {
           ilike(ticket.document, `%${search}%`),
           ilike(ticket.client_tel, `%${search}%`),
           sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search}%`}`,
+          // R-0012, r-12 or 0012: the stored prefix plus the padded number (ZIG-I17-6).
+          sql`(${ticket.folio_prefix} || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
         )
       : undefined;
 
@@ -1063,7 +1073,19 @@ export async function getTicketById(
       return buildActionError('TC008');
     }
 
-    return { success: true, data: ticketRow as TicketDetailData };
+    let sourceFolio: FolioParts | null = null;
+    if (ticketRow.converted_from_ticket_id != null) {
+      const source = await db.query.ticket.findFirst({
+        where: eq(ticket.id, ticketRow.converted_from_ticket_id),
+        columns: { folio_number: true, folio_prefix: true },
+      });
+      sourceFolio = source && source.folio_number != null ? source : null;
+    }
+
+    return {
+      success: true,
+      data: { ...ticketRow, source_presupuesto_folio: sourceFolio } as TicketDetailData,
+    };
   } catch (e) {
     return handleCodedServerActionError('tickets.get', 'TC003', e);
   }

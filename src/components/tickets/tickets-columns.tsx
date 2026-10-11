@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDocumentFolio } from '@/lib/folio';
 import type { Ticket } from '@/actions/tickets';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Column } from '@tanstack/react-table';
@@ -69,10 +70,10 @@ export const createTicketsColumns = ({
     id: 'id',
     accessorFn: (row) => Number(row.id),
     header: ({ column }) => (
-      <TicketSortableHeader column={column} label="ID" />
+      <TicketSortableHeader column={column} label="Folio" />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.id.toString()}</span>
+      <span className="tabular-nums">{formatDocumentFolio(row.original)}</span>
     ),
   },
   {

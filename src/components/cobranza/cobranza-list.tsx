@@ -415,7 +415,7 @@ export const CobranzaList = () => {
                           )}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Ticket #{item.id}
+                          Ticket {item.folio}
                         </p>
                       </div>
                       <div

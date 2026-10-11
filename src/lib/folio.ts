@@ -71,3 +71,18 @@ export const formatDocumentFolio = (
 /** SQL ILIKE pattern text for the stored folio, e.g. searching `r-00` or `0012`. */
 export const normalizeFolioSearch = (value: string): string =>
   value.trim().replace(/[%_\\]/g, '');
+
+/**
+ * The folio printed on a recibo. A work ticket converted from a presupuesto keeps
+ * showing the presupuesto's P folio (ZIG-I17-5); otherwise it shows its own.
+ */
+export const formatDisplayFolio = (
+  row: FolioParts & {
+    id?: bigint | number | string;
+    document_kind?: string | null;
+    source_presupuesto_folio?: FolioParts | null;
+  },
+): string =>
+  row.source_presupuesto_folio?.folio_number != null
+    ? formatDocumentFolio({ ...row.source_presupuesto_folio, document_kind: 'presupuesto' })
+    : formatDocumentFolio(row);

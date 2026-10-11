@@ -133,7 +133,7 @@ export const ClientHistorySections = ({
         <Row
           key={t.id}
           href={`/tickets/${t.id}`}
-          title={`Ticket #${t.id}`}
+          title={`Ticket ${t.folio}`}
           meta={
             <>
               <FormattedDate date={toDate(t.ticketDate ?? t.createdAt)} />
@@ -162,7 +162,7 @@ export const ClientHistorySections = ({
         <Row
           key={p.id}
           href={`/presupuestos/${p.id}`}
-          title={`Presupuesto #${p.id}`}
+          title={`Presupuesto ${p.folio}`}
           meta={<FormattedDate date={toDate(p.ticketDate)} />}
           right={
             <>
@@ -186,7 +186,7 @@ export const ClientHistorySections = ({
         <Row
           key={p.id}
           href={`/tickets/${p.ticketId}`}
-          title={`Pago al ticket #${p.ticketId}`}
+          title={`Pago al ticket ${p.ticketFolio}`}
           meta={<FormattedDate date={toDate(p.createdAt)} />}
           right={<MoneyFigure amount={p.amount} size="md" />}
         />

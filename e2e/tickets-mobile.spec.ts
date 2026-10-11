@@ -154,7 +154,7 @@ test.describe('Mobile ticket screens', () => {
 
     // Creation review: summary, pago and recibo; none of the detail-page noise.
     await expect(
-      page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
+      page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
     ).toBeVisible();
     await expect(page.getByTestId('review-total')).toHaveText('$12,950.00');
     await expect(page.getByRole('radio', { name: 'Una parte' })).toBeVisible();
@@ -179,7 +179,7 @@ test.describe('Mobile ticket screens', () => {
     // ZIG-I9: Abrir PDF stays inside the app and back returns to the review.
     await page.getByRole('link', { name: /Abrir PDF/ }).click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/recibo\\?from=listo$`));
-    await expect(page.getByTestId('mobile-app-bar')).toContainText(`Recibo #${ticketId}`);
+    await expect(page.getByTestId('mobile-app-bar')).toContainText(/Recibo (?:#\d+|[A-Z0-9]+-\d+)/);
     await page.getByRole('link', { name: 'Volver al resumen del ticket' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/listo$`));
     await expect(page.getByTestId('review-summary')).toBeVisible();
