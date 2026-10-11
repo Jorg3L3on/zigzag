@@ -47,7 +47,7 @@ describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
 
     expect(screen.getByRole('link', { name: 'Editar servicios' })).toHaveAttribute(
       'href',
-      '/tickets/5/services',
+      '/tickets/5/edit',
     );
     expect(screen.getByText(/Tres/)).toBeInTheDocument();
     expect(screen.queryByText(/Cuatro/)).toBeNull();

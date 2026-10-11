@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { TicketDetailActionsMenu } from '@/components/tickets/detail/ticket-detail-actions-menu';
@@ -26,7 +26,11 @@ jest.mock('@/contexts/company-context', () => ({
   useCompany: () => ({ selectedCompany: { id: 1, name: 'Demo' } }),
 }));
 jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => true }));
-jest.mock('@/actions/tickets', () => ({ deleteTicket: (...args: unknown[]) => mockDeleteTicket(...args) }));
+const mockDuplicate = jest.fn();
+jest.mock('@/actions/tickets', () => ({
+  deleteTicket: (...args: unknown[]) => mockDeleteTicket(...args),
+  duplicateTicket: (...args: unknown[]) => mockDuplicate(...args),
+}));
 jest.mock('@/lib/ticket-invoice-download', () => ({
   fetchTicketInvoiceFile: jest.fn(async () => new File(['x'], 't.pdf')),
   shareTicketInvoiceFile: jest.fn(),
@@ -58,14 +62,36 @@ describe('TicketDetailActionsMenu (ZIG-I13-4)', () => {
     await user.click(screen.getByRole('button', { name: 'Más acciones del ticket' }));
     expect(screen.getByRole('menuitem', { name: 'Editar servicios' })).toHaveAttribute(
       'href',
-      '/tickets/1123/services',
+      '/tickets/1123/edit',
     );
     expect(screen.getByRole('menuitem', { name: 'Descargar PDF' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Duplicar ticket' })).toHaveAttribute(
-      'href',
-      '/tickets/create?duplicate=1123',
-    );
+    expect(screen.getByRole('menuitem', { name: 'Duplicar ticket' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Eliminar ticket' })).toBeInTheDocument();
+  });
+
+  it('Duplicar ticket writes a draft for the composer and opens it', async () => {
+    const user = userEvent.setup();
+    window.localStorage.clear();
+    mockDuplicate.mockResolvedValue({
+      success: true,
+      data: {
+        client: { id: 5, label: 'Corporativo Torres · 9981234567' },
+        ticketDate: '2026-10-10T15:00:00.000Z',
+        notes: 'Garantía',
+        lines: [
+          { key: 'line-1', kind: 'custom', service_id: null, service_name: 'Soporte', quantity: 1, price: 150 },
+        ],
+      },
+    });
+    render(<TicketDetailActionsMenu {...props} />);
+
+    await user.click(screen.getByRole('button', { name: 'Más acciones del ticket' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Duplicar ticket' }));
+
+    await waitFor(() => expect(mockDuplicate).toHaveBeenCalledWith(1123, 1));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/create'));
+    const stored = JSON.parse(window.localStorage.getItem('zigzag:ticket-composer-draft:v1:1') ?? 'null');
+    expect(stored).toMatchObject({ client_id: 5, work_notes: 'Garantía', lines: [{ service_name: 'Soporte' }] });
   });
 
   it('a settled ticket cannot be edited', async () => {

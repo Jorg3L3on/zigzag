@@ -71,7 +71,7 @@ describe('TicketDetailFinishPanel', () => {
     ).toBeDisabled();
     expect(
       screen.getByRole('link', { name: /ir a servicios/i }),
-    ).toHaveAttribute('href', '/tickets/5/services');
+    ).toHaveAttribute('href', '/tickets/5/edit');
   });
 
   it('blocks partial amount above total', async () => {

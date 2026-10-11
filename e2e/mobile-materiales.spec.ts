@@ -206,22 +206,32 @@ test.describe('Materiales (mobile)', () => {
     await expect(reviewMaterials.getByText(inline)).toBeVisible();
     await expect(reviewMaterials.getByText(tube)).toHaveCount(0);
 
-    // 4. Convert and edit the materials on the ticket's services page.
+    // 4. Convert and edit the materials of the ticket in the one editor (ZIG-I13-6).
     await page.goto(`/presupuestos/${presupuestoId}`);
     await page.getByRole('button', { name: 'Convertir a ticket' }).first().click();
-    await page.getByRole('alertdialog').getByRole('button', { name: /Convertir/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /Convertir/ }).click();
     await page.waitForURL(/\/tickets\/\d+/, { timeout: 60_000 });
     const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1];
+    // The old services route redirects to the editor.
     await page.goto(`/tickets/${ticketId}/services`);
-    const row = page.getByTestId('ticket-service-row').first();
-    await expect(row.getByText(gas)).toBeVisible({ timeout: 15_000 });
-    await row.getByRole('button', { name: /Opciones de/ }).click();
-    await page.getByRole('menuitem', { name: /Materiales/ }).click();
-    const materialsSheet = page.getByRole('dialog', { name: /Materiales de/ });
-    await materialsSheet.getByRole('button', { name: `Quitar ${inline}` }).click();
-    await materialsSheet.getByRole('button', { name: 'Guardar' }).click();
-    await expect(row.getByText(inline)).toHaveCount(0, { timeout: 15_000 });
+    await page.waitForURL(new RegExp(`/tickets/${ticketId}/edit$`));
+    const editLines = page.getByRole('list', { name: 'Servicios del ticket' });
+    await expect(editLines.getByTestId('composer-line-row').first()).toContainText('2 materiales', {
+      timeout: 15_000,
+    });
+    await editLines.getByTestId('composer-line-row').first().click();
+    const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
+    await expect(editSheet.getByText(gas)).toBeVisible();
+    await editSheet.getByRole('button', { name: `Quitar ${inline}` }).click();
+    await editSheet.getByRole('button', { name: 'Guardar línea' }).click();
+    await expect(editSheet).toBeHidden({ timeout: 10_000 });
     // 3500 + 570
-    await expect(page.getByText(money(4070)).first()).toBeVisible();
+    await expect(page.getByTestId('composer-total')).toHaveText(money(4070));
+    await page.getByRole('button', { name: /^Guardar cambios$/ }).first().click();
+    await page.waitForURL(new RegExp(`/tickets/${ticketId}$`), { timeout: 60_000 });
+    await expect(page.getByTestId('ticket-hero-amount').filter({ visible: true }).first()).toHaveText(
+      money(4070),
+      { timeout: 15_000 },
+    );
   });
 });

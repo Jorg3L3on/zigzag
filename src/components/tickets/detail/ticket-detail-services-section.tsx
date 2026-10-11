@@ -99,7 +99,7 @@ export const TicketDetailServicesSection = ({
         action={
           canManage && services.length > 0 ? (
             <Link
-              href={`/tickets/${id}/services`}
+              href={`/tickets/${id}/edit`}
               className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
               aria-label="Editar servicios"
             >
@@ -117,7 +117,7 @@ export const TicketDetailServicesSection = ({
           action={
             canManage ? (
               <Button asChild size="sm">
-                <Link href={`/tickets/${id}/services`}>Agregar servicio</Link>
+                <Link href={`/tickets/${id}/edit`}>Agregar servicio</Link>
               </Button>
             ) : null
           }

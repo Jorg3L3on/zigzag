@@ -1,24 +1,14 @@
-import { TicketServicesList } from '@/components/tickets/ticket-services-list';
+import { redirect } from 'next/navigation';
 
-interface TicketServicesPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-  searchParams: Promise<{
-    serviceId?: string;
-  }>;
-}
-
-export default async function TicketServicesPage({
+/**
+ * Ticket lines are edited in the composer, like presupuestos (ZIG-I13-6). The
+ * route stays for old links and bookmarks.
+ */
+export default async function TicketServicesRedirectPage({
   params,
-  searchParams,
-}: TicketServicesPageProps) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
-  return (
-    <TicketServicesList
-      ticketId={resolvedParams.id}
-      prefillServiceId={resolvedSearchParams.serviceId}
-    />
-  );
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  redirect(`/tickets/${encodeURIComponent(id)}/edit`);
 }

@@ -158,6 +158,9 @@ export function TicketRowActions({
             <DeleteTicketButton
               id={Number(ticket.id)}
               companyId={companyId}
+              clientName={ticket.client_name ?? null}
+              total={ticket.total}
+              paid={ticket.paid}
               onDelete={onDelete}
               onDeleteFailed={onDeleteFailed}
             />
