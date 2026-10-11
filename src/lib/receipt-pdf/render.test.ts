@@ -17,8 +17,8 @@ const item = (n: number, overrides: Partial<ReceiptPdfItem> = {}): ReceiptPdfIte
   quantity: 1,
   unitPrice: 100,
   amount: 100,
-  serviceAmount: overrides.amount ?? 100,
   materials: [],
+  groupTotal: overrides.amount ?? 100,
   ...overrides,
 });
 
@@ -47,7 +47,6 @@ const presupuesto = (overrides: Partial<ReceiptPdfPayload> = {}): ReceiptPdfPayl
   ],
   servicesSubtotal: 325,
   materialsSubtotal: 0,
-  subtotal: 325,
   adjustment: null,
   total: 325,
   paid: null,
@@ -141,7 +140,6 @@ describe('renderReceiptPdf — recibo', () => {
       'Climatización · Servicio técnico',
       'RECIBO',
       'Folio 001114',
-      '10 / 10 / 2026',
       'CLIENTE',
       'Cliente test',
       '961 315 1552',
@@ -162,9 +160,12 @@ describe('renderReceiptPdf — recibo', () => {
       'Prueba',
       'Una descripción del servicio',
       '$259.00 MXN',
-      'Subtotal',
+      'Servicios',
       '$325.00 MXN',
+      'Materiales',
+      '$0.00 MXN',
       'Total',
+      '$325.00 MXN',
       'Pagado',
       '$100.00 MXN',
       'Saldo por pagar',
@@ -178,8 +179,10 @@ describe('renderReceiptPdf — recibo', () => {
       'Powered by zigzag',
     ]);
     const text = pageText(pages[0]);
-    expect(text).not.toMatch(/IVA|CFDI|�/);
+    expect(text).not.toMatch(/IVA|CFDI|Subtotal|�/);
     expect(text).not.toContain('Ajuste');
+    // CHANGES-v2 §1: the issue date prints once, in Fecha de emisión, not under the folio.
+    expect(text.match(/10 \/ 10 \/ 2026/g)).toHaveLength(1);
   });
 
   it('uses Plex Sans for text and Plex Mono for every number', () => {
@@ -219,7 +222,7 @@ describe('renderReceiptPdf — recibo', () => {
       'recibo-adjustment',
       recibo({ adjustment: -25, total: 300, balanceDue: 200, bigFigure: { label: 'Saldo por pagar', value: 200 } }),
     );
-    expectInOrder(pages[0], ['Subtotal', '$325.00 MXN', 'Ajuste', '-$25.00 MXN', 'Total', '$300.00 MXN', 'Pagado']);
+    expectInOrder(pages[0], ['Servicios', '$325.00 MXN', 'Materiales', 'Ajuste', '-$25.00 MXN', 'Total', '$300.00 MXN', 'Pagado']);
   });
 
   it('says 1 concepto for a single item', () => {
@@ -246,14 +249,16 @@ describe('renderReceiptPdf — presupuesto', () => {
       '2',
       'conceptos',
       'CONCEPTO',
-      'Subtotal',
-      'Total',
+      'Servicios',
+      '$325.00 MXN',
+      'Materiales',
+      '$0.00 MXN',
       'Total del presupuesto',
       '$325.00 MXN',
       'PRESUPUESTO 001114 · Página 1 de 1',
     ]);
     const text = pageText(pages[0]);
-    expect(text).not.toMatch(/ESTADO|Estado|PENDIENTE|Pagado|Saldo|IVA|CFDI/);
+    expect(text).not.toMatch(/ESTADO|Estado|PENDIENTE|Pagado|Saldo|Subtotal|IVA|CFDI/);
   });
 
   it('prints Sin vencimiento without an expiry', () => {
@@ -277,7 +282,7 @@ describe('renderReceiptPdf — pagination and long text', () => {
   it('paginates 14 items to 2 pages with repeated headers and totals and footer on the last page', () => {
     const { pages } = render(
       'presupuesto-14-items',
-      presupuesto({ items: fourteen, itemCount: 14, subtotal: 6300, total: 6300, bigFigure: { label: 'Total del presupuesto', value: 6300 } }),
+      presupuesto({ items: fourteen, itemCount: 14, servicesSubtotal: 6300, total: 6300, bigFigure: { label: 'Total del presupuesto', value: 6300 } }),
     );
 
     expect(pages).toHaveLength(2);
@@ -288,8 +293,8 @@ describe('renderReceiptPdf — pagination and long text', () => {
     }
     expect(first).toContain('PRESUPUESTO 001114 · Página 1 de 2');
     expect(second).toContain('PRESUPUESTO 001114 · Página 2 de 2');
-    expect(first).not.toMatch(/Subtotal|TELÉFONO|Total del presupuesto/);
-    expectInOrder(pages[1], ['14', 'Mantenimiento preventivo 14', 'Subtotal', 'Total del presupuesto', '$6,300.00 MXN', 'TELÉFONO']);
+    expect(first).not.toMatch(/Servicios|TELÉFONO|Total del presupuesto/);
+    expectInOrder(pages[1], ['14', 'Mantenimiento preventivo 14', 'Servicios', 'Total del presupuesto', '$6,300.00 MXN', 'TELÉFONO']);
 
     const names = pages.flatMap((page) =>
       page.runs.filter((run) => run.text.startsWith('Mantenimiento preventivo')).map((run) => run.text),
@@ -339,7 +344,7 @@ describe('renderReceiptPdf — pagination and long text', () => {
       presupuesto({
         items: [item(1, { quantity: 12.5, unitPrice: 123456.78, amount: 1543209.75 })],
         itemCount: 1,
-        subtotal: 1543209.75,
+        servicesSubtotal: 1543209.75,
         total: 1543209.75,
         bigFigure: { label: 'Total del presupuesto', value: 1543209.75 },
       }),
@@ -395,7 +400,7 @@ describe('renderReceiptPdf — documents without materials', () => {
       )
       .digest('hex');
 
-  it('prints exactly what phase 2 printed (ZIG-I11-4 regression guard)', () => {
+  it('prints exactly the revision 2 layout (ZIG-I15 regression guard)', () => {
     const hashes = {
       recibo: normalizedHash(renderReceiptPdf(recibo(), { compress: false })),
       presupuesto: normalizedHash(renderReceiptPdf(presupuesto(), { compress: false })),
@@ -406,11 +411,11 @@ describe('renderReceiptPdf — documents without materials', () => {
         ),
       ),
     };
-    // Hashes of the phase 2 renderer output (CreationDate and ID stripped).
+    // Hashes of the revision 2 renderer output (CreationDate and ID stripped).
     expect(hashes).toEqual({
-      recibo: '44932b1149f4eb1cc56508c7abb289fc68e1bedd4c93c7da4ce0541393035c2e',
-      presupuesto: '5e3901252f6332eb9ed8f55c59dd9d15caf2d83a53d853abe915c4b6d60c58b2',
-      adjustment: 'f9fe044f419038f82175498ab1997f0e16542705510a23fed98771a4776170f9',
+      recibo: '4955463c2aba211c70e43cd7aec4cecda46ddf381c7ac97cf567add8c3a73ec9',
+      presupuesto: '9c6ae91ccc0dc690ff41a0893514196d424b53e1ea678389cd9526fa8cd56a53',
+      adjustment: '1c537faca99ed0c7f0d302197600e7e052ebb2221961b42fa3b36288d40bab81',
     });
   });
 });
@@ -428,12 +433,12 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
       name: `Instalación ${n}`,
       description: 'Minisplit 1 tonelada',
       unitPrice: serviceAmount,
-      serviceAmount,
+      amount: serviceAmount,
       materials,
-      amount: Math.round((serviceAmount + materials.reduce((sum, m) => sum + m.amount, 0)) * 100) / 100,
+      groupTotal: Math.round((serviceAmount + materials.reduce((sum, m) => sum + m.amount, 0)) * 100) / 100,
     });
 
-  it('prints each material under its concept with qty, unit, price and amount', () => {
+  it('prints a MATERIALES block under its service with qty, unit, price, amount and the group subtotal', () => {
     const concept = withMaterials(1, [
       material('Tubería de cobre 1/4', 3, 'm', 85),
       material('Gas R410A', 2, 'kg', 450),
@@ -446,7 +451,6 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
         itemCount: 1,
         servicesSubtotal: 1200,
         materialsSubtotal: 1190,
-        subtotal: 2390,
         total: 2390,
         bigFigure: { label: 'Total del presupuesto', value: 2390 },
       }),
@@ -457,57 +461,96 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
       'Minisplit 1 tonelada',
       '1',
       '$1,200.00 MXN',
-      '$2,390.00 MXN',
-      '· Tubería de cobre 1/4',
+      '$1,200.00 MXN',
+      'MATERIALES',
+      'Tubería de cobre 1/4',
       '3 m',
       '$85.00 MXN',
       '$255.00 MXN',
-      '· Gas R410A',
+      'Gas R410A',
       '2 kg',
       '$450.00 MXN',
       '$900.00 MXN',
-      '· Cinta',
+      'Cinta',
       '1',
       '$35.00 MXN',
       '$35.00 MXN',
+      'Subtotal Instalación 1',
+      '(servicio + materiales)',
+      '$2,390.00 MXN',
       'Servicios',
       '$1,200.00 MXN',
       'Materiales',
       '$1,190.00 MXN',
-      'Subtotal',
+      'Total del presupuesto',
       '$2,390.00 MXN',
-      'Total',
     ]);
     const run = (text: string) => pages[0].runs.find((entry) => entry.text === text);
-    expect(run('· Gas R410A')).toMatchObject({ font: 'PlexSans-Regular', size: 9 });
-    expect(run('2 kg')).toMatchObject({ font: 'PlexMono-Regular', size: 9 });
+    // 12.5px #444 rows on the table grid.
+    expect(run('Gas R410A')).toMatchObject({ font: 'PlexSans-Regular', size: 9.375 });
+    expect(run('2 kg')).toMatchObject({ font: 'PlexMono-Regular', size: 9.375 });
     expect(pages[0].runs.filter((entry) => entry.text === '$900.00 MXN')).toEqual([
-      expect.objectContaining({ font: 'PlexMono-Regular', size: 9 }),
+      expect.objectContaining({ font: 'PlexMono-Regular', size: 9.375 }),
     ]);
-    // The concept's Importe (13px / 500) includes its materials.
-    expect(run('$2,390.00 MXN')).toMatchObject({ font: 'PlexMono-Medium', size: 9.75 });
+    // CHANGES-v2 §2: the service's Importe is its own cantidad × precio, never with materials.
+    const serviceAmounts = pages[0].runs.filter(
+      (entry) => entry.text === '$1,200.00 MXN' && entry.font === 'PlexMono-Medium',
+    );
+    expect(serviceAmounts).toHaveLength(1);
+    // Materials align with the table's numeric columns.
+    const importe = serviceAmounts[0];
+    const materialAmount = run('$900.00 MXN')!;
+    expect(materialAmount.x + '$900.00 MXN'.length * 5.625).toBeCloseTo(
+      importe.x + '$1,200.00 MXN'.length * 5.85,
+      0,
+    );
+    expect(run('Subtotal Instalación 1')).toMatchObject({ font: 'PlexSans-Regular', size: 9 });
+    expect(pages[0].runs.filter((entry) => entry.text === '$2,390.00 MXN')[0]).toMatchObject({
+      font: 'PlexMono-Medium',
+      size: 9.75,
+    });
   });
 
-  it('mixes concepts with and without materials; Servicios + Materiales = Subtotal', () => {
+  it('prints only the service row for a service without materials', () => {
+    const { pages } = render('recibo-no-materials-block', recibo());
+    expect(pageText(pages[0])).not.toMatch(/MATERIALES|servicio \+ materiales|Subtotal/);
+  });
+
+  it('mixes concepts with and without materials; Servicios + Materiales = Total', () => {
     const { pages } = render(
       'recibo-mixed-materials',
       recibo({
         items: [
           withMaterials(1, [material('Gas R410A', 1, 'kg', 450)], 800),
-          item(2, { name: 'Diagnóstico', unitPrice: 300, amount: 300, serviceAmount: 300 }),
+          item(2, { name: 'Diagnóstico', unitPrice: 300, amount: 300 }),
         ],
         itemCount: 2,
         servicesSubtotal: 1100,
         materialsSubtotal: 450,
-        subtotal: 1550,
         total: 1550,
         paid: 0,
         balanceDue: 1550,
         bigFigure: { label: 'Saldo por pagar', value: 1550 },
       }),
     );
-    expectInOrder(pages[0], ['Instalación 1', '· Gas R410A', 'Diagnóstico', 'Servicios', '$1,100.00 MXN', 'Materiales', '$450.00 MXN', 'Subtotal', '$1,550.00 MXN']);
-    expect(pages[0].runs.filter((entry) => entry.text.startsWith('· '))).toHaveLength(1);
+    expectInOrder(pages[0], [
+      'Instalación 1',
+      '$800.00 MXN',
+      'MATERIALES',
+      'Gas R410A',
+      'Subtotal Instalación 1',
+      '$1,250.00 MXN',
+      'Diagnóstico',
+      'Servicios',
+      '$1,100.00 MXN',
+      'Materiales',
+      '$450.00 MXN',
+      'Total',
+      '$1,550.00 MXN',
+      'Pagado',
+    ]);
+    expect(pages[0].runs.filter((entry) => entry.text === 'MATERIALES')).toHaveLength(1);
+    expect(pages[0].runs.filter((entry) => entry.text.startsWith('Subtotal'))).toHaveLength(1);
   });
 
   it('paginates 10 concepts × 2 materials without overlap', () => {
@@ -521,7 +564,6 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
         itemCount: 10,
         servicesSubtotal: 12000,
         materialsSubtotal: 6200,
-        subtotal: 18200,
         total: 18200,
         bigFigure: { label: 'Total del presupuesto', value: 18200 },
       }),
@@ -533,7 +575,8 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
       const texts = page.runs.map((entry) => entry.text);
       texts.forEach((text, i) => {
         if (/^Instalación \d+$/.test(text)) {
-          expect(texts.slice(i).indexOf('· Tubería')).toBeGreaterThan(0);
+          expect(texts.slice(i).indexOf('Tubería')).toBeGreaterThan(0);
+          expect(texts.slice(i).indexOf(`Subtotal ${text}`)).toBeGreaterThan(0);
         }
       });
       // Runs never go below the colophon line or above the page top.
@@ -545,7 +588,7 @@ describe('renderReceiptPdf — materials (ZIG-I10)', () => {
     const lastPage = pageText(pages[pages.length - 1]);
     expect(lastPage).toContain('Servicios');
     expect(lastPage).toContain('TELÉFONO');
-    expect(pages.flatMap((page) => page.runs.filter((entry) => entry.text === '· Gas R410A'))).toHaveLength(10);
+    expect(pages.flatMap((page) => page.runs.filter((entry) => entry.text === 'Gas R410A'))).toHaveLength(10);
   });
 });
 
@@ -650,14 +693,13 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
     quantity: 99,
     unitPrice: 99_999_990,
     amount: 9_899_999_010,
-    serviceAmount: 9_899_999_010,
+    groupTotal: 9_899_999_010,
   });
   const bigPayload = () =>
     presupuesto({
       items: [bigItem],
       itemCount: 1,
       servicesSubtotal: 9_899_999_010,
-      subtotal: 9_899_999_010,
       total: 9_899_999_010,
       bigFigure: { label: 'Total del presupuesto', value: 9_899_999_010 },
     });
@@ -707,7 +749,7 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
         items: [bigItem],
         itemCount: 1,
         total: 9_899_999_010,
-        subtotal: 9_899_999_010,
+        servicesSubtotal: 9_899_999_010,
         paid: 0,
         balanceDue: 9_899_999_010,
         bigFigure: { label: 'Saldo por pagar', value: 9_899_999_010 },

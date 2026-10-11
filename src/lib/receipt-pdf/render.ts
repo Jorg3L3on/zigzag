@@ -21,6 +21,7 @@ import {
   FOOTER,
   HEADER,
   LABEL,
+  MATERIALS,
   META,
   NOTES,
   PAGE,
@@ -81,7 +82,6 @@ const S = {
   initial: { font: RECEIPT_FONTS.sans600, size: HEADER.initialSize, color: COLORS.ink },
   title: { font: RECEIPT_FONTS.sans500, size: HEADER.titleSize, color: COLORS.ink, tracking: HEADER.titleTracking },
   folio: { font: RECEIPT_FONTS.mono400, size: HEADER.folioSize, color: COLORS.ink },
-  date: { font: RECEIPT_FONTS.mono400, size: HEADER.dateSize, color: COLORS.muted },
   primary: { font: RECEIPT_FONTS.sans600, size: META.primarySize, color: COLORS.ink },
   secondary: { font: RECEIPT_FONTS.sans400, size: META.secondarySize, color: COLORS.secondary },
   pill: { font: RECEIPT_FONTS.sans600, size: PILL.size, color: COLORS.ink, tracking: PILL.tracking },
@@ -90,8 +90,12 @@ const S = {
   itemDescription: { font: RECEIPT_FONTS.sans400, size: TABLE.descriptionSize, color: COLORS.description },
   number: { font: RECEIPT_FONTS.mono400, size: TABLE.numberSize, color: COLORS.ink },
   amount: { font: RECEIPT_FONTS.mono500, size: TABLE.numberSize, color: COLORS.ink },
-  materialName: { font: RECEIPT_FONTS.sans400, size: TABLE.materialSize, color: COLORS.description },
-  materialNumber: { font: RECEIPT_FONTS.mono400, size: TABLE.materialSize, color: COLORS.description },
+  materialName: { font: RECEIPT_FONTS.sans400, size: MATERIALS.size, color: COLORS.secondary },
+  materialNumber: { font: RECEIPT_FONTS.mono400, size: MATERIALS.size, color: COLORS.secondary },
+  groupLabel: { font: RECEIPT_FONTS.sans400, size: MATERIALS.totalLabelSize, color: COLORS.secondary },
+  groupHint: { font: RECEIPT_FONTS.sans400, size: MATERIALS.totalLabelSize, color: COLORS.groupHint },
+  /** The design asks for 600; Plex Mono ships 400 and 500 here, so 500. */
+  groupValue: { font: RECEIPT_FONTS.mono500, size: MATERIALS.totalValueSize, color: COLORS.ink },
   totalsLabel: { font: RECEIPT_FONTS.sans400, size: TOTALS.size, color: COLORS.muted },
   totalsValue: { font: RECEIPT_FONTS.mono400, size: TOTALS.size, color: COLORS.ink },
   dueLabel: { font: RECEIPT_FONTS.sans600, size: TOTALS.dueLabelSize, color: COLORS.ink },
@@ -202,7 +206,7 @@ type MetaColumn = {
 };
 
 type MaterialLayout = {
-  /** `· Nombre`, wrapped over as many lines as it needs. */
+  /** Material name, wrapped over as many lines as it needs. */
   nameLines: string[];
   /** Quantity (and unit when it fits); a long unit goes on lines below the number. */
   qtyLines: string[];
@@ -214,6 +218,10 @@ type RowLayout = {
   nameLines: string[];
   descriptionLines: string[];
   materials: MaterialLayout[];
+  /** `Subtotal {servicio}` (ellipsized) and whether the hint fits after it on the same line. */
+  groupLabel: { text: string; hintInline: boolean } | null;
+  /** Materials block height, 0 without materials. */
+  materialsHeight: number;
   height: number;
 };
 
@@ -221,14 +229,17 @@ type RowLayout = {
 type NoteLine = { text: string | null; height: number };
 
 type TotalsLayout = {
-  rows: Array<{ label: string; value: string }>;
+  /** Value rows; `thin` is the #d6d6d1 rule between Materiales and Total. */
+  rows: Array<{ label: string; value: string } | 'thin'>;
   due: { label: string; value: string; stacked: boolean };
   height: number;
 };
 
 const NAME_LINE = normalLineHeight(TABLE.nameSize);
 const DESCRIPTION_LINE = normalLineHeight(TABLE.descriptionSize);
-const MATERIAL_LINE = normalLineHeight(TABLE.materialSize);
+const MATERIAL_LINE = normalLineHeight(MATERIALS.size);
+const GROUP_TOTAL_LINE = normalLineHeight(MATERIALS.totalValueSize);
+const GROUP_HINT = '(servicio + materiales)';
 const NOTES_LINE = NOTES.size * NOTES.lineHeight;
 
 const materialQuantity = (quantity: number, unit: string | null): string =>
@@ -283,14 +294,10 @@ export function renderReceiptPdf(
   const docBlockWidth = Math.max(
     titleWidth,
     pen.width(`Folio ${payload.folio}`, S.folio),
-    pen.width(payload.issueDate, S.date),
   );
+  // Title and folio only: the issue date lives in Fecha de emisión (CHANGES-v2 §1).
   const docBlockHeight =
-    HEADER.titleSize * HEADER.titleLineHeight +
-    HEADER.docGap +
-    normalLineHeight(HEADER.folioSize) +
-    HEADER.docGap +
-    normalLineHeight(HEADER.dateSize);
+    HEADER.titleSize * HEADER.titleLineHeight + HEADER.docGap + normalLineHeight(HEADER.folioSize);
 
   const logo = loadLogo(doc, options.logoDataUrl);
   const markWidth = logo ? logo.width : HEADER.logoHeight;
@@ -430,12 +437,18 @@ export function renderReceiptPdf(
     ];
     return {
       fmt,
-      amount: numeric(
-        TABLE.amountWidth,
-        'IMPORTE',
-        payload.items.map((item) => fmt(item.amount)),
-        S.amount,
-        materials.map((material) => fmt(material.amount)),
+      // The group subtotal sits in the Importe column too.
+      amount: Math.max(
+        numeric(
+          TABLE.amountWidth,
+          'IMPORTE',
+          payload.items.map((item) => fmt(item.amount)),
+          S.amount,
+          materials.map((material) => fmt(material.amount)),
+        ),
+        ...payload.items
+          .filter((item) => item.materials.length > 0)
+          .map((item) => pen.width(fmt(item.groupTotal), scaled(S.groupValue, factor)) + TABLE.minColumnGap),
       ),
       price: numeric(
         TABLE.priceWidth,
@@ -471,6 +484,7 @@ export function renderReceiptPdf(
   const numberStyle = scaled(S.number, columns.factor);
   const amountStyle = scaled(S.amount, columns.factor);
   const materialNumberStyle = scaled(S.materialNumber, columns.factor);
+  const groupValueStyle = scaled(S.groupValue, columns.factor);
   const COL_AMOUNT_RIGHT = CONTENT_RIGHT;
   const COL_PRICE_RIGHT = COL_AMOUNT_RIGHT - columns.amount;
   const COL_QTY_RIGHT = COL_PRICE_RIGHT - columns.price;
@@ -483,11 +497,19 @@ export function renderReceiptPdf(
   const conceptTextX = CONTENT_LEFT + indexWidth + TABLE.conceptGap;
   const conceptTextWidth = CONCEPT_WIDTH - TABLE.conceptPaddingRight - indexWidth - TABLE.conceptGap;
 
+  // Materials block (CHANGES-v2 §2): its own grid from the indented left edge to
+  // the same numeric columns as the table, so amounts line up with Importe.
+  const materialsLeft = CONTENT_LEFT + MATERIALS.indent;
+  const materialsTextX = materialsLeft + MATERIALS.border + MATERIALS.paddingLeft;
+  const materialNameWidth = COL_QTY_RIGHT - columns.qty - materialsTextX - TABLE.conceptPaddingRight;
+  const groupLabelWidth = COL_AMOUNT_RIGHT - columns.amount - materialsTextX - TABLE.conceptPaddingRight;
+  const groupHintWidth = pen.width(` ${GROUP_HINT}`, S.groupHint);
+
   const rows: RowLayout[] = payload.items.map((item) => {
     const itemNameLines = pen.wrap(item.name, S.itemName, conceptTextWidth);
     const descriptionLines = pen.wrap(item.description, S.itemDescription, conceptTextWidth);
     const materials: MaterialLayout[] = item.materials.map((material) => {
-      const nameLines = pen.wrap(`· ${material.name}`, S.materialName, conceptTextWidth);
+      const nameLines = pen.wrap(material.name, S.materialName, materialNameWidth);
       const combined = materialQuantity(material.quantity, material.unit);
       const qtyLines =
         !material.unit || pen.width(combined, materialNumberStyle) <= qtyTextWidth
@@ -502,39 +524,60 @@ export function renderReceiptPdf(
         height: Math.max(nameLines.length, qtyLines.length, 1) * MATERIAL_LINE,
       };
     });
+    let groupLabel: RowLayout['groupLabel'] = null;
+    let materialsHeight = 0;
+    if (materials.length) {
+      // One line: the service name gives way first; the hint drops below only
+      // when even an ellipsized name leaves it no room.
+      const full = `Subtotal ${item.name}`;
+      const hintInline = pen.width('Subtotal …', S.groupLabel) + groupHintWidth <= groupLabelWidth;
+      const text = pen.ellipsize(full, S.groupLabel, groupLabelWidth - (hintInline ? groupHintWidth : 0));
+      groupLabel = { text, hintInline };
+      const groupTotalHeight =
+        MATERIALS.totalBorder +
+        MATERIALS.totalPaddingTop +
+        GROUP_TOTAL_LINE +
+        (hintInline ? 0 : normalLineHeight(MATERIALS.totalLabelSize));
+      materialsHeight =
+        LABEL_LINE +
+        materials.reduce((sum, material) => sum + MATERIALS.gap + material.height, 0) +
+        MATERIALS.gap +
+        groupTotalHeight;
+    }
     const conceptHeight =
       Math.max(itemNameLines.length, 1) * NAME_LINE +
-      (descriptionLines.length ? TABLE.descriptionGap + descriptionLines.length * DESCRIPTION_LINE : 0) +
-      (materials.length
-        ? TABLE.materialsGap +
-          materials.reduce((sum, material) => sum + material.height, 0) +
-          (materials.length - 1) * TABLE.materialRowGap
-        : 0);
+      (descriptionLines.length ? TABLE.descriptionGap + descriptionLines.length * DESCRIPTION_LINE : 0);
     return {
       item,
       nameLines: itemNameLines.length ? itemNameLines : [''],
       descriptionLines,
       materials,
-      height: TABLE.rowPaddingY * 2 + conceptHeight + TABLE.rowBorder,
+      groupLabel,
+      materialsHeight,
+      height:
+        TABLE.rowPaddingTop +
+        conceptHeight +
+        (materialsHeight ? MATERIALS.marginTop + materialsHeight : 0) +
+        TABLE.rowPaddingBottom +
+        TABLE.rowBorder,
     };
   });
 
   // ---------- measure: totals ----------
-  const totalsRows: TotalsLayout['rows'] = [];
-  if (payload.materialsSubtotal > 0) {
-    totalsRows.push(
-      { label: 'Servicios', value: money(payload.servicesSubtotal) },
-      { label: 'Materiales', value: money(payload.materialsSubtotal) },
-    );
-  }
-  totalsRows.push({ label: 'Subtotal', value: money(payload.subtotal) });
+  // CHANGES-v2 §3: Servicios, Materiales, thin rule, Total, Pagado; no Subtotal.
+  // A presupuesto's big figure is the total, so it skips the Total row and rule.
+  const totalsRows: TotalsLayout['rows'] = [
+    { label: 'Servicios', value: money(payload.servicesSubtotal) },
+    { label: 'Materiales', value: money(payload.materialsSubtotal) },
+  ];
   if (payload.adjustment !== null) {
     totalsRows.push({ label: 'Ajuste', value: money(payload.adjustment) });
   }
-  totalsRows.push({ label: 'Total', value: money(payload.total) });
   if (payload.paid !== null) {
+    totalsRows.push('thin', { label: 'Total', value: money(payload.total) });
     totalsRows.push({ label: 'Pagado', value: money(payload.paid) });
   }
+  const THIN_SEPARATOR = TOTALS.thinSeparatorMargin * 2 + 1;
   const panelInner = TOTALS.width - TOTALS.paddingX * 2;
   const dueValue = money(payload.bigFigure.value);
   const dueStacked =
@@ -552,7 +595,7 @@ export function renderReceiptPdf(
     due: { label: payload.bigFigure.label, value: dueValue, stacked: dueStacked },
     height:
       TOTALS.paddingY * 2 +
-      totalsRows.length * TOTALS_LINE +
+      totalsRows.reduce((sum, row) => sum + (row === 'thin' ? THIN_SEPARATOR : TOTALS_LINE), 0) +
       totalsRows.length * TOTALS.rowGap +
       TOTALS.separatorMarginTop +
       1 +
@@ -767,8 +810,6 @@ export function renderReceiptPdf(
     );
     docTop += HEADER.titleSize * HEADER.titleLineHeight + HEADER.docGap;
     pen.text(`Folio ${payload.folio}`, CONTENT_RIGHT, baselineFrom(docTop, HEADER.folioSize), S.folio, 'right');
-    docTop += normalLineHeight(HEADER.folioSize) + HEADER.docGap;
-    pen.text(payload.issueDate, CONTENT_RIGHT, baselineFrom(docTop, HEADER.dateSize), S.date, 'right');
   };
 
   const drawPill = (label: string, x: number, top: number) => {
@@ -843,7 +884,7 @@ export function renderReceiptPdf(
   const rowBaselineOffset = TABLE.indexPaddingTop + fontAscentPx(TABLE.indexSize);
 
   const drawRow = (row: RowLayout, top: number) => {
-    const contentTop = top + TABLE.rowPaddingY;
+    const contentTop = top + TABLE.rowPaddingTop;
     const baseline = contentTop + rowBaselineOffset;
     pen.text(row.item.index, CONTENT_LEFT, baseline, S.index);
 
@@ -861,27 +902,51 @@ export function renderReceiptPdf(
     pen.text(formatReceiptQuantity(row.item.quantity), COL_QTY_RIGHT, baseline, numberStyle, 'right');
     pen.text(cell(row.item.unitPrice), COL_PRICE_RIGHT, baseline, numberStyle, 'right');
     pen.text(cell(row.item.amount), COL_AMOUNT_RIGHT, baseline, amountStyle, 'right');
-    // Material sub-rows: same row (no divider), each number in its column.
-    row.item.materials.forEach((material, i) => {
-      const layout = row.materials[i];
-      textTop += i === 0 ? TABLE.materialsGap : TABLE.materialRowGap;
-      const materialBaseline = baselineFrom(textTop, TABLE.materialSize);
-      layout.nameLines.forEach((line, lineIndex) => {
-        pen.text(line, conceptTextX, baselineFrom(textTop + lineIndex * MATERIAL_LINE, TABLE.materialSize), S.materialName);
+    if (row.groupLabel) {
+      // Materials block: left rule, MATERIALES, one grid row per material, group subtotal.
+      let blockTop = textTop + MATERIALS.marginTop;
+      pen.fillRect(materialsLeft, blockTop, MATERIALS.border, row.materialsHeight, COLORS.rowDivider);
+      pen.text('MATERIALES', materialsTextX, baselineFrom(blockTop, LABEL.size), S.label);
+      blockTop += LABEL_LINE;
+      row.item.materials.forEach((material, i) => {
+        const layout = row.materials[i];
+        blockTop += MATERIALS.gap;
+        const lineBaseline = (lineIndex: number) =>
+          baselineFrom(blockTop + lineIndex * MATERIAL_LINE, MATERIALS.size);
+        layout.nameLines.forEach((line, lineIndex) => {
+          pen.text(line, materialsTextX, lineBaseline(lineIndex), S.materialName);
+        });
+        layout.qtyLines.forEach((line, lineIndex) => {
+          pen.text(line, COL_QTY_RIGHT, lineBaseline(lineIndex), materialNumberStyle, 'right');
+        });
+        pen.text(cell(material.unitPrice), COL_PRICE_RIGHT, lineBaseline(0), materialNumberStyle, 'right');
+        pen.text(cell(material.amount), COL_AMOUNT_RIGHT, lineBaseline(0), materialNumberStyle, 'right');
+        blockTop += layout.height;
       });
-      layout.qtyLines.forEach((line, lineIndex) => {
-        pen.text(
-          line,
-          COL_QTY_RIGHT,
-          baselineFrom(textTop + lineIndex * MATERIAL_LINE, TABLE.materialSize),
-          materialNumberStyle,
-          'right',
-        );
-      });
-      pen.text(cell(material.unitPrice), COL_PRICE_RIGHT, materialBaseline, materialNumberStyle, 'right');
-      pen.text(cell(material.amount), COL_AMOUNT_RIGHT, materialBaseline, materialNumberStyle, 'right');
-      textTop += layout.height;
-    });
+      blockTop += MATERIALS.gap;
+      pen.hline(
+        materialsTextX,
+        CONTENT_RIGHT,
+        blockTop + MATERIALS.totalBorder / 2,
+        COLORS.groupRule,
+        MATERIALS.totalBorder,
+        MATERIALS.totalDash,
+      );
+      // align-items: baseline on the 13px value's line box.
+      const totalBaseline = baselineFrom(
+        blockTop + MATERIALS.totalBorder + MATERIALS.totalPaddingTop,
+        MATERIALS.totalValueSize,
+      );
+      pen.text(row.groupLabel.text, materialsTextX, totalBaseline, S.groupLabel);
+      const hintX = row.groupLabel.hintInline
+        ? materialsTextX + pen.width(`${row.groupLabel.text} `, S.groupLabel)
+        : materialsTextX;
+      const hintBaseline = row.groupLabel.hintInline
+        ? totalBaseline
+        : totalBaseline + normalLineHeight(MATERIALS.totalLabelSize);
+      pen.text(GROUP_HINT, hintX, hintBaseline, S.groupHint);
+      pen.text(cell(row.item.groupTotal), COL_AMOUNT_RIGHT, totalBaseline, groupValueStyle, 'right');
+    }
 
     const borderY = top + row.height - TABLE.rowBorder / 2;
     pen.hline(CONTENT_LEFT, CONTENT_RIGHT, borderY, COLORS.rowDivider, TABLE.rowBorder, TABLE.rowDash);
@@ -894,6 +959,11 @@ export function renderReceiptPdf(
     const innerRight = CONTENT_RIGHT - TOTALS.paddingX;
     let rowTop = top + TOTALS.paddingY;
     for (const row of totals.rows) {
+      if (row === 'thin') {
+        pen.fillRect(innerLeft, rowTop + TOTALS.thinSeparatorMargin, panelInner, 1, COLORS.rowDivider);
+        rowTop += THIN_SEPARATOR + TOTALS.rowGap;
+        continue;
+      }
       const baseline = baselineFrom(rowTop, TOTALS.size);
       pen.text(row.label, innerLeft, baseline, S.totalsLabel);
       pen.text(row.value, innerRight, baseline, S.totalsValue, 'right');

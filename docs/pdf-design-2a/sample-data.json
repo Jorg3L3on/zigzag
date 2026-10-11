@@ -1,11 +1,11 @@
 {
-  "docType": "presupuesto",
-  "docTitle": "PRESUPUESTO",
-  "folio": "001114",
-  "issueDate": "10 / 10 / 2026",
+  "docType": "recibo",
+  "docTitle": "RECIBO",
+  "folio": "001116",
+  "issueDate": "11 / 10 / 2026",
   "validityDays": 30,
-  "expiryDate": "09 / 11 / 2026",
-  "statusLabel": "Pendiente de pago",
+  "expiryDate": "10 / 11 / 2026",
+  "statusLabel": "Pagado",
   "itemCount": 2,
   "company": {
     "name": "ClimaTotal Demo",
@@ -18,13 +18,35 @@
   },
   "client": { "name": "Cliente test", "phone": "961 315 1552", "country": "México" },
   "items": [
-    { "index": "01", "name": "Jorge", "description": "Hh", "quantity": 1, "unitPrice": "$66.00 MXN", "amount": "$66.00 MXN" },
-    { "index": "02", "name": "Prueba", "description": "Una descripción del servicio", "quantity": 1, "unitPrice": "$259.00 MXN", "amount": "$259.00 MXN" }
+    {
+      "index": "01",
+      "name": "Instalación de minisplit",
+      "description": "Mano de obra, 1 equipo de 1 tonelada",
+      "quantity": 1,
+      "unitPrice": "$66.00 MXN",
+      "amount": "$66.00 MXN",
+      "materials": [
+        { "name": "Madera", "quantity": 1, "unit": "pza", "unitPrice": "$500.00 MXN", "amount": "$500.00 MXN" },
+        { "name": "Tubería de cobre 1/4\"", "quantity": 3, "unit": "m", "unitPrice": "$85.00 MXN", "amount": "$255.00 MXN" }
+      ],
+      "groupTotal": "$821.00 MXN"
+    },
+    {
+      "index": "02",
+      "name": "Mantenimiento preventivo",
+      "description": "Limpieza de evaporador y condensador",
+      "quantity": 1,
+      "unitPrice": "$259.00 MXN",
+      "amount": "$259.00 MXN",
+      "materials": [],
+      "groupTotal": "$259.00 MXN"
+    }
   ],
-  "subtotal": "$325.00 MXN",
-  "taxLabel": "IVA",
-  "tax": "$0.00 MXN",
-  "total": "$325.00 MXN",
-  "paid": "$0.00 MXN",
-  "balanceDue": "$325.00 MXN"
+  "totals": {
+    "services": "$325.00 MXN",
+    "materials": "$755.00 MXN",
+    "total": "$1,080.00 MXN",
+    "paid": "$1,080.00 MXN",
+    "balanceDue": "$0.00 MXN"
+  }
 }

@@ -72,11 +72,11 @@ export type ReceiptPdfItem = {
   description: string;
   quantity: number;
   unitPrice: number;
-  /** Line amount: service plus its materials. */
+  /** quantity × unitPrice: the service alone, materials never roll in (CHANGES-v2 §2). */
   amount: number;
-  /** quantity × unitPrice, without materials. */
-  serviceAmount: number;
   materials: ReceiptPdfMaterial[];
+  /** amount plus its materials; printed as the group subtotal when there are materials. */
+  groupTotal: number;
 };
 
 export type ReceiptPdfPayload = {
@@ -116,8 +116,7 @@ export type ReceiptPdfPayload = {
   notes: string | null;
   servicesSubtotal: number;
   materialsSubtotal: number;
-  subtotal: number;
-  /** Total minus line sum, when it is not zero. */
+  /** Total minus Servicios + Materiales, when it is not zero. */
   adjustment: number | null;
   total: number;
   /** Recibo only. */
@@ -228,7 +227,7 @@ export const buildReceiptPdfPayload = (
     .map((line, position) => {
       const quantity = isFiniteNumber(line.quantity) ? line.quantity : 0;
       const unitPrice = isFiniteNumber(line.price) ? line.price : 0;
-      const serviceAmount = multiplyMoney(unitPrice, quantity);
+      const amount = multiplyMoney(unitPrice, quantity);
       const materials = buildMaterials(line.materials);
       return {
         index: String(position + 1).padStart(2, '0'),
@@ -236,16 +235,16 @@ export const buildReceiptPdfPayload = (
         description: sanitizePdfText(getServiceLineDescription(line)),
         quantity,
         unitPrice,
-        amount: roundMoney(
-          materials.reduce((sum, material) => sum + material.amount, serviceAmount),
-        ),
-        serviceAmount,
+        amount,
         materials,
+        groupTotal: roundMoney(
+          materials.reduce((sum, material) => sum + material.amount, amount),
+        ),
       };
     });
 
   const servicesSubtotal = roundMoney(
-    items.reduce((sum, item) => sum + item.serviceAmount, 0),
+    items.reduce((sum, item) => sum + item.amount, 0),
   );
   const materialsSubtotal = roundMoney(
     items.reduce(
@@ -254,9 +253,9 @@ export const buildReceiptPdfPayload = (
       0,
     ),
   );
-  const subtotal = roundMoney(items.reduce((sum, item) => sum + item.amount, 0));
-  const total = roundMoney(isFiniteNumber(ticket.total) ? ticket.total : subtotal);
-  const adjustmentAmount = roundMoney(total - subtotal);
+  const linesTotal = roundMoney(servicesSubtotal + materialsSubtotal);
+  const total = roundMoney(isFiniteNumber(ticket.total) ? ticket.total : linesTotal);
+  const adjustmentAmount = roundMoney(total - linesTotal);
   const adjustment = Math.abs(adjustmentAmount) >= 0.01 ? adjustmentAmount : null;
 
   const issuedAt = toDate(ticket.ticket_date) ?? now;
@@ -322,7 +321,6 @@ export const buildReceiptPdfPayload = (
     notes: collapseBlankLines(sanitizePdfText(ticket.work_notes)) || null,
     servicesSubtotal,
     materialsSubtotal,
-    subtotal,
     adjustment,
     total,
     paid,
