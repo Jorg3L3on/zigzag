@@ -20,7 +20,7 @@ test.describe('Tickets list Estado column', () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Buscar tickets...')).toBeVisible({
+    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 
@@ -84,12 +84,12 @@ test.describe('Tickets list Estado column', () => {
     }
   });
 
-  test('mobile cards show the total once: bar while open, Total when saldado', async ({
+  test('mobile cards show Pagado and Saldo once something is paid, Total otherwise (ZIG-I13-7)', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Buscar tickets...')).toBeVisible({
+    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 
@@ -104,13 +104,12 @@ test.describe('Tickets list Estado column', () => {
       const summary = summaries.nth(i);
       await expect(summary.getByText(/\b\d+%/)).toHaveCount(0);
       const status = await summary.getAttribute('data-payment-status');
-      if (status === 'paid') {
-        await expect(summary.getByRole('progressbar')).toHaveCount(0);
-        await expect(summary.getByText('Total')).toBeVisible();
+      if (status === 'partial') {
+        await expect(summary.getByText(/^Pagado /)).toBeVisible();
+        await expect(summary.getByText(/^Saldo /)).toBeVisible();
       } else {
-        await expect(summary.getByRole('progressbar')).toBeVisible();
-        await expect(summary.getByText(/\bde\b/)).toBeVisible();
-        await expect(summary.getByText(/Faltan/)).toBeVisible();
+        await expect(summary.getByText('Total')).toBeVisible();
+        await expect(summary.getByText(/^Saldo /)).toHaveCount(0);
       }
     }
   });

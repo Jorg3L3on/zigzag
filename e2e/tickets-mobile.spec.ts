@@ -41,9 +41,11 @@ test.describe('Mobile ticket screens', () => {
     await page.goto('/tickets');
 
     await expect(visiblePageHeader(page).getByText('Tickets')).toBeVisible();
-    await expect(page.getByPlaceholder('Buscar tickets...')).toBeVisible();
+    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible();
     await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toBeVisible();
+    // Nuevo ticket lives in the dock's + on phones; the list shows the cobro chips (ZIG-I13-7).
+    await expect(page.getByRole('group', { name: 'Filtro de cobro' })).toBeVisible();
+    await expect(page.getByTestId('tickets-balance-due')).toBeVisible();
     await expect(page.getByText(/de \d+ tickets/)).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
@@ -52,7 +54,7 @@ test.describe('Mobile ticket screens', () => {
     page,
   }) => {
     await page.goto('/tickets');
-    const search = page.getByPlaceholder('Buscar tickets...');
+    const search = page.getByPlaceholder('Cliente, folio o teléfono');
     await expect(search).toBeVisible();
     const firstCard = page
       .getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ })

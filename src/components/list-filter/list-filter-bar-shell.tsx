@@ -40,6 +40,10 @@ export type ListFilterBarShellProps = {
   showDesktopClear?: boolean;
   /** false drops the mobile filter sheet and the desktop filter row (lists whose chips stay inline). */
   showFilterSheet?: boolean;
+  /** One-tap filters between the search row and the chips (ZIG-I13-7). */
+  quickFilters?: ReactNode;
+  /** Right-aligned next to the chips, e.g. a total for the filter (ZIG-I13-7). */
+  chipsTrailing?: ReactNode;
 };
 
 export const ListFilterBarShell = ({
@@ -60,6 +64,8 @@ export const ListFilterBarShell = ({
   desktopContent,
   showDesktopClear = true,
   showFilterSheet = true,
+  quickFilters,
+  chipsTrailing,
 }: ListFilterBarShellProps) => (
   <div className="flex flex-col gap-3">
     <div className="flex min-w-0 w-full gap-2">
@@ -151,6 +157,8 @@ export const ListFilterBarShell = ({
       ) : null}
     </div>
 
+    {quickFilters}
+
     {showFilterSheet ? (
       <div className="hidden gap-6 lg:flex lg:flex-wrap lg:items-start">
         {desktopContent}
@@ -169,6 +177,13 @@ export const ListFilterBarShell = ({
       </div>
     ) : null}
 
-    <TripledFilterChips chips={filterChips} />
+    {chipsTrailing ? (
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <TripledFilterChips chips={filterChips} />
+        {chipsTrailing}
+      </div>
+    ) : (
+      <TripledFilterChips chips={filterChips} />
+    )}
   </div>
 );
