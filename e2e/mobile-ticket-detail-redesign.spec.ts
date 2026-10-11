@@ -110,7 +110,7 @@ for (const width of [375, 333]) {
       // Servicios: three rows, Editar, and the fold with the 21 materials.
       await expect(page.getByRole('link', { name: 'Editar servicios' }).first()).toHaveAttribute(
         'href',
-        `/tickets/${ticketId}/services`,
+        `/tickets/${ticketId}/edit`,
       );
       await expect(page.getByRole('button', { name: 'Ver detalle con 21 materiales' })).toBeVisible();
 
