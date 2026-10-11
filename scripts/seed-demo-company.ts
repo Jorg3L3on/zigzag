@@ -1,4 +1,5 @@
 import './load-env.cjs';
+import { backfillMissingFolios } from '../src/lib/folio-backfill';
 import bcrypt from 'bcryptjs';
 import {
   addDays,
@@ -587,6 +588,8 @@ export const seedDemoCompany = async (
       `SELECT setval(pg_get_serial_sequence('"User"', 'id')::regclass, GREATEST((SELECT MAX(id) FROM "User"), 1))`,
     ),
   );
+
+  await backfillMissingFolios(db);
 
   return {
     companyId,

@@ -1,5 +1,6 @@
 'use server';
 
+import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -262,9 +263,14 @@ export async function createPresupuestoWithLines(
     );
 
     const created = await db.transaction(async (tx) => {
+      const folio = await allocateDocumentFolio(tx, {
+        companyId: effectiveCompanyId,
+        documentKind: 'presupuesto',
+      });
       const [row] = await tx
         .insert(ticket)
         .values({
+          ...folio,
           client_id: clientRow.id,
           client_name: clientRow.name.slice(0, 100),
           client_tel: (clientRow.phone ?? '').slice(0, 20),
@@ -608,9 +614,16 @@ export async function convertPresupuestoToTicket(
     }
 
     const result = await db.transaction(async (tx) => {
+      // The ticket gets its own R folio; the P folio stays on the presupuesto and is
+      // reachable through converted_from_ticket_id (ZIG-I17-4).
+      const folio = await allocateDocumentFolio(tx, {
+        companyId: effectiveCompanyId,
+        documentKind: 'ticket',
+      });
       const [workTicket] = await tx
         .insert(ticket)
         .values({
+          ...folio,
           client_id: source.client_id,
           client_name: source.client_name,
           client_tel: source.client_tel,

@@ -218,6 +218,13 @@
       "when": 1782118400000,
       "tag": "0031_client_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782204800000,
+      "tag": "0032_company_folios",
+      "breakpoints": true
     }
   ]
 }

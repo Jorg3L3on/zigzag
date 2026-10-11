@@ -14,6 +14,7 @@ import {
   user,
 } from '../src/db/schema';
 import { seedDemoCompany } from './seed-demo-company';
+import { backfillMissingFolios } from '../src/lib/folio-backfill';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -416,6 +417,8 @@ async function main() {
     operatorUserId: 11n,
     viewerUserId: 12n,
   });
+  // Rows inserted straight into the table get their company folio here.
+  await backfillMissingFolios(db);
   console.log(
     `Seeded demo company "${demoResult.companyId}" with ${demoResult.ticketCount} tickets.`,
   );

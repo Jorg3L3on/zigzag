@@ -1,5 +1,6 @@
 'use server';
 
+import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, count, ilike, or } from 'drizzle-orm';
 import {
@@ -301,7 +302,14 @@ export async function createTicket(
     let created: TicketRow | undefined;
     try {
       created = await db.transaction(async (tx) => {
-        const [row] = await tx.insert(ticket).values(values).returning();
+        const folio = await allocateDocumentFolio(tx, {
+          companyId: effectiveCompanyId,
+          documentKind: 'ticket',
+        });
+        const [row] = await tx
+          .insert(ticket)
+          .values({ ...values, ...folio })
+          .returning();
         await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
           ticket: row,
         });
@@ -314,7 +322,14 @@ export async function createTicket(
 
       await syncTicketIdSequence();
       created = await db.transaction(async (tx) => {
-        const [row] = await tx.insert(ticket).values(values).returning();
+        const folio = await allocateDocumentFolio(tx, {
+          companyId: effectiveCompanyId,
+          documentKind: 'ticket',
+        });
+        const [row] = await tx
+          .insert(ticket)
+          .values({ ...values, ...folio })
+          .returning();
         await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
           ticket: row,
         });
@@ -427,7 +442,14 @@ export async function createTicketWithLines(
 
     const runTransaction = () =>
       db.transaction(async (tx) => {
-        const [created] = await tx.insert(ticket).values(ticketValues).returning();
+        const folio = await allocateDocumentFolio(tx, {
+          companyId: effectiveCompanyId,
+          documentKind: 'ticket',
+        });
+        const [created] = await tx
+          .insert(ticket)
+          .values({ ...ticketValues, ...folio })
+          .returning();
 
         const { rows: lineRows, createdServiceIds, createdMaterialIds } =
           await insertServiceLines(tx, {
