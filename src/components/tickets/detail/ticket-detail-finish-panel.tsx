@@ -4,14 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import {
-  Circle,
-  CircleCheck,
-  FileText,
-  Loader2,
-  Minus,
-  Plus,
-} from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { finishTicket } from '@/actions/tickets';
 import {
   listClientServiceSchedulesForClient,
@@ -26,6 +19,7 @@ import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
+import { PaymentChoice, usePaymentChoice } from '@/components/tickets/review/payment-choice';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { useCompany } from '@/contexts/company-context';
@@ -36,9 +30,6 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { canFinishTicket } from '@/lib/tickets-rbac';
-import { cn } from '@/lib/utils';
-
-type PayMode = 'full' | 'partial' | 'pending';
 
 type ServiceLine = {
   serviceId: number;
@@ -56,13 +47,6 @@ type TicketDetailFinishPanelProps = {
   /** All active lines (catalog + inline); finishing needs at least one. */
   lineCount?: number;
   downloadFileName: string;
-};
-
-const parsePaidInput = (value: string): number => {
-  if (!value.trim()) return 0;
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) return 0;
-  return Math.max(parsed, 0);
 };
 
 const FINISH_RETRY_GUIDANCE =
@@ -84,8 +68,9 @@ export const TicketDetailFinishPanel = ({
   const canFinish = canFinishTicket(can);
 
   // No default: nothing is recorded as paid unless the user picks it (ZIG-I12 Q2).
-  const [payMode, setPayMode] = React.useState<PayMode | null>(null);
-  const [paidAmountInput, setPaidAmountInput] = React.useState('0');
+  // The same question as the listo screen (ZIG-I13-4).
+  const paymentChoice = usePaymentChoice(total ?? 0);
+  const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [schedulesDialogOpen, setSchedulesDialogOpen] = React.useState(false);
   const [existingSchedules, setExistingSchedules] = React.useState<
@@ -99,18 +84,6 @@ export const TicketDetailFinishPanel = ({
   const ticketTotal = total ?? 0;
   const hasServices = (lineCount ?? serviceLines.length) > 0;
 
-  const updatePaidAmountInput = (amount: number) => {
-    const safe = Math.max(0, Number.isFinite(amount) ? amount : 0);
-    setPaidAmountInput(safe.toFixed(2));
-  };
-
-  const getFinalPaidAmount = () =>
-    payMode === 'full'
-      ? ticketTotal
-      : payMode === 'partial'
-        ? parsePaidInput(paidAmountInput)
-        : 0;
-
   const downloadServerTicketPdf = () =>
     fetchAndDeliverTicketInvoice({
       ticketId,
@@ -121,7 +94,7 @@ export const TicketDetailFinishPanel = ({
     });
 
   const executeFinishAndDownload = async (): Promise<boolean> => {
-    const finalPaidAmount = getFinalPaidAmount();
+    const finalPaidAmount = chosenPaid;
 
     if (payMode === 'partial' && finalPaidAmount > ticketTotal) {
       toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
@@ -247,12 +220,7 @@ export const TicketDetailFinishPanel = ({
     }
   };
 
-  const paidExceedsTotal =
-    payMode === 'partial' && parsePaidInput(paidAmountInput) > ticketTotal;
-  const hasPayChoice =
-    payMode === 'full' ||
-    payMode === 'pending' ||
-    (payMode === 'partial' && parsePaidInput(paidAmountInput) > 0);
+  const paidExceedsTotal = partialTooHigh;
 
   return (
     <>
@@ -271,108 +239,7 @@ export const TicketDetailFinishPanel = ({
             Total: <FormattedCurrency amount={total} />
           </p>
 
-          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-            <p className="text-sm font-medium text-foreground">Pago del ticket</p>
-            <div role="radiogroup" aria-label="Pago del ticket" className="grid gap-2">
-              {(
-                [
-                  { mode: 'full', label: 'Pagado completo' },
-                  { mode: 'partial', label: 'Pago parcial' },
-                  { mode: 'pending', label: 'Pendiente' },
-                ] as const
-              ).map((option) => {
-                const selected = payMode === option.mode;
-                return (
-                  <button
-                    key={option.mode}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
-                      selected
-                        ? 'border-primary/40 bg-primary/10 text-foreground'
-                        : 'border-border bg-background hover:bg-muted/50',
-                    )}
-                    onClick={() => setPayMode(option.mode)}
-                  >
-                    {selected ? (
-                      <CircleCheck className="h-4 w-4" aria-hidden />
-                    ) : (
-                      <Circle className="h-4 w-4" aria-hidden />
-                    )}
-                    {option.mode === 'full' ? (
-                      <>
-                        Pagado completo (<FormattedCurrency amount={total} />)
-                      </>
-                    ) : (
-                      option.label
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {payMode === null ? (
-              <p className="text-xs text-muted-foreground" data-testid="finish-pay-hint">
-                Elige cómo pagó el cliente para finalizar.
-              </p>
-            ) : null}
-
-            {payMode === 'partial' ? (
-              <div className="space-y-2">
-                <label
-                  htmlFor="detail-paid-amount"
-                  className="text-xs text-muted-foreground"
-                >
-                  Cuánto pagó el cliente
-                </label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 shrink-0"
-                    onClick={() =>
-                      updatePaidAmountInput(parsePaidInput(paidAmountInput) - 1)
-                    }
-                    aria-label="Reducir monto pagado"
-                  >
-                    <Minus className="h-4 w-4" aria-hidden />
-                  </Button>
-                  <input
-                    id="detail-paid-amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={paidAmountInput}
-                    onChange={(event) => setPaidAmountInput(event.target.value)}
-                    onBlur={(event) =>
-                      updatePaidAmountInput(parsePaidInput(event.target.value))
-                    }
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-center text-sm"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 shrink-0"
-                    onClick={() =>
-                      updatePaidAmountInput(parsePaidInput(paidAmountInput) + 1)
-                    }
-                    aria-label="Aumentar monto pagado"
-                  >
-                    <Plus className="h-4 w-4" aria-hidden />
-                  </Button>
-                </div>
-                {paidExceedsTotal ? (
-                  <p className="text-xs text-destructive">
-                    El monto pagado no puede superar el total del ticket.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+          <PaymentChoice choice={paymentChoice} idPrefix="detail" />
 
           <Button
             type="button"

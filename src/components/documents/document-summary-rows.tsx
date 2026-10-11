@@ -32,6 +32,8 @@ type DocumentSummaryRowsProps = {
   initialVisible?: number;
   /** Accessible name of the list, e.g. Servicios del ticket. */
   label?: string;
+  /** Text of the collapsed toggle; defaults to "Ver los N servicios y M materiales". */
+  toggleLabel?: (services: number, materials: number) => string;
   className?: string;
 };
 
@@ -51,6 +53,7 @@ export const DocumentSummaryRows = ({
   lines,
   initialVisible = 3,
   label,
+  toggleLabel = summaryToggleLabel,
   className,
 }: DocumentSummaryRowsProps) => {
   const [expanded, setExpanded] = React.useState(false);
@@ -110,7 +113,7 @@ export const DocumentSummaryRows = ({
           aria-controls={listId}
           className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {expanded ? 'Ver menos' : summaryToggleLabel(lines.length, materialsCount)}
+          {expanded ? 'Ver menos' : toggleLabel(lines.length, materialsCount)}
           <ChevronDown
             className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')}
             aria-hidden

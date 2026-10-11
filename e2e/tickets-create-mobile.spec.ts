@@ -102,10 +102,10 @@ test.describe('Ticket creation (mobile)', () => {
     await page.getByRole('link', { name: 'Ver ticket' }).first().click();
     await page.waitForURL(new RegExp(`/tickets/${ticketId}$`));
     await expect(
-      page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+      page.getByTestId('ticket-status-pill').filter({ visible: true }).first(),
+    ).toHaveText('Pagado', { timeout: 15_000 });
 
-    // The dock stays under the detail page's sticky recibo action.
+    // The dock stays under the detail page's sticky Compartir recibo action.
     const ticketsTab = page
       .getByTestId('mobile-bottom-tab-bar')
       .getByRole('link', { name: 'Tickets' });
