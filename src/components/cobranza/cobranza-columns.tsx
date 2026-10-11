@@ -85,7 +85,7 @@ export const createCobranzaColumns = ({
   {
     id: 'daysOutstanding',
     accessorKey: 'daysOutstanding',
-    header: 'Antigüedad',
+    header: 'Días sin pagar',
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5 text-sm">
         <span className="tabular-nums">
