@@ -10,11 +10,8 @@ import {
   Calendar as CalendarIcon,
   Check,
   Loader2,
-  MoreVertical,
-  Pencil,
   Plus,
   Receipt,
-  Trash2,
   UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,12 +27,14 @@ import { ClientForm } from '@/components/clients/client-form';
 import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
 import { CharCounter } from '@/components/ui/char-counter';
 import { CompanyProductionNotice } from '@/components/companies/company-production-notice';
+import { DocumentLineRow } from '@/components/documents/document-line-row';
+import { MoneyFigure } from '@/components/documents/money-figure';
+import { useUndoToast } from '@/components/documents/use-undo-toast';
 import { ActionSwap, BlurFade, NumberTicker } from '@/components/motion';
 import {
   ComposerLineSheet,
   type ComposerLineInput,
 } from '@/components/tickets/composer/composer-line-sheet';
-import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import { ExpiresAtField } from '@/components/tickets/composer/expires-at-field';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import {
@@ -53,12 +52,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import {
   Popover,
@@ -98,99 +91,34 @@ const CLIENT_SEARCH_PAGE_SIZE = 50;
 const NOTES_MAX_LENGTH = 2000;
 const SECTION_CLASS = GLASS_CARD_CLASS;
 
-type ComposerClient = { id: number; label: string };
+type ComposerClient = { id: number; label: string; name?: string; phone?: string | null };
 type SaveState = 'idle' | 'saving' | 'done';
 
 const clientLabel = (item: Pick<Client, 'name' | 'phone'>) =>
   item.phone ? `${item.name} · ${item.phone}` : item.name;
+
+const toComposerClient = (item: Pick<Client, 'id' | 'name' | 'phone'>): ComposerClient => ({
+  id: item.id,
+  label: clientLabel(item),
+  name: item.name,
+  phone: item.phone,
+});
+
+/** Name and phone for the summary card; a restored draft only kept the label. */
+const clientParts = (client: ComposerClient): { name: string; phone: string | null } => {
+  if (client.name) return { name: client.name, phone: client.phone ?? null };
+  const index = client.label.lastIndexOf(' · ');
+  const tail = index > 0 ? client.label.slice(index + 3) : '';
+  return /^[\d\s()+-]{7,}$/.test(tail)
+    ? { name: client.label.slice(0, index), phone: tail }
+    : { name: client.label, phone: null };
+};
 
 let lineKeySeed = 0;
 const nextLineKey = () => {
   lineKeySeed += 1;
   return `line-${Date.now().toString(36)}-${lineKeySeed}`;
 };
-
-type ComposerLineRowProps = {
-  line: TicketComposerDraftLine;
-  onEdit: () => void;
-  onRemove: () => void;
-  /** What the server rejected on this line (ZIG-I12). */
-  error?: string;
-};
-
-const ComposerLineRow = ({ line, onEdit, onRemove, error }: ComposerLineRowProps) => (
-  <div
-    className={cn('flex items-start gap-3 py-3', error && 'rounded-lg bg-destructive/5')}
-    data-invalid={error ? 'true' : undefined}
-  >
-    <div className="min-w-0 flex-1">
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span className="min-w-0 font-medium leading-snug text-foreground [overflow-wrap:anywhere]">
-          {line.service_name}
-        </span>
-        <InlineLineChips
-          isInline={line.kind === 'custom' || line.service_id == null}
-          saveToCatalog={line.save_to_catalog}
-        />
-      </div>
-      <p className="mt-0.5 text-sm tabular-nums text-muted-foreground [overflow-wrap:anywhere]">
-        {line.quantity} × {formatServiceCurrency(line.price)}
-      </p>
-      {line.materials && line.materials.length > 0 ? (
-        <p
-          className="mt-0.5 text-xs tabular-nums text-muted-foreground"
-          data-testid="composer-line-materials"
-        >
-          {line.materials.length === 1
-            ? '1 material'
-            : `${line.materials.length} materiales`}{' '}
-          · {formatServiceCurrency(materialDraftsTotal(line.materials))}
-        </p>
-      ) : null}
-      {error ? (
-        <p
-          role="alert"
-          data-testid="composer-line-error"
-          className="mt-1 text-xs font-medium text-destructive [overflow-wrap:anywhere]"
-        >
-          {error}
-        </p>
-      ) : null}
-    </div>
-    <span
-      className="max-w-[55%] shrink-0 pt-0.5 text-right text-base font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]"
-      data-testid="composer-line-amount"
-    >
-      {formatServiceCurrency(lineTotalWithMaterials(line))}
-    </span>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="-my-2 h-11 w-11 shrink-0 text-muted-foreground"
-          aria-label={`Opciones de ${line.service_name}`}
-        >
-          <MoreVertical className="h-4 w-4" aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={onEdit}>
-          <Pencil className="h-4 w-4" aria-hidden />
-          Editar
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onSelect={onRemove}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden />
-          Quitar
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  </div>
-);
 
 export type ComposerKind = 'ticket' | 'presupuesto';
 
@@ -296,6 +224,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
   const [isNewClientOpen, setIsNewClientOpen] = React.useState(false);
+  // Once a client is chosen, client + date fold into one card; Cambiar reopens them.
+  const [partyOpen, setPartyOpen] = React.useState(false);
+  const undoToast = useUndoToast();
   const [ticketDate, setTicketDate] = React.useState<Date>(() =>
     isEdit ? new Date(edit.ticketDate) : new Date(),
   );
@@ -447,7 +378,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       setClients((prev) =>
         prev.some((item) => item.id === match.id) ? prev : [match, ...prev],
       );
-      setClient({ id: match.id, label: clientLabel(match) });
+      setClient(toComposerClient(match));
     });
     return () => {
       cancelled = true;
@@ -506,7 +437,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     }
     const match = clients.find((item) => String(item.id) === value);
     if (match) {
-      setClient({ id: match.id, label: clientLabel(match) });
+      setClient(toComposerClient(match));
+      setPartyOpen(false);
     }
   };
 
@@ -542,12 +474,23 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     });
   };
 
+  /** Quitar: gone at once, Deshacer puts the line back where it was (ZIG-I13-2). */
   const handleRemoveLine = (key: string) => {
+    const index = lines.findIndex((line) => line.key === key);
+    if (index < 0) return;
+    const removed = lines[index];
     setLineErrors((current) => {
       const { [key]: _removed, ...rest } = current;
       return rest;
     });
     setLines((current) => current.filter((line) => line.key !== key));
+    undoToast(`Quitaste ${removed.service_name}`, () => {
+      setLines((current) =>
+        current.some((line) => line.key === removed.key)
+          ? current
+          : [...current.slice(0, index), removed, ...current.slice(index)],
+      );
+    });
   };
 
   /** Marks the rejected lines and notes; returns the sentence for the toast, if any. */
@@ -641,7 +584,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     }
   };
 
-  const saveLabel = (
+  const renderSaveLabel = (idleLabel: string) => (
     <ActionSwap swapKey={saveState}>
       {saveState === 'saving' ? (
         <>
@@ -654,20 +597,38 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           Guardado
         </>
       ) : (
-        copy.saveLabel
+        idleLabel
       )}
     </ActionSwap>
   );
+  const saveLabel = renderSaveLabel(copy.saveLabel);
+  // The sticky bar is tight at 333px next to a seven-figure total: the screen's
+  // title already says what is being saved.
+  const mobileSaveLabel = renderSaveLabel(isEdit ? copy.saveLabel : 'Guardar');
 
+  const materialCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
+  const countsLabel = [
+    `${lines.length} ${lines.length === 1 ? 'servicio' : 'servicios'}`,
+    materialCount > 0
+      ? `${materialCount} ${materialCount === 1 ? 'material' : 'materiales'}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const ctaHint = !client
     ? 'Elige un cliente'
     : lines.length === 0
       ? 'Agrega al menos un servicio'
-      : `${lines.length} ${lines.length === 1 ? 'servicio' : 'servicios'}`;
+      : countsLabel;
 
   const dateLabel = isToday(ticketDate)
     ? `Hoy · ${format(ticketDate, "d 'de' MMMM", { locale: es })}`
     : format(ticketDate, 'PPP', { locale: es });
+  const shortDateLabel = isToday(ticketDate)
+    ? `Hoy, ${format(ticketDate, 'd MMM', { locale: es })}`
+    : format(ticketDate, 'd MMM yyyy', { locale: es });
+  const showPartyForm = !client || partyOpen;
+  const clientCard = client ? clientParts(client) : null;
 
   return (
     <>
@@ -702,86 +663,133 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         <CompanyProductionNotice />
 
         <BlurFade>
-          <section aria-labelledby="composer-client-heading" className={SECTION_CLASS}>
-            <h2 id="composer-client-heading" className="text-base font-semibold">
-              Cliente
-            </h2>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <SearchableSelect
-                  id="composer-client"
-                  aria-label="Cliente"
-                  options={clientOptions}
-                  value={client ? String(client.id) : ''}
-                  onValueChange={handleClientChange}
-                  onSearchChange={setClientQuery}
-                  isLoading={isClientsLoading}
-                  disabled={isEdit}
-                  placeholder="Busca o elige un cliente"
-                  searchPlaceholder="Buscar por nombre o teléfono…"
-                  emptyText="Sin clientes que coincidan"
-                  className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
-                />
-              </div>
-              {isEdit ? null : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-12 gap-2 rounded-xl md:h-10"
-                  onClick={() => setIsNewClientOpen(true)}
-                >
-                  <UserPlus className="h-4 w-4" aria-hidden />
-                  Nuevo cliente
-                </Button>
-              )}
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <Label htmlFor="composer-date" className="text-sm font-medium">
-                Fecha
-              </Label>
-              <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
-                <PopoverTrigger asChild>
+          {showPartyForm ? (
+            <section aria-labelledby="composer-client-heading" className={SECTION_CLASS}>
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="composer-client-heading" className="text-base font-semibold">
+                  Cliente
+                </h2>
+                {client ? (
                   <Button
-                    id="composer-date"
+                    type="button"
+                    variant="ghost"
+                    className="-mr-2 h-9 px-2 text-sm font-semibold text-primary"
+                    onClick={() => setPartyOpen(false)}
+                  >
+                    Listo
+                  </Button>
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <SearchableSelect
+                    id="composer-client"
+                    aria-label="Cliente"
+                    options={clientOptions}
+                    value={client ? String(client.id) : ''}
+                    onValueChange={handleClientChange}
+                    onSearchChange={setClientQuery}
+                    isLoading={isClientsLoading}
+                    disabled={isEdit}
+                    placeholder="Busca o elige un cliente"
+                    searchPlaceholder="Buscar por nombre o teléfono…"
+                    emptyText="Sin clientes que coincidan"
+                    className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
+                  />
+                </div>
+                {isEdit ? null : (
+                  <Button
                     type="button"
                     variant="outline"
-                    className="h-12 w-full justify-start gap-2 rounded-xl text-left text-base font-normal md:h-10 md:text-sm"
+                    className="h-12 gap-2 rounded-xl md:h-10"
+                    onClick={() => setIsNewClientOpen(true)}
                   >
-                    <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
-                    {dateLabel}
+                    <UserPlus className="h-4 w-4" aria-hidden />
+                    Nuevo cliente
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={ticketDate}
-                    onSelect={(value) => {
-                      if (value) {
-                        setTicketDate(value);
-                        setIsDateOpen(false);
-                      }
-                    }}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date('1900-01-01')
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {isQuote ? (
-              <div className="mt-4">
-                <ExpiresAtField
-                  value={expiresAt}
-                  onChange={setExpiresAt}
-                  minDate={ticketDate}
-                />
+                )}
               </div>
-            ) : null}
-          </section>
+
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="composer-date" className="text-sm font-medium">
+                  Fecha
+                </Label>
+                <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="composer-date"
+                      type="button"
+                      variant="outline"
+                      className="h-12 w-full justify-start gap-2 rounded-xl text-left text-base font-normal md:h-10 md:text-sm"
+                    >
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
+                      {dateLabel}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={ticketDate}
+                      onSelect={(value) => {
+                        if (value) {
+                          setTicketDate(value);
+                          setIsDateOpen(false);
+                        }
+                      }}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date('1900-01-01')
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </section>
+          ) : (
+            <section
+              aria-label="Cliente y fecha"
+              data-testid="composer-party-card"
+              className={cn(SECTION_CLASS, 'flex items-start gap-3')}
+            >
+              <div
+                aria-hidden
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary"
+              >
+                {(clientCard?.name.trim().charAt(0) || '?').toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="font-semibold leading-snug [overflow-wrap:anywhere]"
+                  data-testid="composer-party-name"
+                >
+                  {clientCard?.name}
+                </p>
+                <p className="flex flex-wrap gap-x-1.5 text-sm tabular-nums text-muted-foreground">
+                  {clientCard?.phone ? (
+                    <span className="[overflow-wrap:anywhere]">{clientCard.phone} ·</span>
+                  ) : null}
+                  <span className="whitespace-nowrap">{shortDateLabel}</span>
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 shrink-0 rounded-lg px-3 text-sm"
+                onClick={() => setPartyOpen(true)}
+              >
+                Cambiar
+              </Button>
+            </section>
+          )}
         </BlurFade>
+
+        {isQuote ? (
+          <BlurFade delay={0.03}>
+            <section className={SECTION_CLASS}>
+              <ExpiresAtField value={expiresAt} onChange={setExpiresAt} minDate={ticketDate} />
+            </section>
+          </BlurFade>
+        ) : null}
 
         <BlurFade delay={0.05}>
           <section
@@ -791,6 +799,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
             <div className="flex items-center justify-between gap-3">
               <h2 id="composer-services-heading" className="text-base font-semibold">
                 Servicios
+                {lines.length > 0 ? (
+                  <span className="font-normal text-muted-foreground"> · {lines.length}</span>
+                ) : null}
               </h2>
               <Button
                 type="button"
@@ -823,11 +834,15 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
                       transition={{ duration: reduceMotion ? 0 : 0.2 }}
                     >
-                      <ComposerLineRow
-                        line={line}
-                        onEdit={() => openEditLine(line.key)}
-                        onRemove={() => handleRemoveLine(line.key)}
+                      <DocumentLineRow
+                        name={line.service_name}
+                        quantity={line.quantity}
+                        price={line.price}
+                        amount={lineTotalWithMaterials(line)}
+                        materialCount={line.materials?.length ?? 0}
                         error={lineErrors[line.key]}
+                        onClick={() => openEditLine(line.key)}
+                        data-testid="composer-line-row"
                       />
                     </motion.li>
                   ))}
@@ -907,13 +922,15 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
 
       <TripledMobileStickyActionBar>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">{ctaHint}</p>
-          <p
-            className="text-base font-semibold leading-tight tabular-nums [overflow-wrap:anywhere]"
-            data-testid="composer-sticky-total"
-          >
-            {formatServiceCurrency(total)}
+          <p className="text-xs text-muted-foreground" data-testid="composer-sticky-hint">
+            {ctaHint}
           </p>
+          <MoneyFigure
+            amount={total}
+            size="lg"
+            className="block leading-tight"
+            data-testid="composer-sticky-total"
+          />
         </div>
         <Button
           type="button"
@@ -921,7 +938,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           disabled={!canSave || saveState !== 'idle'}
           onClick={handleSave}
         >
-          {saveLabel}
+          {mobileSaveLabel}
         </Button>
       </TripledMobileStickyActionBar>
 
@@ -934,6 +951,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         servicesLoading={isServicesLoading}
         initialLine={editingLine}
         onSubmit={handleLineSubmit}
+        onRemove={
+          lineSheet.editingKey ? () => handleRemoveLine(lineSheet.editingKey as string) : undefined
+        }
         documentLabel={copy.documentLabel}
         otherLinesTotal={addMoney(
           ...lines
@@ -957,7 +977,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                 setClients((prev) =>
                   prev.some((item) => item.id === saved.id) ? prev : [saved, ...prev],
                 );
-                setClient({ id: saved.id, label: clientLabel(saved) });
+                setClient(toComposerClient(saved));
+                setPartyOpen(false);
               }
             }}
           />

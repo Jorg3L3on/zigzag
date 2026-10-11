@@ -37,7 +37,7 @@ const TICKET_BALANCE = 9_900_007_925.42;
 const MONEY_TEST_IDS = [
   'composer-total',
   'composer-sticky-total',
-  'composer-line-amount',
+  'document-line-amount',
   'review-total',
   'review-line-amount',
   'review-sticky-amount',
@@ -129,7 +129,7 @@ const createLongClient = async (page: Page, suffix: string) => {
 
   await dialog.getByRole('button', { name: 'Crear' }).click();
   await expect(dialog).toBeHidden({ timeout: 30_000 });
-  await expect(page.getByRole('combobox', { name: 'Cliente' })).toContainText(`H${suffix}`);
+  await expect(page.getByTestId('composer-party-card')).toContainText(`H${suffix}`);
 };
 
 /** A saved-nowhere line typed with Nuevo, optionally with one inline material. */
@@ -169,7 +169,7 @@ const addHostileLine = async (
     await expect(materialSheet.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
   }
 
-  await sheet.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
 };
 
@@ -215,7 +215,7 @@ for (const width of [375, 333]) {
       );
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('1.5');
       await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill('100');
-      await sheet.getByRole('button', { name: 'Agregar', exact: true }).click();
+      await sheet.getByRole('button', { name: 'Guardar línea' }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
 
       // 1.5 stays 1.5; HTML is text; the total is exact (no phantom cents).
@@ -224,18 +224,18 @@ for (const width of [375, 333]) {
       await expect(lines.getByText(HOSTILE_NAME, { exact: false }).first()).toBeVisible();
       expect(await page.locator('main b, main img[src="x"]').count()).toBe(0);
       await expect(page.getByTestId('composer-total')).toHaveText(money(TICKET_TOTAL));
-      await expect(page.getByTestId('composer-line-amount').first()).toHaveText(
+      await expect(page.getByTestId('document-line-amount').first()).toHaveText(
         money(TICKET_LINE_1),
       );
 
       await page.getByRole('textbox', { name: /Notas/ }).fill(NOTES);
       await expect(page.getByTestId('char-counter')).toBeVisible();
 
-      // Focusing the line menu must not scroll the composer sideways.
-      await page.getByRole('button', { name: /^Opciones de X/ }).focus();
+      // Focusing a line row must not scroll the composer sideways.
+      await page.getByTestId('composer-line-row').first().focus();
       await expectLayoutIntact(page, 'composer');
 
-      await page.getByRole('button', { name: 'Guardar ticket' }).first().click();
+      await page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first().click();
       await page.waitForURL(/\/tickets\/\d+\/listo$/, { timeout: 60_000 });
       const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1] as string;
       expect(ticketId).toBeTruthy();
@@ -342,7 +342,7 @@ for (const width of [375, 333]) {
       await expect(sheet.getByTestId('composer-line-total-error')).toContainText(
         '$9,999,999,999.99',
       );
-      await expect(sheet.getByRole('button', { name: 'Agregar', exact: true })).toBeDisabled();
+      await expect(sheet.getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
       await expect(sheet).toBeHidden();
 
@@ -351,7 +351,7 @@ for (const width of [375, 333]) {
         .fill('50% anticipo, saldo contra entrega.\n\n\n\nEl cliente compra el equipo.');
       await expectLayoutIntact(page, 'presupuesto composer');
 
-      await page.getByRole('button', { name: 'Guardar presupuesto' }).first().click();
+      await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
       await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
       await expect(page.getByTestId('review-total')).toHaveText(money(PRESUPUESTO_TOTAL), {

@@ -87,7 +87,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('button', { name: 'Agregar servicio' })).toBeVisible();
     await expect(page.getByTestId('composer-total')).toHaveText('$0.00');
     await expect(
-      page.getByRole('button', { name: 'Guardar ticket' }).first(),
+      page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first(),
     ).toBeDisabled();
     // No wizard copy and nothing says Crear before saving (the dock's + is labelled Crear).
     await expect(page.getByText(/Paso \d de \d/)).toHaveCount(0);
@@ -130,10 +130,9 @@ test.describe('Mobile ticket screens', () => {
 
     // Draft survives a reload (client, lines).
     await page.reload();
-    await expect(page.getByRole('combobox', { name: 'Cliente' })).toContainText(
-      clientName,
-      { timeout: 15_000 },
-    );
+    await expect(page.getByTestId('composer-party-card')).toContainText(clientName, {
+      timeout: 15_000,
+    });
     await expect(page.getByTestId('composer-total')).toHaveText('$12,950.00');
 
     // Nothing was persisted before Guardar ticket.

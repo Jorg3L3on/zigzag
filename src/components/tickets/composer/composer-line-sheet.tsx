@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Package, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 import type { Service } from '@/db/schema';
 import {
@@ -9,7 +9,9 @@ import {
   useMaterialEntry,
 } from '@/components/materials/material-entry-fields';
 import { MaterialRows } from '@/components/materials/material-rows';
-import { BottomSheet, NumberTicker } from '@/components/motion';
+import { MoneyFigure } from '@/components/documents/money-figure';
+import { useUndoToast } from '@/components/documents/use-undo-toast';
+import { BottomSheet } from '@/components/motion';
 import {
   InlineServiceFields,
   ServiceLineModeToggle,
@@ -56,6 +58,8 @@ type ComposerLineSheetProps = {
   /** Present when editing an existing draft line. */
   initialLine: TicketComposerDraftLine | null;
   onSubmit: (line: ComposerLineInput) => void;
+  /** Editing an existing line: Quitar este servicio (the composer shows Deshacer). */
+  onRemove?: () => void;
   /** Noun for copy ("ticket" / "presupuesto"). */
   documentLabel?: string;
   /** Total of the document's other lines, for the total cap (ZIG-I12). */
@@ -89,9 +93,11 @@ export const ComposerLineSheet = ({
   servicesLoading,
   initialLine,
   onSubmit,
+  onRemove,
   documentLabel = 'ticket',
   otherLinesTotal = 0,
 }: ComposerLineSheetProps) => {
+  const undoToast = useUndoToast();
   const [materials, setMaterials] = useState<MaterialDraft[]>(
     () => initialLine?.materials ?? [],
   );
@@ -211,6 +217,28 @@ export const ComposerLineSheet = ({
     setStep({ kind: 'material', editing });
   };
 
+  /** Quitar a material: gone at once, Deshacer puts it back where it was. */
+  const removeMaterial = (key: string) => {
+    const index = materials.findIndex((item) => item.key === key);
+    if (index < 0) return;
+    const removed = materials[index];
+    updateMaterials(materials.filter((item) => item.key !== key));
+    undoToast(`Quitaste ${removed.name}`, () => {
+      setMaterials((current) =>
+        current.some((item) => item.key === removed.key)
+          ? current
+          : [...current.slice(0, index), removed, ...current.slice(index)],
+      );
+      setMaterialsEdited(true);
+    });
+  };
+
+  /** Back to the picker: the chosen service is a header, not a field, until then. */
+  const changeService = () => {
+    setMode('catalog');
+    setServiceId('');
+  };
+
   const submitMaterial = () => {
     if (!materialEntry.canSubmit || materialTotalError) return;
     const draft = materialEntry.toDraft();
@@ -297,6 +325,48 @@ export const ComposerLineSheet = ({
     );
   }
 
+  const catalogChosen = mode === 'catalog' && Boolean(selectedService || (editingCatalogLine && serviceId));
+  // A service is "chosen" once the picker is out of the way: a catalog pick, or
+  // a line that was typed in already (editing). Until then the switch shows.
+  const serviceChosen = catalogChosen || (mode === 'custom' && isEditing);
+  const headline = catalogChosen
+    ? (selectedService?.name ?? editingCatalogLine?.service_name ?? '')
+    : serviceChosen
+      ? trimmedName || 'Servicio sin nombre'
+      : isEditing
+        ? 'Editar servicio'
+        : 'Agregar servicio';
+
+  const header = (
+    <div className="space-y-1" data-testid="composer-line-header">
+      {serviceChosen ? (
+        <p className="text-xs text-muted-foreground">
+          {mode === 'custom' ? 'Fuera del catálogo' : 'Del catálogo'} ·{' '}
+          <button
+            type="button"
+            onClick={changeService}
+            className="rounded-sm font-medium text-primary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Cambiar servicio
+          </button>
+        </p>
+      ) : null}
+      <h2
+        className="text-lg font-semibold leading-snug [overflow-wrap:anywhere]"
+        data-testid="composer-line-headline"
+      >
+        {headline}
+      </h2>
+      {serviceChosen ? null : (
+        <p className="text-sm text-muted-foreground">
+          {mode === 'custom'
+            ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
+            : 'Elige el servicio, la cantidad y el precio.'}
+        </p>
+      )}
+    </div>
+  );
+
   return (
     <BottomSheet
       open={open}
@@ -307,34 +377,70 @@ export const ComposerLineSheet = ({
           ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
           : 'Elige el servicio, la cantidad y el precio.'
       }
+      header={header}
       data-testid="composer-line-sheet"
       footer={
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 flex-1"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            className="h-11 flex-1"
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-          >
-            {isEditing ? 'Guardar cambios' : 'Agregar'}
-          </Button>
+        <div className="space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <p
+              className="min-w-0 text-xs tabular-nums leading-snug text-muted-foreground"
+              data-testid="composer-line-breakdown"
+            >
+              <span className="block [overflow-wrap:anywhere]">
+                Servicio {formatServiceCurrency(serviceAmount)}
+              </span>{' '}
+              <span className="block [overflow-wrap:anywhere]">
+                Materiales {formatServiceCurrency(materialsTotal)}
+              </span>
+            </p>
+            <div className="flex min-w-0 flex-col items-end text-right">
+              <span className="text-xs text-muted-foreground">Subtotal de la línea</span>
+              <MoneyFigure
+                amount={lineTotal}
+                size="lg"
+                className="text-right font-bold"
+                data-testid="composer-line-subtotal"
+              />
+            </div>
+          </div>
+          {lineAmountError ? (
+            <p
+              role="alert"
+              className="text-xs text-destructive"
+              data-testid="composer-line-total-error"
+            >
+              {lineAmountError}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="h-12 rounded-xl font-semibold"
+              disabled={!canSubmit}
+              onClick={handleSubmit}
+            >
+              Guardar línea
+            </Button>
+          </div>
         </div>
       }
     >
-      <div className="space-y-4">
-        <ServiceLineModeToggle
-          idPrefix="composer-line"
-          value={mode}
-          onValueChange={setMode}
-        />
+      <div className="space-y-4 pt-1">
+        {serviceChosen ? null : (
+          <ServiceLineModeToggle
+            idPrefix="composer-line"
+            value={mode}
+            onValueChange={setMode}
+          />
+        )}
 
         {mode === 'custom' ? (
           <InlineServiceFields
@@ -348,7 +454,7 @@ export const ComposerLineSheet = ({
             documentLabel={documentLabel}
             autoFocus={!isEditing}
           />
-        ) : (
+        ) : catalogChosen ? null : (
           <div className="space-y-2">
             <Label htmlFor="composer-line-service">Servicio</Label>
             <SearchableSelect
@@ -372,6 +478,7 @@ export const ComposerLineSheet = ({
         )}
 
         <TicketServiceLineEditor
+          layout="sheet"
           idPrefix="composer-line"
           quantity={quantity}
           price={price}
@@ -383,20 +490,26 @@ export const ComposerLineSheet = ({
           priceError={priceError}
         />
 
-        <section aria-labelledby="composer-line-materials-heading" className="space-y-2">
-          <div className="flex items-baseline justify-between gap-3">
+        <section aria-labelledby="composer-line-materials-heading" className="space-y-1">
+          <div className="flex items-center justify-between gap-3">
             <h3
               id="composer-line-materials-heading"
-              className="flex items-center gap-1.5 text-sm font-medium text-foreground"
+              className="text-[15px] font-semibold text-foreground"
             >
-              <Package className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Materiales
+              Materiales{' '}
+              <span className="font-normal text-muted-foreground">· {materials.length}</span>
             </h3>
-            {materials.length > 0 ? (
-              <span className="text-sm font-semibold tabular-nums">
-                {formatServiceCurrency(materialsTotal)}
-              </span>
-            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              className="-mr-2 h-10 gap-1.5 px-2 font-semibold text-primary"
+              disabled={materials.length >= MATERIALS_PER_LINE_MAX}
+              onClick={() => openMaterialStep(null)}
+            >
+              <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
+              Agregar
+              <span className="sr-only"> material</span>
+            </Button>
           </div>
           {pendingDefaults ? (
             <div
@@ -435,65 +548,37 @@ export const ComposerLineSheet = ({
             <p className="text-xs text-muted-foreground">
               Sin materiales. Se suman al precio del servicio.
             </p>
-          ) : null}
-          <MaterialRows
-            materials={materials}
-            showInlineChips
-            onEdit={(key) =>
-              openMaterialStep(materials.find((item) => item.key === key) ?? null)
-            }
-            onRemove={(key) => updateMaterials(materials.filter((item) => item.key !== key))}
-            data-testid="composer-line-material-rows"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full"
-            disabled={materials.length >= MATERIALS_PER_LINE_MAX}
-            onClick={() => openMaterialStep(null)}
-          >
-            <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-            Agregar material
-          </Button>
+          ) : (
+            <>
+              <MaterialRows
+                compact
+                materials={materials}
+                onEdit={(key) =>
+                  openMaterialStep(materials.find((item) => item.key === key) ?? null)
+                }
+                onRemove={removeMaterial}
+                data-testid="composer-line-material-rows"
+              />
+              <p className="pt-1 text-xs text-muted-foreground">
+                Toca un material para cambiar cantidad o precio.
+              </p>
+            </>
+          )}
         </section>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Subtotal
-            </p>
-            <p
-              className="text-xs tabular-nums leading-snug text-muted-foreground"
-              data-testid="composer-line-breakdown"
-            >
-              {materials.length > 0 ? (
-                // Wraps between the two parts at narrow widths instead of truncating.
-                <>
-                  <span className="whitespace-nowrap">
-                    Servicio {formatServiceCurrency(serviceAmount)}
-                  </span>{' '}
-                  · <span className="whitespace-nowrap">
-                    Materiales {formatServiceCurrency(materialsTotal)}
-                  </span>
-                </>
-              ) : (
-                <span className="block truncate">
-                  {quantityValue} × {formatServiceCurrency(priceValue)}
-                </span>
-              )}
-            </p>
-          </div>
-          <NumberTicker
-            value={lineTotal}
-            format={formatServiceCurrency}
-            className="shrink-0 text-lg font-semibold text-foreground"
-            data-testid="composer-line-subtotal"
-          />
-        </div>
-        {lineAmountError ? (
-          <p role="alert" className="text-xs text-destructive" data-testid="composer-line-total-error">
-            {lineAmountError}
-          </p>
+        {isEditing && onRemove ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 w-full gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => {
+              onRemove();
+              onOpenChange(false);
+            }}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden data-icon="inline-start" />
+            Quitar este servicio
+          </Button>
         ) : null}
       </div>
     </BottomSheet>

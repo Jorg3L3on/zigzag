@@ -84,7 +84,7 @@ const ensureFixturePresupuesto = async (page: Page): Promise<string> => {
     { name: 'Mantenimiento preventivo', price: 850 },
     LINES_LABEL,
   );
-  await page.getByRole('button', { name: 'Guardar presupuesto' }).first().click();
+  await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
   await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
   const id = page.url().match(/\/presupuestos\/(\d+)/)?.[1];
   return `/presupuestos/${id}`;

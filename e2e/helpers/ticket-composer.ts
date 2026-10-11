@@ -33,9 +33,8 @@ export const createClientInComposer = async (
         );
       }),
   ]);
-  await expect(page.getByRole('combobox', { name: 'Cliente' })).toContainText(
-    name,
-  );
+  // Once a client is chosen, client and date fold into a card (ZIG-I13-2).
+  await expect(page.getByTestId('composer-party-card')).toContainText(name);
 };
 
 export const addComposerLine = async (
@@ -76,7 +75,7 @@ export const addComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   await expect(
     page
@@ -88,7 +87,7 @@ export const addComposerLine = async (
 };
 
 export const saveComposer = async (page: Page) => {
-  const save = page.getByRole('button', { name: 'Guardar ticket' }).first();
+  const save = page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first();
   await expect(save).toBeEnabled();
   await save.click();
   await page.waitForURL(/\/tickets\/\d+\/listo$/, { timeout: 60_000 });
@@ -181,7 +180,7 @@ export const addInlineComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   const lines = page.getByRole('list', { name: linesLabel });
   await expect(lines.getByText(name).first()).toBeVisible();

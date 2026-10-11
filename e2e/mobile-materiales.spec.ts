@@ -180,16 +180,16 @@ test.describe('Materiales (mobile)', () => {
     await step.getByLabel(/^Precio/).fill('320');
     await step.getByRole('button', { name: 'Agregar material' }).click();
     await expect(sheet.getByTestId('composer-line-breakdown')).toHaveText(
-      `Servicio ${money(3500)} · Materiales ${money(890)}`,
+      `Servicio ${money(3500)} Materiales ${money(890)}`,
     );
-    await sheet.getByRole('button', { name: 'Agregar', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Guardar línea' }).click();
     await expect(sheet).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId('composer-total')).toHaveText(money(4390));
     await expectNoHorizontalOverflow(page);
     await expectInsideViewport(page, page.getByTestId('mobile-bottom-tab-bar'));
     await page.setViewportSize({ width: 393, height: 851 });
 
-    const save = page.getByRole('button', { name: 'Guardar presupuesto' }).first();
+    const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
     await save.click();
     await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
     const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1];
