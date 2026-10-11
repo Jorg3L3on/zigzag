@@ -67,6 +67,9 @@ Re-run on a Vercel preview before release; local prod build is the merge guard b
 | 2026-10-08 | `/tickets/create` | Local prod, `main` @433a2e1 (old 3-step wizard) | 60 / 42 | 7.8–8.3 s | TBT 603–1845 ms | 0.012 | A/B baseline under the same load: the composer is not slower (median ~64 vs ~51) and removes the small CLS. |
 | 2026-10-08 | `/tickets` | Local prod, `main` @433a2e1 | 44 / 61 | 7.5–8.0 s | TBT 558–1654 ms | 0 | A/B baseline (median ~52 vs ~58 with the dock). Absolute scores sit below the Aug rows because of machine load, not code. |
 
+| 2026-10-11 | `/dashboard` | Local prod, `sandbox` @de714f8 (cloud container, seeded demo + E2E admin) | 72 / 76 / 69 | 4.70 / 4.24 / 4.48 s | TBT 384–600 ms | 0 | ZIG-I14 baseline. LCP element is the greeting h1; ~90% of LCP is render delay (observed FCP 211 ms vs LCP 521 ms). The Aug CLS 0.12 no longer reproduces. |
+| 2026-10-11 | `/dashboard` | Same, ZIG-I14 branch | 81 / 69 / 72 / 79 / 75 | 3.66 / 5.02 / 3.80 / 3.65 / 3.64 s (median 3.66) | TBT 382–661 ms | 0 | Loading skeleton paints the real greeting, server greeting from the `zz_tz` cookie, install banner waits for first input. Observed LCP = FCP in 4 of 5 runs; the 5.02 s run is the skeleton streaming after first paint. No layout shift in 15 s at 4x CPU. |
+
 `LIGHTHOUSE_PATHS=/tickets/create,/tickets npm run lighthouse:mobile` limits a run to those paths.
 
 ## Merge Guard

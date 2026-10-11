@@ -29,4 +29,22 @@ describe('DashboardPageIntro', () => {
       );
     });
   });
+
+  it('renders the server greeting on the first render', () => {
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(9);
+
+    render(<DashboardPageIntro userName="Ana" initialGreeting="Buenos días" />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Buenos días, Ana',
+    );
+  });
+
+  it('remembers the browser time zone for the next server render', async () => {
+    render(<DashboardPageIntro userName="Ana" />);
+
+    await waitFor(() => {
+      expect(document.cookie).toContain('zz_tz=');
+    });
+  });
 });
