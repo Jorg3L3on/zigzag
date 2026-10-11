@@ -167,7 +167,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('500000');
       await expect(page.getByTestId('review-sticky-amount')).toBeVisible();
-      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Terminar y compartir' })), 'Terminar y compartir');
+      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Terminar y enviar' })), 'Terminar y enviar');
       await expectLayoutIntact(page, 'ticket listo with payment');
       await finishOnReview(page, ticketId, { mode: 'partial', amount: 500000 });
 

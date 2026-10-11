@@ -97,7 +97,7 @@ export const saveComposer = async (page: Page) => {
 };
 
 /**
- * Creation review (ZIG-I2-5): choose the payment and tap Terminar y compartir.
+ * Creation review (ZIG-I2-5): choose the payment and tap Terminar y enviar.
  * window.open is stubbed so the WhatsApp fallback never leaves the app in tests.
  */
 export const finishOnReview = async (
@@ -123,13 +123,13 @@ export const finishOnReview = async (
     await page.getByLabel('Cuánto pagó').fill(String(payment.amount));
   }
 
-  await page.getByRole('button', { name: 'Terminar y compartir' }).first().click();
+  await page.getByRole('button', { name: 'Terminar y enviar' }).first().click();
 
   // Reminders are ticked on this screen and saved before the share sheet
   // (ZIG-I13-3): no dialog to answer.
   const heading = page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first();
   await expect(heading).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
+  await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
     timeout: 60_000,
   });
 

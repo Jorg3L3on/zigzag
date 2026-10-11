@@ -252,7 +252,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByTestId('recibo-pdf-preview')).toHaveCount(0);
 
       // No payment is chosen for the user: Terminar waits for a choice.
-      const finish = page.getByRole('button', { name: 'Terminar y compartir' }).first();
+      const finish = page.getByRole('button', { name: 'Terminar y enviar' }).first();
       await expect(finish).toBeDisabled();
       await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('1234.567');
@@ -266,7 +266,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(
         page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first(),
       ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
+      await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
         timeout: 60_000,
       });
 

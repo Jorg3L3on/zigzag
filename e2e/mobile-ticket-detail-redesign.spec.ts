@@ -87,10 +87,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hero.getByRole('progressbar')).toBeVisible();
       await expectInsideViewport(page, hero, 'hero');
 
-      // Quick actions: Cobrar / Compartir recibo / Llamar, all on the first screen.
+      // Quick actions: Cobrar / WhatsApp / Llamar (Compartir recibo lives once, in the sticky bar), all on the first screen.
       const quick = page.getByTestId('ticket-quick-actions').filter({ visible: true }).first();
       await expect(quick.getByRole('button', { name: 'Cobrar' })).toBeVisible();
-      await expect(quick.getByRole('button', { name: 'Compartir recibo' })).toBeVisible();
+      await expect(quick.getByRole('link', { name: 'WhatsApp' })).toBeVisible();
+      await expect(quick.getByRole('button', { name: 'Compartir recibo' })).toHaveCount(0);
       await expect(quick.getByRole('link', { name: 'Llamar' })).toBeVisible();
       await expectInsideViewport(page, quick, 'quick actions');
 
