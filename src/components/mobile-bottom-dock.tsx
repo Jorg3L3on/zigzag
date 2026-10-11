@@ -52,7 +52,7 @@ const MENU_TRANSITION: Transition = {
 const INSTANT: Transition = { duration: 0 };
 
 export const MOBILE_DOCK_SHELL_CLASS = cn(
-  'relative grid h-(--dock-bar-height) items-center rounded-full px-1',
+  'relative grid h-(--dock-bar-height) items-center rounded-full px-0.5',
   'border border-black/10 bg-background shadow-panel',
   'dark:border-white/[0.12] dark:bg-[rgb(9_14_29)]',
   'before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-black/20 before:to-transparent',
@@ -130,7 +130,13 @@ export const MobileBottomDock = () => {
   const moreActive = activeHref === null;
   // The + sits between Tickets and Cobranza; with fewer visible tabs it stays centered-ish.
   const createSlot = Math.min(MOBILE_DOCK_CREATE_SLOT, visibleTabs.length);
-  const columnCount = visibleTabs.length + 1 + (showCreate ? 1 : 0);
+  // The + needs only its button; the labelled slots share the rest so "Cobranza" fits at 333 px.
+  const labelledSlots = visibleTabs.length + 1;
+  const gridTemplateColumns = [
+    ...Array.from({ length: labelledSlots + (showCreate ? 1 : 0) }, (_, index) =>
+      showCreate && index === createSlot ? '3.5rem' : 'minmax(0, 1fr)',
+    ),
+  ].join(' ');
 
   useEffect(() => {
     if (!menuOpen) {
@@ -266,7 +272,7 @@ export const MobileBottomDock = () => {
       aria-label="Navegación principal"
       data-testid="mobile-bottom-tab-bar"
       className={cn(
-        'pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 md:hidden',
+        'pointer-events-none fixed inset-x-0 bottom-0 z-30 px-2 md:hidden',
         DOCK_FLOAT_PADDING_CLASS,
       )}
     >
@@ -328,7 +334,7 @@ export const MobileBottomDock = () => {
         <div
           data-testid="mobile-dock-shell"
           className={MOBILE_DOCK_SHELL_CLASS}
-          style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns }}
         >
           {slots}
           <motion.div
