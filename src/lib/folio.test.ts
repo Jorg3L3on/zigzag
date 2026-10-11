@@ -15,9 +15,9 @@ describe('folio helpers', () => {
     expect(formatFolio('P', 12345)).toBe('P-12345');
   });
 
-  it('normalizes prefixes to up to four uppercase letters or digits', () => {
+  it('normalizes prefixes to up to five uppercase letters or digits', () => {
     expect(normalizeFolioPrefix(' ab-c1 ')).toBe('ABC1');
-    expect(normalizeFolioPrefix('abcdefg')).toBe('ABCD');
+    expect(normalizeFolioPrefix('abcdefg')).toBe('ABCDE');
     expect(normalizeFolioPrefix(null)).toBe('');
   });
 

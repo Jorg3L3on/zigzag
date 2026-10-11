@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
-import { FOLIO_PREFIX_MAX_LENGTH, normalizeFolioPrefix } from '@/lib/folio';
+import { DEFAULT_FOLIO_PREFIX, FOLIO_PREFIX_MAX_LENGTH, normalizeFolioPrefix } from '@/lib/folio';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const COMPANY_TAGLINE_MAX = 60;
 
-/** Up to four letters or digits; empty keeps the default (P / R). */
+/** Up to five letters or digits; empty keeps the default (P / R). */
 const folioPrefixField = z
   .string()
   .trim()
@@ -13,7 +13,7 @@ const folioPrefixField = z
   .regex(/^[A-Za-z0-9]*$/, 'Usa solo letras y números')
   .optional();
 
-export const companySettingsSchema = z.object({
+export const companySettingsBaseSchema = z.object({
   rfc: z.string().optional(),
   /** Lema o giro printed under the company name on PDFs. */
   tagline: z
@@ -27,6 +27,20 @@ export const companySettingsSchema = z.object({
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
     .optional(),
+});
+
+/** The two series must tell documents apart, so their effective prefixes cannot match. */
+export const companySettingsSchema = companySettingsBaseSchema.superRefine((value, ctx) => {
+  const presupuesto =
+    normalizeFolioPrefix(value.folio_prefix_presupuesto) || DEFAULT_FOLIO_PREFIX.presupuesto;
+  const ticket = normalizeFolioPrefix(value.folio_prefix_ticket) || DEFAULT_FOLIO_PREFIX.ticket;
+  if (presupuesto === ticket) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['folio_prefix_ticket'],
+      message: 'Los prefijos de presupuestos y recibos deben ser distintos',
+    });
+  }
 });
 
 export const companyFormSchema = z.object({

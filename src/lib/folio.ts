@@ -7,7 +7,7 @@
 import { normalizeTicketDocumentKind } from '@/lib/ticket-document-kind';
 import type { TicketDocumentKind } from '@/lib/ticket-document-kind';
 
-export const FOLIO_PREFIX_MAX_LENGTH = 4;
+export const FOLIO_PREFIX_MAX_LENGTH = 5;
 
 export const DEFAULT_FOLIO_PREFIX: Record<TicketDocumentKind, string> = {
   presupuesto: 'P',
@@ -22,7 +22,7 @@ export type FolioParts = {
   folio_prefix?: string | null;
 };
 
-/** Uppercase letters and digits only, up to four. Anything else is dropped. */
+/** Uppercase letters and digits only, up to five. Anything else is dropped. */
 export const normalizeFolioPrefix = (value: string | null | undefined): string =>
   (value ?? '')
     .toUpperCase()
@@ -76,7 +76,7 @@ export const formatDocumentFolio = (
 export const parseFolioSearch = (
   value: string,
 ): { prefix: string; number: number } | null => {
-  const match = /^\s*([a-z0-9]{0,4}?)\s*-?\s*(\d{1,9})\s*$/i.exec(value);
+  const match = /^\s*([a-z0-9]{0,5}?)\s*-?\s*(\d{1,9})\s*$/i.exec(value);
   if (!match) return null;
   const number = Number.parseInt(match[2], 10);
   if (!Number.isSafeInteger(number)) return null;
