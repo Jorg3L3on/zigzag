@@ -64,13 +64,13 @@ const finishWithPartialPayment = async (
 };
 
 const settleRemainingBalance = async (page: Page) => {
-  // Cobrar (quick action) opens the Registrar pago sheet.
+  // Cobrar (quick action) opens the Cobrar sheet.
   const cobrar = visible(page.getByRole('button', { name: 'Cobrar', exact: true }));
   await expect(cobrar).toBeVisible({ timeout: 15_000 });
   await cobrar.click();
-  const sheet = page.getByRole('dialog', { name: 'Registrar pago' });
+  const sheet = page.getByRole('dialog', { name: 'Cobrar' });
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('button', { name: 'Saldar el ticket por completo' }).click();
+  await sheet.getByRole('button', { name: 'Pagó todo' }).click();
 
   await expect(visible(page.getByTestId('ticket-hero-paid'))).toHaveText('Saldado', {
     timeout: 30_000,

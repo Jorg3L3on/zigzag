@@ -123,10 +123,10 @@ export function TicketRowActions({
           {showCollectAction ? (
             <DropdownMenuItem
               onSelect={() => setCollectOpen(true)}
-              aria-label={`Registrar pago del ticket ${ticket.id.toString()}`}
+              aria-label={`Cobrar el ticket ${ticket.id.toString()}`}
             >
               <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Registrar pago
+              Cobrar
             </DropdownMenuItem>
           ) : null}
           {canWrite && !ticket.finished && (

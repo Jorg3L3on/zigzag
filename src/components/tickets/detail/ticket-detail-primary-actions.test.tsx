@@ -59,25 +59,25 @@ describe('TicketDetailPrimaryActions (ZIG-I13-4)', () => {
     expect(screen.getByRole('button', { name: /más acciones del ticket/i })).toBeInTheDocument();
   });
 
-  it('Registrar pago opens the cobro sheet when finished with a balance', async () => {
+  it('Cobrar opens the Cobrar sheet when finished with a balance', async () => {
     const user = userEvent.setup();
     renderActions({ finished: true, total: 100, paid: 40 });
 
-    await user.click(screen.getByRole('button', { name: 'Registrar pago' }));
-    expect(await screen.findByRole('dialog', { name: 'Registrar pago' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cobrar' }));
+    expect(await screen.findByRole('dialog', { name: 'Cobrar' })).toBeInTheDocument();
   });
 
   it('offers Compartir recibo once saldado', () => {
     renderActions({ finished: true, total: 100, paid: 100 });
 
     expect(screen.getByRole('button', { name: 'Compartir recibo' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Registrar pago' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
   });
 
   it('puts the primary action in the mobile sticky bar, the menu stays in the app bar', () => {
     renderActions({ finished: true, total: 80, paid: 0, placement: 'mobile-sticky' });
 
-    expect(screen.getByTestId('sticky')).toHaveTextContent('Registrar pago');
+    expect(screen.getByTestId('sticky')).toHaveTextContent('Cobrar');
     expect(screen.queryByRole('button', { name: /más acciones/i })).toBeNull();
   });
 });

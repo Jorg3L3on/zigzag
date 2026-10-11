@@ -127,10 +127,10 @@ for (const width of MOBILE_WIDTHS) {
       await expectNoPageOverflow(page, 'detail finalized');
 
       // Sticky Registrar pago opens the same sheet as Cobrar.
-      const sticky = page.getByRole('button', { name: 'Registrar pago' }).filter({ visible: true }).first();
-      await expectInsideViewport(page, sticky, 'Registrar pago');
+      const sticky = page.getByRole('button', { name: 'Cobrar' }).filter({ visible: true }).first();
+      await expectInsideViewport(page, sticky, 'Cobrar');
       await sticky.click();
-      const sheet = page.getByRole('dialog', { name: 'Registrar pago' });
+      const sheet = page.getByRole('dialog', { name: 'Cobrar' });
       await expect(sheet).toBeVisible();
       await sheet.getByRole('button', { name: 'Cerrar diálogo' }).click();
       await expect(sheet).toBeHidden();

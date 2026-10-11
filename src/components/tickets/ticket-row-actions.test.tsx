@@ -90,7 +90,7 @@ describe('TicketRowActions', () => {
     });
   });
 
-  it('shows Registrar pago for finished unpaid tickets and opens the dialog', async () => {
+  it('shows Cobrar for finished unpaid tickets and opens the dialog', async () => {
     const user = userEvent.setup();
     render(
       <TicketRowActions
@@ -104,14 +104,14 @@ describe('TicketRowActions', () => {
     );
     expect(screen.queryByText('Cobrar saldo')).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole('menuitem', { name: /registrar pago del ticket 7/i }),
+      screen.getByRole('menuitem', { name: /cobrar el ticket 7/i }),
     );
     expect(
-      screen.getByRole('heading', { name: /registrar pago/i }),
+      screen.getByRole('heading', { name: /^cobrar$/i }),
     ).toBeInTheDocument();
   });
 
-  it('hides Registrar pago for saldado tickets', async () => {
+  it('hides Cobrar for saldado tickets', async () => {
     const user = userEvent.setup();
     render(
       <TicketRowActions
@@ -124,7 +124,7 @@ describe('TicketRowActions', () => {
       screen.getByRole('button', { name: /más acciones del ticket 7/i }),
     );
     expect(
-      screen.queryByRole('menuitem', { name: /registrar pago/i }),
+      screen.queryByRole('menuitem', { name: /^cobrar$/i }),
     ).not.toBeInTheDocument();
   });
 

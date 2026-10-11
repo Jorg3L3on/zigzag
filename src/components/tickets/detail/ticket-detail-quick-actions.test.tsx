@@ -45,12 +45,12 @@ describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
     expect(screen.getByRole('link', { name: 'Llamar' })).toHaveAttribute('href', 'tel:9981234567');
   });
 
-  it('Cobrar opens the Registrar pago sheet', async () => {
+  it('Cobrar opens the Cobrar sheet', async () => {
     const user = userEvent.setup();
     renderActions();
 
     await user.click(screen.getByRole('button', { name: 'Cobrar' }));
-    expect(await screen.findByRole('dialog', { name: 'Registrar pago' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Cobrar' })).toBeInTheDocument();
   });
 
   it('hides Llamar without a phone and Cobrar once settled', () => {

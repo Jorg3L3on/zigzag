@@ -177,7 +177,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hero).toContainText('Saldo por cobrar', { timeout: 15_000 });
       await expectInsideViewport(page, hero, 'hero');
       await expectInsideViewport(page, visible(page.getByTestId('ticket-quick-actions')), 'quick actions');
-      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Registrar pago' })), 'Registrar pago');
+      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Cobrar' })), 'Cobrar');
       await expectLayoutIntact(page, 'ticket detail');
 
       // Editar in the composer: change a quantity, remove a line, Deshacer brings it back.

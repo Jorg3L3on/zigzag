@@ -18,8 +18,8 @@ type TicketCollectProviderProps = {
 };
 
 /**
- * One Registrar pago sheet for the whole detail page (ZIG-I13-4): the Cobrar
- * quick action, the sticky Registrar pago and the desktop button all open it.
+ * One Cobrar sheet for the whole detail page (ZIG-I13-4): the Cobrar
+ * quick action, the sticky Cobrar and the desktop button all open it.
  */
 export const TicketCollectProvider = ({
   ticketId,
