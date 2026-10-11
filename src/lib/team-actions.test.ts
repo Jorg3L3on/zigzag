@@ -1,11 +1,17 @@
 import {
   addTeamMember,
+  resetTeamMemberPassword,
   changeTeamMemberRole,
   deactivateTeamMember,
   getTeam,
   updateTeamMember,
 } from '@/actions/team';
-import { createUser, deleteUser, updateUser } from '@/actions/users';
+import {
+  createUser,
+  deleteUser,
+  resetUserTemporaryPassword,
+  updateUser,
+} from '@/actions/users';
 import { db } from '@/lib/db';
 import { checkPermission, requireActionPermission } from '@/lib/security';
 import {
@@ -33,6 +39,7 @@ jest.mock('@/actions/users', () => ({
   createUser: jest.fn(),
   updateUser: jest.fn(),
   deleteUser: jest.fn(),
+  resetUserTemporaryPassword: jest.fn(),
 }));
 
 const mockDb = db as unknown as {
@@ -49,6 +56,9 @@ const mockCheckPermission = checkPermission as jest.MockedFunction<
 >;
 const mockCreateUser = createUser as jest.MockedFunction<typeof createUser>;
 const mockUpdateUser = updateUser as jest.MockedFunction<typeof updateUser>;
+const mockResetPassword = resetUserTemporaryPassword as jest.MockedFunction<
+  typeof resetUserTemporaryPassword
+>;
 const mockDeleteUser = deleteUser as jest.MockedFunction<typeof deleteUser>;
 
 const ownMember = {
@@ -196,5 +206,23 @@ describe('team actions (ZIG-I3-4)', () => {
     expect(mockDb.query.user.findMany).not.toHaveBeenCalled();
     expect(mockCreateUser).not.toHaveBeenCalled();
     expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  it('resetTeamMemberPassword only reaches members of the caller company (ZIG-I18-11)', async () => {
+    mockDb.query.user.findFirst.mockResolvedValueOnce(ownMember);
+    mockResetPassword.mockResolvedValue({
+      success: true,
+      data: { temporaryPassword: 'kemo-7pdx', userName: 'Carlos' },
+    });
+
+    const ok = await resetTeamMemberPassword('301');
+    expect(ok.success).toBe(true);
+    expect(mockResetPassword).toHaveBeenCalledWith(301n);
+
+    mockResetPassword.mockClear();
+    mockDb.query.user.findFirst.mockResolvedValueOnce(undefined);
+    const other = await resetTeamMemberPassword('999');
+    expect(other.success).toBe(false);
+    expect(mockResetPassword).not.toHaveBeenCalled();
   });
 });

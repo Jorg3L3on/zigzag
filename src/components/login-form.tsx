@@ -9,6 +9,7 @@ import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
 import { ZigZagMark } from '@/components/brand/zigzag-mark';
+import { LoginForgotPassword } from '@/components/login/login-forgot-password';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 import { getSafeAppRedirectPath } from '@/lib/login-redirect';
 import { rememberBrowserTimeZone } from '@/lib/time-greeting';
@@ -17,10 +18,13 @@ export function LoginForm({
   className,
   callbackUrl,
   sessionExpired = false,
+  supportWhatsapp,
   ...props
 }: React.ComponentPropsWithoutRef<'div'> & {
   callbackUrl?: string;
   sessionExpired?: boolean;
+  /** Support WhatsApp number for ¿Olvidaste tu contraseña? (hidden when unset). */
+  supportWhatsapp?: string | null;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -225,6 +229,13 @@ export function LoginForm({
                   ✓ &nbsp;VALIDADO
                 </span>
               </button>
+
+              <LoginForgotPassword
+                supportWhatsapp={supportWhatsapp}
+                getLogin={() =>
+                  (document.getElementById('email') as HTMLInputElement | null)?.value ?? ''
+                }
+              />
             </form>
           </div>
 

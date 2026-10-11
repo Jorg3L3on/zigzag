@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import React from 'react';
 import { getRoles } from '@/actions/roles';
-import { getUsers } from '@/actions/users';
+import { getUsers, resetUserTemporaryPassword } from '@/actions/users';
+import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import { CreateUserDialog } from '@/app/(app)/users/create-user-dialog';
 import type { UserWithRelations } from '@/components/users/users-columns';
 import type { Role } from '@/components/roles/roles-columns';
@@ -23,7 +24,7 @@ import { operatorManagementHref } from '@/lib/operator-tenant-scope';
 import { PERMISSIONS } from '@/lib/permissions';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { cn } from '@/lib/utils';
-import { Loader2, Shield, Users } from 'lucide-react';
+import { KeyRound, Loader2, Shield, Users } from 'lucide-react';
 
 type AccessTab = 'users' | 'roles';
 
@@ -48,6 +49,7 @@ export const OperatorAccessPanel = () => {
   const [usersError, setUsersError] = React.useState<string | null>(null);
   const [rolesError, setRolesError] = React.useState<string | null>(null);
   const [reloadToken, setReloadToken] = React.useState(0);
+  const [resetUser, setResetUser] = React.useState<UserWithRelations | null>(null);
 
   React.useEffect(() => {
     if (!companyId || isSystemTenant) {
@@ -297,9 +299,23 @@ export const OperatorAccessPanel = () => {
                         <p className="font-medium">{userRow.name}</p>
                         <p className="text-muted-foreground">{userRow.email}</p>
                       </div>
-                      <Badge variant="secondary">
-                        {userRow.role?.name ?? 'Sin rol'}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">
+                          {userRow.role?.name ?? 'Sin rol'}
+                        </Badge>
+                        {canWriteUsers ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11 rounded-xl"
+                            aria-label={`Dar contraseña temporal a ${userRow.name}`}
+                            onClick={() => setResetUser(userRow)}
+                          >
+                            <KeyRound className="mr-2 h-4 w-4" aria-hidden />
+                            Contraseña temporal
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   </li>
                 ))}
@@ -375,6 +391,17 @@ export const OperatorAccessPanel = () => {
           </div>
         </CardContent>
       </Card>
+      <TemporaryPasswordDialog
+        target={resetUser}
+        onReset={() =>
+          resetUser
+            ? resetUserTemporaryPassword(resetUser.id)
+            : Promise.resolve({ success: false })
+        }
+        onOpenChange={(open) => {
+          if (!open) setResetUser(null);
+        }}
+      />
     </section>
   );
 };

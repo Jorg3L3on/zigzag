@@ -8,7 +8,8 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { getUsers } from '@/actions/users';
+import { getUsers, resetUserTemporaryPassword } from '@/actions/users';
+import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import {
   TripledEmptyState,
   TripledListLoadingState,
@@ -69,6 +70,9 @@ export function UsersList() {
     null,
   );
   const [deleteUser, setDeleteUser] = React.useState<UserWithRelations | null>(
+    null,
+  );
+  const [resetUser, setResetUser] = React.useState<UserWithRelations | null>(
     null,
   );
 
@@ -179,6 +183,7 @@ export function UsersList() {
             <UserActionsMenu
               onEditRequest={() => setEditUser(userRow)}
               onDeleteRequest={() => setDeleteUser(userRow)}
+              onResetPasswordRequest={() => setResetUser(userRow)}
             />
           </div>
           ) : null,
@@ -386,6 +391,7 @@ export function UsersList() {
                           <UserActionsMenu
                             onEditRequest={() => setEditUser(u)}
                             onDeleteRequest={() => setDeleteUser(u)}
+                            onResetPasswordRequest={() => setResetUser(u)}
                           />
                           </div>
                         ) : null}
@@ -508,6 +514,19 @@ export function UsersList() {
           onSuccess={fetchUsers}
         />
       ) : null}
+      <TemporaryPasswordDialog
+        target={resetUser}
+        onReset={() =>
+          resetUser
+            ? resetUserTemporaryPassword(resetUser.id)
+            : Promise.resolve({ success: false })
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetUser(null);
+          }
+        }}
+      />
       {deleteUser ? (
         <DeleteUserDialog
           user={deleteUser}

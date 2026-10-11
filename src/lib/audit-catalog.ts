@@ -41,6 +41,8 @@ export const AUDIT_ACTIONS = [
   'export_generated',
   'offboarded',
   'generated',
+  'password_reset',
+  'password_changed',
   'permission_denied',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -11,7 +11,8 @@ import {
 } from '@tanstack/react-table';
 import { Loader2, Plus, Search, UserPlus, Users } from 'lucide-react';
 
-import { getTeam, type TeamData } from '@/actions/team';
+import { getTeam, resetTeamMemberPassword, type TeamData } from '@/actions/team';
+import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import { TripledEmptyState, TripledMobileStickyActionBar } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,7 @@ export const TeamList = () => {
   const [editing, setEditing] = React.useState<TeamMember | null>(null);
   const [changingRole, setChangingRole] = React.useState<TeamMember | null>(null);
   const [deactivating, setDeactivating] = React.useState<TeamMember | null>(null);
+  const [resetting, setResetting] = React.useState<TeamMember | null>(null);
 
   const load = React.useCallback(async () => {
     const result = await getTeam();
@@ -102,6 +104,7 @@ export const TeamList = () => {
         ? {
             onEdit: setEditing,
             onChangeRole: setChangingRole,
+            onResetPassword: setResetting,
             onDeactivate: setDeactivating,
           }
         : null,
@@ -333,6 +336,13 @@ export const TeamList = () => {
           if (!open) setChangingRole(null);
         }}
         onSaved={onSaved}
+      />
+      <TemporaryPasswordDialog
+        target={resetting}
+        onReset={() => (resetting ? resetTeamMemberPassword(resetting.id) : Promise.resolve({ success: false }))}
+        onOpenChange={(open) => {
+          if (!open) setResetting(null);
+        }}
       />
       <TeamDeactivateDialog
         member={deactivating}

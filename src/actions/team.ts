@@ -12,7 +12,12 @@ import { checkPermission, requireActionPermission } from '@/lib/security';
 import { PERMISSIONS } from '@/lib/permissions';
 import type { TeamMember, TeamRoleOption } from '@/lib/team-members';
 import { hideShadowedSharedRoles } from '@/lib/role-visibility';
-import { createUser, deleteUser, updateUser } from '@/actions/users';
+import {
+  createUser,
+  deleteUser,
+  resetUserTemporaryPassword,
+  updateUser,
+} from '@/actions/users';
 
 type ActionResult<T = undefined> = {
   success: boolean;
@@ -185,5 +190,21 @@ export async function deactivateTeamMember(id: string): Promise<ActionResult> {
     return withoutData(result);
   } catch (e) {
     return handleCodedServerActionError('team.deactivate', 'US004', e);
+  }
+}
+
+/** Equipo > Dar contraseña temporal (ZIG-I18-11): own-company members only. */
+export async function resetTeamMemberPassword(
+  id: string,
+): Promise<ActionResult<{ temporaryPassword: string; userName: string }>> {
+  try {
+    const { companyId } = await requireActionPermission(PERMISSIONS.users.write);
+    const existing = await findOwnCompanyMember(id, companyId);
+    if (!existing) {
+      return buildActionError('US003');
+    }
+    return await resetUserTemporaryPassword(existing.id);
+  } catch (e) {
+    return handleCodedServerActionError('team.reset-password', 'US003', e);
   }
 }
