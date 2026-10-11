@@ -186,7 +186,7 @@ test.describe('Materiales (mobile)', () => {
     await expect(sheet).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId('composer-total')).toHaveText(money(4390));
     await expectNoHorizontalOverflow(page);
-    await expectInsideViewport(page, page.getByTestId('mobile-bottom-tab-bar'));
+    await expectInsideViewport(page, page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first());
     await page.setViewportSize({ width: 393, height: 851 });
 
     const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
