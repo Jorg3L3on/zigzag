@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-import { deleteTicket } from "@/actions/tickets";
-import { ConfirmSheet } from "@/components/documents/confirm-sheet";
-import { formatServiceCurrency } from "@/components/tickets/ticket-services-utils";
+import { deleteTicket } from '@/actions/tickets';
+import { ConfirmSheet } from '@/components/documents/confirm-sheet';
+import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import {
   classifyClientError,
   getErrorMessageByType,
-} from "@/lib/network-awareness";
+} from '@/lib/network-awareness';
 
 type DeleteTicketSheetProps = {
   open: boolean;
@@ -44,7 +44,7 @@ export const DeleteTicketSheet = ({
   paymentsCount,
   paymentsTotal,
   companyId = null,
-  afterDeleteHref = "/tickets",
+  afterDeleteHref = '/tickets',
   onDeleteStart,
   onDeleteFailed,
 }: DeleteTicketSheetProps) => {
@@ -69,18 +69,12 @@ export const DeleteTicketSheet = ({
       onDeleteFailed?.(ticketId);
       const errorType = classifyClientError(null, undefined, result.errorType);
       toast.error(
-        getErrorMessageByType(
-          errorType,
-          result.error || "Error al eliminar el ticket",
-        ),
+        getErrorMessageByType(errorType, result.error || 'Error al eliminar el ticket'),
       );
     } catch (error) {
       onDeleteFailed?.(ticketId);
       toast.error(
-        getErrorMessageByType(
-          classifyClientError(error),
-          "Error al eliminar el ticket",
-        ),
+        getErrorMessageByType(classifyClientError(error), 'Error al eliminar el ticket'),
       );
     } finally {
       setPending(false);
@@ -102,7 +96,7 @@ export const DeleteTicketSheet = ({
             <div className="flex justify-between gap-3">
               <dt className="text-muted-foreground">Cliente</dt>
               <dd className="min-w-0 text-right font-medium [overflow-wrap:anywhere]">
-                {clientName || "Sin nombre"}
+                {clientName || 'Sin nombre'}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
@@ -114,12 +108,10 @@ export const DeleteTicketSheet = ({
           </dl>
           {paymentsTotal > 0 ? (
             <p className="pt-1 text-amber-700 dark:text-amber-300">
-              Tiene{" "}
-              {paymentsCount === undefined ||
-              paymentsCount === 0 ||
-              paymentsCount > 1
-                ? `${paymentsCount ?? ""} pagos registrados`.trim()
-                : "1 pago registrado"}{" "}
+              Tiene{' '}
+              {paymentsCount === undefined || paymentsCount === 0 || paymentsCount > 1
+                ? `${paymentsCount ?? ''} pagos registrados`.trim()
+                : '1 pago registrado'}{' '}
               por {formatServiceCurrency(paymentsTotal)}.
             </p>
           ) : null}
