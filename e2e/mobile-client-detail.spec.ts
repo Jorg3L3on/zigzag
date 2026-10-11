@@ -30,7 +30,14 @@ for (const width of MOBILE_WIDTHS) {
       await page.goto('/clients');
       const card = page.getByRole('button', { name: /Abrir cliente/i }).first();
       await expect(card).toBeVisible({ timeout: 30_000 });
-      // The middle of a card can be the phone link (it starts a call); tap the name.
+      // A phone has its own large Llamar button, separate from the card body.
+      const call = card.getByRole('link', { name: /^Llamar a /i });
+      if (await call.count()) {
+        await expect(call).toHaveAttribute('href', /^tel:/);
+        const box = await call.boundingBox();
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      }
+      // Tapping the middle of the card opens the client, it no longer starts a call.
       await card.getByRole('heading').click();
 
       await expect(page).toHaveURL(/\/clients\/\d+$/);

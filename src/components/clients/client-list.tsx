@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { Phone, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -63,7 +63,7 @@ import { SystemCompanyContextEmptyState } from '@/components/system-company-cont
 import { formatClientAddressOneLine } from '@/lib/client-address';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ClientPhoneLink } from '@/components/client-phone-link';
+import { buildTelHref } from '@/lib/phone-links';
 
 type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
@@ -563,13 +563,9 @@ export function ClientList() {
                     <div className="grid grid-cols-[88px_1fr] gap-2">
                       <dt className="text-muted-foreground">Teléfono</dt>
                       <dd className="truncate">
-                        <ClientPhoneLink
-                          phone={clientRow.phone}
-                          className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          textClassName="tabular-nums"
-                          onClick={(event) => event.stopPropagation()}
-                          onKeyDown={(event) => event.stopPropagation()}
-                        />
+                        <span className="tabular-nums">
+                          {clientRow.phone?.trim() || '—'}
+                        </span>
                       </dd>
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -581,6 +577,18 @@ export function ClientList() {
                       <dd className="line-clamp-2">{formattedAddress || '—'}</dd>
                     </div>
                   </dl>
+                  {buildTelHref(clientRow.phone) ? (
+                    <a
+                      href={buildTelHref(clientRow.phone) ?? undefined}
+                      aria-label={`Llamar a ${clientRow.name}`}
+                      className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-base font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Phone className="h-5 w-5" aria-hidden="true" />
+                      Llamar
+                    </a>
+                  ) : null}
                 </TripledMobileRecordCard>
               );
             })}
