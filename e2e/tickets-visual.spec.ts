@@ -36,7 +36,7 @@ test.describe('Tickets visual baselines', () => {
     });
     await expect(page).toHaveScreenshot('tickets-list-desktop.png', {
       fullPage: false,
-      mask: [page.locator('tbody'), page.getByText(/de \d+ tickets/)],
+      mask: [page.locator('tbody'), page.getByText(/de \d+ tickets/), page.getByTestId('tickets-balance-due')],
     });
   });
 
@@ -52,7 +52,13 @@ test.describe('Tickets visual baselines', () => {
     // Viewport shot keeps the floating dock in the baseline.
     await expect(page).toHaveScreenshot('tickets-list-mobile.png', {
       fullPage: false,
-      mask: [cards, page.getByText(/de \d+ tickets/)],
+      // The Por cobrar chip count and total move with every ticket the other specs create.
+      mask: [
+        cards,
+        page.getByText(/de \d+ tickets/),
+        page.getByRole('button', { name: /^Por cobrar/ }),
+        page.getByTestId('tickets-balance-due'),
+      ],
     });
   });
 });
