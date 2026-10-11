@@ -1,3 +1,5 @@
+import { differenceInCalendarDays } from 'date-fns';
+
 import type { PresupuestoDetailData } from '@/actions/presupuestos';
 import { materialDraftsFromStoredRows } from '@/lib/material-drafts';
 import { buildReviewLine } from '@/lib/review-lines';
@@ -61,3 +63,28 @@ export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
         };
   }),
 });
+
+/**
+ * Draft for Duplicar (ZIG-I13-5): the same client, lines (catalog and typed-in)
+ * and materials in the presupuesto composer, dated today with the same validity
+ * length. Nothing is saved until Guardar.
+ */
+export const buildPresupuestoDuplicateDraft = (row: PresupuestoDetailData, now: Date = new Date()) => {
+  const edit = buildPresupuestoEditState(row);
+  const issued = row.ticket_date ? new Date(row.ticket_date) : null;
+  const expires = row.expires_at ? new Date(row.expires_at) : null;
+  const validityDays =
+    issued && expires ? Math.max(differenceInCalendarDays(expires, issued), 0) : null;
+  return {
+    client: edit.client,
+    ticketDate: now.toISOString(),
+    expiresAt:
+      validityDays == null
+        ? null
+        : new Date(now.getTime() + validityDays * 86_400_000).toISOString(),
+    notes: edit.notes,
+    lines: edit.lines,
+  };
+};
+
+export type PresupuestoDuplicateDraft = ReturnType<typeof buildPresupuestoDuplicateDraft>;

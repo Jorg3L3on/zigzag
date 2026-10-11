@@ -11,6 +11,7 @@ export const TICKET_AUDIT_EVENT_LABELS: Record<string, string> = {
   payment_collected: 'Pago registrado',
   presupuesto_converted: 'Presupuesto convertido',
   presupuesto_canceled: 'Presupuesto cancelado',
+  presupuesto_duplicated: 'Presupuesto duplicado',
 };
 
 /** Icon keys aligned with the dashboard activity feed vocabulary. */
