@@ -72,7 +72,7 @@ export const TicketsMobileCard = ({
       interactive
       tabIndex={0}
       role="button"
-      className="space-y-1.5 rounded-xl p-3"
+      className="space-y-1 rounded-xl px-3 py-2.5"
       aria-label={
         ticket.finished
           ? `Ver ticket ${ticket.id.toString()}`
