@@ -19,7 +19,7 @@ type TripledNativeDeleteProps = {
 };
 
 const sizeVariants = {
-  sm: 'h-8 text-xs px-3',
+  sm: 'h-8 text-caption px-3',
   md: 'h-10 text-sm px-4',
   lg: 'h-12 text-base px-6',
 };

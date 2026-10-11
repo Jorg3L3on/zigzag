@@ -882,7 +882,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 gap-1.5 rounded-xl"
+                className="h-11 gap-1.5 rounded-xl"
                 onClick={openAddLine}
               >
                 <Plus className="h-4 w-4" aria-hidden />
@@ -927,7 +927,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
             )}
 
             <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                 Total
               </span>
               <NumberTicker
@@ -967,7 +967,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
             />
             <PdfCharsWarning text={notes} />
             {notesError ? (
-              <p id="composer-notes-error" role="alert" className="mt-1 text-xs text-destructive">
+              <p id="composer-notes-error" role="alert" className="mt-1 text-caption text-destructive">
                 {notesError}
               </p>
             ) : null}
@@ -987,7 +987,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         </div>
 
         {isQuote ? null : (
-          <p className="text-center text-xs text-muted-foreground md:hidden">
+          <p className="text-center text-caption text-muted-foreground md:hidden">
             ¿Sin señal o con prisa?{' '}
             <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
               Anotar trabajo
@@ -998,7 +998,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
 
       <TripledMobileStickyActionBar>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground" data-testid="composer-sticky-hint">
+          <p className="text-caption text-muted-foreground" data-testid="composer-sticky-hint">
             {ctaHint}
           </p>
           <MoneyFigure

@@ -54,7 +54,7 @@ export const calendarClassNames = (
   ),
   month_grid: "w-full border-collapse space-y-1",
   weekdays: "flex",
-  weekday: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
+  weekday: "text-muted-foreground rounded-md w-8 font-normal text-caption",
   week: "flex w-full mt-2",
   day: cn(
     "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",

@@ -95,7 +95,7 @@ export const TicketsMobileCard = ({
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <span className="pt-1.5 font-mono text-xs tabular-nums text-muted-foreground">
+          <span className="pt-1.5 font-mono text-caption tabular-nums text-muted-foreground">
             #{ticket.id.toString()}
           </span>
           <TicketRowActions
@@ -110,7 +110,7 @@ export const TicketsMobileCard = ({
       </div>
 
       <p
-        className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted-foreground"
+        className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-caption text-muted-foreground"
         data-testid="ticket-card-meta"
       >
         <span
@@ -142,7 +142,7 @@ export const TicketsMobileCard = ({
       ) : null}
 
       <div
-        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[13px] tabular-nums"
+        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-caption tabular-nums"
         data-testid="ticket-payment-summary"
         data-payment-status={status}
       >

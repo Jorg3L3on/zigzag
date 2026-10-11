@@ -110,7 +110,7 @@ export function LoginForm({
                 </span>
               </div>
               <span
-                className="rounded border border-[color:var(--login-line)] px-2.5 py-1 font-[family-name:var(--font-login-mono)] text-[11px] tracking-[0.05em] text-[color:var(--login-ink-faint)]"
+                className="rounded border border-[color:var(--login-line)] px-2.5 py-1 font-[family-name:var(--font-login-mono)] text-caption tracking-[0.05em] text-[color:var(--login-ink-faint)]"
                 aria-hidden
               >
                 N.º 000001
@@ -131,7 +131,7 @@ export function LoginForm({
                 className="mb-5 rounded-lg border border-[color:var(--login-line)] bg-[color:var(--login-field-bg)] p-3 text-sm text-[color:var(--login-ink)]"
               >
                 <p className="font-semibold">Sesión expirada</p>
-                <p className="mt-1 text-[13px] leading-normal text-[color:var(--login-ink-muted)]">
+                <p className="mt-1 text-caption leading-normal text-[color:var(--login-ink-muted)]">
                   Vuelve a iniciar sesión para continuar en ZigZag.
                 </p>
               </div>

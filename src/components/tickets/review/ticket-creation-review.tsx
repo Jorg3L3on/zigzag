@@ -386,7 +386,7 @@ export const TicketCreationReview = ({
           <div className="min-w-0 flex-1">
             <p
               className={cn(
-                'text-xs',
+                'text-caption',
                 showsBalance ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
               )}
             >

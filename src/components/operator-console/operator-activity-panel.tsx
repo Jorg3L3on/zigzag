@@ -69,7 +69,7 @@ const AuditJsonBlock = ({
 }) => (
   <section className="space-y-2">
     <h4 className="text-sm font-medium">{title}</h4>
-    <pre className="max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs">
+    <pre className="max-h-48 overflow-auto rounded-md bg-muted p-3 text-caption">
       {JSON.stringify(redactAuditDisplayValue(value ?? {}), null, 2)}
     </pre>
   </section>
@@ -505,7 +505,7 @@ export const OperatorActivityPanel = () => {
                           tenantCompanyId={companyId}
                         />
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-caption text-muted-foreground">
                         Actor:{' '}
                         {actorDisplayName(
                           event.actor_user_id,

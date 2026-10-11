@@ -74,14 +74,14 @@ const VER_TODOS: Record<DayQueueFilter, { href: string; label: string }> = {
 };
 
 const PRIMARY_PILL =
-  'min-h-11 shrink-0 rounded-full px-3 text-xs font-semibold sm:min-h-9 sm:px-4';
+  'min-h-11 shrink-0 rounded-full px-3 text-caption font-semibold sm:min-h-9 sm:px-4';
 
 const ROW_CLASS =
   'flex items-center gap-3 border-t border-border/50 px-4 py-3 first:border-t-0 sm:px-5';
 
 const ageChipClass = (tone: 'warn' | 'muted') =>
   cn(
-    'shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+    'shrink-0 rounded-full px-2 py-0.5 text-caption font-semibold tabular-nums',
     tone === 'warn'
       ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
       : 'bg-muted text-muted-foreground',
@@ -98,7 +98,7 @@ const RowText = ({
 }) => (
   <div className="min-w-0 flex-1 space-y-0.5">
     <p className="truncate text-sm font-semibold text-foreground">{title}</p>
-    <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+    <div className="flex min-w-0 items-center gap-2 text-caption text-muted-foreground">
       <span className="truncate">{context}</span>
       {badge}
     </div>
@@ -491,7 +491,7 @@ export const DashboardTuDia = ({
       <div className="flex min-h-14 items-center justify-between gap-2 px-4 pt-4 sm:px-5">
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="shrink-0 text-base font-semibold tracking-tight sm:text-lg">Tu día</h2>
-          <span className="truncate text-xs text-muted-foreground first-letter:uppercase" suppressHydrationWarning>
+          <span className="truncate text-caption text-muted-foreground first-letter:uppercase" suppressHydrationWarning>
             {today}
           </span>
         </div>
@@ -540,7 +540,7 @@ export const DashboardTuDia = ({
               <span className="text-xl font-bold leading-tight tabular-nums sm:text-2xl">
                 {loading && !queue ? '–' : counts[filter]}
               </span>
-              <span className="whitespace-nowrap text-[11px] font-semibold sm:text-xs">
+              <span className="whitespace-nowrap text-caption font-semibold sm:text-caption">
                 <span className="sm:hidden">{TILE_LABELS[filter].short}</span>
                 <span className="hidden sm:inline">{TILE_LABELS[filter].long}</span>
               </span>
@@ -556,7 +556,7 @@ export const DashboardTuDia = ({
         className="border-t border-border/50"
       >
         {active === 'porCobrar' && counts.porCobrar > 0 ? (
-          <p className="px-4 pt-3 text-xs text-muted-foreground sm:px-5">
+          <p className="px-4 pt-3 text-caption text-muted-foreground sm:px-5">
             {formatTicketListAmount(queue?.porCobrarBalance ?? 0)} por cobrar · más viejo primero
           </p>
         ) : null}

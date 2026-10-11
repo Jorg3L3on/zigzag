@@ -136,7 +136,7 @@ export const TrashView = () => {
                     <p className="truncate text-sm font-medium">
                       Ticket #{row.id} · {row.client_name ?? 'Sin cliente'}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       <FormattedCurrency amount={row.total} /> · Eliminado{' '}
                       <FormattedDate date={row.deleted_at} />
                     </p>
@@ -180,7 +180,7 @@ export const TrashView = () => {
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{row.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {row.email ?? row.phone ?? 'Sin contacto'} · Eliminado{' '}
                       <FormattedDate date={row.deleted_at} />
                     </p>
@@ -222,7 +222,7 @@ export const TrashView = () => {
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{row.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       <FormattedCurrency amount={row.price} /> · Eliminado{' '}
                       <FormattedDate date={row.deleted_at} />
                     </p>

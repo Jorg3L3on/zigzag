@@ -61,7 +61,7 @@ export const LoginStage = ({ children, className }: LoginStageProps) => {
       <div className="relative z-[2] flex w-full max-w-[420px] flex-col items-center gap-[18px]">
         {children}
         <p
-          className="flex items-center gap-1.5 font-[family-name:var(--font-login-mono)] text-[11px] tracking-[0.04em] text-[color:var(--login-ink-faint)]"
+          className="flex items-center gap-1.5 font-[family-name:var(--font-login-mono)] text-caption tracking-[0.04em] text-[color:var(--login-ink-faint)]"
         >
           Powered by{' '}
           <ZigZagMark size={14} className="shrink-0" />

@@ -29,7 +29,7 @@ export const TripledMetricCard = ({
         <CardContent>
           <div className="text-2xl font-semibold">{value}</div>
           {subtitle ? (
-            <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+            <p className="mt-1 text-caption text-muted-foreground">{subtitle}</p>
           ) : null}
         </CardContent>
       </Card>

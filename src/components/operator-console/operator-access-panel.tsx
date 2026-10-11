@@ -362,7 +362,7 @@ export const OperatorAccessPanel = () => {
                           <Badge
                             key={name}
                             variant="outline"
-                            className="text-xs"
+                            className="text-caption"
                           >
                             {name}
                           </Badge>

@@ -93,7 +93,7 @@ const RoleListItem = ({
             <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Rol compartido" />
           ) : null}
         </span>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
           {usersBadge(role.userCount)}
         </span>
       </span>

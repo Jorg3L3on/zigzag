@@ -368,13 +368,13 @@ export function UsersList() {
                           </p>
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {u.email_verified_at ? (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge variant="secondary" className="text-caption">
                                 Correo verificado
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
-                                className="text-xs text-muted-foreground"
+                                className="text-caption text-muted-foreground"
                               >
                                 Sin verificar
                               </Badge>

@@ -49,7 +49,7 @@ const renderSelectFilters = (
     <div className={stackClass}>
       <div className={fieldClass}>
         {layout === 'sheet' ? (
-          <p className="text-xs font-medium text-muted-foreground">Recurso</p>
+          <p className="text-caption font-medium text-muted-foreground">Recurso</p>
         ) : null}
         <Select value={props.resourceType} onValueChange={props.onResourceTypeChange}>
           <SelectTrigger
@@ -70,7 +70,7 @@ const renderSelectFilters = (
       </div>
       <div className={fieldClass}>
         {layout === 'sheet' ? (
-          <p className="text-xs font-medium text-muted-foreground">Acción</p>
+          <p className="text-caption font-medium text-muted-foreground">Acción</p>
         ) : null}
         <Select value={props.actionFilter} onValueChange={props.onActionFilterChange}>
           <SelectTrigger className="min-h-11 rounded-xl" aria-label="Filtrar por acción">
@@ -88,7 +88,7 @@ const renderSelectFilters = (
       </div>
       <div className={fieldClass}>
         {layout === 'sheet' ? (
-          <p className="text-xs font-medium text-muted-foreground">Resultado</p>
+          <p className="text-caption font-medium text-muted-foreground">Resultado</p>
         ) : null}
         <Select value={props.resultFilter} onValueChange={props.onResultFilterChange}>
           <SelectTrigger className="min-h-11 rounded-xl" aria-label="Filtrar por resultado">
@@ -106,7 +106,7 @@ const renderSelectFilters = (
       </div>
       <div className={layout === 'sheet' ? 'space-y-2' : ''}>
         {layout === 'sheet' ? (
-          <p className="text-xs font-medium text-muted-foreground">Incidentes</p>
+          <p className="text-caption font-medium text-muted-foreground">Incidentes</p>
         ) : null}
         <Button
           type="button"

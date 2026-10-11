@@ -133,7 +133,7 @@ export const InlineServiceFields = ({
         <Label htmlFor={`${idPrefix}-custom-description`}>
           Descripción <span className="font-normal text-muted-foreground">(opcional)</span>
         </Label>
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span className="text-caption tabular-nums text-muted-foreground">
           {description.length}/{SERVICE_DESCRIPTION_MAX_LENGTH}
         </span>
       </div>
@@ -156,7 +156,7 @@ export const InlineServiceFields = ({
           <BookmarkPlus className="h-4 w-4 text-muted-foreground" aria-hidden />
           Guardar en mi catálogo
         </Label>
-        <p id={`${idPrefix}-save-to-catalog-hint`} className="text-xs text-muted-foreground">
+        <p id={`${idPrefix}-save-to-catalog-hint`} className="text-caption text-muted-foreground">
           {saveToCatalog
             ? 'También quedará en Servicios para usarlo después.'
             : `Sólo en este ${documentLabel}. Tu catálogo no cambia.`}
@@ -187,11 +187,11 @@ export const InlineLineChips = ({
   if (!isInline) return null;
   return (
     <span className={cn('inline-flex flex-wrap gap-1 align-middle', className)}>
-      <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-medium shadow-none">
+      <Badge variant="secondary" className="h-5 px-1.5 text-caption font-medium shadow-none">
         Nuevo
       </Badge>
       {saveToCatalog ? (
-        <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-medium shadow-none">
+        <Badge variant="outline" className="h-5 px-1.5 text-caption font-medium shadow-none">
           → catálogo
         </Badge>
       ) : null}

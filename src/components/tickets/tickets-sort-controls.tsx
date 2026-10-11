@@ -33,7 +33,7 @@ export const TicketsSortControls = ({
     <div className={className}>
       <label
         htmlFor={id}
-        className="text-xs font-medium text-muted-foreground"
+        className="text-caption font-medium text-muted-foreground"
       >
         Ordenar por
       </label>

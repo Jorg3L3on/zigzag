@@ -737,7 +737,7 @@ const AnotarPageContent = () => {
 
                 {selectedClient && (
                   <div className="rounded-2xl border border-border/60 bg-muted/25 p-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="mb-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                       Cliente seleccionado
                     </p>
                     <div className="flex items-start gap-2 text-sm">
@@ -898,12 +898,12 @@ const AnotarPageContent = () => {
                 </div>
 
                 <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                     Más opciones
                   </p>
                   <Link
                     href="/tickets/create"
-                    className="mt-1 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    className="mt-1 inline-flex min-h-11 items-center text-base font-medium text-primary underline-offset-4 hover:underline"
                   >
                     Ticket con varios servicios
                   </Link>

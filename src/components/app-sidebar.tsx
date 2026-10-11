@@ -252,7 +252,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center justify-between gap-2 px-1 group-data-[collapsible=icon]:justify-center">
-          <span className="truncate text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+          <span className="truncate text-caption font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
             Notificaciones
           </span>
           <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">

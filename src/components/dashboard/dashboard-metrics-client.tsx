@@ -303,7 +303,7 @@ export const DashboardMetricsClient = ({
     metrics.kpis.find((kpi) => kpi.key === key)?.value ?? 0;
   const campoChips = composition.campoOperations ? (
     <>
-      <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-xs sm:min-h-9">
+      <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-caption sm:min-h-9">
         <span className="text-muted-foreground">Entró hoy</span>
         <span className="font-semibold tabular-nums">
           {formatTicketListAmount(kpiValue('cashCollected'))}
@@ -311,7 +311,7 @@ export const DashboardMetricsClient = ({
       </span>
       <Link
         href="/cobranza"
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-xs sm:min-h-9 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-caption sm:min-h-9 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Ver cobranza: por cobrar"
       >
         <span className="text-muted-foreground">Por cobrar</span>

@@ -37,7 +37,7 @@ export const TicketDetailStatusPill = ({
     <span
       data-testid="ticket-status-pill"
       className={cn(
-        'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold',
+        'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-caption font-semibold',
         PILL_CLASS[finished ? status : 'working'],
         className,
       )}

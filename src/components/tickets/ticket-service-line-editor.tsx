@@ -106,7 +106,7 @@ export const TicketServiceLineEditor = ({
           <p
             id={`${idPrefix}-quantity-error`}
             role="alert"
-            className="mt-1 text-xs text-destructive"
+            className="mt-1 text-caption text-destructive"
           >
             {quantityError}
           </p>
@@ -169,7 +169,7 @@ export const TicketServiceLineEditor = ({
           <p
             id={`${idPrefix}-price-error`}
             role="alert"
-            className="mt-1 text-xs text-destructive"
+            className="mt-1 text-caption text-destructive"
           >
             {priceError}
           </p>

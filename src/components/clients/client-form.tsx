@@ -255,7 +255,7 @@ export function ClientForm({
                 />
               </FormControl>
               {phoneNote ? (
-                <p id="client-phone-note" role="status" className="text-xs text-muted-foreground">
+                <p id="client-phone-note" role="status" className="text-caption text-muted-foreground">
                   {phoneNote}
                 </p>
               ) : null}

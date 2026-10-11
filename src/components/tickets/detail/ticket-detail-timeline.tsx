@@ -161,18 +161,18 @@ export const TicketDetailTimeline = ({
                         {formatted.title}
                       </p>
                       {formatted.details.length > 0 ? (
-                        <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                        <ul className="list-disc space-y-0.5 pl-4 text-caption text-muted-foreground">
                           {formatted.details.map((detail) => (
                             <li key={detail}>{detail}</li>
                           ))}
                         </ul>
                       ) : null}
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         {entry.actorName?.trim() || 'Sistema'}
                       </p>
                     </div>
                     <time
-                      className="shrink-0 text-xs tabular-nums text-muted-foreground"
+                      className="shrink-0 text-caption tabular-nums text-muted-foreground"
                       dateTime={occurredAt.toISOString()}
                       title={absolute}
                     >
@@ -185,7 +185,7 @@ export const TicketDetailTimeline = ({
           </ol>
 
           {hasMore ? (
-            <p className="py-2 text-center text-xs text-muted-foreground">
+            <p className="py-2 text-center text-caption text-muted-foreground">
               Desplaza para ver más eventos
             </p>
           ) : null}
@@ -193,7 +193,7 @@ export const TicketDetailTimeline = ({
       )}
 
       {entries.length > 0 ? (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <p className="mt-2 flex items-center gap-1.5 text-caption text-muted-foreground">
           <History className="h-3.5 w-3.5" aria-hidden />
           Eventos inmutables del historial de auditoría
         </p>

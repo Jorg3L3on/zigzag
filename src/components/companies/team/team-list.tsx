@@ -277,7 +277,7 @@ export const TeamList = () => {
                     <span className="truncate font-semibold">
                       {member.name}
                       {member.isSelf ? (
-                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        <span className="ml-1.5 text-caption font-normal text-muted-foreground">
                           (tú)
                         </span>
                       ) : null}

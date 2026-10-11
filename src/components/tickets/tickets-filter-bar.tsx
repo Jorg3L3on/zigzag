@@ -64,7 +64,7 @@ const TicketQuickFilters = ({
           aria-pressed={pressed}
           onClick={() => onChange(option.value)}
           className={cn(
-            'min-h-9 rounded-full border px-3.5 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+            'min-h-11 rounded-full border px-4 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
             pressed
               ? 'border-foreground bg-foreground font-semibold text-background'
               : 'border-border text-muted-foreground hover:bg-muted/50',
@@ -140,7 +140,7 @@ export const TicketsFilterBar = ({
     chipsTrailing={
       balanceDue == null ? undefined : (
         <p
-          className="flex shrink-0 items-baseline gap-1.5 pt-1 text-[13px] text-muted-foreground"
+          className="flex shrink-0 items-baseline gap-1.5 pt-1 text-caption text-muted-foreground"
           data-testid="tickets-balance-due"
         >
           <span>Por cobrar</span>

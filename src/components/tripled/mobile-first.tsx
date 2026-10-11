@@ -188,7 +188,7 @@ export const TripledMobileAppBar = ({
           <div className="min-w-0 flex-1 text-center">
             <p className="truncate text-sm font-semibold">{title}</p>
             {subtitle ? (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
+              <p className="text-caption text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
           {endSlot ?? <div className="h-11 w-11" aria-hidden />}

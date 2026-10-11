@@ -55,7 +55,7 @@ export const AuditCompanyFilter = ({
   return (
     <div className={fieldWrapClass(layout)}>
       {layout === 'sheet' ? (
-        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Empresa objetivo
         </label>
       ) : null}
@@ -92,7 +92,7 @@ export const AuditActorFilter = ({
   return (
     <div className={fieldWrapClass(layout)}>
       {layout === 'sheet' ? (
-        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Actor usuario
         </label>
       ) : null}
@@ -129,7 +129,7 @@ export const AuditResourceTypeFilter = ({
   return (
     <div className={fieldWrapClass(layout)}>
       {layout === 'sheet' ? (
-        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Tipo de recurso
         </label>
       ) : null}
@@ -170,7 +170,7 @@ export const AuditActionFilter = ({
   return (
     <div className={fieldWrapClass(layout)}>
       {layout === 'sheet' ? (
-        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Acción
         </label>
       ) : null}
@@ -211,7 +211,7 @@ export const AuditResultFilter = ({
   return (
     <div className={fieldWrapClass(layout)}>
       {layout === 'sheet' ? (
-        <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Estatus
         </label>
       ) : null}

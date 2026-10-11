@@ -102,7 +102,7 @@ export const ListFilterBarShell = ({
               {sheetFilterCount > 0 ? (
                 <Badge
                   variant="secondary"
-                  className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-[10px] leading-none"
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-caption leading-none"
                 >
                   {sheetFilterCount > 9 ? '9+' : sheetFilterCount}
                 </Badge>

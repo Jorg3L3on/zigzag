@@ -23,7 +23,7 @@ export const ButtonFilterGroup = <T extends string>({
   getOptionAriaLabel = (_groupLabel, optionLabel) => optionLabel,
 }: ButtonFilterGroupProps<T>) => (
   <div className={layout === 'sheet' ? 'space-y-2' : 'flex flex-col gap-2'}>
-    <p className="text-xs font-medium text-muted-foreground">{label}</p>
+    <p className="text-caption font-medium text-muted-foreground">{label}</p>
     <div className="flex flex-wrap gap-2">
       {options.map((option) => (
         <Button

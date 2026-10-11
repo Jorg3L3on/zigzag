@@ -55,19 +55,19 @@ export const CsvImportResults = ({
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-          <dt className="text-xs text-muted-foreground">Insertados</dt>
+          <dt className="text-caption text-muted-foreground">Insertados</dt>
           <dd className="text-2xl font-semibold tabular-nums text-foreground">
             {summary.inserted}
           </dd>
         </div>
         <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-          <dt className="text-xs text-muted-foreground">Omitidos</dt>
+          <dt className="text-caption text-muted-foreground">Omitidos</dt>
           <dd className="text-2xl font-semibold tabular-nums text-foreground">
             {summary.skipped}
           </dd>
         </div>
         <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
-          <dt className="text-xs text-muted-foreground">Fallidos</dt>
+          <dt className="text-caption text-muted-foreground">Fallidos</dt>
           <dd className="text-2xl font-semibold tabular-nums text-foreground">
             {summary.failed}
           </dd>

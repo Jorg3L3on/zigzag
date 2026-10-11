@@ -77,7 +77,7 @@ export const TicketStatusFilter = ({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+      <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
         ¿Pagado?
       </label>
       {field}
@@ -125,7 +125,7 @@ export const TicketFinishedFilter = ({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+      <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
         ¿Terminado?
       </label>
       {field}
@@ -197,7 +197,7 @@ export const TicketDateRangeFilter = ({
 
   return (
     <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">
+      <span className="text-caption font-medium text-muted-foreground">
         Fechas
       </span>
       {calendar}

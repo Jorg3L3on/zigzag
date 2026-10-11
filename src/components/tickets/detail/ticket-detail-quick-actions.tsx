@@ -21,7 +21,7 @@ type TicketDetailQuickActionsProps = {
 };
 
 const ACTION_CLASS =
-  'flex h-[72px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-1 text-[13px] text-foreground outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
+  'flex h-[72px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-1 text-caption text-foreground outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
 
 /**
  * Cobrar / Compartir recibo / Llamar (ZIG-I13-4). Cobrar opens the Registrar

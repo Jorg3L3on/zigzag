@@ -19,7 +19,7 @@ export const CharCounter = ({ value, max, id, className }: CharCounterProps) =>
       aria-live="polite"
       data-testid="char-counter"
       className={cn(
-        'text-xs tabular-nums',
+        'text-caption tabular-nums',
         value.length >= max ? 'font-medium text-destructive' : 'text-muted-foreground',
         className,
       )}

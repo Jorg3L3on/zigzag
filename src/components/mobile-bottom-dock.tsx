@@ -60,7 +60,7 @@ export const MOBILE_DOCK_SHELL_CLASS = cn(
 );
 
 const DOCK_ITEM_CLASS =
-  'relative z-0 flex h-14 min-h-11 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50';
+  'relative z-0 flex h-14 min-h-11 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-caption font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50';
 const DOCK_ITEM_ACTIVE_CLASS = 'text-foreground';
 const DOCK_ITEM_IDLE_CLASS = 'text-muted-foreground hover:text-foreground';
 
@@ -308,7 +308,7 @@ export const MobileBottomDock = () => {
                       <span className="block text-sm font-semibold text-foreground">
                         {action.title}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="block truncate text-caption text-muted-foreground">
                         {action.hint}
                       </span>
                     </span>

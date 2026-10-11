@@ -42,7 +42,7 @@ export const TicketDetailHero = ({ finished, total, paid, className }: TicketDet
       data-testid="ticket-hero"
       className={cn(GLASS_CARD_CLASS, 'space-y-2', className)}
     >
-      <p className="text-[13px] text-muted-foreground">{label}</p>
+      <p className="text-caption text-muted-foreground">{label}</p>
       <MoneyFigure
         amount={amount}
         size="hero"
@@ -53,7 +53,7 @@ export const TicketDetailHero = ({ finished, total, paid, className }: TicketDet
         <>
           <TicketPaymentProgressBar total={total} paid={paid} className="max-w-none" />
           <p
-            className="text-[13px] tabular-nums text-muted-foreground [overflow-wrap:anywhere]"
+            className="text-caption tabular-nums text-muted-foreground [overflow-wrap:anywhere]"
             data-testid="ticket-hero-paid"
           >
             {status === 'paid'
@@ -62,7 +62,7 @@ export const TicketDetailHero = ({ finished, total, paid, className }: TicketDet
           </p>
         </>
       ) : (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           El cobro se registra al finalizar el ticket.
         </p>
       )}

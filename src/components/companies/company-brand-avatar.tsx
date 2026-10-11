@@ -56,7 +56,7 @@ export const CompanyBrandAvatar = ({
   return (
     <span
       className={cn(
-        'inline-flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white',
+        'inline-flex size-6 items-center justify-center rounded-sm text-caption font-semibold text-white',
         className,
       )}
       style={{ backgroundColor: `hsl(${hue} 65% 42%)` }}

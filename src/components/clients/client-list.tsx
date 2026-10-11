@@ -649,7 +649,7 @@ export function ClientList() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Página {table.getState().pagination.pageIndex + 1} de{' '}
               {table.getPageCount()}
             </p>

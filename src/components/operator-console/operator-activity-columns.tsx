@@ -108,7 +108,7 @@ export const createOperatorActivityColumns = ({
             withTime
           />
           {row.original.count > 1 ? (
-            <span className="ml-2 text-xs text-muted-foreground">
+            <span className="ml-2 text-caption text-muted-foreground">
               ×{row.original.count}
             </span>
           ) : null}
@@ -197,7 +197,7 @@ export const createOperatorActivityColumns = ({
       cell: ({ row }) => {
         if (!isOperatorIncidentEvent(row.original)) {
           return (
-            <span className="text-xs text-muted-foreground">—</span>
+            <span className="text-caption text-muted-foreground">—</span>
           );
         }
         return (

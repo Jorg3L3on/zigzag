@@ -187,8 +187,8 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
                   <span
                     className={
                       overLimit
-                        ? 'text-xs font-medium text-destructive'
-                        : 'text-xs text-muted-foreground'
+                        ? 'text-caption font-medium text-destructive'
+                        : 'text-caption text-muted-foreground'
                     }
                     aria-live="polite"
                   >

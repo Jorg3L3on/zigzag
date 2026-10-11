@@ -77,7 +77,7 @@ export function DataTable<TData, TValue>({
             aria-label={filterPlaceholder || 'Buscar'}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {table.getRowModel().rows.length} resultados
         </p>
       </div>

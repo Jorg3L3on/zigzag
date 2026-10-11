@@ -36,7 +36,7 @@ export const MobileSortSelect = ({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground">Orden</p>
+      <p className="text-caption font-medium text-muted-foreground">Orden</p>
       <Select
         value={sortValue}
         onValueChange={(value) => onSortingChange(decodeSortingState(value))}

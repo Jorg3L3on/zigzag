@@ -340,7 +340,7 @@ export const ComposerLineSheet = ({
   const header = (
     <div className="space-y-1" data-testid="composer-line-header">
       {serviceChosen ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {mode === 'custom' ? 'Escrito por ti' : 'De mis servicios'} ·{' '}
           <button
             type="button"
@@ -383,7 +383,7 @@ export const ComposerLineSheet = ({
         <div className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <p
-              className="min-w-0 text-xs tabular-nums leading-snug text-muted-foreground"
+              className="min-w-0 text-caption tabular-nums leading-snug text-muted-foreground"
               data-testid="composer-line-breakdown"
             >
               <span className="block [overflow-wrap:anywhere]">
@@ -394,7 +394,7 @@ export const ComposerLineSheet = ({
               </span>
             </p>
             <div className="flex min-w-0 flex-col items-end text-right">
-              <span className="text-xs text-muted-foreground">Suma</span>
+              <span className="text-caption text-muted-foreground">Suma</span>
               <MoneyFigure
                 amount={lineTotal}
                 size="lg"
@@ -406,7 +406,7 @@ export const ComposerLineSheet = ({
           {lineAmountError ? (
             <p
               role="alert"
-              className="text-xs text-destructive"
+              className="text-caption text-destructive"
               data-testid="composer-line-total-error"
             >
               {lineAmountError}
@@ -470,7 +470,7 @@ export const ComposerLineSheet = ({
               className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm"
             />
             {!servicesLoading && services.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 Tu catálogo está vacío. Usa Nuevo para escribir el servicio.
               </p>
             ) : null}
@@ -545,7 +545,7 @@ export const ComposerLineSheet = ({
             </div>
           ) : null}
           {materials.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Sin materiales. Se suman al precio del servicio.
             </p>
           ) : (
@@ -559,7 +559,7 @@ export const ComposerLineSheet = ({
                 onRemove={removeMaterial}
                 data-testid="composer-line-material-rows"
               />
-              <p className="pt-1 text-xs text-muted-foreground">
+              <p className="pt-1 text-caption text-muted-foreground">
                 Toca un material para cambiar cantidad o precio.
               </p>
             </>

@@ -69,7 +69,7 @@ export const DocumentLineRow = ({
         <span className="flex shrink-0 items-baseline gap-1.5">
           {changed ? (
             <span
-              className="text-xs font-medium text-amber-600 dark:text-amber-400"
+              className="text-caption font-medium text-amber-600 dark:text-amber-400"
               data-testid="document-line-changed"
             >
               Cambió
@@ -82,7 +82,7 @@ export const DocumentLineRow = ({
         <span
           role="alert"
           data-testid="document-line-error"
-          className="mt-1 block text-xs font-medium text-destructive [overflow-wrap:anywhere]"
+          className="mt-1 block text-caption font-medium text-destructive [overflow-wrap:anywhere]"
         >
           {error}
         </span>
