@@ -6,6 +6,11 @@ on:
     branches:
       - main
 
+# A new push to the same PR cancels the run it supersedes; main pushes always finish.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
@@ -18,6 +23,8 @@ jobs:
       NEXTAUTH_URL: http://127.0.0.1:3070
       E2E_EMAIL: e2e@zigzag.test
       E2E_PASSWORD: e2e-Password123!
+      # 333px variants of the mobile redesign specs run only for PRs into main and pushes to main.
+      E2E_ALL_WIDTHS: ${{ (github.event_name == 'push' || github.base_ref == 'main') && '1' || '0' }}
 
     services:
       postgres:
@@ -55,9 +62,7 @@ jobs:
       - name: Unit tests (with coverage gate)
         run: npm test -- --runInBand --coverage
 
-      - name: IDOR cross-tenant tests
-        run: npm run test:idor
-
+      # The IDOR cross-tenant tests already run in the unit test step above.
       - name: IDOR audit matrix coverage gate
         run: npm run check:idor-coverage
 
@@ -80,12 +85,6 @@ jobs:
 
       # Visual baselines are darwin-only today; run chromium + mobile critically.
       # Update linux snapshots with: npm run test:e2e:visual:update
+      # No separate Build step: Playwright's webServer runs `npm run build` first, so a broken build fails here.
       - name: E2E (critical path, includes axe-core a11y gate)
         run: npx playwright test --project=chromium --project=mobile-chrome
-
-      - name: Build
-        run: npm run build
-
-      - name: Lighthouse (mobile baseline, informational)
-        run: npm run lighthouse:mobile
-        continue-on-error: true

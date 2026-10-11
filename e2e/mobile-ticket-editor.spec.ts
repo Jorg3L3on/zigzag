@@ -14,6 +14,7 @@ import {
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
+import { MOBILE_WIDTHS } from './helpers/layout';
 
 /**
  * ZIG-I13-6: one line editor for tickets (the composer), the finalized-edit banner
@@ -24,7 +25,7 @@ import {
 /** After a hard navigation Next may hold a hidden streamed copy of a block (CI): act on the visible one. */
 const visible = (locator: Locator) => locator.filter({ visible: true }).first();
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Ticket editor @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(420_000);

@@ -13,6 +13,7 @@ import {
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
+import { MOBILE_WIDTHS } from './helpers/layout';
 
 /**
  * ZIG-I13-3: the saved-ticket screen as drawn in the canvas (Listo), with the
@@ -20,7 +21,7 @@ import {
  * Saves a ticket: run it in CI or against a scratch database.
  */
 
-for (const width of [375, 333]) {
+for (const width of MOBILE_WIDTHS) {
   test.describe(`Listo redesign @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
     test.setTimeout(300_000);
