@@ -298,6 +298,8 @@ export function ClientList() {
     phoneFilter !== 'all',
   ].filter(Boolean).length;
   const effectiveCanWrite = canWrite && snapshotUpdatedAt == null;
+  // The detail page needs the network; the offline snapshot is read-only.
+  const canOpenDetail = snapshotUpdatedAt == null;
 
   const handleDelete = async (id: number) => {
     try {
@@ -498,30 +500,30 @@ export function ClientList() {
                 <TripledMobileRecordCard
                   key={row.id}
                   role="button"
-                  tabIndex={effectiveCanWrite ? 0 : -1}
+                  tabIndex={canOpenDetail ? 0 : -1}
                   aria-label={
-                    effectiveCanWrite
-                      ? `Editar cliente ${clientRow.name}`
+                    canOpenDetail
+                      ? `Abrir cliente ${clientRow.name}`
                       : `Cliente ${clientRow.name}`
                   }
-                  interactive={effectiveCanWrite}
+                  interactive={canOpenDetail}
                   className={
-                    effectiveCanWrite
+                    canOpenDetail
                       ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                       : undefined
                   }
                   onClick={() => {
-                    if (effectiveCanWrite) {
-                      router.push(`/clients/${clientRow.id}/edit`);
+                    if (canOpenDetail) {
+                      router.push(`/clients/${clientRow.id}`);
                     }
                   }}
                   onKeyDown={(event) => {
                     if (
-                      effectiveCanWrite &&
+                      canOpenDetail &&
                       (event.key === 'Enter' || event.key === ' ')
                     ) {
                       event.preventDefault();
-                      router.push(`/clients/${clientRow.id}/edit`);
+                      router.push(`/clients/${clientRow.id}`);
                     }
                   }}
                 >
@@ -615,20 +617,20 @@ export function ClientList() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={effectiveCanWrite ? 'cursor-pointer' : undefined}
-                    tabIndex={effectiveCanWrite ? 0 : -1}
+                    className={canOpenDetail ? 'cursor-pointer' : undefined}
+                    tabIndex={canOpenDetail ? 0 : -1}
                     onClick={() => {
-                      if (effectiveCanWrite) {
-                        router.push(`/clients/${row.original.id}/edit`);
+                      if (canOpenDetail) {
+                        router.push(`/clients/${row.original.id}`);
                       }
                     }}
                     onKeyDown={(event) => {
                       if (
-                        effectiveCanWrite &&
+                        canOpenDetail &&
                         (event.key === 'Enter' || event.key === ' ')
                       ) {
                         event.preventDefault();
-                        router.push(`/clients/${row.original.id}/edit`);
+                        router.push(`/clients/${row.original.id}`);
                       }
                     }}
                   >

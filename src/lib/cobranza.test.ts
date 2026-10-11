@@ -24,6 +24,7 @@ const baseTicket = (
   finished: overrides.finished ?? true,
   company_id: overrides.company_id ?? 1,
   document_kind: overrides.document_kind ?? 'ticket',
+  client_id: overrides.client_id ?? null,
 });
 
 describe('cobranza helpers', () => {
@@ -124,6 +125,23 @@ describe('cobranza helpers', () => {
     expect(filterCobranzaRows(rows, { search: 'bru' })[0]?.client_name).toBe(
       'Bruno',
     );
+  });
+
+  it('filters to the tickets of one client', () => {
+    const rows = buildCobranzaRows(
+      [
+        baseTicket({ id: 1, client_id: 7, total: 100, paid: 0 }),
+        baseTicket({ id: 2, client_id: 8, total: 100, paid: 0 }),
+        baseTicket({ id: 3, client_id: null, total: 100, paid: 0 }),
+      ],
+      now,
+    );
+
+    expect(rows.find((row) => row.id === '1')?.client_id).toBe(7);
+    expect(
+      filterCobranzaRows(rows, { clientId: 7 }).map((row) => row.id),
+    ).toEqual(['1']);
+    expect(filterCobranzaRows(rows, { clientId: null })).toHaveLength(3);
   });
 
   it('summarizes count and balance sum', () => {

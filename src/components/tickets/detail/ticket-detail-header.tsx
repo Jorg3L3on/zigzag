@@ -56,7 +56,7 @@ export const TicketDetailHeader = ({
         >
           {clientId ? (
             <Link
-              href={`/clients/${clientId}/edit`}
+              href={`/clients/${clientId}`}
               className="outline-none transition-colors hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring"
             >
               {clientName || 'Cliente sin nombre'}

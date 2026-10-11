@@ -171,6 +171,8 @@ export const client = pgTable(
     state: text('state'),
     postal_code: text('postal_code'),
     country: text('country'),
+    /** Free-text notes about the client (ZIG-I17-3). */
+    notes: text('notes'),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),

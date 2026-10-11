@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CobranzaRow } from '@/lib/cobranza';
 import { COBRANZA_AGING_LABEL } from '@/lib/cobranza';
@@ -44,11 +45,19 @@ export const createCobranzaColumns = ({
     id: 'client_name',
     accessorKey: 'client_name',
     header: 'Cliente',
-    cell: ({ row }) => (
-      <span className="font-medium">
-        {row.original.client_name ?? 'Sin cliente'}
-      </span>
-    ),
+    cell: ({ row }) =>
+      row.original.client_id != null ? (
+        <Link
+          href={`/clients/${row.original.client_id}`}
+          className="font-medium underline-offset-4 hover:underline"
+        >
+          {row.original.client_name ?? 'Sin cliente'}
+        </Link>
+      ) : (
+        <span className="font-medium">
+          {row.original.client_name ?? 'Sin cliente'}
+        </span>
+      ),
   },
   {
     id: 'ticket_date',

@@ -53,6 +53,7 @@ export async function getCobranzaList(
         finished: row.finished,
         company_id: row.company_id,
         document_kind: row.document_kind,
+        client_id: row.client_id,
       })),
     );
 

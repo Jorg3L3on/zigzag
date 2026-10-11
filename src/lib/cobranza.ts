@@ -25,6 +25,7 @@ export type CobranzaTicketInput = {
   finished: boolean;
   company_id: number | null;
   document_kind?: string | null;
+  client_id?: number | null;
 };
 
 export type CobranzaRow = {
@@ -37,6 +38,7 @@ export type CobranzaRow = {
   paid: number | null;
   finished: boolean;
   company_id: number | null;
+  client_id: number | null;
   balanceDue: number;
   paymentStatus: TicketPaymentStatus;
   daysOutstanding: number;
@@ -131,6 +133,7 @@ export const toCobranzaRow = (
     paid: ticket.paid,
     finished: ticket.finished,
     company_id: ticket.company_id,
+    client_id: ticket.client_id ?? null,
     balanceDue,
     paymentStatus,
     daysOutstanding,
@@ -176,13 +179,20 @@ export const filterCobranzaRows = (
     status?: CobranzaStatusFilter;
     aging?: CobranzaAgingBucket;
     search?: string;
+    /** Only the tickets of this client (ZIG-I17-2). */
+    clientId?: number | null;
   },
 ): CobranzaRow[] => {
   const status = options.status ?? 'all';
   const aging = options.aging ?? 'all';
   const search = options.search?.trim().toLowerCase() ?? '';
 
+  const clientId = options.clientId ?? null;
+
   return rows.filter((row) => {
+    if (clientId != null && row.client_id !== clientId) {
+      return false;
+    }
     if (status !== 'all' && row.paymentStatus !== status) {
       return false;
     }

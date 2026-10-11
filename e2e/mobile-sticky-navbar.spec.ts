@@ -182,7 +182,7 @@ test.describe('Mobile sticky navigation', () => {
         // Click the pencil control, not the card center: ClientPhoneLink uses
         // stopPropagation, so a center hit on a card with a phone never navigates.
         const clientCard = page
-          .getByRole('button', { name: /Editar cliente/i })
+          .getByRole('button', { name: /Abrir cliente/i })
           .first();
         await clientCard.getByRole('button', { name: /^Editar / }).click();
         await expect(page).toHaveURL(/\/clients\/\d+\/edit/);

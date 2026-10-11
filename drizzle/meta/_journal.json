@@ -211,6 +211,13 @@
       "when": 1782032000000,
       "tag": "0030_service_line_decimal_quantity",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1782118400000,
+      "tag": "0031_client_notes",
+      "breakpoints": true
     }
   ]
 }
