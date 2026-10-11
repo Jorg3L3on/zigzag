@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-import { deleteTicket } from '@/actions/tickets';
-import { ConfirmSheet } from '@/components/documents/confirm-sheet';
-import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
+import { deleteTicket } from "@/actions/tickets";
+import { ConfirmSheet } from "@/components/documents/confirm-sheet";
+import { formatServiceCurrency } from "@/components/tickets/ticket-services-utils";
 import {
   classifyClientError,
   getErrorMessageByType,
-} from '@/lib/network-awareness';
+} from "@/lib/network-awareness";
 
 type DeleteTicketSheetProps = {
   open: boolean;
@@ -44,7 +44,7 @@ export const DeleteTicketSheet = ({
   paymentsCount,
   paymentsTotal,
   companyId = null,
-  afterDeleteHref = '/tickets',
+  afterDeleteHref = "/tickets",
   onDeleteStart,
   onDeleteFailed,
 }: DeleteTicketSheetProps) => {
@@ -69,12 +69,18 @@ export const DeleteTicketSheet = ({
       onDeleteFailed?.(ticketId);
       const errorType = classifyClientError(null, undefined, result.errorType);
       toast.error(
-        getErrorMessageByType(errorType, result.error || 'Error al eliminar el ticket'),
+        getErrorMessageByType(
+          errorType,
+          result.error || "Error al eliminar el ticket",
+        ),
       );
     } catch (error) {
       onDeleteFailed?.(ticketId);
       toast.error(
-        getErrorMessageByType(classifyClientError(error), 'Error al eliminar el ticket'),
+        getErrorMessageByType(
+          classifyClientError(error),
+          "Error al eliminar el ticket",
+        ),
       );
     } finally {
       setPending(false);
@@ -88,32 +94,36 @@ export const DeleteTicketSheet = ({
       title={`¿Eliminar el ticket #${ticketId}?`}
       description="Desaparece de tus tickets y de cobranza. No podrás recuperarlo tú; solo soporte puede restaurarlo."
       summary={
-        <dl
+        <div
           className="space-y-1 rounded-xl border border-border/60 bg-muted/30 p-3 text-sm"
           data-testid="delete-ticket-summary"
         >
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Cliente</dt>
-            <dd className="min-w-0 text-right font-medium [overflow-wrap:anywhere]">
-              {clientName || 'Sin nombre'}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Total</dt>
-            <dd className="text-right font-medium tabular-nums [overflow-wrap:anywhere]">
-              {formatServiceCurrency(total ?? 0)}
-            </dd>
-          </div>
+          <dl className="space-y-1">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Cliente</dt>
+              <dd className="min-w-0 text-right font-medium [overflow-wrap:anywhere]">
+                {clientName || "Sin nombre"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Total</dt>
+              <dd className="text-right font-medium tabular-nums [overflow-wrap:anywhere]">
+                {formatServiceCurrency(total ?? 0)}
+              </dd>
+            </div>
+          </dl>
           {paymentsTotal > 0 ? (
             <p className="pt-1 text-amber-700 dark:text-amber-300">
-              Tiene{' '}
-              {paymentsCount === undefined || paymentsCount === 0 || paymentsCount > 1
-                ? `${paymentsCount ?? ''} pagos registrados`.trim()
-                : '1 pago registrado'}{' '}
+              Tiene{" "}
+              {paymentsCount === undefined ||
+              paymentsCount === 0 ||
+              paymentsCount > 1
+                ? `${paymentsCount ?? ""} pagos registrados`.trim()
+                : "1 pago registrado"}{" "}
               por {formatServiceCurrency(paymentsTotal)}.
             </p>
           ) : null}
-        </dl>
+        </div>
       }
       confirmLabel="Eliminar ticket"
       cancelLabel="Conservar"
