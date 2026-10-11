@@ -68,9 +68,9 @@ test.describe('Mobile bottom dock', () => {
       'aria-current',
       'page',
     );
-    await expect(
-      page.getByRole('link', { name: 'Nuevo ticket' }).first(),
-    ).toBeVisible();
+    // The page header drops Nuevo ticket on phones (the dock's + creates it, ZIG-I13-7);
+    // the list itself is on screen.
+    await expect(page.getByTestId('tickets-balance-due')).toBeVisible();
   });
 
   test('+ opens the create menu and navigates to Nuevo ticket', async ({

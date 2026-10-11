@@ -44,6 +44,7 @@ import {
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
+import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
 import { Ticket as TicketIcon } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
@@ -55,7 +56,7 @@ type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
 const DEFAULT_PAGE_SIZE = 25;
 
 const parseStatusFilter = (value: string | null): StatusFilterValue => {
-  if (value === 'paid' || value === 'partial' || value === 'pending') {
+  if (value === 'paid' || value === 'partial' || value === 'pending' || value === 'due') {
     return value;
   }
   return 'all';
@@ -81,6 +82,9 @@ export default function TicketsList() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
+  // Σ saldo and Por cobrar count for the current filters, computed by the server (ZIG-I13-7).
+  const [balanceDue, setBalanceDue] = React.useState(0);
+  const [dueCount, setDueCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   // The full-page skeleton only covers the first load (and SSR). Once the
   // filter bar has mounted it must stay mounted so typing keeps its focus.
@@ -183,6 +187,14 @@ export default function TicketsList() {
           setTickets(snapshot.data);
           ticketsRef.current = snapshot.data;
           setTotalCount(snapshot.data.length);
+          // Offline: only what was cached, summed here.
+          setBalanceDue(
+            snapshot.data.reduce(
+              (sum, row) => sum + getTicketBalanceDue(row.total, row.paid),
+              0,
+            ),
+          );
+          setDueCount(null);
           setSnapshotUpdatedAt(snapshot.updatedAt);
           setLoadError(null);
           return true;
@@ -215,6 +227,8 @@ export default function TicketsList() {
           setTickets(pageItems);
           ticketsRef.current = pageItems;
           setTotalCount(result.data.total);
+          setBalanceDue(result.data.balanceDue ?? 0);
+          setDueCount(result.data.dueCount ?? null);
           setSnapshotUpdatedAt(null);
           setLoadError(null);
           void writeOfflineSnapshot('tickets', selectedCompany.id, pageItems).catch(
@@ -404,6 +418,8 @@ export default function TicketsList() {
   return (
     <div className="space-y-4">
       <TicketsFilterBar
+        dueCount={dueCount}
+        balanceDue={balanceDue}
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         statusFilter={statusFilter}
@@ -492,7 +508,7 @@ export default function TicketsList() {
           />
         ) : (
           <>
-            <div className="space-y-3 md:hidden">
+            <div className="space-y-2.5 md:hidden">
               {visibleRows.map((row) => (
                 <TicketsMobileCard
                   key={row.id}

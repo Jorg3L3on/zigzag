@@ -3,6 +3,7 @@ import { endOfDay, format, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import {
+  getTicketBalanceDue,
   getTicketPaymentStatus,
   TICKET_PAYMENT_STATUS_LABEL,
 } from '@/lib/ticket-payment-status';
@@ -59,7 +60,11 @@ export const filterTickets = (
 
     if (filters.statusFilter !== 'all') {
       const paymentStatus = getTicketPaymentStatus(ticket.total, ticket.paid);
-      if (paymentStatus !== filters.statusFilter) {
+      if (filters.statusFilter === 'due') {
+        if (getTicketBalanceDue(ticket.total, ticket.paid) <= 0) {
+          return false;
+        }
+      } else if (paymentStatus !== filters.statusFilter) {
         return false;
       }
     }
@@ -125,7 +130,10 @@ export const buildTicketFilterChips = (
     ? [
         {
           key: 'status',
-          label: TICKET_PAYMENT_STATUS_LABEL[filters.statusFilter],
+          label:
+            filters.statusFilter === 'due'
+              ? 'Por cobrar'
+              : TICKET_PAYMENT_STATUS_LABEL[filters.statusFilter],
         },
       ]
     : []),
