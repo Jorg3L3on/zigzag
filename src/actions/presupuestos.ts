@@ -228,7 +228,7 @@ export async function createPresupuestoWithLines(
   input: CreatePresupuestoWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number };
+  data?: { id: string; total: number; folio?: string };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -319,7 +319,7 @@ export async function createPresupuestoWithLines(
         ignoredClientTotal: validated.client_total ?? null,
       });
 
-      return { id: row.id, total: syncedTotal };
+      return { id: row.id, total: syncedTotal, folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }) };
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -327,7 +327,7 @@ export async function createPresupuestoWithLines(
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total },
+      data: { id: String(created.id), total: created.total, folio: created.folio },
     };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {
@@ -586,7 +586,7 @@ export async function convertPresupuestoToTicket(
   companyId?: number | null,
 ): Promise<{
   success: boolean;
-  data?: { presupuesto: PresupuestoListItem; ticketId: string };
+  data?: { presupuesto: PresupuestoListItem; ticketId: string; ticketFolio: string };
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -715,6 +715,7 @@ export async function convertPresupuestoToTicket(
       data: {
         presupuesto: toListItem(result.presupuesto),
         ticketId: String(result.workTicket.id),
+        ticketFolio: formatDocumentFolio(result.workTicket),
       },
     };
   } catch (e) {

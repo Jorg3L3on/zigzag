@@ -202,7 +202,7 @@ export const PresupuestoView = ({
         toast.error(getErrorDisplayMessage(result, 'No se pudo convertir el presupuesto'));
         return;
       }
-      toast.success(`Convertido a ticket #${result.data.ticketId}`);
+      toast.success(`Convertido a ticket ${result.data.ticketFolio ?? `#${result.data.ticketId}`}`);
       router.push(`/tickets/${result.data.ticketId}`);
     } finally {
       setMutating(false);

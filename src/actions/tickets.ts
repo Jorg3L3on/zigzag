@@ -1,7 +1,7 @@
 'use server';
 
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
-import { normalizeFolioSearch, type FolioParts } from '@/lib/folio';
+import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, count, ilike, or } from 'drizzle-orm';
 import {
@@ -390,7 +390,7 @@ export async function createTicketWithLines(
   input: CreateTicketWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number };
+  data?: { id: string; total: number; folio?: string };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -489,10 +489,10 @@ export async function createTicketWithLines(
           },
         );
 
-        return { id: created.id, total: syncedTotal };
+        return { id: created.id, total: syncedTotal, folio: formatDocumentFolio(created) };
       });
 
-    let created: { id: bigint; total: number };
+    let created: { id: bigint; total: number; folio: string };
     try {
       created = await runTransaction();
     } catch (error) {
@@ -510,7 +510,7 @@ export async function createTicketWithLines(
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total },
+      data: { id: String(created.id), total: created.total, folio: created.folio },
     };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {
@@ -949,6 +949,7 @@ export async function getTicketsPaginated(params: {
     const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 25)));
     const search = params.search?.trim();
 
+    const folioSearch = search ? parseFolioSearch(search) : null;
     const searchCondition = search
       ? or(
           ilike(ticket.client_name, `%${search}%`),
@@ -958,6 +959,17 @@ export async function getTicketsPaginated(params: {
           sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search}%`}`,
           // R-0012, r-12 or 0012: the stored prefix plus the padded number (ZIG-I17-6).
           sql`(${ticket.folio_prefix} || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
+          // r34 / R-34 / 34 find R-0034 even though the stored text is padded.
+          ...(folioSearch
+            ? [
+                and(
+                  eq(ticket.folio_number, folioSearch.number),
+                  folioSearch.prefix
+                    ? ilike(ticket.folio_prefix, `${folioSearch.prefix.replace(/[%_\\]/g, '')}%`)
+                    : undefined,
+                ),
+              ]
+            : []),
         )
       : undefined;
 

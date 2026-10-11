@@ -160,6 +160,7 @@ export const TicketDetailActionsMenu = ({
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           ticketId={ticketId}
+          folio={folio}
           clientName={clientName}
           total={total}
           paymentsCount={paymentsCount}

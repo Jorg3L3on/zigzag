@@ -29,6 +29,7 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
 /** Server row → composer edit state (ZIG-I5-5); inline lines stay inline. */
 export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
   id: String(row.id),
+  folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }),
   client: {
     id: row.client_id ?? 0,
     label: row.client_tel

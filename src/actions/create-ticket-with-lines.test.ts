@@ -166,7 +166,7 @@ describe('createTicketWithLines', () => {
 
     expect(result).toEqual({
       success: true,
-      data: { id: '1201', total: 12950.01 },
+      data: { id: '1201', total: 12950.01, folio: 'R-0001' },
     });
     expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(mockRequireTicketWrite).toHaveBeenCalledWith(10);

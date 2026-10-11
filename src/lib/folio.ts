@@ -68,6 +68,21 @@ export const formatDocumentFolio = (
   return row.id != null ? `#${String(row.id)}` : '';
 };
 
+/**
+ * Reads what someone types to find a folio: `R-0034`, `r34`, `34` or `0034`.
+ * Letters (if any) are the prefix, digits are the number. Null when the text
+ * is not shaped like a folio, so it falls back to the plain text search.
+ */
+export const parseFolioSearch = (
+  value: string,
+): { prefix: string; number: number } | null => {
+  const match = /^\s*([a-z0-9]{0,4}?)\s*-?\s*(\d{1,9})\s*$/i.exec(value);
+  if (!match) return null;
+  const number = Number.parseInt(match[2], 10);
+  if (!Number.isSafeInteger(number)) return null;
+  return { prefix: match[1].toUpperCase(), number };
+};
+
 /** SQL ILIKE pattern text for the stored folio, e.g. searching `r-00` or `0012`. */
 export const normalizeFolioSearch = (value: string): string =>
   value.trim().replace(/[%_\\]/g, '');

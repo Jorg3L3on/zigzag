@@ -5,6 +5,7 @@ import {
   formatFolio,
   normalizeFolioPrefix,
   normalizeFolioSearch,
+  parseFolioSearch,
   resolveFolioPrefix,
 } from '@/lib/folio';
 
@@ -56,5 +57,19 @@ describe('folio helpers', () => {
 
   it('strips LIKE wildcards from folio searches', () => {
     expect(normalizeFolioSearch(' r_% 00 ')).toBe('r 00');
+  });
+});
+
+describe('parseFolioSearch', () => {
+  it('reads R-0034, r34, 34 and 0034 as the same number', () => {
+    expect(parseFolioSearch('R-0034')).toEqual({ prefix: 'R', number: 34 });
+    expect(parseFolioSearch('r34')).toEqual({ prefix: 'R', number: 34 });
+    expect(parseFolioSearch('34')).toEqual({ prefix: '', number: 34 });
+    expect(parseFolioSearch(' 0034 ')).toEqual({ prefix: '', number: 34 });
+  });
+
+  it('ignores text that is not a folio', () => {
+    expect(parseFolioSearch('Ana López')).toBeNull();
+    expect(parseFolioSearch('')).toBeNull();
   });
 });
