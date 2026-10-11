@@ -162,7 +162,7 @@ describe('TicketsList', () => {
 
     render(<TicketsList />);
 
-    const input = await screen.findByPlaceholderText('Cliente, folio o teléfono');
+    const input = await screen.findByPlaceholderText('Cliente, número de ticket o teléfono');
     await waitFor(() => {
       expect(screen.getAllByText('Cliente Alfa').length).toBeGreaterThan(0);
     });
@@ -178,7 +178,7 @@ describe('TicketsList', () => {
 
     // The debounced search triggers a reload that stays pending.
     expect(await screen.findByText('Cargando tickets')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Cliente, folio o teléfono')).toBe(input);
+    expect(screen.getByPlaceholderText('Cliente, número de ticket o teléfono')).toBe(input);
     expect(input).toHaveFocus();
     expect(input).toHaveValue('Alfa');
 
@@ -310,10 +310,10 @@ describe('TicketsList', () => {
 
     render(<TicketsList />);
 
-    const input = await screen.findByPlaceholderText('Cliente, folio o teléfono');
+    const input = await screen.findByPlaceholderText('Cliente, número de ticket o teléfono');
     input.focus();
     fireEvent.click(screen.getByRole('button', { name: /Por cobrar/ }));
     await waitFor(() => expect(mockGetTicketsPaginated).toHaveBeenCalledTimes(2));
-    expect(screen.getByPlaceholderText('Cliente, folio o teléfono')).toBe(input);
+    expect(screen.getByPlaceholderText('Cliente, número de ticket o teléfono')).toBe(input);
   });
 });

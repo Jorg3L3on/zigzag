@@ -52,7 +52,7 @@ export const MobilePullToRefresh = ({
           transform: `translateY(${Math.max(pullDistance - 46, 0)}px)`,
         }}
       >
-        <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur">
+        <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-caption font-medium text-muted-foreground shadow-sm backdrop-blur">
           {isRefreshing ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
           ) : (

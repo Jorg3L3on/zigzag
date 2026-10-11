@@ -111,7 +111,7 @@ export const LineMaterialsEditor = ({
       ) : (
         <>
           {value.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Sin materiales. Se suman al precio del servicio.
             </p>
           ) : null}

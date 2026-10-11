@@ -152,7 +152,7 @@ const addHostileLine = async (
   await page.getByRole('button', { name: 'Agregar servicio' }).click();
   const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+  await sheet.getByRole('radio', { name: /Escribir/ }).click();
   await sheet.getByLabel('Nombre del servicio').fill(name);
   await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill(quantity);
   await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill(price);
@@ -162,7 +162,7 @@ const addHostileLine = async (
     const materialSheet = page.getByRole('dialog', { name: 'Agregar material' });
     await expect(materialSheet).toBeVisible();
     // One tap on Nuevo must switch modes: the hint used to vanish on blur and move the button.
-    await materialSheet.getByRole('radio', { name: /Nuevo/ }).click();
+    await materialSheet.getByRole('radio', { name: /Escribir/ }).click();
     await expect(materialSheet.getByLabel('Nombre del material')).toBeVisible();
     await materialSheet.getByLabel('Nombre del material').fill(material.name);
     await materialSheet.getByLabel('Cantidad').fill(material.quantity);
@@ -171,7 +171,7 @@ const addHostileLine = async (
     await expect(materialSheet.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
   }
 
-  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
 };
 
@@ -210,14 +210,14 @@ for (const width of MOBILE_WIDTHS) {
       // Names the PDF cannot print are flagged while typing (Q3).
       await page.getByRole('button', { name: 'Agregar servicio' }).click();
       const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
-      await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+      await sheet.getByRole('radio', { name: /Escribir/ }).click();
       await sheet.getByLabel('Nombre del servicio').fill(HOSTILE_NAME);
       await expect(sheet.getByTestId('pdf-chars-warning')).toContainText(
         'Estos caracteres no salen en el PDF',
       );
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('1.5');
       await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill('100');
-      await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
 
       // 1.5 stays 1.5; HTML is text; the total is exact (no phantom cents).
@@ -251,8 +251,8 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByTestId('recibo-summary')).toHaveCount(0);
       await expect(page.getByTestId('recibo-pdf-preview')).toHaveCount(0);
 
-      // No payment is chosen for the user: Finalizar waits for a choice.
-      const finish = page.getByRole('button', { name: 'Finalizar y compartir' }).first();
+      // No payment is chosen for the user: Terminar waits for a choice.
+      const finish = page.getByRole('button', { name: 'Terminar y enviar' }).first();
       await expect(finish).toBeDisabled();
       await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('1234.567');
@@ -266,7 +266,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(
         page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first(),
       ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
+      await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
         timeout: 60_000,
       });
 
@@ -338,14 +338,14 @@ for (const width of MOBILE_WIDTHS) {
       // A seventh line that would pass the cap is explained, not saved.
       await page.getByRole('button', { name: 'Agregar servicio' }).click();
       const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
-      await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+      await sheet.getByRole('radio', { name: /Escribir/ }).click();
       await sheet.getByLabel('Nombre del servicio').fill('Demasiado');
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('9999');
       await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill('99999999.99');
       await expect(sheet.getByTestId('composer-line-total-error')).toContainText(
         '$9,999,999,999.99',
       );
-      await expect(sheet.getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+      await expect(sheet.getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
       await expect(sheet).toBeHidden();
 

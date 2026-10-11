@@ -63,7 +63,7 @@ export const TicketDetailHeader = ({
           {clientId ? (
             <Link
               href={`/clients/${clientId}`}
-              className="outline-none transition-colors hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center outline-none transition-colors hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring"
             >
               {clientName || 'Cliente sin nombre'}
             </Link>
@@ -71,7 +71,7 @@ export const TicketDetailHeader = ({
             clientName || 'Cliente sin nombre'
           )}
         </h1>
-        <p className="text-[13px] text-muted-foreground [overflow-wrap:anywhere] md:text-sm">
+        <p className="text-caption text-muted-foreground [overflow-wrap:anywhere] md:text-sm">
           <FormattedDate date={ticketDate} />
           {creatorName ? <> · {creatorName}</> : null}
           {fromPresupuestoId != null ? (

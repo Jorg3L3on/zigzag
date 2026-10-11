@@ -29,7 +29,7 @@ type TicketDetailPrimaryActionsProps = {
 };
 
 /**
- * The one primary action of a finalized ticket (ZIG-I13-4): Registrar pago while
+ * The one primary action of a finalized ticket (ZIG-I13-4): Cobrar while
  * there is a balance, Compartir recibo once settled. An unfinished ticket has
  * none here: the Finalizar panel owns it. The ⋯ menu sits in the app bar on
  * mobile and next to the button on desktop.
@@ -68,7 +68,7 @@ export const TicketDetailPrimaryActions = ({
       onClick={() => collect?.openCollect()}
     >
       <Wallet className="h-4 w-4" aria-hidden />
-      Registrar pago
+      Cobrar
     </Button>
   ) : canShare ? (
     <Button

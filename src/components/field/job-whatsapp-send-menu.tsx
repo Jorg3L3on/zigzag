@@ -293,12 +293,12 @@ export const JobWhatsAppSendMenu = ({
                   <span className="flex flex-col items-start gap-0.5">
                     <span>{option.label}</span>
                     {!option.enabled && option.disabledReason ? (
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className="text-caption font-normal text-muted-foreground">
                         {option.disabledReason}
                       </span>
                     ) : null}
                     {busyId === option.id && option.id === 'enviar_recibo' ? (
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className="text-caption font-normal text-muted-foreground">
                         Generando recibo…
                       </span>
                     ) : null}
@@ -309,7 +309,7 @@ export const JobWhatsAppSendMenu = ({
           </ul>
 
           {!isOnline ? (
-            <p className="mt-3 text-xs text-muted-foreground">
+            <p className="mt-3 text-caption text-muted-foreground">
               Sin internet — recibo simple. El PDF oficial se envía cuando haya
               señal.
             </p>

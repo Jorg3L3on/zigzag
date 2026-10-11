@@ -7,7 +7,7 @@ export type MoneyFigureSize = 'sm' | 'md' | 'lg' | 'hero';
 
 const SIZE_CLASS: Record<MoneyFigureSize, string[]> = {
   // [normal, 10+ digits, 12+ digits]
-  sm: ['text-sm', 'text-sm', 'text-xs'],
+  sm: ['text-sm', 'text-sm', 'text-caption'],
   md: ['text-base', 'text-base', 'text-sm'],
   lg: ['text-xl', 'text-lg', 'text-base'],
   hero: ['text-4xl', 'text-3xl', 'text-2xl'],

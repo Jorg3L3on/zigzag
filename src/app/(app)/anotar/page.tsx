@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
 import { CheckCircle2, Circle, CircleCheck, Loader2, Plus, User } from 'lucide-react';
 import { toast } from 'sonner';
@@ -52,6 +52,7 @@ import { useCompany } from '@/contexts/company-context';
 import {
   buildAnotarDraftStorageKey,
   clearAnotarFormDraft,
+  isMeaningfulAnotarDraft,
   readAnotarFormDraft,
   writeAnotarFormDraft,
 } from '@/lib/anotar-form-drafts';
@@ -115,6 +116,9 @@ const AnotarPageContent = () => {
   const [paidInput, setPaidInput] = React.useState('');
   const [savedJob, setSavedJob] = React.useState<FieldJobSnapshot | null>(null);
   const prefillAppliedRef = React.useRef<string | null>(null);
+  const [clientError, setClientError] = React.useState(false);
+  const [draftRestored, setDraftRestored] = React.useState(false);
+  const clientSectionRef = React.useRef<HTMLDivElement | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -148,6 +152,9 @@ const AnotarPageContent = () => {
     const draft = readAnotarFormDraft(draftKey);
     if (!draft) {
       return;
+    }
+    if (isMeaningfulAnotarDraft(draft)) {
+      setDraftRestored(true);
     }
     if (draft.client_id != null) {
       form.setValue('client_id', draft.client_id);
@@ -200,24 +207,38 @@ const AnotarPageContent = () => {
     };
   }, [clients, draftKey]);
 
+  // Every change is saved, including total, paid and mode, which live outside
+  // react-hook-form (ZIG-I18-4). Nothing worth keeping clears the draft.
+  const saveDraft = React.useCallback(() => {
+    if (!draftKey || restoredDraftKeyRef.current !== draftKey) {
+      return;
+    }
+    const values = form.getValues();
+    const draft = {
+      client_id: values.client_id,
+      client_name: values.client_name,
+      client_tel: values.client_tel,
+      work_notes: values.work_notes,
+      company_id: values.company_id,
+      totalInput,
+      paidInput,
+      paymentMode,
+    };
+    if (isMeaningfulAnotarDraft(draft)) {
+      writeAnotarFormDraft(draftKey, draft);
+    } else {
+      clearAnotarFormDraft(draftKey);
+    }
+  }, [draftKey, form, totalInput, paidInput, paymentMode]);
+
   React.useEffect(() => {
+    saveDraft();
     if (!draftKey) {
       return;
     }
-    const subscription = form.watch((values) => {
-      writeAnotarFormDraft(draftKey, {
-        client_id: values.client_id,
-        client_name: values.client_name,
-        client_tel: values.client_tel,
-        work_notes: values.work_notes,
-        company_id: values.company_id,
-        totalInput,
-        paidInput,
-        paymentMode,
-      });
-    });
+    const subscription = form.watch(() => saveDraft());
     return () => subscription.unsubscribe();
-  }, [draftKey, form, totalInput, paidInput, paymentMode]);
+  }, [draftKey, form, saveDraft]);
 
   React.useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -288,6 +309,7 @@ const AnotarPageContent = () => {
   }, [prefillClientId, form]);
 
   const handleClientSelect = (clientId: string) => {
+    setClientError(false);
     if (!clientId) {
       setSelectedClient(null);
       form.setValue('client_id', undefined);
@@ -472,6 +494,34 @@ const AnotarPageContent = () => {
     }
   };
 
+  const onInvalid = (errors: FieldErrors<FormValues>) => {
+    if (errors.client_name || errors.client_tel || errors.client_id) {
+      setClientError(true);
+      clientSectionRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      clientSectionRef.current?.querySelector<HTMLElement>('button, input')?.focus();
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    if (draftKey) {
+      clearAnotarFormDraft(draftKey);
+    }
+    form.reset({
+      client_id: undefined,
+      client_name: '',
+      client_tel: '',
+      work_notes: '',
+      total: 0,
+      company_id: selectedCompany?.id ?? 0,
+    });
+    setSelectedClient(null);
+    setTotalInput('');
+    setPaidInput('');
+    setPaymentMode('paid');
+    setClientError(false);
+    setDraftRestored(false);
+  };
+
   const isClientListEmpty =
     !isClientsLoading && clients.length === 0 && !debouncedClientQuery;
 
@@ -534,7 +584,7 @@ const AnotarPageContent = () => {
       <TripledPageHeader
         className="hidden md:flex"
         items={[
-          { label: 'Tickets', href: '/tickets' },
+          { label: 'Hoy', href: '/dashboard' },
           { label: 'Anotar trabajo' },
         ]}
       />
@@ -545,10 +595,28 @@ const AnotarPageContent = () => {
       >
         <TripledMobileAppBar
           title="Anotar trabajo"
-          subtitle="Captura rápida en campo"
-          backHref="/tickets"
-          backLabel="Volver a tickets"
+          subtitle="Anota el trabajo al momento"
+          backHref="/dashboard"
+          backLabel="Volver a Hoy"
         />
+
+        {draftRestored ? (
+          <div
+            className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-base"
+            role="status"
+            data-testid="anotar-draft-banner"
+          >
+            <span>Recuperamos lo que escribiste</span>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 shrink-0 rounded-xl px-4 text-base"
+              onClick={handleDiscardDraft}
+            >
+              Borrar
+            </Button>
+          </div>
+        ) : null}
 
         <Card className="border-border/60 shadow-sm">
           <CardHeader className="space-y-1 pb-4">
@@ -563,14 +631,14 @@ const AnotarPageContent = () => {
             <Form {...form}>
               <form
                 id={ANOTAR_FORM_ID}
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={form.handleSubmit(onSubmit, onInvalid)}
                 className="space-y-6"
               >
                 <FormField
                   control={form.control}
                   name="client_id"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem ref={clientSectionRef} className="scroll-mt-24">
                       <FormLabel>Cliente</FormLabel>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <div className="min-w-0 flex-1">
@@ -640,6 +708,15 @@ const AnotarPageContent = () => {
                           </DialogContent>
                         </Dialog>
                       </div>
+                      {clientError && !selectedClient ? (
+                        <p
+                          id="anotar-client-error"
+                          role="alert"
+                          className="text-base font-medium text-destructive"
+                        >
+                          Elige o crea un cliente para guardar
+                        </p>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -660,7 +737,7 @@ const AnotarPageContent = () => {
 
                 {selectedClient && (
                   <div className="rounded-2xl border border-border/60 bg-muted/25 p-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="mb-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                       Cliente seleccionado
                     </p>
                     <div className="flex items-start gap-2 text-sm">
@@ -695,25 +772,35 @@ const AnotarPageContent = () => {
                 />
 
                 <div className="space-y-2">
-                  <Label htmlFor="anotar-total">Total</Label>
-                  <Input
-                    id="anotar-total"
-                    inputMode="decimal"
-                    type="text"
-                    value={totalInput}
-                    onChange={(event) => setTotalInput(event.target.value)}
-                    placeholder="0.00"
-                    className="h-12 rounded-xl text-base tabular-nums md:h-10 md:text-sm"
-                  />
+                  <Label htmlFor="anotar-total" className="text-base">
+                    Total
+                  </Label>
+                  <div className="relative">
+                    <span
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground"
+                      aria-hidden
+                    >
+                      $
+                    </span>
+                    <Input
+                      id="anotar-total"
+                      inputMode="decimal"
+                      type="text"
+                      value={totalInput}
+                      onChange={(event) => setTotalInput(event.target.value)}
+                      placeholder="0.00"
+                      className="h-12 rounded-xl pl-7 text-base tabular-nums"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
-                  <p className="text-sm font-medium text-foreground">Pagó</p>
+                  <p className="text-base font-medium text-foreground">¿Pagó?</p>
                   <div className="grid gap-2 sm:grid-cols-3">
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                        'flex min-h-12 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-base transition-colors',
                         paymentMode === 'paid'
                           ? 'border-primary/40 bg-primary/10 text-foreground'
                           : 'border-border bg-background hover:bg-muted/50',
@@ -721,16 +808,16 @@ const AnotarPageContent = () => {
                       onClick={() => setPaymentMode('paid')}
                     >
                       {paymentMode === 'paid' ? (
-                        <CircleCheck className="h-4 w-4 shrink-0" aria-hidden />
+                        <CircleCheck className="h-5 w-5 shrink-0" aria-hidden />
                       ) : (
-                        <Circle className="h-4 w-4 shrink-0" aria-hidden />
+                        <Circle className="h-5 w-5 shrink-0" aria-hidden />
                       )}
                       Pagado
                     </button>
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                        'flex min-h-12 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-base transition-colors',
                         paymentMode === 'partial'
                           ? 'border-primary/40 bg-primary/10 text-foreground'
                           : 'border-border bg-background hover:bg-muted/50',
@@ -738,16 +825,16 @@ const AnotarPageContent = () => {
                       onClick={() => setPaymentMode('partial')}
                     >
                       {paymentMode === 'partial' ? (
-                        <CircleCheck className="h-4 w-4 shrink-0" aria-hidden />
+                        <CircleCheck className="h-5 w-5 shrink-0" aria-hidden />
                       ) : (
-                        <Circle className="h-4 w-4 shrink-0" aria-hidden />
+                        <Circle className="h-5 w-5 shrink-0" aria-hidden />
                       )}
                       Parcial
                     </button>
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                        'flex min-h-12 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-base transition-colors',
                         paymentMode === 'pending'
                           ? 'border-primary/40 bg-primary/10 text-foreground'
                           : 'border-border bg-background hover:bg-muted/50',
@@ -755,9 +842,9 @@ const AnotarPageContent = () => {
                       onClick={() => setPaymentMode('pending')}
                     >
                       {paymentMode === 'pending' ? (
-                        <CircleCheck className="h-4 w-4 shrink-0" aria-hidden />
+                        <CircleCheck className="h-5 w-5 shrink-0" aria-hidden />
                       ) : (
-                        <Circle className="h-4 w-4 shrink-0" aria-hidden />
+                        <Circle className="h-5 w-5 shrink-0" aria-hidden />
                       )}
                       Pendiente
                     </button>
@@ -774,21 +861,29 @@ const AnotarPageContent = () => {
                     <div className="space-y-2">
                       <label
                         htmlFor="anotar-paid"
-                        className="text-xs text-muted-foreground"
+                        className="block text-base font-medium"
                       >
-                        Cuánto pagó el cliente
+                        ¿Cuánto pagó?
                       </label>
-                      <Input
-                        id="anotar-paid"
-                        inputMode="decimal"
-                        type="text"
-                        value={paidInput}
-                        onChange={(event) => setPaidInput(event.target.value)}
-                        placeholder="0.00"
-                        className="h-12 rounded-xl text-base tabular-nums md:h-10 md:text-sm"
-                      />
+                      <div className="relative">
+                        <span
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground"
+                          aria-hidden
+                        >
+                          $
+                        </span>
+                        <Input
+                          id="anotar-paid"
+                          inputMode="decimal"
+                          type="text"
+                          value={paidInput}
+                          onChange={(event) => setPaidInput(event.target.value)}
+                          placeholder="0.00"
+                          className="h-12 rounded-xl pl-7 text-base tabular-nums"
+                        />
+                      </div>
                       {paidExceedsTotal ? (
-                        <p className="text-xs text-destructive">
+                        <p className="text-sm text-destructive">
                           El monto pagado no puede ser mayor al total.
                         </p>
                       ) : null}
@@ -803,14 +898,14 @@ const AnotarPageContent = () => {
                 </div>
 
                 <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                     Más opciones
                   </p>
                   <Link
                     href="/tickets/create"
-                    className="mt-1 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    className="mt-1 inline-flex min-h-11 items-center text-base font-medium text-primary underline-offset-4 hover:underline"
                   >
-                    Creación completa (oficina)
+                    Ticket con varios servicios
                   </Link>
                 </div>
 
@@ -844,10 +939,10 @@ const AnotarPageContent = () => {
 
       <TripledMobileStickyActionBar>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">
+          <p className="truncate text-base font-medium">
             {selectedClient?.name ?? 'Selecciona un cliente'}
           </p>
-          <p className="text-xs tabular-nums text-muted-foreground">
+          <p className="text-sm tabular-nums text-muted-foreground">
             Total: <FormattedCurrency amount={totalAmount} />
             {' · '}
             Pagó: <FormattedCurrency amount={paidAmount} />
@@ -856,7 +951,10 @@ const AnotarPageContent = () => {
         <Button
           type="submit"
           form={ANOTAR_FORM_ID}
-          className="h-12 shrink-0 rounded-xl px-5 font-semibold"
+          className={cn(
+            'h-12 shrink-0 rounded-xl px-5 text-base font-semibold',
+            !selectedClient && 'opacity-60',
+          )}
           disabled={isSubmitting || paidExceedsTotal}
         >
           {isSubmitting ? (
@@ -873,7 +971,7 @@ const AnotarPageContent = () => {
 const AnotarPageFallback = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
-    <span className="sr-only">Cargando captura rápida</span>
+    <span className="sr-only">Cargando</span>
   </div>
 );
 

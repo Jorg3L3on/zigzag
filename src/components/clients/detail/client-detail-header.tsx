@@ -16,7 +16,7 @@ type ClientDetailHeaderProps = {
 
 const Detail = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="min-w-0">
-    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
       {label}
     </dt>
     <dd className="mt-0.5 text-base [overflow-wrap:anywhere]">{children}</dd>

@@ -31,7 +31,7 @@ Skills live under `.cursor/skills/` (`prd`, `to-prd`, `to-issues`, `implement-is
 
 ## Before you open a PR
 
-Run the same checks as CI:
+There is no GitHub CI for now; run these checks before opening a PR:
 
 ```bash
 npm run lint

@@ -126,7 +126,7 @@ export const createOperatorFleetColumns = ({
           <p className="text-sm font-medium text-destructive">
             {row.original.lastIncidentLabel ?? 'Incidente'}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {formatWhen(row.original.lastIncidentAt)}
           </p>
         </div>

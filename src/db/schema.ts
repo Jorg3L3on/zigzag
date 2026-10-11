@@ -139,6 +139,9 @@ export const user = pgTable(
     // (password change, role change, soft-delete). Compared against the value
     // embedded in the JWT during session validation.
     token_version: integer('token_version').notNull().default(0),
+    // Set when an admin or operator gives a temporary password (ZIG-I18-11): the
+    // person must choose their own before anything else is reachable.
+    must_change_password: boolean('must_change_password').notNull().default(false),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),

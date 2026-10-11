@@ -81,7 +81,7 @@ export const MaterialRows = ({
               </span>
               <span
                 className={cn(
-                  'block text-xs tabular-nums text-muted-foreground',
+                  'block text-caption tabular-nums text-muted-foreground',
                   compact ? '[overflow-wrap:anywhere]' : 'truncate',
                 )}
               >

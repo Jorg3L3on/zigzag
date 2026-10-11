@@ -398,7 +398,7 @@ export const PresupuestoView = ({
             </h2>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div className="min-w-0">
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                   Cliente
                 </dt>
                 <dd className="mt-0.5 font-medium [overflow-wrap:anywhere]">
@@ -415,7 +415,7 @@ export const PresupuestoView = ({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                   Vence
                 </dt>
                 <dd
@@ -511,7 +511,7 @@ export const PresupuestoView = ({
       {shareCta ? (
         <TripledMobileStickyActionBar>
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-caption text-muted-foreground">Total</p>
             <p className="truncate text-base font-semibold tabular-nums">
               {formatServiceCurrency(total)}
             </p>

@@ -53,12 +53,12 @@ export const TicketStatusFilter = ({
       <SelectTrigger
         id={id}
         className={statusTriggerClass(layout)}
-        aria-label="Filtrar por estado de cobro"
+        aria-label="Filtrar por pagado"
       >
-        <SelectValue placeholder="Estado de cobro" />
+        <SelectValue placeholder="¿Pagado?" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">Todos los estados de cobro</SelectItem>
+        <SelectItem value="all">Todos</SelectItem>
         <SelectItem value="due">Por cobrar (con saldo)</SelectItem>
         <SelectItem value="paid">{TICKET_PAYMENT_STATUS_LABEL.paid}</SelectItem>
         <SelectItem value="partial">
@@ -77,8 +77,8 @@ export const TicketStatusFilter = ({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
-        Estado de cobro
+      <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
+        ¿Pagado?
       </label>
       {field}
     </div>
@@ -107,13 +107,13 @@ export const TicketFinishedFilter = ({
       <SelectTrigger
         id={id}
         className={finishedTriggerClass(layout)}
-        aria-label="Filtrar por ticket finalizado"
+        aria-label="Filtrar por trabajo terminado"
       >
-        <SelectValue placeholder="Finalización" />
+        <SelectValue placeholder="¿Terminado?" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">Finalización (todas)</SelectItem>
-        <SelectItem value="yes">Finalizado</SelectItem>
+        <SelectItem value="all">Todos</SelectItem>
+        <SelectItem value="yes">Trabajo terminado</SelectItem>
         <SelectItem value="no">En proceso</SelectItem>
       </SelectContent>
     </Select>
@@ -125,8 +125,8 @@ export const TicketFinishedFilter = ({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="text-xs font-medium text-muted-foreground">
-        Finalización
+      <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
+        ¿Terminado?
       </label>
       {field}
     </div>
@@ -197,8 +197,8 @@ export const TicketDateRangeFilter = ({
 
   return (
     <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">
-        Rango de fechas
+      <span className="text-caption font-medium text-muted-foreground">
+        Fechas
       </span>
       {calendar}
     </div>

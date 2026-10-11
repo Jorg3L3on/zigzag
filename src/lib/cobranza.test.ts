@@ -6,6 +6,7 @@ import {
   filterCobranzaRows,
   getAgingBucket,
   getDaysOutstanding,
+  sortCobranzaRows,
   summarizeCobranzaRows,
   toCobranzaRow,
   type CobranzaTicketInput,
@@ -25,6 +26,8 @@ const baseTicket = (
   company_id: overrides.company_id ?? 1,
   document_kind: overrides.document_kind ?? 'ticket',
   client_id: overrides.client_id ?? null,
+  last_payment_at: overrides.last_payment_at ?? null,
+  services_summary: overrides.services_summary ?? null,
 });
 
 describe('cobranza helpers', () => {
@@ -66,37 +69,43 @@ describe('cobranza helpers', () => {
     });
   });
 
-  it('sorts pending before partial, then older, then larger saldo', () => {
-    const pendingOld = toCobranzaRow(
-      baseTicket({
-        id: 1,
-        total: 50,
-        paid: 0,
-        ticket_date: new Date('2026-01-01'),
-      }),
-      now,
-    )!;
-    const pendingNew = toCobranzaRow(
-      baseTicket({
-        id: 2,
-        total: 80,
-        paid: 0,
-        ticket_date: new Date('2026-01-20'),
-      }),
-      now,
-    )!;
-    const partial = toCobranzaRow(
-      baseTicket({
-        id: 3,
-        total: 200,
-        paid: 50,
-        ticket_date: new Date('2025-12-01'),
-      }),
-      now,
-    )!;
+  it('orders by days without payment, oldest first, then larger saldo', () => {
+    const row = (o: Partial<CobranzaTicketInput> & { id: number }) =>
+      toCobranzaRow(baseTicket(o), now)!;
+    const old = row({ id: 1, total: 50, ticket_date: new Date('2026-01-01') });
+    const newer = row({ id: 2, total: 80, ticket_date: new Date('2026-01-20') });
+    // Old work but a recent partial payment: fewer days without payment.
+    const recentlyPaid = row({
+      id: 3,
+      total: 200,
+      paid: 50,
+      ticket_date: new Date('2025-12-01'),
+      last_payment_at: new Date('2026-01-28'),
+    });
+    // Tie with `newer` on date: larger saldo goes first, then lower id.
+    const tieBig = row({ id: 4, total: 500, ticket_date: new Date('2026-01-20') });
+    const tieSameBalance = row({ id: 5, total: 500, ticket_date: new Date('2026-01-20') });
 
-    const sorted = [partial, pendingNew, pendingOld].sort(compareCobranzaUrgency);
-    expect(sorted.map((row) => row.id)).toEqual(['1', '2', '3']);
+    const sorted = [recentlyPaid, newer, tieSameBalance, old, tieBig].sort(
+      compareCobranzaUrgency,
+    );
+    expect(sorted.map((r) => r.id)).toEqual(['1', '4', '5', '2', '3']);
+    expect(recentlyPaid.daysOutstanding).toBe(4);
+    expect(old.daysOutstanding).toBe(31);
+  });
+
+  it('sortCobranzaRows supports saldo and recent orders', () => {
+    const rows = buildCobranzaRows(
+      [
+        baseTicket({ id: 1, total: 50, ticket_date: new Date('2026-01-01') }),
+        baseTicket({ id: 2, total: 900, ticket_date: new Date('2026-01-10') }),
+        baseTicket({ id: 3, total: 300, ticket_date: new Date('2026-01-25') }),
+      ],
+      now,
+    );
+    expect(sortCobranzaRows(rows, 'days').map((r) => r.id)).toEqual(['1', '2', '3']);
+    expect(sortCobranzaRows(rows, 'balance').map((r) => r.id)).toEqual(['2', '3', '1']);
+    expect(sortCobranzaRows(rows, 'recent').map((r) => r.id)).toEqual(['3', '2', '1']);
   });
 
   it('filters by status, aging, and client search', () => {

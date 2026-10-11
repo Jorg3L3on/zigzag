@@ -1,13 +1,15 @@
 'use client';
 
+import { ErrorText } from '@/components/error-text';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Check, Eye, EyeOff } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
 import { ZigZagMark } from '@/components/brand/zigzag-mark';
+import { LoginForgotPassword } from '@/components/login/login-forgot-password';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 import { getSafeAppRedirectPath } from '@/lib/login-redirect';
 import { rememberBrowserTimeZone } from '@/lib/time-greeting';
@@ -16,10 +18,13 @@ export function LoginForm({
   className,
   callbackUrl,
   sessionExpired = false,
+  supportWhatsapp,
   ...props
 }: React.ComponentPropsWithoutRef<'div'> & {
   callbackUrl?: string;
   sessionExpired?: boolean;
+  /** Support WhatsApp number for ¿Olvidaste tu contraseña? (hidden when unset). */
+  supportWhatsapp?: string | null;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -111,7 +116,7 @@ export function LoginForm({
                 </span>
               </div>
               <span
-                className="rounded border border-[color:var(--login-line)] px-2.5 py-1 font-[family-name:var(--font-login-mono)] text-[11px] tracking-[0.05em] text-[color:var(--login-ink-faint)]"
+                className="rounded border border-[color:var(--login-line)] px-2.5 py-1 font-[family-name:var(--font-login-mono)] text-caption tracking-[0.05em] text-[color:var(--login-ink-faint)]"
                 aria-hidden
               >
                 N.º 000001
@@ -121,7 +126,7 @@ export function LoginForm({
             <h1 className="mb-1.5 font-[family-name:var(--font-login-display)] text-[22px] font-semibold tracking-[-0.015em] text-[color:var(--login-ink)] sm:text-[25px]">
               Bienvenido a ZigZag
             </h1>
-            <p className="mb-[26px] text-[13.5px] leading-normal text-[color:var(--login-ink-muted)]">
+            <p className="mb-[26px] text-base leading-normal text-[color:var(--login-ink-muted)]">
               Ingresa tus datos para ver tus tickets de hoy.
             </p>
 
@@ -132,7 +137,7 @@ export function LoginForm({
                 className="mb-5 rounded-lg border border-[color:var(--login-line)] bg-[color:var(--login-field-bg)] p-3 text-sm text-[color:var(--login-ink)]"
               >
                 <p className="font-semibold">Sesión expirada</p>
-                <p className="mt-1 text-[13px] leading-normal text-[color:var(--login-ink-muted)]">
+                <p className="mt-1 text-caption leading-normal text-[color:var(--login-ink-muted)]">
                   Vuelve a iniciar sesión para continuar en ZigZag.
                 </p>
               </div>
@@ -147,7 +152,7 @@ export function LoginForm({
               <div className="field mb-5">
                 <label
                   htmlFor="email"
-                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
+                  className="mb-2 block text-sm font-medium text-[color:var(--login-ink-muted)]"
                 >
                   Correo electrónico
                 </label>
@@ -159,7 +164,7 @@ export function LoginForm({
                     autoComplete="email"
                     placeholder="m@ejemplo.com"
                     required
-                    className="w-full border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                    className="w-full border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-base text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -167,7 +172,7 @@ export function LoginForm({
               <div className="field mb-5">
                 <label
                   htmlFor="password"
-                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
+                  className="mb-2 block text-sm font-medium text-[color:var(--login-ink-muted)]"
                 >
                   Contraseña
                 </label>
@@ -179,12 +184,12 @@ export function LoginForm({
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
                       required
-                      className="w-full flex-1 border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                      className="w-full flex-1 border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-base text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
                     />
                     <button
                       type="button"
                       onClick={handleTogglePassword}
-                      className="mb-0.5 p-1.5 text-[color:var(--login-ink-faint)] transition-colors hover:text-[color:var(--login-ink)] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+                      className="mb-0.5 flex size-11 items-center justify-center text-[color:var(--login-ink-muted)] transition-colors hover:text-[color:var(--login-ink)] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
                       aria-label={
                         showPassword
                           ? 'Ocultar contraseña'
@@ -192,9 +197,9 @@ export function LoginForm({
                       }
                     >
                       {showPassword ? (
-                        <EyeOff className="size-[17px]" aria-hidden />
+                        <EyeOff className="size-5" aria-hidden />
                       ) : (
-                        <Eye className="size-[17px]" aria-hidden />
+                        <Eye className="size-5" aria-hidden />
                       )}
                     </button>
                   </div>
@@ -203,16 +208,25 @@ export function LoginForm({
 
               <label
                 htmlFor="remember"
-                className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] text-[color:var(--login-ink)]"
+                className="-ml-3 flex min-h-11 cursor-pointer items-center gap-1 text-[14px] text-[color:var(--login-ink)]"
               >
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                  className="size-5 shrink-0 accent-[color:var(--login-accent-blue)]"
-                />
+                {/* 44px tap area; the native box is invisible and the drawn one tracks it. */}
+                <span className="relative flex size-11 shrink-0 items-center justify-center">
+                  <input
+                    id="remember"
+                    name="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                    className="peer absolute inset-0 size-full cursor-pointer text-base opacity-0"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none flex size-5 items-center justify-center rounded border-2 border-[color:var(--login-ink-muted)] bg-[color:var(--login-field-bg)] peer-checked:border-[color:var(--login-accent-blue)] peer-checked:bg-[color:var(--login-accent-blue)] peer-focus-visible:ring-2 peer-focus-visible:ring-[color:var(--login-accent-blue)] peer-focus-visible:ring-offset-2 peer-checked:[&>svg]:opacity-100"
+                  >
+                    <Check className="size-3.5 text-white opacity-0" strokeWidth={3} />
+                  </span>
+                </span>
                 <span>
                   Mantener mi sesión en este dispositivo
                   <span className="block text-[12.5px] text-[color:var(--login-ink-muted)]">
@@ -227,7 +241,7 @@ export function LoginForm({
                   aria-live="assertive"
                   className="text-sm text-destructive"
                 >
-                  {error}
+                  <ErrorText message={error} />
                 </div>
               ) : null}
 
@@ -246,6 +260,13 @@ export function LoginForm({
                   ✓ &nbsp;VALIDADO
                 </span>
               </button>
+
+              <LoginForgotPassword
+                supportWhatsapp={supportWhatsapp}
+                getLogin={() =>
+                  (document.getElementById('email') as HTMLInputElement | null)?.value ?? ''
+                }
+              />
             </form>
           </div>
 

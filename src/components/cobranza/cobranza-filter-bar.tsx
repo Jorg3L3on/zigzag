@@ -48,23 +48,23 @@ const renderFilters = (
 ) => (
   <>
     <ButtonFilterGroup
-      label="Estado de cobro"
+      label="¿Pagado?"
       options={STATUS_OPTIONS}
       value={statusFilter}
       onChange={onStatusFilterChange}
       layout={layout}
       getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar estado de cobro: ${optionLabel.toLowerCase()}`
+        `Filtrar: ${optionLabel.toLowerCase()}`
       }
     />
     <ButtonFilterGroup
-      label="Antigüedad"
+      label="Días sin pagar"
       options={AGING_OPTIONS}
       value={agingFilter}
       onChange={onAgingFilterChange}
       layout={layout}
       getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar antigüedad: ${optionLabel.toLowerCase()}`
+        `Filtrar días sin pagar: ${optionLabel.toLowerCase()}`
       }
     />
   </>
@@ -85,11 +85,11 @@ export const CobranzaFilterBar = ({
   <ListFilterBarShell
     searchValue={searchValue}
     onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar por cliente o ID"
+    searchPlaceholder="Buscar por cliente o número de ticket"
     searchAriaLabel="Buscar en cobranza"
     searchClassName="h-11 pl-9"
     sheetFilterCount={sheetFilterCount}
-    sheetDescription="Estado de cobro y antigüedad del saldo."
+    sheetDescription="Pagado y días sin pagar."
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros de cobranza"

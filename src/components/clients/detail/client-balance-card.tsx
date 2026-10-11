@@ -18,7 +18,7 @@ export const ClientBalanceCard = ({ clientId, balance }: ClientBalanceCardProps)
       data-testid="client-balance"
       className="space-y-1 rounded-2xl border border-border/60 bg-card p-4"
     >
-      <p className="text-[13px] text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         {owes ? 'Saldo por cobrar' : 'Sin saldo pendiente'}
       </p>
       <MoneyFigure
@@ -30,7 +30,7 @@ export const ClientBalanceCard = ({ clientId, balance }: ClientBalanceCardProps)
       />
       {owes ? (
         <>
-          <p className="text-[13px] text-muted-foreground" data-testid="client-balance-count">
+          <p className="text-caption text-muted-foreground" data-testid="client-balance-count">
             {balance.dueTicketCount === 1
               ? 'En 1 ticket terminado'
               : `En ${balance.dueTicketCount} tickets terminados`}

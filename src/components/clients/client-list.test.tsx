@@ -82,9 +82,11 @@ const makeClient = (overrides = {}) =>
 
 const arrange = ({
   canWrite = true,
+  canAnotar = false,
   result = { success: true, data: [] },
 }: {
   canWrite?: boolean;
+  canAnotar?: boolean;
   result?: Awaited<ReturnType<typeof getClientsList>>;
 } = {}) => {
   mockUseCompany.mockReturnValue({
@@ -97,6 +99,7 @@ const arrange = ({
     loading: false,
     can: (permission?: string) =>
       !permission ||
+      (canAnotar && permission === 'tickets.write') ||
       (canWrite
         ? ['clients.read', 'clients.write'].includes(permission)
         : permission === 'clients.read'),
@@ -129,6 +132,36 @@ describe('ClientList', () => {
     jest.clearAllMocks();
     mockReadOfflineSnapshot.mockResolvedValue(null);
     mockWriteOfflineSnapshot.mockResolvedValue({} as never);
+  });
+
+  it('cards offer Llamar and Anotar trabajo, and delete only from the menu with a named confirm (ZIG-I18-14)', async () => {
+    const user = userEvent.setup();
+    arrange({ canAnotar: true, result: { success: true, data: [makeClient({ name: 'Sra. López' })] } });
+
+    render(<ClientList />);
+
+    await screen.findAllByText('Sra. López');
+    const call = screen.getByRole('link', { name: 'Llamar' });
+    expect(call).toHaveAttribute('href', expect.stringMatching(/^tel:/));
+    expect(screen.getByRole('link', { name: 'Anotar trabajo' })).toHaveAttribute(
+      'href',
+      '/anotar?clientId=10',
+    );
+    const menu = screen.getByRole('button', { name: 'Más acciones de Sra. López' });
+    await user.click(menu);
+    await user.click(await screen.findByRole('menuitem', { name: 'Eliminar cliente' }));
+    expect(await screen.findByText('¿Borrar a Sra. López?')).toBeInTheDocument();
+    expect(screen.queryByText('¿Estás seguro?')).not.toBeInTheDocument();
+  });
+
+  it('hides Llamar without a phone and Anotar trabajo without permission (ZIG-I18-14)', async () => {
+    arrange({ result: { success: true, data: [makeClient({ phone: null })] } });
+
+    render(<ClientList />);
+
+    await screen.findAllByText('Cliente Alfa');
+    expect(screen.queryByRole('link', { name: 'Llamar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Anotar trabajo' })).not.toBeInTheDocument();
   });
 
   it('shows a permission-aware first-use empty state for writers', async () => {

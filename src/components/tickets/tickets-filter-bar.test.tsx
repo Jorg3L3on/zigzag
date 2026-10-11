@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
 import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
@@ -49,7 +49,7 @@ describe('TicketsFilterBar', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: /abrir filtros \(2 activos\)/i }),
+      screen.getByRole('button', { name: /más filtros \(2 activos\)/i }),
     ).toBeInTheDocument();
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
   });
@@ -77,7 +77,17 @@ describe('TicketsFilterBar', () => {
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Con PDF')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /abrir filtros/i }));
+    await user.click(screen.getByRole('button', { name: /más filtros/i }));
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the phone sort beside Más filtros (ZIG-I18-9)', () => {
+    render(<TicketsFilterBar {...baseProps} />);
+
+    const controls = screen.getByTestId('list-mobile-controls');
+    expect(within(controls).getByRole('button', { name: /más filtros/i })).toBeInTheDocument();
+    expect(
+      within(controls).getByRole('combobox', { name: /ordenar lista de tickets/i }),
+    ).toHaveTextContent('Más recientes');
   });
 });

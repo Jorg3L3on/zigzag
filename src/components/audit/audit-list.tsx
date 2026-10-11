@@ -88,7 +88,7 @@ const AuditJsonBlock = ({
 }) => (
   <section className="space-y-2">
     <h4 className="text-sm font-medium">{title}</h4>
-    <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs">
+    <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-caption">
       {JSON.stringify(redactAuditDisplayValue(value ?? {}), null, 2)}
     </pre>
   </section>
@@ -573,7 +573,7 @@ export const AuditList = () => {
 
   const presetButtonClass = (active: boolean) =>
     cn(
-      'h-8 rounded-full px-3 text-xs',
+      'h-8 rounded-full px-3 text-caption',
       active && 'border-primary bg-primary/10 text-primary',
     );
 
@@ -611,7 +611,7 @@ export const AuditList = () => {
                 {sheetFilterCount > 0 ? (
                   <Badge
                     variant="secondary"
-                    className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-[10px] leading-none"
+                    className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-caption leading-none"
                   >
                     {sheetFilterCount > 9 ? '9+' : sheetFilterCount}
                   </Badge>
@@ -758,7 +758,7 @@ export const AuditList = () => {
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 text-xs"
+            className="h-8 text-caption"
             onClick={handleClearFilters}
             aria-label="Limpiar todos los filtros"
           >

@@ -31,7 +31,7 @@ export const ticketMatchesDateRange = (
 
 export const formatDateRangeLabel = (range: DateRange | undefined): string => {
   if (!range?.from) {
-    return 'Rango de fechas';
+    return 'Fechas';
   }
   if (!range.to) {
     return format(range.from, 'd MMM yyyy', { locale: es });
@@ -141,7 +141,7 @@ export const buildTicketFilterChips = (
     ? [
         {
           key: 'finished',
-          label: filters.finishedFilter === 'yes' ? 'Finalizados' : 'En proceso',
+          label: filters.finishedFilter === 'yes' ? 'Terminados' : 'En proceso',
         },
       ]
     : []),

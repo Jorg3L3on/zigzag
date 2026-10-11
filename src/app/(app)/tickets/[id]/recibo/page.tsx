@@ -66,7 +66,7 @@ export default async function TicketReciboPage({
       ticketId={ticketId}
       kind="recibo"
       title={`Recibo ${folio}`}
-      subtitle={`Finalizado · ${TICKET_PAYMENT_STATUS_LABEL[getTicketPaymentStatus(total, paid)]}`}
+      subtitle={`Trabajo terminado · ${TICKET_PAYMENT_STATUS_LABEL[getTicketPaymentStatus(total, paid)]}`}
       backHref={fromReview ? `/tickets/${ticketId}/listo` : `/tickets/${ticketId}`}
       backLabel={fromReview ? 'Volver al resumen del ticket' : 'Volver al ticket'}
       downloadFileName={buildTicketPdfFileName(ticket)}

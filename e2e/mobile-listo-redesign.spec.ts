@@ -72,11 +72,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByRole('button', { name: /Descargar PDF/ })).toBeVisible();
       await expectNoPageOverflow(page, 'listo');
 
-      // Nothing preselected; Finalizar waits; partial shows the balance in the sticky bar.
+      // Nothing preselected; Terminar waits; partial shows the balance in the sticky bar.
       for (const radio of await page.getByRole('radio').all()) {
         await expect(radio).toHaveAttribute('aria-checked', 'false');
       }
-      const finish = page.getByRole('button', { name: 'Finalizar y compartir' }).first();
+      const finish = page.getByRole('button', { name: 'Terminar y enviar' }).first();
       await expect(finish).toBeDisabled();
       await expect(page.getByTestId('review-sticky-amount').locator('xpath=preceding-sibling::p')).toHaveText('Total');
       await page.getByRole('radio', { name: 'Una parte' }).click();
@@ -85,7 +85,7 @@ for (const width of MOBILE_WIDTHS) {
         'Saldo pendiente',
       );
       await expectInsideViewport(page, page.getByTestId('review-sticky-amount'), 'sticky amount');
-      await expectInsideViewport(page, finish, 'Finalizar y compartir');
+      await expectInsideViewport(page, finish, 'Terminar y enviar');
 
       // Reminders are inline: tick the catalog line and finalize.
       const reminders = page.getByTestId('listo-schedules');
@@ -111,7 +111,7 @@ for (const width of MOBILE_WIDTHS) {
           { timeout: 60_000 },
         )
         .toBe(true);
-      await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
+      await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
         timeout: 60_000,
       });
 

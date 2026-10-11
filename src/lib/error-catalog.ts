@@ -527,6 +527,13 @@ export const ERROR_CATALOG = {
     message: 'Esta es la única persona que puede gestionar el equipo. Da ese permiso a alguien más antes de quitárselo o desactivarla.',
     type: 'validation',
   },
+  US008: {
+    code: 'US008',
+    module: 'users',
+    title: 'No puedes darte una contraseña temporal',
+    message: 'Para cambiar tu contraseña usa Mi cuenta. Si la olvidaste, pide a otra persona administradora que lo haga.',
+    type: 'validation',
+  },
 } as const satisfies Record<string, ErrorCatalogEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

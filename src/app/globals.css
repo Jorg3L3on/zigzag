@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @config "../../tailwind.config.mjs";
 
+/* One caption size for every label, hint, error and meta line (ZIG-I18-5).
+   Tailwind's 12px size stays only on decorative badges. */
+@theme {
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.25rem;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -809,4 +816,9 @@ html[data-theme-vt='circle-blur']::view-transition-new(root) {
     clip-path: circle(150% at var(--theme-vt-origin, 50% 50%));
     filter: blur(0);
   }
+}
+
+/* Texto grande (ZIG-I18-15): rem-based sizes scale from this root. */
+html[data-text-size='large'] {
+  font-size: 18px;
 }

@@ -93,7 +93,7 @@ const TeamPasswordFields = ({ control }: { control: Control<MemberValues> }) => 
         </FormItem>
       )}
     />
-    <p className="text-xs text-muted-foreground">
+    <p className="text-caption text-muted-foreground">
       Compártela con la persona por un medio seguro; podrá cambiarla en Mi cuenta.
     </p>
   </div>

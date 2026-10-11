@@ -49,6 +49,13 @@ export class AuthorizationError extends AppError {
   }
 }
 
+/** The session is valid but the user must replace a temporary password first (ZIG-I18-11). */
+export class PasswordChangeRequiredError extends AuthorizationError {
+  constructor() {
+    super('Password change required');
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(resource: string) {
     super(`${resource} not found`, 404);

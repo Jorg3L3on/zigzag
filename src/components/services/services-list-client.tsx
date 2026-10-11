@@ -376,13 +376,13 @@ export function ServicesListClient() {
                   <div className="flex items-start justify-between gap-3">
                     <dl className="min-w-0 space-y-2">
                       <div>
-                        <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                           Nombre
                         </dt>
                         <dd className="font-medium">{service.name}</dd>
                       </div>
                       <div>
-                        <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                           Descripción
                         </dt>
                         <dd className="line-clamp-2 text-sm text-muted-foreground">
@@ -390,7 +390,7 @@ export function ServicesListClient() {
                         </dd>
                         {serviceMaterialCount(service) > 0 ? (
                           <dd
-                            className="mt-1 text-xs text-muted-foreground"
+                            className="mt-1 text-caption text-muted-foreground"
                             data-testid="service-card-materials"
                           >
                             {formatMaterialCount(serviceMaterialCount(service))}
@@ -398,7 +398,7 @@ export function ServicesListClient() {
                         ) : null}
                       </div>
                       <div>
-                        <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                           Precio
                         </dt>
                         <dd className="font-semibold tabular-nums">
@@ -407,7 +407,7 @@ export function ServicesListClient() {
                       </div>
                     </dl>
                     <span
-                      className={`inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
+                      className={`inline-flex shrink-0 rounded-full px-2 py-1 text-caption font-medium ${
                         service.deleted_at
                           ? 'bg-destructive/10 text-destructive'
                           : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'

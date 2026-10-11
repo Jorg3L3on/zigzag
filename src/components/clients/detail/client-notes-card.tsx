@@ -63,7 +63,7 @@ export const ClientNotesCard = ({
             className="min-h-28 rounded-xl text-base"
           />
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs tabular-nums text-muted-foreground">
+            <span className="text-caption tabular-nums text-muted-foreground">
               {value.length}/{CLIENT_NOTES_MAX_LENGTH}
             </span>
             <Button

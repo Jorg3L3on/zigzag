@@ -38,6 +38,8 @@ export const GOVERNANCE_EVENT_TYPES = [
   'permission_removed',
   'export_generated',
   'offboarded',
+  'password_reset',
+  'password_changed',
 ] as const;
 
 export type GovernanceEventType = (typeof GOVERNANCE_EVENT_TYPES)[number];

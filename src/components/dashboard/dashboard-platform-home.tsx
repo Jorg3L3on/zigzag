@@ -76,7 +76,7 @@ export const DashboardPlatformHome = () => {
                   <Icon className="h-4 w-4" aria-hidden />
                 </div>
                 <h3 className="text-sm font-medium">{item.title}</h3>
-                <p className="mt-1 flex-1 text-xs text-muted-foreground">
+                <p className="mt-1 flex-1 text-caption text-muted-foreground">
                   {item.description}
                 </p>
                 <Button

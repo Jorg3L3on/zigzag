@@ -179,7 +179,7 @@ export function CompaniesList({
     (companyRow: Company) => {
       if (companyRow.is_system) {
         return (
-          <Badge variant="outline" className="gap-1 text-xs">
+          <Badge variant="outline" className="gap-1 text-caption">
             <Globe2 className="h-3 w-3" />
             Sistema
           </Badge>
@@ -187,13 +187,13 @@ export function CompaniesList({
       }
       if (systemCompanyId === companyRow.id) {
         return (
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-caption">
             Actual
           </Badge>
         );
       }
       return (
-        <span className="text-xs text-muted-foreground">&nbsp;</span>
+        <span className="text-caption text-muted-foreground">&nbsp;</span>
       );
     },
     [systemCompanyId],

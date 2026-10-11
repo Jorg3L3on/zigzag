@@ -80,7 +80,7 @@ export const FieldJobCard = ({
               <TicketPaymentBadge total={job.total} paid={job.paid} />
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             <span className="font-mono tabular-nums">#{displayId}</span>
             {job.ticketDate ? (
               <>
@@ -96,12 +96,12 @@ export const FieldJobCard = ({
             ) : null}
           </p>
           {job.servicesSummary || job.workNotesSummary ? (
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-caption text-muted-foreground">
               {job.servicesSummary || job.workNotesSummary}
             </p>
           ) : null}
           {job.clientTel ? (
-            <p className="text-xs tabular-nums text-muted-foreground">
+            <p className="text-caption tabular-nums text-muted-foreground">
               {job.clientTel}
             </p>
           ) : null}

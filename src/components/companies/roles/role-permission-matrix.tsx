@@ -50,7 +50,7 @@ export const RolePermissionMatrix = ({
   <fieldset className="space-y-2" disabled={disabled}>
     <legend className="pb-1 text-sm font-medium">Permisos</legend>
     <div className="overflow-hidden rounded-xl border">
-      <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem] items-center gap-x-1 border-b bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem] items-center gap-x-1 border-b bg-muted/40 px-3 py-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
         <span>Módulo</span>
         <span className="text-center">Ver</span>
         <span className="text-center">Editar</span>
@@ -67,7 +67,7 @@ export const RolePermissionMatrix = ({
               <span className="flex min-w-0 flex-col py-1">
                 <span className="text-sm font-semibold">{matrixModule.label}</span>
                 {matrixModule.hint ? (
-                  <span className="text-xs text-muted-foreground">{matrixModule.hint}</span>
+                  <span className="text-caption text-muted-foreground">{matrixModule.hint}</span>
                 ) : null}
               </span>
               {matrixModule.read ? (
@@ -103,7 +103,7 @@ export const RolePermissionMatrix = ({
                       onChange(setMatrixCell(value, matrixModule.key, 'write', checked))
                     }
                   />
-                  <span className="text-xs text-muted-foreground" aria-hidden>
+                  <span className="text-caption text-muted-foreground" aria-hidden>
                     {matrixModule.writeLabel}
                   </span>
                 </span>
@@ -113,7 +113,7 @@ export const RolePermissionMatrix = ({
         })}
       </ul>
     </div>
-    <p className="text-xs text-muted-foreground">
+    <p className="text-caption text-muted-foreground">
       Editar incluye Ver. Los cambios aplican en la siguiente acción de cada persona.
     </p>
   </fieldset>

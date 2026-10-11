@@ -1,11 +1,12 @@
 'use client';
 
-import { Phone, Share2, Wallet, Loader2 } from 'lucide-react';
+import { MessageCircle, Phone, Wallet } from 'lucide-react';
 
 import { useTicketCollect } from '@/components/tickets/detail/ticket-detail-collect-context';
-import { useReceiptShare } from '@/components/tickets/use-receipt-share';
+import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
+import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 import { canCollectTicketPayment, canDownloadTicketInvoice } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
 
@@ -18,17 +19,17 @@ type TicketDetailQuickActionsProps = {
   paid: number | null;
   clientName: string | null;
   clientTel: string | null;
-  downloadFileName: string;
   className?: string;
 };
 
 const ACTION_CLASS =
-  'flex h-[72px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-1 text-[13px] text-foreground outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
+  'flex h-[72px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-1 text-caption text-foreground outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
 
 /**
- * Cobrar / Compartir recibo / Llamar (ZIG-I13-4). Cobrar opens the Registrar
- * pago sheet; Compartir recibo needs a finalized ticket; Llamar is a tel: link
- * and is hidden without a phone.
+ * Cobrar / WhatsApp / Llamar (ZIG-I13-4, ZIG-I18-16). Cobrar opens the Registrar
+ * pago sheet; WhatsApp opens wa.me with the recibo text; Llamar is a tel: link.
+ * The last two are hidden without a phone. Compartir recibo lives only in the
+ * sticky bar and the header, so it shows once.
  */
 export const TicketDetailQuickActions = ({
   ticketId,
@@ -38,24 +39,26 @@ export const TicketDetailQuickActions = ({
   paid,
   clientName,
   clientTel,
-  downloadFileName,
   className,
 }: TicketDetailQuickActionsProps) => {
   const { can } = usePermissions();
   const collect = useTicketCollect();
-  const { share, sharing } = useReceiptShare({
-    ticketId: String(ticketId),
-    folio,
-    downloadFileName,
-    clientName,
-    clientTel,
-    total: total ?? 0,
-  });
+  const { selectedCompany } = useCompany();
 
   const phone = clientTel?.trim() || null;
   const showCobrar = finished && canCollectTicketPayment(can) && getTicketBalanceDue(total, paid) > 0;
-  const showShare = finished && canDownloadTicketInvoice(can);
-  const count = Number(showCobrar) + Number(showShare) + Number(Boolean(phone));
+  const whatsApp = finished && canDownloadTicketInvoice(can)
+    ? buildWhatsAppReceiptShare({
+        phone,
+        clientName,
+        ticketId,
+        folio,
+        total: total ?? 0,
+        paid: paid ?? 0,
+        companyName: selectedCompany?.name,
+      })
+    : null;
+  const count = Number(showCobrar) + Number(Boolean(whatsApp)) + Number(Boolean(phone));
   if (count === 0) return null;
 
   return (
@@ -73,20 +76,16 @@ export const TicketDetailQuickActions = ({
           Cobrar
         </button>
       ) : null}
-      {showShare ? (
-        <button
-          type="button"
+      {whatsApp ? (
+        <a
+          href={whatsApp.href}
+          target="_blank"
+          rel="noopener noreferrer"
           className={ACTION_CLASS}
-          disabled={sharing}
-          onClick={() => void share(paid ?? 0)}
         >
-          {sharing ? (
-            <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-          ) : (
-            <Share2 className="h-5 w-5" aria-hidden />
-          )}
-          Compartir recibo
-        </button>
+          <MessageCircle className="h-5 w-5" aria-hidden />
+          WhatsApp
+        </a>
       ) : null}
       {phone ? (
         <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className={ACTION_CLASS}>

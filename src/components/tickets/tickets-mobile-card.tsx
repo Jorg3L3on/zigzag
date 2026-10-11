@@ -7,7 +7,6 @@ import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { TripledMobileRecordCard } from '@/components/tripled';
 import { formatListDate } from '@/lib/format-list-date';
-import { formatPhoneDisplay } from '@/lib/phone-links';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import {
   getTicketBalanceDue,
@@ -29,16 +28,17 @@ type TicketsMobileCardProps = {
 
 /** How a card names the payment state (same words as the detail's pill). */
 const CARD_STATUS_LABEL: Record<TicketPaymentStatus, string> = {
-  paid: 'Saldado',
+  paid: 'Pagado',
   partial: 'Pago parcial',
-  pending: 'Sin pagos',
+  pending: 'Pendiente de pago',
 };
 
 /**
- * Compact ticket card (ZIG-I13-7): the name in up to two lines with the folio,
- * one meta line `status · phone · date`, a progress bar once something is paid,
+ * Compact ticket card (ZIG-I13-7): the name in up to two lines with the ticket number,
+ * the work done (one line), one meta line `status · date`
+ * (the phone lives in ⋯ as Llamar, so a tap on the card never dials), a progress bar once something is paid,
  * and Pagado / Saldo that wrap instead of truncating. The whole card opens the
- * ticket; ⋯ keeps Registrar pago / Descargar / Eliminar.
+ * ticket; ⋯ keeps Cobrar / Descargar / Eliminar.
  */
 export const TicketsMobileCard = ({
   ticket,
@@ -54,7 +54,6 @@ export const TicketsMobileCard = ({
   const paidAmount = ticket.paid ?? 0;
   const balance = getTicketBalanceDue(ticket.total, ticket.paid);
   const partial = status === 'partial';
-  const phone = formatPhoneDisplay(ticket.client_tel);
   const dateLabel = formatListDate(ticket.ticket_date);
 
   const handleNavigate = () => {
@@ -96,7 +95,7 @@ export const TicketsMobileCard = ({
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <span className="pt-1.5 font-mono text-xs tabular-nums text-muted-foreground">
+          <span className="pt-1.5 font-mono text-caption tabular-nums text-muted-foreground">
             {formatDocumentFolio(ticket)}
           </span>
           <TicketRowActions
@@ -110,8 +109,17 @@ export const TicketsMobileCard = ({
         </div>
       </div>
 
+      {ticket.services_summary ? (
+        <p
+          className="line-clamp-1 text-sm text-foreground/80"
+          data-testid="ticket-card-services"
+        >
+          {ticket.services_summary}
+        </p>
+      ) : null}
+
       <p
-        className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted-foreground"
+        className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-caption text-muted-foreground"
         data-testid="ticket-card-meta"
       >
         <span
@@ -119,13 +127,6 @@ export const TicketsMobileCard = ({
           aria-hidden
         />
         <span>{CARD_STATUS_LABEL[status]}</span>
-        {phone ? (
-          <>
-            <span aria-hidden>·</span>
-            {/* Plain text: a tap near the middle of the card must open the ticket, not dial. */}
-            <span className="tabular-nums">{phone}</span>
-          </>
-        ) : null}
         {dateLabel ? (
           <>
             <span aria-hidden>·</span>
@@ -143,7 +144,7 @@ export const TicketsMobileCard = ({
       ) : null}
 
       <div
-        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[13px] tabular-nums"
+        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-caption tabular-nums"
         data-testid="ticket-payment-summary"
         data-payment-status={status}
       >

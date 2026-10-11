@@ -70,7 +70,7 @@ const Row = ({
     <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
         <p className="font-medium [overflow-wrap:anywhere]">{title}</p>
-        <p className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">{meta}</p>
+        <p className="text-caption text-muted-foreground [overflow-wrap:anywhere]">{meta}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">{right}</div>
     </div>

@@ -212,7 +212,7 @@ export const NotificationBell = () => {
         >
           <Bell className="size-5" aria-hidden data-icon="inline-start"/>
           {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-caption font-semibold leading-none text-white">
               {badgeLabel}
             </span>
           ) : null}
@@ -226,7 +226,7 @@ export const NotificationBell = () => {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 gap-1 text-xs"
+              className="h-8 gap-1 text-caption"
               onClick={handleMarkAll}
             >
               <CheckCheck className="size-3.5" aria-hidden data-icon="inline-start"/>
@@ -263,11 +263,11 @@ export const NotificationBell = () => {
                         {row.title}
                       </p>
                       {row.body ? (
-                        <p className="truncate text-xs text-muted-foreground">
+                        <p className="truncate text-caption text-muted-foreground">
                           {row.body}
                         </p>
                       ) : null}
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         <FormattedDate date={row.created_at} />
                       </p>
                     </div>

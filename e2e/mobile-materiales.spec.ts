@@ -99,7 +99,7 @@ test.describe('Materiales accessibility @375px (no save)', () => {
     const step = page.getByRole('dialog', { name: 'Agregar material' });
     await expect(step).toBeVisible();
     await expectNoSeriousViolations(page);
-    await step.getByRole('radio', { name: 'Nuevo' }).click();
+    await step.getByRole('radio', { name: 'Escribir' }).click();
     await page.waitForTimeout(300);
     await expectNoSeriousViolations(page);
   });
@@ -174,7 +174,7 @@ test.describe('Materiales (mobile)', () => {
     await sheet.getByRole('button', { name: `Quitar ${tube}` }).click();
     await sheet.getByRole('button', { name: 'Agregar material' }).click();
     const step = page.getByRole('dialog', { name: 'Agregar material' });
-    await step.getByRole('radio', { name: 'Nuevo' }).click();
+    await step.getByRole('radio', { name: 'Escribir' }).click();
     await step.getByLabel('Nombre del material').fill(inline);
     await step.getByRole('button', { name: 'pza', exact: true }).click();
     await step.getByLabel(/^Precio/).fill('320');
@@ -182,11 +182,11 @@ test.describe('Materiales (mobile)', () => {
     await expect(sheet.getByTestId('composer-line-breakdown')).toHaveText(
       `Servicio ${money(3500)} Materiales ${money(890)}`,
     );
-    await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+    await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
     await expect(sheet).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId('composer-total')).toHaveText(money(4390));
     await expectNoHorizontalOverflow(page);
-    await expectInsideViewport(page, page.getByTestId('mobile-bottom-tab-bar'));
+    await expectInsideViewport(page, page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first());
     await page.setViewportSize({ width: 393, height: 851 });
 
     const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
@@ -223,7 +223,7 @@ test.describe('Materiales (mobile)', () => {
     const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await expect(editSheet.getByText(gas)).toBeVisible();
     await editSheet.getByRole('button', { name: `Quitar ${inline}` }).click();
-    await editSheet.getByRole('button', { name: 'Guardar línea' }).click();
+    await editSheet.getByRole('button', { name: 'Agregar al ticket' }).click();
     await expect(editSheet).toBeHidden({ timeout: 10_000 });
     // 3500 + 570
     await expect(page.getByTestId('composer-total')).toHaveText(money(4070));

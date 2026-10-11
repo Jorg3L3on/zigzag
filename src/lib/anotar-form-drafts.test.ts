@@ -6,6 +6,7 @@ import { describe, expect, it, beforeEach } from '@jest/globals';
 import {
   buildAnotarDraftStorageKey,
   clearAnotarFormDraft,
+  isMeaningfulAnotarDraft,
   readAnotarFormDraft,
   writeAnotarFormDraft,
 } from '@/lib/anotar-form-drafts';
@@ -35,5 +36,24 @@ describe('anotar-form-drafts', () => {
 
     clearAnotarFormDraft(key);
     expect(readAnotarFormDraft(key)).toBeNull();
+  });
+});
+
+describe('isMeaningfulAnotarDraft (ZIG-I18-4)', () => {
+  it('is false for an empty draft and true once something is typed or chosen', () => {
+    expect(isMeaningfulAnotarDraft(null)).toBe(false);
+    expect(isMeaningfulAnotarDraft({ paymentMode: 'paid', totalInput: ' ' })).toBe(false);
+    expect(isMeaningfulAnotarDraft({ totalInput: '250' })).toBe(true);
+    expect(isMeaningfulAnotarDraft({ work_notes: 'Cambio de compresor' })).toBe(true);
+    expect(isMeaningfulAnotarDraft({ client_id: 4 })).toBe(true);
+  });
+
+  it('keeps total, paid and mode changes in the stored draft', () => {
+    writeAnotarFormDraft('k', { totalInput: '300', paidInput: '100', paymentMode: 'partial' });
+    expect(readAnotarFormDraft('k')).toMatchObject({
+      totalInput: '300',
+      paidInput: '100',
+      paymentMode: 'partial',
+    });
   });
 });

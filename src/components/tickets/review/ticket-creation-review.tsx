@@ -70,8 +70,8 @@ const SECTION_CLASS = GLASS_CARD_CLASS;
 /**
  * Creation review (ZIG-I2-5, redesigned in ZIG-I13-3), shown right after
  * Guardar ticket: the Total with a three-line summary, how the client paid, the
- * reminders to schedule, and the recibo as links. One primary CTA: Finalizar y
- * compartir (or Compartir recibo once finished).
+ * reminders to schedule, and the recibo as secondary buttons. One primary CTA:
+ * Terminar y enviar (or Enviar por WhatsApp once finished, ZIG-I18-16).
  */
 export const TicketCreationReview = ({
   ticketId,
@@ -242,7 +242,7 @@ export const TicketCreationReview = ({
         ) : (
           <>
             <Share2 className="h-4 w-4" aria-hidden />
-            Finalizar y compartir
+            Terminar y enviar
           </>
         )}
       </ActionSwap>
@@ -263,7 +263,7 @@ export const TicketCreationReview = ({
         ) : (
           <>
             <Share2 className="h-4 w-4" aria-hidden />
-            Compartir recibo
+            Enviar por WhatsApp
           </>
         )}
       </ActionSwap>
@@ -320,21 +320,21 @@ export const TicketCreationReview = ({
         {canInvoice ? (
           <BlurFade delay={0.15}>
             <div
-              className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm"
+              className="grid grid-cols-2 gap-2"
               data-testid="review-recibo-links"
             >
-              <Link
-                href={`/tickets/${ticketId}/recibo?from=listo`}
-                className="inline-flex min-h-11 items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline"
-              >
-                <FileText className="h-4 w-4" aria-hidden />
-                Abrir PDF
-              </Link>
-              <button
+              <Button asChild variant="outline" className="h-12 min-w-0 rounded-xl text-base">
+                <Link href={`/tickets/${ticketId}/recibo?from=listo`}>
+                  <FileText className="h-4 w-4" aria-hidden />
+                  Abrir PDF
+                </Link>
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                className="h-12 min-w-0 rounded-xl text-base"
                 disabled={isDownloading}
                 onClick={() => void handleDownload()}
-                className="inline-flex min-h-11 items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
               >
                 {isDownloading ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -342,7 +342,7 @@ export const TicketCreationReview = ({
                   <Download className="h-4 w-4" aria-hidden />
                 )}
                 Descargar PDF
-              </button>
+              </Button>
             </div>
           </BlurFade>
         ) : null}
@@ -353,7 +353,7 @@ export const TicketCreationReview = ({
               href={`/tickets/${ticketId}`}
               className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
-              Guardar sin finalizar
+              Guardar sin terminar
             </Link>
           ) : (
             <Link
@@ -371,7 +371,7 @@ export const TicketCreationReview = ({
             href={`/tickets/${ticketId}`}
             className="inline-flex min-h-11 items-center font-medium text-muted-foreground underline-offset-4 hover:underline"
           >
-            {finished ? 'Ver ticket' : 'Guardar sin finalizar'}
+            {finished ? 'Ver ticket' : 'Guardar sin terminar'}
           </Link>
           {finished ? (
             <Link
@@ -389,7 +389,7 @@ export const TicketCreationReview = ({
           <div className="min-w-0 flex-1">
             <p
               className={cn(
-                'text-xs',
+                'text-caption',
                 showsBalance ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
               )}
             >
@@ -397,7 +397,7 @@ export const TicketCreationReview = ({
             </p>
             <MoneyFigure
               amount={finished ? paid : showsBalance ? subtractMoney(total, chosenPaid) : total}
-              // md, not lg: next to Finalizar y compartir a 7-figure balance would wrap mid-number at 375px.
+              // md, not lg: next to Terminar y enviar a 7-figure balance would wrap mid-number at 375px.
               size="md"
               className="block text-[17px] leading-tight"
               data-testid="review-sticky-amount"

@@ -47,7 +47,7 @@ export const CompanyReadinessBanner = ({
         <span className="min-w-0 flex-1 truncate font-medium">
           {readinessHeadline(assessment)}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
+        <span className="shrink-0 text-caption text-muted-foreground">
           {expanded ? 'Ocultar' : 'Detalle'}
         </span>
         <ChevronDown
