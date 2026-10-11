@@ -203,7 +203,7 @@ describe('renderReceiptPdf — recibo', () => {
     expect(fontOf('$225.00 MXN')).toBe('PlexMono-Medium');
   });
 
-  it('prints Pagado with the paid-on date when settled', () => {
+  it('prints Pagado with the paid-on date and no Saldo por pagar when settled', () => {
     const { pages } = render(
       'recibo-paid',
       recibo({
@@ -213,8 +213,9 @@ describe('renderReceiptPdf — recibo', () => {
         bigFigure: { label: 'Saldo por pagar', value: 0 },
       }),
     );
-    expectInOrder(pages[0], ['Pagado el 14 / 10 / 2026', 'PAGADO', 'Saldo por pagar', '$0.00 MXN']);
-    expect(pageText(pages[0])).not.toContain('Saldo pendiente');
+    expectInOrder(pages[0], ['Pagado el 14 / 10 / 2026', 'PAGADO', 'Total', '$325.00 MXN', 'Pagado', '$325.00 MXN', 'TELÉFONO']);
+    // A fully paid recibo ends its totals card at Pagado (Jorge, 2026-10-11).
+    expect(pageText(pages[0])).not.toMatch(/Saldo pendiente|Saldo por pagar/);
   });
 
   it('adds the Ajuste row only when there is an adjustment', () => {

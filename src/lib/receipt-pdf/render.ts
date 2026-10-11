@@ -231,7 +231,8 @@ type NoteLine = { text: string | null; height: number };
 type TotalsLayout = {
   /** Value rows; `thin` is the #d6d6d1 rule between Materiales and Total. */
   rows: Array<{ label: string; value: string } | 'thin'>;
-  due: { label: string; value: string; stacked: boolean };
+  /** Null on a fully paid recibo: the card ends at Pagado (Jorge, 2026-10-11). */
+  due: { label: string; value: string; stacked: boolean } | null;
   height: number;
 };
 
@@ -590,18 +591,24 @@ export function renderReceiptPdf(
   const dueHeight = dueStacked
     ? normalLineHeight(TOTALS.dueLabelSize) + normalLineHeight(dueValueSize)
     : normalLineHeight(TOTALS.dueValueSize);
+  const showDue = payload.recibo?.statusLabel !== 'Pagado';
+  const rowsHeight =
+    totalsRows.reduce((sum, row) => sum + (row === 'thin' ? THIN_SEPARATOR : TOTALS_LINE), 0) +
+    (totalsRows.length - 1) * TOTALS.rowGap;
   const totals: TotalsLayout = {
     rows: totalsRows,
-    due: { label: payload.bigFigure.label, value: dueValue, stacked: dueStacked },
+    due: showDue ? { label: payload.bigFigure.label, value: dueValue, stacked: dueStacked } : null,
     height:
       TOTALS.paddingY * 2 +
-      totalsRows.reduce((sum, row) => sum + (row === 'thin' ? THIN_SEPARATOR : TOTALS_LINE), 0) +
-      totalsRows.length * TOTALS.rowGap +
-      TOTALS.separatorMarginTop +
-      1 +
-      TOTALS.separatorMarginBottom +
-      TOTALS.rowGap +
-      dueHeight,
+      rowsHeight +
+      (showDue
+        ? TOTALS.rowGap +
+          TOTALS.separatorMarginTop +
+          1 +
+          TOTALS.separatorMarginBottom +
+          TOTALS.rowGap +
+          dueHeight
+        : 0),
   };
 
   // ---------- measure: footer (bottom-anchored) ----------
@@ -974,6 +981,7 @@ export function renderReceiptPdf(
       }
       rowTop += TOTALS_LINE + TOTALS.rowGap;
     }
+    if (!totals.due) return;
     const separatorTop = rowTop + TOTALS.separatorMarginTop;
     pen.fillRect(innerLeft, separatorTop, panelInner, 1, COLORS.ink);
     const dueTop = separatorTop + 1 + TOTALS.separatorMarginBottom + TOTALS.rowGap;
