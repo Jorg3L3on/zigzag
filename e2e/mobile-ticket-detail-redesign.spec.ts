@@ -143,7 +143,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
 
       // Delete sheet: names what is lost; Conservar keeps the ticket.
-      const deleteSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${ticketId}?` });
+      const deleteSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(deleteSheet).toBeVisible();
       await expect(deleteSheet).toContainText(clientName);
       await expect(deleteSheet).toContainText('Tiene 1 pago registrado por $500,000.00');

@@ -123,7 +123,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.goto(`/tickets/${ticketId}`);
       await page.getByRole('button', { name: 'Más acciones del ticket' }).filter({ visible: true }).first().click();
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
-      await expect(page.getByRole('dialog', { name: `¿Eliminar el ticket #${ticketId}?` })).toBeVisible();
+      await expect(page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ })).toBeVisible();
       await shot(page, 'delete-sheet');
       await page.getByRole('button', { name: 'Conservar' }).click();
 

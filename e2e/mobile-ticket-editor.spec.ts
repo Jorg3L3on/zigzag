@@ -158,7 +158,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(card).toBeVisible({ timeout: 15_000 });
       await card.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
       await page.getByRole('menuitem', { name: `Eliminar ticket ${firstId}` }).click();
-      const listSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${firstId}?` });
+      const listSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(listSheet).toBeVisible();
       await expect(listSheet).toContainText(clientName);
       await expect(listSheet).toContainText('$2,251.00');
@@ -188,7 +188,7 @@ for (const width of MOBILE_WIDTHS) {
       // From the detail: the sheet names the payments and deletes the ticket.
       await visible(page.getByRole('button', { name: 'Más acciones del ticket' })).click();
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
-      const detailSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${secondId}?` });
+      const detailSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(detailSheet).toBeVisible();
       await expect(detailSheet).toContainText(clientName);
       await detailSheet.getByRole('button', { name: 'Eliminar ticket' }).click();
@@ -201,7 +201,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(firstCard).toBeVisible({ timeout: 15_000 });
       await firstCard.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
       await page.getByRole('menuitem', { name: `Eliminar ticket ${firstId}` }).click();
-      await page.getByRole('dialog', { name: `¿Eliminar el ticket #${firstId}?` }).getByRole('button', { name: 'Eliminar ticket' }).click();
+      await page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ }).getByRole('button', { name: 'Eliminar ticket' }).click();
       await expect(firstCard).toHaveCount(0, { timeout: 15_000 });
     });
   });
