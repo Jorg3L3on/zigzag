@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -7,7 +7,10 @@ import {
 } from './helpers/auth';
 import {
   addComposerLine,
+  addCustomComposerLine,
   createClientInComposer,
+  expectInsideViewport,
+  expectNoPageOverflow,
   openComposer,
 } from './helpers/ticket-composer';
 
@@ -27,56 +30,6 @@ const LONG_NAMES = [
   'Revisión de fugas en línea de succión',
   'Limpieza de condensadores azotea',
 ];
-
-const addCustomLine = async (
-  page: Page,
-  { name, quantity, price, materials = 0 }: { name: string; quantity: string; price: string; materials?: number },
-) => {
-  await page.getByRole('button', { name: 'Agregar servicio' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
-  await expect(sheet).toBeVisible();
-  await sheet.getByRole('radio', { name: /Nuevo/ }).click();
-  await sheet.getByLabel('Nombre del servicio').fill(name);
-  await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill(quantity);
-  await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill(price);
-  for (let i = 1; i <= materials; i += 1) {
-    await sheet.getByRole('button', { name: 'Agregar material' }).click();
-    const step = page.getByRole('dialog', { name: 'Agregar material' });
-    await step.getByRole('radio', { name: /Nuevo/ }).click();
-    await step.getByLabel('Nombre del material').fill(`Material de prueba número ${i} con nombre largo`);
-    await step.getByLabel('Cantidad').fill('2');
-    await step.getByLabel(/^Precio/).fill('125.5');
-    await step.getByRole('button', { name: 'Agregar material' }).click();
-    await expect(step.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
-  }
-  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
-  await expect(sheet).toBeHidden({ timeout: 10_000 });
-};
-
-/** Polls: bottom sheets spring in, so the first frames are still below the fold. */
-const expectInsideViewport = async (page: Page, locator: ReturnType<Page['locator']>, label: string) => {
-  const view = page.viewportSize()!;
-  await expect
-    .poll(
-      async () => {
-        const box = await locator.boundingBox();
-        if (!box) return 'not rendered';
-        if (box.x < -1) return `left ${box.x}`;
-        if (box.x + box.width > view.width + 1) return `right ${box.x + box.width}`;
-        if (box.y + box.height > view.height + 1) return `bottom ${box.y + box.height}`;
-        return 'inside';
-      },
-      { message: `${label} inside the viewport`, timeout: 5_000 },
-    )
-    .toBe('inside');
-};
-
-const expectNoPageOverflow = async (page: Page, label: string) => {
-  const extra = await page.evaluate(
-    () => document.documentElement.scrollWidth - Math.ceil(window.visualViewport?.width ?? window.innerWidth),
-  );
-  expect(extra, `${label}: document wider than the viewport`).toBeLessThanOrEqual(0);
-};
 
 for (const width of [375, 333]) {
   test.describe(`Composer redesign @${width}px`, () => {
@@ -105,14 +58,14 @@ for (const width of [375, 333]) {
 
       await addComposerLine(page, { quantity: 2, price: 4200 }, 0, LINES_LABEL);
       for (const [index, name] of LONG_NAMES.entries()) {
-        await addCustomLine(page, {
+        await addCustomComposerLine(page, {
           name,
           quantity: String(index + 1),
           price: '3450',
           materials: index === 0 ? 5 : 0,
         });
       }
-      await addCustomLine(page, { name: 'Recargo especial', quantity: '1', price: '1234567.89' });
+      await addCustomComposerLine(page, { name: 'Recargo especial', quantity: '1', price: '1234567.89' });
 
       const lines = page.getByRole('list', { name: LINES_LABEL });
       const rows = lines.getByTestId('composer-line-row');

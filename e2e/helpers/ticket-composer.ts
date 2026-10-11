@@ -106,7 +106,7 @@ export const finishOnReview = async (
   payment: { mode: 'full' } | { mode: 'partial'; amount: number } | { mode: 'pending' },
 ) => {
   await expect(
-    page.getByRole('heading', { name: `Ticket #${ticketId} guardado` }),
+    page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
   ).toBeVisible({ timeout: 15_000 });
   await page.evaluate(() => {
     (window as unknown as { __openedUrls: string[] }).__openedUrls = [];
@@ -117,32 +117,18 @@ export const finishOnReview = async (
   });
 
   const label =
-    payment.mode === 'full'
-      ? /Pagado completo/
-      : payment.mode === 'partial'
-        ? /Pago parcial/
-        : /Pendiente/;
-  await page.getByRole('radio', { name: label }).click();
+    payment.mode === 'full' ? 'Todo' : payment.mode === 'partial' ? 'Una parte' : 'Nada aún';
+  await page.getByRole('radio', { name: label, exact: true }).click();
   if (payment.mode === 'partial') {
     await page.getByLabel('Cuánto pagó').fill(String(payment.amount));
   }
 
   await page.getByRole('button', { name: 'Finalizar y compartir' }).first().click();
 
-  // Reminders come first (ZIG-I12): the dialog opens as soon as the ticket is
-  // finalized and makes the page behind it inert, so answer it before looking
-  // for the heading. Lines without a catalog service never show it.
-  const heading = page.getByRole('heading', { name: `Ticket #${ticketId} finalizado` });
-  const schedulesDialog = page.getByRole('dialog', {
-    name: 'Recordatorios de servicio',
-  });
-  await expect(heading.or(schedulesDialog)).toBeVisible({ timeout: 60_000 });
-  if (await schedulesDialog.isVisible()) {
-    await schedulesDialog.getByRole('button', { name: 'Omitir' }).click();
-    await expect(schedulesDialog).toBeHidden();
-  }
+  // Reminders are ticked on this screen and saved before the share sheet
+  // (ZIG-I13-3): no dialog to answer.
+  const heading = page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first();
   await expect(heading).toBeVisible({ timeout: 60_000 });
-  // The receipt is shared once the dialog is answered.
   await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
     timeout: 60_000,
   });
@@ -186,3 +172,58 @@ export const addInlineComposerLine = async (
   await expect(lines.getByText(name).first()).toBeVisible();
   return name;
 };
+
+/**
+ * A typed-in (Nuevo) line with optional inline materials: the heavy fixtures of
+ * the ZIG-I13 specs. Nothing is saved until the composer is saved.
+ */
+export const addCustomComposerLine = async (
+  page: Page,
+  { name, quantity, price, materials = 0 }: { name: string; quantity: string; price: string; materials?: number },
+) => {
+  await page.getByRole('button', { name: 'Agregar servicio' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+  await sheet.getByLabel('Nombre del servicio').fill(name);
+  await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill(quantity);
+  await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill(price);
+  for (let i = 1; i <= materials; i += 1) {
+    await sheet.getByRole('button', { name: 'Agregar material' }).click();
+    const step = page.getByRole('dialog', { name: 'Agregar material' });
+    await step.getByRole('radio', { name: /Nuevo/ }).click();
+    await step.getByLabel('Nombre del material').fill(`Material de prueba número ${i} con nombre largo`);
+    await step.getByLabel('Cantidad').fill('2');
+    await step.getByLabel(/^Precio/).fill('125.5');
+    await step.getByRole('button', { name: 'Agregar material' }).click();
+    await expect(step.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
+  }
+  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+  await expect(sheet).toBeHidden({ timeout: 10_000 });
+};
+
+/** Polls: bottom sheets spring in, so the first frames are still below the fold. */
+export const expectInsideViewport = async (page: Page, locator: ReturnType<Page['locator']>, label: string) => {
+  const view = page.viewportSize()!;
+  await expect
+    .poll(
+      async () => {
+        const box = await locator.boundingBox();
+        if (!box) return 'not rendered';
+        if (box.x < -1) return `left ${box.x}`;
+        if (box.x + box.width > view.width + 1) return `right ${box.x + box.width}`;
+        if (box.y + box.height > view.height + 1) return `bottom ${box.y + box.height}`;
+        return 'inside';
+      },
+      { message: `${label} inside the viewport`, timeout: 5_000 },
+    )
+    .toBe('inside');
+};
+
+export const expectNoPageOverflow = async (page: Page, label: string) => {
+  const extra = await page.evaluate(
+    () => document.documentElement.scrollWidth - Math.ceil(window.visualViewport?.width ?? window.innerWidth),
+  );
+  expect(extra, `${label}: document wider than the viewport`).toBeLessThanOrEqual(0);
+};
+

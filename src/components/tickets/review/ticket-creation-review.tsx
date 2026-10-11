@@ -534,8 +534,9 @@ export const TicketCreationReview = ({
             </p>
             <MoneyFigure
               amount={finished ? paid : showsBalance ? subtractMoney(total, chosenPaid) : total}
-              size="lg"
-              className="block leading-tight"
+              // md, not lg: next to Finalizar y compartir a 7-figure balance would wrap mid-number at 375px.
+              size="md"
+              className="block text-[17px] leading-tight"
               data-testid="review-sticky-amount"
             />
           </div>
