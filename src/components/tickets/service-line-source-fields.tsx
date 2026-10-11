@@ -21,15 +21,16 @@ type ServiceLineModeToggleProps = {
   idPrefix: string;
   /** Accessible name of the radiogroup (materials reuse it, ZIG-I10). */
   ariaLabel?: string;
+  /** Label of the catalog option; materials say "Mis materiales". */
+  catalogLabel?: string;
 };
 
 const MODE_OPTIONS: Array<{
   value: ServiceLineMode;
-  label: string;
   icon: typeof ListChecks;
 }> = [
-  { value: 'catalog', label: 'Mis servicios', icon: ListChecks },
-  { value: 'custom', label: 'Escribir', icon: PencilLine },
+  { value: 'catalog', icon: ListChecks },
+  { value: 'custom', icon: PencilLine },
 ];
 
 /**
@@ -41,6 +42,7 @@ export const ServiceLineModeToggle = ({
   onValueChange,
   idPrefix,
   ariaLabel = 'Origen del servicio',
+  catalogLabel = 'Mis servicios',
 }: ServiceLineModeToggleProps) => (
   <div
     role="radiogroup"
@@ -74,7 +76,7 @@ export const ServiceLineModeToggle = ({
           )}
         >
           <Icon className="h-4 w-4" aria-hidden />
-          {option.label}
+          {option.value === 'catalog' ? catalogLabel : 'Escribir'}
         </button>
       );
     })}

@@ -240,6 +240,7 @@ export const MaterialEntryFields = ({
           <ServiceLineModeToggle
             idPrefix={`${idPrefix}-source`}
             ariaLabel="Origen del material"
+            catalogLabel="Mis materiales"
             value={entry.mode}
             onValueChange={entry.setMode}
           />

@@ -44,6 +44,7 @@ test.describe('Mobile metrics (ZIG-I18-10)', () => {
     { name: 'Cobranza', path: '/cobranza' },
     { name: 'Anotar', path: '/anotar' },
     { name: 'Nuevo ticket', path: '/tickets/create' },
+    { name: 'Clientes', path: '/clients' },
   ];
 
   test('Login: sentence-case labels at 14 px or more, no sub-44px targets (ZIG-I18-12)', async ({ page }) => {

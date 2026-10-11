@@ -99,7 +99,7 @@ test.describe('Materiales accessibility @375px (no save)', () => {
     const step = page.getByRole('dialog', { name: 'Agregar material' });
     await expect(step).toBeVisible();
     await expectNoSeriousViolations(page);
-    await step.getByRole('radio', { name: 'Nuevo' }).click();
+    await step.getByRole('radio', { name: 'Escribir' }).click();
     await page.waitForTimeout(300);
     await expectNoSeriousViolations(page);
   });
@@ -174,7 +174,7 @@ test.describe('Materiales (mobile)', () => {
     await sheet.getByRole('button', { name: `Quitar ${tube}` }).click();
     await sheet.getByRole('button', { name: 'Agregar material' }).click();
     const step = page.getByRole('dialog', { name: 'Agregar material' });
-    await step.getByRole('radio', { name: 'Nuevo' }).click();
+    await step.getByRole('radio', { name: 'Escribir' }).click();
     await step.getByLabel('Nombre del material').fill(inline);
     await step.getByRole('button', { name: 'pza', exact: true }).click();
     await step.getByLabel(/^Precio/).fill('320');
