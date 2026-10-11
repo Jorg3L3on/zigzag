@@ -91,6 +91,18 @@ export const writeAnotarFormDraft = (
   window.localStorage.setItem(key, JSON.stringify(payload));
 };
 
+/** A draft worth announcing: the person typed or chose something. */
+export const isMeaningfulAnotarDraft = (
+  draft: Partial<AnotarFormDraft> | null | undefined,
+): boolean =>
+  Boolean(
+    draft &&
+      (draft.client_id != null ||
+        draft.work_notes?.trim() ||
+        draft.totalInput?.trim() ||
+        draft.paidInput?.trim()),
+  );
+
 export const clearAnotarFormDraft = (key: string): void => {
   if (!canUseLocalStorage()) return;
   window.localStorage.removeItem(key);
