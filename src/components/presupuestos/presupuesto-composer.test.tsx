@@ -154,7 +154,7 @@ describe('PresupuestoComposer (ZIG-I5-3)', () => {
       'Sin vencimiento',
     );
     expect(screen.queryByText('Anotar trabajo')).toBeNull();
-    saveButtons().forEach((button) => expect(button).toBeDisabled());
+    saveButtons().forEach((button) => expect(button).toBeEnabled());
     expect(screen.queryByRole('button', { name: /^Crear/ })).toBeNull();
   });
 

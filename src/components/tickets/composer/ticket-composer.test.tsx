@@ -180,12 +180,18 @@ describe('TicketComposer', () => {
     mockSearchParams = new URLSearchParams();
   });
 
-  it('keeps Guardar ticket disabled until a client and a line exist', async () => {
+  it('tells what is missing when Guardar is tapped without a client or a line (ZIG-I18-13)', async () => {
+    const user = userEvent.setup();
     renderComposer();
 
     expect(screen.getByRole('heading', { name: 'Nuevo ticket' })).toBeTruthy();
     expect(screen.getAllByText('Elige un cliente').length).toBeGreaterThan(0);
-    saveButtons().forEach((button) => expect(button).toBeDisabled());
+    expect(screen.queryByRole('alert', { name: '' })).toBeNull();
+    saveButtons().forEach((button) => expect(button).toBeEnabled());
+    await user.click(saveButtons()[0]);
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((alert) => /Elige un cliente/.test(alert.textContent ?? ''))).toBe(true);
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
     expect(screen.queryByText(/Paso \d de \d/)).toBeNull();
     expect(screen.queryByRole('button', { name: /^Crear/ })).toBeNull();
   });
