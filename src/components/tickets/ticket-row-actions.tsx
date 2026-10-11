@@ -8,10 +8,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2 } from 'lucide-react';
+import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { DeleteTicketButton } from '@/components/delete-ticket-button';
+import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
 import {
   TicketListCollectPaymentDialog,
   type TicketListCollectPaymentResult,
@@ -67,6 +67,7 @@ export function TicketRowActions({
   const canCollect = canCollectTicketPayment(can);
   const [isDownloading, setIsDownloading] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const paymentStatus = getTicketPaymentStatus(ticket.total, ticket.paid);
   const showCollectAction =
@@ -155,18 +156,33 @@ export function TicketRowActions({
             </DropdownMenuItem>
           ) : null}
           {canWrite ? (
-            <DeleteTicketButton
-              id={Number(ticket.id)}
-              companyId={companyId}
-              clientName={ticket.client_name ?? null}
-              total={ticket.total}
-              paid={ticket.paid}
-              onDelete={onDelete}
-              onDeleteFailed={onDeleteFailed}
-            />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => setDeleteOpen(true)}
+              aria-label={`Eliminar ticket ${ticket.id.toString()}`}
+            >
+              <Trash2 className="mr-2 h-4 w-4" data-icon="inline-start" />
+              Eliminar
+            </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {canWrite ? (
+        // Outside the menu: the menu closes when Eliminar is picked, the sheet stays.
+        <DeleteTicketSheet
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          ticketId={Number(ticket.id)}
+          clientName={ticket.client_name ?? null}
+          total={ticket.total}
+          paymentsTotal={ticket.paid ?? 0}
+          companyId={companyId}
+          afterDeleteHref={null}
+          onDeleteStart={onDelete}
+          onDeleteFailed={onDeleteFailed}
+        />
+      ) : null}
 
       {showCollectAction ? (
         <TicketListCollectPaymentDialog
