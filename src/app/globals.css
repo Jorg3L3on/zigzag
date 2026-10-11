@@ -817,3 +817,8 @@ html[data-theme-vt='circle-blur']::view-transition-new(root) {
     filter: blur(0);
   }
 }
+
+/* Texto grande (ZIG-I18-15): rem-based sizes scale from this root. */
+html[data-text-size='large'] {
+  font-size: 18px;
+}

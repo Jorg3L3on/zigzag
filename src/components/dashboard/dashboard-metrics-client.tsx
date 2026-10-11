@@ -336,19 +336,19 @@ export const DashboardMetricsClient = ({
       data-testid="dashboard-plain-numbers"
       className="grid grid-cols-2 gap-3 md:hidden"
     >
-      <div className="rounded-2xl border border-border/70 bg-card p-4">
+      <div className="min-w-0 rounded-2xl border border-border/70 bg-card p-4">
         <p className="text-base text-muted-foreground">Entró este mes</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums">
+        <p className="mt-1 text-xl font-bold tabular-nums [overflow-wrap:anywhere]">
           {formatTicketListAmount(kpiValue('cashCollected'))}
         </p>
       </div>
       <Link
         href="/cobranza"
-        className="rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-w-0 rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Ver cobranza: lo que me deben"
       >
         <p className="text-base text-muted-foreground">Me deben</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums">
+        <p className="mt-1 text-xl font-bold tabular-nums [overflow-wrap:anywhere]">
           {formatTicketListAmount(kpiValue('outstandingBalance'))}
         </p>
       </Link>

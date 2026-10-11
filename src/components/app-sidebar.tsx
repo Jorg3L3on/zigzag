@@ -12,6 +12,7 @@ import { NavProject } from '@/components/nav-project';
 import { NavHelpLink } from '@/components/nav-help-link';
 import { NavUser } from '@/components/nav-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { TextSizeSwitch } from '@/components/text-size-switch';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
@@ -261,6 +262,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <ThemeToggle />
           </div>
         </div>
+        <TextSizeSwitch />
         <NavHelpLink />
         <NavUser />
       </SidebarFooter>
