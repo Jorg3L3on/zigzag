@@ -4,6 +4,10 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+
+import { duplicateTicket } from '@/actions/tickets';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -17,6 +21,10 @@ import { useReceiptShare } from '@/components/tickets/use-receipt-share';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
+import {
+  buildTicketComposerDraftKey,
+  writeTicketComposerDraft,
+} from '@/lib/ticket-composer-draft';
 import {
   canAssignTicketServices,
   canDownloadTicketInvoice,
@@ -51,6 +59,7 @@ export const TicketDetailActionsMenu = ({
 }: TicketDetailActionsMenuProps) => {
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
+  const router = useRouter();
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const { download } = useReceiptShare({
     ticketId: String(ticketId),
@@ -59,6 +68,32 @@ export const TicketDetailActionsMenu = ({
     clientTel,
     total: total ?? 0,
   });
+
+  /** Duplicar: a draft in the ticket composer, saved only on Guardar (ZIG-I13-6). */
+  const handleDuplicate = async () => {
+    const companyId = selectedCompany?.id ?? null;
+    try {
+      const result = await duplicateTicket(ticketId, companyId);
+      if (!result.success) {
+        toast.error(result.error ?? 'No se pudo duplicar el ticket');
+        return;
+      }
+      const draft = result.data;
+      if (companyId) {
+        writeTicketComposerDraft(buildTicketComposerDraftKey(companyId), {
+          client_id: draft.client.id > 0 ? draft.client.id : undefined,
+          client_label: draft.client.label,
+          ticket_date: draft.ticketDate,
+          work_notes: draft.notes,
+          lines: draft.lines,
+        });
+      }
+      toast.success('Borrador listo: revísalo y guarda');
+      router.push('/tickets/create');
+    } catch {
+      toast.error('No se pudo duplicar el ticket');
+    }
+  };
 
   const saldado = isTicketFullyPaid(total, paid);
   const canEditServices = canAssignTicketServices(can) && !saldado;
@@ -84,7 +119,7 @@ export const TicketDetailActionsMenu = ({
         <DropdownMenuContent align="end" className="w-56">
           {canEditServices ? (
             <DropdownMenuItem asChild className="min-h-11">
-              <Link href={`/tickets/${ticketId}/services`}>
+              <Link href={`/tickets/${ticketId}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" aria-hidden />
                 Editar servicios
               </Link>
@@ -97,11 +132,9 @@ export const TicketDetailActionsMenu = ({
             </DropdownMenuItem>
           ) : null}
           {canWrite ? (
-            <DropdownMenuItem asChild className="min-h-11">
-              <Link href={`/tickets/create?duplicate=${ticketId}`}>
-                <Copy className="mr-2 h-4 w-4" aria-hidden />
-                Duplicar ticket
-              </Link>
+            <DropdownMenuItem className="min-h-11" onSelect={() => void handleDuplicate()}>
+              <Copy className="mr-2 h-4 w-4" aria-hidden />
+              Duplicar ticket
             </DropdownMenuItem>
           ) : null}
           {canWrite ? (

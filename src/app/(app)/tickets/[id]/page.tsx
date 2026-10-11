@@ -22,6 +22,7 @@ import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-deta
 import { TicketDetailActionsMenu } from '@/components/tickets/detail/ticket-detail-actions-menu';
 import { TicketCollectProvider } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { TicketDetailHero } from '@/components/tickets/detail/ticket-detail-hero';
+import { TicketDetailResendPrompt } from '@/components/tickets/detail/ticket-detail-resend-prompt';
 import { TicketDetailQuickActions } from '@/components/tickets/detail/ticket-detail-quick-actions';
 import { TicketDetailStatusPill } from '@/components/tickets/detail/ticket-detail-status-pill';
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
@@ -206,6 +207,17 @@ export default async function TicketDetailsPage({
         </TripledDashboardShell>
 
         <TicketDetailPrimaryActions {...primaryActionProps} placement="mobile-sticky" />
+
+        {ticket.finished ? (
+          <TicketDetailResendPrompt
+            ticketId={Number(ticket.id)}
+            clientName={ticket.client_name}
+            clientTel={ticket.client_tel}
+            total={total}
+            paid={paid}
+            downloadFileName={downloadFileName}
+          />
+        ) : null}
       </TicketCollectProvider>
     </>
   );

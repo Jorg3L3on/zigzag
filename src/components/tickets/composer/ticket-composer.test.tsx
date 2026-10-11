@@ -4,7 +4,11 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { TicketComposer } from '@/components/tickets/composer/ticket-composer';
+import {
+  TicketComposer,
+  TicketEditComposer,
+  type ComposerEditState,
+} from '@/components/tickets/composer/ticket-composer';
 import { MobileChromeProvider } from '@/contexts/mobile-chrome-context';
 import {
   buildTicketComposerDraftKey,
@@ -13,6 +17,7 @@ import {
 
 const mockPush = jest.fn();
 const mockCreateTicketWithLines = jest.fn();
+const mockUpdateTicketLines = jest.fn();
 let mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
@@ -90,6 +95,7 @@ jest.mock('@/actions/services', () => ({
 
 jest.mock('@/actions/tickets', () => ({
   createTicketWithLines: (...args: unknown[]) => mockCreateTicketWithLines(...args),
+  updateTicketLines: (...args: unknown[]) => mockUpdateTicketLines(...args),
 }));
 
 jest.mock('@/actions/presupuestos', () => ({
@@ -622,3 +628,191 @@ describe('TicketComposer', () => {
   });
 });
 
+describe('TicketEditComposer (ZIG-I13-6)', () => {
+  const editState = (
+    ticket: Partial<NonNullable<ComposerEditState['ticket']>> = {},
+  ): ComposerEditState => ({
+    id: '1123',
+    client: { id: 5, label: 'Cliente Demo · 5550001111', name: 'Cliente Demo', phone: '5550001111' },
+    ticketDate: '2026-10-09T12:00:00.000Z',
+    expiresAt: null,
+    notes: 'Nota previa',
+    lines: [
+      { key: 'line-1', kind: 'catalog', service_id: 7, service_name: 'Mantenimiento', quantity: 1, price: 4200 },
+      { key: 'line-2', kind: 'custom', service_id: null, service_name: 'Soporte de pared', quantity: 2, price: 150 },
+    ],
+    ticket: {
+      originalTotal: 4500,
+      paid: 0,
+      finished: false,
+      receiptSharedAt: null,
+      ...ticket,
+    },
+  });
+
+  const renderEdit = (state: ComposerEditState) =>
+    render(
+      <MobileChromeProvider>
+        <TicketEditComposer edit={state} />
+      </MobileChromeProvider>,
+    );
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockUpdateTicketLines.mockReset();
+    mockToast.mockClear();
+  });
+
+  it('opens the saved ticket in the composer with its lines, and keeps no local draft', async () => {
+    renderEdit(editState());
+
+    expect(screen.getByRole('heading', { name: 'Editar ticket #1123' })).toBeTruthy();
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByText('Mantenimiento')).toBeTruthy();
+    expect(within(lines).getByText('Soporte de pared')).toBeTruthy();
+    expect(screen.getByTestId('composer-party-card')).toHaveTextContent('Cliente Demo');
+    expect(screen.queryByTestId('composer-finalized-banner')).toBeNull();
+    expect(screen.getByRole('textbox', { name: /Notas/ })).toHaveValue('Nota previa');
+    expect(window.localStorage.getItem(buildTicketComposerDraftKey(10))).toBeNull();
+  });
+
+  it('an En proceso ticket keeps its client and date editable', async () => {
+    const user = userEvent.setup();
+    renderEdit(editState());
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    expect(screen.getByRole('combobox', { name: 'Cliente' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Nuevo cliente' })).toBeTruthy();
+    expect(document.getElementById('composer-date')).toBeEnabled();
+  });
+
+  it('a finalized ticket shows the banner with the share date and locks client and date', async () => {
+    const user = userEvent.setup();
+    renderEdit(editState({ finished: true, paid: 1000, receiptSharedAt: '2026-10-10T18:00:00.000Z' }));
+
+    expect(screen.getByTestId('composer-finalized-banner')).toHaveTextContent(
+      'Este ticket ya se finalizó y el recibo se compartió el 10 de octubre. Si cambias el total, al guardar te ofrecemos reenviar el recibo nuevo.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    expect(screen.getByRole('combobox', { name: 'Cliente' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).toBeNull();
+    expect(document.getElementById('composer-date')).toBeDisabled();
+  });
+
+  it('drops "se compartió" when the recibo never went out', () => {
+    renderEdit(editState({ finished: true, paid: 1000 }));
+
+    expect(screen.getByTestId('composer-finalized-banner')).toHaveTextContent(
+      /^Este ticket ya se finalizó\. Si cambias el total/,
+    );
+  });
+
+  it('the sticky bar shows Antes and the change, and Guardar sends the lines to updateTicketLines', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: true,
+      data: { id: '1123', total: 4800, previousTotal: 4500, finished: true },
+    });
+    renderEdit(editState({ finished: true, paid: 1000 }));
+
+    expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent('Antes $4,500.00 · +$0.00');
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent('Antes $4,500.00 · +$350.00'),
+    );
+    expect(screen.getByTestId('composer-sticky-total')).toHaveTextContent('$4,850.00');
+
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() => expect(mockUpdateTicketLines).toHaveBeenCalledTimes(1));
+    const [id, payload] = mockUpdateTicketLines.mock.calls[0];
+    expect(id).toBe(1123);
+    expect(payload).toMatchObject({
+      company_id: 10,
+      client_id: 5,
+      work_notes: 'Nota previa',
+      lines: [
+        { service_id: 7, quantity: 1, price: 4200 },
+        { kind: 'custom', name: 'Soporte de pared', quantity: 2, price: 150 },
+        { service_id: 8, quantity: 1, price: 350 },
+      ],
+    });
+    // A finalized ticket whose total moved is offered the new recibo.
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1123?reenviar=1'));
+  });
+
+  it('goes back to the detail without the resend offer when the total did not change', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: true,
+      data: { id: '1123', total: 4500, previousTotal: 4500, finished: true },
+    });
+    renderEdit(editState({ finished: true, paid: 1000 }));
+
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1123'));
+  });
+
+  it('an En proceso ticket never offers the resend', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: true,
+      data: { id: '1123', total: 5000, previousTotal: 4500, finished: false },
+    });
+    renderEdit(editState());
+
+    expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent('2 servicios');
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1123'));
+  });
+
+  it('refuses a total below what was paid before sending anything', async () => {
+    const user = userEvent.setup();
+    renderEdit(editState({ finished: true, paid: 4400 }));
+
+    // Quitar the 2 × $150 line: 4,200 < 4,400 paid.
+    await user.click(
+      within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByRole('button', {
+        name: /Soporte de pared/,
+      }),
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
+    await user.click(within(sheet).getByRole('button', { name: 'Quitar este servicio' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent(
+        'Abajo de lo ya pagado ($4,400.00)',
+      ),
+    );
+    await waitFor(() =>
+      screen
+        .getAllByRole('button', { name: /^Guardar cambios$/ })
+        .forEach((button) => expect(button).toBeDisabled()),
+    );
+    expect(mockUpdateTicketLines).not.toHaveBeenCalled();
+  });
+
+  it('shows what the server refused', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: false,
+      error: 'El total no puede quedar abajo de lo ya pagado ($500.00)',
+      errorType: 'validation',
+    });
+    renderEdit(editState());
+
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() =>
+      expect(mockToast.error).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          description: expect.stringContaining('El total no puede quedar abajo de lo ya pagado'),
+        }),
+      ),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+});

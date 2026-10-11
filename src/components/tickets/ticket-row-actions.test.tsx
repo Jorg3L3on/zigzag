@@ -12,19 +12,23 @@ jest.mock('sonner', () => ({
   },
 }));
 
-jest.mock('@/actions/tickets', () => ({
-  applyTicketPayment: jest.fn(),
-}));
-
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
     can: () => true,
   }),
 }));
 
-jest.mock('@/components/delete-ticket-button', () => ({
-  DeleteTicketButton: () => <button type="button">Eliminar</button>,
+const mockDeleteTicket = jest.fn();
+jest.mock('@/actions/tickets', () => ({
+  applyTicketPayment: jest.fn(),
+  deleteTicket: (...args: unknown[]) => mockDeleteTicket(...args),
 }));
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+}));
+
+jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => true }));
 
 describe('TicketRowActions', () => {
   const ticket = {
@@ -122,5 +126,69 @@ describe('TicketRowActions', () => {
     expect(
       screen.queryByRole('menuitem', { name: /registrar pago/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('Eliminar closes the menu and opens the sheet with the client, total and payments; Conservar keeps the row (ZIG-I13-6)', async () => {
+    const user = userEvent.setup();
+    const onDelete = jest.fn();
+    render(
+      <TicketRowActions
+        ticket={{ ...ticket, paid: 40 }}
+        canWrite
+        companyId={1}
+        onDelete={onDelete}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
+    await user.click(screen.getByRole('menuitem', { name: /eliminar ticket 7/i }));
+
+    const sheet = await screen.findByRole('dialog', { name: '¿Eliminar el ticket #7?' });
+    expect(sheet).toHaveTextContent('Cliente');
+    expect(sheet).toHaveTextContent('$100.00');
+    expect(sheet).toHaveTextContent('Tiene pagos registrados por $40.00');
+    expect(sheet).not.toHaveTextContent(/papelera/i);
+    // The menu is gone: the page behind is reachable again once the sheet closes.
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Conservar' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(mockDeleteTicket).not.toHaveBeenCalled();
+  });
+
+  it('confirming removes the row optimistically and deletes; a failure restores it', async () => {
+    const user = userEvent.setup();
+    const onDelete = jest.fn();
+    const onDeleteFailed = jest.fn();
+    mockDeleteTicket.mockResolvedValue({ success: false, error: 'Código: TC005', errorType: 'server' });
+    render(
+      <TicketRowActions
+        ticket={ticket}
+        canWrite
+        companyId={1}
+        onDelete={onDelete}
+        onDeleteFailed={onDeleteFailed}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
+    await user.click(screen.getByRole('menuitem', { name: /eliminar ticket 7/i }));
+    await user.click(await screen.findByRole('button', { name: 'Eliminar ticket' }));
+
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith(7);
+      expect(mockDeleteTicket).toHaveBeenCalledWith(7, 1);
+      expect(onDeleteFailed).toHaveBeenCalledWith(7);
+      expect(mockToastError).toHaveBeenCalled();
+    });
+  });
+
+  it('hides Eliminar without write access', async () => {
+    const user = userEvent.setup();
+    render(<TicketRowActions ticket={ticket} canWrite={false} companyId={1} />);
+
+    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
+
+    expect(screen.queryByRole('menuitem', { name: /eliminar ticket 7/i })).toBeNull();
   });
 });

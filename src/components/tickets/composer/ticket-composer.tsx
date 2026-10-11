@@ -22,7 +22,7 @@ import {
   createPresupuestoWithLines,
   updatePresupuesto,
 } from '@/actions/presupuestos';
-import { createTicketWithLines } from '@/actions/tickets';
+import { createTicketWithLines, updateTicketLines } from '@/actions/tickets';
 import { ClientForm } from '@/components/clients/client-form';
 import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
 import { CharCounter } from '@/components/ui/char-counter';
@@ -66,7 +66,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
 import type { ValidationIssue } from '@/lib/action-result';
 import { mapServerIssues } from '@/lib/composer-server-errors';
-import { addMoney, lineTotalWithMaterials } from '@/lib/money';
+import { addMoney, lineTotalWithMaterials, roundMoney } from '@/lib/money';
 import {
   materialDraftsFromServiceDefaults,
   materialDraftsTotal,
@@ -175,35 +175,59 @@ type DocumentComposerProps = {
   /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
   kind?: ComposerKind;
   /**
-   * Presupuestos only (ZIG-I5-5): reopen an open quote. The client is locked,
-   * no local draft is kept, and Guardar cambios goes through updatePresupuesto.
+   * Reopen a saved document. Presupuesto (ZIG-I5-5): the client is locked and
+   * Guardar cambios goes through updatePresupuesto. Ticket (ZIG-I13-6): the one
+   * line editor, through updateTicketLines; client and date change only while
+   * the ticket is En proceso. No local draft is kept either way.
    */
   edit?: ComposerEditState;
 };
 
 export type ComposerEditState = {
   id: string;
-  client: { id: number; label: string };
+  client: { id: number; label: string; name?: string; phone?: string | null };
   ticketDate: string;
   expiresAt: string | null;
   notes: string;
   lines: TicketComposerDraftLine[];
+  /** Tickets only (ZIG-I13-6). */
+  ticket?: {
+    originalTotal: number;
+    paid: number;
+    finished: boolean;
+    /** When the recibo last went out, from the audit log; null if it never did. */
+    receiptSharedAt: string | null;
+  };
 };
 
 export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProps) => {
   const isQuote = kind === 'presupuesto';
-  const isEdit = isQuote && edit != null;
+  const isEdit = edit != null;
+  const ticketEdit = !isQuote && edit?.ticket ? edit.ticket : null;
+  // A finalized ticket keeps its client and date; a presupuesto always keeps its client.
+  const clientLocked = isEdit && (isQuote || ticketEdit?.finished === true);
+  const dateLocked = ticketEdit?.finished === true;
   const baseCopy = COMPOSER_COPY[kind];
   const copy = isEdit
-    ? {
-        ...baseCopy,
-        title: `Editar presupuesto #${edit.id}`,
-        subtitle: 'Servicios, vigencia y notas',
-        listHref: `/presupuestos/${edit.id}`,
-        backLabel: 'Volver al presupuesto',
-        saveLabel: 'Guardar cambios',
-        saveError: 'No se pudieron guardar los cambios',
-      }
+    ? isQuote
+      ? {
+          ...baseCopy,
+          title: `Editar presupuesto #${edit.id}`,
+          subtitle: 'Servicios, vigencia y notas',
+          listHref: `/presupuestos/${edit.id}`,
+          backLabel: 'Volver al presupuesto',
+          saveLabel: 'Guardar cambios',
+          saveError: 'No se pudieron guardar los cambios',
+        }
+      : {
+          ...baseCopy,
+          title: `Editar ticket #${edit.id}`,
+          subtitle: 'Servicios y total',
+          listHref: `/tickets/${edit.id}`,
+          backLabel: 'Volver al ticket',
+          saveLabel: 'Guardar cambios',
+          saveError: 'No se pudieron guardar los cambios',
+        }
     : baseCopy;
   const { selectedCompany } = useCompany();
   const router = useRouter();
@@ -261,7 +285,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     : null;
   // Lines plus their materials (ZIG-I10).
   const total = addMoney(...lines.map(lineTotalWithMaterials));
-  const canSave = Boolean(companyId && client && lines.length > 0);
+  const totalDelta = ticketEdit ? roundMoney(total - ticketEdit.originalTotal) : 0;
+  const belowPaid = ticketEdit ? total < ticketEdit.paid - 0.01 : false;
+  const canSave = Boolean(companyId && client && lines.length > 0 && !belowPaid);
   const editingLine = lines.find((line) => line.key === lineSheet.editingKey) ?? null;
 
   // Restore the local draft once per company.
@@ -527,6 +553,33 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         lines: lines.map(draftLineToServiceLineInput),
         client_total: total,
       };
+      if (isEdit && ticketEdit) {
+        const updated = await updateTicketLines(Number(edit.id), {
+          company_id: companyId,
+          client_id: client.id,
+          ticket_date: ticketDate,
+          work_notes: notes,
+          lines: payload.lines,
+        });
+        if (updated.success && updated.data) {
+          setSaveState('done');
+          vibrateSuccess();
+          toast.success(`Ticket #${edit.id} actualizado`);
+          const changed = Math.abs(updated.data.total - ticketEdit.originalTotal) > 0.005;
+          // A finalized ticket whose total moved: offer to send the new recibo.
+          router.push(
+            ticketEdit.finished && changed ? `/tickets/${edit.id}?reenviar=1` : `/tickets/${edit.id}`,
+          );
+          router.refresh();
+          return;
+        }
+        const content = buildToastErrorContent(updated, copy.saveError);
+        const mapped = applyServerIssues(updated.issues);
+        toast.error(content.title, { description: mapped ?? updated.error ?? content.description });
+        setSaveState('idle');
+        return;
+      }
+
       if (isEdit) {
         const updated = await updatePresupuesto(Number(edit.id), {
           company_id: companyId,
@@ -615,11 +668,17 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   ]
     .filter(Boolean)
     .join(' · ');
+  // Editing a finalized ticket: what it was, and by how much it moves (ZIG-I13-6).
+  const editHint = ticketEdit?.finished
+    ? `Antes ${formatServiceCurrency(ticketEdit.originalTotal)} · ${totalDelta < 0 ? '−' : '+'}${formatServiceCurrency(Math.abs(totalDelta))}`
+    : null;
   const ctaHint = !client
     ? 'Elige un cliente'
     : lines.length === 0
       ? 'Agrega al menos un servicio'
-      : countsLabel;
+      : belowPaid && ticketEdit
+        ? `Abajo de lo ya pagado (${formatServiceCurrency(ticketEdit.paid)})`
+        : (editHint ?? countsLabel);
 
   const dateLabel = isToday(ticketDate)
     ? `Hoy · ${format(ticketDate, "d 'de' MMMM", { locale: es })}`
@@ -655,12 +714,28 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
           <p className="text-sm text-muted-foreground">
             {isEdit
-              ? 'Ajusta servicios, vigencia o notas. Nada cambia hasta Guardar cambios.'
+              ? isQuote
+                ? 'Ajusta servicios, vigencia o notas. Nada cambia hasta Guardar cambios.'
+                : 'Ajusta servicios, materiales o notas. Nada cambia hasta Guardar cambios.'
               : 'Elige el cliente, agrega los servicios y guarda. Nada se guarda antes.'}
           </p>
         </div>
 
         <CompanyProductionNotice />
+
+        {ticketEdit?.finished ? (
+          <div
+            role="status"
+            data-testid="composer-finalized-banner"
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-3 text-sm text-amber-950 dark:text-amber-100"
+          >
+            Este ticket ya se finalizó
+            {ticketEdit.receiptSharedAt
+              ? ` y el recibo se compartió el ${format(new Date(ticketEdit.receiptSharedAt), "d 'de' MMMM", { locale: es })}`
+              : ''}
+            . Si cambias el total, al guardar te ofrecemos reenviar el recibo nuevo.
+          </div>
+        ) : null}
 
         <BlurFade>
           {showPartyForm ? (
@@ -690,14 +765,14 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                     onValueChange={handleClientChange}
                     onSearchChange={setClientQuery}
                     isLoading={isClientsLoading}
-                    disabled={isEdit}
+                    disabled={clientLocked}
                     placeholder="Busca o elige un cliente"
                     searchPlaceholder="Buscar por nombre o teléfono…"
                     emptyText="Sin clientes que coincidan"
                     className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
                   />
                 </div>
-                {isEdit ? null : (
+                {clientLocked ? null : (
                   <Button
                     type="button"
                     variant="outline"
@@ -720,6 +795,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                       id="composer-date"
                       type="button"
                       variant="outline"
+                      disabled={dateLocked}
                       className="h-12 w-full justify-start gap-2 rounded-xl text-left text-base font-normal md:h-10 md:text-sm"
                     >
                       <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -990,3 +1066,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
 
 /** Nuevo ticket composer (ZIG-I2-4). */
 export const TicketComposer = () => <DocumentComposer kind="ticket" />;
+
+/** Editar ticket (ZIG-I13-6): the one line editor, loaded with a saved ticket. */
+export const TicketEditComposer = ({ edit }: { edit: ComposerEditState }) => (
+  <DocumentComposer kind="ticket" edit={edit} />
+);

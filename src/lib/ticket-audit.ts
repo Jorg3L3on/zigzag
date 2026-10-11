@@ -16,6 +16,7 @@ const TICKET_AUDIT_ACTIONS = [
   'payment_collected',
   'presupuesto_converted',
   'presupuesto_canceled',
+  'receipt_shared',
   'presupuesto_duplicated',
 ] as const;
 

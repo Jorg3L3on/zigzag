@@ -18,12 +18,16 @@ type DeleteTicketSheetProps = {
   ticketId: number;
   clientName: string | null;
   total: number | null;
-  /** Payments already recorded: deleting hides them too. */
-  paymentsCount: number;
+  /** Payments already recorded: deleting hides them too. Unknown from the list: leave undefined. */
+  paymentsCount?: number;
   paymentsTotal: number;
   companyId?: number | null;
-  /** Where to go once deleted; default the tickets list. */
-  afterDeleteHref?: string;
+  /** Where to go once deleted; default the tickets list. null stays where it is (the list). */
+  afterDeleteHref?: string | null;
+  /** The list removes the row optimistically as soon as the deletion is confirmed. */
+  onDeleteStart?: (id: number) => void;
+  /** …and puts it back if the server refuses. */
+  onDeleteFailed?: (id: number) => void;
 };
 
 /**
@@ -41,6 +45,8 @@ export const DeleteTicketSheet = ({
   paymentsTotal,
   companyId = null,
   afterDeleteHref = '/tickets',
+  onDeleteStart,
+  onDeleteFailed,
 }: DeleteTicketSheetProps) => {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
@@ -48,20 +54,25 @@ export const DeleteTicketSheet = ({
   const handleConfirm = async () => {
     if (pending) return;
     setPending(true);
+    onDeleteStart?.(ticketId);
     try {
       const result = await deleteTicket(ticketId, companyId);
       if (result.success) {
         toast.success(`Ticket #${ticketId} eliminado`);
         onOpenChange(false);
-        router.push(afterDeleteHref);
-        router.refresh();
+        if (afterDeleteHref) {
+          router.push(afterDeleteHref);
+          router.refresh();
+        }
         return;
       }
+      onDeleteFailed?.(ticketId);
       const errorType = classifyClientError(null, undefined, result.errorType);
       toast.error(
         getErrorMessageByType(errorType, result.error || 'Error al eliminar el ticket'),
       );
     } catch (error) {
+      onDeleteFailed?.(ticketId);
       toast.error(
         getErrorMessageByType(classifyClientError(error), 'Error al eliminar el ticket'),
       );
@@ -93,9 +104,12 @@ export const DeleteTicketSheet = ({
               {formatServiceCurrency(total ?? 0)}
             </dd>
           </div>
-          {paymentsCount > 0 ? (
+          {paymentsTotal > 0 ? (
             <p className="pt-1 text-amber-700 dark:text-amber-300">
-              Tiene {paymentsCount === 1 ? '1 pago registrado' : `${paymentsCount} pagos registrados`}{' '}
+              Tiene{' '}
+              {paymentsCount === undefined || paymentsCount === 0 || paymentsCount > 1
+                ? `${paymentsCount ?? ''} pagos registrados`.trim()
+                : '1 pago registrado'}{' '}
               por {formatServiceCurrency(paymentsTotal)}.
             </p>
           ) : null}

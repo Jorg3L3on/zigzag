@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 
+import { recordReceiptShared } from '@/actions/tickets';
 import { useCompany } from '@/contexts/company-context';
 import {
   classifyClientError,
@@ -47,6 +48,15 @@ export const useReceiptShare = ({
     return file;
   }, [ticketId, downloadFileName, companyId]);
 
+  /** The audit log remembers when the recibo went out (ZIG-I13-6); never blocks the share. */
+  const logShared = React.useCallback(async () => {
+    try {
+      await recordReceiptShared?.(Number(ticketId), companyId);
+    } catch {
+      // The share already happened; the log is best effort.
+    }
+  }, [ticketId, companyId]);
+
   const share = React.useCallback(
     async (paidAmount: number) => {
       setSharing(true);
@@ -57,6 +67,7 @@ export const useReceiptShare = ({
           text: clientName ? `Recibo de ${clientName}` : undefined,
         });
         if (result === 'shared') {
+          void logShared();
           toast.success('Recibo compartido');
         } else if (result === 'needs-gesture') {
           toast.message('Recibo listo', {
@@ -72,6 +83,7 @@ export const useReceiptShare = ({
             companyName: selectedCompany?.name,
           });
           if (whatsApp) {
+            void logShared();
             window.open(whatsApp.href, '_blank', 'noopener,noreferrer');
             toast.success('Abrimos WhatsApp con el resumen del recibo');
           } else {
@@ -86,7 +98,7 @@ export const useReceiptShare = ({
         setSharing(false);
       }
     },
-    [loadReceipt, ticketId, clientName, clientTel, total, selectedCompany?.name],
+    [loadReceipt, logShared, ticketId, clientName, clientTel, total, selectedCompany?.name],
   );
 
   const download = React.useCallback(async () => {

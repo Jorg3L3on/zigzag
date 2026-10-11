@@ -264,7 +264,7 @@ export const TicketDetailFinishPanel = ({
             <p className="text-sm text-amber-700 dark:text-amber-300">
               Agrega al menos un servicio para poder finalizar.{' '}
               <Link
-                href={`/tickets/${Number(ticketId)}/services`}
+                href={`/tickets/${Number(ticketId)}/edit`}
                 className="font-medium underline underline-offset-4"
               >
                 Ir a servicios
