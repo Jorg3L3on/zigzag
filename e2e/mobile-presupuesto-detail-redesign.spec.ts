@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -28,6 +28,9 @@ const CONCEPTS = [
   { name: 'Póliza de mantenimiento preventivo trimestral', quantity: '4', price: '14500', materials: 2 },
   { name: 'X'.repeat(100), quantity: '1', price: '1200', materials: 0 },
 ];
+
+/** After a hard navigation Next may hold a hidden streamed copy of a block (CI): act on the visible one. */
+const visible = (locator: Locator) => locator.filter({ visible: true }).first();
 
 const expectDraftOpened = async (page: Page) => {
   await page.waitForURL(/\/presupuestos\/create$/, { timeout: 30_000 });
@@ -70,25 +73,25 @@ for (const width of [375, 333]) {
       await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Abierto', {
         timeout: 15_000,
       });
-      const convert = page.getByTestId('presupuesto-accept').getByRole('button', { name: 'Convertir a ticket' });
+      const convert = visible(page.getByTestId('presupuesto-accept')).getByRole('button', { name: 'Convertir a ticket' });
       await expect(convert).toBeVisible();
       await expectInsideViewport(page, convert, 'Convertir a ticket');
-      await expect(page.getByTestId('presupuesto-counts')).toHaveText('4 conceptos · 7 materiales');
-      await expect(page.getByTestId('presupuesto-expires')).toContainText(/Vence el .* · quedan 1[45] días/);
-      await expect(page.getByRole('heading', { name: 'Condiciones' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Ver todas' })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Conceptos' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Ver los 4 conceptos y 7 materiales' })).toBeVisible();
+      await expect(visible(page.getByTestId('presupuesto-counts'))).toHaveText('4 conceptos · 7 materiales');
+      await expect(visible(page.getByTestId('presupuesto-expires'))).toContainText(/Vence el .* · quedan 1[45] días/);
+      await expect(visible(page.getByRole('heading', { name: 'Condiciones' }))).toBeVisible();
+      await expect(visible(page.getByRole('button', { name: 'Ver todas' }))).toBeVisible();
+      await expect(visible(page.getByRole('heading', { name: 'Conceptos' }))).toBeVisible();
+      await expect(visible(page.getByRole('button', { name: 'Ver los 4 conceptos y 7 materiales' }))).toBeVisible();
       await expectNoPageOverflow(page, 'presupuesto detail');
 
       // Bottom row on the dock: Editar / Duplicar / Cancelar; share is the icon in the app bar.
-      const row = page.getByTestId('presupuesto-actions');
+      const row = visible(page.getByTestId('presupuesto-actions'));
       await expect(row.getByRole('link', { name: 'Editar' })).toBeVisible();
       await expect(row.getByRole('button', { name: 'Duplicar' })).toBeVisible();
       await expect(row.getByRole('button', { name: 'Cancelar presupuesto' })).toBeVisible();
       await expectInsideViewport(page, row, 'action row');
       await expect(
-        page.getByTestId('mobile-app-bar').getByRole('button', { name: 'Compartir presupuesto' }),
+        visible(page.getByTestId('mobile-app-bar')).getByRole('button', { name: 'Compartir presupuesto' }),
       ).toBeVisible();
 
       // Duplicar from Abierto: the composer opens prefilled; saving makes a new presupuesto.
@@ -101,25 +104,25 @@ for (const width of [375, 333]) {
 
       // Convertido: convert the first one, then Duplicar still works.
       await page.goto(`/presupuestos/${firstId}`);
-      await page.getByTestId('presupuesto-accept').getByRole('button', { name: 'Convertir a ticket' }).click();
+      await visible(page.getByTestId('presupuesto-accept')).getByRole('button', { name: 'Convertir a ticket' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Convertir a ticket' }).click();
       await page.waitForURL(/\/tickets\/\d+$/, { timeout: 60_000 });
       await page.goto(`/presupuestos/${firstId}`);
       await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Convertido');
-      await expect(page.getByTestId('presupuesto-accept')).toHaveCount(0);
-      await expect(page.getByTestId('presupuesto-actions').getByRole('link', { name: 'Editar' })).toHaveCount(0);
-      await page.getByTestId('presupuesto-actions').getByRole('button', { name: 'Duplicar' }).click();
+      await expect(visible(page.getByTestId('presupuesto-accept'))).toHaveCount(0);
+      await expect(visible(page.getByTestId('presupuesto-actions')).getByRole('link', { name: 'Editar' })).toHaveCount(0);
+      await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Duplicar' }).click();
       await expectDraftOpened(page);
 
       // Cancelado: cancel the second one, then Duplicar still works.
       await page.evaluate(() => window.localStorage.clear());
       await page.goto(`/presupuestos/${secondId}`);
-      await page.getByTestId('presupuesto-actions').getByRole('button', { name: 'Cancelar presupuesto' }).click();
+      await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Cancelar presupuesto' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Cancelar presupuesto' }).click();
       await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Cancelado', {
         timeout: 30_000,
       });
-      await page.getByTestId('presupuesto-actions').getByRole('button', { name: 'Duplicar' }).click();
+      await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Duplicar' }).click();
       await expectDraftOpened(page);
       await page.evaluate(() => window.localStorage.clear());
     });
