@@ -46,9 +46,19 @@
   .items { margin-top: 12px; border-collapse: collapse; width: 100%; }
   .items th { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #777; font-weight: 400; text-align: right; padding: 0 0 10px; border-bottom: 1px solid #141414; }
   .items th:first-child { text-align: left; }
-  .items td { padding: 16px 0; border-bottom: 1px dashed #d6d6d1; vertical-align: baseline; text-align: right; font-size: 13px; }
-  .items td:first-child { text-align: left; padding-right: 16px; }
-  .items col.c-qty { width: 80px; } .items col.c-price { width: 130px; } .items col.c-amount { width: 120px; }
+  .group { padding: 16px 0 14px; border-bottom: 1px dashed #d6d6d1; }
+  .grid { display: grid; grid-template-columns: 1fr 80px 130px 120px; align-items: baseline; }
+  .grid > div { text-align: right; font-size: 13px; }
+  .grid > div:first-child { text-align: left; padding-right: 16px; }
+  .grid .amount { font-weight: 500; }
+  .materials { margin: 12px 0 0 30px; padding-left: 14px; border-left: 1px solid #d6d6d1; display: flex; flex-direction: column; gap: 8px; }
+  .materials .grid > div { font-size: 12.5px; color: #444; }
+  .group-total { display: grid; grid-template-columns: 1fr 120px; align-items: baseline; padding-top: 8px; border-top: 1px dotted #c8c8c3; }
+  .group-total .lbl { font-size: 12px; color: #444; padding-right: 16px; }
+  .group-total .lbl span { color: #888; }
+  .group-total .val { text-align: right; font-size: 13px; font-weight: 600; }
+  .thead { margin-top: 12px; padding-bottom: 10px; border-bottom: 1px solid #141414; }
+  .thead > div { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #777; }
   .concept { display: flex; gap: 12px; }
   .concept .idx { font-size: 11px; color: #999; padding-top: 3px; }
   .concept .name { font-size: 14px; font-weight: 600; }
@@ -62,6 +72,7 @@
   .totals .row span:first-child { color: #555; }
   .totals .leader { flex: 1; border-bottom: 1px dotted #aaa; transform: translateY(-3px); }
   .totals .sep { height: 1px; background: #141414; margin: 6px 0 2px; }
+  .totals .sep-thin { height: 1px; background: #d6d6d1; margin: 2px 0; }
   .totals .due { display: flex; justify-content: space-between; align-items: baseline; }
   .totals .due span:first-child { font-weight: 600; font-size: 14px; }
   .totals .due span:last-child { font-size: 24px; font-weight: 500; }
@@ -90,7 +101,6 @@
     <div class="doc">
       <div class="title">{{docTitle}}</div>
       <div class="folio mono">Folio {{folio}}</div>
-      <div class="date mono">{{issueDate}}</div>
     </div>
   </div>
 
@@ -116,29 +126,41 @@
 
   <div class="rule-double"></div><div class="rule-thin"></div>
 
-  <table class="items">
-    <colgroup><col><col class="c-qty"><col class="c-price"><col class="c-amount"></colgroup>
-    <thead><tr><th>Concepto</th><th>Cantidad</th><th>Precio unitario</th><th>Importe</th></tr></thead>
-    <tbody>
-      {{#items}}
-      <tr>
-        <td><div class="concept"><span class="idx mono">{{index}}</span><div><div class="name">{{name}}</div><div class="desc">{{description}}</div></div></div></td>
-        <td class="mono">{{quantity}}</td>
-        <td class="mono">{{unitPrice}}</td>
-        <td class="mono amount">{{amount}}</td>
-      </tr>
-      {{/items}}
-    </tbody>
-  </table>
+  <div class="grid thead"><div>Concepto</div><div>Cantidad</div><div>Precio unitario</div><div>Importe</div></div>
+  {{#items}}
+  <div class="group">
+    <div class="grid">
+      <div><div class="concept"><span class="idx mono">{{index}}</span><div><div class="name">{{name}}</div><div class="desc">{{description}}</div></div></div></div>
+      <div class="mono">{{quantity}}</div>
+      <div class="mono">{{unitPrice}}</div>
+      <div class="mono amount">{{amount}}</div>
+    </div>
+    {{#materials.length}}
+    <div class="materials">
+      <div class="label">Materiales</div>
+      {{#materials}}
+      <div class="grid">
+        <div>{{name}}</div>
+        <div class="mono">{{quantity}} {{unit}}</div>
+        <div class="mono">{{unitPrice}}</div>
+        <div class="mono">{{amount}}</div>
+      </div>
+      {{/materials}}
+      <div class="group-total"><div class="lbl">Subtotal {{name}} <span>(servicio + materiales)</span></div><div class="val mono">{{groupTotal}}</div></div>
+    </div>
+    {{/materials.length}}
+  </div>
+  {{/items}}
 
   <div class="totals-wrap">
     <div class="totals">
-      <div class="row"><span>Subtotal</span><span class="leader"></span><span class="mono">{{subtotal}}</span></div>
-      <div class="row"><span>{{taxLabel}}</span><span class="leader"></span><span class="mono">{{tax}}</span></div>
-      <div class="row"><span>Total</span><span class="leader"></span><span class="mono">{{total}}</span></div>
-      <div class="row"><span>Pagado</span><span class="leader"></span><span class="mono">{{paid}}</span></div>
+      <div class="row"><span>Servicios</span><span class="leader"></span><span class="mono">{{totals.services}}</span></div>
+      <div class="row"><span>Materiales</span><span class="leader"></span><span class="mono">{{totals.materials}}</span></div>
+      <div class="sep-thin"></div>
+      <div class="row"><span>Total</span><span class="leader"></span><span class="mono">{{totals.total}}</span></div>
+      <div class="row"><span>Pagado</span><span class="leader"></span><span class="mono">{{totals.paid}}</span></div>
       <div class="sep"></div>
-      <div class="due"><span>Saldo por pagar</span><span class="mono">{{balanceDue}}</span></div>
+      <div class="due"><span>Saldo por pagar</span><span class="mono">{{totals.balanceDue}}</span></div>
     </div>
   </div>
 

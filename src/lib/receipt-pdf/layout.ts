@@ -42,6 +42,10 @@ export const COLORS = {
   hairline: '#e2e2de',
   rowDivider: '#d6d6d1',
   leader: '#aaaaaa',
+  /** Dotted rule above a group subtotal (CHANGES-v2 §2). */
+  groupRule: '#c8c8c3',
+  /** `(servicio + materiales)` after the group subtotal label. */
+  groupHint: '#888888',
   panel: '#f4f4f1',
   white: '#ffffff',
 } as const;
@@ -63,7 +67,6 @@ export const HEADER = {
   titleLineHeight: 1,
   docGap: 8,
   folioSize: 12,
-  dateSize: 12,
 } as const;
 
 export const DOUBLE_RULE = {
@@ -108,7 +111,9 @@ export const TABLE = {
   qtyMaxWidth: 120,
   headerPaddingBottom: 10,
   headerBorder: 1,
-  rowPaddingY: 16,
+  /** Every concept is a group: padding 16px 0 14px (CHANGES-v2 §2). */
+  rowPaddingTop: 16,
+  rowPaddingBottom: 14,
   rowBorder: 1,
   /** Chrome draws a 1px dashed border as 3px dashes with 3px gaps. */
   rowDash: [3, 3] as const,
@@ -119,11 +124,27 @@ export const TABLE = {
   nameSize: 14,
   descriptionSize: 12.5,
   descriptionGap: 3,
-  /** Material sub-rows (ZIG-I10): 12px #666, 6px after the description, 4px apart. */
-  materialSize: 12,
-  materialsGap: 6,
-  materialRowGap: 4,
   numberSize: 13,
+} as const;
+
+/**
+ * Materials block under a service (CHANGES-v2 §2): 12px below the service row,
+ * indented 30px with a 1px left border and 14px inner padding; label, material
+ * rows on the table's grid and the group subtotal, 8px apart.
+ */
+export const MATERIALS = {
+  marginTop: 12,
+  indent: 30,
+  border: 1,
+  paddingLeft: 14,
+  gap: 8,
+  size: 12.5,
+  /** Group subtotal: 1px dotted rule, 8px above the text. */
+  totalBorder: 1,
+  totalDash: [1, 1] as const,
+  totalPaddingTop: 8,
+  totalLabelSize: 12,
+  totalValueSize: 13,
 } as const;
 
 export const TOTALS = {
@@ -139,6 +160,8 @@ export const TOTALS = {
   leaderDash: [1, 1] as const,
   separatorMarginTop: 6,
   separatorMarginBottom: 2,
+  /** Thin #d6d6d1 rule between Materiales and Total: margin 2px 0. */
+  thinSeparatorMargin: 2,
   dueLabelSize: 14,
   dueValueSize: 24,
 } as const;
