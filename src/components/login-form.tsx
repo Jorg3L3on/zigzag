@@ -124,7 +124,7 @@ export function LoginForm({
             <h1 className="mb-1.5 font-[family-name:var(--font-login-display)] text-[22px] font-semibold tracking-[-0.015em] text-[color:var(--login-ink)] sm:text-[25px]">
               Bienvenido a ZigZag
             </h1>
-            <p className="mb-[26px] text-[13.5px] leading-normal text-[color:var(--login-ink-muted)]">
+            <p className="mb-[26px] text-base leading-normal text-[color:var(--login-ink-muted)]">
               Ingresa tus datos para ver tus tickets de hoy.
             </p>
 
@@ -150,7 +150,7 @@ export function LoginForm({
               <div className="field mb-5">
                 <label
                   htmlFor="email"
-                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
+                  className="mb-2 block text-sm font-medium text-[color:var(--login-ink-muted)]"
                 >
                   Correo electrónico
                 </label>
@@ -162,7 +162,7 @@ export function LoginForm({
                     autoComplete="email"
                     placeholder="m@ejemplo.com"
                     required
-                    className="w-full border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                    className="w-full border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-base text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -170,7 +170,7 @@ export function LoginForm({
               <div className="field mb-5">
                 <label
                   htmlFor="password"
-                  className="mb-2 block font-[family-name:var(--font-login-mono)] text-[10.5px] font-medium tracking-[0.09em] text-[color:var(--login-ink-faint)] uppercase"
+                  className="mb-2 block text-sm font-medium text-[color:var(--login-ink-muted)]"
                 >
                   Contraseña
                 </label>
@@ -182,12 +182,12 @@ export function LoginForm({
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
                       required
-                      className="w-full flex-1 border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-[14.5px] text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
+                      className="w-full flex-1 border-0 border-b-[1.5px] border-[color:var(--login-line-strong)] bg-[color:var(--login-field-bg)] px-0.5 py-2.5 text-base text-[color:var(--login-ink)] outline-none placeholder:text-[color:var(--login-ink-faint)] focus:border-transparent"
                     />
                     <button
                       type="button"
                       onClick={handleTogglePassword}
-                      className="mb-0.5 p-1.5 text-[color:var(--login-ink-faint)] transition-colors hover:text-[color:var(--login-ink)] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+                      className="mb-0.5 flex size-11 items-center justify-center text-[color:var(--login-ink-muted)] transition-colors hover:text-[color:var(--login-ink)] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
                       aria-label={
                         showPassword
                           ? 'Ocultar contraseña'
@@ -195,9 +195,9 @@ export function LoginForm({
                       }
                     >
                       {showPassword ? (
-                        <EyeOff className="size-[17px]" aria-hidden />
+                        <EyeOff className="size-5" aria-hidden />
                       ) : (
-                        <Eye className="size-[17px]" aria-hidden />
+                        <Eye className="size-5" aria-hidden />
                       )}
                     </button>
                   </div>

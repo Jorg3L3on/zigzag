@@ -6,6 +6,9 @@ export const ONBOARDING_GUIDE_PATHS = {
   index: '/guides/index.html',
 } as const;
 
+/** How the in-app help reads for a tradesperson (ZIG-I18-12). */
+export const HELP_GUIDE_LABEL = '¿Cómo se usa?';
+
 export type OnboardingGuideLink = {
   href: string;
   label: string;

@@ -55,7 +55,7 @@ export const LoginStage = ({ children, className }: LoginStageProps) => {
       <div className="login-grain absolute inset-0 z-[1]" aria-hidden />
 
       <ThemeToggle
-        className="fixed top-6 right-6 z-10 h-10 w-10 rounded-full border border-[color:var(--login-line)] bg-[color:var(--login-field-bg)] text-[color:var(--login-ink-muted)] hover:border-[color:var(--login-line-strong)] hover:bg-[color:var(--login-field-bg)] hover:text-[color:var(--login-ink)] focus-visible:ring-[color:var(--login-accent-blue)]"
+        className="fixed top-4 right-4 z-10 size-11 rounded-full border border-[color:var(--login-line)] bg-[color:var(--login-field-bg)] text-[color:var(--login-ink-muted)] hover:border-[color:var(--login-line-strong)] hover:bg-[color:var(--login-field-bg)] hover:text-[color:var(--login-ink)] focus-visible:ring-[color:var(--login-accent-blue)]"
       />
 
       <div className="relative z-[2] flex w-full max-w-[420px] flex-col items-center gap-[18px]">

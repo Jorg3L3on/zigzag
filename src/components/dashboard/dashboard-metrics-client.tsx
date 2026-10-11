@@ -29,6 +29,7 @@ import {
   DashboardQuickActions,
   DashboardQuickTiles,
 } from '@/components/dashboard/dashboard-quick-actions';
+import { DashboardFirstJobCard } from '@/components/dashboard/dashboard-first-job-card';
 import { DashboardTuDia } from '@/components/dashboard/dashboard-tu-dia';
 import {
   buildCampoDashboardComposition,
@@ -364,6 +365,7 @@ export const DashboardMetricsClient = ({
       case 'tuDia':
         return (
           <React.Fragment key={widgetId}>
+            <DashboardFirstJobCard totalTickets={metrics?.totalTickets} />
             <DashboardTuDia
               initialQueue={initialDayQueue}
               campo={composition.campoOperations}

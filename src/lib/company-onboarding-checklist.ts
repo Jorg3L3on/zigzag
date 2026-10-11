@@ -210,3 +210,11 @@ export const buildCompanyOnboardingChecklist = ({
     steps,
   };
 };
+
+/**
+ * Hoy shows `Anota tu primer trabajo` until the company has its first ticket
+ * (ZIG-I18-12). The six-step checklist stays for the office; this is the one
+ * step a tradesperson needs.
+ */
+export const isFirstJobPending = (totalTickets: number | null | undefined): boolean =>
+  totalTickets === 0;

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   EMPRESA_GUIDE_LINK,
   getOnboardingGuidesForUser,
+  HELP_GUIDE_LABEL,
   openOnboardingGuide,
 } from '@/lib/onboarding-guides';
 
@@ -124,7 +125,7 @@ export function NavUser() {
                   onClick={() => openOnboardingGuide(EMPRESA_GUIDE_LINK.href)}
                 >
                   <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
-                  Guías
+                  {HELP_GUIDE_LABEL}
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>

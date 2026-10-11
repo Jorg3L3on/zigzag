@@ -9,6 +9,7 @@ import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
+import { NavHelpLink } from '@/components/nav-help-link';
 import { NavUser } from '@/components/nav-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -260,6 +261,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <ThemeToggle />
           </div>
         </div>
+        <NavHelpLink />
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

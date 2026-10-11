@@ -46,6 +46,25 @@ test.describe('Mobile metrics (ZIG-I18-10)', () => {
     { name: 'Nuevo ticket', path: '/tickets/create' },
   ];
 
+  test('Login: sentence-case labels at 14 px or more, no sub-44px targets (ZIG-I18-12)', async ({ page }) => {
+    await page.goto('/login');
+    await page.locator('#email').waitFor({ state: 'visible', timeout: 30_000 });
+    await page.getByRole('button', { name: /Primera vez en ZigZag/i }).click();
+    await page.waitForTimeout(500);
+    const label = page.locator('label[for="email"]');
+    await expect(label).toHaveText('Correo electrónico');
+    const fontSize = await label.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(fontSize).toBeGreaterThanOrEqual(14);
+    const transform = await label.evaluate((el) => getComputedStyle(el).textTransform);
+    expect(transform).toBe('none');
+    const metrics = await measurePage(page);
+    if (process.env.MOBILE_METRICS_REPORT === '1') {
+      console.log(formatMetrics('Login', metrics));
+      return;
+    }
+    assertMobileMetrics('Login', metrics);
+  });
+
   test.describe('primary screens', () => {
     test.beforeEach(async ({ page }) => {
       test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
