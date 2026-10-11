@@ -24,7 +24,14 @@ const objectBodies = (pdf: string): Map<string, string> => {
 };
 
 const streamOf = (body: string): string => {
-  const raw = body.match(/stream\r?\n([\s\S]*?)\r?\nendstream/)?.[1] ?? '';
+  // Slice by /Length: deflated bytes can end in \r, which an EOL regex before
+  // `endstream` would swallow, truncating the stream.
+  const start = body.match(/stream\r?\n/);
+  const length = Number(body.match(/\/Length (\d+)\b(?! \d+ R)/)?.[1]);
+  const raw =
+    start?.index !== undefined && Number.isInteger(length)
+      ? body.slice(start.index + start[0].length, start.index + start[0].length + length)
+      : (body.match(/stream\r?\n([\s\S]*?)\r?\nendstream/)?.[1] ?? '');
   if (!/\/Filter\s*\/FlateDecode/.test(body)) return raw;
   return inflateSync(Buffer.from(raw, 'latin1')).toString('latin1');
 };

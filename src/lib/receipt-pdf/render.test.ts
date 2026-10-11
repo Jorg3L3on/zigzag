@@ -765,6 +765,28 @@ describe('renderReceiptPdf — wide amounts and units (ZIG-I12)', () => {
   });
 });
 
+describe('extractPdfText on compressed output', () => {
+  it('reads a deflated stream that ends in a carriage return (CI e2e, PR #572)', () => {
+    const names = Array.from({ length: 6 }, (_, i) => `${i + 1}${'Y'.repeat(99)}`);
+    const total = 6 * 99 * 9_999_990;
+    const bytes = renderReceiptPdf(
+      presupuesto({
+        items: names.map((name, i) =>
+          item(i + 1, { name, quantity: 99, unitPrice: 9_999_990, amount: 99 * 9_999_990, groupTotal: 99 * 9_999_990 }),
+        ),
+        itemCount: 6,
+        servicesSubtotal: total,
+        total,
+        bigFigure: { label: 'Total del presupuesto', value: total },
+        notes: '50% anticipo, saldo contra entrega.\n\nEl cliente compra el equipo.',
+      }),
+    );
+    const text = extractPdfText(bytes).map(pageText).join(' ');
+    expect(text).toContain('CONDICIONES Y NOTAS');
+    expect(text).toContain('El cliente compra el equipo.');
+  });
+});
+
 describe('renderReceiptPdf — unsupported characters and status (ZIG-I12)', () => {
   it('draws no stray glyph for names the fonts cannot print', () => {
     const { pages } = render(
