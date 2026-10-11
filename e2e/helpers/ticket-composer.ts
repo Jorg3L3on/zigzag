@@ -157,7 +157,7 @@ export const addInlineComposerLine = async (
   await expect(sheet).toBeVisible();
   await sheet.getByRole('radio', { name: /Escribir/ }).click();
   await sheet.getByLabel('Nombre del servicio').fill(name);
-  const toggle = sheet.getByRole('switch', { name: /Guardar en mi catálogo/ });
+  const toggle = sheet.getByRole('switch', { name: /Guardar en mis servicios/ });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   if (saveToCatalog) await toggle.click();
   await sheet

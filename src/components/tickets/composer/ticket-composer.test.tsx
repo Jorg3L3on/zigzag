@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { getServices } from '@/actions/services';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -260,6 +261,20 @@ describe('TicketComposer', () => {
     expect(await screen.findByText('2 × $4,200.00')).toBeTruthy();
   });
 
+  it('opens Agregar servicio on Escribir when the catalog is empty (ZIG-I18-13)', async () => {
+    const user = userEvent.setup();
+    (getServices as jest.Mock).mockResolvedValueOnce({ success: true, data: [] });
+    renderComposer();
+
+    await pickClient(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+
+    expect(await within(sheet).findByLabelText('Nombre del servicio')).toBeInTheDocument();
+    expect(within(sheet).getByRole('radio', { name: /Escribir/ })).toBeChecked();
+    expect(within(sheet).getAllByText(/Marca "Guardar en mis servicios" para usarlo otra vez/).length).toBeGreaterThan(0);
+  });
+
   it('adds an inline line with Nuevo and saves it without the catalog (ZIG-I5)', async () => {
     const user = userEvent.setup();
     mockCreateTicketWithLines.mockResolvedValue({
@@ -278,7 +293,7 @@ describe('TicketComposer', () => {
       within(sheet).getByLabelText('Nombre del servicio'),
       'Cambio de capacitor 35 µF',
     );
-    const toggle = within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ });
+    const toggle = within(sheet).getByRole('switch', { name: /Guardar en mis servicios/ });
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     await user.type(
       within(sheet).getByRole('spinbutton', { name: 'Precio del servicio' }),
@@ -316,7 +331,7 @@ describe('TicketComposer', () => {
     await user.click(within(sheet).getByRole('radio', { name: /Escribir/ }));
     await user.type(within(sheet).getByLabelText('Nombre del servicio'), 'Instalación');
     await user.type(within(sheet).getByLabelText(/Descripción/), 'Incluye base');
-    await user.click(within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }));
+    await user.click(within(sheet).getByRole('switch', { name: /Guardar en mis servicios/ }));
     await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
@@ -332,7 +347,7 @@ describe('TicketComposer', () => {
     expect(within(sheet).getByLabelText('Nombre del servicio')).toHaveValue('Instalación');
     expect(within(sheet).getByLabelText(/Descripción/)).toHaveValue('Incluye base');
     expect(
-      within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }),
+      within(sheet).getByRole('switch', { name: /Guardar en mis servicios/ }),
     ).toHaveAttribute('aria-checked', 'true');
   });
 

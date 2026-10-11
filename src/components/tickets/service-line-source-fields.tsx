@@ -95,7 +95,7 @@ type InlineServiceFieldsProps = {
 };
 
 /**
- * Inline service fields: Nombre, Descripción and the Guardar en mi catálogo
+ * Inline service fields: Nombre, Descripción and the Guardar en mis servicios
  * switch (off by default). Nothing here writes to the catalog; the server does
  * it in the save transaction only when the switch is on.
  */
@@ -154,12 +154,12 @@ export const InlineServiceFields = ({
           className="flex items-center gap-1.5 text-sm font-medium"
         >
           <BookmarkPlus className="h-4 w-4 text-muted-foreground" aria-hidden />
-          Guardar en mi catálogo
+          Guardar en mis servicios
         </Label>
         <p id={`${idPrefix}-save-to-catalog-hint`} className="text-caption text-muted-foreground">
           {saveToCatalog
-            ? 'También quedará en Servicios para usarlo después.'
-            : `Sólo en este ${documentLabel}. Tu catálogo no cambia.`}
+            ? 'Quedará en Mis servicios para usarlo después.'
+            : 'Marca "Guardar en mis servicios" para usarlo otra vez.'}
         </p>
       </div>
       <Switch

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 import type { Service } from '@/db/schema';
@@ -151,6 +151,14 @@ export const ComposerLineSheet = ({
       ? initialLine
       : null;
   const trimmedName = customName.trim();
+
+  // A new company has no catalog yet: open on Escribir instead of an empty picker (ZIG-I18-13).
+  const emptyCatalog = !servicesLoading && services.length === 0;
+  useEffect(() => {
+    if (emptyCatalog && !isEditing && !serviceId) {
+      setMode('custom');
+    }
+  }, [emptyCatalog, isEditing, serviceId]);
 
   const materialsTotal = materialDraftsTotal(materials);
   const serviceAmount = multiplyMoney(priceValue, quantityValue);
@@ -360,7 +368,7 @@ export const ComposerLineSheet = ({
       {serviceChosen ? null : (
         <p className="text-sm text-muted-foreground">
           {mode === 'custom'
-            ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
+            ? 'Escríbelo aquí. Marca "Guardar en mis servicios" para usarlo otra vez.'
             : 'Elige el servicio, la cantidad y el precio.'}
         </p>
       )}
@@ -374,7 +382,7 @@ export const ComposerLineSheet = ({
       title={isEditing ? 'Editar servicio' : 'Agregar servicio'}
       description={
         mode === 'custom'
-          ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
+          ? 'Escríbelo aquí. Marca "Guardar en mis servicios" para usarlo otra vez.'
           : 'Elige el servicio, la cantidad y el precio.'
       }
       header={header}
@@ -471,7 +479,7 @@ export const ComposerLineSheet = ({
             />
             {!servicesLoading && services.length === 0 ? (
               <p className="text-caption text-muted-foreground">
-                Tu catálogo está vacío. Usa Nuevo para escribir el servicio.
+                Aún no tienes servicios guardados. Usa Escribir para anotar el primero.
               </p>
             ) : null}
           </div>
