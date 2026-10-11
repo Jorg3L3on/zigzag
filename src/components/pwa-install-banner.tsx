@@ -6,9 +6,44 @@ import { Button } from '@/components/ui/button';
 import { usePwaInstallPrompt } from '@/hooks/use-pwa-install-prompt';
 import { cn } from '@/lib/utils';
 
+const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'scroll'] as const;
+
+/**
+ * True after the first tap, key or scroll. The banner's text is larger than the
+ * dashboard greeting, so showing it on load made it the page's LCP element;
+ * the browser stops LCP at the first interaction, so waiting keeps it out.
+ */
+const useHasInteracted = (): boolean => {
+  const [hasInteracted, setHasInteracted] = React.useState(false);
+
+  React.useEffect(() => {
+    if (hasInteracted) {
+      return;
+    }
+    const handleInteraction = () => setHasInteracted(true);
+    for (const eventName of INTERACTION_EVENTS) {
+      window.addEventListener(eventName, handleInteraction, {
+        once: true,
+        passive: true,
+        capture: true,
+      });
+    }
+    return () => {
+      for (const eventName of INTERACTION_EVENTS) {
+        window.removeEventListener(eventName, handleInteraction, {
+          capture: true,
+        });
+      }
+    };
+  }, [hasInteracted]);
+
+  return hasInteracted;
+};
+
 export const PwaInstallBanner = () => {
   const { canPrompt, isInstalling, promptInstall, dismiss } =
     usePwaInstallPrompt();
+  const hasInteracted = useHasInteracted();
 
   const handleInstall = React.useCallback(async () => {
     await promptInstall();
@@ -34,7 +69,7 @@ export const PwaInstallBanner = () => {
     [dismiss],
   );
 
-  if (!canPrompt) {
+  if (!canPrompt || !hasInteracted) {
     return null;
   }
 

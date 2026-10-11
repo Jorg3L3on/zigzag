@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { ZigZagMark } from '@/components/brand/zigzag-mark';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 import { getSafeAppRedirectPath } from '@/lib/login-redirect';
+import { rememberBrowserTimeZone } from '@/lib/time-greeting';
 
 export function LoginForm({
   className,
@@ -31,6 +32,8 @@ export function LoginForm({
 
   useEffect(() => {
     setIsHydrated(true);
+    // The dashboard greets in local time from the first server render.
+    rememberBrowserTimeZone();
     return () => {
       if (stampTimeoutRef.current) {
         clearTimeout(stampTimeoutRef.current);
