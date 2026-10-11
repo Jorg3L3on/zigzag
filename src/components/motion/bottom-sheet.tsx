@@ -41,6 +41,11 @@ export type BottomSheetProps = {
   /** Hide title/description visually (still announced). */
   hideHeader?: boolean;
   /**
+   * Replaces the visible header (the title and description stay announced, hidden
+   * visually): lets a sheet lay out an eyebrow, a long name and actions its own way.
+   */
+  header?: React.ReactNode;
+  /**
    * Heights as fractions of the viewport, ascending (e.g. [0.5, 0.9]).
    * Omit for an auto-height sheet (max 92dvh) that only drags down to dismiss.
    */
@@ -105,6 +110,7 @@ export const BottomSheet = ({
   title,
   description,
   hideHeader = false,
+  header,
   snapPoints,
   initialSnap = 0,
   footer,
@@ -157,7 +163,7 @@ export const BottomSheet = ({
     setSnapIndex(next);
   };
 
-  const headerClass = hideHeader ? 'sr-only' : undefined;
+  const headerClass = hideHeader || header ? 'sr-only' : undefined;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -171,6 +177,12 @@ export const BottomSheet = ({
               onOpenAutoFocus={(event) =>
                 focusInitialOverlayTarget(event, contentRef.current)
               }
+              // A tap on a toast (Deshacer after quitting a material) is outside
+              // the sheet but must not dismiss it (ZIG-I13-2).
+              onInteractOutside={(event) => {
+                const target = event.target as HTMLElement | null;
+                if (target?.closest('[data-sonner-toaster]')) event.preventDefault();
+              }}
             >
               <motion.div
                 ref={contentRef}
@@ -206,6 +218,7 @@ export const BottomSheet = ({
                     <SheetDescription>{description}</SheetDescription>
                   ) : null}
                 </div>
+                {header ? <div className="shrink-0 px-5 pb-3 pt-1">{header}</div> : null}
                 <div
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4"
                   onPointerDownCapture={(event) => {

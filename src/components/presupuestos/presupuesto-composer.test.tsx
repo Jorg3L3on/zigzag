@@ -107,8 +107,9 @@ const renderComposer = () =>
     </MobileChromeProvider>,
   );
 
+// Desktop says Guardar presupuesto; the sticky bar just says Guardar (ZIG-I13-2).
 const saveButtons = () =>
-  screen.getAllByRole('button', { name: 'Guardar presupuesto' });
+  screen.getAllByRole('button', { name: /^Guardar( presupuesto)?$/ });
 
 const pickClient = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
@@ -129,7 +130,7 @@ const addLine = async (
   const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
   await user.clear(qty);
   await user.type(qty, quantity);
-  await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
   );
@@ -281,14 +282,18 @@ describe('PresupuestoEditComposer (ZIG-I5-5)', () => {
   });
 
   it('loads the quote with the client locked and Guardar cambios enabled', async () => {
+    const user = userEvent.setup();
     renderEdit();
 
     expect(screen.getByRole('heading', { name: 'Editar presupuesto #1057' })).toBeTruthy();
+    // The client is a card with Cambiar; its picker stays locked (ZIG-I13-2).
+    expect(screen.getByTestId('composer-party-card')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
     expect(screen.getByRole('combobox', { name: 'Cliente' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).toBeNull();
     const lines = screen.getByRole('list', { name: 'Servicios del presupuesto' });
     expect(within(lines).getByText('Revisión de fuga')).toBeTruthy();
-    expect(within(lines).getByText('Nuevo')).toBeTruthy();
+    expect(within(lines).queryByText('Nuevo')).toBeNull();
     expect(document.getElementById('composer-notes')).toHaveValue('Nota previa');
     screen
       .getAllByRole('button', { name: 'Guardar cambios' })

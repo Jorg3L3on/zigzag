@@ -141,8 +141,10 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expectServicesTotal(page, UNIT_PRICE * INITIAL_QUANTITY);
 
     // Editar the draft line in its sheet before saving.
-    await page.getByRole('button', { name: `Opciones de ${serviceName}` }).click();
-    await page.getByRole('menuitem', { name: /Editar/ }).click();
+    await page
+      .getByRole('list', { name: 'Servicios del ticket' })
+      .getByRole('button', { name: new RegExp(serviceName) })
+      .click();
     const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await editSheet
       .getByRole('button', { name: 'Aumentar cantidad del servicio' })
@@ -150,7 +152,7 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expect(
       editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
     ).toHaveValue(String(UPDATED_QUANTITY));
-    await editSheet.getByRole('button', { name: 'Guardar cambios' }).click();
+    await editSheet.getByRole('button', { name: 'Guardar línea' }).click();
     await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 

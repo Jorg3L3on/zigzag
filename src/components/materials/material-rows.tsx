@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 
 import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
@@ -18,6 +18,11 @@ type MaterialRowsProps = {
   onRemove: (key: string) => void;
   /** Inline materials get the Nuevo chip (document lines only). */
   showInlineChips?: boolean;
+  /**
+   * Line-sheet look (ZIG-I13-2): no outer frame, an × to remove, and the name,
+   * `qty unit × price` and amount wrap instead of truncating.
+   */
+  compact?: boolean;
   className?: string;
   'data-testid'?: string;
 };
@@ -31,26 +36,42 @@ export const MaterialRows = ({
   onEdit,
   onRemove,
   showInlineChips = false,
+  compact = false,
   className,
   'data-testid': testId,
 }: MaterialRowsProps) => {
   if (materials.length === 0) return null;
+  const RemoveIcon = compact ? X : Trash2;
   return (
     <ul
-      className={cn('divide-y divide-border/60 rounded-xl border border-border/70', className)}
+      className={cn(
+        'divide-y divide-border/60',
+        !compact && 'rounded-xl border border-border/70',
+        className,
+      )}
       data-testid={testId}
     >
       {materials.map((item) => (
-        <li key={item.key} className="flex items-center gap-1 pr-1">
+        <li key={item.key} className={cn('flex items-center gap-1', !compact && 'pr-1')}>
           <button
             type="button"
             onClick={() => onEdit(item.key)}
             aria-label={`Editar ${item.name}`}
-            className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-l-xl px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none"
+            className={cn(
+              'flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring motion-reduce:transition-none',
+              compact ? 'rounded-lg' : 'rounded-l-xl px-3',
+            )}
           >
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                <span className="min-w-0 break-words text-sm font-medium">{item.name}</span>
+                <span
+                  className={cn(
+                    'min-w-0 text-sm font-medium',
+                    compact ? '[overflow-wrap:anywhere]' : 'break-words',
+                  )}
+                >
+                  {item.name}
+                </span>
                 {showInlineChips ? (
                   <InlineLineChips
                     isInline={item.material_id == null}
@@ -58,7 +79,12 @@ export const MaterialRows = ({
                   />
                 ) : null}
               </span>
-              <span className="block truncate text-xs tabular-nums text-muted-foreground">
+              <span
+                className={cn(
+                  'block text-xs tabular-nums text-muted-foreground',
+                  compact ? '[overflow-wrap:anywhere]' : 'truncate',
+                )}
+              >
                 {formatMaterialQuantity(item.quantity, item.unit)} ×{' '}
                 {formatServiceCurrency(item.price)}
               </span>
@@ -71,11 +97,14 @@ export const MaterialRows = ({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive"
+            className={cn(
+              'shrink-0 text-muted-foreground hover:text-destructive',
+              compact ? 'h-11 w-10' : 'h-11 w-11',
+            )}
             aria-label={`Quitar ${item.name}`}
             onClick={() => onRemove(item.key)}
           >
-            <Trash2 className="h-4 w-4" aria-hidden />
+            <RemoveIcon className="h-4 w-4" aria-hidden />
           </Button>
         </li>
       ))}

@@ -15,6 +15,10 @@ export const AppToaster = () => {
 
   return (
     <Toaster
+      // Radix modals (sheets, dialogs) make the rest of the page inert, and the
+      // toaster inherits that: without this a Deshacer inside an open sheet
+      // cannot be tapped (ZIG-I13-2).
+      style={{ pointerEvents: 'auto' }}
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
       position={isMobile ? 'top-center' : 'bottom-center'}
       offset={16}

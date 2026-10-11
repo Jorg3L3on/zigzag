@@ -17,6 +17,12 @@ type TicketServiceLineEditorProps = {
   quantityError?: string | null;
   priceError?: string | null;
   className?: string;
+  /**
+   * `sheet` (ZIG-I13-2): Cantidad and Precio always side by side, Cantidad as a
+   * stepper and Precio as a plain money input. `responsive` keeps both steppers
+   * and stacks them below `sm` (desktop row, ticket-services editor).
+   */
+  layout?: 'responsive' | 'sheet';
 };
 
 const toNumber = (value: number | string) => {
@@ -40,25 +46,33 @@ export const TicketServiceLineEditor = ({
   quantityError = null,
   priceError = null,
   className,
+  layout = 'responsive',
 }: TicketServiceLineEditorProps) => {
   const quantityValue = toNumber(quantity);
   const priceValue = toNumber(price);
+  const compact = layout === 'sheet';
 
   return (
-    <div className={cn('grid gap-3 sm:grid-cols-2 sm:items-end', className)}>
-      <div>
+    <div
+      className={cn(
+        'grid gap-3',
+        compact ? 'grid-cols-2 items-start' : 'sm:grid-cols-2 sm:items-end',
+        className,
+      )}
+    >
+      <div className="min-w-0">
         <Label
           htmlFor={`${idPrefix}-quantity`}
           className="text-sm font-medium text-foreground"
         >
           Cantidad
         </Label>
-        <div className="flex items-center gap-2">
+        <div className={cn('flex items-center', compact ? 'mt-1.5 gap-1' : 'gap-2')}>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="h-10 w-10 shrink-0"
+            className={cn('shrink-0', compact ? 'h-12 w-9' : 'h-10 w-10')}
             onClick={() => onQuantityStep(Math.max(quantityValue - 1, 1))}
             aria-label="Reducir cantidad del servicio"
           >
@@ -72,7 +86,7 @@ export const TicketServiceLineEditor = ({
             inputMode="decimal"
             value={quantity}
             onChange={(e) => onQuantityInput(e.target.value)}
-            className="w-full text-center sm:w-24"
+            className={cn('w-full min-w-0 px-1 text-center', compact ? 'h-12' : 'sm:w-24')}
             aria-label="Cantidad del servicio"
             aria-invalid={quantityError ? true : undefined}
             aria-describedby={quantityError ? `${idPrefix}-quantity-error` : undefined}
@@ -81,7 +95,7 @@ export const TicketServiceLineEditor = ({
             type="button"
             variant="outline"
             size="icon"
-            className="h-10 w-10 shrink-0"
+            className={cn('shrink-0', compact ? 'h-12 w-9' : 'h-10 w-10')}
             onClick={() => onQuantityStep(quantityValue + 1)}
             aria-label="Aumentar cantidad del servicio"
           >
@@ -98,27 +112,29 @@ export const TicketServiceLineEditor = ({
           </p>
         ) : null}
       </div>
-      <div>
+      <div className="min-w-0">
         <Label
           htmlFor={`${idPrefix}-price`}
           className="text-sm font-medium text-foreground"
         >
           Precio
         </Label>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={() =>
-              onPriceStep(Math.max(Number((priceValue - 1).toFixed(2)), 0))
-            }
-            aria-label="Reducir precio del servicio"
-          >
-            <Minus className="h-4 w-4" data-icon="inline-start" />
-          </Button>
-          <div className="relative w-full sm:w-40">
+        <div className={cn('flex items-center', compact ? 'mt-1.5' : 'gap-2')}>
+          {compact ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={() =>
+                onPriceStep(Math.max(Number((priceValue - 1).toFixed(2)), 0))
+              }
+              aria-label="Reducir precio del servicio"
+            >
+              <Minus className="h-4 w-4" data-icon="inline-start" />
+            </Button>
+          )}
+          <div className={cn('relative w-full', !compact && 'sm:w-40')}>
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
               $
             </span>
@@ -130,22 +146,24 @@ export const TicketServiceLineEditor = ({
               inputMode="decimal"
               value={price}
               onChange={(e) => onPriceInput(e.target.value)}
-              className="w-full pl-8 text-center"
+              className={cn('w-full pl-8', compact ? 'h-12 text-right' : 'text-center')}
               aria-label="Precio del servicio"
               aria-invalid={priceError ? true : undefined}
               aria-describedby={priceError ? `${idPrefix}-price-error` : undefined}
             />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={() => onPriceStep(Number((priceValue + 1).toFixed(2)))}
-            aria-label="Aumentar precio del servicio"
-          >
-            <Plus className="h-4 w-4" data-icon="inline-start" />
-          </Button>
+          {compact ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={() => onPriceStep(Number((priceValue + 1).toFixed(2)))}
+              aria-label="Aumentar precio del servicio"
+            >
+              <Plus className="h-4 w-4" data-icon="inline-start" />
+            </Button>
+          )}
         </div>
         {priceError ? (
           <p

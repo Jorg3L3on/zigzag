@@ -75,13 +75,13 @@ test.describe('Presupuesto creation (mobile)', () => {
     await addComposerLine(page, { quantity: 1, price: 4200 }, 0, LINES_LABEL);
     await addInlineComposerLine(page, { name: inlineName, price: 850 }, LINES_LABEL);
     const lines = page.getByRole('list', { name: LINES_LABEL });
-    await expect(lines.getByText('Nuevo', { exact: true })).toBeVisible();
+    await expect(lines.getByText(inlineName)).toBeVisible();
     await expect(page.getByTestId('composer-total')).toHaveText('$5,050.00');
 
     await page.getByRole('button', { name: '15 días' }).click();
     await expect(page.getByRole('button', { name: /^Vence/ })).toContainText('en 15 días');
 
-    const save = page.getByRole('button', { name: 'Guardar presupuesto' }).first();
+    const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
     await expect(save).toBeEnabled();
     await save.click();
     await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
