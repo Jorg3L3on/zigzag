@@ -59,6 +59,7 @@ export const TicketStatusFilter = ({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">Todos los estados de cobro</SelectItem>
+        <SelectItem value="due">Por cobrar (con saldo)</SelectItem>
         <SelectItem value="paid">{TICKET_PAYMENT_STATUS_LABEL.paid}</SelectItem>
         <SelectItem value="partial">
           {TICKET_PAYMENT_STATUS_LABEL.partial}

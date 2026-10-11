@@ -56,34 +56,35 @@ const finishWithPartialPayment = async (
   // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
   // After a hard navigation Next may still hold streamed chunks in hidden
   // placeholders, so match the visible chip (strict mode would fail at once).
-  await expect(
-    page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(visible(page.getByText('Pago parcial'))).toBeVisible();
+  // Balance first (ZIG-I13-4): the pill says Pago parcial and the hero the saldo.
+  await expect(visible(page.getByTestId('ticket-status-pill'))).toHaveText('Pago parcial', {
+    timeout: 15_000,
+  });
+  await expect(visible(page.getByTestId('ticket-hero'))).toContainText('Saldo por cobrar');
 };
 
 const settleRemainingBalance = async (page: Page) => {
-  const paymentsSection = visible(page.locator('#cobranza'));
-  await expect(paymentsSection).toBeVisible({ timeout: 15_000 });
-  await paymentsSection.scrollIntoViewIfNeeded();
-  const settleButton = visible(
-    page.getByRole('button', { name: 'Saldar el ticket por completo' }),
-  );
-  await expect(settleButton).toBeVisible({ timeout: 15_000 });
+  // Cobrar (quick action) opens the Registrar pago sheet.
+  const cobrar = visible(page.getByRole('button', { name: 'Cobrar', exact: true }));
+  await expect(cobrar).toBeVisible({ timeout: 15_000 });
+  await cobrar.click();
+  const sheet = page.getByRole('dialog', { name: 'Registrar pago' });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button', { name: 'Saldar el ticket por completo' }).click();
 
-  await settleButton.click();
-
-  await expect(visible(page.getByText('Pago completado'))).toBeVisible({
+  await expect(visible(page.getByTestId('ticket-hero-paid'))).toHaveText('Saldado', {
     timeout: 30_000,
   });
-  await expect(visible(page.getByText('Saldado'))).toBeVisible();
+  await expect(visible(page.getByTestId('ticket-status-pill'))).toHaveText('Pagado');
 };
 
 const downloadInvoicePdf = async (page: Page, ticketId: string) => {
-  const downloadButton = visible(
-    page.getByRole('button', { name: /Descargar \/ imprimir|Generar recibo/ }),
-  );
-  await expect(downloadButton).toBeVisible({ timeout: 15_000 });
+  // Descargar PDF lives in the ⋯ menu of the app bar (ZIG-I13-4).
+  const menu = visible(page.getByRole('button', { name: 'Más acciones del ticket' }));
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+  await menu.click();
+  const downloadButton = page.getByRole('menuitem', { name: 'Descargar PDF' });
+  await expect(downloadButton).toBeVisible();
 
   await Promise.all([
     page.waitForResponse(
@@ -96,7 +97,7 @@ const downloadInvoicePdf = async (page: Page, ticketId: string) => {
     downloadButton.click(),
   ]);
 
-  await expect(page.getByText('PDF descargado correctamente')).toBeVisible({
+  await expect(page.getByText('PDF descargado').first()).toBeVisible({
     timeout: 15_000,
   });
 
@@ -141,8 +142,10 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expectServicesTotal(page, UNIT_PRICE * INITIAL_QUANTITY);
 
     // Editar the draft line in its sheet before saving.
-    await page.getByRole('button', { name: `Opciones de ${serviceName}` }).click();
-    await page.getByRole('menuitem', { name: /Editar/ }).click();
+    await page
+      .getByRole('list', { name: 'Servicios del ticket' })
+      .getByRole('button', { name: new RegExp(serviceName) })
+      .click();
     const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await editSheet
       .getByRole('button', { name: 'Aumentar cantidad del servicio' })
@@ -150,7 +153,7 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expect(
       editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
     ).toHaveValue(String(UPDATED_QUANTITY));
-    await editSheet.getByRole('button', { name: 'Guardar cambios' }).click();
+    await editSheet.getByRole('button', { name: 'Guardar línea' }).click();
     await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 

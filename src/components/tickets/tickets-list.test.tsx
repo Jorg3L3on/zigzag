@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TicketsList from '@/components/tickets/tickets-list';
 import { getTicketsPaginated } from '@/actions/tickets';
 import { useCompany } from '@/contexts/company-context';
@@ -11,6 +11,25 @@ import {
 jest.mock('@/actions/tickets', () => ({
   getTicketsPaginated: jest.fn(),
 }));
+
+// Stable router and search params, like Next's: the global mock hands out new
+// ones on every render, which resets a filter chosen in the UI.
+jest.mock('next/navigation', () => {
+  const searchParams = new URLSearchParams();
+  const router = {
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+  };
+  return {
+    useRouter: () => router,
+    useSearchParams: () => searchParams,
+    usePathname: () => '/tickets',
+  };
+});
 
 jest.mock('@/contexts/company-context', () => ({
   useCompany: jest.fn(),
@@ -71,6 +90,7 @@ const makeTicket = (overrides = {}) => ({
 
 const paginatedResult = (
   items: ReturnType<typeof makeTicket>[],
+  summary: { balanceDue?: number; dueCount?: number } = {},
 ): Awaited<ReturnType<typeof getTicketsPaginated>> => ({
   success: true,
   data: {
@@ -79,6 +99,8 @@ const paginatedResult = (
     page: 1,
     pageSize: 25,
     totalPages: 1,
+    balanceDue: summary.balanceDue ?? 0,
+    dueCount: summary.dueCount ?? 0,
   },
 });
 
@@ -140,7 +162,7 @@ describe('TicketsList', () => {
 
     render(<TicketsList />);
 
-    const input = await screen.findByPlaceholderText('Buscar tickets...');
+    const input = await screen.findByPlaceholderText('Cliente, folio o teléfono');
     await waitFor(() => {
       expect(screen.getAllByText('Cliente Alfa').length).toBeGreaterThan(0);
     });
@@ -156,7 +178,7 @@ describe('TicketsList', () => {
 
     // The debounced search triggers a reload that stays pending.
     expect(await screen.findByText('Cargando tickets')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Buscar tickets...')).toBe(input);
+    expect(screen.getByPlaceholderText('Cliente, folio o teléfono')).toBe(input);
     expect(input).toHaveFocus();
     expect(input).toHaveValue('Alfa');
 
@@ -246,5 +268,52 @@ describe('TicketsList', () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText('Cliente Snapshot').length).toBeGreaterThan(0);
     expect(screen.queryByText('Editar')).not.toBeInTheDocument();
+  });
+
+  it('shows the Por cobrar total and count from the server, and the chips drive the status filter (ZIG-I13-7)', async () => {
+    arrange({
+      result: paginatedResult([makeTicket()], { balanceDue: 3790794.79, dueCount: 3 }),
+    });
+
+    render(<TicketsList />);
+
+    expect(await screen.findByTestId('tickets-balance-due')).toHaveTextContent('$3,790,794.79');
+    const group = screen.getByRole('group', { name: 'Filtro de cobro' });
+    const todos = within(group).getByRole('button', { name: 'Todos' });
+    const porCobrar = within(group).getByRole('button', { name: 'Por cobrar · 3' });
+    expect(todos).toHaveAttribute('aria-pressed', 'true');
+    expect(porCobrar).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(porCobrar);
+
+    await waitFor(() =>
+      expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+        expect.objectContaining({ statusFilter: 'due' }),
+      ),
+    );
+    expect(
+      within(screen.getByRole('group', { name: 'Filtro de cobro' })).getByRole('button', {
+        name: /Por cobrar/,
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filtro de cobro' })).getByRole('button', { name: 'Pagados' }));
+    await waitFor(() =>
+      expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+        expect.objectContaining({ statusFilter: 'paid' }),
+      ),
+    );
+  });
+
+  it('keeps the search focus when a chip reloads the list', async () => {
+    arrange({ result: paginatedResult([makeTicket()], { dueCount: 1 }) });
+
+    render(<TicketsList />);
+
+    const input = await screen.findByPlaceholderText('Cliente, folio o teléfono');
+    input.focus();
+    fireEvent.click(screen.getByRole('button', { name: /Por cobrar/ }));
+    await waitFor(() => expect(mockGetTicketsPaginated).toHaveBeenCalledTimes(2));
+    expect(screen.getByPlaceholderText('Cliente, folio o teléfono')).toBe(input);
   });
 });

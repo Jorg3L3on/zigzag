@@ -10,6 +10,7 @@ import { MobileChromeProvider } from '@/contexts/mobile-chrome-context';
 const mockRefresh = jest.fn();
 const mockFinishTicket = jest.fn();
 const mockListSchedules = jest.fn();
+const mockUpsertSchedule = jest.fn();
 const mockFetchFile = jest.fn();
 const mockShareFile = jest.fn();
 const mockDownloadFile = jest.fn();
@@ -48,33 +49,13 @@ jest.mock('@/actions/tickets', () => ({
 
 jest.mock('@/actions/client-service-schedules', () => ({
   listClientServiceSchedulesForClient: (...args: unknown[]) => mockListSchedules(...args),
-  upsertClientServiceSchedule: jest.fn(async () => ({ success: true })),
+  upsertClientServiceSchedule: (...args: unknown[]) => mockUpsertSchedule(...args),
 }));
 
 jest.mock('@/lib/ticket-invoice-download', () => ({
   fetchTicketInvoiceFile: (...args: unknown[]) => mockFetchFile(...args),
   shareTicketInvoiceFile: (...args: unknown[]) => mockShareFile(...args),
   downloadTicketInvoiceFile: (...args: unknown[]) => mockDownloadFile(...args),
-}));
-
-jest.mock('@/components/service-schedules/ticket-finish-schedules-dialog', () => ({
-  TicketFinishSchedulesDialog: ({
-    open,
-    onSkip,
-    confirmLabel,
-  }: {
-    open: boolean;
-    onSkip: () => void;
-    confirmLabel?: string;
-  }) =>
-    open ? (
-      <div role="dialog" aria-label="Recordatorios de servicio">
-        <button type="button" onClick={onSkip}>
-          Omitir
-        </button>
-        <span data-testid="dialog-confirm-label">{confirmLabel}</span>
-      </div>
-    ) : null,
 }));
 
 jest.mock('@/components/tripled', () => {
@@ -122,11 +103,12 @@ describe('TicketCreationReview', () => {
     mockGranted = ['tickets.finish', 'tickets.invoice'];
     mockFinishTicket.mockResolvedValue({ success: true });
     mockListSchedules.mockResolvedValue({ success: true, data: [] });
+    mockUpsertSchedule.mockResolvedValue({ success: true });
     mockFetchFile.mockResolvedValue(pdfFile);
     mockShareFile.mockResolvedValue('shared');
   });
 
-  it('shows client, date, lines, total, pago and recibo, without detail-page noise', () => {
+  it('shows the Resumen, the payment choice, reminders and PDF links, without detail-page noise (ZIG-I13-3)', async () => {
     renderReview();
 
     expect(
@@ -134,21 +116,53 @@ describe('TicketCreationReview', () => {
     ).toBeTruthy();
     expect(screen.getByText(/Cliente Demo · 8 de octubre 2026/)).toBeTruthy();
     const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
-    expect(within(lines).getByText('3 × $4,200.00')).toBeTruthy();
+    expect(within(lines).getByText(/Mantenimiento/)).toBeTruthy();
+    expect(within(lines).getByText('$12,600.00')).toBeTruthy();
     expect(screen.getByTestId('review-total')).toHaveTextContent('$12,950.00');
-    expect(screen.getByRole('radio', { name: /Pagado completo/ })).toHaveAttribute(
-      'aria-checked',
-      'false',
+
+    expect(screen.getByRole('heading', { name: '¿Cómo pagó el cliente?' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Todo' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Una parte' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Nada aún' })).toBeTruthy();
+    expect(
+      await screen.findByRole('heading', { name: 'Programar el próximo servicio' }),
+    ).toBeTruthy();
+
+    // The duplicated recibo summary and the PDF box are gone; the links stay.
+    expect(screen.queryByTestId('recibo-summary')).toBeNull();
+    expect(screen.queryByTestId('recibo-pdf-preview')).toBeNull();
+    expect(screen.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
+      'href',
+      '/tickets/1201/recibo?from=listo',
     );
-    expect(screen.getByRole('radio', { name: /Pago parcial/ })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: /Pendiente/ })).toBeTruthy();
-    expect(screen.getByTestId('recibo-summary')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Descargar PDF/ })).toBeTruthy();
 
     for (const noise of [/Creado/, /Actualizado/, /Actividad/, /Más acciones/]) {
       expect(screen.queryByText(noise)).toBeNull();
     }
     expect(screen.queryByRole('heading', { name: 'Pagos' })).toBeNull();
+  });
+
+  it('collapses a long ticket behind Ver los N servicios y M materiales', async () => {
+    const user = userEvent.setup();
+    renderReview({
+      lines: Array.from({ length: 5 }, (_, index) => ({
+        id: index + 1,
+        serviceId: null,
+        name: `Servicio ${index + 1}`,
+        quantity: 1,
+        price: 100,
+        materials:
+          index === 0
+            ? [{ id: 1, name: 'Filtro', quantity: 2, unit: 'pza', price: 50, inline: false }]
+            : undefined,
+      })),
+    });
+
+    expect(screen.queryByText(/Servicio 4/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ver los 5 servicios y 1 material' }));
+    expect(screen.getByText(/Servicio 5/)).toBeTruthy();
+    expect(screen.getByText(/Filtro/)).toBeTruthy();
   });
 
   it('starts with no payment chosen and Finalizar disabled until one is picked (ZIG-I12 Q2)', async () => {
@@ -164,7 +178,7 @@ describe('TicketCreationReview', () => {
       .forEach((button) => expect(button).toBeDisabled());
     expect(mockFinishTicket).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('radio', { name: /Pendiente/ }));
+    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
 
     expect(screen.queryByTestId('review-pay-hint')).toBeNull();
     screen
@@ -176,7 +190,7 @@ describe('TicketCreationReview', () => {
     const user = userEvent.setup();
     renderReview();
 
-    await user.click(screen.getByRole('radio', { name: /Pago parcial/ }));
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
 
     screen
       .getAllByRole('button', { name: /Finalizar y compartir/ })
@@ -188,12 +202,12 @@ describe('TicketCreationReview', () => {
     renderReview();
 
     expect(screen.getByTestId('review-sticky-amount')).toHaveTextContent('$12,950.00');
-    await user.click(screen.getByRole('radio', { name: /Pago parcial/ }));
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
     await user.type(screen.getByLabelText('Cuánto pagó'), '5000');
 
     expect(screen.getByTestId('review-sticky-amount')).toHaveTextContent('$7,950.00');
     expect(screen.getByTestId('review-sticky-amount').previousElementSibling).toHaveTextContent(
-      'Saldo',
+      'Saldo pendiente',
     );
   });
 
@@ -208,31 +222,45 @@ describe('TicketCreationReview', () => {
     expect(screen.getAllByRole('link', { name: 'Guardar sin finalizar' }).length).toBeGreaterThan(0);
   });
 
-  it('finishes with the chosen payment, shares the PDF file, then offers recordatorios', async () => {
+  it('finishes with the chosen payment and the reminders ticked on this screen, then shares the PDF', async () => {
     const user = userEvent.setup();
+    mockListSchedules.mockResolvedValue({
+      success: true,
+      data: [{ serviceId: 8, intervalValue: 3, intervalUnit: 'month' }],
+    });
     renderReview();
 
-    await user.click(screen.getByRole('radio', { name: /Pago parcial/ }));
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
     await user.type(screen.getByLabelText('Cuánto pagó'), '5000');
-    expect(screen.getByTestId('recibo-summary')).toHaveTextContent('$5,000.00');
+
+    // The service the client already has a reminder for comes checked.
+    const recarga = await screen.findByRole('checkbox', { name: 'Recarga de gas' });
+    const mantenimiento = screen.getByRole('checkbox', { name: 'Mantenimiento' });
+    await waitFor(() => expect(recarga).toBeChecked());
+    expect(mantenimiento).not.toBeChecked();
+    expect(screen.getByRole('button', { name: /Intervalo de Recarga de gas: en 3 meses/ })).toBeTruthy();
+    await user.click(mantenimiento);
 
     await user.click(screen.getAllByRole('button', { name: /Finalizar y compartir/ })[0]);
 
     await waitFor(() =>
       expect(mockFinishTicket).toHaveBeenCalledWith(1201, 12950, 5000, 10),
     );
-    // Recordatorios come first; the share sheet opens after the user answers.
-    const dialog = await screen.findByRole('dialog', { name: 'Recordatorios de servicio' });
-    expect(screen.getByTestId('dialog-confirm-label')).toHaveTextContent(
-      'Guardar recordatorio',
-    );
-    expect(mockShareFile).not.toHaveBeenCalled();
-
-    await user.click(within(dialog).getByRole('button', { name: 'Omitir' }));
-
+    // No Recordatorios dialog: what was ticked is saved, then the share sheet opens.
     await waitFor(() => expect(mockShareFile).toHaveBeenCalledWith(pdfFile, expect.objectContaining({
       title: 'Recibo ticket #1201',
     })));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mockUpsertSchedule).toHaveBeenCalledTimes(2);
+    expect(mockUpsertSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 5, serviceId: 7, intervalValue: 2, intervalUnit: 'month' }),
+    );
+    expect(mockUpsertSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceId: 8, intervalValue: 3 }),
+    );
+    expect(mockUpsertSchedule.mock.invocationCallOrder[0]).toBeLessThan(
+      mockShareFile.mock.invocationCallOrder[0],
+    );
     expect(mockRefresh).toHaveBeenCalled();
     expect(
       screen.getByRole('heading', { name: 'Ticket #1201 finalizado' }),
@@ -240,11 +268,31 @@ describe('TicketCreationReview', () => {
     expect(screen.getAllByRole('button', { name: /Compartir recibo/ }).length).toBeGreaterThan(0);
   });
 
+  it('saves no reminder when none is ticked and has no schedules for typed-in lines', async () => {
+    const user = userEvent.setup();
+    renderReview();
+
+    await user.click(screen.getByRole('radio', { name: 'Todo' }));
+    await user.click(screen.getAllByRole('button', { name: /Finalizar y compartir/ })[0]);
+
+    await waitFor(() => expect(mockShareFile).toHaveBeenCalled());
+    expect(mockUpsertSchedule).not.toHaveBeenCalled();
+  });
+
+  it('offers no reminders when no line comes from the catalog', async () => {
+    renderReview({
+      lines: [{ id: 1, serviceId: null, name: 'Trabajo suelto', quantity: 1, price: 100 }],
+    });
+
+    expect(screen.queryByRole('heading', { name: 'Programar el próximo servicio' })).toBeNull();
+    expect(mockListSchedules).not.toHaveBeenCalled();
+  });
+
   it('finishes as Pendiente with nothing paid', async () => {
     const user = userEvent.setup();
     renderReview();
 
-    await user.click(screen.getByRole('radio', { name: /Pendiente/ }));
+    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
     await user.click(screen.getAllByRole('button', { name: /Finalizar y compartir/ })[0]);
 
     await waitFor(() =>
@@ -256,7 +304,7 @@ describe('TicketCreationReview', () => {
     const user = userEvent.setup();
     renderReview();
 
-    await user.click(screen.getByRole('radio', { name: /Pago parcial/ }));
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
     await user.type(screen.getByLabelText('Cuánto pagó'), '99999');
 
     expect(screen.getByRole('alert')).toHaveTextContent('No puede ser mayor que el total');
@@ -271,14 +319,8 @@ describe('TicketCreationReview', () => {
     const open = jest.spyOn(window, 'open').mockImplementation(() => null);
     renderReview();
 
-    await user.click(screen.getByRole('radio', { name: /Pendiente/ }));
+    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
     await user.click(screen.getAllByRole('button', { name: /Finalizar y compartir/ })[0]);
-    await user.click(
-      within(await screen.findByRole('dialog', { name: 'Recordatorios de servicio' })).getByRole(
-        'button',
-        { name: 'Omitir' },
-      ),
-    );
 
     await waitFor(() => expect(open).toHaveBeenCalled());
     expect(String(open.mock.calls[0][0])).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
@@ -300,33 +342,17 @@ describe('TicketCreationReview', () => {
     });
   });
 
-  it('shows the PDF preview and Compartir recibo as the single CTA once finished', () => {
-    Object.defineProperty(navigator, 'pdfViewerEnabled', {
-      configurable: true,
-      value: true,
-    });
-    renderReview({ finished: true, paid: 12950 });
-
-    expect(screen.getByTestId('recibo-pdf-preview')).toHaveAttribute(
-      'data',
-      '/api/tickets/1201/invoice?disposition=inline&company_id=10',
-    );
-    expect(screen.queryByRole('radio', { name: /Pagado completo/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Finalizar y compartir/ })).toBeNull();
-    expect(screen.getAllByRole('button', { name: /Compartir recibo/ }).length).toBeGreaterThan(0);
-  });
-
-  it('shows only the summary where the browser cannot render PDFs inline', () => {
-    Object.defineProperty(navigator, 'pdfViewerEnabled', {
-      configurable: true,
-      value: false,
-    });
-    renderReview({ finished: true, paid: 12950 });
+  it('shows Pagado and Saldo and Compartir recibo as the single CTA once finished', () => {
+    renderReview({ finished: true, paid: 5000 });
 
     expect(screen.queryByTestId('recibo-pdf-preview')).toBeNull();
-    expect(screen.getByTestId('recibo-summary')).toHaveTextContent('$12,950.00');
-    const open = screen.getByRole('link', { name: /Abrir PDF/ });
-    expect(open).toHaveAttribute('href', '/tickets/1201/recibo?from=listo');
-    expect(open).not.toHaveAttribute('target');
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Programar el próximo servicio' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Finalizar y compartir/ })).toBeNull();
+    const summary = screen.getByTestId('review-summary');
+    expect(summary).toHaveTextContent('Pagado$5,000.00');
+    expect(summary).toHaveTextContent('Saldo$7,950.00');
+    expect(screen.getAllByRole('button', { name: /Compartir recibo/ }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Abrir PDF/ })).not.toHaveAttribute('target');
   });
 });

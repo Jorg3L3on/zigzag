@@ -95,7 +95,7 @@ export const ExpiresAtField = ({
             id="composer-expires-at"
             type="button"
             variant="outline"
-            className="h-12 w-full justify-start gap-2 rounded-xl text-left text-base font-normal md:h-10 md:text-sm"
+            className="h-auto min-h-12 w-full justify-start gap-2 whitespace-normal rounded-xl py-2 text-left text-base font-normal md:min-h-10 md:text-sm"
           >
             <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />
             {value ? describeExpiry(value, today) : 'Sin vencimiento'}

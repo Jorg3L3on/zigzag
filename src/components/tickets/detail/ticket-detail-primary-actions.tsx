@@ -1,173 +1,104 @@
 'use client';
 
-import Link from 'next/link';
-import {
-  MoreHorizontal,
-  Pencil,
-  Receipt,
-  User,
-  Wallet,
-} from 'lucide-react';
+import { Share2, Wallet } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
-import { PDFDownloadButton } from '@/components/pdf-download-button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
-import { useCompany } from '@/contexts/company-context';
+import { useTicketCollect } from '@/components/tickets/detail/ticket-detail-collect-context';
+import { TicketDetailActionsMenu } from '@/components/tickets/detail/ticket-detail-actions-menu';
+import { useReceiptShare } from '@/components/tickets/use-receipt-share';
 import { usePermissions } from '@/hooks/use-permissions';
-import {
-  canAssignTicketServices,
-  canCollectTicketPayment,
-  canDownloadTicketInvoice,
-  canEditTicket,
-  canFinishTicket,
-} from '@/lib/tickets-rbac';
-import {
-  getTicketBalanceDue,
-  isTicketFullyPaid,
-} from '@/lib/ticket-payment-status';
+import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
+import { canCollectTicketPayment, canDownloadTicketInvoice } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
 
 type TicketDetailPrimaryActionsProps = {
-  ticketId: number | bigint;
-  clientId: number | null;
+  ticketId: number;
+  clientName: string | null;
+  clientTel: string | null;
   finished: boolean;
   total: number | null;
   paid: number | null;
+  paymentsCount: number;
   downloadFileName: string;
-  /** desktop = header cluster; mobile-sticky = bottom bar; both = fragment */
-  placement?: 'desktop' | 'mobile-sticky' | 'both';
+  /** desktop = header cluster; mobile-sticky = bottom bar. */
+  placement: 'desktop' | 'mobile-sticky';
   className?: string;
 };
 
+/**
+ * The one primary action of a finalized ticket (ZIG-I13-4): Registrar pago while
+ * there is a balance, Compartir recibo once settled. An unfinished ticket has
+ * none here: the Finalizar panel owns it. The ⋯ menu sits in the app bar on
+ * mobile and next to the button on desktop.
+ */
 export const TicketDetailPrimaryActions = ({
   ticketId,
-  clientId,
+  clientName,
+  clientTel,
   finished,
   total,
   paid,
+  paymentsCount,
   downloadFileName,
-  placement = 'both',
+  placement,
   className,
 }: TicketDetailPrimaryActionsProps) => {
   const { can } = usePermissions();
-  const { selectedCompany } = useCompany();
-  const id = Number(ticketId);
-  const balanceDue = getTicketBalanceDue(total, paid);
-  const saldado = isTicketFullyPaid(total, paid);
+  const collect = useTicketCollect();
+  const { share, sharing } = useReceiptShare({
+    ticketId: String(ticketId),
+    downloadFileName,
+    clientName,
+    clientTel,
+    total: total ?? 0,
+  });
 
-  const canFinish = canFinishTicket(can) && !finished;
-  const canEdit = canEditTicket(can) && !saldado;
-  const canServices = canAssignTicketServices(can) && !saldado;
-  const canCollect =
-    canCollectTicketPayment(can) && finished && balanceDue > 0;
-  const canInvoice = canDownloadTicketInvoice(can) && finished;
+  const canCollect = canCollectTicketPayment(can) && finished && getTicketBalanceDue(total, paid) > 0;
+  const canShare = canDownloadTicketInvoice(can) && finished;
 
-  const hasSecondary = canEdit || canServices || Boolean(clientId);
-
-  if (!canFinish && !canCollect && !canInvoice && !hasSecondary) {
-    return null;
-  }
-
-  // Unfinished tickets: the Finalizar panel owns the only primary CTA
-  // ("Finalizar y generar recibo"), so no second "Finalizar" button here.
-  const primaryButton = (() => {
-    if (canCollect) {
-      return (
-        <Button asChild className="h-10 w-full gap-2 md:w-auto">
-          <a href="#cobranza" aria-label="Registrar pago en cobranza">
-            <Wallet className="h-4 w-4" aria-hidden />
-            Registrar pago
-          </a>
-        </Button>
-      );
-    }
-    if (canInvoice) {
-      return (
-        <PDFDownloadButton
-          ticketId={ticketId}
-          downloadFileName={downloadFileName}
-          companyId={selectedCompany?.id}
-          label="Generar recibo"
-          variant="default"
-          className="h-10 w-full md:w-auto"
-        />
-      );
-    }
-    return null;
-  })();
-
-  const secondaryMenu = hasSecondary ? (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-10 w-10 shrink-0"
-          aria-label="Más acciones del ticket"
-        >
-          <MoreHorizontal className="h-4 w-4" aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {canEdit ? (
-          <DropdownMenuItem asChild>
-            <Link href={`/tickets/${id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" aria-hidden />
-              Editar datos
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
-        {canServices ? (
-          <DropdownMenuItem asChild>
-            <Link href={`/tickets/${id}/services`}>
-              <Receipt className="mr-2 h-4 w-4" aria-hidden />
-              Servicios
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
-        {clientId ? (
-          <DropdownMenuItem asChild>
-            <Link href={`/clients/${clientId}/edit`}>
-              <User className="mr-2 h-4 w-4" aria-hidden />
-              Ver cliente
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+  const primary = canCollect ? (
+    <Button
+      type="button"
+      className="h-12 w-full gap-2 rounded-xl text-base font-semibold md:h-10 md:w-auto"
+      onClick={() => collect?.openCollect()}
+    >
+      <Wallet className="h-4 w-4" aria-hidden />
+      Registrar pago
+    </Button>
+  ) : canShare ? (
+    <Button
+      type="button"
+      className="h-12 w-full gap-2 rounded-xl text-base font-semibold md:h-10 md:w-auto"
+      disabled={sharing}
+      onClick={() => void share(paid ?? 0)}
+    >
+      <Share2 className="h-4 w-4" aria-hidden />
+      Compartir recibo
+    </Button>
   ) : null;
 
-  const desktopCluster =
-    placement === 'desktop' || placement === 'both' ? (
+  if (placement === 'desktop') {
+    return (
       <div className={cn('flex flex-wrap items-center gap-2', className)}>
-        {primaryButton}
-        {secondaryMenu}
+        {primary}
+        <TicketDetailActionsMenu
+          ticketId={ticketId}
+          clientName={clientName}
+          clientTel={clientTel}
+          total={total}
+          paid={paid}
+          paymentsCount={paymentsCount}
+          downloadFileName={downloadFileName}
+          className="h-10 w-10 shrink-0 border border-input"
+        />
       </div>
-    ) : null;
+    );
+  }
 
-  const mobileSticky =
-    (placement === 'mobile-sticky' || placement === 'both') && primaryButton ? (
-      <TripledMobileStickyActionBar innerClassName="max-w-6xl">
-        <div className="flex w-full min-w-0 items-center gap-2">
-          <div className="min-w-0 flex-1">{primaryButton}</div>
-          {secondaryMenu}
-        </div>
-      </TripledMobileStickyActionBar>
-    ) : null;
-
-  if (placement === 'desktop') return desktopCluster;
-  if (placement === 'mobile-sticky') return mobileSticky;
-
-  return (
-    <>
-      {desktopCluster}
-      {mobileSticky}
-    </>
-  );
+  return primary ? (
+    <TripledMobileStickyActionBar innerClassName="max-w-6xl">
+      <div className="w-full min-w-0">{primary}</div>
+    </TripledMobileStickyActionBar>
+  ) : null;
 };

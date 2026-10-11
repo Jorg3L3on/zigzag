@@ -22,6 +22,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   payment_collected: 'Cobro registrado',
   presupuesto_converted: 'Presupuesto convertido',
   presupuesto_canceled: 'Presupuesto cancelado',
+  receipt_shared: 'Recibo compartido',
+  presupuesto_duplicated: 'Presupuesto duplicado',
   logo_uploaded: 'Logo subido',
   logo_removed: 'Logo eliminado',
   permissions_changed: 'Permisos modificados',

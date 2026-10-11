@@ -41,9 +41,11 @@ test.describe('Mobile ticket screens', () => {
     await page.goto('/tickets');
 
     await expect(visiblePageHeader(page).getByText('Tickets')).toBeVisible();
-    await expect(page.getByPlaceholder('Buscar tickets...')).toBeVisible();
+    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible();
     await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Nuevo ticket' })).toBeVisible();
+    // Nuevo ticket lives in the dock's + on phones; the list shows the cobro chips (ZIG-I13-7).
+    await expect(page.getByRole('group', { name: 'Filtro de cobro' })).toBeVisible();
+    await expect(page.getByTestId('tickets-balance-due')).toBeVisible();
     await expect(page.getByText(/de \d+ tickets/)).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
@@ -52,7 +54,7 @@ test.describe('Mobile ticket screens', () => {
     page,
   }) => {
     await page.goto('/tickets');
-    const search = page.getByPlaceholder('Buscar tickets...');
+    const search = page.getByPlaceholder('Cliente, folio o teléfono');
     await expect(search).toBeVisible();
     const firstCard = page
       .getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ })
@@ -87,7 +89,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('button', { name: 'Agregar servicio' })).toBeVisible();
     await expect(page.getByTestId('composer-total')).toHaveText('$0.00');
     await expect(
-      page.getByRole('button', { name: 'Guardar ticket' }).first(),
+      page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first(),
     ).toBeDisabled();
     // No wizard copy and nothing says Crear before saving (the dock's + is labelled Crear).
     await expect(page.getByText(/Paso \d de \d/)).toHaveCount(0);
@@ -130,10 +132,9 @@ test.describe('Mobile ticket screens', () => {
 
     // Draft survives a reload (client, lines).
     await page.reload();
-    await expect(page.getByRole('combobox', { name: 'Cliente' })).toContainText(
-      clientName,
-      { timeout: 15_000 },
-    );
+    await expect(page.getByTestId('composer-party-card')).toContainText(clientName, {
+      timeout: 15_000,
+    });
     await expect(page.getByTestId('composer-total')).toHaveText('$12,950.00');
 
     // Nothing was persisted before Guardar ticket.
@@ -153,12 +154,12 @@ test.describe('Mobile ticket screens', () => {
 
     // Creation review: summary, pago and recibo; none of the detail-page noise.
     await expect(
-      page.getByRole('heading', { name: `Ticket #${ticketId} guardado` }),
+      page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
     ).toBeVisible();
     await expect(page.getByTestId('review-total')).toHaveText('$12,950.00');
-    await expect(page.getByRole('radio', { name: /Pago parcial/ })).toBeVisible();
-    await expect(page.getByRole('radio', { name: /Pendiente/ })).toBeVisible();
-    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Una parte' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Nada aún' })).toBeVisible();
+    await expect(page.getByTestId('review-summary')).toBeVisible();
     await expect(page.getByRole('button', { name: /Descargar PDF/ })).toBeVisible();
     for (const noise of ['Creado', 'Actualizado', 'Actividad']) {
       await expect(page.getByText(noise, { exact: true })).toHaveCount(0);
@@ -168,8 +169,8 @@ test.describe('Mobile ticket screens', () => {
     const openedUrls = await finishOnReview(page, ticketId, { mode: 'full' });
     // Headless Chromium has no file share: falls back to WhatsApp with the recibo text.
     expect(openedUrls.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
-    // Headless Chromium has no inline PDF viewer: the recibo summary + Abrir PDF show instead.
-    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    // Once finalized the Resumen shows Pagado and Saldo, with Abrir PDF below.
+    await expect(page.getByTestId('review-summary')).toContainText('Pagado');
     await expect(page.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
       'href',
       `/tickets/${ticketId}/recibo?from=listo`,
@@ -181,7 +182,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByTestId('mobile-app-bar')).toContainText(`Recibo #${ticketId}`);
     await page.getByRole('link', { name: 'Volver al resumen del ticket' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/listo$`));
-    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    await expect(page.getByTestId('review-summary')).toBeVisible();
 
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),

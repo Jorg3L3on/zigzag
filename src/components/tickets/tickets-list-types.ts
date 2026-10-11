@@ -2,7 +2,8 @@ import type { SortingState } from '@tanstack/react-table';
 import type { DateRange } from 'react-day-picker';
 import type { TicketPaymentStatus } from '@/lib/ticket-payment-status';
 
-export type StatusFilterValue = 'all' | TicketPaymentStatus;
+/** `due` = Por cobrar: parcial or sin pagos (ZIG-I13-7). */
+export type StatusFilterValue = 'all' | TicketPaymentStatus | 'due';
 export type FinishedFilterValue = 'all' | 'yes' | 'no';
 
 export type TicketsFilterState = {
