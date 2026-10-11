@@ -148,8 +148,19 @@ export const TicketsFilterBar = ({
         </p>
       )
     }
+    moreFiltersLabel="Más filtros"
+    mobileSort={
+      <TicketsSortControls
+        variant="phone"
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        id="ticket-sort-phone"
+        className="min-w-0 flex-1 space-y-1"
+        triggerClassName="h-12 w-full rounded-xl text-base"
+      />
+    }
     sheetFilterCount={activeFilterCount}
-    sheetDescription="Pagado, terminado, fechas y orden de la lista."
+    sheetDescription="Cobro, terminado, fechas y orden de la lista."
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros"

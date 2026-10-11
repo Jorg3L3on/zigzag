@@ -13,3 +13,18 @@ export type TicketsFilterState = {
   dateRange: DateRange | undefined;
   sorting: SortingState;
 };
+
+/** `?status=` of the tickets list; anything unknown means all (links in WhatsApp keep working). */
+export const parseStatusFilter = (value: string | null): StatusFilterValue => {
+  if (value === 'paid' || value === 'partial' || value === 'pending' || value === 'due') {
+    return value;
+  }
+  return 'all';
+};
+
+export const parseFinishedFilter = (value: string | null): FinishedFilterValue => {
+  if (value === 'yes' || value === 'no') {
+    return value;
+  }
+  return 'all';
+};

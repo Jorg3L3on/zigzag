@@ -42,9 +42,20 @@ const SORT_OPTION_ROWS: { value: string; label: string }[] = [
   },
   { value: 'total:desc', label: 'Total (mayor a menor)' },
   { value: 'total:asc', label: 'Total (menor a mayor)' },
+  { value: 'balance:desc', label: 'Saldo (mayor a menor)' },
 ];
 
 export const TICKETS_MOBILE_SORT_OPTIONS = SORT_OPTION_ROWS;
+
+/**
+ * The only sorts a phone shows beside the chips (ZIG-I18-9). The full list above
+ * stays in the filter sheet and on desktop.
+ */
+export const TICKETS_PHONE_SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ticket_date:desc', label: 'Más recientes' },
+  { value: 'ticket_date:asc', label: 'Más antiguos' },
+  { value: 'balance:desc', label: 'Mayor saldo' },
+];
 
 export const encodeSortingState = (sorting: SortingState): string => {
   if (!sorting.length) {
