@@ -72,6 +72,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
     const shot = async (page: Page, name: string) => {
       await page.mouse.move(0, 0);
+      // Toasts (client created, saved) come and go on their own clock: keep them out of the baselines.
+      await page.addStyleTag({ content: '[data-sonner-toaster]{visibility:hidden !important}' });
       await page.waitForTimeout(700);
       await expect(page).toHaveScreenshot(`documents-${name}-${colorScheme}.png`, {
         fullPage: false,
@@ -114,7 +116,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
       // Editor of a finalized ticket: banner and Antes in the sticky bar.
       await page.goto(`/tickets/${ticketId}/edit`);
-      await expect(page.getByTestId('composer-finalized-banner')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('composer-finalized-banner').filter({ visible: true }).first()).toBeVisible({ timeout: 15_000 });
       await shot(page, 'editor-banner');
 
       // Delete sheet from the detail menu.
