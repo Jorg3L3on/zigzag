@@ -6,8 +6,7 @@ import {
   login,
 } from './helpers/auth';
 import {
-  addComposerLine,
-  addCustomComposerLine,
+  addHeavyLines,
   createClientInComposer,
   expectInsideViewport,
   expectNoPageOverflow,
@@ -20,14 +19,6 @@ import {
  * heavy ticket: 8 lines (one catalog, one $1.2M custom) and 21 materials.
  * Saves a ticket: run it in CI or against a scratch database.
  */
-
-const LONG_NAMES = [
-  'Mantenimiento correctivo de unidad manejadora de aire UMA-03 con cambio de rodamientos y banda',
-  'Suministro e instalación de termostato inteligente Wi-Fi con programación semanal y sensor remoto',
-  'Recargo por trabajo nocturno y en fin de semana en área de quirófanos (35%)',
-  'X'.repeat(100),
-  'Limpieza de condensadores azotea',
-];
 
 for (const width of [375, 333]) {
   test.describe(`Listo redesign @${width}px`, () => {
@@ -47,18 +38,7 @@ for (const width of [375, 333]) {
       await page.evaluate(() => window.localStorage.clear());
       await page.reload();
       await createClientInComposer(page, { name: clientName, phone: `996${suffix.slice(-7)}` });
-      await addComposerLine(page, { quantity: 2, price: 4200 });
-      const materialsPerLine = [5, 4, 4, 4, 4];
-      for (const [index, name] of LONG_NAMES.entries()) {
-        await addCustomComposerLine(page, {
-          name,
-          quantity: String(index + 1),
-          price: '3450',
-          materials: materialsPerLine[index],
-        });
-      }
-      await addCustomComposerLine(page, { name: 'Recargo especial', quantity: '1', price: '1234567.89' });
-      await addCustomComposerLine(page, { name: 'Visita de diagnóstico', quantity: '1', price: '500' });
+      await addHeavyLines(page);
       await expect(page.getByTestId('composer-sticky-hint')).toHaveText('8 servicios · 21 materiales');
 
       const ticketId = await saveComposer(page);

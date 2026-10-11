@@ -6,7 +6,8 @@ import {
   type ComponentType,
   type UIEvent,
 } from 'react';
-import { Activity, History, Receipt, Ticket } from 'lucide-react';
+import { Activity, ChevronDown, History, Receipt, Ticket } from 'lucide-react';
+import { FormattedDate } from '@/components/formatted-date';
 import type { TicketAuditHistoryEntry } from '@/actions/tickets';
 import {
   TicketDetailSectionCard,
@@ -20,6 +21,10 @@ import { formatRelativeActivityTime } from '@/lib/format-relative-time';
 
 type TicketDetailTimelineProps = {
   entries: TicketAuditHistoryEntry[];
+  /** Folded on phones; the desktop side column starts open (ZIG-I13-4). */
+  defaultOpen?: boolean;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
 };
 
 const ICON_MAP: Record<
@@ -37,7 +42,13 @@ const ACTIVITY_BATCH_SIZE = 5;
 /** Approximate height of one activity row (icon + padding + single-line copy). */
 const ACTIVITY_ROW_HEIGHT_REM = 4.5;
 
-export const TicketDetailTimeline = ({ entries }: TicketDetailTimelineProps) => {
+export const TicketDetailTimeline = ({
+  entries,
+  defaultOpen = false,
+  createdAt = null,
+  updatedAt = null,
+}: TicketDetailTimelineProps) => {
+  const [open, setOpen] = useState(defaultOpen);
   const [visibleCount, setVisibleCount] = useState(() =>
     Math.min(ACTIVITY_VIEWPORT_ROWS, entries.length),
   );
@@ -64,11 +75,42 @@ export const TicketDetailTimeline = ({ entries }: TicketDetailTimelineProps) => 
 
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-timeline-heading">
-      <TicketDetailSectionHeading
-        id="ticket-timeline-heading"
-        title="Actividad"
-        description="Línea de tiempo del ticket"
-      />
+      <h2 id="ticket-timeline-heading" className="text-base font-semibold tracking-tight">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="ticket-timeline-body"
+          onClick={() => setOpen((value) => !value)}
+          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span>
+            Actividad
+            <span className="font-normal text-muted-foreground"> · {entries.length}</span>
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </button>
+      </h2>
+
+      <div id="ticket-timeline-body" hidden={!open} className="pt-2">
+      {createdAt ? (
+        <dl className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
+          <div className="flex min-w-0 gap-1.5">
+            <dt>Creado</dt>
+            <dd className="font-medium text-foreground">
+              <FormattedDate date={createdAt} withTime />
+            </dd>
+          </div>
+          <div className="flex min-w-0 gap-1.5">
+            <dt>Actualizado</dt>
+            <dd className="font-medium text-foreground">
+              <FormattedDate date={updatedAt ?? createdAt} withTime />
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
       {entries.length === 0 ? (
         <p className="rounded-lg bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
@@ -156,6 +198,7 @@ export const TicketDetailTimeline = ({ entries }: TicketDetailTimelineProps) => 
           Eventos inmutables del historial de auditoría
         </p>
       ) : null}
+      </div>
     </TicketDetailSectionCard>
   );
 };

@@ -88,18 +88,37 @@ describe('TicketDetailFinishPanel', () => {
       />,
     );
 
-    await user.click(screen.getByRole('radio', { name: /pago parcial/i }));
-    const input = screen.getByLabelText(/cuánto pagó el cliente/i);
-    await user.clear(input);
-    await user.type(input, '150');
-    await user.tab();
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
+    await user.type(screen.getByLabelText('Cuánto pagó'), '150');
 
-    expect(
-      screen.getByText(/no puede superar el total del ticket/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/no puede ser mayor que el total/i)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /finalizar y generar recibo/i }),
     ).toBeDisabled();
     expect(mockFinishTicket).not.toHaveBeenCalled();
+  });
+
+  it('asks the listo question: Todo / Una parte / Nada aún, none preselected (ZIG-I13-4)', async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketDetailFinishPanel
+        ticketId={5}
+        clientId={2}
+        clientName="Cliente"
+        total={100}
+        ticketDate={new Date('2026-07-01')}
+        serviceLines={[{ serviceId: 1, serviceName: 'Servicio' }]}
+        downloadFileName="t.pdf"
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: '¿Cómo pagó el cliente?' })).toBeInTheDocument();
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).toHaveAttribute('aria-checked', 'false');
+    }
+    const finish = screen.getByRole('button', { name: /finalizar y generar recibo/i });
+    expect(finish).toBeDisabled();
+    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
+    expect(finish).toBeEnabled();
   });
 });
