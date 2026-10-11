@@ -49,7 +49,7 @@ export const createCobranzaColumns = ({
       row.original.client_id != null ? (
         <Link
           href={`/clients/${row.original.client_id}`}
-          className="font-medium underline-offset-4 hover:underline"
+          className="font-medium inline-flex min-h-11 items-center underline-offset-4 hover:underline"
         >
           {row.original.client_name ?? 'Sin cliente'}
         </Link>
