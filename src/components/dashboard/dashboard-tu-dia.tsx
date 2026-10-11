@@ -59,11 +59,12 @@ import { canWriteTickets } from '@/lib/tickets-rbac';
 import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
 
-const TILE_LABELS: Record<DayQueueFilter, { long: string; short: string }> = {
-  hoy: { long: 'Hoy', short: 'Hoy' },
-  atrasados: { long: 'Atrasados', short: 'Atrasados' },
-  porCobrar: { long: 'Por cobrar', short: 'Por cobrar' },
-  recordatorios: { long: 'Recordatorios', short: 'Recordat.' },
+/** Full words, never abbreviated (ZIG-I18-7): the tiles sit two per row on phones. */
+const TILE_LABELS: Record<DayQueueFilter, string> = {
+  hoy: 'Hoy',
+  atrasados: 'Atrasados',
+  porCobrar: 'Por cobrar',
+  recordatorios: 'Recordatorios',
 };
 
 const VER_TODOS: Record<DayQueueFilter, { href: string; label: string }> = {
@@ -515,8 +516,10 @@ export const DashboardTuDia = ({
         role="tablist"
         aria-label="Filtros de tu día"
         className={cn(
-          'grid gap-1.5 px-3 pb-3 pt-3 sm:gap-2 sm:px-4',
-          filters.length === 4 ? 'grid-cols-4' : 'grid-cols-3',
+          'grid gap-2 px-3 pb-3 pt-3 sm:gap-2 sm:px-4',
+          filters.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3',
+          // An odd tile out takes the whole row instead of leaving a hole.
+          'max-sm:[&>*:last-child:nth-child(odd)]:col-span-2',
         )}
       >
         {filters.map((filter) => {
@@ -531,7 +534,7 @@ export const DashboardTuDia = ({
               aria-controls={panelId}
               onClick={() => setSelected(filter)}
               className={cn(
-                'flex min-h-14 min-w-0 flex-col items-start justify-center rounded-xl border px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3',
+                'flex min-h-16 min-w-0 flex-col items-start justify-center rounded-xl border px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3',
                 isActive
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border/60 bg-background hover:bg-muted/40',
@@ -540,9 +543,8 @@ export const DashboardTuDia = ({
               <span className="text-xl font-bold leading-tight tabular-nums sm:text-2xl">
                 {loading && !queue ? '–' : counts[filter]}
               </span>
-              <span className="whitespace-nowrap text-caption font-semibold sm:text-caption">
-                <span className="sm:hidden">{TILE_LABELS[filter].short}</span>
-                <span className="hidden sm:inline">{TILE_LABELS[filter].long}</span>
+              <span className="whitespace-nowrap text-base font-semibold sm:text-caption">
+                {TILE_LABELS[filter]}
               </span>
             </button>
           );
@@ -605,7 +607,7 @@ export const DashboardTuDia = ({
           </div>
         ) : (
           <BlurFade key={active} duration={0.2} offset={4}>
-            <ul aria-label={`Tu día: ${TILE_LABELS[active].long}`}>{rows}</ul>
+            <ul aria-label={`Tu día: ${TILE_LABELS[active]}`}>{rows}</ul>
           </BlurFade>
         )}
         <Link

@@ -5,7 +5,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
-import { expectStickyActionAboveDock } from './helpers/mobile-chrome';
+import { expectReachableAboveStickyBar, expectStickyActionReplacesDock } from './helpers/mobile-chrome';
 
 test.describe('Mobile bottom dock', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,7 +14,7 @@ test.describe('Mobile bottom dock', () => {
     await ensureTenantCompany(page);
   });
 
-  test('shows Hoy / Tickets / + / Presupuestos / Más on dashboard', async ({ page }) => {
+  test('shows Hoy / Tickets / + / Cobranza / Más on dashboard', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
@@ -23,7 +23,8 @@ test.describe('Mobile bottom dock', () => {
     await expect(tabBar.getByRole('link', { name: 'Tickets' })).toBeVisible();
     await expect(tabBar.getByRole('button', { name: 'Crear' })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Anotar' })).toHaveCount(0);
-    await expect(tabBar.getByRole('link', { name: 'Presupuestos' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Cobranza' })).toBeVisible();
+    await expect(tabBar.getByRole('link', { name: 'Presupuestos' })).toHaveCount(0);
     await expect(tabBar.getByRole('link', { name: 'Clientes' })).toHaveCount(0);
     await expect(tabBar.getByRole('button', { name: /Más/i })).toBeVisible();
     await expect(tabBar.getByRole('link', { name: 'Hoy' })).toHaveAttribute(
@@ -32,19 +33,19 @@ test.describe('Mobile bottom dock', () => {
     );
   });
 
-  test('navigates Presupuestos and Tickets', async ({ page }) => {
+  test('navigates Cobranza and Tickets', async ({ page }) => {
     await page.goto('/dashboard');
 
     const tabBar = page.getByTestId('mobile-bottom-tab-bar');
     await expect(tabBar).toBeVisible();
 
-    const presupuestosTab = tabBar.getByRole('link', { name: 'Presupuestos' });
-    await expect(presupuestosTab).toHaveAttribute('href', '/presupuestos');
+    const cobranzaTab = tabBar.getByRole('link', { name: 'Cobranza' });
+    await expect(cobranzaTab).toHaveAttribute('href', '/cobranza');
     await Promise.all([
-      page.waitForURL(/\/presupuestos/),
-      presupuestosTab.click(),
+      page.waitForURL(/\/cobranza/),
+      cobranzaTab.click(),
     ]);
-    await expect(presupuestosTab).toHaveAttribute('aria-current', 'page');
+    await expect(cobranzaTab).toHaveAttribute('aria-current', 'page');
 
     const ticketsTab = tabBar.getByRole('link', { name: 'Tickets' });
     await expect(ticketsTab).toHaveAttribute('href', '/tickets');
@@ -123,15 +124,15 @@ test.describe('Mobile bottom dock', () => {
     await expect(tabBar.getByRole('menu')).toHaveCount(0);
   });
 
-  test('keeps the dock under the sticky action bar on ticket create', async ({
+  test('a sticky action bar replaces the dock on ticket create', async ({
     page,
   }) => {
     await page.goto('/tickets/create');
 
-    await expectStickyActionAboveDock(page);
+    await expectStickyActionReplacesDock(page);
   });
 
-  test('keeps the dock under the sticky action bar on ticket edit', async ({
+  test('a sticky action bar replaces the dock on ticket edit', async ({
     page,
   }) => {
     await page.goto('/tickets');
@@ -147,7 +148,7 @@ test.describe('Mobile bottom dock', () => {
     await editButton.click();
     await page.waitForURL(/\/tickets\/\d+\/edit/, { timeout: 30_000 });
 
-    await expectStickyActionAboveDock(page);
+    await expectStickyActionReplacesDock(page);
   });
 
   test('Más opens the existing navigation sheet', async ({ page }) => {
@@ -172,5 +173,40 @@ test.describe('Mobile bottom dock', () => {
     await expect(
       navDialog.getByRole('button', { name: /Activar modo (oscuro|claro)/ }),
     ).toBeVisible();
+  });
+
+  test('Presupuestos stays reachable from the + menu and the Más sheet (ZIG-I18-6)', async ({ page }) => {
+    await page.goto('/dashboard');
+    const tabBar = page.getByTestId('mobile-bottom-tab-bar');
+    await tabBar.getByRole('button', { name: 'Crear' }).click();
+    await expect(tabBar.getByRole('menuitem', { name: /Nuevo presupuesto/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await tabBar.getByRole('button', { name: /Más/i }).click();
+    const navDialog = page.getByRole('dialog').filter({ visible: true }).first();
+    await expect(navDialog.getByRole('link', { name: 'Presupuestos' })).toBeVisible();
+  });
+
+  test('dock labels are fully visible at 333 px and the dock is opaque (ZIG-I18-6)', async ({ page }) => {
+    await page.setViewportSize({ width: 333, height: 700 });
+    await page.goto('/dashboard');
+    const shell = page.getByTestId('mobile-dock-shell');
+    await expect(shell).toBeVisible();
+    const clipped = await shell.evaluate((el) =>
+      [...el.querySelectorAll<HTMLElement>('a span, button span')]
+        .filter((s) => s.textContent && s.scrollWidth > s.clientWidth + 1)
+        .map((s) => s.textContent),
+    );
+    expect(clipped, 'no truncated dock label').toEqual([]);
+    const bg = await shell.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(bg).not.toMatch(/rgba\(.*,\s*0?\.\d+\)$/);
+  });
+
+  test('Anotar payment choices and the last field sit clear of the single bottom bar', async ({ page }) => {
+    await page.goto('/anotar');
+    await expect(page.getByText('Trabajo del día')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('mobile-dock-shell')).toHaveCount(0);
+    await expectReachableAboveStickyBar(page, page.getByRole('button', { name: 'Pendiente', exact: true }));
+    await expectReachableAboveStickyBar(page, page.getByRole('link', { name: 'Ticket con varios servicios' }));
   });
 });

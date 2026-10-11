@@ -6,7 +6,6 @@ import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { TripledMobileRecordCard } from '@/components/tripled';
 import { formatListDate } from '@/lib/format-list-date';
-import { formatPhoneDisplay } from '@/lib/phone-links';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import {
   getTicketBalanceDue,
@@ -35,7 +34,8 @@ const CARD_STATUS_LABEL: Record<TicketPaymentStatus, string> = {
 
 /**
  * Compact ticket card (ZIG-I13-7): the name in up to two lines with the ticket number,
- * one meta line `status · phone · date`, a progress bar once something is paid,
+ * the work done (one line), one meta line `status · date`
+ * (the phone lives in ⋯ as Llamar, so a tap on the card never dials), a progress bar once something is paid,
  * and Pagado / Saldo that wrap instead of truncating. The whole card opens the
  * ticket; ⋯ keeps Cobrar / Descargar / Eliminar.
  */
@@ -53,7 +53,6 @@ export const TicketsMobileCard = ({
   const paidAmount = ticket.paid ?? 0;
   const balance = getTicketBalanceDue(ticket.total, ticket.paid);
   const partial = status === 'partial';
-  const phone = formatPhoneDisplay(ticket.client_tel);
   const dateLabel = formatListDate(ticket.ticket_date);
 
   const handleNavigate = () => {
@@ -109,6 +108,15 @@ export const TicketsMobileCard = ({
         </div>
       </div>
 
+      {ticket.services_summary ? (
+        <p
+          className="line-clamp-1 text-sm text-foreground/80"
+          data-testid="ticket-card-services"
+        >
+          {ticket.services_summary}
+        </p>
+      ) : null}
+
       <p
         className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-caption text-muted-foreground"
         data-testid="ticket-card-meta"
@@ -118,13 +126,6 @@ export const TicketsMobileCard = ({
           aria-hidden
         />
         <span>{CARD_STATUS_LABEL[status]}</span>
-        {phone ? (
-          <>
-            <span aria-hidden>·</span>
-            {/* Plain text: a tap near the middle of the card must open the ticket, not dial. */}
-            <span className="tabular-nums">{phone}</span>
-          </>
-        ) : null}
         {dateLabel ? (
           <>
             <span aria-hidden>·</span>

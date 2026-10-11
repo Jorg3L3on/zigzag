@@ -6,7 +6,7 @@ import {
   login,
 } from './helpers/auth';
 import {
-  expectStickyActionAboveDock,
+  expectStickyActionReplacesDock,
   visibleMobileAppBar,
   visiblePageHeader,
 } from './helpers/mobile-chrome';
@@ -99,7 +99,7 @@ test.describe('Mobile ticket screens', () => {
         .and(page.locator(':not([data-testid="mobile-dock-create"])')),
     ).toHaveCount(0);
     // The dock stays; the sticky CTA floats above it.
-    await expectStickyActionAboveDock(page);
+    await expectStickyActionReplacesDock(page);
     await expectNoHorizontalOverflow(page);
     expect(
       consoleErrors.filter((text) => /hydrat/i.test(text)),
