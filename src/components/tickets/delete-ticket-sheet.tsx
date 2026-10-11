@@ -88,22 +88,24 @@ export const DeleteTicketSheet = ({
       title={`¿Eliminar el ticket #${ticketId}?`}
       description="Desaparece de tus tickets y de cobranza. No podrás recuperarlo tú; solo soporte puede restaurarlo."
       summary={
-        <dl
+        <div
           className="space-y-1 rounded-xl border border-border/60 bg-muted/30 p-3 text-sm"
           data-testid="delete-ticket-summary"
         >
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Cliente</dt>
-            <dd className="min-w-0 text-right font-medium [overflow-wrap:anywhere]">
-              {clientName || 'Sin nombre'}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Total</dt>
-            <dd className="text-right font-medium tabular-nums [overflow-wrap:anywhere]">
-              {formatServiceCurrency(total ?? 0)}
-            </dd>
-          </div>
+          <dl className="space-y-1">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Cliente</dt>
+              <dd className="min-w-0 text-right font-medium [overflow-wrap:anywhere]">
+                {clientName || 'Sin nombre'}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Total</dt>
+              <dd className="text-right font-medium tabular-nums [overflow-wrap:anywhere]">
+                {formatServiceCurrency(total ?? 0)}
+              </dd>
+            </div>
+          </dl>
           {paymentsTotal > 0 ? (
             <p className="pt-1 text-amber-700 dark:text-amber-300">
               Tiene{' '}
@@ -113,7 +115,7 @@ export const DeleteTicketSheet = ({
               por {formatServiceCurrency(paymentsTotal)}.
             </p>
           ) : null}
-        </dl>
+        </div>
       }
       confirmLabel="Eliminar ticket"
       cancelLabel="Conservar"
