@@ -565,11 +565,19 @@ export interface PaginatedTicketsData {
   page: number;
   pageSize: number;
   totalPages: number;
+  /** Σ saldo of every ticket matching the filters, not just this page (ZIG-I13-7). */
+  balanceDue: number;
+  /** Tickets with a saldo under the search/date/finished filters, whatever the status chip (ZIG-I13-7). */
+  dueCount: number;
 }
 
-export type TicketListPaymentFilter = TicketPaymentStatus | 'all';
+/** `due` = Por cobrar: any ticket with a saldo (parcial or sin pagos). */
+export type TicketListPaymentFilter = TicketPaymentStatus | 'due' | 'all';
 
 export type TicketListFinishedFilter = 'all' | 'yes' | 'no';
+
+/** A ticket with a saldo: parcial or sin pagos, never a zero-total one. */
+const TICKET_DUE_CONDITION = sql`COALESCE(${ticket.total}, 0) > 0.01 AND COALESCE(${ticket.paid}, 0) < COALESCE(${ticket.total}, 0) - 0.01`;
 
 const buildTicketPaymentStatusCondition = (
   status: TicketListPaymentFilter,
@@ -583,6 +591,10 @@ const buildTicketPaymentStatusCondition = (
 
   if (status === 'paid') {
     return sql`${total} > 0.01 AND ${paid} >= ${total} - 0.01`;
+  }
+
+  if (status === 'due') {
+    return TICKET_DUE_CONDITION;
   }
 
   if (status === 'partial') {
@@ -648,21 +660,31 @@ export async function getTicketsPaginated(params: {
       ? sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`
       : undefined;
 
-    const whereCondition = and(
+    const baseConditions = [
       eq(ticket.company_id, effectiveCompanyId),
       isNull(ticket.deleted_at),
       eq(ticket.document_kind, 'ticket'),
       ...(searchCondition ? [searchCondition] : []),
-      ...(paymentStatusCondition ? [paymentStatusCondition] : []),
       ...(finishedCondition ? [finishedCondition] : []),
       ...(dateFromCondition ? [dateFromCondition] : []),
       ...(dateToCondition ? [dateToCondition] : []),
+    ];
+    const whereCondition = and(
+      ...baseConditions,
+      ...(paymentStatusCondition ? [paymentStatusCondition] : []),
     );
 
-    const [{ total }] = await db
-      .select({ total: count() })
+    const [{ total, balanceDue }] = await db
+      .select({
+        total: count(),
+        balanceDue: sql<string>`COALESCE(SUM(CASE WHEN ${TICKET_DUE_CONDITION} THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END), 0)`,
+      })
       .from(ticket)
       .where(whereCondition);
+    const [{ dueCount }] = await db
+      .select({ dueCount: count() })
+      .from(ticket)
+      .where(and(...baseConditions, TICKET_DUE_CONDITION));
 
     const totalCount = Number(total ?? 0);
     const items = await db
@@ -681,6 +703,8 @@ export async function getTicketsPaginated(params: {
         page,
         pageSize,
         totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+        balanceDue: roundMoney(Number(balanceDue ?? 0)),
+        dueCount: Number(dueCount ?? 0),
       },
     };
   } catch (e) {

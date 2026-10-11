@@ -28,6 +28,7 @@ export default async function TicketsPage() {
 
       <TripledDashboardShell>
         <TripledResourceCard
+          compactOnMobile
           title="Tickets"
           description="Gestiona servicios, cobros y seguimiento."
           desktopDescription="Lista de todos los tickets registrados"

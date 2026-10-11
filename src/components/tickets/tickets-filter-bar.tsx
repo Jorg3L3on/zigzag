@@ -10,12 +10,18 @@ import type {
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
+import { MoneyFigure } from '@/components/documents/money-figure';
+import { cn } from '@/lib/utils';
 import {
   ListFilterBarShell,
   type ListFilterChip,
 } from '@/components/list-filter';
 
 type TicketsFilterBarProps = {
+  /** Tickets with a saldo under the search/date/finished filters (Por cobrar chip). */
+  dueCount?: number | null;
+  /** Σ saldo of the tickets matching the filters, shown as "Por cobrar". */
+  balanceDue?: number | null;
   searchValue: string;
   onSearchChange: (value: string) => void;
   statusFilter: StatusFilterValue;
@@ -31,6 +37,46 @@ type TicketsFilterBarProps = {
   onClearFilters: () => void;
   filterChips: ListFilterChip[];
 };
+
+const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'due', label: 'Por cobrar' },
+  { value: 'paid', label: 'Pagados' },
+];
+
+/** Todos / Por cobrar / Pagados over the existing payment status filter (ZIG-I13-7). */
+const TicketQuickFilters = ({
+  value,
+  onChange,
+  dueCount,
+}: {
+  value: StatusFilterValue;
+  onChange: (value: StatusFilterValue) => void;
+  dueCount: number | null;
+}) => (
+  <div role="group" aria-label="Filtro de cobro" className="flex flex-wrap gap-2">
+    {QUICK_FILTERS.map((option) => {
+      const pressed = value === option.value;
+      return (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={pressed}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            'min-h-9 rounded-full border px-3.5 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+            pressed
+              ? 'border-foreground bg-foreground font-semibold text-background'
+              : 'border-border text-muted-foreground hover:bg-muted/50',
+          )}
+        >
+          {option.label}
+          {option.value === 'due' && dueCount != null && dueCount > 0 ? ` · ${dueCount}` : ''}
+        </button>
+      );
+    })}
+  </div>
+);
 
 const renderTicketFilters = (
   statusFilter: StatusFilterValue,
@@ -61,6 +107,8 @@ const renderTicketFilters = (
 );
 
 export const TicketsFilterBar = ({
+  dueCount = null,
+  balanceDue = null,
   searchValue,
   onSearchChange,
   statusFilter,
@@ -79,9 +127,27 @@ export const TicketsFilterBar = ({
   <ListFilterBarShell
     searchValue={searchValue}
     onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar tickets..."
+    searchPlaceholder="Cliente, folio o teléfono"
     searchAriaLabel="Buscar tickets por ID, cliente, teléfono o correo"
     searchContainerClassName="relative min-w-0 flex-1 lg:min-w-0"
+    quickFilters={
+      <TicketQuickFilters
+        value={statusFilter}
+        onChange={onStatusFilterChange}
+        dueCount={dueCount}
+      />
+    }
+    chipsTrailing={
+      balanceDue == null ? undefined : (
+        <p
+          className="flex shrink-0 items-baseline gap-1.5 pt-1 text-[13px] text-muted-foreground"
+          data-testid="tickets-balance-due"
+        >
+          <span>Por cobrar</span>
+          <MoneyFigure amount={balanceDue} size="md" className="text-[15px] text-foreground" />
+        </p>
+      )
+    }
     sheetFilterCount={activeFilterCount}
     sheetDescription="Estado de cobro, finalización, fechas y orden de la lista."
     hasActiveFilters={hasActiveFilters}

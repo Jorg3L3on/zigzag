@@ -63,6 +63,11 @@ type TripledResourceCardProps = {
   className?: string;
   headerClassName?: string;
   contentClassName?: string;
+  /**
+   * Phones: just the title, no icon, description or action (the dock already
+   * creates things), so the list starts higher (ZIG-I13-7).
+   */
+  compactOnMobile?: boolean;
 };
 
 export const TripledResourceCard = ({
@@ -75,6 +80,7 @@ export const TripledResourceCard = ({
   className,
   headerClassName,
   contentClassName,
+  compactOnMobile = false,
 }: TripledResourceCardProps) => {
   return (
     <Card
@@ -86,6 +92,7 @@ export const TripledResourceCard = ({
       <CardHeader
         className={cn(
           'space-y-0 border-b border-border/50 bg-card px-4 py-4 sm:bg-gradient-to-br sm:from-muted/35 sm:via-background sm:to-background sm:px-8 sm:py-6',
+          compactOnMobile && 'max-sm:py-3',
           headerClassName,
         )}
       >
@@ -93,7 +100,12 @@ export const TripledResourceCard = ({
           <div className="min-w-0 space-y-1.5">
             <div className="flex items-center gap-3">
               {icon ? (
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:hidden">
+                <span
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:hidden',
+                    compactOnMobile && 'hidden',
+                  )}
+                >
                   {icon}
                 </span>
               ) : null}
@@ -101,7 +113,9 @@ export const TripledResourceCard = ({
                 <CardTitle className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">
                   {title}
                 </CardTitle>
-                <CardDescription className="text-sm sm:text-base">
+                <CardDescription
+                  className={cn('text-sm sm:text-base', compactOnMobile && 'max-sm:hidden')}
+                >
                   {description}
                 </CardDescription>
               </div>
@@ -112,7 +126,7 @@ export const TripledResourceCard = ({
               </CardDescription>
             ) : null}
           </div>
-          {action}
+          {compactOnMobile && action ? <div className="contents max-sm:hidden">{action}</div> : action}
         </div>
       </CardHeader>
       <CardContent className={cn('p-3 pt-4 sm:p-6 sm:pt-6', contentClassName)}>
