@@ -30,6 +30,8 @@ type DocumentSummaryRowsProps = {
   lines: ReadonlyArray<DocumentSummaryLine>;
   /** Rows shown before the toggle. */
   initialVisible?: number;
+  /** Accessible name of the list, e.g. Servicios del ticket. */
+  label?: string;
   className?: string;
 };
 
@@ -48,6 +50,7 @@ export const summaryToggleLabel = (services: number, materials: number) => {
 export const DocumentSummaryRows = ({
   lines,
   initialVisible = 3,
+  label,
   className,
 }: DocumentSummaryRowsProps) => {
   const [expanded, setExpanded] = React.useState(false);
@@ -58,7 +61,7 @@ export const DocumentSummaryRows = ({
 
   return (
     <div className={className} data-testid="document-summary-rows">
-      <ul id={listId} className="space-y-2">
+      <ul id={listId} className="space-y-2" aria-label={label}>
         {visible.map((line) => (
           <li key={line.id}>
             <div className="flex items-baseline justify-between gap-3 text-sm">

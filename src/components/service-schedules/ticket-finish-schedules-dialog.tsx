@@ -22,24 +22,18 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScheduleIntervalPicker } from '@/components/service-schedules/schedule-interval-picker';
+import {
+  buildScheduleLineState,
+  type TicketFinishScheduleLine,
+} from '@/components/service-schedules/schedule-lines';
 import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import {
   CUSTOM_INTERVAL_PRESET_ID,
-  findMatchingPresetId,
   SCHEDULE_INTERVAL_PRESETS,
 } from '@/lib/schedule-interval-presets';
-import type { ScheduleIntervalUnit } from '@/lib/schedule-date';
 import { cn } from '@/lib/utils';
 
-export type TicketFinishScheduleLine = {
-  serviceId: number;
-  serviceName: string;
-  checked: boolean;
-  lastServiceAt: Date;
-  intervalValue: number;
-  intervalUnit: ScheduleIntervalUnit;
-  presetId: string;
-};
+export type { TicketFinishScheduleLine };
 
 type TicketFinishSchedulesDialogProps = {
   open: boolean;
@@ -52,29 +46,6 @@ type TicketFinishSchedulesDialogProps = {
   confirmLabel?: string;
   onConfirm: (lines: TicketFinishScheduleLine[]) => void;
   onSkip: () => void;
-};
-
-const buildLineState = (
-  line: { serviceId: number; serviceName: string },
-  ticketDate: Date,
-  existingSchedules: ClientServiceScheduleListItem[],
-): TicketFinishScheduleLine => {
-  const existing = existingSchedules.find(
-    (schedule) => schedule.serviceId === line.serviceId,
-  );
-
-  const intervalValue = existing?.intervalValue ?? 2;
-  const intervalUnit = existing?.intervalUnit ?? 'month';
-
-  return {
-    serviceId: line.serviceId,
-    serviceName: line.serviceName,
-    checked: Boolean(existing),
-    lastServiceAt: ticketDate,
-    intervalValue,
-    intervalUnit,
-    presetId: findMatchingPresetId(intervalValue, intervalUnit),
-  };
 };
 
 export const TicketFinishSchedulesDialog = ({
@@ -96,7 +67,7 @@ export const TicketFinishSchedulesDialog = ({
     }
     setLines(
       serviceLines.map((line) =>
-        buildLineState(line, ticketDate, existingSchedules),
+        buildScheduleLineState(line, ticketDate, existingSchedules),
       ),
     );
   }, [open, serviceLines, ticketDate, existingSchedules]);
