@@ -38,6 +38,7 @@ const MONEY_TEST_IDS = [
   'composer-total',
   'composer-sticky-total',
   'document-line-amount',
+  'ticket-hero-amount',
   'review-total',
   'review-line-amount',
   'review-sticky-amount',
@@ -270,7 +271,7 @@ for (const width of [375, 333]) {
 
       // Detail: Total / Pagado / Saldo exact and whole.
       await page.goto(`/tickets/${ticketId}`);
-      const bar = page.locator('[aria-label^="Resumen de montos"]').filter({ visible: true }).first();
+      const bar = page.getByTestId('ticket-hero').filter({ visible: true }).first();
       await expect(bar).toBeVisible({ timeout: 15_000 });
       await expect(bar).toContainText(money(TICKET_TOTAL));
       await expect(bar).toContainText(money(PARTIAL_PAID));

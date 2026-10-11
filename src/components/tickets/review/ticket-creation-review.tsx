@@ -16,6 +16,8 @@ import {
 import { finishTicket } from '@/actions/tickets';
 import { ActionSwap, BlurFade } from '@/components/motion';
 import { MoneyFigure } from '@/components/documents/money-figure';
+import { PaymentChoice, usePaymentChoice } from '@/components/tickets/review/payment-choice';
+import { useReceiptShare } from '@/components/tickets/use-receipt-share';
 import { InlineSchedulePicker } from '@/components/service-schedules/inline-schedule-picker';
 import {
   buildScheduleLineState,
@@ -34,16 +36,10 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
-import {
-  downloadTicketInvoiceFile,
-  fetchTicketInvoiceFile,
-  shareTicketInvoiceFile,
-} from '@/lib/ticket-invoice-download';
 import { canDownloadTicketInvoice, canFinishTicket } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
-import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 import {
   ReviewSuccessHeader,
   ReviewSummaryCard,
@@ -66,21 +62,9 @@ type TicketCreationReviewProps = {
   downloadFileName: string;
 };
 
-type PayMode = 'full' | 'partial' | 'pending';
 type Phase = 'idle' | 'finishing' | 'sharing';
 
 const SECTION_CLASS = GLASS_CARD_CLASS;
-
-const parseAmount = (value: string): number => {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? Math.max(roundMoney(parsed), 0) : 0;
-};
-
-const PAY_OPTIONS: Array<{ mode: PayMode; label: string }> = [
-  { mode: 'full', label: 'Todo' },
-  { mode: 'partial', label: 'Una parte' },
-  { mode: 'pending', label: 'Nada aún' },
-];
 
 /**
  * Creation review (ZIG-I2-5, redesigned in ZIG-I13-3), shown right after
@@ -110,11 +94,14 @@ export const TicketCreationReview = ({
   const [finished, setFinished] = React.useState(initialFinished);
   const [paid, setPaid] = React.useState(initialPaid);
   // No default: Finalizar records nothing the user did not choose (ZIG-I12 Q2).
-  const [payMode, setPayMode] = React.useState<PayMode | null>(null);
-  const [partialInput, setPartialInput] = React.useState('');
+  const paymentChoice = usePaymentChoice(total);
+  const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
   const [phase, setPhase] = React.useState<Phase>('idle');
-  const [isDownloading, setIsDownloading] = React.useState(false);
-  const [receiptFile, setReceiptFile] = React.useState<File | null>(null);
+  const {
+    share: shareReceiptFile,
+    download: handleDownload,
+    downloading: isDownloading,
+  } = useReceiptShare({ ticketId, downloadFileName, clientName, clientTel, total });
   const [scheduleLines, setScheduleLines] = React.useState<TicketFinishScheduleLine[]>([]);
 
   const parsedDate = ticketDate ? new Date(ticketDate) : null;
@@ -123,13 +110,6 @@ export const TicketCreationReview = ({
       ? format(parsedDate, "d 'de' MMMM yyyy", { locale: es })
       : null;
 
-  const chosenPaid =
-    payMode === 'full' ? total : payMode === 'partial' ? parseAmount(partialInput) : 0;
-  const partialTooHigh = payMode === 'partial' && chosenPaid > total;
-  const hasPayChoice =
-    payMode === 'full' ||
-    payMode === 'pending' ||
-    (payMode === 'partial' && chosenPaid > 0);
   // Once a partial amount is typed the sticky bar shows what is still owed.
   const showsBalance = !finished && payMode === 'partial' && chosenPaid > 0 && !partialTooHigh;
   const busy = phase !== 'idle';
@@ -166,56 +146,10 @@ export const TicketCreationReview = ({
     };
   }, [finished, clientId, companyId, serviceLines, ticketDate]);
 
-  const loadReceipt = async (): Promise<File> => {
-    if (receiptFile) return receiptFile;
-    const file = await fetchTicketInvoiceFile({
-      ticketId,
-      downloadFileName,
-      companyId,
-    });
-    setReceiptFile(file);
-    return file;
-  };
-
-  const openWhatsAppFallback = (paidAmount: number): boolean => {
-    const share = buildWhatsAppReceiptShare({
-      phone: clientTel,
-      clientName,
-      ticketId,
-      total,
-      paid: paidAmount,
-      companyName: selectedCompany?.name,
-    });
-    if (!share) return false;
-    window.open(share.href, '_blank', 'noopener,noreferrer');
-    return true;
-  };
-
   const shareReceipt = async (paidAmount: number) => {
     setPhase('sharing');
     try {
-      const file = await loadReceipt();
-      const result = await shareTicketInvoiceFile(file, {
-        title: `Recibo ticket #${ticketId}`,
-        text: clientName ? `Recibo de ${clientName}` : undefined,
-      });
-      if (result === 'shared') {
-        toast.success('Recibo compartido');
-      } else if (result === 'needs-gesture') {
-        toast.message('Recibo listo', {
-          description: 'Toca Compartir recibo para enviarlo.',
-        });
-      } else if (result === 'unsupported') {
-        if (openWhatsAppFallback(paidAmount)) {
-          toast.success('Abrimos WhatsApp con el resumen del recibo');
-        } else {
-          downloadTicketInvoiceFile(file);
-          toast.success('PDF descargado');
-        }
-      }
-    } catch (error) {
-      const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'No se pudo preparar el recibo'));
+      await shareReceiptFile(paidAmount);
     } finally {
       setPhase('idle');
     }
@@ -264,21 +198,6 @@ export const TicketCreationReview = ({
       const errorType = classifyClientError(error);
       toast.error(getErrorMessageByType(errorType, 'No se pudo finalizar el ticket'));
       setPhase('idle');
-    }
-  };
-
-  const handleDownload = async () => {
-    if (isDownloading) return;
-    setIsDownloading(true);
-    try {
-      const file = await loadReceipt();
-      downloadTicketInvoiceFile(file);
-      toast.success('PDF descargado');
-    } catch (error) {
-      const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'No se pudo descargar el PDF'));
-    } finally {
-      setIsDownloading(false);
     }
   };
 
@@ -380,66 +299,7 @@ export const TicketCreationReview = ({
 
         {!finished && canFinish ? (
           <BlurFade delay={0.1}>
-            <section aria-labelledby="review-pay-heading" className={cn(SECTION_CLASS, 'space-y-3')}>
-              <h2 id="review-pay-heading" className="text-[15px] font-semibold">
-                ¿Cómo pagó el cliente?
-              </h2>
-              <div role="radiogroup" aria-labelledby="review-pay-heading" className="flex gap-2">
-                {PAY_OPTIONS.map((option) => {
-                  const selected = payMode === option.mode;
-                  return (
-                    <button
-                      key={option.mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => setPayMode(option.mode)}
-                      className={cn(
-                        'h-12 min-w-0 flex-1 rounded-[10px] border px-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        selected
-                          ? 'border-primary bg-primary/15 font-semibold'
-                          : 'border-border bg-background hover:bg-muted/50',
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-              {payMode === null ? (
-                <p className="text-xs text-muted-foreground" data-testid="review-pay-hint">
-                  Elige cómo pagó el cliente para finalizar.
-                </p>
-              ) : null}
-              {payMode === 'partial' ? (
-                <div className="space-y-1.5">
-                  <label htmlFor="review-paid-amount" className="text-[13px] text-muted-foreground">
-                    Cuánto pagó
-                  </label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      $
-                    </span>
-                    <input
-                      id="review-paid-amount"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={partialInput}
-                      onChange={(event) => setPartialInput(event.target.value)}
-                      className="h-12 w-full rounded-[10px] border border-primary bg-background pl-8 pr-3 text-base tabular-nums"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  {partialTooHigh ? (
-                    <p className="text-xs text-destructive" role="alert">
-                      No puede ser mayor que el total.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-            </section>
+            <PaymentChoice choice={paymentChoice} idPrefix="review" />
           </BlurFade>
         ) : null}
 

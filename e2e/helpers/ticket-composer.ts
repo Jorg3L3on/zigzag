@@ -227,3 +227,38 @@ export const expectNoPageOverflow = async (page: Page, label: string) => {
   expect(extra, `${label}: document wider than the viewport`).toBeLessThanOrEqual(0);
 };
 
+
+const HEAVY_NAMES = [
+  'Mantenimiento correctivo de unidad manejadora de aire UMA-03 con cambio de rodamientos y banda',
+  'Suministro e instalación de termostato inteligente Wi-Fi con programación semanal y sensor remoto',
+  'Recargo por trabajo nocturno y en fin de semana en área de quirófanos (35%)',
+  'X'.repeat(100),
+  'Limpieza de condensadores azotea',
+];
+
+/**
+ * The heavy document of the ZIG-I13 specs: 8 lines (5 long names with 5/4/4/4/4
+ * materials, a $1,234,567.89 line and a short one, plus one catalog line when
+ * `catalog` is set) and 21 materials in all.
+ */
+export const addHeavyLines = async (
+  page: Page,
+  { catalog = true, linesLabel }: { catalog?: boolean; linesLabel?: string } = {},
+) => {
+  if (catalog) {
+    await addComposerLine(page, { quantity: 2, price: 4200 }, 0, linesLabel);
+  } else {
+    await addCustomComposerLine(page, { name: 'Instalación mini-split', quantity: '2', price: '4200' });
+  }
+  const materialsPerLine = [5, 4, 4, 4, 4];
+  for (const [index, name] of HEAVY_NAMES.entries()) {
+    await addCustomComposerLine(page, {
+      name,
+      quantity: String(index + 1),
+      price: '3450',
+      materials: materialsPerLine[index],
+    });
+  }
+  await addCustomComposerLine(page, { name: 'Recargo especial', quantity: '1', price: '1234567.89' });
+  await addCustomComposerLine(page, { name: 'Visita de diagnóstico', quantity: '1', price: '500' });
+};

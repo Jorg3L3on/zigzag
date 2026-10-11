@@ -48,7 +48,7 @@ export const TicketDetailSectionHeading = ({
   action,
 }: TicketDetailSectionHeadingProps) => {
   return (
-    <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mb-3 flex min-w-0 items-center justify-between gap-2 sm:items-start">
       <div className="min-w-0 space-y-1">
         <h2
           id={id}

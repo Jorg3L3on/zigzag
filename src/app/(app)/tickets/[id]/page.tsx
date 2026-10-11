@@ -19,7 +19,11 @@ import {
 import { TicketDetailHeader } from '@/components/tickets/detail/ticket-detail-header';
 import { TicketDetailPrimaryActions } from '@/components/tickets/detail/ticket-detail-primary-actions';
 import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-detail-finish-panel';
-import { TicketDetailCustomerSection } from '@/components/tickets/detail/ticket-detail-customer-section';
+import { TicketDetailActionsMenu } from '@/components/tickets/detail/ticket-detail-actions-menu';
+import { TicketCollectProvider } from '@/components/tickets/detail/ticket-detail-collect-context';
+import { TicketDetailHero } from '@/components/tickets/detail/ticket-detail-hero';
+import { TicketDetailQuickActions } from '@/components/tickets/detail/ticket-detail-quick-actions';
+import { TicketDetailStatusPill } from '@/components/tickets/detail/ticket-detail-status-pill';
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
@@ -66,13 +70,23 @@ export default async function TicketDetailsPage({
     }));
   })();
 
-  const primaryActionProps = {
-    ticketId: ticket.id,
-    clientId: ticket.client_id,
-    finished: ticket.finished,
-    total: ticket.total,
-    paid: ticket.paid,
+  const fromPresupuestoId =
+    ticket.converted_from_ticket_id != null ? String(ticket.converted_from_ticket_id) : null;
+  const total = ticket.total;
+  const paid = ticket.paid;
+
+  const documentProps = {
+    ticketId: Number(ticket.id),
+    clientName: ticket.client_name,
+    clientTel: ticket.client_tel,
+    total,
+    paid,
     downloadFileName,
+  };
+  const primaryActionProps = {
+    ...documentProps,
+    finished: ticket.finished,
+    paymentsCount: payments.length,
   };
 
   return (
@@ -97,88 +111,102 @@ export default async function TicketDetailsPage({
         </div>
       </header>
 
-      <TripledDashboardShell maxWidthClassName="max-w-6xl">
-        <TripledMobileAppBar
-          title={`Ticket #${ticket.id}`}
-          subtitle={ticket.finished ? 'Finalizado' : 'En proceso'}
-          backHref="/tickets"
-          className="mb-3"
-        />
-
-        <div className="flex flex-col gap-6 md:gap-8">
-          <TicketDetailHeader
-            ticketId={ticket.id}
-            clientName={ticket.client_name}
-            clientId={ticket.client_id}
-            finished={ticket.finished}
-            total={ticket.total}
-            paid={ticket.paid}
-            ticketDate={ticket.ticket_date}
-            createdAt={ticket.created_at}
-            updatedAt={ticket.updated_at}
-            creatorName={creatorName}
-            actions={
-              <TicketDetailPrimaryActions
-                {...primaryActionProps}
-                placement="desktop"
-              />
+      <TicketCollectProvider
+        ticketId={Number(ticket.id)}
+        total={total}
+        paid={paid}
+        companyId={ticket.company_id}
+      >
+        <TripledDashboardShell maxWidthClassName="max-w-6xl">
+          <TripledMobileAppBar
+            title={`Ticket #${ticket.id}`}
+            backHref="/tickets"
+            className="mb-3"
+            endSlot={
+              <div className="flex shrink-0 items-center">
+                <TicketDetailStatusPill finished={ticket.finished} total={total} paid={paid} />
+                <TicketDetailActionsMenu
+                  ticketId={Number(ticket.id)}
+                  clientName={ticket.client_name}
+                  clientTel={ticket.client_tel}
+                  total={total}
+                  paid={paid}
+                  paymentsCount={payments.length}
+                  downloadFileName={downloadFileName}
+                />
+              </div>
             }
           />
 
-          <TicketDetailPrimaryActions
-            {...primaryActionProps}
-            placement="mobile-sticky"
-          />
-
-          {!ticket.finished ? (
-            <TicketDetailFinishPanel
+          <div className="flex flex-col gap-4 md:gap-6">
+            <TicketDetailHeader
               ticketId={ticket.id}
-              clientId={ticket.client_id}
               clientName={ticket.client_name}
-              total={ticket.total}
+              clientId={ticket.client_id}
+              finished={ticket.finished}
+              total={total}
+              paid={paid}
               ticketDate={ticket.ticket_date}
-              serviceLines={serviceLines}
-              lineCount={ticket.services_tickets.length}
-              downloadFileName={downloadFileName}
+              creatorName={creatorName}
+              fromPresupuestoId={fromPresupuestoId}
+              actions={<TicketDetailPrimaryActions {...primaryActionProps} placement="desktop" />}
             />
-          ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] lg:items-start lg:gap-8">
-            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
-              <TicketDetailCustomerSection
-                clientId={ticket.client_id}
-                clientTel={ticket.client_tel}
-                email={ticket.email}
-                document={ticket.document}
-              />
+            <TicketDetailHero finished={ticket.finished} total={total} paid={paid} />
 
-              <TicketDetailServicesSection
+            <TicketDetailQuickActions
+              {...documentProps}
+              finished={ticket.finished}
+              className="md:max-w-md"
+            />
+
+            {!ticket.finished ? (
+              <TicketDetailFinishPanel
                 ticketId={ticket.id}
-                finished={ticket.finished}
-                total={ticket.total}
-                services={ticket.services_tickets}
+                clientId={ticket.client_id}
+                clientName={ticket.client_name}
+                total={total}
+                ticketDate={ticket.ticket_date}
+                serviceLines={serviceLines}
+                lineCount={ticket.services_tickets.length}
+                downloadFileName={downloadFileName}
               />
+            ) : null}
 
-              <TicketDetailPaymentsSection
-                ticketId={Number(ticket.id)}
-                total={ticket.total}
-                paid={ticket.paid}
-                finished={ticket.finished}
-                payments={payments}
-                companyId={ticket.company_id}
-              />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] lg:items-start lg:gap-8">
+              <div className="flex min-w-0 flex-col gap-4 md:gap-6">
+                <TicketDetailServicesSection
+                  ticketId={ticket.id}
+                  total={total}
+                  paid={paid}
+                  services={ticket.services_tickets}
+                />
 
-              <div className="lg:hidden">
-                <TicketDetailTimeline entries={auditEntries} />
+                {ticket.finished ? <TicketDetailPaymentsSection payments={payments} /> : null}
+
+                <div className="lg:hidden">
+                  <TicketDetailTimeline
+                    entries={auditEntries}
+                    createdAt={ticket.created_at}
+                    updatedAt={ticket.updated_at}
+                  />
+                </div>
               </div>
-            </div>
 
-            <aside className="hidden min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:flex">
-              <TicketDetailTimeline entries={auditEntries} />
-            </aside>
+              <aside className="hidden min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:flex">
+                <TicketDetailTimeline
+                  entries={auditEntries}
+                  defaultOpen
+                  createdAt={ticket.created_at}
+                  updatedAt={ticket.updated_at}
+                />
+              </aside>
+            </div>
           </div>
-        </div>
-      </TripledDashboardShell>
+        </TripledDashboardShell>
+
+        <TicketDetailPrimaryActions {...primaryActionProps} placement="mobile-sticky" />
+      </TicketCollectProvider>
     </>
   );
 }

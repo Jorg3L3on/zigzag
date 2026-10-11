@@ -38,12 +38,12 @@ test.describe('Core business flow smoke', () => {
     await finishOnReview(page, ticketId, { mode: 'full' });
 
     await page.goto(`/tickets/${ticketId}`);
-    // Status chip is always visible; mobile app bar subtitle is md:hidden on desktop.
+    // The status pill sits in the mobile app bar and, from md, in the header.
     // After a hard navigation Next may still hold streamed chunks in hidden
-    // placeholders, so match the visible chip (strict mode would fail at once).
+    // placeholders, so match the visible pill (strict mode would fail at once).
     await expect(
-      page.getByText(/Finalizado ·/).filter({ visible: true }).first(),
-    ).toBeVisible({ timeout: 15_000 });
+      page.getByTestId('ticket-status-pill').filter({ visible: true }).first(),
+    ).toHaveText('Pagado', { timeout: 15_000 });
 
     const pdfCheck = await page.evaluate(async (id) => {
       const raw = localStorage.getItem('selectedCompany');
