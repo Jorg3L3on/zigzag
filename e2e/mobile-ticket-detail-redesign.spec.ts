@@ -132,7 +132,7 @@ for (const width of MOBILE_WIDTHS) {
       await sticky.click();
       const sheet = page.getByRole('dialog', { name: 'Cobrar' });
       await expect(sheet).toBeVisible();
-      await sheet.getByRole('button', { name: 'Cerrar diálogo' }).click();
+      await sheet.getByRole('button', { name: /Cerrar (diálogo|panel)/ }).click();
       await expect(sheet).toBeHidden();
 
       // ⋯ menu: the four actions.

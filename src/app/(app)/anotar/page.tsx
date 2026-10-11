@@ -955,7 +955,6 @@ const AnotarPageContent = () => {
             'h-12 shrink-0 rounded-xl px-5 text-base font-semibold',
             !selectedClient && 'opacity-60',
           )}
-          aria-disabled={!selectedClient || undefined}
           disabled={isSubmitting || paidExceedsTotal}
         >
           {isSubmitting ? (
