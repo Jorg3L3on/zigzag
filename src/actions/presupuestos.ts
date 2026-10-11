@@ -56,6 +56,10 @@ import {
   insertServiceLines,
 } from '@/lib/service-lines-server';
 import { activeLineMaterialsWith } from '@/lib/line-materials-query';
+import {
+  buildPresupuestoDuplicateDraft,
+  type PresupuestoDuplicateDraft,
+} from '@/lib/presupuesto-view-props';
 
 /** Catalog or inline line (ZIG-I5). */
 const serviceLineSchema = serviceLineInputSchema;
@@ -701,5 +705,59 @@ export async function convertPresupuestoToTicket(
       return buildActionError('TC009', undefined, 'validation');
     }
     return handleCodedServerActionError('presupuestos.convert', 'TC001', e);
+  }
+}
+
+/**
+ * Duplicar (ZIG-I13-5): reads any presupuesto of the caller's company, whatever
+ * its status, and returns a draft for the composer: same client, lines and
+ * materials, dated today with the same validity length. Writes nothing but the
+ * audit event; the new presupuesto exists only after Guardar.
+ */
+export async function duplicatePresupuesto(
+  id: number,
+  companyId?: number | null,
+): Promise<{ success: true; data: PresupuestoDuplicateDraft } | CodedActionError> {
+  try {
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      companyId ?? undefined,
+    );
+    const ticketId = BigInt(id);
+    const source = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        eq(ticket.document_kind, 'presupuesto'),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        client: true,
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: { service: true, ...activeLineMaterialsWith },
+        },
+      },
+    });
+    if (!source) {
+      return buildActionError('TC008');
+    }
+
+    await db.transaction(async (tx) => {
+      await recordTicketAudit(
+        tx,
+        context,
+        ticketId,
+        effectiveCompanyId,
+        'presupuesto_duplicated',
+        { lines: source.services_tickets.length },
+      );
+    });
+
+    return {
+      success: true,
+      data: buildPresupuestoDuplicateDraft(source as PresupuestoDetailData),
+    };
+  } catch (e) {
+    return handleCodedServerActionError('presupuestos.duplicate', 'TC003', e);
   }
 }

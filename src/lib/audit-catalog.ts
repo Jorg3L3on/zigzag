@@ -31,6 +31,7 @@ export const AUDIT_ACTIONS = [
   'payment_collected',
   'presupuesto_converted',
   'presupuesto_canceled',
+  'presupuesto_duplicated',
   'logo_uploaded',
   'logo_removed',
   'permissions_changed',

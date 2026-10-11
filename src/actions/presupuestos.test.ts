@@ -3,6 +3,7 @@ import type { SQL } from 'drizzle-orm';
 import {
   convertPresupuestoToTicket,
   createPresupuestoWithLines,
+  duplicatePresupuesto,
   getPresupuestoById,
   updatePresupuesto,
 } from '@/actions/presupuestos';
@@ -597,5 +598,102 @@ describe('updatePresupuesto (ZIG-I5-5 edit)', () => {
 
     expect(result.success).toBe(false);
     expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('duplicatePresupuesto (ZIG-I13-5)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (requireTicketWrite as jest.Mock).mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+    mockDb.transaction.mockImplementation(async (callback) => callback({}));
+  });
+
+  const open = {
+    ...quote,
+    ticket_date: new Date('2026-10-01T12:00:00Z'),
+    expires_at: new Date('2026-10-16T12:00:00Z'), // 15 days
+    work_notes: 'Anticipo 60%',
+  };
+
+  it('returns a draft with every line and material, today, and the same validity length', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(open);
+
+    const result = await duplicatePresupuesto(300, 10);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const { data } = result;
+    expect(data.client).toEqual({ id: 5, label: 'Plaza Comercial Aurora · 5550001111' });
+    expect(data.notes).toBe('Anticipo 60%');
+    expect(data.lines).toHaveLength(2);
+    expect(data.lines[0]).toMatchObject({ kind: 'catalog', service_id: 7, quantity: 1, price: 4200 });
+    expect(data.lines[1]).toMatchObject({
+      kind: 'custom',
+      service_id: null,
+      service_name: 'Cambio de capacitor',
+      price: 850,
+    });
+    expect(data.lines[1].materials).toHaveLength(2);
+    expect(data.lines[1].materials?.[0]).toMatchObject({ name: 'Capacitor 35 µF', price: 320 });
+    const days =
+      (new Date(data.expiresAt as string).getTime() - new Date(data.ticketDate).getTime()) / 86_400_000;
+    expect(Math.round(days)).toBe(15);
+    expect(new Date(data.ticketDate).getTime()).toBeGreaterThan(open.ticket_date.getTime());
+  });
+
+  it.each([
+    ['cancelado', { canceled_at: new Date('2026-10-05T00:00:00Z') }],
+    ['convertido', { converted_to_ticket_id: 301n }],
+    ['vencido', { expires_at: new Date('2026-10-02T00:00:00Z') }],
+  ])('works for a %s presupuesto', async (_status, patch) => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({ ...open, ...patch });
+
+    const result = await duplicatePresupuesto(300, 10);
+
+    expect(result.success).toBe(true);
+  });
+
+  it('has no expiry when the original had none', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({ ...open, expires_at: null });
+
+    const result = await duplicatePresupuesto(300, 10);
+
+    expect(result.success && result.data.expiresAt).toBeNull();
+  });
+
+  it("is scoped to the caller's company and to presupuestos (IDOR)", async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(undefined);
+
+    const result = await duplicatePresupuesto(300, 10);
+
+    expect(result.success).toBe(false);
+    expect((result as { errorCode?: string }).errorCode).toBe('TC008');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+    expect(recordTicketAudit).not.toHaveBeenCalled();
+    const { where } = mockDb.query.ticket.findFirst.mock.calls[0][0] as { where: SQL };
+    const query = new PgDialect().sqlToQuery(where);
+    expect(query.sql).toContain('"company_id" = $');
+    expect(query.sql).toContain('"document_kind" = $');
+    expect(query.sql).toContain('"deleted_at" is null');
+    expect(query.params).toEqual(expect.arrayContaining([300n, 10, 'presupuesto']));
+  });
+
+  it('records the duplication in the audit log and needs write access', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(open);
+
+    await duplicatePresupuesto(300, 10);
+
+    expect(recordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      authContext,
+      300n,
+      10,
+      'presupuesto_duplicated',
+      expect.objectContaining({ lines: 2 }),
+    );
+    expect(requireTicketWrite).toHaveBeenCalledWith(10);
   });
 });

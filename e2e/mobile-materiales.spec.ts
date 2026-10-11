@@ -209,7 +209,7 @@ test.describe('Materiales (mobile)', () => {
     // 4. Convert and edit the materials on the ticket's services page.
     await page.goto(`/presupuestos/${presupuestoId}`);
     await page.getByRole('button', { name: 'Convertir a ticket' }).first().click();
-    await page.getByRole('alertdialog').getByRole('button', { name: /Convertir/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /Convertir/ }).click();
     await page.waitForURL(/\/tickets\/\d+/, { timeout: 60_000 });
     const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1];
     await page.goto(`/tickets/${ticketId}/services`);
