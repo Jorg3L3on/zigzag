@@ -14,7 +14,7 @@ type TicketDetailStatusPillProps = {
 const PILL_LABEL: Record<TicketPaymentStatus, string> = {
   paid: 'Pagado',
   partial: 'Pago parcial',
-  pending: 'Sin pagos',
+  pending: 'Pendiente de pago',
 };
 
 const PILL_CLASS: Record<TicketPaymentStatus | 'working', string> = {
@@ -24,7 +24,7 @@ const PILL_CLASS: Record<TicketPaymentStatus | 'working', string> = {
   working: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
 };
 
-/** Pagado / Pago parcial / Sin pagos, or En proceso until the ticket is finalized. */
+/** Pagado / Pago parcial / Pendiente de pago, or En proceso until the ticket is finalized. */
 export const TicketDetailStatusPill = ({
   finished,
   total,

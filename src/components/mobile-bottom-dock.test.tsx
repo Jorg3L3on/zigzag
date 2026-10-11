@@ -133,7 +133,7 @@ describe('MobileBottomDock', () => {
     ]);
     expect(items[0]).toHaveTextContent('Nuevo ticket');
     expect(items[1]).toHaveTextContent('Nuevo presupuesto');
-    expect(items[2]).toHaveTextContent('Captura rápida');
+    expect(items[2]).toHaveTextContent('Anotar trabajo');
     expect(items[3]).toHaveTextContent('Nuevo cliente');
     expect(document.activeElement).toBe(items[0]);
   });

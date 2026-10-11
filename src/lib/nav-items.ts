@@ -107,7 +107,7 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
     ],
   },
   {
-    title: 'Captura rápida',
+    title: 'Anotar trabajo',
     url: '/anotar',
     icon: PenLine,
     requiredPermission: PERMISSIONS.tickets.write,
@@ -118,7 +118,7 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
 /**
  * Mobile bottom tabs: Hoy · Tickets · Presupuestos (+ the create slot and Más in the dock).
  * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy).
- * Anotar is no longer a tab; it lives on as Captura rápida (create menu, Hoy, Más sheet).
+ * Anotar is no longer a tab; it lives on as Anotar trabajo (create menu, Hoy, Más sheet).
  */
 export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
   {
@@ -168,7 +168,7 @@ export const MOBILE_CREATE_ACTIONS: MobileCreateAction[] = [
     requiredPermission: PERMISSIONS.tickets.write,
   },
   {
-    title: 'Captura rápida',
+    title: 'Anotar trabajo',
     hint: 'Un solo paso, funciona sin señal',
     url: '/anotar',
     icon: PenLine,

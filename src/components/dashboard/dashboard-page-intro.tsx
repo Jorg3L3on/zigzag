@@ -56,7 +56,7 @@ export const DashboardPageIntro = ({
   const firstName = getDisplayName(userName);
   const title = firstName ? `${greeting}, ${firstName}` : greeting;
   const resolvedSubtitle =
-    subtitle?.trim() || 'Resumen de tu operación';
+    subtitle?.trim() || 'Lo de hoy';
 
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">

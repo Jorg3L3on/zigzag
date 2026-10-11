@@ -127,7 +127,7 @@ export const TicketsFilterBar = ({
   <ListFilterBarShell
     searchValue={searchValue}
     onSearchChange={onSearchChange}
-    searchPlaceholder="Cliente, folio o teléfono"
+    searchPlaceholder="Cliente, número de ticket o teléfono"
     searchAriaLabel="Buscar tickets por ID, cliente, teléfono o correo"
     searchContainerClassName="relative min-w-0 flex-1 lg:min-w-0"
     quickFilters={
@@ -149,7 +149,7 @@ export const TicketsFilterBar = ({
       )
     }
     sheetFilterCount={activeFilterCount}
-    sheetDescription="Estado de cobro, finalización, fechas y orden de la lista."
+    sheetDescription="Pagado, terminado, fechas y orden de la lista."
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros"

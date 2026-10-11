@@ -341,7 +341,7 @@ export const ComposerLineSheet = ({
     <div className="space-y-1" data-testid="composer-line-header">
       {serviceChosen ? (
         <p className="text-xs text-muted-foreground">
-          {mode === 'custom' ? 'Fuera del catálogo' : 'Del catálogo'} ·{' '}
+          {mode === 'custom' ? 'Escrito por ti' : 'De mis servicios'} ·{' '}
           <button
             type="button"
             onClick={changeService}
@@ -394,7 +394,7 @@ export const ComposerLineSheet = ({
               </span>
             </p>
             <div className="flex min-w-0 flex-col items-end text-right">
-              <span className="text-xs text-muted-foreground">Subtotal de la línea</span>
+              <span className="text-xs text-muted-foreground">Suma</span>
               <MoneyFigure
                 amount={lineTotal}
                 size="lg"
@@ -427,7 +427,7 @@ export const ComposerLineSheet = ({
               disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              Guardar línea
+              Agregar al ticket
             </Button>
           </div>
         </div>

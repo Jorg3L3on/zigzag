@@ -145,7 +145,7 @@ describe('DashboardTuDia', () => {
 
     expect(tab(/Atrasados/)).toHaveAttribute('aria-selected', 'true');
     const list = screen.getByRole('list', { name: /Atrasados/ });
-    expect(within(list).getByRole('link', { name: 'Finalizar' })).toHaveAttribute(
+    expect(within(list).getByRole('link', { name: 'Terminar' })).toHaveAttribute(
       'href',
       '/tickets/1047#finalizar',
     );

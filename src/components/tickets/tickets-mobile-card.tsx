@@ -28,16 +28,16 @@ type TicketsMobileCardProps = {
 
 /** How a card names the payment state (same words as the detail's pill). */
 const CARD_STATUS_LABEL: Record<TicketPaymentStatus, string> = {
-  paid: 'Saldado',
+  paid: 'Pagado',
   partial: 'Pago parcial',
-  pending: 'Sin pagos',
+  pending: 'Pendiente de pago',
 };
 
 /**
- * Compact ticket card (ZIG-I13-7): the name in up to two lines with the folio,
+ * Compact ticket card (ZIG-I13-7): the name in up to two lines with the ticket number,
  * one meta line `status · phone · date`, a progress bar once something is paid,
  * and Pagado / Saldo that wrap instead of truncating. The whole card opens the
- * ticket; ⋯ keeps Registrar pago / Descargar / Eliminar.
+ * ticket; ⋯ keeps Cobrar / Descargar / Eliminar.
  */
 export const TicketsMobileCard = ({
   ticket,

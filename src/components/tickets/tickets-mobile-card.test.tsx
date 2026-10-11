@@ -80,7 +80,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     }
   });
 
-  it('shows Total once and no progress bar for saldado tickets', () => {
+  it('shows Total once and no progress bar for pagado tickets', () => {
     render(
       <TicketsMobileCard
         ticket={{ ...ticket, total: 1972, paid: 1972 }}
@@ -89,7 +89,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
       />,
     );
 
-    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Saldado');
+    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Pagado');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.getAllByText('$1,972.00')).toHaveLength(1);
     expect(screen.queryByText(/saldo/i)).not.toBeInTheDocument();
@@ -99,7 +99,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     );
   });
 
-  it('shows Sin pagos with the Total when nothing is paid', () => {
+  it('shows Pendiente de pago with the Total when nothing is paid', () => {
     render(
       <TicketsMobileCard
         ticket={{ ...ticket, total: 100, paid: 0 }}
@@ -108,7 +108,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
       />,
     );
 
-    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Sin pagos');
+    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Pendiente de pago');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     const money = screen.getByTestId('ticket-payment-summary');
     expect(money).toHaveTextContent('Total');

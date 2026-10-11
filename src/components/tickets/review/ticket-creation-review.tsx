@@ -239,7 +239,7 @@ export const TicketCreationReview = ({
         ) : (
           <>
             <Share2 className="h-4 w-4" aria-hidden />
-            Finalizar y compartir
+            Terminar y compartir
           </>
         )}
       </ActionSwap>
@@ -350,7 +350,7 @@ export const TicketCreationReview = ({
               href={`/tickets/${ticketId}`}
               className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
-              Guardar sin finalizar
+              Guardar sin terminar
             </Link>
           ) : (
             <Link
@@ -368,7 +368,7 @@ export const TicketCreationReview = ({
             href={`/tickets/${ticketId}`}
             className="inline-flex min-h-11 items-center font-medium text-muted-foreground underline-offset-4 hover:underline"
           >
-            {finished ? 'Ver ticket' : 'Guardar sin finalizar'}
+            {finished ? 'Ver ticket' : 'Guardar sin terminar'}
           </Link>
           {finished ? (
             <Link
@@ -394,7 +394,7 @@ export const TicketCreationReview = ({
             </p>
             <MoneyFigure
               amount={finished ? paid : showsBalance ? subtractMoney(total, chosenPaid) : total}
-              // md, not lg: next to Finalizar y compartir a 7-figure balance would wrap mid-number at 375px.
+              // md, not lg: next to Terminar y compartir a 7-figure balance would wrap mid-number at 375px.
               size="md"
               className="block text-[17px] leading-tight"
               data-testid="review-sticky-amount"

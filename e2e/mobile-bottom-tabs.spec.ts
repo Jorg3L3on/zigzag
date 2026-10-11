@@ -90,7 +90,7 @@ test.describe('Mobile bottom dock', () => {
       menu.getByRole('menuitem', { name: /Nuevo presupuesto/ }),
     ).toHaveAttribute('href', '/presupuestos/create');
     await expect(
-      menu.getByRole('menuitem', { name: /Captura rápida/ }),
+      menu.getByRole('menuitem', { name: /Anotar trabajo/ }),
     ).toHaveAttribute('href', '/anotar');
     await expect(
       menu.getByRole('menuitem', { name: /Nuevo cliente/ }),
@@ -102,7 +102,7 @@ test.describe('Mobile bottom dock', () => {
     ]);
   });
 
-  test('+ menu reaches Captura rápida and closes on Escape', async ({
+  test('+ menu reaches Anotar trabajo and closes on Escape', async ({
     page,
   }) => {
     await page.goto('/dashboard');
@@ -118,7 +118,7 @@ test.describe('Mobile bottom dock', () => {
     await plus.click();
     await Promise.all([
       page.waitForURL(/\/anotar/),
-      tabBar.getByRole('menuitem', { name: /Captura rápida/ }).click(),
+      tabBar.getByRole('menuitem', { name: /Anotar trabajo/ }).click(),
     ]);
     await expect(tabBar.getByRole('menu')).toHaveCount(0);
   });
@@ -166,7 +166,7 @@ test.describe('Mobile bottom dock', () => {
     await expect(navDialog.getByRole('link', { name: 'Inicio' })).toBeVisible();
     await expect(navDialog.getByRole('link', { name: 'Tickets' })).toBeVisible();
     await expect(
-      navDialog.getByRole('link', { name: 'Captura rápida' }),
+      navDialog.getByRole('link', { name: 'Anotar trabajo' }),
     ).toHaveAttribute('href', '/anotar');
     await expect(navDialog.getByRole('button', { name: /^Notificaciones/ })).toBeVisible();
     await expect(

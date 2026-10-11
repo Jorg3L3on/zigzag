@@ -34,11 +34,11 @@ const SORT_OPTION_ROWS: { value: string; label: string }[] = [
   },
   {
     value: 'paymentRank:asc',
-    label: 'Estado de cobro (saldado primero)',
+    label: 'Pagados primero',
   },
   {
     value: 'paymentRank:desc',
-    label: 'Estado de cobro (pendiente primero)',
+    label: 'Pendientes primero',
   },
   { value: 'total:desc', label: 'Total (mayor a menor)' },
   { value: 'total:asc', label: 'Total (menor a mayor)' },

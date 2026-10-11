@@ -53,7 +53,7 @@ describe('nav-items', () => {
     );
   });
 
-  it('defines create actions Nuevo ticket, Nuevo presupuesto, Captura rápida, Nuevo cliente', () => {
+  it('defines create actions Nuevo ticket, Nuevo presupuesto, Anotar trabajo, Nuevo cliente', () => {
     expect(
       MOBILE_CREATE_ACTIONS.map(({ title, url, requiredPermission }) => ({
         title,
@@ -72,7 +72,7 @@ describe('nav-items', () => {
         requiredPermission: 'tickets.write',
       },
       {
-        title: 'Captura rápida',
+        title: 'Anotar trabajo',
         url: '/anotar',
         requiredPermission: 'tickets.write',
       },
@@ -105,9 +105,9 @@ describe('nav-items', () => {
     expect(presupuestos?.requiredPermission).toBe('tickets.read');
   });
 
-  it('lists Captura rápida in the Más sheet only, gated by tickets.write', () => {
+  it('lists Anotar trabajo in the Más sheet only, gated by tickets.write', () => {
     const captura = NAV_MAIN_ITEMS.find((item) => item.url === '/anotar');
-    expect(captura?.title).toBe('Captura rápida');
+    expect(captura?.title).toBe('Anotar trabajo');
     expect(captura?.requiredPermission).toBe('tickets.write');
     expect(captura?.mobileOnly).toBe(true);
   });

@@ -545,7 +545,7 @@ const AnotarPageContent = () => {
       >
         <TripledMobileAppBar
           title="Anotar trabajo"
-          subtitle="Captura rápida en campo"
+          subtitle="Anota el trabajo al momento"
           backHref="/tickets"
           backLabel="Volver a tickets"
         />
@@ -810,7 +810,7 @@ const AnotarPageContent = () => {
                     href="/tickets/create"
                     className="mt-1 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
                   >
-                    Creación completa (oficina)
+                    Ticket con varios servicios
                   </Link>
                 </div>
 

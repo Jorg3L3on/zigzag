@@ -1,5 +1,6 @@
 'use client';
 
+import { ErrorText } from '@/components/error-text';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
@@ -205,7 +206,7 @@ export function LoginForm({
                   aria-live="assertive"
                   className="text-sm text-destructive"
                 >
-                  {error}
+                  <ErrorText message={error} />
                 </div>
               ) : null}
 

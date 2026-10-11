@@ -130,7 +130,7 @@ const addLine = async (
   const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
   await user.clear(qty);
   await user.type(qty, quantity);
-  await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
   );
@@ -145,7 +145,7 @@ describe('PresupuestoComposer (ZIG-I5-3)', () => {
     mockSearchParams = new URLSearchParams();
   });
 
-  it('shows the presupuesto copy, Vence and no Captura rápida', () => {
+  it('shows the presupuesto copy, Vence and no Anotar trabajo', () => {
     renderComposer();
 
     expect(screen.getByRole('heading', { name: 'Nuevo presupuesto' })).toBeTruthy();
@@ -153,7 +153,7 @@ describe('PresupuestoComposer (ZIG-I5-3)', () => {
     expect(screen.getByRole('button', { name: /^Vence/ })).toHaveTextContent(
       'Sin vencimiento',
     );
-    expect(screen.queryByText('Captura rápida')).toBeNull();
+    expect(screen.queryByText('Anotar trabajo')).toBeNull();
     saveButtons().forEach((button) => expect(button).toBeDisabled());
     expect(screen.queryByRole('button', { name: /^Crear/ })).toBeNull();
   });

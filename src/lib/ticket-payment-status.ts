@@ -41,7 +41,7 @@ export const getTicketPaymentStatus = (
   return 'pending';
 };
 
-/** True when cobro is fully covered (Saldado). Content edits must be blocked. */
+/** True when cobro is fully covered (Pagado). Content edits must be blocked. */
 export const isTicketFullyPaid = (
   total: number | null | undefined,
   paid: number | null | undefined,
@@ -87,7 +87,7 @@ export const formatTicketListAmount = (
 /** Etiquetas cortas para UI */
 export const TICKET_PAYMENT_STATUS_LABEL: Record<TicketPaymentStatus, string> =
   {
-    paid: 'Saldado',
+    paid: 'Pagado',
     partial: 'Pago parcial',
     pending: 'Pendiente',
   };

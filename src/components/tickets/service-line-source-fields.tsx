@@ -28,8 +28,8 @@ const MODE_OPTIONS: Array<{
   label: string;
   icon: typeof ListChecks;
 }> = [
-  { value: 'catalog', label: 'Del catálogo', icon: ListChecks },
-  { value: 'custom', label: 'Nuevo', icon: PencilLine },
+  { value: 'catalog', label: 'Mis servicios', icon: ListChecks },
+  { value: 'custom', label: 'Escribir', icon: PencilLine },
 ];
 
 /**

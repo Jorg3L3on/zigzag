@@ -55,7 +55,7 @@ export const TicketFinishSchedulesDialog = ({
   serviceLines,
   existingSchedules,
   saving = false,
-  confirmLabel = 'Finalizar y continuar',
+  confirmLabel = 'Terminar y continuar',
   onConfirm,
   onSkip,
 }: TicketFinishSchedulesDialogProps) => {

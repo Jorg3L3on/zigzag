@@ -130,7 +130,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       ).toBeVisible({ timeout: 15_000 });
       await page.getByRole('button', { name: 'Agregar servicio' }).click();
       const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
-      await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+      await sheet.getByRole('radio', { name: /Escribir/ }).click();
       await sheet.getByLabel('Nombre del servicio').fill('Cambio de capacitor 35 µF');
       await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill('850');
       await page.waitForTimeout(600);

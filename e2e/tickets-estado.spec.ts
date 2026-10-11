@@ -20,7 +20,7 @@ test.describe('Tickets list Estado column', () => {
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible({
+    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 
@@ -76,7 +76,7 @@ test.describe('Tickets list Estado column', () => {
 
     if ((await paid.count()) > 0) {
       const cell = paid.first();
-      await expect(cell.getByText('Saldado')).toBeVisible();
+      await expect(cell.getByText('Pagado')).toBeVisible();
       await expect(cell.getByRole('progressbar')).toHaveAttribute(
         'aria-valuenow',
         '100',
@@ -89,7 +89,7 @@ test.describe('Tickets list Estado column', () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible({
+    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 

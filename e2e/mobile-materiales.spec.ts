@@ -182,7 +182,7 @@ test.describe('Materiales (mobile)', () => {
     await expect(sheet.getByTestId('composer-line-breakdown')).toHaveText(
       `Servicio ${money(3500)} Materiales ${money(890)}`,
     );
-    await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+    await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
     await expect(sheet).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId('composer-total')).toHaveText(money(4390));
     await expectNoHorizontalOverflow(page);
@@ -223,7 +223,7 @@ test.describe('Materiales (mobile)', () => {
     const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await expect(editSheet.getByText(gas)).toBeVisible();
     await editSheet.getByRole('button', { name: `Quitar ${inline}` }).click();
-    await editSheet.getByRole('button', { name: 'Guardar línea' }).click();
+    await editSheet.getByRole('button', { name: 'Agregar al ticket' }).click();
     await expect(editSheet).toBeHidden({ timeout: 10_000 });
     // 3500 + 570
     await expect(page.getByTestId('composer-total')).toHaveText(money(4070));

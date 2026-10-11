@@ -14,7 +14,7 @@ import {
 
 /**
  * ZIG-I2 end to end on Pixel 5: dock + → Nuevo ticket → composer (2 lines) →
- * Guardar ticket → creation review → Finalizar y compartir → Descargar PDF,
+ * Guardar ticket → creation review → Terminar y compartir → Descargar PDF,
  * then the ticket shows in the Tickets tab. Plus a reduced-motion pass.
  */
 

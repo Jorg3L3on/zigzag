@@ -48,13 +48,13 @@ const renderFilters = (
 ) => (
   <>
     <ButtonFilterGroup
-      label="Estado de cobro"
+      label="¿Pagado?"
       options={STATUS_OPTIONS}
       value={statusFilter}
       onChange={onStatusFilterChange}
       layout={layout}
       getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar estado de cobro: ${optionLabel.toLowerCase()}`
+        `Filtrar: ${optionLabel.toLowerCase()}`
       }
     />
     <ButtonFilterGroup
@@ -89,7 +89,7 @@ export const CobranzaFilterBar = ({
     searchAriaLabel="Buscar en cobranza"
     searchClassName="h-11 pl-9"
     sheetFilterCount={sheetFilterCount}
-    sheetDescription="Estado de cobro y días sin pagar."
+    sheetDescription="Pagado y días sin pagar."
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros de cobranza"

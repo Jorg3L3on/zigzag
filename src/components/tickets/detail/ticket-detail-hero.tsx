@@ -57,7 +57,7 @@ export const TicketDetailHero = ({ finished, total, paid, className }: TicketDet
             data-testid="ticket-hero-paid"
           >
             {status === 'paid'
-              ? 'Saldado'
+              ? 'Pagado'
               : `Pagado ${formatServiceCurrency(paidAmount)} de ${formatServiceCurrency(totalAmount)}`}
           </p>
         </>

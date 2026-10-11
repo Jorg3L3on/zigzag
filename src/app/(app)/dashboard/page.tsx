@@ -86,7 +86,7 @@ export default async function DashboardPage() {
   return (
     <>
       <TripledPageHeader
-        items={[{ label: isCampo ? 'Hoy' : 'Dashboard' }]}
+        items={[{ label: 'Hoy' }]}
       />
       <TripledDashboardShell>
         <div className="flex flex-col gap-6 md:gap-8">
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
             userName={session.user.name}
             initialGreeting={initialGreeting}
             subtitle={
-              isCampo ? 'Tu día en el campo' : 'Resumen de tu operación'
+              isCampo ? 'Tu día en el campo' : 'Lo de hoy'
             }
           />
           <div className="min-h-[28rem]">

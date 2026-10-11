@@ -23,7 +23,7 @@ export default async function PresupuestosPage() {
     <>
       <TripledPageHeader
         items={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Hoy', href: '/dashboard' },
           { label: 'Presupuestos' },
         ]}
       />

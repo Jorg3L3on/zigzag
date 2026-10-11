@@ -536,7 +536,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         description:
           isQuote
             ? 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal.'
-            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Captura rápida.',
+            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Anotar trabajo.',
       });
       return;
     }
@@ -990,7 +990,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           <p className="text-center text-xs text-muted-foreground md:hidden">
             ¿Sin señal o con prisa?{' '}
             <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
-              Captura rápida
+              Anotar trabajo
             </Link>
           </p>
         )}

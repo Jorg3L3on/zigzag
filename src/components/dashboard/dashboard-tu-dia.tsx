@@ -168,7 +168,7 @@ const TicketRow = ({
   const context =
     item.servicesSummary ??
     (localOnly
-      ? 'Captura rápida'
+      ? 'Anotar trabajo'
       : `#${item.id} · ${format(new Date(item.ticketDate), 'd MMM', { locale: es })}`);
   const call = telHref(item.clientTel);
   const job = toFieldJobSnapshotFromDayTicket(item, {
@@ -203,7 +203,7 @@ const TicketRow = ({
               overdue && canWrite ? `/tickets/${item.id}#finalizar` : `/tickets/${item.id}`
             }
           >
-            {overdue && canWrite ? 'Finalizar' : 'Abrir'}
+            {overdue && canWrite ? 'Terminar' : 'Abrir'}
           </Link>
         </Button>
       )}

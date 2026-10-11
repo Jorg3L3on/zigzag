@@ -86,7 +86,7 @@ describe('/tickets/[id]/recibo page', () => {
       ticketId: '1113',
       kind: 'recibo',
       title: 'Recibo #1113',
-      subtitle: 'Finalizado · Saldado',
+      subtitle: 'Trabajo terminado · Pagado',
       backHref: '/tickets/1113',
     });
   });
@@ -96,7 +96,7 @@ describe('/tickets/[id]/recibo page', () => {
     const element = await call('1113', 'listo');
 
     expect(element.props).toMatchObject({
-      subtitle: 'Finalizado · Pendiente',
+      subtitle: 'Trabajo terminado · Pendiente',
       backHref: '/tickets/1113/listo',
     });
   });

@@ -107,7 +107,7 @@ export const DashboardRouteLoading = ({
   intro?: ReactNode;
 }) => (
   <>
-    <TripledPageHeader items={[{ label: 'Dashboard' }]} />
+    <TripledPageHeader items={[{ label: 'Hoy' }]} />
     <TripledDashboardShell>
       <div
         className="flex flex-col gap-6 md:gap-8"

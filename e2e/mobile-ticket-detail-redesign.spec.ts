@@ -68,13 +68,13 @@ for (const width of MOBILE_WIDTHS) {
       for (const radio of await page.getByRole('radio').all()) {
         await expect(radio).toHaveAttribute('aria-checked', 'false');
       }
-      await expect(page.getByRole('button', { name: /Finalizar y generar recibo/ })).toBeDisabled();
+      await expect(page.getByRole('button', { name: /Terminar y generar recibo/ })).toBeDisabled();
       await expectNoPageOverflow(page, 'detail unfinalized');
 
       // Finalize with a partial payment (no catalog lines: no reminders dialog).
       await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('500000');
-      await page.getByRole('button', { name: /Finalizar y generar recibo/ }).click();
+      await page.getByRole('button', { name: /Terminar y generar recibo/ }).click();
       await expect(page.getByTestId('ticket-status-pill').filter({ visible: true }).first()).toHaveText(
         'Pago parcial',
         { timeout: 60_000 },

@@ -58,7 +58,7 @@ for (const width of MOBILE_WIDTHS) {
       }
 
       await page.goto('/tickets');
-      const search = page.getByPlaceholder('Cliente, folio o teléfono');
+      const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
       await expect(search).toBeVisible({ timeout: 15_000 });
 
       // Check 2: room for 3 heavy cards above the dock (375×812). The list opens on whatever is
@@ -93,7 +93,7 @@ for (const width of MOBILE_WIDTHS) {
       const partialCard = cards.filter({ hasText: 'Pago parcial' }).first();
       await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Pagado $500,000.00');
       await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Saldo $800,488.89');
-      const openCard = cards.filter({ hasText: 'Sin pagos' }).first();
+      const openCard = cards.filter({ hasText: 'Pendiente de pago' }).first();
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('Total');
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('$1,300,488.89');
       await expectNoPageOverflow(page, 'tickets list');
