@@ -14,19 +14,58 @@ import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
 type CobranzaWhatsAppButtonProps = {
   row: CobranzaRow;
   companyName?: string | null;
+  /** `card`: full-width labelled button for the phone card (ZIG-I18-2). */
+  variant?: 'icon' | 'card';
 };
 
 export const CobranzaWhatsAppButton = ({
   row,
   companyName,
+  variant = 'icon',
 }: CobranzaWhatsAppButtonProps) => {
   const share = buildWhatsAppBalanceShare({
     phone: row.client_tel,
     clientName: row.client_name,
     ticketId: row.id,
+    folio: row.folio,
     balanceDue: row.balanceDue,
     companyName,
   });
+
+  if (variant === 'card') {
+    if (!share) {
+      return (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 w-full gap-2 rounded-xl text-base"
+          disabled
+          aria-label={`Sin teléfono para recordar el ticket ${row.id}`}
+        >
+          <MessageCircle className="h-5 w-5" aria-hidden />
+          Sin teléfono
+        </Button>
+      );
+    }
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className="h-12 w-full gap-2 rounded-xl text-base"
+        asChild
+      >
+        <a
+          href={share.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Recordar por WhatsApp el ticket ${row.id}`}
+        >
+          <MessageCircle className="h-5 w-5" aria-hidden />
+          Recordar por WhatsApp
+        </a>
+      </Button>
+    );
+  }
 
   if (!share) {
     return (

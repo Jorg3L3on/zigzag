@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 import type { Service } from '@/db/schema';
@@ -151,6 +151,14 @@ export const ComposerLineSheet = ({
       ? initialLine
       : null;
   const trimmedName = customName.trim();
+
+  // A new company has no catalog yet: open on Escribir instead of an empty picker (ZIG-I18-13).
+  const emptyCatalog = !servicesLoading && services.length === 0;
+  useEffect(() => {
+    if (emptyCatalog && !isEditing && !serviceId) {
+      setMode('custom');
+    }
+  }, [emptyCatalog, isEditing, serviceId]);
 
   const materialsTotal = materialDraftsTotal(materials);
   const serviceAmount = multiplyMoney(priceValue, quantityValue);
@@ -340,8 +348,8 @@ export const ComposerLineSheet = ({
   const header = (
     <div className="space-y-1" data-testid="composer-line-header">
       {serviceChosen ? (
-        <p className="text-xs text-muted-foreground">
-          {mode === 'custom' ? 'Fuera del catálogo' : 'Del catálogo'} ·{' '}
+        <p className="text-caption text-muted-foreground">
+          {mode === 'custom' ? 'Escrito por ti' : 'De mis servicios'} ·{' '}
           <button
             type="button"
             onClick={changeService}
@@ -360,7 +368,7 @@ export const ComposerLineSheet = ({
       {serviceChosen ? null : (
         <p className="text-sm text-muted-foreground">
           {mode === 'custom'
-            ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
+            ? 'Escríbelo aquí. Marca "Guardar en mis servicios" para usarlo otra vez.'
             : 'Elige el servicio, la cantidad y el precio.'}
         </p>
       )}
@@ -374,7 +382,7 @@ export const ComposerLineSheet = ({
       title={isEditing ? 'Editar servicio' : 'Agregar servicio'}
       description={
         mode === 'custom'
-          ? `Escríbelo aquí. Sólo vive en este ${documentLabel} si no lo guardas en tu catálogo.`
+          ? 'Escríbelo aquí. Marca "Guardar en mis servicios" para usarlo otra vez.'
           : 'Elige el servicio, la cantidad y el precio.'
       }
       header={header}
@@ -383,7 +391,7 @@ export const ComposerLineSheet = ({
         <div className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <p
-              className="min-w-0 text-xs tabular-nums leading-snug text-muted-foreground"
+              className="min-w-0 text-caption tabular-nums leading-snug text-muted-foreground"
               data-testid="composer-line-breakdown"
             >
               <span className="block [overflow-wrap:anywhere]">
@@ -394,7 +402,7 @@ export const ComposerLineSheet = ({
               </span>
             </p>
             <div className="flex min-w-0 flex-col items-end text-right">
-              <span className="text-xs text-muted-foreground">Subtotal de la línea</span>
+              <span className="text-caption text-muted-foreground">Suma</span>
               <MoneyFigure
                 amount={lineTotal}
                 size="lg"
@@ -406,7 +414,7 @@ export const ComposerLineSheet = ({
           {lineAmountError ? (
             <p
               role="alert"
-              className="text-xs text-destructive"
+              className="text-caption text-destructive"
               data-testid="composer-line-total-error"
             >
               {lineAmountError}
@@ -427,7 +435,7 @@ export const ComposerLineSheet = ({
               disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              Guardar línea
+              Agregar al ticket
             </Button>
           </div>
         </div>
@@ -470,8 +478,8 @@ export const ComposerLineSheet = ({
               className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm"
             />
             {!servicesLoading && services.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Tu catálogo está vacío. Usa Nuevo para escribir el servicio.
+              <p className="text-caption text-muted-foreground">
+                Aún no tienes servicios guardados. Usa Escribir para anotar el primero.
               </p>
             ) : null}
           </div>
@@ -545,7 +553,7 @@ export const ComposerLineSheet = ({
             </div>
           ) : null}
           {materials.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Sin materiales. Se suman al precio del servicio.
             </p>
           ) : (
@@ -559,7 +567,7 @@ export const ComposerLineSheet = ({
                 onRemove={removeMaterial}
                 data-testid="composer-line-material-rows"
               />
-              <p className="pt-1 text-xs text-muted-foreground">
+              <p className="pt-1 text-caption text-muted-foreground">
                 Toca un material para cambiar cantidad o precio.
               </p>
             </>

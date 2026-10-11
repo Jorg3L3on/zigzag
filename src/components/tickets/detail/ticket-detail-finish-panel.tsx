@@ -230,7 +230,7 @@ export const TicketDetailFinishPanel = ({
       >
         <TicketDetailSectionHeading
           id="ticket-finish-heading"
-          title="Finalizar ticket"
+          title="Terminar ticket"
           description="Registra el pago inicial y genera el recibo"
         />
 
@@ -255,7 +255,7 @@ export const TicketDetailFinishPanel = ({
             ) : (
               <>
                 <FileText className="h-4 w-4" aria-hidden />
-                Finalizar y generar recibo
+                Terminar y generar recibo
               </>
             )}
           </Button>

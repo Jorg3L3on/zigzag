@@ -35,7 +35,7 @@ const ADMIN_COMPOSITION: Omit<DashboardComposition, 'persona'> = {
   showQuickActions: true,
   kpiKeys: 'all',
   sectionTitles: {
-    kpis: 'Desempeño',
+    kpis: 'Tu mes',
   },
   emptyCopy: {
     activityTitle: 'Sin actividad reciente',

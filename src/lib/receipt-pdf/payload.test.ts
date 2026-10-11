@@ -1,6 +1,7 @@
 import {
   buildReceiptPdfPayload,
   formatReceiptFolio,
+  formatReceiptFolioFor,
   formatReceiptMoney,
   formatReceiptQuantity,
   type ReceiptPdfTicket,
@@ -141,7 +142,8 @@ describe('buildReceiptPdfPayload — shared fields', () => {
         email: 'contacto@climatotal.demo',
       },
       client: { name: 'Cliente test', phone: '961 315 1552', country: 'México' },
-      subtotal: 325,
+      servicesSubtotal: 325,
+      materialsSubtotal: 0,
       total: 325,
       adjustment: null,
       currencyCode: 'MXN',
@@ -155,6 +157,7 @@ describe('buildReceiptPdfPayload — shared fields', () => {
       unitPrice: 259,
       amount: 259,
       materials: [],
+      groupTotal: 259,
     });
   });
 
@@ -180,7 +183,6 @@ describe('buildReceiptPdfPayload — shared fields', () => {
       ['01', 'A', 100],
       ['02', 'C', 182.97],
     ]);
-    expect(payload.subtotal).toBe(282.97);
     expect(payload.servicesSubtotal).toBe(282.97);
     expect(payload.materialsSubtotal).toBe(0);
   });
@@ -207,7 +209,7 @@ describe('buildReceiptPdfPayload — shared fields', () => {
 
   it('reports an adjustment when the total differs from the line sum', () => {
     const payload = buildReceiptPdfPayload(baseTicket({ total: 300 }));
-    expect(payload.subtotal).toBe(325);
+    expect(payload.servicesSubtotal + payload.materialsSubtotal).toBe(325);
     expect(payload.adjustment).toBe(-25);
     expect(payload.total).toBe(300);
   });
@@ -328,7 +330,7 @@ describe('buildReceiptPdfPayload — materials (ZIG-I10)', () => {
   const withMaterials = (materials: NonNullable<Line['materials']>) =>
     ({ ...catalogLine(1, 'Instalación', 'Minisplit', 1200), materials }) as Line;
 
-  it('lists active materials in sort order and adds them to the line amount', () => {
+  it('lists active materials in sort order and keeps them out of the line amount', () => {
     const payload = buildReceiptPdfPayload(
       presupuesto({
         services_tickets: [
@@ -349,12 +351,12 @@ describe('buildReceiptPdfPayload — materials (ZIG-I10)', () => {
       { name: 'Tubería', quantity: 2.5, unit: 'm', unitPrice: 85.5, amount: 213.75 },
       { name: 'Cinta', quantity: 1, unit: null, unitPrice: 35, amount: 35 },
     ]);
-    expect(payload.items[0]).toMatchObject({ serviceAmount: 1200, amount: 2348.75, unitPrice: 1200 });
-    expect(payload.items[1]).toMatchObject({ serviceAmount: 300, amount: 300, materials: [] });
+    // CHANGES-v2 §2: Importe is the service alone; the group total adds materials.
+    expect(payload.items[0]).toMatchObject({ amount: 1200, groupTotal: 2348.75, unitPrice: 1200 });
+    expect(payload.items[1]).toMatchObject({ amount: 300, groupTotal: 300, materials: [] });
     expect(payload).toMatchObject({
       servicesSubtotal: 1500,
       materialsSubtotal: 1148.75,
-      subtotal: 2648.75,
       adjustment: 75,
     });
   });
@@ -362,7 +364,8 @@ describe('buildReceiptPdfPayload — materials (ZIG-I10)', () => {
   it('has a zero materials subtotal without materials', () => {
     const payload = buildReceiptPdfPayload(baseTicket());
     expect(payload.materialsSubtotal).toBe(0);
-    expect(payload.servicesSubtotal).toBe(payload.subtotal);
+    expect(payload.servicesSubtotal).toBe(payload.total);
+    expect(payload.items.every((item) => item.groupTotal === item.amount)).toBe(true);
   });
 });
 
@@ -402,10 +405,9 @@ describe('buildReceiptPdfPayload — stored amounts at large magnitudes (ZIG-I12
     const payload = buildReceiptPdfPayload(ticket);
 
     expect(payload.servicesSubtotal + payload.materialsSubtotal).toBeCloseTo(
-      payload.subtotal,
+      payload.total,
       2,
     );
-    expect(payload.subtotal).toBe(payload.total);
     expect(payload.adjustment).toBeNull();
   });
 });
@@ -437,5 +439,20 @@ describe('buildReceiptPdfPayload — notes and unsupported characters (ZIG-I12)'
     expect(payload.notes).toBe('Urgente');
     expect(payload.items[0].name).toBe('Instalación');
     expect(payload.items[0].description).toBe('Con y gas');
+  });
+});
+
+describe('formatReceiptFolioFor (ZIG-I17)', () => {
+  it('prints the company folio, the presupuesto folio on a converted recibo, or the padded id', () => {
+    expect(formatReceiptFolioFor({ id: 9n, folio_number: 12, folio_prefix: 'R' })).toBe('R-0012');
+    expect(
+      formatReceiptFolioFor({
+        id: 9n,
+        folio_number: 12,
+        folio_prefix: 'R',
+        source_presupuesto_folio: { folio_number: 3, folio_prefix: 'P' },
+      }),
+    ).toBe('P-0003');
+    expect(formatReceiptFolioFor({ id: 9n })).toBe('000009');
   });
 });

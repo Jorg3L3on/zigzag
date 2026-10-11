@@ -278,7 +278,7 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               >
                 <div>
                   <p className="font-medium">{key.name}</p>
-                  <p className="text-xs text-muted-foreground">{key.key_prefix}…</p>
+                  <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
                     <Badge variant="outline">
@@ -320,7 +320,7 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
                 >
                   <div>
                     <p className="font-medium">{grant.client_name}</p>
-                    <p className="text-xs text-muted-foreground">{scopesLabel(grant.scopes)}</p>
+                    <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
                     <Badge variant="outline" className="mt-1">
                       {grant.allowed_company_ids.length} compañía(s)
                     </Badge>

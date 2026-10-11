@@ -52,7 +52,7 @@ export const PresupuestoStatusPill = ({
   <span
     data-testid="presupuesto-status"
     className={cn(
-      'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold',
+      'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-caption font-semibold',
       STATUS_PILL_CLASS[status],
       className,
     )}
@@ -83,7 +83,7 @@ const PresupuestoConditions = ({ notes }: { notes: string }) => {
       </h2>
       <p
         className={cn(
-          'whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]',
+          'whitespace-pre-line text-caption leading-relaxed text-muted-foreground [overflow-wrap:anywhere]',
           foldable && !expanded && 'line-clamp-3',
         )}
         data-testid="presupuesto-notes"
@@ -95,7 +95,7 @@ const PresupuestoConditions = ({ notes }: { notes: string }) => {
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1 min-h-11 text-[13px] font-medium text-primary underline-offset-4 hover:underline"
+          className="mt-1 min-h-11 text-caption font-medium text-primary underline-offset-4 hover:underline"
         >
           {expanded ? 'Ver menos' : 'Ver todas'}
         </button>
@@ -106,6 +106,7 @@ const PresupuestoConditions = ({ notes }: { notes: string }) => {
 
 export type PresupuestoDetailLayoutProps = {
   presupuestoId: string;
+  folio?: string | null;
   clientId: number | null;
   clientName: string | null;
   ticketDate: string | null;
@@ -139,6 +140,7 @@ export type PresupuestoDetailLayoutProps = {
  */
 export const PresupuestoDetailLayout = ({
   presupuestoId,
+  folio = null,
   clientId,
   clientName,
   ticketDate,
@@ -258,7 +260,7 @@ export const PresupuestoDetailLayout = ({
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-3 md:space-y-4">
         <TripledMobileAppBar
-          title={`Presupuesto #${presupuestoId}`}
+          title={`Presupuesto ${folio || `#${presupuestoId}`}`}
           backHref="/presupuestos"
           backLabel="Volver a presupuestos"
           endSlot={
@@ -273,7 +275,7 @@ export const PresupuestoDetailLayout = ({
           <header className="min-w-0 space-y-1" data-testid="presupuesto-header">
             <div className="hidden flex-wrap items-center gap-2 md:flex">
               <p className="font-mono text-sm font-medium tabular-nums text-muted-foreground">
-                Presupuesto #{presupuestoId}
+                Presupuesto {folio || `#${presupuestoId}`}
               </p>
               <PresupuestoStatusPill status={status} />
               {shareButton}
@@ -287,15 +289,15 @@ export const PresupuestoDetailLayout = ({
                 (clientName ?? 'Cliente')
               )}
             </h1>
-            {issued ? <p className="text-[13px] text-muted-foreground md:text-sm">Emitido el {issued}</p> : null}
+            {issued ? <p className="text-caption text-muted-foreground md:text-sm">Emitido el {issued}</p> : null}
           </header>
         </BlurFade>
 
         <BlurFade delay={0.04}>
           <section aria-label="Total y vigencia" className={cn(REVIEW_SECTION_CLASS, 'space-y-2')}>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[13px] text-muted-foreground">Total del presupuesto</span>
-              <span className="text-right text-xs text-muted-foreground" data-testid="presupuesto-counts">
+              <span className="text-caption text-muted-foreground">Total del presupuesto</span>
+              <span className="text-right text-caption text-muted-foreground" data-testid="presupuesto-counts">
                 {counts}
               </span>
             </div>
@@ -307,7 +309,7 @@ export const PresupuestoDetailLayout = ({
             />
             <p
               className={cn(
-                'flex items-center gap-2 text-[13px]',
+                'flex items-center gap-2 text-caption',
                 vigencia.tone === 'expired'
                   ? 'text-red-700 dark:text-red-300'
                   : vigencia.tone === 'soon'
@@ -332,7 +334,7 @@ export const PresupuestoDetailLayout = ({
               <h2 id="presupuesto-accept-heading" className="text-[15px] font-semibold">
                 ¿Lo aceptó el cliente?
               </h2>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 Conviértelo en ticket para trabajarlo y cobrar el anticipo.
               </p>
               <Button
@@ -354,7 +356,7 @@ export const PresupuestoDetailLayout = ({
           >
             <span className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en Ticket #{convertedToTicketId}
+              Convertido en ticket
             </span>
             <Link
               href={`/tickets/${convertedToTicketId}`}

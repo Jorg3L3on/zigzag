@@ -4,6 +4,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { MobileBottomDock } from '@/components/mobile-bottom-dock';
+import {
+  MobileChromeProvider,
+  useRegisterMobileStickyAction,
+} from '@/contexts/mobile-chrome-context';
 
 let mockPathname = '/dashboard';
 let mockGranted = ['tickets.read', 'tickets.write', 'clients.read', 'clients.write'];
@@ -50,6 +54,11 @@ jest.mock('@/components/ui/sidebar', () => ({
   useSidebar: () => ({ setOpenMobile: mockSetOpenMobile }),
 }));
 
+const StickyBar = () => {
+  useRegisterMobileStickyAction();
+  return <div data-testid="sticky-bar" />;
+};
+
 const renderDock = () => render(<MobileBottomDock />);
 
 describe('MobileBottomDock', () => {
@@ -60,7 +69,7 @@ describe('MobileBottomDock', () => {
     mockSetOpenMobile.mockClear();
   });
 
-  it('renders Hoy · Tickets · + · Presupuestos · Más in order', () => {
+  it('renders Hoy · Tickets · + · Cobranza · Más in order', () => {
     renderDock();
     const shell = screen.getByTestId('mobile-dock-shell');
     const labels = Array.from(shell.children).map(
@@ -71,9 +80,27 @@ describe('MobileBottomDock', () => {
       'Hoy',
       'Tickets',
       'Crear',
-      'Presupuestos',
+      'Cobranza',
       'Más opciones de navegación',
     ]);
+  });
+
+  it('hides while a sticky action bar is on screen and comes back after (ZIG-I18-6)', () => {
+    const { rerender } = render(
+      <MobileChromeProvider>
+        <MobileBottomDock />
+        <StickyBar />
+      </MobileChromeProvider>,
+    );
+    expect(screen.queryByTestId('mobile-bottom-tab-bar')).toBeNull();
+    expect(screen.getByTestId('sticky-bar')).toBeInTheDocument();
+
+    rerender(
+      <MobileChromeProvider>
+        <MobileBottomDock />
+      </MobileChromeProvider>,
+    );
+    expect(screen.getByTestId('mobile-bottom-tab-bar')).toBeInTheDocument();
   });
 
   it('puts the active pill on Tickets for ticket detail routes', () => {
@@ -85,16 +112,24 @@ describe('MobileBottomDock', () => {
     expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
   });
 
-  it.each(['/presupuestos', '/presupuestos/1069'])(
-    'puts the active pill on Presupuestos for %s',
+  it.each(['/cobranza'])(
+    'puts the active pill on Cobranza for %s',
     (path) => {
       mockPathname = path;
       renderDock();
-      const tab = screen.getByRole('link', { name: 'Presupuestos' });
+      const tab = screen.getByRole('link', { name: 'Cobranza' });
       expect(tab).toHaveAttribute('aria-current', 'page');
       expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
     },
   );
+
+  it('lights Más on presupuesto routes (Presupuestos lives in + and Más)', () => {
+    mockPathname = '/presupuestos/1069';
+    renderDock();
+    expect(screen.queryByRole('link', { name: 'Presupuestos' })).toBeNull();
+    const more = screen.getByRole('button', { name: /Más/i });
+    expect(more.querySelector('[data-testid="mobile-dock-pill"]')).not.toBeNull();
+  });
 
   it('lights Más on /clients now that Clientes is not a tab', () => {
     mockPathname = '/clients';
@@ -133,7 +168,7 @@ describe('MobileBottomDock', () => {
     ]);
     expect(items[0]).toHaveTextContent('Nuevo ticket');
     expect(items[1]).toHaveTextContent('Nuevo presupuesto');
-    expect(items[2]).toHaveTextContent('Captura rápida');
+    expect(items[2]).toHaveTextContent('Anotar trabajo');
     expect(items[3]).toHaveTextContent('Nuevo cliente');
     expect(document.activeElement).toBe(items[0]);
   });

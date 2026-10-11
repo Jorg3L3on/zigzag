@@ -119,6 +119,10 @@ export async function requireSession() {
     return { session: null, unauthorized: fail('AU001', 401) };
   }
 
+  if (activeUser.must_change_password) {
+    return { session: null, unauthorized: fail('AU002', 403) };
+  }
+
   session.user.company_id = activeUser.company_id ?? activeUser.company.id;
   session.user.company_name = activeUser.company.name;
   session.user.company_is_system = Boolean(activeUser.company.is_system);

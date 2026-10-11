@@ -173,3 +173,13 @@ describe('company-onboarding-checklist', () => {
     expect(snapshot.steps.every((step) => step.guideHref)).toBe(true);
   });
 });
+
+describe('isFirstJobPending (ZIG-I18-12)', () => {
+  it('is true only for a company with zero tickets', async () => {
+    const { isFirstJobPending } = await import('@/lib/company-onboarding-checklist');
+    expect(isFirstJobPending(0)).toBe(true);
+    expect(isFirstJobPending(1)).toBe(false);
+    expect(isFirstJobPending(null)).toBe(false);
+    expect(isFirstJobPending(undefined)).toBe(false);
+  });
+});

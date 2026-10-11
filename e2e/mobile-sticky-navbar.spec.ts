@@ -179,12 +179,14 @@ test.describe('Mobile sticky navigation', () => {
         page,
       }) => {
         await page.goto('/clients');
-        // Click the pencil control, not the card center: ClientPhoneLink uses
-        // stopPropagation, so a center hit on a card with a phone never navigates.
+        // Tap the card's name area; Llamar and Anotar trabajo sit lower and stop propagation.
         const clientCard = page
-          .getByRole('button', { name: /Editar cliente/i })
+          .getByRole('button', { name: /Abrir cliente/i })
           .first();
-        await clientCard.getByRole('button', { name: /^Editar / }).click();
+        await clientCard.click({ position: { x: 24, y: 20 } });
+        // The card opens the client detail (ZIG-I17-1); Editar lives there.
+        await expect(page).toHaveURL(/\/clients\/\d+$/);
+        await page.getByRole('link', { name: 'Editar', exact: true }).filter({ visible: true }).first().click();
         await expect(page).toHaveURL(/\/clients\/\d+\/edit/);
 
         const appBar = visibleMobileAppBar(page);

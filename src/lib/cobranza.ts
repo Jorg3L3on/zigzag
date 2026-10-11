@@ -3,6 +3,7 @@
  * Saldo/status always come from ticket-payment-status helpers.
  */
 
+import { formatDocumentFolio } from '@/lib/folio';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -25,6 +26,13 @@ export type CobranzaTicketInput = {
   finished: boolean;
   company_id: number | null;
   document_kind?: string | null;
+  client_id?: number | null;
+  folio_number?: number | null;
+  folio_prefix?: string | null;
+  /** Latest payment on record; days without payment count from here. */
+  last_payment_at?: Date | string | null;
+  /** "Compresor, Mano de obra": the work, for the card (ZIG-I18-2). */
+  services_summary?: string | null;
 };
 
 export type CobranzaRow = {
@@ -37,11 +45,24 @@ export type CobranzaRow = {
   paid: number | null;
   finished: boolean;
   company_id: number | null;
+  client_id: number | null;
+  folio: string;
   balanceDue: number;
   paymentStatus: TicketPaymentStatus;
+  /** Days without payment: since the last payment, else since the work date. */
   daysOutstanding: number;
   agingBucket: Exclude<CobranzaAgingBucket, 'all'>;
+  last_payment_at: Date | null;
+  services_summary: string | null;
 };
+
+export type CobranzaSort = 'days' | 'balance' | 'recent';
+
+export const COBRANZA_SORT_OPTIONS: Array<{ value: CobranzaSort; label: string }> = [
+  { value: 'days', label: 'Días sin pagar' },
+  { value: 'balance', label: 'Mayor saldo' },
+  { value: 'recent', label: 'Más recientes' },
+];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -117,7 +138,9 @@ export const toCobranzaRow = (
 
   const createdAt = toDateOrNull(ticket.created_at) ?? new Date(0);
   const ticketDate = toDateOrNull(ticket.ticket_date);
-  const referenceDate = getCobranzaReferenceDate(ticketDate, createdAt);
+  const lastPaymentAt = toDateOrNull(ticket.last_payment_at);
+  const referenceDate =
+    lastPaymentAt ?? getCobranzaReferenceDate(ticketDate, createdAt);
   const daysOutstanding = getDaysOutstanding(referenceDate, now);
   const agingBucket = getAgingBucket(daysOutstanding);
 
@@ -131,30 +154,60 @@ export const toCobranzaRow = (
     paid: ticket.paid,
     finished: ticket.finished,
     company_id: ticket.company_id,
+    client_id: ticket.client_id ?? null,
+    folio: formatDocumentFolio(ticket),
     balanceDue,
     paymentStatus,
     daysOutstanding,
     agingBucket,
+    last_payment_at: lastPaymentAt,
+    services_summary: ticket.services_summary?.trim() || null,
   };
 };
 
+/** Moment the debt started counting: last payment, else the work date. */
+const getRowReference = (row: CobranzaRow): number =>
+  (
+    row.last_payment_at ??
+    getCobranzaReferenceDate(row.ticket_date, row.created_at)
+  ).getTime();
+
 /**
- * Default urgency: pending before partial, older reference dates first,
- * then larger saldo.
+ * Default order (ZIG-I18-2): longest without a payment first, then the larger
+ * saldo, then the lower ticket id so ties are stable.
  */
 export const compareCobranzaUrgency = (a: CobranzaRow, b: CobranzaRow): number => {
-  const statusRank = (status: TicketPaymentStatus) =>
-    status === 'pending' ? 0 : status === 'partial' ? 1 : 2;
-  const byStatus = statusRank(a.paymentStatus) - statusRank(b.paymentStatus);
-  if (byStatus !== 0) return byStatus;
-
-  const aRef = getCobranzaReferenceDate(a.ticket_date, a.created_at).getTime();
-  const bRef = getCobranzaReferenceDate(b.ticket_date, b.created_at).getTime();
+  const aRef = getRowReference(a);
+  const bRef = getRowReference(b);
   if (aRef !== bRef) return aRef - bRef;
 
   if (a.balanceDue !== b.balanceDue) return b.balanceDue - a.balanceDue;
 
   return Number(a.id) - Number(b.id);
+};
+
+export const sortCobranzaRows = (
+  rows: CobranzaRow[],
+  sort: CobranzaSort,
+): CobranzaRow[] => {
+  const next = [...rows];
+  if (sort === 'balance') {
+    next.sort(
+      (a, b) =>
+        b.balanceDue - a.balanceDue ||
+        compareCobranzaUrgency(a, b),
+    );
+  } else if (sort === 'recent') {
+    next.sort(
+      (a, b) =>
+        getCobranzaReferenceDate(b.ticket_date, b.created_at).getTime() -
+          getCobranzaReferenceDate(a.ticket_date, a.created_at).getTime() ||
+        Number(b.id) - Number(a.id),
+    );
+  } else {
+    next.sort(compareCobranzaUrgency);
+  }
+  return next;
 };
 
 export const buildCobranzaRows = (
@@ -176,13 +229,20 @@ export const filterCobranzaRows = (
     status?: CobranzaStatusFilter;
     aging?: CobranzaAgingBucket;
     search?: string;
+    /** Only the tickets of this client (ZIG-I17-2). */
+    clientId?: number | null;
   },
 ): CobranzaRow[] => {
   const status = options.status ?? 'all';
   const aging = options.aging ?? 'all';
   const search = options.search?.trim().toLowerCase() ?? '';
 
+  const clientId = options.clientId ?? null;
+
   return rows.filter((row) => {
+    if (clientId != null && row.client_id !== clientId) {
+      return false;
+    }
     if (status !== 'all' && row.paymentStatus !== status) {
       return false;
     }
@@ -235,6 +295,8 @@ export const applyCobranzaPaymentToRows = (
         paid: payment.paid,
         finished: row.finished,
         company_id: row.company_id,
+        last_payment_at: now,
+        services_summary: row.services_summary,
       },
       now,
     );
@@ -247,7 +309,7 @@ export const applyCobranzaPaymentToRows = (
 };
 
 export const COBRANZA_AGING_LABEL: Record<CobranzaAgingBucket, string> = {
-  all: 'Todas las antigüedades',
+  all: 'Todos los plazos',
   '0-14': '0–14 días',
   '15-30': '15–30 días',
   '30+': 'Más de 30 días',

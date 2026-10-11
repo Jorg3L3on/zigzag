@@ -2,7 +2,7 @@ import { cache } from 'react';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { permission, role, rolePermission, user } from '@/db/schema';
 import { db } from './db';
-import { AuthorizationError } from './errors';
+import { AuthorizationError, PasswordChangeRequiredError } from './errors';
 import { companyAllowsAuthentication } from '@/lib/company-lifecycle';
 import { auth } from './auth';
 import {
@@ -151,7 +151,10 @@ export async function validateCompanyAccess(companyId: number): Promise<void> {
   }
 }
 
-export async function requireActionAuth(): Promise<ActionAuthContext> {
+export async function requireActionAuth(options?: {
+  /** Only the forced password-change screen and its action pass this. */
+  allowPasswordChangePending?: boolean;
+}): Promise<ActionAuthContext> {
   await bindRequestContextFromHeaders();
   const session = await auth();
   if (!session?.user?.id) {
@@ -174,6 +177,11 @@ export async function requireActionAuth(): Promise<ActionAuthContext> {
     (session.user as { token_version?: number }).token_version ?? 0;
   if (tokenVersion !== (activeUser.token_version ?? 0)) {
     throw new AuthorizationError('Session expired');
+  }
+
+  // A temporary password must be replaced before anything else is reachable.
+  if (activeUser.must_change_password && !options?.allowPasswordChangePending) {
+    throw new PasswordChangeRequiredError();
   }
 
   return {

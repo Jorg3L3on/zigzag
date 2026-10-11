@@ -255,7 +255,7 @@ export const PresupuestosList = () => {
                   )}
                 >
                   {label}
-                  <span className="tabular-nums text-xs text-muted-foreground">
+                  <span className="tabular-nums text-caption text-muted-foreground">
                     {counts[status]}
                   </span>
                 </button>
@@ -300,7 +300,7 @@ export const PresupuestosList = () => {
                 >
                   <Link
                     href={`/presupuestos/${item.id}`}
-                    aria-label={`Presupuesto #${item.id} · ${item.clientName ?? 'Sin cliente'} · ${item.statusLabel}`}
+                    aria-label={`Presupuesto ${item.folio} · ${item.clientName ?? 'Sin cliente'} · ${item.statusLabel}`}
                     className="flex min-w-0 flex-1 items-center gap-2 py-3 pl-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                   >
                     <div className="min-w-0 flex-1">
@@ -312,14 +312,14 @@ export const PresupuestosList = () => {
                           <FormattedCurrency amount={item.total ?? 0} />
                         </span>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
                         <Badge
                           variant={statusVariant(item.status)}
-                          className="h-5 px-1.5 text-[11px] shadow-none"
+                          className="h-5 px-1.5 text-caption shadow-none"
                         >
                           {item.statusLabel}
                         </Badge>
-                        <span>#{item.id}</span>
+                        <span>{item.folio}</span>
                         {item.ticketDate ? (
                           <>
                             <span aria-hidden>·</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDocumentFolio } from '@/lib/folio';
 import type { Ticket } from '@/actions/tickets';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Column } from '@tanstack/react-table';
@@ -11,7 +12,7 @@ import { FormattedDate } from '@/components/formatted-date';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
-import { getTicketPaymentStatusSortRank } from '@/lib/ticket-payment-status';
+import { getTicketBalanceDue, getTicketPaymentStatusSortRank } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
 
 function TicketSortableHeader<TData>({
@@ -69,10 +70,10 @@ export const createTicketsColumns = ({
     id: 'id',
     accessorFn: (row) => Number(row.id),
     header: ({ column }) => (
-      <TicketSortableHeader column={column} label="ID" />
+      <TicketSortableHeader column={column} label="Folio" />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.id.toString()}</span>
+      <span className="tabular-nums">{formatDocumentFolio(row.original)}</span>
     ),
   },
   {
@@ -162,6 +163,14 @@ export const createTicketsColumns = ({
       const b = rowB.original.total ?? -Infinity;
       return a - b;
     },
+  },
+  {
+    // Hidden column: only the phone sort "Mayor saldo" reads it (ZIG-I18-9).
+    id: 'balance',
+    accessorFn: (row) => getTicketBalanceDue(row.total, row.paid),
+    header: () => null,
+    cell: () => null,
+    enableHiding: true,
   },
   {
     id: 'actions',

@@ -163,7 +163,7 @@ export const MaterialNameAutocomplete = ({
             )}
           >
             <span className="min-w-0 truncate font-medium">{option.name}</span>
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
               {formatServiceCurrency(option.price)}
               {option.unit ? ` / ${option.unit}` : ''}
             </span>
@@ -172,7 +172,7 @@ export const MaterialNameAutocomplete = ({
       </ul>
       {emptyText || emptyCatalogText ? (
         <p
-          className="min-h-4 text-xs leading-4 text-muted-foreground"
+          className="min-h-4 text-caption leading-4 text-muted-foreground"
           aria-live="polite"
           data-testid="material-autocomplete-empty"
         >

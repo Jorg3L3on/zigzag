@@ -1,9 +1,12 @@
 'use server';
 
+import { allocateDocumentFolio } from '@/lib/folio-allocator';
+import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, count, ilike, or } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, count, ilike, or, inArray } from 'drizzle-orm';
 import {
   client,
+  service,
   servicesTickets,
   ticket,
   ticketAuditEvent,
@@ -104,6 +107,13 @@ export type Ticket = {
   updated_at: Date | null;
   deleted_at: Date | null;
   company_id: number | null;
+  /** Company folio (ZIG-I17-4); null only on rows from before migration 0032. */
+  folio_number?: number | null;
+  folio_prefix?: string | null;
+  document_kind?: string | null;
+  converted_from_ticket_id?: bigint | null;
+  /** "Compresor, Mano de obra": the work, for list cards (ZIG-I18-8). */
+  services_summary?: string | null;
 };
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
@@ -121,6 +131,8 @@ export type TicketDetailData = TicketRow & {
   >;
   /** Present when loaded with `with`; lista suele omitirla. */
   ticket_payments?: TicketPaymentRow[];
+  /** Folio of the presupuesto this ticket came from; the recibo shows it (ZIG-I17-5). */
+  source_presupuesto_folio?: FolioParts | null;
 };
 
 export type GetTicketByIdResult =
@@ -301,7 +313,14 @@ export async function createTicket(
     let created: TicketRow | undefined;
     try {
       created = await db.transaction(async (tx) => {
-        const [row] = await tx.insert(ticket).values(values).returning();
+        const folio = await allocateDocumentFolio(tx, {
+          companyId: effectiveCompanyId,
+          documentKind: 'ticket',
+        });
+        const [row] = await tx
+          .insert(ticket)
+          .values({ ...values, ...folio })
+          .returning();
         await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
           ticket: row,
         });
@@ -314,7 +333,14 @@ export async function createTicket(
 
       await syncTicketIdSequence();
       created = await db.transaction(async (tx) => {
-        const [row] = await tx.insert(ticket).values(values).returning();
+        const folio = await allocateDocumentFolio(tx, {
+          companyId: effectiveCompanyId,
+          documentKind: 'ticket',
+        });
+        const [row] = await tx
+          .insert(ticket)
+          .values({ ...values, ...folio })
+          .returning();
         await recordTicketAudit(tx, context, row.id, row.company_id, 'created', {
           ticket: row,
         });
@@ -367,7 +393,7 @@ export async function createTicketWithLines(
   input: CreateTicketWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number };
+  data?: { id: string; total: number; folio?: string };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -427,7 +453,14 @@ export async function createTicketWithLines(
 
     const runTransaction = () =>
       db.transaction(async (tx) => {
-        const [created] = await tx.insert(ticket).values(ticketValues).returning();
+        const folio = await allocateDocumentFolio(tx, {
+          companyId: effectiveCompanyId,
+          documentKind: 'ticket',
+        });
+        const [created] = await tx
+          .insert(ticket)
+          .values({ ...ticketValues, ...folio })
+          .returning();
 
         const { rows: lineRows, createdServiceIds, createdMaterialIds } =
           await insertServiceLines(tx, {
@@ -459,10 +492,10 @@ export async function createTicketWithLines(
           },
         );
 
-        return { id: created.id, total: syncedTotal };
+        return { id: created.id, total: syncedTotal, folio: formatDocumentFolio(created) };
       });
 
-    let created: { id: bigint; total: number };
+    let created: { id: bigint; total: number; folio: string };
     try {
       created = await runTransaction();
     } catch (error) {
@@ -480,7 +513,7 @@ export async function createTicketWithLines(
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total },
+      data: { id: String(created.id), total: created.total, folio: created.folio },
     };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {
@@ -847,7 +880,7 @@ export async function getTicketsList(
 }
 
 export interface PaginatedTicketsData {
-  items: TicketRow[];
+  items: Array<TicketRow & { services_summary: string | null }>;
   total: number;
   page: number;
   pageSize: number;
@@ -919,6 +952,7 @@ export async function getTicketsPaginated(params: {
     const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 25)));
     const search = params.search?.trim();
 
+    const folioSearch = search ? parseFolioSearch(search) : null;
     const searchCondition = search
       ? or(
           ilike(ticket.client_name, `%${search}%`),
@@ -926,6 +960,19 @@ export async function getTicketsPaginated(params: {
           ilike(ticket.document, `%${search}%`),
           ilike(ticket.client_tel, `%${search}%`),
           sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search}%`}`,
+          // R-0012, r-12 or 0012: the stored prefix plus the padded number (ZIG-I17-6).
+          sql`(${ticket.folio_prefix} || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
+          // r34 / R-34 / 34 find R-0034 even though the stored text is padded.
+          ...(folioSearch
+            ? [
+                and(
+                  eq(ticket.folio_number, folioSearch.number),
+                  folioSearch.prefix
+                    ? ilike(ticket.folio_prefix, `${folioSearch.prefix.replace(/[%_\\]/g, '')}%`)
+                    : undefined,
+                ),
+              ]
+            : []),
         )
       : undefined;
 
@@ -982,10 +1029,39 @@ export async function getTicketsPaginated(params: {
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
+    // The work done, one aggregate over this page's ids (no N+1, company-scoped).
+    const pageIds = items.map((row) => row.id);
+    const serviceLines = pageIds.length
+      ? await db
+          .select({
+            ticket_id: servicesTickets.ticket_id,
+            summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+          })
+          .from(servicesTickets)
+          .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+          .leftJoin(service, eq(service.id, servicesTickets.service_id))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              isNull(ticket.deleted_at),
+              eq(ticket.document_kind, 'ticket'),
+              inArray(servicesTickets.ticket_id, pageIds),
+              isNull(servicesTickets.deleted_at),
+            ),
+          )
+          .groupBy(servicesTickets.ticket_id)
+      : [];
+    const summaryByTicket = new Map(
+      serviceLines.map((r) => [String(r.ticket_id), r.summary]),
+    );
+
     return {
       success: true,
       data: {
-        items,
+        items: items.map((row) => ({
+          ...row,
+          services_summary: summaryByTicket.get(String(row.id)) ?? null,
+        })),
         total: totalCount,
         page,
         pageSize,
@@ -1041,7 +1117,19 @@ export async function getTicketById(
       return buildActionError('TC008');
     }
 
-    return { success: true, data: ticketRow as TicketDetailData };
+    let sourceFolio: FolioParts | null = null;
+    if (ticketRow.converted_from_ticket_id != null) {
+      const source = await db.query.ticket.findFirst({
+        where: eq(ticket.id, ticketRow.converted_from_ticket_id),
+        columns: { folio_number: true, folio_prefix: true },
+      });
+      sourceFolio = source && source.folio_number != null ? source : null;
+    }
+
+    return {
+      success: true,
+      data: { ...ticketRow, source_presupuesto_folio: sourceFolio } as TicketDetailData,
+    };
   } catch (e) {
     return handleCodedServerActionError('tickets.get', 'TC003', e);
   }

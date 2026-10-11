@@ -69,7 +69,7 @@ export const LoginTicketGuideStub = ({
         <button
           ref={triggerRef}
           type="button"
-          className="mb-1 min-h-11 w-full rounded-md py-2.5 text-left font-[family-name:var(--font-login-mono)] text-[10.5px] tracking-[0.08em] text-[color:var(--login-ink-faint)] uppercase transition-colors hover:text-[color:var(--login-ink-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
+          className="mb-1 min-h-11 w-full rounded-md py-2.5 text-left text-sm font-medium text-[color:var(--login-ink-muted)] transition-colors hover:text-[color:var(--login-ink-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--login-accent-blue)]"
           aria-expanded={isExpanded}
           aria-controls={panelId}
           onClick={handleToggle}
@@ -117,11 +117,11 @@ export const LoginTicketGuideStub = ({
                       {guide.label}
                     </span>
                     {guide.audienceLabel ? (
-                      <span className="login-guide-link-text mb-0.5 block text-[12.5px] font-medium">
+                      <span className="login-guide-link-text mb-0.5 block text-sm font-medium">
                         {guide.audienceLabel}
                       </span>
                     ) : null}
-                    <span className="block text-[12.5px] leading-normal text-[color:var(--login-ink-muted)]">
+                    <span className="block text-sm leading-normal text-[color:var(--login-ink-muted)]">
                       {guide.description}
                     </span>
                   </span>

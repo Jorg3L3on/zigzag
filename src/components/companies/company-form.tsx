@@ -1,5 +1,11 @@
 'use client';
 
+import {
+  DEFAULT_FOLIO_PREFIX,
+  FOLIO_PREFIX_MAX_LENGTH,
+  formatFolio,
+  normalizeFolioPrefix,
+} from '@/lib/folio';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -64,6 +70,8 @@ const defaultSettings = {
   tagline: '',
   rfc: '',
   default_currency: 'MXN',
+  folio_prefix_presupuesto: '',
+  folio_prefix_ticket: '',
   experience_mode: 'auto' as 'auto' | 'campo' | 'office',
 };
 
@@ -157,6 +165,8 @@ export const CompanyForm = ({
             rfc: company.settings?.rfc ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
+            folio_prefix_presupuesto: company.settings?.folio_prefix_presupuesto ?? '',
+            folio_prefix_ticket: company.settings?.folio_prefix_ticket ?? '',
             experience_mode: company.settings?.experience_mode ?? 'auto',
           },
           owner: { name: '', email: '', password: '' },
@@ -587,6 +597,52 @@ export const CompanyForm = ({
                   <FormControl>
                     <Input {...field} placeholder="MXN" />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="settings.folio_prefix_presupuesto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prefijo de presupuestos</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={FOLIO_PREFIX_MAX_LENGTH}
+                      placeholder="P"
+                      autoCapitalize="characters"
+                      data-testid="company-folio-prefix-presupuesto"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Se usa en los presupuestos nuevos: {formatFolio(normalizeFolioPrefix(field.value) || DEFAULT_FOLIO_PREFIX.presupuesto, 1)}. Los anteriores no cambian.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="settings.folio_prefix_ticket"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prefijo de recibos</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={FOLIO_PREFIX_MAX_LENGTH}
+                      placeholder="R"
+                      autoCapitalize="characters"
+                      data-testid="company-folio-prefix-ticket"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Se usa en los tickets nuevos: {formatFolio(normalizeFolioPrefix(field.value) || DEFAULT_FOLIO_PREFIX.ticket, 1)}. Los anteriores no cambian.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

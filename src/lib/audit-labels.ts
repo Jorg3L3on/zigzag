@@ -32,6 +32,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   export_generated: 'Exportación generada',
   offboarded: 'Baja de empresa',
   generated: 'Generación',
+  password_reset: 'Contraseña temporal',
+  password_changed: 'Contraseña cambiada',
   permission_denied: 'Permiso denegado',
 };
 

@@ -154,7 +154,7 @@ export const CompanyLogoUpload = ({
                 />
               ) : null}
               {previewStatus === 'error' ? (
-                <span className="px-2 text-center text-xs text-muted-foreground">
+                <span className="px-2 text-center text-caption text-muted-foreground">
                   Logo no disponible
                 </span>
               ) : null}
@@ -173,7 +173,7 @@ export const CompanyLogoUpload = ({
               />
             </>
           ) : (
-            <span className="px-2 text-center text-xs text-muted-foreground">
+            <span className="px-2 text-center text-caption text-muted-foreground">
               Sin logo
             </span>
           )}

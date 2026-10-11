@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { SignOutEverywhereButton } from '@/components/account/sign-out-everywhere-button';
 import { AccountFormDialog } from '@/components/account/account-form-dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,6 +66,15 @@ export default function AccountPage() {
                   <Button asChild variant="outline" size="sm">
                     <a href="/settings/connections">Conexiones MCP</a>
                   </Button>
+                </div>
+                <div className="space-y-2 border-t border-border/60 pt-4">
+                  <h3 className="text-sm font-medium text-muted-foreground">Sesión</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {session.user.remember
+                      ? 'Este dispositivo mantiene tu sesión abierta hasta 30 días.'
+                      : 'Tu sesión en este dispositivo dura hasta 8 horas.'}
+                  </p>
+                  <SignOutEverywhereButton />
                 </div>
               </div>
             </CardContent>

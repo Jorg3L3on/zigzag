@@ -21,15 +21,16 @@ type ServiceLineModeToggleProps = {
   idPrefix: string;
   /** Accessible name of the radiogroup (materials reuse it, ZIG-I10). */
   ariaLabel?: string;
+  /** Label of the catalog option; materials say "Mis materiales". */
+  catalogLabel?: string;
 };
 
 const MODE_OPTIONS: Array<{
   value: ServiceLineMode;
-  label: string;
   icon: typeof ListChecks;
 }> = [
-  { value: 'catalog', label: 'Del catálogo', icon: ListChecks },
-  { value: 'custom', label: 'Nuevo', icon: PencilLine },
+  { value: 'catalog', icon: ListChecks },
+  { value: 'custom', icon: PencilLine },
 ];
 
 /**
@@ -41,6 +42,7 @@ export const ServiceLineModeToggle = ({
   onValueChange,
   idPrefix,
   ariaLabel = 'Origen del servicio',
+  catalogLabel = 'Mis servicios',
 }: ServiceLineModeToggleProps) => (
   <div
     role="radiogroup"
@@ -74,7 +76,7 @@ export const ServiceLineModeToggle = ({
           )}
         >
           <Icon className="h-4 w-4" aria-hidden />
-          {option.label}
+          {option.value === 'catalog' ? catalogLabel : 'Escribir'}
         </button>
       );
     })}
@@ -95,7 +97,7 @@ type InlineServiceFieldsProps = {
 };
 
 /**
- * Inline service fields: Nombre, Descripción and the Guardar en mi catálogo
+ * Inline service fields: Nombre, Descripción and the Guardar en mis servicios
  * switch (off by default). Nothing here writes to the catalog; the server does
  * it in the save transaction only when the switch is on.
  */
@@ -133,7 +135,7 @@ export const InlineServiceFields = ({
         <Label htmlFor={`${idPrefix}-custom-description`}>
           Descripción <span className="font-normal text-muted-foreground">(opcional)</span>
         </Label>
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span className="text-caption tabular-nums text-muted-foreground">
           {description.length}/{SERVICE_DESCRIPTION_MAX_LENGTH}
         </span>
       </div>
@@ -154,12 +156,12 @@ export const InlineServiceFields = ({
           className="flex items-center gap-1.5 text-sm font-medium"
         >
           <BookmarkPlus className="h-4 w-4 text-muted-foreground" aria-hidden />
-          Guardar en mi catálogo
+          Guardar en mis servicios
         </Label>
-        <p id={`${idPrefix}-save-to-catalog-hint`} className="text-xs text-muted-foreground">
+        <p id={`${idPrefix}-save-to-catalog-hint`} className="text-caption text-muted-foreground">
           {saveToCatalog
-            ? 'También quedará en Servicios para usarlo después.'
-            : `Sólo en este ${documentLabel}. Tu catálogo no cambia.`}
+            ? 'Quedará en Mis servicios para usarlo después.'
+            : 'Marca "Guardar en mis servicios" para usarlo otra vez.'}
         </p>
       </div>
       <Switch
@@ -187,11 +189,11 @@ export const InlineLineChips = ({
   if (!isInline) return null;
   return (
     <span className={cn('inline-flex flex-wrap gap-1 align-middle', className)}>
-      <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-medium shadow-none">
+      <Badge variant="secondary" className="h-5 px-1.5 text-caption font-medium shadow-none">
         Nuevo
       </Badge>
       {saveToCatalog ? (
-        <Badge variant="outline" className="h-5 px-1.5 text-[11px] font-medium shadow-none">
+        <Badge variant="outline" className="h-5 px-1.5 text-caption font-medium shadow-none">
           → catálogo
         </Badge>
       ) : null}

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   EMPRESA_GUIDE_LINK,
   getOnboardingGuidesForUser,
+  HELP_GUIDE_LABEL,
   openOnboardingGuide,
 } from '@/lib/onboarding-guides';
 
@@ -71,7 +72,7 @@ export function NavUser() {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
+                <span className="truncate text-caption">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -92,7 +93,7 @@ export function NavUser() {
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">{user.name}</span>
-                  <span className="truncate text-xs">{user.email}</span>
+                  <span className="truncate text-caption">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
@@ -124,7 +125,7 @@ export function NavUser() {
                   onClick={() => openOnboardingGuide(EMPRESA_GUIDE_LINK.href)}
                 >
                   <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
-                  Guías
+                  {HELP_GUIDE_LABEL}
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>

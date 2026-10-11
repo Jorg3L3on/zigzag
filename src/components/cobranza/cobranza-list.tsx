@@ -9,6 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { Banknote } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { getCobranzaList } from '@/actions/cobranza';
@@ -18,6 +19,14 @@ import {
 } from '@/components/cobranza/cobranza-columns';
 import { CobranzaFilterBar } from '@/components/cobranza/cobranza-filter-bar';
 import { CobranzaWhatsAppButton } from '@/components/cobranza/cobranza-whatsapp-button';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
 import {
@@ -28,7 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
+import {
+  TicketListCollectPaymentDialog,
+  type TicketListCollectPaymentResult,
+} from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import {
@@ -42,13 +54,16 @@ import { usePermissions } from '@/hooks/use-permissions';
 import {
   applyCobranzaPaymentToRows,
   COBRANZA_AGING_LABEL,
+  COBRANZA_SORT_OPTIONS,
   COBRANZA_STATUS_FILTER_LABEL,
   filterCobranzaRows,
   isCobranzaAgingBucket,
   isCobranzaStatusFilter,
+  sortCobranzaRows,
   summarizeCobranzaRows,
   type CobranzaAgingBucket,
   type CobranzaRow,
+  type CobranzaSort,
   type CobranzaStatusFilter,
 } from '@/lib/cobranza';
 import {
@@ -89,9 +104,14 @@ export const CobranzaList = () => {
       return raw && isCobranzaAgingBucket(raw) ? raw : 'all';
     },
   );
+  const clientIdParam = searchParams.get('clientId');
+  const clientIdFilter =
+    clientIdParam && /^\d+$/.test(clientIdParam) ? Number(clientIdParam) : null;
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sortOrder, setSortOrder] = React.useState<CobranzaSort>('days');
+  const [collectRow, setCollectRow] = React.useState<CobranzaRow | null>(null);
 
   React.useEffect(() => {
     const statusRaw = searchParams.get('status');
@@ -170,6 +190,7 @@ export const CobranzaList = () => {
   }, [loadCobranza]);
 
   const hasActiveFilters =
+    clientIdFilter != null ||
     statusFilter !== 'all' ||
     agingFilter !== 'all' ||
     debouncedSearch.length > 0;
@@ -188,12 +209,16 @@ export const CobranzaList = () => {
 
   const filteredRows = React.useMemo(
     () =>
-      filterCobranzaRows(rows, {
-        status: statusFilter,
-        aging: agingFilter,
-        search: debouncedSearch,
-      }),
-    [agingFilter, debouncedSearch, rows, statusFilter],
+      sortCobranzaRows(
+        filterCobranzaRows(rows, {
+          status: statusFilter,
+          aging: agingFilter,
+          search: debouncedSearch,
+          clientId: clientIdFilter,
+        }),
+        sortOrder,
+      ),
+    [agingFilter, clientIdFilter, debouncedSearch, rows, sortOrder, statusFilter],
   );
 
   const summary = React.useMemo(
@@ -286,6 +311,30 @@ export const CobranzaList = () => {
         </p>
       </div>
 
+      {clientIdFilter != null ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card px-4 py-3 text-sm"
+          data-testid="cobranza-client-filter"
+        >
+          <p>
+            Cliente:{' '}
+            <Link
+              href={`/clients/${clientIdFilter}`}
+              className="inline-flex min-h-11 min-w-11 items-center font-semibold underline-offset-4 hover:underline"
+            >
+              {rows.find((row) => row.client_id === clientIdFilter)?.client_name ??
+                `#${clientIdFilter}`}
+            </Link>
+          </p>
+          <Link
+            href="/cobranza"
+            className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Ver todos los clientes
+          </Link>
+        </div>
+      ) : null}
+
       <CobranzaFilterBar
         searchValue={searchValue}
         onSearchChange={setSearchValue}
@@ -298,6 +347,27 @@ export const CobranzaList = () => {
         onClearFilters={handleClearFilters}
         filterChips={filterChips}
       />
+
+      <div className="flex items-center gap-3 md:hidden">
+        <label htmlFor="cobranza-sort" className="shrink-0 text-base font-medium">
+          Ordenar
+        </label>
+        <Select
+          value={sortOrder}
+          onValueChange={(value) => setSortOrder(value as CobranzaSort)}
+        >
+          <SelectTrigger id="cobranza-sort" className="h-12 flex-1 rounded-xl text-base">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COBRANZA_SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value} className="py-3 text-base">
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {listState.kind === 'loading' ? (
         <TripledListLoadingState label="Cargando cobranza…" />
@@ -315,7 +385,7 @@ export const CobranzaList = () => {
         <TripledEmptyState
           icon={<Banknote className="size-8" aria-hidden />}
           title="No hay saldos pendientes"
-          description="Todos los tickets de esta empresa están saldados o no hay cobros por registrar."
+          description="Todos tus tickets están pagados."
         />
       ) : null}
 
@@ -373,21 +443,26 @@ export const CobranzaList = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-semibold leading-tight">
-                          {item.client_name ?? 'Sin cliente'}
+                          {item.client_id != null ? (
+                            <Link
+                              href={`/clients/${item.client_id}`}
+                              className="inline-flex min-h-11 min-w-11 items-center underline-offset-4 hover:underline"
+                            >
+                              {item.client_name ?? 'Sin cliente'}
+                            </Link>
+                          ) : (
+                            (item.client_name ?? 'Sin cliente')
+                          )}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Ticket #{item.id}
+                          Ticket {item.folio}
                         </p>
                       </div>
                       <div
-                        className="flex items-center gap-0.5"
+                        className="flex items-center"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
-                        <CobranzaWhatsAppButton
-                          row={item}
-                          companyName={selectedCompany?.name ?? null}
-                        />
                         <TicketRowActions
                           ticket={cobranzaRowToTicketActions(item)}
                           onPaymentApplied={handlePaymentApplied}
@@ -396,6 +471,14 @@ export const CobranzaList = () => {
                         />
                       </div>
                     </div>
+                    {item.services_summary ? (
+                      <p
+                        className="line-clamp-1 text-base text-foreground"
+                        data-testid="cobranza-services"
+                      >
+                        {item.services_summary}
+                      </p>
+                    ) : null}
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <FormattedDate
                         date={
@@ -405,8 +488,9 @@ export const CobranzaList = () => {
                         }
                       />
                       <span className="text-muted-foreground">
-                        {item.daysOutstanding}{' '}
-                        {item.daysOutstanding === 1 ? 'día' : 'días'}
+                        {item.daysOutstanding === 0
+                          ? 'Hoy'
+                          : `${item.daysOutstanding} ${item.daysOutstanding === 1 ? 'día' : 'días'} sin pagar`}
                       </span>
                     </div>
                     <TicketListPaymentSummary
@@ -416,12 +500,43 @@ export const CobranzaList = () => {
                     <p className="text-sm font-semibold tabular-nums text-amber-800 dark:text-amber-300">
                       Saldo {formatTicketListAmount(item.balanceDue)}
                     </p>
+                    <div className="grid gap-2">
+                      {canWrite ? (
+                        <Button
+                          type="button"
+                          className="h-12 w-full gap-2 rounded-xl text-base font-semibold"
+                          onClick={() => setCollectRow(item)}
+                        >
+                          <Banknote className="h-5 w-5" aria-hidden />
+                          Cobrar
+                        </Button>
+                      ) : null}
+                      <CobranzaWhatsAppButton
+                        row={item}
+                        companyName={selectedCompany?.name ?? null}
+                        variant="card"
+                      />
+                    </div>
                   </div>
                 </TripledMobileRecordCard>
               );
             })}
           </div>
         </>
+      ) : null}
+
+      {collectRow ? (
+        <TicketListCollectPaymentDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setCollectRow(null);
+          }}
+          ticketId={Number(collectRow.id)}
+          total={collectRow.total}
+          paid={collectRow.paid}
+          companyId={selectedCompany?.id ?? null}
+          onPaymentApplied={handlePaymentApplied}
+        />
       ) : null}
     </div>
   );

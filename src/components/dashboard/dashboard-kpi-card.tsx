@@ -55,7 +55,7 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <div
                 className={cn(
-                  'inline-flex items-center gap-1 text-xs font-medium tabular-nums',
+                  'inline-flex items-center gap-1 text-caption font-medium tabular-nums',
                   isUp && 'text-emerald-600 dark:text-emerald-400',
                   isDown && 'text-red-600 dark:text-red-400',
                   isNeutral && 'text-muted-foreground',
@@ -74,10 +74,10 @@ export const DashboardKpiCard = ({ kpi, icon }: DashboardKpiCardProps) => {
                 ) : null}
                 <span>{formatDelta(delta)}</span>
               </div>
-              <span className="text-xs text-muted-foreground">vs mes anterior</span>
+              <span className="text-caption text-muted-foreground">vs mes anterior</span>
             </div>
             {kpi.format === 'currency' ? (
-              <p className="text-xs text-muted-foreground/80 tabular-nums">
+              <p className="text-caption text-muted-foreground/80 tabular-nums">
                 <FormattedCurrency amount={kpi.value} />
               </p>
             ) : null}

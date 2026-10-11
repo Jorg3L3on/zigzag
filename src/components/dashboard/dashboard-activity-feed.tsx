@@ -77,11 +77,11 @@ const ActivityRow = ({ item }: { item: ActivityFeedItem }) => {
           {item.title}
         </p>
         {item.description ? (
-          <p className="text-xs text-muted-foreground">{item.description}</p>
+          <p className="text-caption text-muted-foreground">{item.description}</p>
         ) : null}
       </div>
       <time
-        className="shrink-0 text-xs tabular-nums text-muted-foreground"
+        className="shrink-0 text-caption tabular-nums text-muted-foreground"
         dateTime={item.occurredAt}
         title={new Date(item.occurredAt).toLocaleString('es-MX')}
       >

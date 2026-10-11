@@ -114,7 +114,7 @@ for (const width of MOBILE_WIDTHS) {
       // Cancelar the copy: a sheet names the action, the detail becomes read-only.
       await page.goto(`/presupuestos/${copyId}`);
       await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Cancelar presupuesto' }).click();
-      const cancelSheet = page.getByRole('dialog', { name: `¿Cancelar el presupuesto #${copyId}?` });
+      const cancelSheet = page.getByRole('dialog', { name: /¿Cancelar el presupuesto (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(cancelSheet).toBeVisible();
       await expectInsideViewport(page, cancelSheet.getByRole('button', { name: 'Cancelar presupuesto' }), 'cancel confirm');
       await cancelSheet.getByRole('button', { name: 'Cancelar presupuesto' }).click();
@@ -138,7 +138,7 @@ for (const width of MOBILE_WIDTHS) {
       // Convertido: the presupuesto points at the ticket and still duplicates.
       await page.goto(`/presupuestos/${presupuestoId}`);
       await expect(visible(page.getByTestId('presupuesto-status'))).toHaveText('Convertido', { timeout: 15_000 });
-      await expect(visible(page.getByText(`Convertido en Ticket #${convertedId}`))).toBeVisible();
+      await expect(visible(page.getByText('Convertido en ticket'))).toBeVisible();
       await expectLayoutIntact(page, 'presupuesto convertido');
     });
 
@@ -158,7 +158,7 @@ for (const width of MOBILE_WIDTHS) {
       const ticketId = await saveComposer(page);
 
       // Listo: the payment choice is on the first screen with the heavy ticket.
-      await expect(page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first()).toBeVisible({
+      await expect(page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first()).toBeVisible({
         timeout: 15_000,
       });
       const payBox = await page.getByRole('heading', { name: '¿Cómo pagó el cliente?' }).boundingBox();
@@ -167,7 +167,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('500000');
       await expect(page.getByTestId('review-sticky-amount')).toBeVisible();
-      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Finalizar y compartir' })), 'Finalizar y compartir');
+      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Terminar y enviar' })), 'Terminar y enviar');
       await expectLayoutIntact(page, 'ticket listo with payment');
       await finishOnReview(page, ticketId, { mode: 'partial', amount: 500000 });
 
@@ -177,7 +177,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hero).toContainText('Saldo por cobrar', { timeout: 15_000 });
       await expectInsideViewport(page, hero, 'hero');
       await expectInsideViewport(page, visible(page.getByTestId('ticket-quick-actions')), 'quick actions');
-      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Registrar pago' })), 'Registrar pago');
+      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Cobrar' })), 'Cobrar');
       await expectLayoutIntact(page, 'ticket detail');
 
       // Editar in the composer: change a quantity, remove a line, Deshacer brings it back.
@@ -190,8 +190,8 @@ for (const width of MOBILE_WIDTHS) {
       await rows.nth(1).click();
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Guardar línea' }), 'Guardar línea');
-      await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Agregar al ticket' }), 'Agregar al ticket');
+      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       await rows.nth(7).click();
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Quitar este servicio' }).click();
@@ -215,7 +215,7 @@ for (const width of MOBILE_WIDTHS) {
 
       // The list: compact cards, whole money, Por cobrar header.
       await page.goto('/tickets');
-      const search = page.getByPlaceholder('Cliente, folio o teléfono');
+      const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
       await search.fill(suffix);
       await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
       await expect(visible(page.getByTestId('tickets-balance-due'))).toBeVisible();
@@ -237,7 +237,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.goto(`/tickets/${ticketId}`);
       await visible(page.getByRole('button', { name: 'Más acciones del ticket' })).click();
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
-      const deleteSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${ticketId}?` });
+      const deleteSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(deleteSheet).toBeVisible();
       await expect(deleteSheet).toContainText(clientName);
       await expect(deleteSheet).toContainText('Tiene 1 pago registrado por $500,000.00');

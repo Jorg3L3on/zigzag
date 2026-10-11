@@ -11,6 +11,7 @@
  * Prefer a disposable Neon branch (see docs/query-budget.md). Do not run against
  * production unless you intentionally want this tenant present.
  */
+import { backfillMissingFolios } from '../src/lib/folio-backfill';
 import './load-env.cjs';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -252,6 +253,8 @@ async function main() {
     ) AS t
     CROSS JOIN generate_series(1, 5) AS gs(g)
   `);
+
+  await backfillMissingFolios(db);
 
   const counts = await db.execute(sql`
     SELECT

@@ -23,7 +23,7 @@ export default async function CobranzaPage() {
     <>
       <TripledPageHeader
         items={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Hoy', href: '/dashboard' },
           { label: 'Cobranza' },
         ]}
       />
@@ -31,8 +31,8 @@ export default async function CobranzaPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Cobranza"
-          description="Tickets con saldo pendiente. Prioriza pendientes y saldos antiguos."
-          desktopDescription="Cola de cobro por estado y antigüedad"
+          description="Quién te debe y desde cuándo."
+          desktopDescription="Quién te debe y desde cuándo"
           icon={<Banknote className="size-5" aria-hidden />}
         >
           <CobranzaList />

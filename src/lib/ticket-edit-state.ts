@@ -1,3 +1,4 @@
+import { formatDisplayFolio } from '@/lib/folio';
 import type { TicketDetailData } from '@/actions/tickets';
 import { materialDraftsFromStoredRows } from '@/lib/material-drafts';
 import { getServiceLineName } from '@/lib/service-line-display';
@@ -42,6 +43,7 @@ const clientLabel = (name: string | null, phone: string | null) =>
 /** Edit state of the ticket composer (ZIG-I13-6). */
 export const buildTicketEditState = (row: TicketDetailData) => ({
   id: String(row.id),
+  folio: formatDisplayFolio(row),
   client: {
     id: row.client_id ?? 0,
     label: clientLabel(row.client_name, row.client_tel),

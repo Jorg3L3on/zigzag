@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 
 type TicketDetailPrimaryActionsProps = {
   ticketId: number;
+  /** Company folio shown in share titles and messages. */
+  folio?: string | null;
   clientName: string | null;
   clientTel: string | null;
   finished: boolean;
@@ -27,13 +29,14 @@ type TicketDetailPrimaryActionsProps = {
 };
 
 /**
- * The one primary action of a finalized ticket (ZIG-I13-4): Registrar pago while
+ * The one primary action of a finalized ticket (ZIG-I13-4): Cobrar while
  * there is a balance, Compartir recibo once settled. An unfinished ticket has
  * none here: the Finalizar panel owns it. The ⋯ menu sits in the app bar on
  * mobile and next to the button on desktop.
  */
 export const TicketDetailPrimaryActions = ({
   ticketId,
+  folio = null,
   clientName,
   clientTel,
   finished,
@@ -48,6 +51,7 @@ export const TicketDetailPrimaryActions = ({
   const collect = useTicketCollect();
   const { share, sharing } = useReceiptShare({
     ticketId: String(ticketId),
+    folio,
     downloadFileName,
     clientName,
     clientTel,
@@ -64,7 +68,7 @@ export const TicketDetailPrimaryActions = ({
       onClick={() => collect?.openCollect()}
     >
       <Wallet className="h-4 w-4" aria-hidden />
-      Registrar pago
+      Cobrar
     </Button>
   ) : canShare ? (
     <Button
@@ -84,6 +88,7 @@ export const TicketDetailPrimaryActions = ({
         {primary}
         <TicketDetailActionsMenu
           ticketId={ticketId}
+          folio={folio}
           clientName={clientName}
           clientTel={clientTel}
           total={total}

@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreHorizontal, Pencil, ShieldCheck, UserX } from 'lucide-react';
+import { KeyRound, MoreHorizontal, Pencil, ShieldCheck, UserX } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import type { TeamMember } from '@/lib/team-members';
 export type TeamMemberMenuHandlers = {
   onEdit: (member: TeamMember) => void;
   onChangeRole: (member: TeamMember) => void;
+  onResetPassword: (member: TeamMember) => void;
   onDeactivate: (member: TeamMember) => void;
 };
 
@@ -26,6 +27,7 @@ export const TeamMemberMenu = ({
   member,
   onEdit,
   onChangeRole,
+  onResetPassword,
   onDeactivate,
 }: TeamMemberMenuProps) => (
   <DropdownMenu>
@@ -48,6 +50,13 @@ export const TeamMemberMenu = ({
       <DropdownMenuItem onSelect={() => onChangeRole(member)}>
         <ShieldCheck className="mr-2 size-4" aria-hidden />
         Cambiar rol
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={member.isSelf}
+        onSelect={() => onResetPassword(member)}
+      >
+        <KeyRound className="mr-2 size-4" aria-hidden />
+        Dar contraseña temporal
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem

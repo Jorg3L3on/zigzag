@@ -307,13 +307,13 @@ export const DashboardCharts = ({
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Total tickets</p>
+                  <p className="text-caption text-muted-foreground">Total tickets</p>
                   <p className="text-lg font-semibold tabular-nums tracking-tight">
                     {paymentTotal.toLocaleString('es-MX')}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Monto total</p>
+                  <p className="text-caption text-muted-foreground">Monto total</p>
                   <p className="text-lg font-semibold tabular-nums tracking-tight">
                     {formatCompactCurrency(paymentAmountTotal)}
                   </p>

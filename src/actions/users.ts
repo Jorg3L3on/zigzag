@@ -22,6 +22,10 @@ import {
   sanitizeUserForAudit,
 } from '@/lib/governance-audit';
 import { bumpUserTokenVersion } from '@/lib/session-revocation';
+import { recordAuthAuditEvent } from '@/lib/audit-security';
+import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
+import { checkRateLimit } from '@/lib/rate-limiter';
+import { generateTemporaryPassword } from '@/lib/temporary-password';
 import { keepsATeamManager } from '@/lib/team-guards';
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -409,6 +413,162 @@ export async function updateUser(
   }
 }
 
+/**
+ * Forgotten password without email (ZIG-I18-11): an admin with `users.write`
+ * (own company only) or a system operator (any company) gives a temporary
+ * password. It is shown once to whoever reset it; the person must replace it
+ * at their next login, and every open session of theirs ends now.
+ */
+export async function resetUserTemporaryPassword(id: bigint): Promise<{
+  success: boolean;
+  data?: { temporaryPassword: string; userName: string };
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const caller = await requireActionAuth();
+
+    const target = await db.query.user.findFirst({
+      where: and(eq(user.id, id), isNull(user.deleted_at)),
+      with: { company: true },
+    });
+    if (!target || target.company_id === null) {
+      return handleCodedServerActionError(
+        'users.reset-password',
+        'US003',
+        new Error('User not found'),
+      );
+    }
+
+    if (String(target.id) === caller.userId) {
+      return buildActionError('US008');
+    }
+
+    // Tenant admins stay inside their company (resolveWritableCompanyId refuses
+    // another one and audits the denial) and never touch system operators.
+    const { context, companyId } = await requireActionPermission(
+      'users.write',
+      target.company_id,
+    );
+    if (!context.companyIsSystem && target.company?.is_system) {
+      return buildActionError('AU002');
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+    const hashedPassword = await hash(temporaryPassword, 10);
+
+    await db
+      .update(user)
+      .set({
+        password: hashedPassword,
+        must_change_password: true,
+        updated_at: new Date(),
+      })
+      .where(and(eq(user.id, id), isNull(user.deleted_at)));
+    await bumpUserTokenVersion(id);
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(context),
+      resourceType: 'user',
+      resourceId: id,
+      targetCompanyId: companyId,
+      eventType: 'password_reset',
+      before: sanitizeUserForAudit(target),
+      after: { ...sanitizeUserForAudit(target), must_change_password: true },
+    });
+
+    revalidatePath('/users');
+    revalidatePath('/company', 'layout');
+    return { success: true, data: { temporaryPassword, userName: target.name } };
+  } catch (e) {
+    return handleCodedServerActionError('users.reset-password', 'US003', e);
+  }
+}
+
+const forcedPasswordChangeSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Las contraseñas no coinciden',
+    path: ['confirmPassword'],
+  });
+
+export type ForcedPasswordChangeInput = z.infer<typeof forcedPasswordChangeSchema>;
+
+/**
+ * The one thing a person with a temporary password can do: choose their own.
+ * Clears the flag; the current session keeps working (the reset already ended
+ * every older one).
+ */
+export async function completeForcedPasswordChange(
+  data: ForcedPasswordChangeInput,
+): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth({ allowPasswordChangePending: true });
+    const validated = forcedPasswordChangeSchema.parse(data);
+
+    const existing = await db.query.user.findFirst({
+      where: and(
+        eq(user.id, BigInt(authContext.userId)),
+        isNull(user.deleted_at),
+      ),
+    });
+    if (!existing?.must_change_password) {
+      throw new AppError(
+        'No tienes una contraseña temporal pendiente',
+        400,
+        true,
+        'US005',
+      );
+    }
+
+    if (await compare(validated.newPassword, existing.password)) {
+      throw new AppError(
+        'Elige una contraseña distinta de la temporal',
+        400,
+        true,
+        'US005',
+      );
+    }
+
+    const hashedPassword = await hash(validated.newPassword, 10);
+    await db
+      .update(user)
+      .set({
+        password: hashedPassword,
+        must_change_password: false,
+        updated_at: new Date(),
+      })
+      .where(eq(user.id, existing.id));
+
+    await recordGovernanceAudit(db, {
+      actor: actionAuthToGovernanceActor(authContext),
+      resourceType: 'user',
+      resourceId: existing.id,
+      targetCompanyId: existing.company_id,
+      eventType: 'password_changed',
+      before: sanitizeUserForAudit(existing),
+      after: { ...sanitizeUserForAudit(existing), must_change_password: false },
+    });
+
+    return { success: true };
+  } catch (e) {
+    if (
+      e instanceof z.ZodError ||
+      (e instanceof AppError && e.errorCode === 'US005')
+    ) {
+      return handleCodedServerActionError('users.force-change.validation', 'US005', e);
+    }
+    return handleCodedServerActionError('users.force-change', 'US003', e);
+  }
+}
+
 export async function updateOwnAccount(
   data: AccountFormData,
 ): Promise<{
@@ -571,5 +731,49 @@ export async function deleteUser(
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('users.delete', 'US004', e);
+  }
+}
+
+/**
+ * Sign out everywhere (ZIG-I17-9): bumps token_version so every session of the
+ * signed-in user, on any device, fails validation from now on. The caller then
+ * signs out of this browser too.
+ */
+export async function signOutEverywhere(): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth();
+    // A handful per quarter hour is plenty; this also stops a loop from locking the account out.
+    if (
+      !(await checkRateLimit(`sign-out-everywhere:${authContext.userId}`, {
+        limit: 5,
+        windowMs: 15 * 60 * 1000,
+      }))
+    ) {
+      return buildActionError('GN004');
+    }
+    await bumpUserTokenVersion(BigInt(authContext.userId));
+    await recordAuthAuditEvent({
+      action: 'signed_out',
+      result: 'success',
+      reason: 'sign_out_everywhere',
+      actor: {
+        userId: authContext.userId,
+        companyId: authContext.companyId,
+        companyIsSystem: authContext.companyIsSystem,
+      },
+      targetCompanyId: authContext.companyId,
+      resourceId: authContext.userId,
+      requestMeta: await buildAuditRequestMetaFromHeaders({
+        route: '/account',
+        method: 'POST',
+      }),
+    });
+    return { success: true };
+  } catch (e) {
+    return handleCodedServerActionError('users.signOutEverywhere', 'US003', e);
   }
 }

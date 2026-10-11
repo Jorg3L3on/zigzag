@@ -52,7 +52,7 @@ export const TeamRolePicker = ({
             <span className="flex min-w-0 flex-col">
               <span className="text-sm font-semibold">{role.name}</span>
               {role.description ? (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-caption text-muted-foreground">
                   {role.description}
                 </span>
               ) : null}

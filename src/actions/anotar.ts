@@ -1,5 +1,6 @@
 'use server';
 
+import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import { revalidatePath } from 'next/cache';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -137,9 +138,14 @@ const runAnotarCaptureTransaction = async (
   const ticketDate = validated.ticket_date ?? new Date();
 
   return db.transaction(async (tx) => {
+    const folio = await allocateDocumentFolio(tx, {
+      companyId: effectiveCompanyId,
+      documentKind: 'ticket',
+    });
     const [created] = await tx
       .insert(ticket)
       .values({
+        ...folio,
         client_id: validated.client_id,
         client_name: validated.client_name,
         client_tel: validated.client_tel,

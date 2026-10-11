@@ -47,7 +47,7 @@ export const ReviewLineMaterials = ({
       data-testid="review-line-materials"
     >
       {materials.map((item) => (
-        <li key={item.id} className="flex items-start justify-between gap-3 text-xs">
+        <li key={item.id} className="flex items-start justify-between gap-3 text-caption">
           <span className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
             <span className="text-foreground/80">{item.name}</span>
             {showInlineChips ? (
@@ -79,7 +79,7 @@ export const ReviewLineDescription = ({ text }: { text: string | undefined }) =>
     <div className="mt-1" data-testid="review-line-description">
       <p
         className={cn(
-          'whitespace-pre-line text-xs text-muted-foreground [overflow-wrap:anywhere]',
+          'whitespace-pre-line text-caption text-muted-foreground [overflow-wrap:anywhere]',
           foldable && !expanded && 'line-clamp-3',
         )}
       >
@@ -90,7 +90,7 @@ export const ReviewLineDescription = ({ text }: { text: string | undefined }) =>
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
-          className="mt-0.5 min-h-6 text-xs font-medium text-primary underline-offset-4 hover:underline"
+          className="mt-0.5 min-h-6 text-caption font-medium text-primary underline-offset-4 hover:underline"
         >
           {expanded ? 'Ver menos' : 'Ver más'}
         </button>
@@ -220,7 +220,7 @@ export const ReviewLinesSection = ({
       ))}
     </ul>
     <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
         Total
       </span>
       <NumberTicker
@@ -277,7 +277,7 @@ export const ReviewSummaryCard = ({
   return (
     <section aria-label="Resumen" className={cn(REVIEW_SECTION_CLASS, className)} data-testid="review-summary">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13px] text-muted-foreground">Total</span>
+        <span className="text-caption text-muted-foreground">Total</span>
         <MoneyFigure amount={total} size="lg" className="text-right font-bold" data-testid="review-total" />
       </div>
       {paid !== undefined && balance !== null ? (
@@ -301,6 +301,7 @@ export const ReviewSummaryCard = ({
 
 type QuoteSummaryProps = {
   presupuestoId: string;
+  folio?: string | null;
   clientName: string | null;
   dateLabel: string | null;
   expiresLabel: string | null;
@@ -311,6 +312,7 @@ type QuoteSummaryProps = {
 /** HTML stand-in for the PDF where the browser cannot show it inline. */
 export const QuoteSummary = ({
   presupuestoId,
+  folio = null,
   clientName,
   dateLabel,
   expiresLabel,
@@ -322,8 +324,8 @@ export const QuoteSummary = ({
     className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
   >
     <div className="flex items-baseline justify-between gap-3">
-      <p className="font-semibold">Presupuesto #{presupuestoId}</p>
-      {dateLabel ? <p className="text-xs text-muted-foreground">{dateLabel}</p> : null}
+      <p className="font-semibold">Presupuesto {folio || `#${presupuestoId}`}</p>
+      {dateLabel ? <p className="text-caption text-muted-foreground">{dateLabel}</p> : null}
     </div>
     {clientName ? (
       <p className="mt-0.5 text-muted-foreground [overflow-wrap:anywhere]">{clientName}</p>
@@ -342,7 +344,7 @@ export const QuoteSummary = ({
           {(line.materials ?? []).map((item) => (
             <div
               key={item.id}
-              className="flex justify-between gap-3 pl-3 text-xs text-muted-foreground"
+              className="flex justify-between gap-3 pl-3 text-caption text-muted-foreground"
             >
               <span className="min-w-0 [overflow-wrap:anywhere]">
                 · {item.name} {formatMaterialQuantity(item.quantity, item.unit)}
@@ -365,7 +367,7 @@ export const QuoteSummary = ({
         <dd>{expiresLabel ?? 'Sin vencimiento'}</dd>
       </div>
     </dl>
-    <p className="mt-3 text-xs text-muted-foreground">
+    <p className="mt-3 text-caption text-muted-foreground">
       Documento informativo — no es un recibo de pago.
     </p>
   </div>
@@ -373,6 +375,7 @@ export const QuoteSummary = ({
 
 type ReciboSummaryProps = {
   ticketId: string;
+  folio?: string | null;
   clientName: string | null;
   dateLabel: string | null;
   lines: ReviewLine[];
@@ -383,6 +386,7 @@ type ReciboSummaryProps = {
 /** HTML stand-in for the PDF where the browser cannot show it inline. */
 export const ReciboSummary = ({
   ticketId,
+  folio = null,
   clientName,
   dateLabel,
   lines,
@@ -396,9 +400,9 @@ export const ReciboSummary = ({
       className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="font-semibold">Recibo · Ticket #{ticketId}</p>
+        <p className="font-semibold">Recibo · Ticket {folio || `#${ticketId}`}</p>
         {dateLabel ? (
-          <p className="text-xs text-muted-foreground">{dateLabel}</p>
+          <p className="text-caption text-muted-foreground">{dateLabel}</p>
         ) : null}
       </div>
       {clientName ? (
@@ -420,7 +424,7 @@ export const ReciboSummary = ({
             {(line.materials ?? []).map((item) => (
               <div
                 key={item.id}
-                className="flex justify-between gap-3 pl-3 text-xs text-muted-foreground"
+                className="flex justify-between gap-3 pl-3 text-caption text-muted-foreground"
               >
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                   · {item.name} {formatMaterialQuantity(item.quantity, item.unit)}

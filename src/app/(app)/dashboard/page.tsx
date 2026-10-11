@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import nextDynamic from 'next/dynamic';
 import { auth } from '@/lib/auth';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   TripledDashboardShell,
@@ -14,6 +15,10 @@ import { loadDashboardDayQueueForCompany } from '@/lib/dashboard-day-queue-loade
 import { logger } from '@/lib/logger';
 import { loadExperienceModeForCompany } from '@/actions/experience-mode';
 import type { ExperienceMode } from '@/lib/experience-mode';
+import {
+  getGreetingFromTimeZoneCookie,
+  TIME_ZONE_COOKIE,
+} from '@/lib/time-greeting';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -74,18 +79,22 @@ export default async function DashboardPage() {
     ? 'office'
     : await loadExperienceModeForCompany(companyId);
   const isCampo = experienceMode === 'campo';
+  const initialGreeting = getGreetingFromTimeZoneCookie(
+    (await cookies()).get(TIME_ZONE_COOKIE)?.value,
+  );
 
   return (
     <>
       <TripledPageHeader
-        items={[{ label: isCampo ? 'Hoy' : 'Dashboard' }]}
+        items={[{ label: 'Hoy' }]}
       />
       <TripledDashboardShell>
         <div className="flex flex-col gap-6 md:gap-8">
           <DashboardPageIntro
             userName={session.user.name}
+            initialGreeting={initialGreeting}
             subtitle={
-              isCampo ? 'Tu día en el campo' : 'Resumen de tu operación'
+              isCampo ? 'Tu día en el campo' : 'Lo de hoy'
             }
           />
           <div className="min-h-[28rem]">

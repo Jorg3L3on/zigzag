@@ -107,7 +107,7 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
     ],
   },
   {
-    title: 'Captura rápida',
+    title: 'Anotar trabajo',
     url: '/anotar',
     icon: PenLine,
     requiredPermission: PERMISSIONS.tickets.write,
@@ -116,9 +116,11 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
 ];
 
 /**
- * Mobile bottom tabs: Hoy · Tickets · Presupuestos (+ the create slot and Más in the dock).
+ * Mobile bottom tabs: Hoy · Tickets · Cobranza, plus the create slot and Más in the dock.
+ * Cobranza replaced Presupuestos here by Jorge's choice (ZIG-I18-6); Presupuestos stays in the
+ * + menu and the Más sheet.
  * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy).
- * Anotar is no longer a tab; it lives on as Captura rápida (create menu, Hoy, Más sheet).
+ * Anotar is no longer a tab; it lives on as Anotar trabajo (create menu, Hoy, Más sheet).
  */
 export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
   {
@@ -133,14 +135,14 @@ export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
     requiredPermission: PERMISSIONS.tickets.read,
   },
   {
-    title: 'Presupuestos',
-    url: '/presupuestos',
-    icon: ClipboardList,
+    title: 'Cobranza',
+    url: '/cobranza',
+    icon: Banknote,
     requiredPermission: PERMISSIONS.tickets.read,
   },
 ];
 
-/** Dock column of the center + (between Tickets and Presupuestos); tabs skip it. */
+/** Dock column of the center + (between Tickets and Cobranza); tabs skip it. */
 export const MOBILE_DOCK_CREATE_SLOT = 2;
 
 export type MobileCreateAction = {
@@ -168,7 +170,7 @@ export const MOBILE_CREATE_ACTIONS: MobileCreateAction[] = [
     requiredPermission: PERMISSIONS.tickets.write,
   },
   {
-    title: 'Captura rápida',
+    title: 'Anotar trabajo',
     hint: 'Un solo paso, funciona sin señal',
     url: '/anotar',
     icon: PenLine,
@@ -267,7 +269,7 @@ export const getLongestMatchingHref = (
 /**
  * Active tab for the mobile bottom bar.
  * Tickets activates on `/tickets` and everything under it (create, detail, services).
- * Routes outside the tabs (e.g. `/anotar`, `/cobranza`) return null, which lights Más.
+ * Routes outside the tabs (e.g. `/anotar`, `/presupuestos`) return null, which lights Más.
  */
 export const getActiveMobileTabHref = (
   pathname: string,

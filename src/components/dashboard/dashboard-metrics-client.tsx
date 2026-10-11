@@ -25,7 +25,11 @@ import { TripledEmptyState } from '@/components/tripled';
 import { DashboardActivityFeed } from '@/components/dashboard/dashboard-activity-feed';
 import { DashboardKpiCard } from '@/components/dashboard/dashboard-kpi-card';
 import { DashboardPlatformHome } from '@/components/dashboard/dashboard-platform-home';
-import { DashboardQuickActions } from '@/components/dashboard/dashboard-quick-actions';
+import {
+  DashboardQuickActions,
+  DashboardQuickTiles,
+} from '@/components/dashboard/dashboard-quick-actions';
+import { DashboardFirstJobCard } from '@/components/dashboard/dashboard-first-job-card';
 import { DashboardTuDia } from '@/components/dashboard/dashboard-tu-dia';
 import {
   buildCampoDashboardComposition,
@@ -44,6 +48,7 @@ import type { DashboardDayQueue } from '@/lib/dashboard-day-queue';
 import type { DashboardMonthCount } from '@/lib/dashboard-metrics';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { useDeferredMount } from '@/hooks/use-deferred-mount';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { usePermissions } from '@/hooks/use-permissions';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
@@ -123,6 +128,8 @@ export const DashboardMetricsClient = ({
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const deferSecondaryWidgets = useDeferredMount();
+  const isMobile = useIsMobile();
+  const [showMore, setShowMore] = React.useState(false);
   const [monthCount, setMonthCount] = React.useState<DashboardMonthCount>(1);
   const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(
     initialMetrics,
@@ -303,7 +310,7 @@ export const DashboardMetricsClient = ({
     metrics.kpis.find((kpi) => kpi.key === key)?.value ?? 0;
   const campoChips = composition.campoOperations ? (
     <>
-      <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-xs sm:min-h-9">
+      <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-caption sm:min-h-9">
         <span className="text-muted-foreground">Entró hoy</span>
         <span className="font-semibold tabular-nums">
           {formatTicketListAmount(kpiValue('cashCollected'))}
@@ -311,7 +318,7 @@ export const DashboardMetricsClient = ({
       </span>
       <Link
         href="/cobranza"
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-xs sm:min-h-9 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 text-caption sm:min-h-9 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Ver cobranza: por cobrar"
       >
         <span className="text-muted-foreground">Por cobrar</span>
@@ -322,24 +329,61 @@ export const DashboardMetricsClient = ({
     </>
   ) : null;
 
+  // Two plain numbers for the phone, the notebook's underlined totals.
+  const plainNumbers = (
+    <section
+      aria-label="Tu mes en dos números"
+      data-testid="dashboard-plain-numbers"
+      className="grid grid-cols-2 gap-3 md:hidden"
+    >
+      <div className="min-w-0 rounded-2xl border border-border/70 bg-card p-4">
+        <p className="text-base text-muted-foreground">Entró este mes</p>
+        <p className="mt-1 text-xl font-bold tabular-nums [overflow-wrap:anywhere]">
+          {formatTicketListAmount(kpiValue('cashCollected'))}
+        </p>
+      </div>
+      <Link
+        href="/cobranza"
+        className="min-w-0 rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Ver cobranza: lo que me deben"
+      >
+        <p className="text-base text-muted-foreground">Me deben</p>
+        <p className="mt-1 text-xl font-bold tabular-nums [overflow-wrap:anywhere]">
+          {formatTicketListAmount(kpiValue('outstandingBalance'))}
+        </p>
+      </Link>
+    </section>
+  );
+
+  const hasExtras = composition.widgets.some(
+    (id) => id === 'charts' || id === 'activity',
+  );
+  const collapseExtras = isMobile && !showMore && hasExtras;
+
   const renderWidget = (widgetId: (typeof composition.widgets)[number]) => {
     switch (widgetId) {
       case 'tuDia':
         return (
-          <DashboardTuDia
-            key={widgetId}
-            initialQueue={initialDayQueue}
-            campo={composition.campoOperations}
-            headerExtra={campoChips}
-            className={
-              composition.widgets.includes('activity')
-                ? 'xl:col-span-2 xl:self-start'
-                : 'xl:col-span-3'
-            }
-          />
+          <React.Fragment key={widgetId}>
+            <DashboardFirstJobCard totalTickets={metrics?.totalTickets} />
+            <DashboardTuDia
+              initialQueue={initialDayQueue}
+              campo={composition.campoOperations}
+              headerExtra={campoChips}
+              className={
+                composition.widgets.includes('activity')
+                  ? 'xl:col-span-2 xl:self-start'
+                  : 'xl:col-span-3'
+              }
+            />
+            {composition.showQuickActions ? <DashboardQuickTiles /> : null}
+            {composition.campoOperations ? null : plainNumbers}
+          </React.Fragment>
         );
       case 'activity':
-        // Below xl: after Desempeño. Wide screens: beside Tu día.
+        // Phones keep charts and the feed behind Ver más (ZIG-I18-7).
+        if (collapseExtras) return null;
+        // Below xl: after Tu mes. Wide screens: beside Tu día.
         return (
           <div
             key={widgetId}
@@ -360,7 +404,7 @@ export const DashboardMetricsClient = ({
           <section
             key={widgetId}
             aria-label={composition.sectionTitles.kpis}
-            className="space-y-3 xl:col-span-3"
+            className="hidden space-y-3 md:block xl:col-span-3"
           >
             <h2 className="text-sm font-semibold tracking-tight text-foreground">
               {composition.sectionTitles.kpis}
@@ -399,6 +443,7 @@ export const DashboardMetricsClient = ({
           </section>
         );
       case 'charts':
+        if (collapseExtras) return null;
         if (!deferSecondaryWidgets) {
           return (
             <Skeleton
@@ -440,12 +485,24 @@ export const DashboardMetricsClient = ({
       ) : null}
 
       {composition.showQuickActions ? (
-        <div className="min-w-0 xl:col-span-3">
+        <div className="hidden min-w-0 md:block xl:col-span-3">
           <DashboardQuickActions persona={persona} />
         </div>
       ) : null}
 
       {composition.widgets.map((widgetId) => renderWidget(widgetId))}
+
+      {isMobile && hasExtras ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 w-full rounded-xl text-base"
+          aria-expanded={showMore}
+          onClick={() => setShowMore((open) => !open)}
+        >
+          {showMore ? 'Ver menos' : 'Ver más'}
+        </Button>
+      ) : null}
     </div>
   );
 };

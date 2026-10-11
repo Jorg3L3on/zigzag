@@ -46,6 +46,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - Configured in `src/lib/auth.ts`.
 - Session types are extended in `src/types/next-auth.d.ts` with `id`, `company_id`, `company_name`, and `company_is_system`.
 - `src/proxy.ts` protects `/` and `/dashboard/**` at the routing edge. API routes are excluded from proxy and must call `auth()` or `requireSession()`.
+- Sessions last 8 hours, or 30 days on a remembered device; "Cerrar sesión en todos mis dispositivos" bumps `token_version`. Details, and the company folio series (P-0001 / R-0001, migration 0032): [docs/agents/folios-and-sessions.md](docs/agents/folios-and-sessions.md).
 
 ### Company selection
 `src/contexts/company-context.tsx` stores the selected company in React state and localStorage. This is separate from the session's `company_id`; system users can switch context between companies.
@@ -143,7 +144,7 @@ Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-r
 
 ### Deployment (Vercel)
 
-**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). **`sandbox`** is the integration branch: initiatives branch `feat/<slug>` off `sandbox`, slice PRs merge into `feat/<slug>` (agents squash-merge once CI is green), and the final PR goes **`feat/<slug>` → `sandbox`**; standalone fixes PR straight into `sandbox`. Agents open but never merge PRs into `sandbox`, and never target `main`: **only Jorge merges `sandbox` → `main`**. Nothing below `main` gets a preview deploy, so verify locally. Ports 3069 and 3071 are Jorge's dev servers; agents use 3072+. See [docs/agents/deployment.md](docs/agents/deployment.md).
+**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). **`sandbox`** is the integration branch: initiatives branch `feat/<slug>` off `sandbox`, slice PRs merge into `feat/<slug>` (agents squash-merge once the local checks pass; there is no GitHub CI for now), and the final PR goes **`feat/<slug>` → `sandbox`**; standalone fixes PR straight into `sandbox`. Agents open but never merge PRs into `sandbox`, and never target `main`: **only Jorge merges `sandbox` → `main`**. Nothing below `main` gets a preview deploy, so verify locally. Ports 3069 and 3071 are Jorge's dev servers; agents use 3072+. See [docs/agents/deployment.md](docs/agents/deployment.md).
 
 ## Cursor Cloud specific instructions
 
@@ -155,5 +156,5 @@ ZigZag is a multi-tenant ticket management / invoicing app. The only required se
 
 - **PostgreSQL must be started manually**: Run `sudo pg_ctlcluster 16 main start` before any DB commands. The database name is `zigzag`.
 - **Seed user passwords**: The seed script uses pre-existing bcrypt hashes whose plaintext is unknown. To log in locally, update a user's password hash in the DB after seeding: `node -e "require('bcryptjs').hash('YOUR_PASSWORD', 10).then(h => console.log(h))"` then `UPDATE "User" SET password = '<hash>' WHERE email = '<email>';`.
-- **Migration guards**: `drizzle.config.ts` refuses `migrate`, `push` and `studio` against a non-local database unless `ALLOW_REMOTE_DB_MIGRATE=1` (Vercel builds and GitHub Actions are exempt), because drizzle-kit loads `.env` (production Neon) before `.env.local`. To migrate the local copy: `DATABASE_URL="$(grep ^DATABASE_URL= .env.local | cut -d= -f2-)" npm run db:migrate`. CI also runs `npm run check:migrations` on PRs: a migration with `DROP TABLE/COLUMN`, `TRUNCATE`, `DELETE FROM`, `UPDATE ... SET` or a column type change fails unless it carries `-- data-loss-ok: <reason>`.
+- **Migration guards**: `drizzle.config.ts` refuses `migrate`, `push` and `studio` against a non-local database unless `ALLOW_REMOTE_DB_MIGRATE=1` (Vercel builds and GitHub Actions are exempt), because drizzle-kit loads `.env` (production Neon) before `.env.local`. To migrate the local copy: `DATABASE_URL="$(grep ^DATABASE_URL= .env.local | cut -d= -f2-)" npm run db:migrate`. Run `npm run check:migrations` before opening a PR that adds a migration: a migration with `DROP TABLE/COLUMN`, `TRUNCATE`, `DELETE FROM`, `UPDATE ... SET` or a column type change fails unless it carries `-- data-loss-ok: <reason>`.
 - **DB setup sequence**: After starting PostgreSQL, run `npm run db:migrate` then `npm run seed`. Use `npx drizzle-kit push --force` only if migrations fail to apply cleanly.

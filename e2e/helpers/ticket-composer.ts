@@ -75,7 +75,7 @@ export const addComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   await expect(
     page
@@ -97,7 +97,7 @@ export const saveComposer = async (page: Page) => {
 };
 
 /**
- * Creation review (ZIG-I2-5): choose the payment and tap Finalizar y compartir.
+ * Creation review (ZIG-I2-5): choose the payment and tap Terminar y enviar.
  * window.open is stubbed so the WhatsApp fallback never leaves the app in tests.
  */
 export const finishOnReview = async (
@@ -106,7 +106,7 @@ export const finishOnReview = async (
   payment: { mode: 'full' } | { mode: 'partial'; amount: number } | { mode: 'pending' },
 ) => {
   await expect(
-    page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
+    page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
   ).toBeVisible({ timeout: 15_000 });
   await page.evaluate(() => {
     (window as unknown as { __openedUrls: string[] }).__openedUrls = [];
@@ -123,13 +123,13 @@ export const finishOnReview = async (
     await page.getByLabel('Cuánto pagó').fill(String(payment.amount));
   }
 
-  await page.getByRole('button', { name: 'Finalizar y compartir' }).first().click();
+  await page.getByRole('button', { name: 'Terminar y enviar' }).first().click();
 
   // Reminders are ticked on this screen and saved before the share sheet
   // (ZIG-I13-3): no dialog to answer.
-  const heading = page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first();
+  const heading = page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first();
   await expect(heading).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
+  await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
     timeout: 60_000,
   });
 
@@ -155,9 +155,9 @@ export const addInlineComposerLine = async (
   await page.getByRole('button', { name: 'Agregar servicio' }).click();
   const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+  await sheet.getByRole('radio', { name: /Escribir/ }).click();
   await sheet.getByLabel('Nombre del servicio').fill(name);
-  const toggle = sheet.getByRole('switch', { name: /Guardar en mi catálogo/ });
+  const toggle = sheet.getByRole('switch', { name: /Guardar en mis servicios/ });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   if (saveToCatalog) await toggle.click();
   await sheet
@@ -166,7 +166,7 @@ export const addInlineComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   const lines = page.getByRole('list', { name: linesLabel });
   await expect(lines.getByText(name).first()).toBeVisible();
@@ -184,21 +184,21 @@ export const addCustomComposerLine = async (
   await page.getByRole('button', { name: 'Agregar servicio' }).click();
   const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+  await sheet.getByRole('radio', { name: /Escribir/ }).click();
   await sheet.getByLabel('Nombre del servicio').fill(name);
   await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill(quantity);
   await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill(price);
   for (let i = 1; i <= materials; i += 1) {
     await sheet.getByRole('button', { name: 'Agregar material' }).click();
     const step = page.getByRole('dialog', { name: 'Agregar material' });
-    await step.getByRole('radio', { name: /Nuevo/ }).click();
+    await step.getByRole('radio', { name: /Escribir/ }).click();
     await step.getByLabel('Nombre del material').fill(`Material de prueba número ${i} con nombre largo`);
     await step.getByLabel('Cantidad').fill('2');
     await step.getByLabel(/^Precio/).fill('125.5');
     await step.getByRole('button', { name: 'Agregar material' }).click();
     await expect(step.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
   }
-  await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
 };
 

@@ -51,6 +51,10 @@ export type CompanySettingsJson = {
   experience_mode?: 'campo' | 'office';
   /** Lema o giro printed under the company name on PDFs (max 60). */
   tagline?: string;
+  /** Folio prefix of presupuestos (default P), applied to new documents only (ZIG-I17-6). */
+  folio_prefix_presupuesto?: string;
+  /** Folio prefix of tickets/recibos (default R), applied to new documents only. */
+  folio_prefix_ticket?: string;
 };
 
 export const company = pgTable(
@@ -135,6 +139,9 @@ export const user = pgTable(
     // (password change, role change, soft-delete). Compared against the value
     // embedded in the JWT during session validation.
     token_version: integer('token_version').notNull().default(0),
+    // Set when an admin or operator gives a temporary password (ZIG-I18-11): the
+    // person must choose their own before anything else is reachable.
+    must_change_password: boolean('must_change_password').notNull().default(false),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -171,6 +178,8 @@ export const client = pgTable(
     state: text('state'),
     postal_code: text('postal_code'),
     country: text('country'),
+    /** Free-text notes about the client (ZIG-I17-3). */
+    notes: text('notes'),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -239,6 +248,14 @@ export const ticket = pgTable(
     converted_from_ticket_id: bigint('converted_from_ticket_id', {
       mode: 'bigint',
     }),
+    /**
+     * Company folio (ZIG-I17-4): the number in the company's series for this
+     * document kind (P for presupuestos, R for tickets). Assigned when the row
+     * is created and never reused. The prefix is a snapshot, so changing the
+     * company prefix later does not renumber printed documents.
+     */
+    folio_number: integer('folio_number'),
+    folio_prefix: varchar('folio_prefix', { length: 8 }),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -264,7 +281,24 @@ export const ticket = pgTable(
     index('Ticket_company_id_document_kind_active_idx')
       .on(t.company_id, t.document_kind)
       .where(sql`${t.deleted_at} is null`),
+    // One folio per company and kind, deleted documents included (numbers never come back).
+    uniqueIndex('Ticket_company_kind_folio_key')
+      .on(t.company_id, t.document_kind, t.folio_number)
+      .where(sql`${t.folio_number} is not null`),
   ],
+);
+
+/** Last folio handed out per company and document kind (ZIG-I17-4). Only ever goes up. */
+export const documentFolioCounter = pgTable(
+  'DocumentFolioCounter',
+  {
+    company_id: integer('company_id')
+      .notNull()
+      .references(() => company.id),
+    document_kind: varchar('document_kind', { length: 20 }).notNull(),
+    last_number: integer('last_number').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.company_id, t.document_kind] })],
 );
 
 export const servicesTickets = pgTable(

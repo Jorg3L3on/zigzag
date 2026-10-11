@@ -26,6 +26,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/users',
   '/settings',
   '/oauth',
+  '/cambiar-contrasena',
 ];
 
 const SESSION_COOKIE_NAMES = [

@@ -1,6 +1,7 @@
 import { differenceInCalendarDays } from 'date-fns';
 
 import type { PresupuestoDetailData } from '@/actions/presupuestos';
+import { formatDocumentFolio } from '@/lib/folio';
 import { materialDraftsFromStoredRows } from '@/lib/material-drafts';
 import { buildReviewLine } from '@/lib/review-lines';
 import { getServiceLineName } from '@/lib/service-line-display';
@@ -10,6 +11,7 @@ import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 /** Server row → PresupuestoView props (shared by /presupuestos/[id] and /listo). */
 export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   presupuestoId: String(row.id),
+  folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }),
   clientId: row.client_id,
   clientName: row.client_name,
   clientTel: row.client_tel,
@@ -27,6 +29,7 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
 /** Server row → composer edit state (ZIG-I5-5); inline lines stay inline. */
 export const buildPresupuestoEditState = (row: PresupuestoDetailData) => ({
   id: String(row.id),
+  folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }),
   client: {
     id: row.client_id ?? 0,
     label: row.client_tel

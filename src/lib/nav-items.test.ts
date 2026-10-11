@@ -11,16 +11,16 @@ import {
 } from '@/lib/nav-items';
 
 describe('nav-items', () => {
-  it('defines mobile tabs Hoy, Tickets, Presupuestos in order', () => {
+  it('defines mobile tabs Hoy, Tickets, Cobranza in order (ZIG-I18-6)', () => {
     expect(MOBILE_TAB_ITEMS.map((item) => item.title)).toEqual([
       'Hoy',
       'Tickets',
-      'Presupuestos',
+      'Cobranza',
     ]);
     expect(MOBILE_TAB_ITEMS.map((item) => item.url)).toEqual([
       '/dashboard',
       '/tickets',
-      '/presupuestos',
+      '/cobranza',
     ]);
   });
 
@@ -34,26 +34,24 @@ describe('nav-items', () => {
     expect(tickets?.requiredPermission).toBe('tickets.read');
   });
 
-  it('does not put Anotar or Cobranza on primary mobile tabs', () => {
-    expect(MOBILE_TAB_ITEMS.some((item) => item.url === '/anotar')).toBe(
-      false,
-    );
-    expect(MOBILE_TAB_ITEMS.some((item) => item.url === '/cobranza')).toBe(
-      false,
-    );
+  it('does not put Anotar or Presupuestos on primary mobile tabs; they live in + and Más', () => {
+    expect(MOBILE_TAB_ITEMS.some((item) => item.url === '/anotar')).toBe(false);
+    expect(MOBILE_TAB_ITEMS.some((item) => item.url === '/presupuestos')).toBe(false);
+    expect(MOBILE_CREATE_ACTIONS.some((a) => a.url === '/presupuestos/create')).toBe(true);
+    expect(NAV_MAIN_ITEMS.some((item) => item.url === '/presupuestos')).toBe(true);
   });
 
-  it('places the dock create slot between Tickets and Presupuestos', () => {
+  it('places the dock create slot between Tickets and Cobranza', () => {
     expect(MOBILE_DOCK_CREATE_SLOT).toBe(2);
     expect(MOBILE_TAB_ITEMS[MOBILE_DOCK_CREATE_SLOT - 1]?.title).toBe(
       'Tickets',
     );
     expect(MOBILE_TAB_ITEMS[MOBILE_DOCK_CREATE_SLOT]?.title).toBe(
-      'Presupuestos',
+      'Cobranza',
     );
   });
 
-  it('defines create actions Nuevo ticket, Nuevo presupuesto, Captura rápida, Nuevo cliente', () => {
+  it('defines create actions Nuevo ticket, Nuevo presupuesto, Anotar trabajo, Nuevo cliente', () => {
     expect(
       MOBILE_CREATE_ACTIONS.map(({ title, url, requiredPermission }) => ({
         title,
@@ -72,7 +70,7 @@ describe('nav-items', () => {
         requiredPermission: 'tickets.write',
       },
       {
-        title: 'Captura rápida',
+        title: 'Anotar trabajo',
         url: '/anotar',
         requiredPermission: 'tickets.write',
       },
@@ -105,9 +103,9 @@ describe('nav-items', () => {
     expect(presupuestos?.requiredPermission).toBe('tickets.read');
   });
 
-  it('lists Captura rápida in the Más sheet only, gated by tickets.write', () => {
+  it('lists Anotar trabajo in the Más sheet only, gated by tickets.write', () => {
     const captura = NAV_MAIN_ITEMS.find((item) => item.url === '/anotar');
-    expect(captura?.title).toBe('Captura rápida');
+    expect(captura?.title).toBe('Anotar trabajo');
     expect(captura?.requiredPermission).toBe('tickets.write');
     expect(captura?.mobileOnly).toBe(true);
   });
@@ -130,13 +128,17 @@ describe('nav-items', () => {
 
   it('returns null (Más) on /anotar and other non-tab routes', () => {
     expect(getActiveMobileTabHref('/anotar')).toBeNull();
-    expect(getActiveMobileTabHref('/cobranza')).toBeNull();
   });
 
-  it('activates Presupuestos on its list, detail and create routes', () => {
-    expect(getActiveMobileTabHref('/presupuestos')).toBe('/presupuestos');
-    expect(getActiveMobileTabHref('/presupuestos/1069')).toBe('/presupuestos');
-    expect(getActiveMobileTabHref('/presupuestos/create')).toBe('/presupuestos');
+  it('activates Cobranza on its route and subroutes', () => {
+    expect(getActiveMobileTabHref('/cobranza')).toBe('/cobranza');
+    expect(getActiveMobileTabHref('/cobranza/algo')).toBe('/cobranza');
+  });
+
+  it('presupuesto routes light no tab (Más) now that Cobranza has the slot', () => {
+    expect(getActiveMobileTabHref('/presupuestos')).toBeNull();
+    expect(getActiveMobileTabHref('/presupuestos/1069')).toBeNull();
+    expect(getActiveMobileTabHref('/presupuestos/create')).toBeNull();
   });
 
   it('returns null (Más) on client routes now that Clientes is not a tab', () => {

@@ -52,7 +52,7 @@ test.describe('Presupuesto PDF viewer @375px', () => {
 
     await expect(page).toHaveURL(new RegExp(`${href}/pdf$`));
     await expect(page.getByTestId('mobile-app-bar')).toBeVisible();
-    await expect(page.getByTestId('mobile-app-bar')).toContainText(/Presupuesto #\d+/);
+    await expect(page.getByTestId('mobile-app-bar')).toContainText(/Presupuesto (?:#\d+|[A-Z0-9]+-\d+)/);
     await expectNoSeriousViolations(page);
 
     await page.getByRole('link', { name: 'Volver al presupuesto' }).first().click();

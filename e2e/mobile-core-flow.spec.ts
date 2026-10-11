@@ -64,15 +64,15 @@ const finishWithPartialPayment = async (
 };
 
 const settleRemainingBalance = async (page: Page) => {
-  // Cobrar (quick action) opens the Registrar pago sheet.
+  // Cobrar (quick action) opens the Cobrar sheet.
   const cobrar = visible(page.getByRole('button', { name: 'Cobrar', exact: true }));
   await expect(cobrar).toBeVisible({ timeout: 15_000 });
   await cobrar.click();
-  const sheet = page.getByRole('dialog', { name: 'Registrar pago' });
+  const sheet = page.getByRole('dialog', { name: 'Cobrar' });
   await expect(sheet).toBeVisible();
-  await sheet.getByRole('button', { name: 'Saldar el ticket por completo' }).click();
+  await sheet.getByRole('button', { name: 'Pagó todo' }).click();
 
-  await expect(visible(page.getByTestId('ticket-hero-paid'))).toHaveText('Saldado', {
+  await expect(visible(page.getByTestId('ticket-hero-paid'))).toHaveText('Pagado', {
     timeout: 30_000,
   });
   await expect(visible(page.getByTestId('ticket-status-pill'))).toHaveText('Pagado');
@@ -153,7 +153,7 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expect(
       editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
     ).toHaveValue(String(UPDATED_QUANTITY));
-    await editSheet.getByRole('button', { name: 'Guardar línea' }).click();
+    await editSheet.getByRole('button', { name: 'Agregar al ticket' }).click();
     await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 

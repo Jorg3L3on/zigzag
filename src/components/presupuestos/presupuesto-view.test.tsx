@@ -164,7 +164,7 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
   it('a converted quote links to its ticket and offers no convert, cancel or edit', () => {
     renderView({ status: 'convertido', convertedToTicketId: '401', editHref: '/x' });
 
-    expect(screen.getByText('Convertido en Ticket #401')).toBeTruthy();
+    expect(screen.getByText('Convertido en ticket')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Ver ticket' })).toHaveAttribute(
       'href',
       '/tickets/401',

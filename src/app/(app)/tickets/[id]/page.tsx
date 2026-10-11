@@ -1,3 +1,4 @@
+import { formatDisplayFolio, formatDocumentFolio } from '@/lib/folio';
 import { getTicketById, getTicketAuditHistory } from '@/actions/tickets';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -73,11 +74,16 @@ export default async function TicketDetailsPage({
 
   const fromPresupuestoId =
     ticket.converted_from_ticket_id != null ? String(ticket.converted_from_ticket_id) : null;
+  const folioLabel = formatDisplayFolio(ticket);
+  const fromPresupuestoFolio = ticket.source_presupuesto_folio
+    ? formatDocumentFolio({ ...ticket.source_presupuesto_folio, document_kind: 'presupuesto' })
+    : null;
   const total = ticket.total;
   const paid = ticket.paid;
 
   const documentProps = {
     ticketId: Number(ticket.id),
+    folio: folioLabel,
     clientName: ticket.client_name,
     clientTel: ticket.client_tel,
     total,
@@ -104,7 +110,7 @@ export default async function TicketDetailsPage({
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
                 <BreadcrumbPage className="truncate">
-                  Ticket #{String(ticket.id)}
+                  Ticket {folioLabel}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
@@ -120,7 +126,7 @@ export default async function TicketDetailsPage({
       >
         <TripledDashboardShell maxWidthClassName="max-w-6xl">
           <TripledMobileAppBar
-            title={`Ticket #${ticket.id}`}
+            title={`Ticket ${folioLabel}`}
             backHref="/tickets"
             className="mb-3"
             endSlot={
@@ -142,6 +148,8 @@ export default async function TicketDetailsPage({
           <div className="flex flex-col gap-4 md:gap-6">
             <TicketDetailHeader
               ticketId={ticket.id}
+              folio={folioLabel}
+              fromPresupuestoFolio={fromPresupuestoFolio}
               clientName={ticket.client_name}
               clientId={ticket.client_id}
               finished={ticket.finished}
@@ -211,6 +219,7 @@ export default async function TicketDetailsPage({
         {ticket.finished ? (
           <TicketDetailResendPrompt
             ticketId={Number(ticket.id)}
+            folio={folioLabel}
             clientName={ticket.client_name}
             clientTel={ticket.client_tel}
             total={total}

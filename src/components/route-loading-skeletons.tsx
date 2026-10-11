@@ -100,9 +100,14 @@ export const ResourceRouteLoading = ({
   </>
 );
 
-export const DashboardRouteLoading = () => (
+export const DashboardRouteLoading = ({
+  intro,
+}: {
+  /** The real greeting header, so the LCP text paints with the first frame. */
+  intro?: ReactNode;
+}) => (
   <>
-    <TripledPageHeader items={[{ label: 'Dashboard' }]} />
+    <TripledPageHeader items={[{ label: 'Hoy' }]} />
     <TripledDashboardShell>
       <div
         className="flex flex-col gap-6 md:gap-8"
@@ -112,17 +117,19 @@ export const DashboardRouteLoading = () => (
         aria-label="Cargando dashboard"
       >
         <span className="sr-only">Cargando dashboard</span>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-56 sm:h-9 sm:w-72" />
-            <Skeleton className="h-4 w-40" />
+        {intro ?? (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-56 sm:h-9 sm:w-72" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-11 w-[170px] rounded-xl sm:h-9" />
+              <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
+              <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Skeleton className="h-11 w-[170px] rounded-xl sm:h-9" />
-            <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
-            <Skeleton className="h-11 w-32 rounded-xl sm:h-9" />
-          </div>
-        </div>
+        )}
         <Skeleton className="h-36 rounded-xl" />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (

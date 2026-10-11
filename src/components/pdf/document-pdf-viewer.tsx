@@ -30,6 +30,7 @@ import {
 export type DocumentPdfWhatsApp =
   | {
       kind: 'presupuesto';
+      folio?: string | null;
       phone: string | null;
       clientName: string | null;
       total: number;
@@ -38,6 +39,7 @@ export type DocumentPdfWhatsApp =
     }
   | {
       kind: 'recibo';
+      folio?: string | null;
       phone: string | null;
       clientName: string | null;
       total: number;
@@ -94,6 +96,7 @@ export const DocumentPdfViewer = ({
             phone: whatsApp.phone,
             clientName: whatsApp.clientName,
             ticketId,
+            folio: whatsApp.folio,
             total: whatsApp.total,
             servicesSummary: whatsApp.servicesSummary,
             validUntil: whatsApp.validUntil,
@@ -103,6 +106,7 @@ export const DocumentPdfViewer = ({
             phone: whatsApp.phone,
             clientName: whatsApp.clientName,
             ticketId,
+            folio: whatsApp.folio,
             total: whatsApp.total,
             paid: whatsApp.paid,
             companyName: selectedCompany?.name,
@@ -213,8 +217,8 @@ export const DocumentPdfViewer = ({
         ) : (
           <>
             {summary}
-            {canInvoice ? (
-              <p className="px-1 text-xs text-muted-foreground" data-testid="pdf-viewer-hint">
+            {canInvoice && kind === 'presupuesto' ? (
+              <p className="px-1 text-caption text-muted-foreground" data-testid="pdf-viewer-hint">
                 {FALLBACK_HINT}
               </p>
             ) : null}

@@ -19,7 +19,7 @@ export const PdfCharsWarning = ({ text, id }: PdfCharsWarningProps) => {
       id={id}
       role="status"
       data-testid="pdf-chars-warning"
-      className="text-xs text-amber-700 [overflow-wrap:anywhere] dark:text-amber-300"
+      className="text-caption text-amber-700 [overflow-wrap:anywhere] dark:text-amber-300"
     >
       Estos caracteres no salen en el PDF: {shown}
       {unsupported.length > 6 ? ' …' : ''}

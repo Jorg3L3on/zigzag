@@ -49,14 +49,14 @@ export const AuditSummaryCell = ({
         presentation.href && !presentation.linkTitle ? (
           <Link
             href={presentation.href}
-            className="block text-xs text-primary underline-offset-4 hover:underline"
+            className="block text-caption text-primary underline-offset-4 hover:underline"
             onPointerDown={(pointerEvent) => pointerEvent.stopPropagation()}
             onClick={(clickEvent) => clickEvent.stopPropagation()}
           >
             {presentation.subtitle}
           </Link>
         ) : (
-          <p className="text-xs text-muted-foreground">{presentation.subtitle}</p>
+          <p className="text-caption text-muted-foreground">{presentation.subtitle}</p>
         )
       ) : null}
     </div>

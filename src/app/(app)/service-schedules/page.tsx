@@ -24,7 +24,7 @@ export default async function ServiceSchedulesPage() {
     <>
       <TripledPageHeader
         items={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Hoy', href: '/dashboard' },
           { label: 'Recordatorios de servicio' },
         ]}
       />

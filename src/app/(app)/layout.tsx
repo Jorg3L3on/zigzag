@@ -3,7 +3,9 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { PermissionsProvider } from '@/contexts/permissions-context';
 import { getSessionPermissionMap } from '@/actions/authz';
+import { CHANGE_PASSWORD_PATH } from '@/lib/password-change';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
+import { PasswordChangeRequiredError } from '@/lib/errors';
 import { requireActionAuth } from '@/lib/security';
 import { redirect } from 'next/navigation';
 
@@ -17,7 +19,10 @@ export default async function DashboardLayout({
 }>) {
   try {
     await requireActionAuth();
-  } catch {
+  } catch (error) {
+    if (error instanceof PasswordChangeRequiredError) {
+      redirect(CHANGE_PASSWORD_PATH);
+    }
     redirect(getExpiredLoginPath());
   }
 

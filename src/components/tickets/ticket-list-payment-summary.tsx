@@ -41,7 +41,7 @@ export const TicketListPaymentSummary = ({
         </span>
       </div>
       <TicketPaymentProgressBar total={total} paid={paid} />
-      <p className="truncate text-xs leading-snug text-muted-foreground tabular-nums">
+      <p className="truncate text-caption leading-snug text-muted-foreground tabular-nums">
         <span>{formatTicketListAmount(paid ?? 0)}</span>
         <span className="font-normal text-muted-foreground/80"> de </span>
         <span>{formatTicketListAmount(total)}</span>

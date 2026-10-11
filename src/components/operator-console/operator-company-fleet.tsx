@@ -190,7 +190,7 @@ export const OperatorCompanyFleet = () => {
         formatWhen,
         renderContextBadge: (row) =>
           selectedCompany?.id === row.id ? (
-            <Badge variant="secondary" className="w-fit text-xs">
+            <Badge variant="secondary" className="w-fit text-caption">
               Actual
             </Badge>
           ) : (
@@ -382,7 +382,7 @@ export const OperatorCompanyFleet = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-semibold">{row.name}</h3>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-caption text-muted-foreground">
                           {row.email}
                         </p>
                       </div>
@@ -406,7 +406,7 @@ export const OperatorCompanyFleet = () => {
                         </Badge>
                       )}
                     </div>
-                    <div className="space-y-1 text-xs text-muted-foreground">
+                    <div className="space-y-1 text-caption text-muted-foreground">
                       <p>Actividad: {formatWhen(row.lastActivityAt)}</p>
                       <p>
                         Incidente:{' '}

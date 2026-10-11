@@ -46,8 +46,8 @@ const dynamicRegions = (page: Page) => [
   page.locator('h1'),
   page.locator('time'),
   page.getByText(/^#\d+$/),
-  page.getByText(/Ticket #\d+/),
-  page.getByText(/Presupuesto #\d+/),
+  page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+)/),
+  page.getByText(/Presupuesto (?:#\d+|[A-Z0-9]+-\d+)/),
   page.getByText(/\d+ de \d+ tickets/),
   page.getByText(/Búsqueda:/),
   page.getByText(/Hoy[,·]/),
@@ -123,13 +123,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await page.goto(`/tickets/${ticketId}`);
       await page.getByRole('button', { name: 'Más acciones del ticket' }).filter({ visible: true }).first().click();
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
-      await expect(page.getByRole('dialog', { name: `¿Eliminar el ticket #${ticketId}?` })).toBeVisible();
+      await expect(page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ })).toBeVisible();
       await shot(page, 'delete-sheet');
       await page.getByRole('button', { name: 'Conservar' }).click();
 
       // The list, filtered to the fixture.
       await page.goto('/tickets');
-      await page.getByPlaceholder('Cliente, folio o teléfono').fill(suffix);
+      await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
       await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
       await shot(page, 'tickets-list');
 

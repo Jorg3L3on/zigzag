@@ -78,7 +78,7 @@ for (const width of MOBILE_WIDTHS) {
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await expect(sheet.getByTestId('composer-line-material-rows').getByRole('listitem')).toHaveCount(2);
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await sheet.getByRole('button', { name: 'Guardar línea' }).click();
+      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       // Quitar a line: gone, with Deshacer; undo brings it back.
       await rows.nth(2).click();
@@ -150,7 +150,7 @@ for (const width of MOBILE_WIDTHS) {
 
       // From the list: the row menu opens the same sheet, Conservar keeps the ticket.
       await page.goto('/tickets');
-      const search = page.getByPlaceholder('Cliente, folio o teléfono');
+      const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
       await search.fill(suffix);
       // The debounced search reloads the list (cards remount while it loads): wait for the result.
       await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
@@ -158,7 +158,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(card).toBeVisible({ timeout: 15_000 });
       await card.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
       await page.getByRole('menuitem', { name: `Eliminar ticket ${firstId}` }).click();
-      const listSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${firstId}?` });
+      const listSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(listSheet).toBeVisible();
       await expect(listSheet).toContainText(clientName);
       await expect(listSheet).toContainText('$2,251.00');
@@ -188,20 +188,20 @@ for (const width of MOBILE_WIDTHS) {
       // From the detail: the sheet names the payments and deletes the ticket.
       await visible(page.getByRole('button', { name: 'Más acciones del ticket' })).click();
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
-      const detailSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${secondId}?` });
+      const detailSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(detailSheet).toBeVisible();
       await expect(detailSheet).toContainText(clientName);
       await detailSheet.getByRole('button', { name: 'Eliminar ticket' }).click();
       await page.waitForURL(/\/tickets$/, { timeout: 60_000 });
 
       // Delete the first from the list row too.
-      await page.getByPlaceholder('Cliente, folio o teléfono').fill(suffix);
+      await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
       await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
       const firstCard = visible(page.getByRole('button', { name: new RegExp(`^(Ver|Editar) ticket ${firstId}$`) }));
       await expect(firstCard).toBeVisible({ timeout: 15_000 });
       await firstCard.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
       await page.getByRole('menuitem', { name: `Eliminar ticket ${firstId}` }).click();
-      await page.getByRole('dialog', { name: `¿Eliminar el ticket #${firstId}?` }).getByRole('button', { name: 'Eliminar ticket' }).click();
+      await page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ }).getByRole('button', { name: 'Eliminar ticket' }).click();
       await expect(firstCard).toHaveCount(0, { timeout: 15_000 });
     });
   });

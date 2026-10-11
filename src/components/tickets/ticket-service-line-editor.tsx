@@ -72,7 +72,7 @@ export const TicketServiceLineEditor = ({
             type="button"
             variant="outline"
             size="icon"
-            className={cn('shrink-0', compact ? 'h-12 w-9' : 'h-10 w-10')}
+            className={cn('shrink-0', 'h-12 w-12')}
             onClick={() => onQuantityStep(Math.max(quantityValue - 1, 1))}
             aria-label="Reducir cantidad del servicio"
           >
@@ -86,7 +86,7 @@ export const TicketServiceLineEditor = ({
             inputMode="decimal"
             value={quantity}
             onChange={(e) => onQuantityInput(e.target.value)}
-            className={cn('w-full min-w-0 px-1 text-center', compact ? 'h-12' : 'sm:w-24')}
+            className={cn('h-12 w-full min-w-0 px-1 text-center text-base', !compact && 'sm:w-24')}
             aria-label="Cantidad del servicio"
             aria-invalid={quantityError ? true : undefined}
             aria-describedby={quantityError ? `${idPrefix}-quantity-error` : undefined}
@@ -95,7 +95,7 @@ export const TicketServiceLineEditor = ({
             type="button"
             variant="outline"
             size="icon"
-            className={cn('shrink-0', compact ? 'h-12 w-9' : 'h-10 w-10')}
+            className={cn('shrink-0', 'h-12 w-12')}
             onClick={() => onQuantityStep(quantityValue + 1)}
             aria-label="Aumentar cantidad del servicio"
           >
@@ -106,7 +106,7 @@ export const TicketServiceLineEditor = ({
           <p
             id={`${idPrefix}-quantity-error`}
             role="alert"
-            className="mt-1 text-xs text-destructive"
+            className="mt-1 text-caption text-destructive"
           >
             {quantityError}
           </p>
@@ -125,7 +125,7 @@ export const TicketServiceLineEditor = ({
               type="button"
               variant="outline"
               size="icon"
-              className="h-10 w-10 shrink-0"
+              className="h-12 w-12 shrink-0"
               onClick={() =>
                 onPriceStep(Math.max(Number((priceValue - 1).toFixed(2)), 0))
               }
@@ -146,7 +146,7 @@ export const TicketServiceLineEditor = ({
               inputMode="decimal"
               value={price}
               onChange={(e) => onPriceInput(e.target.value)}
-              className={cn('w-full pl-8', compact ? 'h-12 text-right' : 'text-center')}
+              className={cn('w-full pl-8', compact ? 'h-12 text-right' : 'h-12 text-center')}
               aria-label="Precio del servicio"
               aria-invalid={priceError ? true : undefined}
               aria-describedby={priceError ? `${idPrefix}-price-error` : undefined}
@@ -157,7 +157,7 @@ export const TicketServiceLineEditor = ({
               type="button"
               variant="outline"
               size="icon"
-              className="h-10 w-10 shrink-0"
+              className="h-12 w-12 shrink-0"
               onClick={() => onPriceStep(Number((priceValue + 1).toFixed(2)))}
               aria-label="Aumentar precio del servicio"
             >
@@ -169,7 +169,7 @@ export const TicketServiceLineEditor = ({
           <p
             id={`${idPrefix}-price-error`}
             role="alert"
-            className="mt-1 text-xs text-destructive"
+            className="mt-1 text-caption text-destructive"
           >
             {priceError}
           </p>

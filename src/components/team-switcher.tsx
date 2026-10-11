@@ -71,7 +71,7 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">Ninguna empresa</span>
-              <span className="truncate text-xs">Cargando...</span>
+              <span className="truncate text-caption">Cargando...</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -98,7 +98,7 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
         <span className="truncate font-semibold text-sidebar-foreground">
           {selectedCompany.name}
         </span>
-        <span className="truncate text-xs text-muted-foreground">
+        <span className="truncate text-caption text-muted-foreground">
           {selectedCompany.is_system ? 'Admin' : 'Empresa'}
         </span>
       </div>
@@ -141,7 +141,7 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
             side={isMobile ? 'bottom' : 'right'}
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
+            <DropdownMenuLabel className="text-caption text-muted-foreground">
               Empresas
             </DropdownMenuLabel>
             {displayTeams.map((team) => (

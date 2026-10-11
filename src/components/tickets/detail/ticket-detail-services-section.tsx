@@ -100,7 +100,7 @@ export const TicketDetailServicesSection = ({
           canManage && services.length > 0 ? (
             <Link
               href={`/tickets/${id}/edit`}
-              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
               aria-label="Editar servicios"
             >
               Editar

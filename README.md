@@ -1,6 +1,5 @@
 # ZigZag — Ticket Management System
 
-[![CI](https://github.com/Jorg3L3on/zigzag/actions/workflows/ci.yml/badge.svg)](https://github.com/Jorg3L3on/zigzag/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/Jorg3L3on/zigzag)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![Drizzle](https://img.shields.io/badge/ORM-Drizzle-C5F74F)](https://orm.drizzle.team/)
@@ -90,7 +89,7 @@ npm run dev           # http://localhost:3069
 | `npm run lint` | ESLint |
 | `npm run db:generate` | Generate SQL migrations |
 | `npm run db:migrate` | Apply migrations locally (refuses a remote database such as Neon; see `docs/agents/deployment.md`) |
-| `npm run check:migrations` | Fail if new migrations vs `origin/main` can lose data (CI runs it on PRs) |
+| `npm run check:migrations` | Fail if new migrations vs `origin/main` can lose data (run it before opening a PR) |
 | `npm run migrate:deploy` | Apply migrations in production (`DIRECT_URL` when set) |
 | `npm run db:studio` | Drizzle Studio |
 | `npm run seed` | Seed via `scripts/seed.ts` |
@@ -119,7 +118,7 @@ scripts/seed.ts    # Seed script
 docs/              # Production runbook and ops notes
 ```
 
-Contributor and architecture details: **[AGENTS.md](AGENTS.md)**. PRD → issues → PR workflow: **[docs/agents/workflow.md](docs/agents/workflow.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+Contributor and architecture details: **[AGENTS.md](AGENTS.md)** · company folios and session lifetimes: **[docs/agents/folios-and-sessions.md](docs/agents/folios-and-sessions.md)**. PRD → issues → PR workflow: **[docs/agents/workflow.md](docs/agents/workflow.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 Optional RAG tooling over internal docs: **[rag/README.md](rag/README.md)** (`npm run rag:index`, `rag:search`, `rag:ask`).
 
@@ -132,9 +131,9 @@ npm run test:e2e
 
 CI-style Jest: `npm test -- --runInBand`.
 
-Playwright runs **two projects**: `chromium` (Desktop Chrome) and `mobile-chrome` (Pixel 5 profile). By default it builds and starts a **production server on port 3070** (same as CI). Turbopack dev (`npm run dev`) incorrectly 404s on `/tickets*` routes; use `PLAYWRIGHT_USE_DEV=1` only if you accept that limitation.
+Playwright runs **two projects**: `chromium` (Desktop Chrome) and `mobile-chrome` (Pixel 5 profile). By default it builds and starts a **production server on port 3070**. Turbopack dev (`npm run dev`) incorrectly 404s on `/tickets*` routes; use `PLAYWRIGHT_USE_DEV=1` only if you accept that limitation.
 
-**Database.** E2E writes data: the global setup resets the E2E users' passwords to `E2E_PASSWORD` and upserts demo users, and several mobile specs save tickets and settings. Run it only against a disposable database. CI uses its own Postgres service. Locally, use a local database through `.env.local` (see Setup). The global setup refuses a Neon (`*.neon.tech`) `DATABASE_URL` unless `E2E_ALLOW_REMOTE_DB=1`, which is meant for a throwaway Neon branch, never production.
+**Database.** E2E writes data: the global setup resets the E2E users' passwords to `E2E_PASSWORD` and upserts demo users, and several mobile specs save tickets and settings. Run it only against a disposable database. Locally, use a local database through `.env.local` (see Setup). The global setup refuses a Neon (`*.neon.tech`) `DATABASE_URL` unless `E2E_ALLOW_REMOTE_DB=1`, which is meant for a throwaway Neon branch, never production.
 
 The smoke suite includes an unauthenticated redirect test; authenticated tests run when credentials are set:
 

@@ -10,7 +10,7 @@ import { MobileChromeProvider, useMobileChrome } from '@/contexts/mobile-chrome-
 import { useDisplayModeStandalone } from '@/hooks/use-display-mode-standalone';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
-  DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS,
+  STICKY_ACTION_CLEARANCE_HEIGHT_CLASS,
   DOCK_CLEARANCE_HEIGHT_CLASS,
 } from '@/lib/ui/dock-clearance';
 import { cn } from '@/lib/utils';
@@ -75,7 +75,7 @@ const IdlePrefetch = () => {
 const MobileBottomTabSpacer = () => {
   const { hasStickyAction } = useMobileChrome();
 
-  // The dock is always shown; a sticky action bar stacks above it.
+  // A sticky action bar replaces the dock, so only one bar is ever at the bottom.
   return (
     <div
       aria-hidden
@@ -83,7 +83,7 @@ const MobileBottomTabSpacer = () => {
       className={cn(
         'shrink-0 md:hidden',
         hasStickyAction
-          ? DOCK_AND_STICKY_ACTION_CLEARANCE_HEIGHT_CLASS
+          ? STICKY_ACTION_CLEARANCE_HEIGHT_CLASS
           : DOCK_CLEARANCE_HEIGHT_CLASS,
       )}
     />
