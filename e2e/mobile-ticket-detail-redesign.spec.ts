@@ -50,7 +50,7 @@ for (const width of [375, 333]) {
 
       await page.goto(`/presupuestos/${presupuestoId}`);
       await page.getByRole('button', { name: 'Convertir a ticket' }).first().click();
-      await page.getByRole('alertdialog').getByRole('button', { name: /Convertir/ }).click();
+      await page.getByRole('dialog').getByRole('button', { name: /Convertir/ }).click();
       await page.waitForURL(/\/tickets\/\d+$/, { timeout: 60_000 });
       const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1] as string;
 
