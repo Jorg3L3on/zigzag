@@ -241,17 +241,18 @@ for (const width of [375, 333]) {
       expect(ticketId).toBeTruthy();
 
       await expect(
-        page.getByRole('heading', { name: `Ticket #${ticketId} guardado` }),
+        page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
       ).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId('review-total')).toHaveText(money(TICKET_TOTAL));
-      // Touch devices get the summary, never a blank PDF box.
-      await expect(page.getByTestId('recibo-summary')).toBeVisible();
+      // The Resumen replaces the full recibo; no blank PDF box (ZIG-I13-3).
+      await expect(page.getByTestId('review-summary')).toBeVisible();
+      await expect(page.getByTestId('recibo-summary')).toHaveCount(0);
       await expect(page.getByTestId('recibo-pdf-preview')).toHaveCount(0);
 
       // No payment is chosen for the user: Finalizar waits for a choice.
       const finish = page.getByRole('button', { name: 'Finalizar y compartir' }).first();
       await expect(finish).toBeDisabled();
-      await page.getByRole('radio', { name: /Pago parcial/ }).click();
+      await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('1234.567');
       await expect(page.getByTestId('review-sticky-amount')).toHaveText(money(TICKET_BALANCE));
       await expectLayoutIntact(page, 'listo');
@@ -261,7 +262,7 @@ for (const width of [375, 333]) {
       });
       await finish.click();
       await expect(
-        page.getByRole('heading', { name: `Ticket #${ticketId} finalizado` }),
+        page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first(),
       ).toBeVisible({ timeout: 60_000 });
       await expect(page.getByRole('button', { name: /Compartir recibo/ }).first()).toBeEnabled({
         timeout: 60_000,

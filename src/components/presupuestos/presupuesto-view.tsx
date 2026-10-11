@@ -26,6 +26,7 @@ import {
   REVIEW_SECTION_CLASS,
   ReviewLinesSection,
   ReviewSuccessHeader,
+  ReviewSummaryCard,
   usePdfViewerEnabled,
   type ReviewLine,
 } from '@/components/tickets/review/document-review-parts';
@@ -389,12 +390,21 @@ export const PresupuestoView = ({
         </BlurFade>
 
         <BlurFade delay={0.1}>
-          <ReviewLinesSection
-            lines={lines}
-            total={total}
-            linesLabel="Servicios del presupuesto"
-            showInlineChips
-          />
+          {variant === 'review' ? (
+            // Listo shares the compact Resumen with the ticket listo (ZIG-I13-3).
+            <ReviewSummaryCard
+              lines={lines}
+              total={total}
+              linesLabel="Servicios del presupuesto"
+            />
+          ) : (
+            <ReviewLinesSection
+              lines={lines}
+              total={total}
+              linesLabel="Servicios del presupuesto"
+              showInlineChips
+            />
+          )}
         </BlurFade>
 
         <BlurFade delay={0.15}>
@@ -413,15 +423,26 @@ export const PresupuestoView = ({
                 </Link>
               ) : null}
             </div>
-            <div className="mt-3">
-              {canInvoice && pdfViewerEnabled ? (
-                <object
-                  data={buildTicketInvoicePreviewUrl(presupuestoId, companyId)}
-                  type="application/pdf"
-                  aria-label={`Vista previa del presupuesto ${presupuestoId}`}
-                  data-testid="presupuesto-pdf-preview"
-                  className="h-[440px] w-full rounded-xl border border-border/60 bg-muted/20"
-                >
+            {variant === 'review' ? null : (
+              <div className="mt-3">
+                {canInvoice && pdfViewerEnabled ? (
+                  <object
+                    data={buildTicketInvoicePreviewUrl(presupuestoId, companyId)}
+                    type="application/pdf"
+                    aria-label={`Vista previa del presupuesto ${presupuestoId}`}
+                    data-testid="presupuesto-pdf-preview"
+                    className="h-[440px] w-full rounded-xl border border-border/60 bg-muted/20"
+                  >
+                    <QuoteSummary
+                      presupuestoId={presupuestoId}
+                      clientName={clientName}
+                      dateLabel={dateLabel}
+                      expiresLabel={expiresLabel}
+                      lines={lines}
+                      total={total}
+                    />
+                  </object>
+                ) : (
                   <QuoteSummary
                     presupuestoId={presupuestoId}
                     clientName={clientName}
@@ -430,18 +451,9 @@ export const PresupuestoView = ({
                     lines={lines}
                     total={total}
                   />
-                </object>
-              ) : (
-                <QuoteSummary
-                  presupuestoId={presupuestoId}
-                  clientName={clientName}
-                  dateLabel={dateLabel}
-                  expiresLabel={expiresLabel}
-                  lines={lines}
-                  total={total}
-                />
-              )}
-            </div>
+                )}
+              </div>
+            )}
             {canInvoice ? (
               <Button
                 type="button"

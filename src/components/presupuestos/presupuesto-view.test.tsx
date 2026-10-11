@@ -106,7 +106,10 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     ).toBeTruthy();
     const lines = screen.getByRole('list', { name: 'Servicios del presupuesto' });
     expect(within(lines).getByText('Cambio de capacitor')).toBeTruthy();
-    expect(within(lines).getByText('Nuevo')).toBeTruthy();
+    expect(screen.getByTestId('review-total')).toHaveTextContent('$2,950.00');
+    // The listo uses the same compact Resumen as the ticket listo (ZIG-I13-3).
+    expect(screen.getByTestId('review-summary')).toBeTruthy();
+    expect(screen.queryByTestId('presupuesto-summary')).toBeNull();
     expect(screen.getByTestId('presupuesto-expires')).toHaveTextContent('24 de octubre 2026');
     expect(screen.getAllByRole('button', { name: /Compartir/ }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Descargar PDF/ })).toBeTruthy();
@@ -218,9 +221,37 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByRole('button', { name: 'Cancelar presupuesto' })).toBeNull();
   });
 
-  it('lists materials under their line and the line amount includes them (ZIG-I10-4)', () => {
+  it('review folds the materials behind Ver los N servicios y M materiales (ZIG-I13-3)', async () => {
+    const user = userEvent.setup();
     renderView({
       variant: 'review',
+      total: 3770,
+      lines: [
+        {
+          id: 1,
+          serviceId: 11,
+          name: 'Mantenimiento de cuarto frío',
+          quantity: 1,
+          price: 2100,
+          materials: [
+            { id: 7, name: 'Gas R410A', quantity: 1.5, unit: 'kg', price: 380, inline: false },
+            { id: 8, name: 'Soporte', quantity: 2, unit: 'pza', price: 550, inline: true },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.queryByText(/Gas R410A/)).toBeNull();
+    // 2100 + 570 + 1100
+    expect(screen.getAllByText('$3,770.00').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Ver los 1 servicio y 2 materiales' }));
+    expect(screen.getByText(/Gas R410A/)).toBeTruthy();
+    expect(screen.getByText(/1.5 kg × \$380.00/)).toBeTruthy();
+  });
+
+  it('lists materials under their line and the line amount includes them (ZIG-I10-4)', () => {
+    renderView({
+      variant: 'detail',
       total: 3770,
       lines: [
         {

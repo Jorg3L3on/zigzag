@@ -3,6 +3,11 @@
 import * as React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
+import {
+  DocumentSummaryRows,
+  type DocumentSummaryLine,
+} from '@/components/documents/document-summary-rows';
+import { MoneyFigure } from '@/components/documents/money-figure';
 import { DrawCheck, NumberTicker } from '@/components/motion';
 import { InlineLineChips } from '@/components/tickets/service-line-source-fields';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
@@ -122,13 +127,22 @@ export const usePdfViewerEnabled = () =>
 type ReviewSuccessHeaderProps = {
   title: string;
   subtitle?: string | null;
+  /** The mobile app bar already says it: keep the heading for screen readers only (ZIG-I13-3). */
+  hideOnMobile?: boolean;
 };
 
 /** Green check that springs in, then the title (e.g. Ticket #N guardado). */
-export const ReviewSuccessHeader = ({ title, subtitle }: ReviewSuccessHeaderProps) => {
+export const ReviewSuccessHeader = ({
+  title,
+  subtitle,
+  hideOnMobile = false,
+}: ReviewSuccessHeaderProps) => {
   const reduceMotion = useReducedMotion();
   return (
-    <header className="flex items-center gap-3 px-1 py-2" data-testid="review-header">
+    <header
+      className={cn('flex items-center gap-3 px-1 py-2', hideOnMobile && 'max-md:sr-only')}
+      data-testid="review-header"
+    >
       <motion.span
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -218,6 +232,72 @@ export const ReviewLinesSection = ({
     </div>
   </section>
 );
+
+type ReviewSummaryCardProps = {
+  lines: ReviewLine[];
+  total: number;
+  /** Accessible name of the list, e.g. Servicios del ticket. */
+  linesLabel: string;
+  /** Once the ticket is finalized: Pagado and Saldo under the rows. */
+  paid?: number;
+  className?: string;
+};
+
+/**
+ * Resumen card of the listo screens (ZIG-I13-3): the Total, the first three
+ * lines recibo-style and "Ver los N servicios y M materiales". Replaces the full
+ * line list and the duplicated recibo summary.
+ */
+export const ReviewSummaryCard = ({
+  lines,
+  total,
+  linesLabel,
+  paid,
+  className,
+}: ReviewSummaryCardProps) => {
+  const rows = React.useMemo<DocumentSummaryLine[]>(
+    () =>
+      lines.map((line) => ({
+        id: line.id,
+        name: line.name,
+        quantity: line.quantity,
+        amount: reviewLineAmount(line),
+        materials: (line.materials ?? []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+          amount: materialDraftAmount(item),
+        })),
+      })),
+    [lines],
+  );
+  const balance = paid === undefined ? null : Math.max(subtractMoney(total, paid), 0);
+  return (
+    <section aria-label="Resumen" className={cn(REVIEW_SECTION_CLASS, className)} data-testid="review-summary">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[13px] text-muted-foreground">Total</span>
+        <MoneyFigure amount={total} size="lg" className="text-right font-bold" data-testid="review-total" />
+      </div>
+      {paid !== undefined && balance !== null ? (
+        <dl className="mt-2 space-y-1 text-sm tabular-nums">
+          <div className="flex items-baseline justify-between gap-3 text-muted-foreground">
+            <dt>Pagado</dt>
+            <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(paid)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 text-muted-foreground">
+            <dt>Saldo</dt>
+            <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(balance)}</dd>
+          </div>
+        </dl>
+      ) : null}
+      <div className="mt-3 border-t border-border/60 pt-3">
+        <DocumentSummaryRows lines={rows} label={linesLabel} />
+      </div>
+    </section>
+  );
+};
 
 type QuoteSummaryProps = {
   presupuestoId: string;

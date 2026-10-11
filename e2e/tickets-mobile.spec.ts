@@ -152,12 +152,12 @@ test.describe('Mobile ticket screens', () => {
 
     // Creation review: summary, pago and recibo; none of the detail-page noise.
     await expect(
-      page.getByRole('heading', { name: `Ticket #${ticketId} guardado` }),
+      page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
     ).toBeVisible();
     await expect(page.getByTestId('review-total')).toHaveText('$12,950.00');
-    await expect(page.getByRole('radio', { name: /Pago parcial/ })).toBeVisible();
-    await expect(page.getByRole('radio', { name: /Pendiente/ })).toBeVisible();
-    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Una parte' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Nada aún' })).toBeVisible();
+    await expect(page.getByTestId('review-summary')).toBeVisible();
     await expect(page.getByRole('button', { name: /Descargar PDF/ })).toBeVisible();
     for (const noise of ['Creado', 'Actualizado', 'Actividad']) {
       await expect(page.getByText(noise, { exact: true })).toHaveCount(0);
@@ -167,8 +167,8 @@ test.describe('Mobile ticket screens', () => {
     const openedUrls = await finishOnReview(page, ticketId, { mode: 'full' });
     // Headless Chromium has no file share: falls back to WhatsApp with the recibo text.
     expect(openedUrls.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
-    // Headless Chromium has no inline PDF viewer: the recibo summary + Abrir PDF show instead.
-    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    // Once finalized the Resumen shows Pagado and Saldo, with Abrir PDF below.
+    await expect(page.getByTestId('review-summary')).toContainText('Pagado');
     await expect(page.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
       'href',
       `/tickets/${ticketId}/recibo?from=listo`,
@@ -180,7 +180,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByTestId('mobile-app-bar')).toContainText(`Recibo #${ticketId}`);
     await page.getByRole('link', { name: 'Volver al resumen del ticket' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/listo$`));
-    await expect(page.getByTestId('recibo-summary')).toBeVisible();
+    await expect(page.getByTestId('review-summary')).toBeVisible();
 
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
