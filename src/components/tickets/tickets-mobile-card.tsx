@@ -1,13 +1,20 @@
 import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
-import { ClientPhoneLink } from '@/components/client-phone-link';
-import { FormattedCurrency } from '@/components/formatted-currency';
-import { FormattedDate } from '@/components/formatted-date';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
-import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
+import { TicketPaymentProgressBar } from '@/components/tickets/ticket-payment-progress-bar';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
+import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { TripledMobileRecordCard } from '@/components/tripled';
+import { formatListDate } from '@/lib/format-list-date';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
+import {
+  getTicketBalanceDue,
+  getTicketPaymentStatus,
+  TICKET_PAYMENT_STATUS_ACCENT_CLASS,
+  type TicketPaymentStatus,
+} from '@/lib/ticket-payment-status';
+import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 type TicketsMobileCardProps = {
@@ -19,6 +26,19 @@ type TicketsMobileCardProps = {
   companyId?: number | null;
 };
 
+/** How a card names the payment state (same words as the detail's pill). */
+const CARD_STATUS_LABEL: Record<TicketPaymentStatus, string> = {
+  paid: 'Saldado',
+  partial: 'Pago parcial',
+  pending: 'Sin pagos',
+};
+
+/**
+ * Compact ticket card (ZIG-I13-7): the name in up to two lines with the folio,
+ * one meta line `status · phone · date`, a progress bar once something is paid,
+ * and Pagado / Saldo that wrap instead of truncating. The whole card opens the
+ * ticket; ⋯ keeps Registrar pago / Descargar / Eliminar.
+ */
 export const TicketsMobileCard = ({
   ticket,
   canWrite,
@@ -29,6 +49,12 @@ export const TicketsMobileCard = ({
 }: TicketsMobileCardProps) => {
   const router = useRouter();
   const href = hrefForTicketListRow(ticket, canWrite);
+  const status = getTicketPaymentStatus(ticket.total, ticket.paid);
+  const paidAmount = ticket.paid ?? 0;
+  const balance = getTicketBalanceDue(ticket.total, ticket.paid);
+  const partial = status === 'partial';
+  const phone = formatPhoneDisplay(ticket.client_tel);
+  const dateLabel = formatListDate(ticket.ticket_date);
 
   const handleNavigate = () => {
     router.push(href);
@@ -46,6 +72,7 @@ export const TicketsMobileCard = ({
       interactive
       tabIndex={0}
       role="button"
+      className="space-y-1 rounded-xl px-3 py-2.5"
       aria-label={
         ticket.finished
           ? `Ver ticket ${ticket.id.toString()}`
@@ -56,19 +83,19 @@ export const TicketsMobileCard = ({
       onClick={handleNavigate}
       onKeyDown={handleKeyDown}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-2">
-          <p className="truncate text-lg font-semibold leading-tight">
-            {ticket.client_name || 'Cliente sin nombre'}
-          </p>
-          <TicketListPaymentSummary total={ticket.total} paid={ticket.paid} />
-        </div>
+      <div className="flex items-start gap-2">
+        <p
+          className="line-clamp-2 min-w-0 flex-1 text-[15px] font-semibold leading-snug [overflow-wrap:anywhere]"
+          data-testid="ticket-card-name"
+        >
+          {ticket.client_name || 'Cliente sin nombre'}
+        </p>
         <div
-          className="flex shrink-0 items-start gap-1"
+          className="-mb-2.5 -mr-1.5 -mt-1 flex shrink-0 items-start gap-0.5"
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold tabular-nums text-muted-foreground">
+          <span className="pt-1.5 font-mono text-xs tabular-nums text-muted-foreground">
             #{ticket.id.toString()}
           </span>
           <TicketRowActions
@@ -82,38 +109,61 @@ export const TicketsMobileCard = ({
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 text-sm">
-        <div className="min-w-0 rounded-xl bg-muted/35 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Teléfono
-          </p>
-          <dd className="mt-1 truncate font-medium leading-snug">
-            <ClientPhoneLink
-              phone={ticket.client_tel}
-              className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              textClassName="tabular-nums"
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
-            />
-          </dd>
-        </div>
-        <div className="min-w-0 rounded-xl bg-muted/35 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Fecha
-          </p>
-          <dd className="mt-1 font-medium leading-snug">
-            <FormattedDate date={ticket.ticket_date} />
-          </dd>
-        </div>
-        <div className="col-span-2 rounded-xl bg-primary/5 p-3">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Total
-          </p>
-          <dd className="mt-1 text-xl font-semibold tabular-nums">
-            <FormattedCurrency amount={ticket.total} />
-          </dd>
-        </div>
-      </dl>
+      <p
+        className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted-foreground"
+        data-testid="ticket-card-meta"
+      >
+        <span
+          className={cn('size-2 shrink-0 rounded-full', TICKET_PAYMENT_STATUS_ACCENT_CLASS[status])}
+          aria-hidden
+        />
+        <span>{CARD_STATUS_LABEL[status]}</span>
+        {phone ? (
+          <>
+            <span aria-hidden>·</span>
+            {/* Plain text: a tap near the middle of the card must open the ticket, not dial. */}
+            <span className="tabular-nums">{phone}</span>
+          </>
+        ) : null}
+        {dateLabel ? (
+          <>
+            <span aria-hidden>·</span>
+            <span>{dateLabel}</span>
+          </>
+        ) : null}
+      </p>
+
+      {partial ? (
+        <TicketPaymentProgressBar
+          total={ticket.total}
+          paid={ticket.paid}
+          className="h-1.5 max-w-none"
+        />
+      ) : null}
+
+      <div
+        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[13px] tabular-nums"
+        data-testid="ticket-payment-summary"
+        data-payment-status={status}
+      >
+        {paidAmount > 0 && balance > 0 ? (
+          <>
+            <span className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
+              Pagado {formatServiceCurrency(paidAmount)}
+            </span>
+            <span className="min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere]">
+              Saldo {formatServiceCurrency(balance)}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-muted-foreground">Total</span>
+            <span className="min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere]">
+              {ticket.total == null ? 'Sin total' : formatServiceCurrency(ticket.total)}
+            </span>
+          </>
+        )}
+      </div>
     </TripledMobileRecordCard>
   );
 };

@@ -50,7 +50,7 @@ Legend: ✅ ok · 🟡 partial · ❌ gap · ⏭️ n/a
 | ---- | ----------- | -------- |
 | RG-01 | `finishTicket` ignores client total; persists `syncTicketTotal` | `src/lib/tickets-actions.test.ts` |
 | RG-02 | Ticket detail / list relations exclude soft-deleted service lines | `getTicketById` / list queries filter `deleted_at` |
-| RG-03 | Invoice payload excludes soft-deleted lines | `src/lib/fintech-invoice-payload.test.ts` |
+| RG-03 | Invoice payload excludes soft-deleted lines | `src/lib/receipt-pdf/payload.test.ts` |
 | RG-04 | `syncTicketTotal` sums only active lines | `src/lib/ticket-financials.test.ts` |
 
 ## Open findings

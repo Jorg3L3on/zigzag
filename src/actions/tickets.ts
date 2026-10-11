@@ -12,6 +12,7 @@ import {
   type Company,
   type Service,
   type ServicesTicketsRow,
+  type TicketLineMaterialRow,
   type TicketPaymentRow,
   type TicketRow,
   type User,
@@ -26,27 +27,29 @@ import {
   AuthenticationError,
   AuthorizationError,
   buildActionError,
+  buildValidationActionError,
   handleCodedServerActionError,
   handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
-import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
+import type { ValidationIssue } from '@/lib/action-result';
+import {
+  assertTicketTotalWithinCap,
+  calculateTicketTotal,
+  syncTicketTotal,
+} from '@/lib/ticket-financials';
 import { addMoney, roundMoney, subtractMoney } from '@/lib/money';
-import { TICKET_CSV_HEADERS } from '@/lib/csv-schemas';
 import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
-  getTicketPaymentStatus,
   isTicketFullyPaid,
-  TICKET_PAYMENT_STATUS_LABEL,
   type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
-import { format as formatDate } from 'date-fns';
 import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
-import { requireTicketRead, requireTicketWrite, requireTenantTicketRead } from '@/lib/tickets-rbac-server';
+import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { isWorkTicket } from '@/lib/ticket-document-kind';
 import {
@@ -59,6 +62,8 @@ import {
   catalogServiceIds,
   insertServiceLines,
 } from '@/lib/service-lines-server';
+import { activeLineMaterialsWith } from '@/lib/line-materials-query';
+import { buildTicketDuplicateDraft, type TicketDuplicateDraft } from '@/lib/ticket-edit-state';
 import { z } from 'zod';
 
 const ticketServiceLineSchema = serviceLineInputSchema;
@@ -110,6 +115,8 @@ export type TicketDetailData = TicketRow & {
   services_tickets: Array<
     ServicesTicketsRow & {
       service: Service | null;
+      /** Active materials (ZIG-I10); absent in fixtures that predate them. */
+      materials?: TicketLineMaterialRow[];
     }
   >;
   /** Present when loaded with `with`; lista suele omitirla. */
@@ -363,9 +370,12 @@ export async function createTicketWithLines(
   data?: { id: string; total: number };
   error?: string;
   errorType?: ActionErrorType;
+  /** Which line and field the server rejected (validation failures). */
+  issues?: ValidationIssue[];
 }> {
   try {
     const validated = createTicketWithLinesSchema.parse(input);
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
@@ -419,14 +429,12 @@ export async function createTicketWithLines(
       db.transaction(async (tx) => {
         const [created] = await tx.insert(ticket).values(ticketValues).returning();
 
-        const { rows: lineRows, createdServiceIds } = await insertServiceLines(
-          tx,
-          {
+        const { rows: lineRows, createdServiceIds, createdMaterialIds } =
+          await insertServiceLines(tx, {
             companyId: effectiveCompanyId,
             ticketId: created.id,
             lines: validated.lines,
-          },
-        );
+          });
 
         const syncedTotal = await syncTicketTotal(tx, created.id);
 
@@ -442,6 +450,9 @@ export async function createTicketWithLines(
             lines: lineRows,
             ...(createdServiceIds.length > 0
               ? { savedToCatalogServiceIds: createdServiceIds }
+              : {}),
+            ...(createdMaterialIds.length > 0
+              ? { savedToCatalogMaterialIds: createdMaterialIds }
               : {}),
             syncedTotal,
             ignoredClientTotal: validated.client_total ?? null,
@@ -479,9 +490,295 @@ export async function createTicketWithLines(
       return handleServerActionError(error);
     }
     if (error instanceof z.ZodError) {
-      return buildActionError('TC009', error, 'validation');
+      return buildValidationActionError(error);
     }
     return handleCodedServerActionError('tickets.composer.create', 'TC001', error);
+  }
+}
+
+const updateTicketLinesSchema = z.object({
+  company_id: z.number().int().positive(),
+  /** Only applied while the ticket is En proceso (not finalized). */
+  client_id: z.number().int().positive().optional(),
+  ticket_date: z.coerce.date().optional(),
+  work_notes: z.string().trim().max(2000).optional(),
+  lines: z.array(composerLineSchema).min(1).max(50),
+});
+
+export type UpdateTicketLinesInput = z.input<typeof updateTicketLinesSchema>;
+
+/** The new total would fall below what the client already paid. */
+class TotalBelowPaidError extends Error {
+  constructor(public readonly paid: number) {
+    super('Total below the amount already paid');
+    this.name = 'TotalBelowPaidError';
+  }
+}
+
+const formatPesos = (amount: number) =>
+  `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * The one ticket line editor (ZIG-I13-6): replaces the whole set of lines and
+ * their materials in one transaction, re-syncs the total, audits before/after and
+ * refuses a total below what is already paid. Client and date change only while
+ * the ticket is En proceso; a settled ticket cannot be edited at all.
+ */
+export async function updateTicketLines(
+  id: number,
+  input: UpdateTicketLinesInput,
+): Promise<{
+  success: boolean;
+  data?: { id: string; total: number; previousTotal: number; finished: boolean };
+  error?: string;
+  errorType?: ActionErrorType;
+  issues?: ValidationIssue[];
+}> {
+  try {
+    const validated = updateTicketLinesSchema.parse(input);
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      validated.company_id,
+    );
+    const ticketId = BigInt(id);
+    const prior = await assertTicketWritable(ticketId, effectiveCompanyId);
+    assertIsWorkTicketRow(prior);
+    await assertTicketNotFullyPaid(ticketId, effectiveCompanyId);
+
+    const paid = prior.paid ?? 0;
+    if (calculateTicketTotal(validated.lines) < paid - AMOUNT_TOLERANCE) {
+      throw new TotalBelowPaidError(paid);
+    }
+
+    await assertCatalogServicesBelongToCompany(
+      db,
+      catalogServiceIds(validated.lines),
+      effectiveCompanyId,
+    );
+
+    const editable = !prior.finished;
+    let clientSnapshot:
+      | {
+          client_id: number;
+          client_name: string;
+          client_tel: string;
+          email: string | null;
+          document: string | null;
+        }
+      | undefined;
+    if (editable && validated.client_id != null && validated.client_id !== prior.client_id) {
+      const clientRow = await db.query.client.findFirst({
+        where: and(
+          eq(client.id, validated.client_id),
+          eq(client.company_id, effectiveCompanyId),
+          isNull(client.deleted_at),
+        ),
+        columns: { id: true, name: true, phone: true, email: true, document: true },
+      });
+      if (!clientRow) {
+        throw new AuthorizationError('Client not found for this company');
+      }
+      clientSnapshot = {
+        client_id: clientRow.id,
+        client_name: clientRow.name.slice(0, 100),
+        client_tel: clientRow.phone ?? '',
+        email:
+          clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
+            ? clientRow.email
+            : null,
+        document: clientRow.document ?? null,
+      };
+    }
+
+    const beforeLines = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: { ...activeLineMaterialsWith },
+        },
+      },
+    });
+
+    const result = await db.transaction(async (tx) => {
+      await tx
+        .update(servicesTickets)
+        .set({ deleted_at: new Date(), updated_at: new Date() })
+        .where(
+          and(eq(servicesTickets.ticket_id, ticketId), isNull(servicesTickets.deleted_at)),
+        );
+
+      const { rows: lineRows, createdServiceIds, createdMaterialIds } =
+        await insertServiceLines(tx, {
+          companyId: effectiveCompanyId,
+          ticketId,
+          lines: validated.lines,
+        });
+
+      const syncedTotal = await syncTicketTotal(tx, ticketId);
+      if (syncedTotal < paid - AMOUNT_TOLERANCE) {
+        // Rolls the replacement back: the lines stay as they were.
+        throw new TotalBelowPaidError(paid);
+      }
+
+      const [row] = await tx
+        .update(ticket)
+        .set({
+          ...(clientSnapshot ?? {}),
+          ...(editable && validated.ticket_date ? { ticket_date: validated.ticket_date } : {}),
+          ...(validated.work_notes !== undefined
+            ? { work_notes: validated.work_notes || null }
+            : {}),
+          updated_at: new Date(),
+        })
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+          ),
+        )
+        .returning();
+
+      await recordTicketAudit(tx, context, ticketId, effectiveCompanyId, 'updated', {
+        before: beforeLines,
+        after: row,
+        servicesChanged: true,
+        source: 'composer-edit',
+        previousTotal: prior.total ?? 0,
+        total: syncedTotal,
+        lines: lineRows,
+        ...(createdServiceIds.length > 0 ? { savedToCatalogServiceIds: createdServiceIds } : {}),
+        ...(createdMaterialIds.length > 0 ? { savedToCatalogMaterialIds: createdMaterialIds } : {}),
+      });
+
+      return syncedTotal;
+    });
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+    revalidatePath('/dashboard');
+    revalidatePath('/tickets');
+    revalidatePath(`/tickets/${String(ticketId)}`);
+
+    return {
+      success: true,
+      data: {
+        id: String(ticketId),
+        total: result,
+        previousTotal: prior.total ?? 0,
+        finished: prior.finished,
+      },
+    };
+  } catch (error) {
+    if (error instanceof TotalBelowPaidError) {
+      return {
+        success: false,
+        error: `El total no puede quedar abajo de lo ya pagado (${formatPesos(error.paid)})`,
+        errorType: 'validation',
+      };
+    }
+    if (error instanceof TicketAlreadyPaidError) {
+      return buildActionError('TC010', undefined, 'validation');
+    }
+    if (error instanceof PresupuestoMutationBlockedError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) {
+      return handleServerActionError(error);
+    }
+    if (error instanceof z.ZodError) {
+      return buildValidationActionError(error);
+    }
+    return handleCodedServerActionError('tickets.update-lines', 'TC004', error);
+  }
+}
+
+/**
+ * Notes in the audit log that the recibo went out (ZIG-I13-6), so editing a
+ * finalized ticket can say "el recibo se compartió el …" and offer to resend.
+ * Company-scoped; any role that can read tickets (and so share the recibo) can log it.
+ */
+export async function recordReceiptShared(
+  id: number,
+  companyId?: number | null,
+): Promise<{ success: boolean; error?: string; errorType?: ActionErrorType }> {
+  try {
+    const { context, companyId: effectiveCompanyId } = await requireTicketRead(
+      companyId ?? undefined,
+    );
+    const ticketId = BigInt(id);
+    const row = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        eq(ticket.document_kind, 'ticket'),
+        isNull(ticket.deleted_at),
+      ),
+      columns: { id: true, total: true, paid: true },
+    });
+    if (!row) {
+      return buildActionError('TC008');
+    }
+    await db.transaction(async (tx) => {
+      await recordTicketAudit(tx, context, ticketId, effectiveCompanyId, 'receipt_shared', {
+        total: row.total,
+        paid: row.paid,
+      });
+    });
+    return { success: true };
+  } catch (error) {
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) {
+      return handleServerActionError(error);
+    }
+    return handleCodedServerActionError('tickets.receipt-shared', 'TC003', error);
+  }
+}
+
+/**
+ * Duplicar ticket (ZIG-I13-6): the same client, lines and materials as a draft for
+ * the ticket composer, dated today, no payments. Company-scoped; nothing is saved
+ * until Guardar.
+ */
+export async function duplicateTicket(
+  id: number,
+  companyId?: number | null,
+): Promise<
+  | { success: true; data: TicketDuplicateDraft }
+  | { success: false; error?: string; errorType?: ActionErrorType }
+> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireTicketWrite(companyId ?? undefined);
+    const source = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, BigInt(id)),
+        eq(ticket.company_id, effectiveCompanyId),
+        eq(ticket.document_kind, 'ticket'),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        client: true,
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: { service: true, ...activeLineMaterialsWith },
+        },
+      },
+    });
+    if (!source) {
+      return buildActionError('TC008');
+    }
+    return {
+      success: true,
+      data: buildTicketDuplicateDraft(source as unknown as TicketDetailData),
+    };
+  } catch (error) {
+    if (error instanceof AuthorizationError || error instanceof AuthenticationError) {
+      return handleServerActionError(error);
+    }
+    return handleCodedServerActionError('tickets.duplicate', 'TC003', error);
   }
 }
 
@@ -508,6 +805,7 @@ export async function getTickets(
           where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
+            ...activeLineMaterialsWith,
           },
         },
       },
@@ -554,11 +852,19 @@ export interface PaginatedTicketsData {
   page: number;
   pageSize: number;
   totalPages: number;
+  /** Σ saldo of every ticket matching the filters, not just this page (ZIG-I13-7). */
+  balanceDue: number;
+  /** Tickets with a saldo under the search/date/finished filters, whatever the status chip (ZIG-I13-7). */
+  dueCount: number;
 }
 
-export type TicketListPaymentFilter = TicketPaymentStatus | 'all';
+/** `due` = Por cobrar: any ticket with a saldo (parcial or sin pagos). */
+export type TicketListPaymentFilter = TicketPaymentStatus | 'due' | 'all';
 
 export type TicketListFinishedFilter = 'all' | 'yes' | 'no';
+
+/** A ticket with a saldo: parcial or sin pagos, never a zero-total one. */
+const TICKET_DUE_CONDITION = sql`COALESCE(${ticket.total}, 0) > 0.01 AND COALESCE(${ticket.paid}, 0) < COALESCE(${ticket.total}, 0) - 0.01`;
 
 const buildTicketPaymentStatusCondition = (
   status: TicketListPaymentFilter,
@@ -572,6 +878,10 @@ const buildTicketPaymentStatusCondition = (
 
   if (status === 'paid') {
     return sql`${total} > 0.01 AND ${paid} >= ${total} - 0.01`;
+  }
+
+  if (status === 'due') {
+    return TICKET_DUE_CONDITION;
   }
 
   if (status === 'partial') {
@@ -637,21 +947,31 @@ export async function getTicketsPaginated(params: {
       ? sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`
       : undefined;
 
-    const whereCondition = and(
+    const baseConditions = [
       eq(ticket.company_id, effectiveCompanyId),
       isNull(ticket.deleted_at),
       eq(ticket.document_kind, 'ticket'),
       ...(searchCondition ? [searchCondition] : []),
-      ...(paymentStatusCondition ? [paymentStatusCondition] : []),
       ...(finishedCondition ? [finishedCondition] : []),
       ...(dateFromCondition ? [dateFromCondition] : []),
       ...(dateToCondition ? [dateToCondition] : []),
+    ];
+    const whereCondition = and(
+      ...baseConditions,
+      ...(paymentStatusCondition ? [paymentStatusCondition] : []),
     );
 
-    const [{ total }] = await db
-      .select({ total: count() })
+    const [{ total, balanceDue }] = await db
+      .select({
+        total: count(),
+        balanceDue: sql<string>`COALESCE(SUM(CASE WHEN ${TICKET_DUE_CONDITION} THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END), 0)`,
+      })
       .from(ticket)
       .where(whereCondition);
+    const [{ dueCount }] = await db
+      .select({ dueCount: count() })
+      .from(ticket)
+      .where(and(...baseConditions, TICKET_DUE_CONDITION));
 
     const totalCount = Number(total ?? 0);
     const items = await db
@@ -670,6 +990,8 @@ export async function getTicketsPaginated(params: {
         page,
         pageSize,
         totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+        balanceDue: roundMoney(Number(balanceDue ?? 0)),
+        dueCount: Number(dueCount ?? 0),
       },
     };
   } catch (e) {
@@ -706,6 +1028,7 @@ export async function getTicketById(
           where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
+            ...activeLineMaterialsWith,
           },
         },
         ticket_payments: {
@@ -751,7 +1074,7 @@ export async function updateTicket(
       : null;
     const hasServicesUpdate = servicesToSync !== null;
     const totalFromServices = hasServicesUpdate
-      ? calculateTicketTotal(servicesToSync)
+      ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
       : undefined;
 
     if (hasServicesUpdate) {
@@ -771,6 +1094,7 @@ export async function updateTicket(
       with: {
         services_tickets: {
           where: isNull(servicesTickets.deleted_at),
+          with: { ...activeLineMaterialsWith },
         },
       },
     });
@@ -862,6 +1186,7 @@ export async function updateTicket(
           where: isNull(servicesTickets.deleted_at),
           with: {
             service: true,
+            ...activeLineMaterialsWith,
           },
         },
       },
@@ -1232,57 +1557,6 @@ export async function applyTicketPayment(
       return handleServerActionError(e);
     }
     return handleCodedServerActionError('tickets.collect-payment', 'TC007', e);
-  }
-}
-
-/** Active tickets for the caller's company as CSV-ready rows. */
-export async function getTicketsForExport(
-  companyId?: number | null,
-): Promise<{
-  success: boolean;
-  data?: Array<Record<(typeof TICKET_CSV_HEADERS)[number], string>>;
-  error?: string;
-  errorType?: ActionErrorType;
-}> {
-  try {
-    const { companyId: effectiveCompanyId } =
-      await requireTenantTicketRead(companyId);
-    const rows = await db
-      .select()
-      .from(ticket)
-      .where(
-        and(
-          eq(ticket.company_id, effectiveCompanyId),
-          isNull(ticket.deleted_at),
-          eq(ticket.document_kind, 'ticket'),
-        ),
-      )
-      .orderBy(desc(ticket.created_at));
-
-    return {
-      success: true,
-      data: rows.map((row) => {
-        const total = row.total ?? 0;
-        const paid = row.paid ?? 0;
-        const ref = row.ticket_date ?? row.created_at;
-        return {
-          id: row.id.toString(),
-          cliente: row.client_name ?? '',
-          telefono: row.client_tel ?? '',
-          email: row.email ?? '',
-          fecha: ref ? formatDate(ref, 'yyyy-MM-dd') : '',
-          total: total.toFixed(2),
-          pagado: paid.toFixed(2),
-          saldo: getTicketBalanceDue(row.total, row.paid).toFixed(2),
-          estado: TICKET_PAYMENT_STATUS_LABEL[
-            getTicketPaymentStatus(row.total, row.paid)
-          ],
-          finalizado: row.finished ? 'Sí' : 'No',
-        };
-      }),
-    };
-  } catch (e) {
-    return handleCodedServerActionError('tickets.export', 'TC001', e);
   }
 }
 

@@ -41,13 +41,52 @@ test.describe('Sellability features smoke', () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('clients page exposes CSV import/export', async ({ page }) => {
+  test('clients page exposes CSV import without export', async ({ page }) => {
     await page.goto('/clients');
     await expect(
-      page.getByRole('button', { name: 'Exportar CSV' }),
+      page.getByRole('button', { name: 'Importar CSV' }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByRole('button', { name: 'Importar CSV' }),
-    ).toBeVisible();
+      page.getByRole('button', { name: 'Exportar CSV' }),
+    ).toHaveCount(0);
+  });
+
+  test('tickets and services pages have no CSV export', async ({ page }) => {
+    await page.goto('/tickets');
+    await expect(page.getByText('Tickets').first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole('button', { name: 'Exportar CSV' }),
+    ).toHaveCount(0);
+
+    await page.goto('/services');
+    await expect(page.getByRole('link', { name: 'Importar CSV' })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.getByRole('button', { name: 'Exportar CSV' }),
+    ).toHaveCount(0);
+  });
+
+  test('services CSV import previews and commits', async ({ page }) => {
+    const name = `E2E import ${Date.now()}`;
+    await page.goto('/services/import');
+    await page
+      .getByLabel('Archivo CSV para importar servicios')
+      .setInputFiles({
+        name: 'servicios.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from(`nombre,descripción,precio\n${name},Prueba e2e,150\n`),
+      });
+    await expect(page.getByRole('heading', { name: 'Vista previa' })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(name)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Confirmar importación (1)' }).click();
+    await expect(page.getByText('1 servicios importados')).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

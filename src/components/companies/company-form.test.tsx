@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CompanyForm } from '@/components/companies/company-form';
-import { updateOwnCompany } from '@/actions/companies';
+import { updateCompany, updateOwnCompany } from '@/actions/companies';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Company } from '@/db/schema';
 
@@ -22,6 +22,7 @@ const mockUseIsMobile = useIsMobile as jest.MockedFunction<typeof useIsMobile>;
 const mockUpdateOwnCompany = updateOwnCompany as jest.MockedFunction<
   typeof updateOwnCompany
 >;
+const mockUpdateCompany = updateCompany as jest.MockedFunction<typeof updateCompany>;
 
 const company = {
   id: 4,
@@ -39,10 +40,10 @@ const company = {
   postal_code: '97000',
   status: 'ACTIVE',
   settings: {
+    tagline: 'Climatización · Servicio técnico',
     rfc: 'CTD010101AAA',
     default_currency: 'MXN',
     experience_mode: 'auto',
-    invoice_footer_note: '',
   },
   is_system: false,
 } as unknown as Company;
@@ -139,5 +140,50 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     const rfcAfter = within(section('configuracion')).getByLabelText('RFC');
     expect(rfcAfter).toBe(rfcBefore);
     expect(rfcAfter).not.toBeVisible();
+  });
+
+  it('edits Lema o giro with a counter, saves it and rejects 61 characters', async () => {
+    mockUseIsMobile.mockReturnValue(false);
+    render(<CompanyForm company={company} mode="self" />);
+
+    const input = within(section('configuracion')).getByLabelText('Lema o giro');
+    expect(input).toHaveValue('Climatización · Servicio técnico');
+    expect(input).toHaveAttribute('placeholder', 'Climatización · Servicio técnico');
+    expect(
+      within(section('configuracion')).getByText(
+        'Aparece bajo el nombre en tus presupuestos y recibos',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('company-tagline-counter')).toHaveTextContent('32/60');
+
+    fireEvent.change(input, { target: { value: 'a'.repeat(61) } });
+    expect(screen.getByTestId('company-tagline-counter')).toHaveTextContent('61/60');
+    fireEvent.submit(document.getElementById('company-form')!);
+    expect(await screen.findByText(/Máximo 60 caracteres/)).toBeInTheDocument();
+    expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.submit(document.getElementById('company-form')!);
+    await waitFor(() => expect(mockUpdateOwnCompany).toHaveBeenCalled());
+    expect(mockUpdateOwnCompany.mock.calls[0][0]).toMatchObject({
+      settings: { tagline: '' },
+    });
+  });
+
+  it('saves Lema o giro from the operator company form too', async () => {
+    mockUpdateCompany.mockResolvedValue({ success: true } as Awaited<ReturnType<typeof updateCompany>>);
+    render(<CompanyForm company={company} />);
+    // Notas al pie de recibo was dropped: no PDF ever printed it.
+    expect(screen.queryByLabelText('Notas al pie de recibo')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Lema o giro'), {
+      target: { value: 'Plomería y gas' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(mockUpdateCompany).toHaveBeenCalled());
+    expect(mockUpdateCompany.mock.calls[0]).toContainEqual(
+      expect.objectContaining({ settings: expect.objectContaining({ tagline: 'Plomería y gas' }) }),
+    );
   });
 });

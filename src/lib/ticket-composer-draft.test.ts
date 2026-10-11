@@ -128,4 +128,89 @@ describe('ticket composer draft', () => {
     clearTicketComposerDraft(key);
     expect(readTicketComposerDraft(key)).toBeNull();
   });
+
+  it('round-trips line materials and maps them to the server input (ZIG-I10)', () => {
+    writeTicketComposerDraft(key, {
+      lines: [
+        {
+          ...line,
+          materials: [
+            {
+              key: 'm1',
+              material_id: 21,
+              name: 'Gas R410A',
+              unit: 'kg',
+              quantity: 1.5,
+              price: 380,
+              save_to_catalog: false,
+            },
+            {
+              key: 'm2',
+              material_id: null,
+              name: '  Soporte  ',
+              unit: 'pza',
+              quantity: 1,
+              price: 320,
+              save_to_catalog: true,
+            },
+            // Malformed: dropped.
+            { key: 'm3', material_id: null, name: '', unit: null, quantity: 0, price: -1 },
+          ],
+        },
+      ],
+    } as never);
+
+    const restored = readTicketComposerDraft(key);
+    expect(restored?.lines[0].materials).toEqual([
+      {
+        key: 'm1',
+        material_id: 21,
+        name: 'Gas R410A',
+        unit: 'kg',
+        quantity: 1.5,
+        price: 380,
+        save_to_catalog: false,
+      },
+      {
+        key: 'm2',
+        material_id: null,
+        name: 'Soporte',
+        unit: 'pza',
+        quantity: 1,
+        price: 320,
+        save_to_catalog: true,
+      },
+    ]);
+    expect(draftLineToServiceLineInput(restored!.lines[0])).toEqual({
+      service_id: 7,
+      quantity: 3,
+      price: 4200,
+      materials: [
+        { kind: 'catalog', material_id: 21, quantity: 1.5, price: 380 },
+        {
+          kind: 'custom',
+          name: 'Soporte',
+          unit: 'pza',
+          save_to_catalog: true,
+          quantity: 1,
+          price: 320,
+        },
+      ],
+    });
+  });
+
+  it('reads drafts saved before materials existed (ZIG-I10)', () => {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ updatedAt: new Date().toISOString(), lines: [line] }),
+    );
+    const restored = readTicketComposerDraft(key);
+    expect(restored?.lines).toEqual([line]);
+    expect(draftLineToServiceLineInput(restored!.lines[0])).toEqual({
+      service_id: 7,
+      quantity: 3,
+      price: 4200,
+    });
+  });
 });
+

@@ -17,7 +17,7 @@ import {
 import { recordResourceAudit } from '@/lib/resource-audit';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { CLIENT_CSV_HEADERS } from '@/lib/csv-schemas';
+import { CLIENT_NAME_MAX_LENGTH } from '@/lib/client-limits';
 
 export type Client = typeof client.$inferSelect;
 
@@ -220,6 +220,10 @@ export async function createClient(
     const { context, companyId: effectiveCompanyId } =
       await requireTenantActionPermission('clients.write', data.company_id);
 
+    if (data.name.trim().length > CLIENT_NAME_MAX_LENGTH) {
+      return buildActionError('CL008');
+    }
+
     const [created] = await db
       .insert(client)
       .values({
@@ -279,6 +283,14 @@ export async function updateClient(
         isNull(client.deleted_at),
       ),
     });
+    // Names saved before the cap stay editable as they are; a changed name must fit.
+    if (
+      data.name !== undefined &&
+      data.name.trim().length > CLIENT_NAME_MAX_LENGTH &&
+      data.name !== existing?.name
+    ) {
+      return buildActionError('CL008');
+    }
     const [updated] = await db
       .update(client)
       .set({ ...updateData, company_id: effectiveCompanyId })
@@ -357,41 +369,6 @@ export async function deleteClient(
     return { success: true };
   } catch (error) {
     return handleCodedServerActionError('clients.delete', 'CL005', error);
-  }
-}
-
-/** Returns all active clients for the caller's company as plain CSV-ready rows. */
-export async function getClientsForExport(companyId?: number | null): Promise<{
-  success: boolean;
-  data?: Array<Record<(typeof CLIENT_CSV_HEADERS)[number], string>>;
-  error?: string;
-  errorType?: ActionErrorType;
-}> {
-  try {
-    const { companyId: effectiveCompanyId } =
-      await requireTenantActionPermission('clients.read', companyId);
-    const rows = await db
-      .select()
-      .from(client)
-      .where(
-        and(
-          eq(client.company_id, effectiveCompanyId),
-          isNull(client.deleted_at),
-        ),
-      )
-      .orderBy(desc(client.created_at));
-
-    return {
-      success: true,
-      data: rows.map((row) => ({
-        name: row.name,
-        email: row.email ?? '',
-        phone: row.phone ?? '',
-        document: row.document ?? '',
-      })),
-    };
-  } catch (error) {
-    return handleCodedServerActionError('clients.export', 'CL001', error);
   }
 }
 

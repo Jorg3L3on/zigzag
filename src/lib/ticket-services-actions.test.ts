@@ -433,3 +433,167 @@ describe('ticket-services money validation (TCI-02)', () => {
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });
+
+describe('ticket-services line materials (ZIG-I10)', () => {
+  type Write = { kind: 'insert' | 'update'; table: unknown; values: unknown };
+
+  const makeTx = (selectResults: unknown[][]) => {
+    const writes: Write[] = [];
+    const tx = {
+      select: jest.fn(() => ({
+        from: jest.fn(() => ({
+          where: jest.fn(() => {
+            const rows = selectResults.shift() ?? [];
+            return Object.assign(Promise.resolve(rows), {
+              limit: jest.fn(async () => rows),
+            });
+          }),
+        })),
+      })),
+      insert: jest.fn((table: unknown) => ({
+        values: jest.fn((values: unknown) => {
+          writes.push({ kind: 'insert', table, values });
+          return {
+            returning: jest.fn(async () =>
+              Array.isArray(values)
+                ? values.map((row, index) => ({ id: 600 + index, ...row }))
+                : [{ id: 31, ...(values as object) }],
+            ),
+          };
+        }),
+      })),
+      update: jest.fn((table: unknown) => ({
+        set: jest.fn((values: unknown) => {
+          writes.push({ kind: 'update', table, values });
+          return {
+            where: jest.fn(() =>
+              Object.assign(Promise.resolve(), {
+                returning: jest.fn(async () => [
+                  { id: 31, ticket_id: 42n, service_id: 5, quantity: 1, price: 900 },
+                ]),
+              }),
+            ),
+          };
+        }),
+      })),
+    };
+    mockDb.transaction.mockImplementation(async (callback) => callback(tx));
+    return writes;
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockRequireTenantActionPermission.mockResolvedValue({
+      context: { userId: '1', companyId: 10, companyIsSystem: false },
+      companyId: 10,
+    });
+    mockDb.query.ticket.findFirst.mockResolvedValue({
+      id: 42n,
+      company_id: 10,
+      total: 100,
+      paid: 0,
+      deleted_at: null,
+    });
+    mockDb.query.service.findFirst.mockResolvedValue({ id: 5, name: 'Carga de gas' });
+    mockDb.query.servicesTickets.findFirst.mockResolvedValue({ id: 31, materials: [] });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('createServiceTicket inserts the line materials and audits them', async () => {
+    const writes = makeTx([[{ id: 9, name: 'Gas R410A', unit: 'kg', price: 380 }]]);
+
+    const result = await createServiceTicket('42', {
+      service_id: 5,
+      quantity: 1,
+      price: 900,
+      materials: [{ material_id: 9, quantity: 1.5, price: 380 }],
+    });
+
+    expect(result.success).toBe(true);
+    const materialInsert = writes.find(
+      (write) => write.kind === 'insert' && Array.isArray(write.values),
+    );
+    expect(materialInsert?.values).toEqual([
+      {
+        services_tickets_id: 31,
+        material_id: 9,
+        name: 'Gas R410A',
+        unit: 'kg',
+        quantity: 1.5,
+        price: 380,
+        sort_order: 0,
+      },
+    ]);
+    expect(recordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      42n,
+      10,
+      'updated',
+      expect.objectContaining({
+        serviceLine: 'created',
+        materials: [expect.objectContaining({ name: 'Gas R410A' })],
+      }),
+    );
+  });
+
+  it('createServiceTicket rejects a catalog material of another company (IDOR)', async () => {
+    const writes = makeTx([[]]);
+
+    const result = await createServiceTicket('42', {
+      service_id: 5,
+      quantity: 1,
+      price: 900,
+      materials: [{ material_id: 999, quantity: 1, price: 1 }],
+    });
+
+    expect(result.success).toBe(false);
+    expect(
+      writes.some((write) => write.kind === 'insert' && Array.isArray(write.values)),
+    ).toBe(false);
+  });
+
+  it('updateServiceTicket replaces the material set and audits before/after', async () => {
+    const before = [
+      { id: 70, services_tickets_id: 31, material_id: null, name: 'Cinta', quantity: 1, price: 40 },
+    ];
+    // retireLineMaterials → before rows; no catalog ids to load.
+    const writes = makeTx([before]);
+
+    const result = await updateServiceTicket('42', 31, {
+      quantity: 1,
+      price: 900,
+      materials: [{ kind: 'custom', name: 'Tubo', unit: 'm', quantity: 2, price: 85 }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(writes.map((write) => write.kind)).toEqual(['update', 'update', 'insert']);
+    expect(recordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      42n,
+      10,
+      'updated',
+      expect.objectContaining({
+        serviceLine: 'updated',
+        materials: {
+          before,
+          after: [expect.objectContaining({ name: 'Tubo', quantity: 2, price: 85 })],
+        },
+      }),
+    );
+  });
+
+  it('updateServiceTicket without materials leaves them untouched', async () => {
+    const writes = makeTx([]);
+
+    const result = await updateServiceTicket('42', 31, { quantity: 2, price: 900 });
+
+    expect(result.success).toBe(true);
+    expect(writes.map((write) => write.kind)).toEqual(['update']);
+  });
+});

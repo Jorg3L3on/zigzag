@@ -1,3 +1,4 @@
+import type { ZodError } from 'zod';
 import type { ActionFailure } from '@/lib/action-result';
 import {
   getErrorCatalogEntry,
@@ -8,6 +9,7 @@ import {
 import { logger } from '@/lib/logger';
 import { captureException } from '@/lib/observability';
 import { getRequestId } from '@/lib/request-context';
+import { toValidationIssues } from '@/lib/validation-issues';
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -59,6 +61,16 @@ export class ConflictError extends AppError {
   }
 }
 
+/**
+ * A document total above what `Ticket.total` (numeric(12,2)) can hold. Thrown
+ * before the database sees the value (ZIG-I12); always reported as TC011.
+ */
+export class TicketTotalCapError extends AppError {
+  constructor() {
+    super('El total no puede pasar de $9,999,999,999.99', 400, true, 'TC011');
+  }
+}
+
 export type ActionErrorType =
   | 'network'
   | 'auth'
@@ -91,6 +103,7 @@ export function classifyServerErrorType(error: unknown): ActionErrorType {
 
   if (
     error instanceof ValidationError ||
+    error instanceof TicketTotalCapError ||
     error instanceof NotFoundError ||
     error instanceof ConflictError
   ) {
@@ -176,9 +189,21 @@ export function buildActionError(
   cause?: unknown,
   errorType?: ActionErrorType,
 ): CodedActionError {
+  const resolvedCode = cause instanceof TicketTotalCapError ? 'TC011' : code;
   return {
     success: false,
-    ...buildPublicError(code, cause, errorType),
+    ...buildPublicError(resolvedCode, cause, errorType),
+  };
+}
+
+/** TC009 for a failed Zod parse, carrying which line and field were rejected (ZIG-I12). */
+export function buildValidationActionError(
+  error: ZodError,
+  code: ErrorCode = 'TC009',
+): CodedActionError {
+  return {
+    ...buildActionError(code, error, 'validation'),
+    issues: toValidationIssues(error),
   };
 }
 
@@ -195,6 +220,9 @@ export function handleCodedServerActionError(
   code: ErrorCode,
   cause: unknown,
 ): CodedActionError {
+  if (cause instanceof TicketTotalCapError) {
+    return buildActionError(code, cause);
+  }
   logServerError(operation, code, cause);
   if (cause instanceof Error) {
     captureException(cause, { operation, errorCode: code });

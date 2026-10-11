@@ -116,7 +116,7 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
 ];
 
 /**
- * Mobile bottom tabs: Hoy · Tickets · Clientes (+ the create slot and Más in the dock).
+ * Mobile bottom tabs: Hoy · Tickets · Presupuestos (+ the create slot and Más in the dock).
  * Defined separately from sidebar so labels/routes can differ (Inicio vs Hoy).
  * Anotar is no longer a tab; it lives on as Captura rápida (create menu, Hoy, Más sheet).
  */
@@ -133,14 +133,14 @@ export const MOBILE_TAB_ITEMS: NavItemDefinition[] = [
     requiredPermission: PERMISSIONS.tickets.read,
   },
   {
-    title: 'Clientes',
-    url: '/clients',
-    icon: User,
-    requiredPermission: PERMISSIONS.clients.read,
+    title: 'Presupuestos',
+    url: '/presupuestos',
+    icon: ClipboardList,
+    requiredPermission: PERMISSIONS.tickets.read,
   },
 ];
 
-/** Dock column of the center + (between Tickets and Clientes); tabs skip it. */
+/** Dock column of the center + (between Tickets and Presupuestos); tabs skip it. */
 export const MOBILE_DOCK_CREATE_SLOT = 2;
 
 export type MobileCreateAction = {

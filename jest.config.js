@@ -22,6 +22,8 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
     '!src/**/*.test.{js,jsx,ts,tsx}',
+    // Generated base64 fonts (~270 KB strings): instrumenting them takes minutes and crashes the SWC worker.
+    '!src/lib/receipt-pdf/fonts/plex-*.ts',
   ],
   // Conservative floor below current coverage so it acts as a regression guard
   // (fails CI on a meaningful drop) without being brittle. Raise over time.

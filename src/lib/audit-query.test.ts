@@ -24,7 +24,6 @@ jest.mock('@/lib/audit-actor-names', () => ({
 import {
   buildAuditSearchCondition,
   normalizeAuditEventFilters,
-  normalizeAuditExportLimit,
   normalizeAuditLimit,
   queryAuditEvents,
 } from '@/lib/audit-query';
@@ -182,11 +181,5 @@ describe('audit query helpers', () => {
       'utf8',
     );
     expect(source).toContain('resolveAuditSearchCatalogMatches');
-  });
-
-  it('clamps export limits separately from page limits', () => {
-    expect(normalizeAuditExportLimit(0)).toBe(1);
-    expect(normalizeAuditExportLimit(2500)).toBe(2500);
-    expect(normalizeAuditExportLimit(9000)).toBe(5000);
   });
 });

@@ -6,9 +6,11 @@ import { z } from 'zod';
 import {
   servicesTickets,
   ticket,
+  ticketLineMaterial,
   type Client,
   type Service,
   type ServicesTicketsRow,
+  type TicketLineMaterialRow,
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -16,18 +18,24 @@ import {
   AuthenticationError,
   AuthorizationError,
   buildActionError,
+  buildValidationActionError,
   type CodedActionError,
   handleCodedServerActionError,
   handleServerActionError,
   type ActionErrorType,
 } from '@/lib/errors';
+import type { ValidationIssue } from '@/lib/action-result';
 import {
   assertCompanyProductionReady,
   CompanyProductionBlockedError,
 } from '@/lib/company-production-guard';
 import { invalidateCompanyCache } from '@/lib/cache';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import { calculateTicketTotal, syncTicketTotal } from '@/lib/ticket-financials';
+import {
+  assertTicketTotalWithinCap,
+  calculateTicketTotal,
+  syncTicketTotal,
+} from '@/lib/ticket-financials';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import {
   getPresupuestoStatus,
@@ -43,9 +51,15 @@ import {
 } from '@/lib/ticket-service-line-schema';
 import {
   catalogServiceIds,
+  copyLineMaterialValues,
   copyServiceLineValues,
   insertServiceLines,
 } from '@/lib/service-lines-server';
+import { activeLineMaterialsWith } from '@/lib/line-materials-query';
+import {
+  buildPresupuestoDuplicateDraft,
+  type PresupuestoDuplicateDraft,
+} from '@/lib/presupuesto-view-props';
 
 /** Catalog or inline line (ZIG-I5). */
 const serviceLineSchema = serviceLineInputSchema;
@@ -212,9 +226,12 @@ export async function createPresupuestoWithLines(
   data?: { id: string; total: number };
   error?: string;
   errorType?: ActionErrorType;
+  /** Which line and field the server rejected (validation failures). */
+  issues?: ValidationIssue[];
 }> {
   try {
     const validated = createPresupuestoWithLinesSchema.parse(input);
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
@@ -268,11 +285,12 @@ export async function createPresupuestoWithLines(
         })
         .returning();
 
-      const { rows: lineRows, createdServiceIds } = await insertServiceLines(tx, {
-        companyId: effectiveCompanyId,
-        ticketId: row.id,
-        lines: validated.lines,
-      });
+      const { rows: lineRows, createdServiceIds, createdMaterialIds } =
+        await insertServiceLines(tx, {
+          companyId: effectiveCompanyId,
+          ticketId: row.id,
+          lines: validated.lines,
+        });
 
       const syncedTotal = await syncTicketTotal(tx, row.id);
 
@@ -283,6 +301,9 @@ export async function createPresupuestoWithLines(
         lines: lineRows,
         ...(createdServiceIds.length > 0
           ? { savedToCatalogServiceIds: createdServiceIds }
+          : {}),
+        ...(createdMaterialIds.length > 0
+          ? { savedToCatalogMaterialIds: createdMaterialIds }
           : {}),
         syncedTotal,
         ignoredClientTotal: validated.client_total ?? null,
@@ -306,7 +327,7 @@ export async function createPresupuestoWithLines(
       return handleServerActionError(error);
     }
     if (error instanceof z.ZodError) {
-      return buildActionError('TC009', error, 'validation');
+      return buildValidationActionError(error);
     }
     return handleCodedServerActionError('presupuestos.composer.create', 'TC001', error);
   }
@@ -314,7 +335,12 @@ export async function createPresupuestoWithLines(
 
 export type PresupuestoDetailData = TicketRow & {
   client?: Client | null;
-  services_tickets: Array<ServicesTicketsRow & { service: Service | null }>;
+  services_tickets: Array<
+    ServicesTicketsRow & {
+      service: Service | null;
+      materials?: TicketLineMaterialRow[];
+    }
+  >;
 };
 
 /**
@@ -338,7 +364,7 @@ export async function getPresupuestoById(
         client: true,
         services_tickets: {
           where: isNull(servicesTickets.deleted_at),
-          with: { service: true },
+          with: { service: true, ...activeLineMaterialsWith },
         },
       },
     });
@@ -359,6 +385,7 @@ export async function updatePresupuesto(
   data?: PresupuestoListItem;
   error?: string;
   errorType?: ActionErrorType;
+  issues?: ValidationIssue[];
 }> {
   try {
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
@@ -416,7 +443,7 @@ export async function updatePresupuesto(
       }
 
       const totalFromServices = servicesToSync
-        ? calculateTicketTotal(servicesToSync)
+        ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
         : undefined;
 
       const [row] = await tx
@@ -468,11 +495,7 @@ export async function updatePresupuesto(
     return { success: true, data: toListItem(updated) };
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return handleCodedServerActionError(
-        'presupuestos.update.validation',
-        'TC009',
-        e,
-      );
+      return buildValidationActionError(e);
     }
     return handleCodedServerActionError('presupuestos.update', 'TC004', e);
   }
@@ -572,6 +595,7 @@ export async function convertPresupuestoToTicket(
       with: {
         services_tickets: {
           where: isNull(servicesTickets.deleted_at),
+          with: { ...activeLineMaterialsWith },
         },
       },
     });
@@ -604,11 +628,20 @@ export async function convertPresupuestoToTicket(
         .returning();
 
       const activeLines = source.services_tickets ?? [];
-      if (activeLines.length > 0) {
-        // Catalog and inline lines (ZIG-I5) are copied verbatim.
-        await tx
+      // Catalog and inline lines (ZIG-I5) and their materials (ZIG-I10) are
+      // copied verbatim. One insert per line keeps each material set on the
+      // matching new line id.
+      for (const line of activeLines) {
+        const [copied] = await tx
           .insert(servicesTickets)
-          .values(copyServiceLineValues(activeLines, workTicket.id));
+          .values(copyServiceLineValues([line], workTicket.id))
+          .returning({ id: servicesTickets.id });
+        const lineMaterials = line.materials ?? [];
+        if (lineMaterials.length > 0) {
+          await tx
+            .insert(ticketLineMaterial)
+            .values(copyLineMaterialValues(lineMaterials, copied.id));
+        }
       }
 
       const [presupuesto] = await tx
@@ -672,5 +705,59 @@ export async function convertPresupuestoToTicket(
       return buildActionError('TC009', undefined, 'validation');
     }
     return handleCodedServerActionError('presupuestos.convert', 'TC001', e);
+  }
+}
+
+/**
+ * Duplicar (ZIG-I13-5): reads any presupuesto of the caller's company, whatever
+ * its status, and returns a draft for the composer: same client, lines and
+ * materials, dated today with the same validity length. Writes nothing but the
+ * audit event; the new presupuesto exists only after Guardar.
+ */
+export async function duplicatePresupuesto(
+  id: number,
+  companyId?: number | null,
+): Promise<{ success: true; data: PresupuestoDuplicateDraft } | CodedActionError> {
+  try {
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      companyId ?? undefined,
+    );
+    const ticketId = BigInt(id);
+    const source = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        eq(ticket.document_kind, 'presupuesto'),
+        isNull(ticket.deleted_at),
+      ),
+      with: {
+        client: true,
+        services_tickets: {
+          where: isNull(servicesTickets.deleted_at),
+          with: { service: true, ...activeLineMaterialsWith },
+        },
+      },
+    });
+    if (!source) {
+      return buildActionError('TC008');
+    }
+
+    await db.transaction(async (tx) => {
+      await recordTicketAudit(
+        tx,
+        context,
+        ticketId,
+        effectiveCompanyId,
+        'presupuesto_duplicated',
+        { lines: source.services_tickets.length },
+      );
+    });
+
+    return {
+      success: true,
+      data: buildPresupuestoDuplicateDraft(source as PresupuestoDetailData),
+    };
+  } catch (e) {
+    return handleCodedServerActionError('presupuestos.duplicate', 'TC003', e);
   }
 }

@@ -1,10 +1,14 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { TicketComposer } from '@/components/tickets/composer/ticket-composer';
+import {
+  TicketComposer,
+  TicketEditComposer,
+  type ComposerEditState,
+} from '@/components/tickets/composer/ticket-composer';
 import { MobileChromeProvider } from '@/contexts/mobile-chrome-context';
 import {
   buildTicketComposerDraftKey,
@@ -13,6 +17,7 @@ import {
 
 const mockPush = jest.fn();
 const mockCreateTicketWithLines = jest.fn();
+const mockUpdateTicketLines = jest.fn();
 let mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
@@ -51,14 +56,46 @@ jest.mock('@/actions/services', () => ({
   getServices: jest.fn(async () => ({
     success: true,
     data: [
-      { id: 7, name: 'Mantenimiento', price: '4200.00', description: 'x' },
-      { id: 8, name: 'Recarga de gas', price: '350.00', description: 'y' },
+      { id: 7, name: 'Mantenimiento', price: '4200.00', description: 'x', materials: [] },
+      { id: 8, name: 'Recarga de gas', price: '350.00', description: 'y', materials: [] },
+      {
+        id: 9,
+        name: 'Instalación minisplit',
+        price: '3500.00',
+        description: 'z',
+        // ZIG-I10: service defaults prefill the line.
+        materials: [
+          {
+            id: 1,
+            material_id: 21,
+            name: 'Gas R410A',
+            unit: 'kg',
+            quantity: 1.5,
+            price: 380,
+            catalog_price: 380,
+          },
+          {
+            id: 2,
+            material_id: 22,
+            name: 'Tubo de cobre',
+            unit: 'm',
+            quantity: 3,
+            price: 85,
+            catalog_price: 85,
+          },
+        ],
+      },
     ],
+  })),
+  searchMaterials: jest.fn(async () => ({
+    success: true,
+    data: [{ id: 23, name: 'Cinta aislante', unit: 'pza', price: 40 }],
   })),
 }));
 
 jest.mock('@/actions/tickets', () => ({
   createTicketWithLines: (...args: unknown[]) => mockCreateTicketWithLines(...args),
+  updateTicketLines: (...args: unknown[]) => mockUpdateTicketLines(...args),
 }));
 
 jest.mock('@/actions/presupuestos', () => ({
@@ -83,10 +120,14 @@ jest.mock('@/components/tripled', () => {
 });
 
 jest.mock('sonner', () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
+  toast: Object.assign(jest.fn(), { success: jest.fn(), error: jest.fn() }),
 }));
+const mockToast = jest.requireMock('sonner').toast as jest.Mock;
 
 jest.mock('@/lib/vibrate-success', () => ({ vibrateSuccess: jest.fn() }));
+
+// Sheet round-trips (materials, ZIG-I10) are slow in jsdom under a parallel run.
+jest.setTimeout(30_000);
 
 const renderComposer = () =>
   render(
@@ -95,12 +136,19 @@ const renderComposer = () =>
     </MobileChromeProvider>,
   );
 
-const saveButtons = () => screen.getAllByRole('button', { name: 'Guardar ticket' });
+// Desktop says Guardar ticket; the sticky bar just says Guardar (ZIG-I13-2).
+const saveButtons = () => screen.getAllByRole('button', { name: /^Guardar( ticket)?$/ });
+
+const openLine = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+  // The previous sheet may still be animating out (it keeps the page inert).
+  const lines = await screen.findByRole('list', { name: 'Servicios del ticket' });
+  await user.click(within(lines).getByRole('button', { name: new RegExp(name) }));
+};
 
 const pickClient = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
   const listbox = await screen.findByRole('listbox', { name: 'Cliente' });
-  await user.click(within(listbox).getByText('Cliente Demo · 5550001111'));
+  await user.click(within(listbox).getByText('Cliente Demo'));
 };
 
 const addLine = async (
@@ -116,7 +164,7 @@ const addLine = async (
   const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
   await user.clear(qty);
   await user.type(qty, quantity);
-  await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
   );
@@ -126,6 +174,7 @@ describe('TicketComposer', () => {
   beforeEach(() => {
     window.localStorage.clear();
     mockPush.mockReset();
+    mockToast.mockClear();
     mockCreateTicketWithLines.mockReset();
     mockSearchParams = new URLSearchParams();
   });
@@ -185,22 +234,30 @@ describe('TicketComposer', () => {
     renderComposer();
 
     await addLine(user, 'Mantenimiento · $4,200.00', '1');
-    await user.click(screen.getByRole('button', { name: 'Opciones de Mantenimiento' }));
-    await user.click(await screen.findByRole('menuitem', { name: /Editar/ }));
+    await openLine(user, 'Mantenimiento');
     const sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
     await user.click(
       within(sheet).getByRole('button', { name: 'Aumentar cantidad del servicio' }),
     );
-    await user.click(within(sheet).getByRole('button', { name: 'Guardar cambios' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
     await waitFor(() =>
       expect(screen.getByText('2 × $4,200.00')).toBeTruthy(),
     );
 
-    await user.click(screen.getByRole('button', { name: 'Opciones de Mantenimiento' }));
-    await user.click(await screen.findByRole('menuitem', { name: /Quitar/ }));
+    // Quitar lives in the sheet; Deshacer brings the line back (ZIG-I13-2).
+    await openLine(user, 'Mantenimiento');
+    const editSheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
+    await user.click(within(editSheet).getByRole('button', { name: 'Quitar este servicio' }));
     await waitFor(() =>
       expect(screen.queryByRole('list', { name: 'Servicios del ticket' })).toBeNull(),
     );
+    expect(mockToast).toHaveBeenCalledWith(
+      'Quitaste Mantenimiento',
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Deshacer' }) }),
+    );
+    const { action } = mockToast.mock.calls[0][1];
+    act(() => action.onClick());
+    expect(await screen.findByText('2 × $4,200.00')).toBeTruthy();
   });
 
   it('adds an inline line with Nuevo and saves it without the catalog (ZIG-I5)', async () => {
@@ -216,7 +273,7 @@ describe('TicketComposer', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
     await user.click(within(sheet).getByRole('radio', { name: /Nuevo/ }));
     // Agregar stays disabled until the inline line has a name.
-    expect(within(sheet).getByRole('button', { name: 'Agregar' })).toBeDisabled();
+    expect(within(sheet).getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
     await user.type(
       within(sheet).getByLabelText('Nombre del servicio'),
       'Cambio de capacitor 35 µF',
@@ -227,15 +284,14 @@ describe('TicketComposer', () => {
       within(sheet).getByRole('spinbutton', { name: 'Precio del servicio' }),
       '850',
     );
-    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
     );
 
     const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
     expect(within(lines).getByText('Cambio de capacitor 35 µF')).toBeTruthy();
-    expect(within(lines).getByText('Nuevo')).toBeTruthy();
-    expect(within(lines).queryByText('→ catálogo')).toBeNull();
+    expect(within(lines).queryByText('Nuevo')).toBeNull();
 
     await user.click(saveButtons()[0]);
     await waitFor(() => expect(mockCreateTicketWithLines).toHaveBeenCalledTimes(1));
@@ -261,18 +317,17 @@ describe('TicketComposer', () => {
     await user.type(within(sheet).getByLabelText('Nombre del servicio'), 'Instalación');
     await user.type(within(sheet).getByLabelText(/Descripción/), 'Incluye base');
     await user.click(within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }));
-    await user.click(within(sheet).getByRole('button', { name: 'Agregar' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
     );
-    expect(screen.getByText('→ catálogo')).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Opciones de Instalación' }));
-    await user.click(await screen.findByRole('menuitem', { name: /Editar/ }));
+    await openLine(user, 'Instalación');
     sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
-    expect(within(sheet).getByRole('radio', { name: /Nuevo/ })).toHaveAttribute(
-      'aria-checked',
-      'true',
+    // A typed-in line shows where it came from instead of the Del catálogo / Nuevo switch.
+    expect(within(sheet).queryByRole('radio', { name: /Nuevo/ })).toBeNull();
+    expect(within(sheet).getByTestId('composer-line-header')).toHaveTextContent(
+      'Fuera del catálogo · Cambiar servicio',
     );
     expect(within(sheet).getByLabelText('Nombre del servicio')).toHaveValue('Instalación');
     expect(within(sheet).getByLabelText(/Descripción/)).toHaveValue('Incluye base');
@@ -298,9 +353,9 @@ describe('TicketComposer', () => {
 
     renderComposer();
 
-    expect(
-      await screen.findByRole('combobox', { name: 'Cliente' }),
-    ).toHaveTextContent('Cliente Demo · 5550001111');
+    expect(await screen.findByTestId('composer-party-card')).toHaveTextContent(
+      'Cliente Demo5550001111',
+    );
     expect(await screen.findByText('3 × $4,200.00')).toBeTruthy();
     await waitFor(() => saveButtons().forEach((b) => expect(b).toBeEnabled()));
   });
@@ -324,5 +379,440 @@ describe('TicketComposer', () => {
       window.localStorage.getItem(buildTicketComposerDraftKey(10)),
     ).not.toBeNull();
     await waitFor(() => saveButtons().forEach((b) => expect(b).toBeEnabled()));
+  });
+
+  it('prefills service materials, edits them and saves them under the line (ZIG-I10-3)', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({
+      success: true,
+      data: { id: '1300', total: 4385 },
+    });
+    renderComposer();
+    await pickClient(user);
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    const listbox = await screen.findByRole('listbox', { name: 'Servicio' });
+    await user.click(within(listbox).getByText('Instalación minisplit · $3,500.00'));
+
+    const rows = within(sheet).getByTestId('composer-line-material-rows');
+    expect(within(rows).getByText('1.5 kg × $380.00')).toBeTruthy();
+    expect(within(rows).getByText('3 m × $85.00')).toBeTruthy();
+    // 3500 + 570 + 255
+    await waitFor(() =>
+      expect(within(sheet).getByTestId('composer-line-subtotal')).toHaveTextContent(
+        '$4,325.00',
+      ),
+    );
+
+    // Quitar the tubing, then add an inline material saved to the catalog.
+    await user.click(within(rows).getByRole('button', { name: 'Quitar Tubo de cobre' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar material' }));
+    const step = await screen.findByRole('dialog', { name: 'Agregar material' });
+    await user.click(within(step).getByRole('radio', { name: 'Nuevo' }));
+    await user.type(within(step).getByLabelText('Nombre del material'), 'Soporte de pared');
+    await user.click(within(step).getByRole('button', { name: 'pza' }));
+    await user.type(within(step).getByLabelText('Precio / pza'), '320');
+    await user.click(within(step).getByRole('switch', { name: /Guardar en mi catálogo/ }));
+    await user.click(within(step).getByRole('button', { name: 'Agregar material' }));
+
+    const sheetAgain = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    const rowsAgain = within(sheetAgain).getByTestId('composer-line-material-rows');
+    expect(within(rowsAgain).getByText('Soporte de pared')).toBeTruthy();
+    expect(within(sheetAgain).getByTestId('composer-line-breakdown')).toHaveTextContent(
+      'Servicio $3,500.00 Materiales $890.00',
+    );
+    await user.click(within(sheetAgain).getByRole('button', { name: 'Guardar línea' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByTestId('document-line-meta')).toHaveTextContent(
+      '1 × $3,500.00 · 2 materiales',
+    );
+    expect(within(lines).getByTestId('document-line-amount')).toHaveTextContent('$4,390.00');
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-total')).toHaveTextContent('$4,390.00'),
+    );
+
+    await user.click(saveButtons()[0]);
+    await waitFor(() => expect(mockCreateTicketWithLines).toHaveBeenCalledTimes(1));
+    expect(mockCreateTicketWithLines.mock.calls[0][0].lines).toEqual([
+      {
+        service_id: 9,
+        quantity: 1,
+        price: 3500,
+        materials: [
+          { kind: 'catalog', material_id: 21, quantity: 1.5, price: 380 },
+          {
+            kind: 'custom',
+            name: 'Soporte de pared',
+            unit: 'pza',
+            save_to_catalog: true,
+            quantity: 1,
+            price: 320,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('adds a catalog material from the autocomplete (Del catálogo)', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+    await pickClient(user);
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    await user.click(
+      within(await screen.findByRole('listbox', { name: 'Servicio' })).getByText(
+        'Recarga de gas · $350.00',
+      ),
+    );
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar material' }));
+    const step = await screen.findByRole('dialog', { name: 'Agregar material' });
+    await user.type(within(step).getByRole('combobox', { name: 'Material' }), 'cin');
+    await user.click(await within(step).findByRole('option', { name: /Cinta aislante/ }));
+    await user.click(within(step).getByRole('button', { name: 'Agregar material' }));
+
+    const rows = within(
+      await screen.findByRole('dialog', { name: 'Agregar servicio' }),
+    ).getByTestId('composer-line-material-rows');
+    expect(within(rows).getByText('1 pza × $40.00')).toBeTruthy();
+    expect(within(rows).queryByText('Nuevo')).toBeNull();
+  });
+
+  it('restores a draft line with materials after a reload', async () => {
+    writeTicketComposerDraft(buildTicketComposerDraftKey(10), {
+      client_id: 5,
+      client_label: 'Cliente Demo · 5550001111',
+      lines: [
+        {
+          key: 'line-a',
+          service_id: 7,
+          service_name: 'Mantenimiento',
+          quantity: 1,
+          price: 4200,
+          materials: [
+            {
+              key: 'mat-a',
+              material_id: null,
+              name: 'Filtro',
+              unit: 'pza',
+              quantity: 2,
+              price: 150,
+              save_to_catalog: false,
+            },
+          ],
+        },
+      ],
+    });
+    renderComposer();
+
+    const lines = await screen.findByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByTestId('document-line-meta')).toHaveTextContent(
+      '1 × $4,200.00 · 1 material',
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-total')).toHaveTextContent('$4,500.00'),
+    );
+  });
+  it('keeps 1.5 as 1.5 and shows it on the line (ZIG-I12 Q1)', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1.5');
+
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByText('1.5 × $4,200.00')).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-total')).toHaveTextContent('$6,300.00'),
+    );
+  });
+
+  it.each([
+    ['quantity above the limit', 'Cantidad del servicio', '99999', 'Máximo 9,999.99'],
+    ['three decimals', 'Cantidad del servicio', '1.234', 'Usa máximo 2 decimales'],
+    ['price above the limit', 'Precio del servicio', '999999999', 'Máximo $99,999,999.99'],
+    ['negative price', 'Precio del servicio', '-50', 'El precio no puede ser negativo'],
+  ])('explains %s under the field and keeps Agregar off', async (_label, field, typed, message) => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    await user.click(
+      within(await screen.findByRole('listbox', { name: 'Servicio' })).getByText(
+        'Mantenimiento · $4,200.00',
+      ),
+    );
+    const input = within(sheet).getByRole('spinbutton', { name: field });
+    await user.clear(input);
+    await user.type(input, typed);
+
+    expect(within(sheet).getByRole('alert')).toHaveTextContent(message);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+  });
+
+  it('refuses a line whose subtotal passes the total cap', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    await user.click(
+      within(await screen.findByRole('listbox', { name: 'Servicio' })).getByText(
+        'Mantenimiento · $4,200.00',
+      ),
+    );
+    const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
+    const price = within(sheet).getByRole('spinbutton', { name: 'Precio del servicio' });
+    await user.clear(qty);
+    await user.type(qty, '9999');
+    await user.clear(price);
+    await user.type(price, '99999999.99');
+
+    expect(within(sheet).getByTestId('composer-line-total-error')).toHaveTextContent(
+      '$9,999,999,999.99',
+    );
+    expect(within(sheet).getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+  });
+
+  it('marks the rejected line and names it in the toast when the server refuses (ZIG-I12)', async () => {
+    const user = userEvent.setup();
+    const { toast } = jest.requireMock('sonner') as { toast: { error: jest.Mock } };
+    toast.error.mockReset();
+    mockCreateTicketWithLines.mockResolvedValue({
+      success: false,
+      error: 'Revisa los datos e intenta de nuevo. Código: TC009',
+      errorCode: 'TC009',
+      errorTitle: 'Datos del ticket inválidos',
+      errorType: 'validation',
+      issues: [{ path: ['lines', 1, 'price'], code: 'too_big', message: 'x' }],
+    });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await user.click(saveButtons()[0]);
+
+    const marked = await screen.findByTestId('document-line-error');
+    expect(marked).toHaveTextContent('Precio: Máximo $99,999,999.99');
+    expect(marked.closest('[data-invalid="true"]')).toBeTruthy();
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        description: 'Línea 2 · Precio: Máximo $99,999,999.99',
+      }),
+    );
+  });
+
+  it('shows a counter on the notes from 80% of the limit', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const notes = screen.getByRole('textbox', { name: /Notas/ });
+    expect(screen.queryByTestId('char-counter')).toBeNull();
+    await user.click(notes);
+    await user.paste('x'.repeat(1600));
+
+    expect(screen.getByTestId('char-counter')).toHaveTextContent('1,600/2,000');
+  });
+});
+
+describe('TicketEditComposer (ZIG-I13-6)', () => {
+  const editState = (
+    ticket: Partial<NonNullable<ComposerEditState['ticket']>> = {},
+  ): ComposerEditState => ({
+    id: '1123',
+    client: { id: 5, label: 'Cliente Demo · 5550001111', name: 'Cliente Demo', phone: '5550001111' },
+    ticketDate: '2026-10-09T12:00:00.000Z',
+    expiresAt: null,
+    notes: 'Nota previa',
+    lines: [
+      { key: 'line-1', kind: 'catalog', service_id: 7, service_name: 'Mantenimiento', quantity: 1, price: 4200 },
+      { key: 'line-2', kind: 'custom', service_id: null, service_name: 'Soporte de pared', quantity: 2, price: 150 },
+    ],
+    ticket: {
+      originalTotal: 4500,
+      paid: 0,
+      finished: false,
+      receiptSharedAt: null,
+      ...ticket,
+    },
+  });
+
+  const renderEdit = (state: ComposerEditState) =>
+    render(
+      <MobileChromeProvider>
+        <TicketEditComposer edit={state} />
+      </MobileChromeProvider>,
+    );
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockUpdateTicketLines.mockReset();
+    mockToast.mockClear();
+  });
+
+  it('opens the saved ticket in the composer with its lines, and keeps no local draft', async () => {
+    renderEdit(editState());
+
+    expect(screen.getByRole('heading', { name: 'Editar ticket #1123' })).toBeTruthy();
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    expect(within(lines).getByText('Mantenimiento')).toBeTruthy();
+    expect(within(lines).getByText('Soporte de pared')).toBeTruthy();
+    expect(screen.getByTestId('composer-party-card')).toHaveTextContent('Cliente Demo');
+    expect(screen.queryByTestId('composer-finalized-banner')).toBeNull();
+    expect(screen.getByRole('textbox', { name: /Notas/ })).toHaveValue('Nota previa');
+    expect(window.localStorage.getItem(buildTicketComposerDraftKey(10))).toBeNull();
+  });
+
+  it('an En proceso ticket keeps its client and date editable', async () => {
+    const user = userEvent.setup();
+    renderEdit(editState());
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    expect(screen.getByRole('combobox', { name: 'Cliente' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Nuevo cliente' })).toBeTruthy();
+    expect(document.getElementById('composer-date')).toBeEnabled();
+  });
+
+  it('a finalized ticket shows the banner with the share date and locks client and date', async () => {
+    const user = userEvent.setup();
+    renderEdit(editState({ finished: true, paid: 1000, receiptSharedAt: '2026-10-10T18:00:00.000Z' }));
+
+    expect(screen.getByTestId('composer-finalized-banner')).toHaveTextContent(
+      'Este ticket ya se finalizó y el recibo se compartió el 10 de octubre. Si cambias el total, al guardar te ofrecemos reenviar el recibo nuevo.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    expect(screen.getByRole('combobox', { name: 'Cliente' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).toBeNull();
+    expect(document.getElementById('composer-date')).toBeDisabled();
+  });
+
+  it('drops "se compartió" when the recibo never went out', () => {
+    renderEdit(editState({ finished: true, paid: 1000 }));
+
+    expect(screen.getByTestId('composer-finalized-banner')).toHaveTextContent(
+      /^Este ticket ya se finalizó\. Si cambias el total/,
+    );
+  });
+
+  it('the sticky bar shows Antes and the change, and Guardar sends the lines to updateTicketLines', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: true,
+      data: { id: '1123', total: 4800, previousTotal: 4500, finished: true },
+    });
+    renderEdit(editState({ finished: true, paid: 1000 }));
+
+    expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent('Antes $4,500.00 · +$0.00');
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent('Antes $4,500.00 · +$350.00'),
+    );
+    expect(screen.getByTestId('composer-sticky-total')).toHaveTextContent('$4,850.00');
+
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() => expect(mockUpdateTicketLines).toHaveBeenCalledTimes(1));
+    const [id, payload] = mockUpdateTicketLines.mock.calls[0];
+    expect(id).toBe(1123);
+    expect(payload).toMatchObject({
+      company_id: 10,
+      client_id: 5,
+      work_notes: 'Nota previa',
+      lines: [
+        { service_id: 7, quantity: 1, price: 4200 },
+        { kind: 'custom', name: 'Soporte de pared', quantity: 2, price: 150 },
+        { service_id: 8, quantity: 1, price: 350 },
+      ],
+    });
+    // A finalized ticket whose total moved is offered the new recibo.
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1123?reenviar=1'));
+  });
+
+  it('goes back to the detail without the resend offer when the total did not change', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: true,
+      data: { id: '1123', total: 4500, previousTotal: 4500, finished: true },
+    });
+    renderEdit(editState({ finished: true, paid: 1000 }));
+
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1123'));
+  });
+
+  it('an En proceso ticket never offers the resend', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: true,
+      data: { id: '1123', total: 5000, previousTotal: 4500, finished: false },
+    });
+    renderEdit(editState());
+
+    expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent('2 servicios');
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1123'));
+  });
+
+  it('refuses a total below what was paid before sending anything', async () => {
+    const user = userEvent.setup();
+    renderEdit(editState({ finished: true, paid: 4400 }));
+
+    // Quitar the 2 × $150 line: 4,200 < 4,400 paid.
+    await user.click(
+      within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByRole('button', {
+        name: /Soporte de pared/,
+      }),
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
+    await user.click(within(sheet).getByRole('button', { name: 'Quitar este servicio' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('composer-sticky-hint')).toHaveTextContent(
+        'Abajo de lo ya pagado ($4,400.00)',
+      ),
+    );
+    await waitFor(() =>
+      screen
+        .getAllByRole('button', { name: /^Guardar cambios$/ })
+        .forEach((button) => expect(button).toBeDisabled()),
+    );
+    expect(mockUpdateTicketLines).not.toHaveBeenCalled();
+  });
+
+  it('shows what the server refused', async () => {
+    const user = userEvent.setup();
+    mockUpdateTicketLines.mockResolvedValue({
+      success: false,
+      error: 'El total no puede quedar abajo de lo ya pagado ($500.00)',
+      errorType: 'validation',
+    });
+    renderEdit(editState());
+
+    await user.click(screen.getAllByRole('button', { name: /^Guardar cambios$/ })[0]);
+
+    await waitFor(() =>
+      expect(mockToast.error).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          description: expect.stringContaining('El total no puede quedar abajo de lo ya pagado'),
+        }),
+      ),
+    );
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

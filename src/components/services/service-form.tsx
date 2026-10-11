@@ -18,6 +18,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import type { Service } from '@/db/schema';
 import { createService, updateService } from '@/actions/services';
+import { ServiceMaterialsField } from '@/components/services/service-materials-field';
+import {
+  materialDraftToServiceInput,
+  materialDraftsFromServiceDefaults,
+  type MaterialDraft,
+} from '@/lib/material-drafts';
+import type { ServiceMaterialView } from '@/lib/service-materials';
 import { useCompany } from '@/contexts/company-context';
 import {
   classifyClientError,
@@ -47,7 +54,8 @@ const serviceSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
 interface ServiceFormProps {
-  service?: Service;
+  /** Edit mode; `materials` are the service defaults (ZIG-I10). */
+  service?: Service & { materials?: ServiceMaterialView[] };
   onSuccess?: (savedService: Service) => void;
   onCancel?: () => void;
 }
@@ -56,6 +64,11 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
   const { selectedCompany } = useCompany();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEditing = Boolean(service);
+  const [materials, setMaterials] = React.useState<MaterialDraft[]>(() =>
+    materialDraftsFromServiceDefaults(service?.materials),
+  );
+  // Only send materials when they changed, so a plain edit never rewrites them.
+  const [materialsDirty, setMaterialsDirty] = React.useState(false);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -76,6 +89,8 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
       description: service.description,
       price: String(service.price),
     });
+    setMaterials(materialDraftsFromServiceDefaults(service.materials));
+    setMaterialsDirty(false);
   }, [service, form]);
 
   const handleSubmit = async (data: ServiceFormValues) => {
@@ -91,6 +106,9 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
         description: data.description.trim(),
         price: parseFloat(data.price),
         company_id: selectedCompany.id,
+        ...(materialsDirty || (!isEditing && materials.length > 0)
+          ? { materials: materials.map(materialDraftToServiceInput) }
+          : {}),
       };
       const result = isEditing && service
         ? await updateService({ id: service.id, ...payload })
@@ -104,7 +122,9 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
         );
         if (!isEditing) {
           form.reset();
+          setMaterials([]);
         }
+        setMaterialsDirty(false);
         onSuccess?.(result.data);
       } else {
         const errorType = classifyClientError(null, undefined, result.errorType);
@@ -215,6 +235,15 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
               <FormMessage />
             </FormItem>
           )}
+        />
+
+        <ServiceMaterialsField
+          value={materials}
+          onChange={(next) => {
+            setMaterials(next);
+            setMaterialsDirty(true);
+          }}
+          companyId={selectedCompany?.id}
         />
 
         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">

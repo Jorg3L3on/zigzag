@@ -60,7 +60,7 @@ describe('MobileBottomDock', () => {
     mockSetOpenMobile.mockClear();
   });
 
-  it('renders Hoy · Tickets · + · Clientes · Más in order', () => {
+  it('renders Hoy · Tickets · + · Presupuestos · Más in order', () => {
     renderDock();
     const shell = screen.getByTestId('mobile-dock-shell');
     const labels = Array.from(shell.children).map(
@@ -71,7 +71,7 @@ describe('MobileBottomDock', () => {
       'Hoy',
       'Tickets',
       'Crear',
-      'Clientes',
+      'Presupuestos',
       'Más opciones de navegación',
     ]);
   });
@@ -82,6 +82,25 @@ describe('MobileBottomDock', () => {
     const tickets = screen.getByRole('link', { name: 'Tickets' });
     expect(tickets).toHaveAttribute('aria-current', 'page');
     expect(tickets.querySelector('[data-testid="mobile-dock-pill"]')).not.toBeNull();
+    expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
+  });
+
+  it.each(['/presupuestos', '/presupuestos/1069'])(
+    'puts the active pill on Presupuestos for %s',
+    (path) => {
+      mockPathname = path;
+      renderDock();
+      const tab = screen.getByRole('link', { name: 'Presupuestos' });
+      expect(tab).toHaveAttribute('aria-current', 'page');
+      expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
+    },
+  );
+
+  it('lights Más on /clients now that Clientes is not a tab', () => {
+    mockPathname = '/clients';
+    renderDock();
+    const more = screen.getByRole('button', { name: /Más/i });
+    expect(more.querySelector('[data-testid="mobile-dock-pill"]')).not.toBeNull();
     expect(screen.getAllByTestId('mobile-dock-pill')).toHaveLength(1);
   });
 

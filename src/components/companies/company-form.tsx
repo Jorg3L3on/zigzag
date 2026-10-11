@@ -15,7 +15,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -32,6 +31,7 @@ import {
 } from '@/actions/companies';
 import type { Company } from '@/db/schema';
 import {
+  COMPANY_TAGLINE_MAX,
   companyBootstrapSchema,
   companyFormSchema,
   type CompanyBootstrapFormValues,
@@ -61,8 +61,8 @@ import {
 const COMPANY_FORM_ID = 'company-form';
 
 const defaultSettings = {
+  tagline: '',
   rfc: '',
-  invoice_footer_note: '',
   default_currency: 'MXN',
   experience_mode: 'auto' as 'auto' | 'campo' | 'office',
 };
@@ -153,9 +153,8 @@ export const CompanyForm = ({
           postal_code: company.postal_code,
           status: normalizeCompanyLifecycleStatus(company.status),
           settings: {
+            tagline: company.settings?.tagline ?? '',
             rfc: company.settings?.rfc ?? '',
-            invoice_footer_note:
-              company.settings?.invoice_footer_note ?? '',
             default_currency:
               company.settings?.default_currency ?? 'MXN',
             experience_mode: company.settings?.experience_mode ?? 'auto',
@@ -542,6 +541,32 @@ export const CompanyForm = ({
           <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
+              name="settings.tagline"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Lema o giro</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      placeholder="Climatización · Servicio técnico"
+                    />
+                  </FormControl>
+                  <FormDescription className="flex justify-between gap-3">
+                    <span>Aparece bajo el nombre en tus presupuestos y recibos</span>
+                    <span
+                      className="shrink-0 tabular-nums"
+                      data-testid="company-tagline-counter"
+                    >
+                      {(field.value ?? '').length}/{COMPANY_TAGLINE_MAX}
+                    </span>
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="settings.rfc"
               render={({ field }) => (
                 <FormItem>
@@ -594,19 +619,6 @@ export const CompanyForm = ({
                     inicio. Déjalo en automático para que empresas de un solo
                     usuario usen Campo.
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.invoice_footer_note"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Notas al pie de recibo</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={3} />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

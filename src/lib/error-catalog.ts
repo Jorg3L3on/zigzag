@@ -86,6 +86,13 @@ export const ERROR_CATALOG = {
     message: 'Completa los campos requeridos e intenta de nuevo.',
     type: 'validation',
   },
+  CL008: {
+    code: 'CL008',
+    module: 'clients',
+    title: 'El nombre es demasiado largo',
+    message: 'El nombre del cliente puede tener máximo 100 caracteres.',
+    type: 'validation',
+  },
   CO001: {
     code: 'CO001',
     module: 'companies',
@@ -412,7 +419,7 @@ export const ERROR_CATALOG = {
     code: 'TC009',
     module: 'tickets',
     title: 'Datos del ticket inválidos',
-    message: 'Revisa los campos marcados e intenta de nuevo.',
+    message: 'Revisa los datos e intenta de nuevo.',
     type: 'validation',
   },
   TC010: {
@@ -420,6 +427,13 @@ export const ERROR_CATALOG = {
     module: 'tickets',
     title: 'Ticket saldado',
     message: 'Este ticket ya está saldado y no se puede editar.',
+    type: 'validation',
+  },
+  TC011: {
+    code: 'TC011',
+    module: 'tickets',
+    title: 'El total es demasiado grande',
+    message: 'El total no puede pasar de $9,999,999,999.99.',
     type: 'validation',
   },
   TS001: {

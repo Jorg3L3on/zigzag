@@ -202,8 +202,7 @@ const upsertDemoCompany = async (
     settings: {
       rfc: 'CTD010101ABC',
       default_currency: 'MXN',
-      invoice_footer_note:
-        'Gracias por confiar en ClimaTotal Demo — soluciones integrales en climatización.',
+      tagline: 'Climatización · Servicio técnico',
     },
     updated_at: new Date(),
   };

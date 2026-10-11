@@ -2,8 +2,13 @@
 
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
-import { service, servicesTickets, ticket } from '@/db/schema';
-import type { Service } from '@/db/schema';
+import {
+  service,
+  servicesTickets,
+  ticket,
+  ticketLineMaterial,
+} from '@/db/schema';
+import type { Service, TicketLineMaterialRow } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   AuthorizationError,
@@ -20,9 +25,13 @@ import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
 import {
   isCustomServiceLine,
   serviceLineInputSchema,
-  serviceLineMoneySchema,
+  updateServiceLineSchema,
 } from '@/lib/ticket-service-line-schema';
-import { buildServiceLineValues } from '@/lib/service-lines-server';
+import {
+  buildServiceLineValues,
+  insertLineMaterials,
+} from '@/lib/service-lines-server';
+import { activeLineMaterialsWith } from '@/lib/line-materials-query';
 import { revalidatePath } from 'next/cache';
 
 export interface ServiceTicket {
@@ -34,7 +43,30 @@ export interface ServiceTicket {
   quantity: number;
   price: number;
   service: Service | null;
+  /** Active materials under the line (ZIG-I10). */
+  materials?: TicketLineMaterialRow[];
 }
+
+type LineMaterialsExecutor = Pick<typeof db, 'select' | 'update'>;
+
+/** Soft-deletes the active materials of one line; returns what was there (audit). */
+const retireLineMaterials = async (
+  tx: LineMaterialsExecutor,
+  servicesTicketsId: number,
+): Promise<TicketLineMaterialRow[]> => {
+  const where = and(
+    eq(ticketLineMaterial.services_tickets_id, servicesTicketsId),
+    isNull(ticketLineMaterial.deleted_at),
+  );
+  const before = await tx.select().from(ticketLineMaterial).where(where);
+  if (before.length > 0) {
+    await tx
+      .update(ticketLineMaterial)
+      .set({ deleted_at: new Date(), updated_at: new Date() })
+      .where(where);
+  }
+  return before;
+};
 
 type CreateServiceTicketData = import('@/lib/ticket-service-line-schema').CreateServiceTicketData;
 type UpdateServiceTicketData = import('@/lib/ticket-service-line-schema').UpdateServiceTicketData;
@@ -189,6 +221,7 @@ export async function getTicketServices(
       ),
       with: {
         service: true,
+        ...activeLineMaterialsWith,
       },
     });
 
@@ -256,6 +289,15 @@ export async function createServiceTicket(
         return undefined;
       }
 
+      const { rows: materialRows, createdMaterialIds } = await insertLineMaterials(
+        tx,
+        {
+          companyId: effectiveCompanyId,
+          servicesTicketsId: createdRow.id,
+          materials: validated.materials,
+        },
+      );
+
       const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
       await recordTicketAudit(tx, context, ticketIdValue, effectiveCompanyId, 'updated', {
         serviceLine: 'created',
@@ -263,6 +305,10 @@ export async function createServiceTicket(
         serviceName: serviceRow?.name ?? inlineLine?.name,
         ...(inlineLine
           ? { inline: true, savedToCatalog: inlineLine.save_to_catalog }
+          : {}),
+        ...(materialRows.length > 0 ? { materials: materialRows } : {}),
+        ...(createdMaterialIds.length > 0
+          ? { savedToCatalogMaterialIds: createdMaterialIds }
           : {}),
         syncedTotal,
       });
@@ -278,7 +324,7 @@ export async function createServiceTicket(
         eq(servicesTickets.id, serviceTicket.id),
         isNull(servicesTickets.deleted_at),
       ),
-      with: { service: true },
+      with: { service: true, ...activeLineMaterialsWith },
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
@@ -307,7 +353,7 @@ export async function updateServiceTicket(
   errorType?: ActionErrorType;
 }> {
   try {
-    const validated = serviceLineMoneySchema.parse(data);
+    const validated = updateServiceLineSchema.parse(data);
     const ticketIdValue = ticketIdBigInt(ticketId);
     const { companyId: effectiveCompanyId, context, total, paid } =
       await assertTicketAccess(ticketIdValue, 'tickets.write', companyId);
@@ -334,6 +380,24 @@ export async function updateServiceTicket(
           return undefined;
         }
 
+        // Materials sent = the line's whole new set (ZIG-I10); omitted = untouched.
+        let materialsAudit: Record<string, unknown> = {};
+        if (validated.materials !== undefined) {
+          const materialsBefore = await retireLineMaterials(tx, updatedRow.id);
+          const { rows: materialsAfter, createdMaterialIds } =
+            await insertLineMaterials(tx, {
+              companyId: effectiveCompanyId,
+              servicesTicketsId: updatedRow.id,
+              materials: validated.materials,
+            });
+          materialsAudit = {
+            materials: { before: materialsBefore, after: materialsAfter },
+            ...(createdMaterialIds.length > 0
+              ? { savedToCatalogMaterialIds: createdMaterialIds }
+              : {}),
+          };
+        }
+
         const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
         const serviceName = await resolveServiceNameById(
           updatedRow.service_id,
@@ -344,6 +408,7 @@ export async function updateServiceTicket(
           serviceLine: 'updated',
           line: updatedRow,
           serviceName: serviceName ?? undefined,
+          ...materialsAudit,
           syncedTotal,
         });
         return updatedRow;
@@ -370,7 +435,7 @@ export async function updateServiceTicket(
         eq(servicesTickets.id, updated.id),
         isNull(servicesTickets.deleted_at),
       ),
-      with: { service: true },
+      with: { service: true, ...activeLineMaterialsWith },
     });
 
     revalidatePath(`/tickets/${ticketId}/services`);
@@ -409,6 +474,9 @@ export async function deleteServiceTicket(
           ),
         )
         .returning();
+      const materialsBefore = deletedRow
+        ? await retireLineMaterials(tx, deletedRow.id)
+        : [];
       const syncedTotal = await syncTicketTotal(tx, ticketIdValue);
       if (deletedRow) {
         const serviceName = await resolveServiceNameById(
@@ -420,6 +488,7 @@ export async function deleteServiceTicket(
           serviceLine: 'deleted',
           line: deletedRow,
           serviceName: serviceName ?? undefined,
+          ...(materialsBefore.length > 0 ? { materials: materialsBefore } : {}),
           syncedTotal,
         });
       }

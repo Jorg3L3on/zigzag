@@ -3,16 +3,12 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import {
-  ArrowRightLeft,
   Ban,
   CalendarClock,
   Download,
-  ExternalLink,
+  FileText,
   Loader2,
-  Pencil,
   Share2,
   Ticket,
 } from 'lucide-react';
@@ -21,13 +17,15 @@ import { toast } from 'sonner';
 import {
   cancelPresupuesto,
   convertPresupuestoToTicket,
+  duplicatePresupuesto,
 } from '@/actions/presupuestos';
+import { ConfirmSheet } from '@/components/documents/confirm-sheet';
+import { PresupuestoDetailLayout } from '@/components/presupuestos/presupuesto-detail-layout';
 import { ActionSwap, BlurFade } from '@/components/motion';
 import {
   REVIEW_SECTION_CLASS,
-  ReviewLinesSection,
   ReviewSuccessHeader,
-  usePdfViewerEnabled,
+  ReviewSummaryCard,
   type ReviewLine,
 } from '@/components/tickets/review/document-review-parts';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
@@ -36,33 +34,23 @@ import {
   TripledMobileAppBar,
   TripledMobileStickyActionBar,
 } from '@/components/tripled';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { collapseBlankLines } from '@/lib/collapse-blank-lines';
+import { formatLongDate } from '@/lib/format-long-date';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
-import { multiplyMoney } from '@/lib/money';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
-import {
-  PRESUPUESTO_STATUS_LABEL,
-  type PresupuestoStatus,
-} from '@/lib/ticket-document-kind';
+import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import {
   downloadTicketInvoiceFile,
   fetchTicketInvoiceFile,
   shareTicketInvoiceFile,
 } from '@/lib/ticket-invoice-download';
-import { buildTicketInvoicePreviewUrl } from '@/lib/ticket-invoice-url';
 import { canDownloadTicketInvoice, canWriteTickets } from '@/lib/tickets-rbac';
+import {
+  buildPresupuestoComposerDraftKey,
+  writeTicketComposerDraft,
+} from '@/lib/ticket-composer-draft';
 import { buildWhatsAppQuoteShare } from '@/lib/whatsapp-share';
 
 export type PresupuestoViewProps = {
@@ -83,79 +71,6 @@ export type PresupuestoViewProps = {
   /** Editar shows only when the edit route exists (ZIG-I5-5). */
   editHref?: string | null;
 };
-
-const STATUS_BADGE_VARIANT: Record<
-  PresupuestoStatus,
-  'default' | 'secondary' | 'destructive' | 'outline'
-> = {
-  abierto: 'default',
-  vencido: 'destructive',
-  convertido: 'secondary',
-  cancelado: 'outline',
-};
-
-const formatLongDate = (value: string | null): string | null => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? null
-    : format(date, "d 'de' MMMM yyyy", { locale: es });
-};
-
-type QuoteSummaryProps = {
-  presupuestoId: string;
-  clientName: string | null;
-  dateLabel: string | null;
-  expiresLabel: string | null;
-  lines: ReviewLine[];
-  total: number;
-};
-
-/** HTML stand-in for the PDF where the browser cannot show it inline. */
-const QuoteSummary = ({
-  presupuestoId,
-  clientName,
-  dateLabel,
-  expiresLabel,
-  lines,
-  total,
-}: QuoteSummaryProps) => (
-  <div
-    data-testid="presupuesto-summary"
-    className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
-  >
-    <div className="flex items-baseline justify-between gap-3">
-      <p className="font-semibold">Presupuesto #{presupuestoId}</p>
-      {dateLabel ? <p className="text-xs text-muted-foreground">{dateLabel}</p> : null}
-    </div>
-    {clientName ? <p className="mt-0.5 text-muted-foreground">{clientName}</p> : null}
-    <ul className="mt-3 space-y-1.5">
-      {lines.map((line) => (
-        <li key={line.id} className="flex justify-between gap-3">
-          <span className="min-w-0 truncate">
-            {line.quantity} × {line.name}
-          </span>
-          <span className="shrink-0 tabular-nums">
-            {formatServiceCurrency(multiplyMoney(line.price, line.quantity))}
-          </span>
-        </li>
-      ))}
-    </ul>
-    <dl className="mt-3 space-y-1 border-t border-border/60 pt-3 tabular-nums">
-      <div className="flex justify-between font-semibold">
-        <dt>Total</dt>
-        <dd>{formatServiceCurrency(total)}</dd>
-      </div>
-      <div className="flex justify-between text-muted-foreground">
-        <dt>Vigencia</dt>
-        <dd>{expiresLabel ?? 'Sin vencimiento'}</dd>
-      </div>
-    </dl>
-    <p className="mt-3 text-xs text-muted-foreground">
-      Documento informativo — no es un recibo de pago.
-    </p>
-  </div>
-);
 
 /**
  * Presupuesto review (ZIG-I5-4, /presupuestos/[id]/listo) and detail
@@ -185,12 +100,12 @@ export const PresupuestoView = ({
   const companyId = selectedCompany?.id ?? null;
   const canInvoice = canDownloadTicketInvoice(can);
   const canWrite = canWriteTickets(can);
-  const pdfViewerEnabled = usePdfViewerEnabled();
 
   const [phase, setPhase] = React.useState<'idle' | 'sharing' | 'downloading'>('idle');
   const [pdfFile, setPdfFile] = React.useState<File | null>(null);
   const [confirm, setConfirm] = React.useState<'convert' | 'cancel' | null>(null);
   const [mutating, setMutating] = React.useState(false);
+  const [duplicating, setDuplicating] = React.useState(false);
 
   const isMutable = status === 'abierto' || status === 'vencido';
   const dateLabel = formatLongDate(ticketDate);
@@ -306,6 +221,36 @@ export const PresupuestoView = ({
     }
   };
 
+  /** Duplicar: a draft in the presupuesto composer, saved only on Guardar (ZIG-I13-5). */
+  const handleDuplicate = async () => {
+    if (duplicating) return;
+    setDuplicating(true);
+    try {
+      const result = await duplicatePresupuesto(Number(presupuestoId), companyId);
+      if (!result.success) {
+        toast.error(getErrorDisplayMessage(result, 'No se pudo duplicar el presupuesto'));
+        return;
+      }
+      const draft = result.data;
+      if (companyId) {
+        writeTicketComposerDraft(buildPresupuestoComposerDraftKey(companyId), {
+          client_id: draft.client.id > 0 ? draft.client.id : undefined,
+          client_label: draft.client.label,
+          ticket_date: draft.ticketDate,
+          ...(draft.expiresAt ? { expires_at: draft.expiresAt } : {}),
+          work_notes: draft.notes,
+          lines: draft.lines,
+        });
+      }
+      toast.success('Borrador listo: revísalo y guarda');
+      router.push('/presupuestos/create');
+    } catch {
+      toast.error('No se pudo duplicar el presupuesto');
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   const renderShareCta = (compact: boolean) =>
     status === 'cancelado' ? null : (
       <Button
@@ -337,44 +282,80 @@ export const PresupuestoView = ({
   const shareCta = renderShareCta(false);
   const compactShareCta = renderShareCta(true);
 
-  const title =
-    variant === 'review'
-      ? `Presupuesto #${presupuestoId} guardado`
-      : `Presupuesto #${presupuestoId}`;
+  const title = `Presupuesto #${presupuestoId} guardado`;
+
+  const confirmSheet = (
+    <ConfirmSheet
+      open={confirm !== null}
+      onOpenChange={(open) => {
+        if (!open && !mutating) setConfirm(null);
+      }}
+      title={
+        confirm === 'convert'
+          ? `¿Convertir el presupuesto #${presupuestoId} en ticket?`
+          : `¿Cancelar el presupuesto #${presupuestoId}?`
+      }
+      description={
+        confirm === 'convert'
+          ? 'Se crea un ticket de trabajo con los mismos servicios y precios. El presupuesto queda como Convertido.'
+          : 'Sale de los presupuestos abiertos y queda sólo para consulta. No se puede deshacer.'
+      }
+      confirmLabel={confirm === 'convert' ? 'Convertir a ticket' : 'Cancelar presupuesto'}
+      cancelLabel="Volver"
+      destructive={confirm === 'cancel'}
+      pending={mutating}
+      onConfirm={() => (confirm === 'convert' ? handleConvert() : handleCancel())}
+    />
+  );
+
+  if (variant === 'detail') {
+    return (
+      <>
+        <PresupuestoDetailLayout
+          presupuestoId={presupuestoId}
+          clientId={clientId}
+          clientName={clientName}
+          ticketDate={ticketDate}
+          expiresAt={expiresAt}
+          workNotes={workNotes}
+          total={total}
+          lines={lines}
+          status={status}
+          convertedToTicketId={convertedToTicketId}
+          editHref={editHref}
+          canWrite={canWrite}
+          canInvoice={canInvoice}
+          isMutable={isMutable}
+          mutating={mutating}
+          sharing={phase === 'sharing'}
+          downloading={phase === 'downloading'}
+          duplicating={duplicating}
+          onShare={() => void handleShare()}
+          onDownload={() => void handleDownload()}
+          onConvert={() => setConfirm('convert')}
+          onCancel={() => setConfirm('cancel')}
+          onDuplicate={() => void handleDuplicate()}
+        />
+        {confirmSheet}
+      </>
+    );
+  }
 
   return (
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-4">
         <TripledMobileAppBar
           title={`Presupuesto #${presupuestoId}`}
-          subtitle={variant === 'review' ? 'Guardado' : PRESUPUESTO_STATUS_LABEL[status]}
+          subtitle="Guardado"
           backHref="/presupuestos"
           backLabel="Volver a presupuestos"
         />
 
         <BlurFade>
-          {variant === 'review' ? (
-            <ReviewSuccessHeader
-              title={title}
-              subtitle={[clientName, dateLabel].filter(Boolean).join(' · ')}
-            />
-          ) : (
-            <header className="space-y-1 px-1 py-2" data-testid="presupuesto-header">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-                <Badge
-                  variant={STATUS_BADGE_VARIANT[status]}
-                  className="shadow-none"
-                  data-testid="presupuesto-status"
-                >
-                  {PRESUPUESTO_STATUS_LABEL[status]}
-                </Badge>
-              </div>
-              <p className="truncate text-sm text-muted-foreground">
-                {[clientName, dateLabel].filter(Boolean).join(' · ')}
-              </p>
-            </header>
-          )}
+          <ReviewSuccessHeader
+            title={title}
+            subtitle={[clientName, dateLabel].filter(Boolean).join(' · ')}
+          />
         </BlurFade>
 
         {status === 'convertido' && convertedToTicketId ? (
@@ -410,11 +391,11 @@ export const PresupuestoView = ({
               Datos del presupuesto
             </h2>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Cliente
                 </dt>
-                <dd className="mt-0.5 font-medium">
+                <dd className="mt-0.5 font-medium [overflow-wrap:anywhere]">
                   {clientId ? (
                     <Link
                       href={`/clients/${clientId}`}
@@ -441,19 +422,22 @@ export const PresupuestoView = ({
               </div>
             </dl>
             {workNotes ? (
-              <p className="mt-3 whitespace-pre-line border-t border-border/60 pt-3 text-sm text-muted-foreground">
-                {workNotes}
+              <p
+                className="mt-3 whitespace-pre-line border-t border-border/60 pt-3 text-sm text-muted-foreground [overflow-wrap:anywhere]"
+                data-testid="presupuesto-notes"
+              >
+                {collapseBlankLines(workNotes)}
               </p>
             ) : null}
           </section>
         </BlurFade>
 
         <BlurFade delay={0.1}>
-          <ReviewLinesSection
+          {/* Listo shares the compact Resumen with the ticket listo (ZIG-I13-3). */}
+          <ReviewSummaryCard
             lines={lines}
             total={total}
             linesLabel="Servicios del presupuesto"
-            showInlineChips
           />
         </BlurFade>
 
@@ -464,45 +448,14 @@ export const PresupuestoView = ({
                 Presupuesto en PDF
               </h2>
               {canInvoice ? (
-                <a
-                  href={buildTicketInvoicePreviewUrl(presupuestoId, companyId)}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={`/presupuestos/${presupuestoId}/pdf`}
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
                 >
                   Abrir PDF
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                </Link>
               ) : null}
-            </div>
-            <div className="mt-3">
-              {canInvoice && pdfViewerEnabled ? (
-                <object
-                  data={buildTicketInvoicePreviewUrl(presupuestoId, companyId)}
-                  type="application/pdf"
-                  aria-label={`Vista previa del presupuesto ${presupuestoId}`}
-                  data-testid="presupuesto-pdf-preview"
-                  className="h-[440px] w-full rounded-xl border border-border/60 bg-muted/20"
-                >
-                  <QuoteSummary
-                    presupuestoId={presupuestoId}
-                    clientName={clientName}
-                    dateLabel={dateLabel}
-                    expiresLabel={expiresLabel}
-                    lines={lines}
-                    total={total}
-                  />
-                </object>
-              ) : (
-                <QuoteSummary
-                  presupuestoId={presupuestoId}
-                  clientName={clientName}
-                  dateLabel={dateLabel}
-                  expiresLabel={expiresLabel}
-                  lines={lines}
-                  total={total}
-                />
-              )}
             </div>
             {canInvoice ? (
               <Button
@@ -523,71 +476,30 @@ export const PresupuestoView = ({
           </section>
         </BlurFade>
 
-        {variant === 'detail' && canWrite && isMutable ? (
-          <BlurFade delay={0.2}>
-            <section aria-label="Acciones del presupuesto" className="grid gap-2 sm:grid-cols-3">
-              {editHref ? (
-                <Button asChild variant="outline" className="h-11 gap-2 rounded-xl">
-                  <Link href={editHref}>
-                    <Pencil className="h-4 w-4" aria-hidden />
-                    Editar
-                  </Link>
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 gap-2 rounded-xl"
-                disabled={mutating}
-                onClick={() => setConfirm('convert')}
-              >
-                <ArrowRightLeft className="h-4 w-4" aria-hidden />
-                Convertir a ticket
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-11 gap-2 rounded-xl text-destructive hover:text-destructive"
-                disabled={mutating}
-                onClick={() => setConfirm('cancel')}
-              >
-                <Ban className="h-4 w-4" aria-hidden />
-                Cancelar presupuesto
-              </Button>
-            </section>
-          </BlurFade>
-        ) : null}
-
         <div className="hidden items-center justify-between gap-4 md:flex">
-          {variant === 'review' ? (
-            <Link
-              href={`/presupuestos/${presupuestoId}`}
-              className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Ver presupuesto
-            </Link>
-          ) : (
-            <span />
-          )}
+          <Link
+            href={`/presupuestos/${presupuestoId}`}
+            className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Ver presupuesto
+          </Link>
           {shareCta}
         </div>
 
-        {variant === 'review' ? (
-          <div className="flex justify-center gap-6 text-sm md:hidden">
-            <Link
-              href={`/presupuestos/${presupuestoId}`}
-              className="font-medium text-muted-foreground underline-offset-4 hover:underline"
-            >
-              Ver presupuesto
-            </Link>
-            <Link
-              href="/presupuestos/create"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Nuevo presupuesto
-            </Link>
-          </div>
-        ) : null}
+        <div className="flex justify-center gap-6 text-sm md:hidden">
+          <Link
+            href={`/presupuestos/${presupuestoId}`}
+            className="font-medium text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Ver presupuesto
+          </Link>
+          <Link
+            href="/presupuestos/create"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Nuevo presupuesto
+          </Link>
+        </div>
       </TripledDashboardShell>
 
       {shareCta ? (
@@ -602,45 +514,7 @@ export const PresupuestoView = ({
         </TripledMobileStickyActionBar>
       ) : null}
 
-      <AlertDialog
-        open={confirm !== null}
-        onOpenChange={(open) => {
-          if (!open && !mutating) setConfirm(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirm === 'convert'
-                ? `¿Convertir el presupuesto #${presupuestoId} en ticket?`
-                : `¿Cancelar el presupuesto #${presupuestoId}?`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm === 'convert'
-                ? 'Se crea un ticket de trabajo con los mismos servicios y precios. El presupuesto queda como Convertido.'
-                : 'Sale de los presupuestos abiertos y queda sólo para consulta. No se puede deshacer.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={mutating}>Volver</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={mutating}
-              className={
-                confirm === 'cancel'
-                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                  : undefined
-              }
-              onClick={(event) => {
-                event.preventDefault();
-                void (confirm === 'convert' ? handleConvert() : handleCancel());
-              }}
-            >
-              {mutating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              {confirm === 'convert' ? 'Convertir a ticket' : 'Cancelar presupuesto'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {confirmSheet}
     </>
   );
 };

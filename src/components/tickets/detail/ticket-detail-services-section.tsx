@@ -1,17 +1,24 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import { Receipt } from 'lucide-react';
+
+import {
+  DocumentSummaryRows,
+  type DocumentSummaryLine,
+} from '@/components/documents/document-summary-rows';
 import { Button } from '@/components/ui/button';
-import { FormattedCurrency } from '@/components/formatted-currency';
 import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
 import { TripledEmptyState } from '@/components/tripled';
 import { usePermissions } from '@/hooks/use-permissions';
+import { materialDraftAmount } from '@/lib/material-drafts';
+import { isTicketFullyPaid } from '@/lib/ticket-payment-status';
+import { buildReviewLine, reviewLineAmount } from '@/lib/review-lines';
 import { canAssignTicketServices } from '@/lib/tickets-rbac';
-import { getServiceLineName } from '@/lib/service-line-display';
 
 type ServiceLine = {
   id: number;
@@ -20,24 +27,68 @@ type ServiceLine = {
   service_id?: number | null;
   name?: string | null;
   service: { name: string | null } | null;
+  /** Active materials (ZIG-I10). */
+  materials?: Array<{
+    id: number;
+    material_id: number | null;
+    name: string | null;
+    unit: string | null;
+    quantity: number | string;
+    price: number | string;
+  }>;
 };
 
 type TicketDetailServicesSectionProps = {
   ticketId: number | bigint;
-  finished: boolean;
   total: number | null;
+  paid: number | null;
   services: ServiceLine[];
 };
 
+/** `Ver detalle con N materiales`: the detail's name for the summary toggle. */
+const detailToggleLabel = (_services: number, materials: number) =>
+  materials === 0
+    ? 'Ver detalle'
+    : materials === 1
+      ? 'Ver detalle con 1 material'
+      : `Ver detalle con ${materials} materiales`;
+
+/**
+ * Servicios as a compact summary (ZIG-I13-4): three recibo-style rows, Editar
+ * (the one editor, phase 6) and "Ver detalle con N materiales". A settled
+ * ticket cannot be edited.
+ */
 export const TicketDetailServicesSection = ({
   ticketId,
-  finished,
   total,
+  paid,
   services,
 }: TicketDetailServicesSectionProps) => {
   const { can } = usePermissions();
-  const canManage = canAssignTicketServices(can);
+  const canManage = canAssignTicketServices(can) && !isTicketFullyPaid(total, paid);
   const id = Number(ticketId);
+
+  const rows = React.useMemo<DocumentSummaryLine[]>(
+    () =>
+      services.map((line) => {
+        const review = buildReviewLine(line);
+        return {
+          id: review.id,
+          name: review.name,
+          quantity: review.quantity,
+          amount: reviewLineAmount(review),
+          materials: (review.materials ?? []).map((item) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            price: item.price,
+            amount: materialDraftAmount(item),
+          })),
+        };
+      }),
+    [services],
+  );
 
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-services-heading">
@@ -46,16 +97,14 @@ export const TicketDetailServicesSection = ({
         title="Servicios"
         count={services.length}
         action={
-          canManage ? (
-            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-              <Link
-                href={`/tickets/${id}/services`}
-                aria-label="Administrar servicios"
-              >
-                <Receipt className="h-3.5 w-3.5" aria-hidden />
-                {finished ? 'Ver servicios' : 'Administrar'}
-              </Link>
-            </Button>
+          canManage && services.length > 0 ? (
+            <Link
+              href={`/tickets/${id}/edit`}
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
+              aria-label="Editar servicios"
+            >
+              Editar
+            </Link>
           ) : null
         }
       />
@@ -66,44 +115,15 @@ export const TicketDetailServicesSection = ({
           title="Sin servicios"
           description="Este ticket aún no tiene líneas de servicio."
           action={
-            canManage && !finished ? (
+            canManage ? (
               <Button asChild size="sm">
-                <Link href={`/tickets/${id}/services`}>Agregar servicio</Link>
+                <Link href={`/tickets/${id}/edit`}>Agregar servicio</Link>
               </Button>
             ) : null
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border/60">
-          <ul className="divide-y divide-border/60">
-            {services.map((line) => (
-              <li key={line.id}>
-                <div className="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="font-medium leading-snug text-foreground">
-                      {getServiceLineName(line)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      <span className="tabular-nums">{line.quantity}</span>
-                      {' × '}
-                      <FormattedCurrency amount={line.price} />
-                      {' / unidad'}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">
-                    <FormattedCurrency amount={line.price * line.quantity} />
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-center justify-between gap-4 border-t border-border/60 bg-muted/30 px-3.5 py-3.5">
-            <p className="text-sm font-medium text-muted-foreground">Total</p>
-            <p className="text-lg font-semibold tabular-nums tracking-tight">
-              <FormattedCurrency amount={total} />
-            </p>
-          </div>
-        </div>
+        <DocumentSummaryRows lines={rows} label="Servicios del ticket" toggleLabel={detailToggleLabel} />
       )}
     </TicketDetailSectionCard>
   );

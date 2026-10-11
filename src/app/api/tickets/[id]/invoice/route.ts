@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { getTicketById } from '@/actions/tickets';
 import { fail, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
-import { buildFintechInvoicePayload } from '@/lib/fintech-invoice-payload';
 import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
-import { renderFintechInvoicePdf } from '@/lib/fintech-invoice-renderer';
+import { buildReceiptPdfPayload } from '@/lib/receipt-pdf/payload';
+import { renderReceiptPdf } from '@/lib/receipt-pdf/render';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 
@@ -58,11 +58,11 @@ export async function GET(
       return fail('AU002', 403, 'auth');
     }
 
-    const payload = buildFintechInvoicePayload(result.data);
-    const issuerLogoDataUrl = await loadCompanyLogoImageDataUrl(
-      payload.issuer.logoUrl,
+    const payload = buildReceiptPdfPayload(result.data);
+    const logoDataUrl = await loadCompanyLogoImageDataUrl(
+      payload.company.logoUrl,
     );
-    const pdf = renderFintechInvoicePdf(payload, { issuerLogoDataUrl });
+    const pdf = renderReceiptPdf(payload, { logoDataUrl });
     const filename = buildTicketPdfFileName(result.data);
 
     await recordDocumentGeneratedAudit({

@@ -1,0 +1,30 @@
+{
+  "docType": "presupuesto",
+  "docTitle": "PRESUPUESTO",
+  "folio": "001114",
+  "issueDate": "10 / 10 / 2026",
+  "validityDays": 30,
+  "expiryDate": "09 / 11 / 2026",
+  "statusLabel": "Pendiente de pago",
+  "itemCount": 2,
+  "company": {
+    "name": "ClimaTotal Demo",
+    "tagline": "Climatización · Servicio técnico",
+    "logoUrl": "",
+    "initial": "C",
+    "phone": "+52 55 4123 8900",
+    "email": "contacto@climatotal.demo",
+    "address": "Av. Insurgentes Sur 1602, Piso 8, Crédito Constructor, Ciudad de México, CDMX, 03940"
+  },
+  "client": { "name": "Cliente test", "phone": "961 315 1552", "country": "México" },
+  "items": [
+    { "index": "01", "name": "Jorge", "description": "Hh", "quantity": 1, "unitPrice": "$66.00 MXN", "amount": "$66.00 MXN" },
+    { "index": "02", "name": "Prueba", "description": "Una descripción del servicio", "quantity": 1, "unitPrice": "$259.00 MXN", "amount": "$259.00 MXN" }
+  ],
+  "subtotal": "$325.00 MXN",
+  "taxLabel": "IVA",
+  "tax": "$0.00 MXN",
+  "total": "$325.00 MXN",
+  "paid": "$0.00 MXN",
+  "balanceDue": "$325.00 MXN"
+}

@@ -9,9 +9,9 @@ jest.mock('next/server', () => ({
 import { GET } from '@/app/api/tickets/[id]/invoice/route';
 import { getTicketById } from '@/actions/tickets';
 import { requireApiPermission } from '@/lib/api-helpers';
-import { buildFintechInvoicePayload } from '@/lib/fintech-invoice-payload';
+import { buildReceiptPdfPayload } from '@/lib/receipt-pdf/payload';
 import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
-import { renderFintechInvoicePdf } from '@/lib/fintech-invoice-renderer';
+import { renderReceiptPdf } from '@/lib/receipt-pdf/render';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 import {
   IDOR_COMPANY_A,
@@ -33,16 +33,16 @@ jest.mock('@/actions/tickets', () => ({
   getTicketById: jest.fn(),
 }));
 
-jest.mock('@/lib/fintech-invoice-payload', () => ({
-  buildFintechInvoicePayload: jest.fn(),
+jest.mock('@/lib/receipt-pdf/payload', () => ({
+  buildReceiptPdfPayload: jest.fn(),
 }));
 
 jest.mock('@/lib/company-logo-branding-server', () => ({
   loadCompanyLogoImageDataUrl: jest.fn(),
 }));
 
-jest.mock('@/lib/fintech-invoice-renderer', () => ({
-  renderFintechInvoicePdf: jest.fn(),
+jest.mock('@/lib/receipt-pdf/render', () => ({
+  renderReceiptPdf: jest.fn(),
 }));
 
 jest.mock('@/lib/resource-audit', () => ({
@@ -54,16 +54,14 @@ const mockRequireApiPermission =
 const mockGetTicketById = getTicketById as jest.MockedFunction<
   typeof getTicketById
 >;
-const mockBuildFintechInvoicePayload =
-  buildFintechInvoicePayload as jest.MockedFunction<
-    typeof buildFintechInvoicePayload
-  >;
+const mockBuildReceiptPdfPayload =
+  buildReceiptPdfPayload as jest.MockedFunction<typeof buildReceiptPdfPayload>;
 const mockLoadCompanyLogoImageDataUrl =
   loadCompanyLogoImageDataUrl as jest.MockedFunction<
     typeof loadCompanyLogoImageDataUrl
   >;
-const mockRenderFintechInvoicePdf = renderFintechInvoicePdf as jest.MockedFunction<
-  typeof renderFintechInvoicePdf
+const mockRenderReceiptPdf = renderReceiptPdf as jest.MockedFunction<
+  typeof renderReceiptPdf
 >;
 const mockRecordDocumentGeneratedAudit =
   recordDocumentGeneratedAudit as jest.MockedFunction<
@@ -103,7 +101,7 @@ describe('GET /api/tickets/[id]/invoice', () => {
       undefined,
     );
     expect(mockGetTicketById).not.toHaveBeenCalled();
-    expect(mockRenderFintechInvoicePdf).not.toHaveBeenCalled();
+    expect(mockRenderReceiptPdf).not.toHaveBeenCalled();
   });
 
   it('returns PDF for authorized users with tickets.read', async () => {
@@ -129,11 +127,11 @@ describe('GET /api/tickets/[id]/invoice', () => {
       success: true,
       data: ticket,
     });
-    mockBuildFintechInvoicePayload.mockReturnValue({
-      issuer: { logoUrl: null },
-    } as ReturnType<typeof buildFintechInvoicePayload>);
+    mockBuildReceiptPdfPayload.mockReturnValue({
+      company: { logoUrl: null },
+    } as ReturnType<typeof buildReceiptPdfPayload>);
     mockLoadCompanyLogoImageDataUrl.mockResolvedValue(null);
-    mockRenderFintechInvoicePdf.mockReturnValue(Buffer.from('pdf'));
+    mockRenderReceiptPdf.mockReturnValue(new ArrayBuffer(3));
 
     const response = await GET(
       makeGetRequest('http://localhost/api/tickets/42/invoice?company_id=10'),
@@ -156,11 +154,11 @@ describe('GET /api/tickets/[id]/invoice', () => {
       success: true,
       data: { id: 42, company_id: 10, total: 100, client: { name: 'Acme' } },
     });
-    mockBuildFintechInvoicePayload.mockReturnValue({
-      issuer: { logoUrl: null },
-    } as ReturnType<typeof buildFintechInvoicePayload>);
+    mockBuildReceiptPdfPayload.mockReturnValue({
+      company: { logoUrl: null },
+    } as ReturnType<typeof buildReceiptPdfPayload>);
     mockLoadCompanyLogoImageDataUrl.mockResolvedValue(null);
-    mockRenderFintechInvoicePdf.mockReturnValue(Buffer.from('pdf'));
+    mockRenderReceiptPdf.mockReturnValue(new ArrayBuffer(3));
 
     const inline = await GET(
       makeGetRequest(
@@ -191,7 +189,7 @@ describe('GET /api/tickets/[id]/invoice', () => {
 
     expect(response.status).toBe(403);
     expect(mockGetTicketById).not.toHaveBeenCalled();
-    expect(mockRenderFintechInvoicePdf).not.toHaveBeenCalled();
+    expect(mockRenderReceiptPdf).not.toHaveBeenCalled();
   });
 
   it('returns 404 when Company B requests foreign Company A ticket invoice', async () => {
@@ -212,6 +210,6 @@ describe('GET /api/tickets/[id]/invoice', () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({ success: false, error: 'TC008' });
-    expect(mockRenderFintechInvoicePdf).not.toHaveBeenCalled();
+    expect(mockRenderReceiptPdf).not.toHaveBeenCalled();
   });
 });

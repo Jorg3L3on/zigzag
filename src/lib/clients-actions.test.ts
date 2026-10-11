@@ -4,7 +4,6 @@ import {
   deleteClient,
   getClient,
   getClients,
-  getClientsForExport,
   getClientsList,
   updateClient,
 } from '@/actions/clients';
@@ -121,16 +120,6 @@ describe('cross-tenant IDOR — client actions', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
-  });
-
-  it('getClientsForExport uses authorized tenant scope only', async () => {
-    mockActionAuthorized(mockRequireTenantActionPermission);
-    mockDb.select.mockReturnValue(mockSelectChain([]));
-
-    const result = await getClientsForExport();
-
-    expect(result.success).toBe(true);
-    expect(mockDb.select).toHaveBeenCalled();
   });
 
   it('bulkImportClients denies cross-tenant write context', async () => {

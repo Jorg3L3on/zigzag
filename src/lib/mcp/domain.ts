@@ -1,5 +1,12 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
-import { client, company, servicesTickets, ticket, user } from '@/db/schema';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import {
+  client,
+  company,
+  servicesTickets,
+  ticket,
+  ticketLineMaterial,
+  user,
+} from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   mapAgentTicketDetail,
@@ -78,6 +85,13 @@ export const getAgentTicket = async (agent: AgentContext, ticketId: bigint) => {
           name: true,
           quantity: true,
           price: true,
+        },
+        with: {
+          materials: {
+            where: isNull(ticketLineMaterial.deleted_at),
+            columns: { name: true, unit: true, quantity: true, price: true },
+            orderBy: [asc(ticketLineMaterial.sort_order), asc(ticketLineMaterial.id)],
+          },
         },
       },
     },

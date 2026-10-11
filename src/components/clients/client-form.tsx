@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createClient, updateClient, Client } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
+import { CLIENT_NAME_MAX_LENGTH } from '@/lib/client-limits';
+import { CharCounter } from '@/components/ui/char-counter';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -29,7 +31,24 @@ const PHONE_MAX_DIGITS = 20;
 
 const sanitizePhoneDigits = (value: string) => value.replace(/\D/g, '');
 
-const clientSchema = z.object({
+/** What the phone field did to the typed text, in words. */
+const describePhoneChange = (raw: string, digits: string): string =>
+  sanitizePhoneDigits(raw).length > PHONE_MAX_DIGITS
+    ? `Máximo ${PHONE_MAX_DIGITS} dígitos. Guardamos: ${digits}`
+    : `Guardamos solo dígitos: ${digits}`;
+
+/** A name saved before the cap keeps saving as it is; a changed name must fit (ZIG-I12). */
+const buildClientSchema = (existingName?: string) => clientSchemaShape.extend({
+  name: z
+    .string()
+    .min(1, 'El nombre es requerido')
+    .refine(
+      (value) => value.length <= CLIENT_NAME_MAX_LENGTH || value === existingName,
+      `El nombre puede tener máximo ${CLIENT_NAME_MAX_LENGTH} caracteres`,
+    ),
+});
+
+const clientSchemaShape = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   phone: z
     .string()
@@ -56,7 +75,7 @@ const clientSchema = z.object({
   country: z.string().optional().or(z.literal('')),
 });
 
-type ClientFormValues = z.infer<typeof clientSchema>;
+type ClientFormValues = z.infer<typeof clientSchemaShape>;
 
 const emptyToNull = (value: string | null | undefined) => {
   const nextValue = value?.trim();
@@ -79,9 +98,10 @@ export function ClientForm({
   const router = useRouter();
   const { selectedCompany } = useCompany();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [phoneNote, setPhoneNote] = React.useState<string | null>(null);
 
   const form = useForm<ClientFormValues>({
-    resolver: zodResolver(clientSchema),
+    resolver: zodResolver(buildClientSchema(client?.name)),
     defaultValues: {
       name: client?.name ?? '',
       phone: client?.phone ? sanitizePhoneDigits(client.phone) : '',
@@ -195,9 +215,16 @@ export function ClientForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nombre</FormLabel>
+              <div className="flex items-baseline justify-between gap-2">
+                <FormLabel>Nombre</FormLabel>
+                <CharCounter value={field.value} max={CLIENT_NAME_MAX_LENGTH} />
+              </div>
               <FormControl>
-                <Input placeholder="Nombre del cliente" {...field} />
+                <Input
+                  placeholder="Nombre del cliente"
+                  maxLength={client && client.name.length > CLIENT_NAME_MAX_LENGTH ? undefined : CLIENT_NAME_MAX_LENGTH}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -216,13 +243,22 @@ export function ClientForm({
                   inputMode="numeric"
                   autoComplete="tel"
                   placeholder="Teléfono del cliente"
-                  maxLength={PHONE_MAX_DIGITS}
                   {...field}
-                  onChange={(event) =>
-                    field.onChange(sanitizePhoneDigits(event.target.value))
-                  }
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    const digits = sanitizePhoneDigits(raw).slice(0, PHONE_MAX_DIGITS);
+                    // Never change what was typed without saying so (ZIG-I12).
+                    setPhoneNote(raw === digits ? null : describePhoneChange(raw, digits));
+                    field.onChange(digits);
+                  }}
+                  aria-describedby={phoneNote ? 'client-phone-note' : undefined}
                 />
               </FormControl>
+              {phoneNote ? (
+                <p id="client-phone-note" role="status" className="text-xs text-muted-foreground">
+                  {phoneNote}
+                </p>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
