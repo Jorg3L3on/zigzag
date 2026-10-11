@@ -16,6 +16,7 @@ Local product requirements for the **mobile initiative** and related work. Statu
 | ❌ | [prd-native-feel-performance.md](./prd-native-feel-performance.md) ([#352](https://github.com/Jorg3L3on/zigzag/issues/352)–[#355](https://github.com/Jorg3L3on/zigzag/issues/355)) | Slice — skeletons, idle prefetch |
 | ❌ | [prd-native-feel-session.md](./prd-native-feel-session.md) ([#356](https://github.com/Jorg3L3on/zigzag/issues/356)–[#357](https://github.com/Jorg3L3on/zigzag/issues/357)) | Slice — session keep-alive / expiry UX |
 | ❌ | [prd-native-feel-offline-snapshots.md](./prd-native-feel-offline-snapshots.md) ([#358](https://github.com/Jorg3L3on/zigzag/issues/358)–[#360](https://github.com/Jorg3L3on/zigzag/issues/360)) | Slice — IndexedDB list snapshots + drafts |
+| ✅ | [docs/agents/folios-and-sessions.md](../docs/agents/folios-and-sessions.md) | ZIG-I17 — client detail page, per-company folios (P-0001 / R-0001, migrations 0031–0032), 30-day remembered sessions and sign out everywhere (PR #576, Plania ZIG-I17). PIN unlock not built. |
 | 📋 | [prd-mobile-program-decisions.md](./prd-mobile-program-decisions.md) | Locked Q&A for all mobile PRDs |
 | ✅ | [prd-mobile-ui-ux.md](./prd-mobile-ui-ux.md) | v1 epic |
 | ✅ | [prd-mobile-functionality.md](./prd-mobile-functionality.md) | v1 epic |
@@ -256,4 +257,4 @@ Local product requirements for the **mobile initiative** and related work. Statu
 
 - After merging a mobile PR, update the table and the PRD’s section (status + evidence).
 - Non-mobile PRDs should use `tasks/prd-<feature-name>.md` per [README](./README.md); add a row here when created.
-- **Last audited:** 2026-08-18 (UX three-initiative: LCP pagination/SSR, PWA install banner, ActionResult error unification).
+- **Last audited:** 2026-10-11 (UX three-initiative: LCP pagination/SSR, PWA install banner, ActionResult error unification).

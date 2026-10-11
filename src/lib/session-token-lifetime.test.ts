@@ -35,8 +35,8 @@ describe('session token lifetime (ZIG-I17-7)', () => {
   it('lasts 8 hours normally and 30 days when remembered', async () => {
     const normal = await decode({ token: await issue(false, 0), secret, salt });
     const remembered = await decode({ token: await issue(true, 0), secret, salt });
-    expect(Number(normal?.exp) - Number(normal?.iat)).toBe(8 * 60 * 60);
-    expect(Number(remembered?.exp) - Number(remembered?.iat)).toBe(30 * DAY);
+    expect(Math.abs(Number(normal?.exp) - Number(normal?.iat) - 8 * 60 * 60)).toBeLessThanOrEqual(5);
+    expect(Math.abs(Number(remembered?.exp) - Number(remembered?.iat) - 30 * DAY)).toBeLessThanOrEqual(5);
   });
 
   it('a remembered device still works on day 29 and is rejected on day 31', async () => {

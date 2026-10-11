@@ -32,4 +32,9 @@ GROUP BY 1, 2, 3 HAVING c.last_number < max(t.folio_number);                    
 - The cookie lives 30 days; the token carries the real expiry (custom `jwt.encode` in `src/lib/auth.ts`).
 - The app renews a normal session in its last 15 minutes and a remembered one once a day, and warns in the last 5 minutes if it could not renew (`SessionKeepAlive`).
 - Mi cuenta › Cerrar sesión en todos mis dispositivos bumps `token_version`, which invalidates every token of the user.
-- Not built: PIN unlock (optional in the plan).
+- Not built: PIN unlock (optional in the plan, won't do for now).
+
+## Tests
+
+- `npm test` covers the helpers, the session policy, real Auth.js tokens (day 29 valid, day 31 rejected) and the revoked-session login.
+- `FOLIO_DB_TEST=1 DATABASE_URL=... npx jest src/lib/folio-allocator.db.test.ts src/actions/folio-flow.db.test.ts` runs the counter and the full create → convert → create flow in a fresh company against a migrated Postgres.
