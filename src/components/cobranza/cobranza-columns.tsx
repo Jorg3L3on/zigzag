@@ -85,14 +85,14 @@ export const createCobranzaColumns = ({
   {
     id: 'daysOutstanding',
     accessorKey: 'daysOutstanding',
-    header: 'Antigüedad',
+    header: 'Días sin pagar',
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5 text-sm">
         <span className="tabular-nums">
           {row.original.daysOutstanding}{' '}
           {row.original.daysOutstanding === 1 ? 'día' : 'días'}
         </span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {COBRANZA_AGING_LABEL[row.original.agingBucket]}
         </span>
       </div>

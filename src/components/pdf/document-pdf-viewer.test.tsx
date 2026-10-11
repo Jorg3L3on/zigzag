@@ -150,6 +150,19 @@ describe('DocumentPdfViewer', () => {
     expect(screen.getAllByRole('button', { name: 'Compartir' }).length).toBeGreaterThan(0);
   });
 
+  it('the recibo fallback keeps the summary and buttons but drops the hint (ZIG-I18-16)', () => {
+    setPdfViewerEnabled(false);
+    renderViewer({
+      kind: 'recibo',
+      whatsApp: { kind: 'recibo', phone: null, clientName: 'Cliente Demo', total: 100, paid: 100 },
+    });
+
+    expect(screen.getByTestId('presupuesto-summary')).toBeTruthy();
+    expect(screen.queryByTestId('pdf-viewer-hint')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Descargar PDF' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Compartir' }).length).toBeGreaterThan(0);
+  });
+
   it('shows the summary alone, without embed or actions, when the role cannot download', () => {
     setPdfViewerEnabled(true);
     mockCanInvoice = false;

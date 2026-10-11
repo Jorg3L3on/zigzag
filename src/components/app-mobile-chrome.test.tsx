@@ -16,8 +16,13 @@ jest.mock('@/hooks/use-display-mode-standalone', () => ({
   useDisplayModeStandalone: () => false,
 }));
 
+// The real dock hides itself while a sticky action bar is mounted (covered in its own test).
 jest.mock('@/components/mobile-bottom-dock', () => ({
-  MobileBottomDock: () => <div data-testid="mobile-bottom-tab-bar" />,
+  MobileBottomDock: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useMobileChrome } = require('@/contexts/mobile-chrome-context');
+    return useMobileChrome().hasStickyAction ? null : <div data-testid="mobile-bottom-tab-bar" />;
+  },
 }));
 
 jest.mock('@/components/operator-tenant-company-sync', () => ({
@@ -114,7 +119,7 @@ describe('AppMobileChrome dock and sticky action bar', () => {
     );
   });
 
-  it('keeps the dock and reserves room for both while a sticky action bar is mounted', () => {
+  it('swaps the dock for the sticky action bar and reserves room for the bar only (ZIG-I18-6)', () => {
     render(
       <AppMobileChrome>
         <TripledMobileStickyActionBar>
@@ -123,12 +128,12 @@ describe('AppMobileChrome dock and sticky action bar', () => {
       </AppMobileChrome>,
     );
 
-    expect(screen.getByTestId('mobile-bottom-tab-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-bottom-tab-bar')).toBeNull();
     expect(screen.getByTestId('mobile-sticky-action-bar')).toHaveClass(
-      'bottom-[calc(var(--dock-clearance)+var(--sticky-action-gap))]',
+      'bottom-[max(env(safe-area-inset-bottom,0px),var(--dock-float-gap))]',
     );
     expect(screen.getByTestId('mobile-bottom-tab-spacer')).toHaveClass(
-      'h-[calc(var(--dock-clearance)+var(--sticky-action-clearance))]',
+      'h-[calc(var(--sticky-action-clearance)+max(env(safe-area-inset-bottom,0px),var(--dock-float-gap)))]',
     );
   });
 });

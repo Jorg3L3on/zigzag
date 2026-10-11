@@ -73,7 +73,7 @@ export const CompanyFormSection = ({
             <span className="flex min-w-0 flex-1 flex-col">
               <span>{title}</span>
               {collapsible && !isOpen ? (
-                <span className="truncate text-xs font-normal text-muted-foreground">
+                <span className="truncate text-caption font-normal text-muted-foreground">
                   {summary}
                 </span>
               ) : null}

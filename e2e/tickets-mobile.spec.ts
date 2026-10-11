@@ -6,7 +6,7 @@ import {
   login,
 } from './helpers/auth';
 import {
-  expectStickyActionAboveDock,
+  expectStickyActionReplacesDock,
   visibleMobileAppBar,
   visiblePageHeader,
 } from './helpers/mobile-chrome';
@@ -41,8 +41,8 @@ test.describe('Mobile ticket screens', () => {
     await page.goto('/tickets');
 
     await expect(visiblePageHeader(page).getByText('Tickets')).toBeVisible();
-    await expect(page.getByPlaceholder('Cliente, folio o teléfono')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Abrir filtros/ })).toBeVisible();
+    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Más filtros/ })).toBeVisible();
     // Nuevo ticket lives in the dock's + on phones; the list shows the cobro chips (ZIG-I13-7).
     await expect(page.getByRole('group', { name: 'Filtro de cobro' })).toBeVisible();
     await expect(page.getByTestId('tickets-balance-due')).toBeVisible();
@@ -54,7 +54,7 @@ test.describe('Mobile ticket screens', () => {
     page,
   }) => {
     await page.goto('/tickets');
-    const search = page.getByPlaceholder('Cliente, folio o teléfono');
+    const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
     await expect(search).toBeVisible();
     const firstCard = page
       .getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ })
@@ -99,7 +99,7 @@ test.describe('Mobile ticket screens', () => {
         .and(page.locator(':not([data-testid="mobile-dock-create"])')),
     ).toHaveCount(0);
     // The dock stays; the sticky CTA floats above it.
-    await expectStickyActionAboveDock(page);
+    await expectStickyActionReplacesDock(page);
     await expectNoHorizontalOverflow(page);
     expect(
       consoleErrors.filter((text) => /hydrat/i.test(text)),

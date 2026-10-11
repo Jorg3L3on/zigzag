@@ -9,6 +9,7 @@ import {
   requireActionPermission,
   requireTenantActionPermission,
 } from '@/lib/security';
+import { PasswordChangeRequiredError } from '@/lib/errors';
 import { RateLimiter } from '@/lib/rate-limiter';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -420,6 +421,25 @@ describe('security helpers', () => {
         companyId: 10,
         companyIsSystem: false,
       });
+    });
+
+    it('blocks everything until a temporary password is replaced (ZIG-I18-11)', async () => {
+      mockAuth.mockResolvedValue({
+        user: { id: '9', company_id: 10, company_is_system: false },
+      } as Awaited<ReturnType<typeof auth>>);
+      mockDb.query.user.findFirst.mockResolvedValue({
+        id: 9n,
+        company_id: 10,
+        must_change_password: true,
+        company: { id: 10, deleted_at: null, status: 'ACTIVE' },
+      });
+
+      await expect(requireActionAuth()).rejects.toBeInstanceOf(
+        PasswordChangeRequiredError,
+      );
+      await expect(
+        requireActionAuth({ allowPasswordChangePending: true }),
+      ).resolves.toEqual({ userId: '9', companyId: 10, companyIsSystem: false });
     });
 
     it('rejects stale sessions for deleted users or inactive companies', async () => {

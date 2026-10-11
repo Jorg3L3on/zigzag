@@ -1,8 +1,33 @@
 'use client';
 
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
+import { splitErrorCode } from '@/lib/error-code-display';
 import { useTheme } from 'next-themes';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+/**
+ * Error toasts keep the support code off the sentence (ZIG-I18-3): the message
+ * is the title, "Código: XX000" the description underneath. Patched once here
+ * so the ~50 call sites keep passing a single string.
+ */
+const patchToastErrorCodes = () => {
+  const target = toast as unknown as Record<string, unknown> & {
+    __codeSplit?: boolean;
+  };
+  if (target.__codeSplit) return;
+  target.__codeSplit = true;
+  for (const kind of ['error', 'warning'] as const) {
+    const original = target[kind] as (message: unknown, data?: Record<string, unknown>) => unknown;
+    target[kind] = (message: unknown, data?: Record<string, unknown>) => {
+      if (typeof message === 'string' && !data?.description) {
+        const { message: text, code } = splitErrorCode(message);
+        if (code) return original(text, { ...data, description: `Código: ${code}` });
+      }
+      return original(message, data);
+    };
+  }
+};
+patchToastErrorCodes();
 
 /**
  * Toast placement:
@@ -22,6 +47,7 @@ export const AppToaster = () => {
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
       position={isMobile ? 'top-center' : 'bottom-center'}
       offset={16}
+      toastOptions={{ classNames: { description: '!text-sm' } }}
       mobileOffset={
         isMobile
           ? {

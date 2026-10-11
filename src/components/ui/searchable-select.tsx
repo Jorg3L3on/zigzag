@@ -205,7 +205,7 @@ export const SearchableSelect = ({
                         <span className="line-clamp-2 [overflow-wrap:anywhere]">
                           {option.title ?? option.label}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
+                        <span className="block truncate text-caption text-muted-foreground">
                           {option.detail}
                         </span>
                       </span>

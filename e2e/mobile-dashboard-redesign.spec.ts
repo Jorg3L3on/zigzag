@@ -131,6 +131,12 @@ test.describe('Mobile dashboard redesign', () => {
   test('Actividad reciente shows at most 5 rows before Ver más', async ({ page }) => {
     await page.goto('/dashboard');
 
+    // Phones keep the feed behind Ver más (ZIG-I18-7).
+    const more = page.getByRole('button', { name: 'Ver más', exact: true });
+    if (await more.isVisible({ timeout: 15_000 }).catch(() => false)) {
+      await more.click();
+    }
+
     const feed = page
       .getByRole('region', { name: 'Actividad reciente' })
       .filter({ visible: true })

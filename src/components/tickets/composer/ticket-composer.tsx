@@ -240,6 +240,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const prefillClientId = searchParams.get('clientId');
   const prefillServiceId = searchParams.get('serviceId');
 
+  // Guardar stays tappable when something is missing; the hint turns into the error (ZIG-I18-13).
+  const [attemptedSave, setAttemptedSave] = React.useState(false);
   const [client, setClient] = React.useState<ComposerClient | null>(
     isEdit ? edit.client : null,
   );
@@ -528,7 +530,14 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   };
 
   const handleSave = async () => {
-    if (!companyId || !client || lines.length === 0 || saveState !== 'idle') {
+    if (saveState !== 'idle') {
+      return;
+    }
+    if (!client || lines.length === 0) {
+      setAttemptedSave(true);
+      return;
+    }
+    if (!companyId) {
       return;
     }
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -536,7 +545,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         description:
           isQuote
             ? 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal.'
-            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Captura rápida.',
+            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Anotar trabajo.',
       });
       return;
     }
@@ -679,6 +688,10 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       : belowPaid && ticketEdit
         ? `Abajo de lo ya pagado (${formatServiceCurrency(ticketEdit.paid)})`
         : (editHint ?? countsLabel);
+
+  const missingRequired = !client || lines.length === 0;
+  const hintIsError = attemptedSave && missingRequired;
+  const hintClass = hintIsError ? 'font-medium text-destructive' : 'text-muted-foreground';
 
   const dateLabel = isToday(ticketDate)
     ? `Hoy · ${format(ticketDate, "d 'de' MMMM", { locale: es })}`
@@ -882,7 +895,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 gap-1.5 rounded-xl"
+                className="h-11 gap-1.5 rounded-xl"
                 onClick={openAddLine}
               >
                 <Plus className="h-4 w-4" aria-hidden />
@@ -927,7 +940,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
             )}
 
             <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                 Total
               </span>
               <NumberTicker
@@ -967,7 +980,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
             />
             <PdfCharsWarning text={notes} />
             {notesError ? (
-              <p id="composer-notes-error" role="alert" className="mt-1 text-xs text-destructive">
+              <p id="composer-notes-error" role="alert" className="mt-1 text-caption text-destructive">
                 {notesError}
               </p>
             ) : null}
@@ -975,11 +988,13 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         </BlurFade>
 
         <div className="hidden items-center justify-between gap-4 md:flex">
-          <p className="text-sm text-muted-foreground">{ctaHint}</p>
+          <p className={cn('text-sm', hintClass)} role={hintIsError ? 'alert' : undefined}>
+            {ctaHint}
+          </p>
           <Button
             type="button"
             className="h-11 min-w-44 rounded-xl text-base font-semibold"
-            disabled={!canSave || saveState !== 'idle'}
+            disabled={belowPaid || saveState !== 'idle'}
             onClick={handleSave}
           >
             {saveLabel}
@@ -987,10 +1002,10 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         </div>
 
         {isQuote ? null : (
-          <p className="text-center text-xs text-muted-foreground md:hidden">
+          <p className="text-center text-caption text-muted-foreground md:hidden">
             ¿Sin señal o con prisa?{' '}
             <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
-              Captura rápida
+              Anotar trabajo
             </Link>
           </p>
         )}
@@ -998,7 +1013,11 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
 
       <TripledMobileStickyActionBar>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground" data-testid="composer-sticky-hint">
+          <p
+            className={cn('text-caption', hintClass)}
+            data-testid="composer-sticky-hint"
+            role={hintIsError ? 'alert' : undefined}
+          >
             {ctaHint}
           </p>
           <MoneyFigure
@@ -1011,7 +1030,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         <Button
           type="button"
           className={cn('h-12 shrink-0 rounded-xl px-5 text-base font-semibold')}
-          disabled={!canSave || saveState !== 'idle'}
+          disabled={belowPaid || saveState !== 'idle'}
           onClick={handleSave}
         >
           {mobileSaveLabel}

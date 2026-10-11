@@ -3,8 +3,10 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import {
+  Banknote,
   CalendarClock,
   ClipboardList,
+  PenLine,
   Package,
   Ticket,
   UserPlus,
@@ -27,6 +29,50 @@ type QuickAction = {
 
 export type DashboardQuickActionsProps = {
   persona?: DashboardPersona;
+};
+
+/**
+ * Phones (ZIG-I18-7): three big tiles for what a tradesperson does all day,
+ * replacing the sideways-scrolling row of seven chips.
+ */
+export const DashboardQuickTiles = () => {
+  const { can } = usePermissions();
+  const tiles = [
+    can(PERMISSIONS.tickets.write)
+      ? { key: 'anotar', label: 'Anotar trabajo', href: '/anotar', icon: PenLine }
+      : null,
+    can(PERMISSIONS.tickets.read)
+      ? { key: 'cobrar', label: 'Cobrar', href: '/cobranza', icon: Banknote }
+      : null,
+    can(PERMISSIONS.tickets.write)
+      ? { key: 'nuevo', label: 'Nuevo ticket', href: '/tickets/create', icon: Ticket }
+      : null,
+  ].filter((tile): tile is NonNullable<typeof tile> => tile !== null);
+
+  if (tiles.length === 0) {
+    return null;
+  }
+
+  return (
+    <nav aria-label="Acciones rápidas" data-testid="dashboard-quick-tiles" className="md:hidden">
+      <ul className="grid grid-cols-3 gap-2">
+        {tiles.map((tile) => {
+          const Icon = tile.icon;
+          return (
+            <li key={tile.key} className="min-w-0">
+              <Link
+                href={tile.href}
+                className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-border/70 bg-card px-2 py-3 text-center text-base font-semibold leading-tight shadow-sm transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Icon className="h-6 w-6 text-primary" aria-hidden />
+                {tile.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
 };
 
 export const DashboardQuickActions = ({
@@ -118,7 +164,7 @@ export const DashboardQuickActions = ({
 
   // Chip row under the greeting: scrolls sideways on phones, wraps from sm up.
   return (
-    <nav aria-label="Acciones rápidas" data-testid="dashboard-quick-actions">
+    <nav aria-label="Acciones rápidas" data-testid="dashboard-quick-actions" className="hidden md:block">
       <ul className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
         {actions.map((action) => (
           <li key={action.key} className="shrink-0 snap-start">

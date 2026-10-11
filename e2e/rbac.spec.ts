@@ -46,9 +46,9 @@ test.describe('RBAC browser specs', () => {
     await firstTicket.click();
     // Soft-edit and finish CTAs require tickets.write; viewers must not see them.
     await expect(page.getByRole('link', { name: /Editar ticket|Editar datos/i })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /^Finalizar$/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /^Terminar$/i })).toHaveCount(0);
     await expect(
-      page.getByRole('button', { name: /Finalizar y generar recibo/i }),
+      page.getByRole('button', { name: /Terminar y generar recibo/i }),
     ).toHaveCount(0);
   });
 

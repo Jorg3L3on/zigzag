@@ -303,7 +303,7 @@ export const OperatorConsoleDetail = () => {
       <div className="sticky top-0 z-20 -mx-1 space-y-3 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
               Empresa actual
             </p>
             <div className="flex flex-wrap items-center gap-2">

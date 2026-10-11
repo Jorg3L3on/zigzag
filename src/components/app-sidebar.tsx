@@ -9,8 +9,10 @@ import { resolveCompanyLogoUrl } from '@/lib/company-logo-storage';
 
 import { NavMain } from '@/components/nav-main';
 import { NavProject } from '@/components/nav-project';
+import { NavHelpLink } from '@/components/nav-help-link';
 import { NavUser } from '@/components/nav-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { TextSizeSwitch } from '@/components/text-size-switch';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { TeamSwitcher } from '@/components/team-switcher';
 import {
@@ -252,7 +254,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center justify-between gap-2 px-1 group-data-[collapsible=icon]:justify-center">
-          <span className="truncate text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+          <span className="truncate text-caption font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
             Notificaciones
           </span>
           <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
@@ -260,6 +262,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <ThemeToggle />
           </div>
         </div>
+        <TextSizeSwitch />
+        <NavHelpLink />
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

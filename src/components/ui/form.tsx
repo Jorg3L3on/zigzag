@@ -12,6 +12,7 @@ import {
   type FieldValues,
 } from "react-hook-form"
 
+import { ErrorText } from "@/components/error-text"
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 
@@ -149,7 +150,7 @@ const FormDescription = React.forwardRef<
     <p
       ref={ref}
       id={formDescriptionId}
-      className={cn("text-[0.8rem] text-muted-foreground", className)}
+      className={cn("text-caption text-muted-foreground", className)}
       {...props}
     />
   )
@@ -186,10 +187,14 @@ const FormMessage = React.forwardRef<
       id={formMessageId}
       role={isFieldError ? "alert" : undefined}
       aria-live={isFieldError ? "polite" : undefined}
-      className={cn("text-[0.8rem] font-medium text-destructive", className)}
+      className={cn("text-sm font-medium text-destructive", className)}
       {...props}
     >
-      {withValidationCode(body)}
+      {typeof body === "string" ? (
+        <ErrorText message={withValidationCode(body) as string} />
+      ) : (
+        withValidationCode(body)
+      )}
     </p>
   )
 })

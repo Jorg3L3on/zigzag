@@ -75,7 +75,7 @@ export const InlineSchedulePicker = ({
                     line.intervalUnit,
                   )}`}
                   onClick={() => setEditing(editing === line.serviceId ? null : line.serviceId)}
-                  className="shrink-0 rounded-md px-1 py-2 text-[13px] text-muted-foreground underline-offset-4 enabled:hover:underline disabled:no-underline"
+                  className="shrink-0 rounded-md px-1 py-2 text-caption text-muted-foreground underline-offset-4 enabled:hover:underline disabled:no-underline"
                 >
                   en {formatScheduleInterval(line.intervalValue, line.intervalUnit)}
                 </button>

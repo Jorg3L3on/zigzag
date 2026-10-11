@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { getServices } from '@/actions/services';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -164,7 +165,7 @@ const addLine = async (
   const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
   await user.clear(qty);
   await user.type(qty, quantity);
-  await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
   );
@@ -179,12 +180,18 @@ describe('TicketComposer', () => {
     mockSearchParams = new URLSearchParams();
   });
 
-  it('keeps Guardar ticket disabled until a client and a line exist', async () => {
+  it('tells what is missing when Guardar is tapped without a client or a line (ZIG-I18-13)', async () => {
+    const user = userEvent.setup();
     renderComposer();
 
     expect(screen.getByRole('heading', { name: 'Nuevo ticket' })).toBeTruthy();
     expect(screen.getAllByText('Elige un cliente').length).toBeGreaterThan(0);
-    saveButtons().forEach((button) => expect(button).toBeDisabled());
+    expect(screen.queryByRole('alert', { name: '' })).toBeNull();
+    saveButtons().forEach((button) => expect(button).toBeEnabled());
+    await user.click(saveButtons()[0]);
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((alert) => /Elige un cliente/.test(alert.textContent ?? ''))).toBe(true);
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
     expect(screen.queryByText(/Paso \d de \d/)).toBeNull();
     expect(screen.queryByRole('button', { name: /^Crear/ })).toBeNull();
   });
@@ -239,7 +246,7 @@ describe('TicketComposer', () => {
     await user.click(
       within(sheet).getByRole('button', { name: 'Aumentar cantidad del servicio' }),
     );
-    await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
     await waitFor(() =>
       expect(screen.getByText('2 × $4,200.00')).toBeTruthy(),
     );
@@ -260,6 +267,20 @@ describe('TicketComposer', () => {
     expect(await screen.findByText('2 × $4,200.00')).toBeTruthy();
   });
 
+  it('opens Agregar servicio on Escribir when the catalog is empty (ZIG-I18-13)', async () => {
+    const user = userEvent.setup();
+    (getServices as jest.Mock).mockResolvedValueOnce({ success: true, data: [] });
+    renderComposer();
+
+    await pickClient(user);
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+
+    expect(await within(sheet).findByLabelText('Nombre del servicio')).toBeInTheDocument();
+    expect(within(sheet).getByRole('radio', { name: /Escribir/ })).toBeChecked();
+    expect(within(sheet).getAllByText(/Marca "Guardar en mis servicios" para usarlo otra vez/).length).toBeGreaterThan(0);
+  });
+
   it('adds an inline line with Nuevo and saves it without the catalog (ZIG-I5)', async () => {
     const user = userEvent.setup();
     mockCreateTicketWithLines.mockResolvedValue({
@@ -271,20 +292,20 @@ describe('TicketComposer', () => {
     await pickClient(user);
     await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
     const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
-    await user.click(within(sheet).getByRole('radio', { name: /Nuevo/ }));
+    await user.click(within(sheet).getByRole('radio', { name: /Escribir/ }));
     // Agregar stays disabled until the inline line has a name.
-    expect(within(sheet).getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+    expect(within(sheet).getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
     await user.type(
       within(sheet).getByLabelText('Nombre del servicio'),
       'Cambio de capacitor 35 µF',
     );
-    const toggle = within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ });
+    const toggle = within(sheet).getByRole('switch', { name: /Guardar en mis servicios/ });
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     await user.type(
       within(sheet).getByRole('spinbutton', { name: 'Precio del servicio' }),
       '850',
     );
-    await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
     );
@@ -313,11 +334,11 @@ describe('TicketComposer', () => {
 
     await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
     let sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
-    await user.click(within(sheet).getByRole('radio', { name: /Nuevo/ }));
+    await user.click(within(sheet).getByRole('radio', { name: /Escribir/ }));
     await user.type(within(sheet).getByLabelText('Nombre del servicio'), 'Instalación');
     await user.type(within(sheet).getByLabelText(/Descripción/), 'Incluye base');
-    await user.click(within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }));
-    await user.click(within(sheet).getByRole('button', { name: 'Guardar línea' }));
+    await user.click(within(sheet).getByRole('switch', { name: /Guardar en mis servicios/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
     );
@@ -325,14 +346,14 @@ describe('TicketComposer', () => {
     await openLine(user, 'Instalación');
     sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
     // A typed-in line shows where it came from instead of the Del catálogo / Nuevo switch.
-    expect(within(sheet).queryByRole('radio', { name: /Nuevo/ })).toBeNull();
+    expect(within(sheet).queryByRole('radio', { name: /Escribir/ })).toBeNull();
     expect(within(sheet).getByTestId('composer-line-header')).toHaveTextContent(
-      'Fuera del catálogo · Cambiar servicio',
+      'Escrito por ti · Cambiar servicio',
     );
     expect(within(sheet).getByLabelText('Nombre del servicio')).toHaveValue('Instalación');
     expect(within(sheet).getByLabelText(/Descripción/)).toHaveValue('Incluye base');
     expect(
-      within(sheet).getByRole('switch', { name: /Guardar en mi catálogo/ }),
+      within(sheet).getByRole('switch', { name: /Guardar en mis servicios/ }),
     ).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -410,7 +431,7 @@ describe('TicketComposer', () => {
     await user.click(within(rows).getByRole('button', { name: 'Quitar Tubo de cobre' }));
     await user.click(within(sheet).getByRole('button', { name: 'Agregar material' }));
     const step = await screen.findByRole('dialog', { name: 'Agregar material' });
-    await user.click(within(step).getByRole('radio', { name: 'Nuevo' }));
+    await user.click(within(step).getByRole('radio', { name: 'Escribir' }));
     await user.type(within(step).getByLabelText('Nombre del material'), 'Soporte de pared');
     await user.click(within(step).getByRole('button', { name: 'pza' }));
     await user.type(within(step).getByLabelText('Precio / pza'), '320');
@@ -423,7 +444,7 @@ describe('TicketComposer', () => {
     expect(within(sheetAgain).getByTestId('composer-line-breakdown')).toHaveTextContent(
       'Servicio $3,500.00 Materiales $890.00',
     );
-    await user.click(within(sheetAgain).getByRole('button', { name: 'Guardar línea' }));
+    await user.click(within(sheetAgain).getByRole('button', { name: 'Agregar al ticket' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
     );
@@ -557,7 +578,7 @@ describe('TicketComposer', () => {
 
     expect(within(sheet).getByRole('alert')).toHaveTextContent(message);
     expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(within(sheet).getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+    expect(within(sheet).getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
   });
 
   it('refuses a line whose subtotal passes the total cap', async () => {
@@ -582,7 +603,7 @@ describe('TicketComposer', () => {
     expect(within(sheet).getByTestId('composer-line-total-error')).toHaveTextContent(
       '$9,999,999,999.99',
     );
-    expect(within(sheet).getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+    expect(within(sheet).getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
   });
 
   it('marks the rejected line and names it in the toast when the server refuses (ZIG-I12)', async () => {

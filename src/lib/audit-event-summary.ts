@@ -317,6 +317,12 @@ export const formatAuditEventSummary = (
     if (input.action === 'deleted') {
       return { title: `${who} eliminó el usuario ${label}`, details };
     }
+    if (input.action === 'password_reset') {
+      return { title: `${who} dio una contraseña temporal a ${label}`, details };
+    }
+    if (input.action === 'password_changed') {
+      return { title: `${who} cambió su contraseña temporal`, details };
+    }
   }
 
   if (input.resource_type === 'company') {

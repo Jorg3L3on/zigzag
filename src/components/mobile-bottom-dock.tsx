@@ -24,6 +24,7 @@ import {
   TOOLBAR_GLASS_ICON,
 } from '@/components/toolbar-glass';
 import { useSidebar } from '@/components/ui/sidebar';
+import { useMobileChrome } from '@/contexts/mobile-chrome-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
   getActiveMobileTabHref,
@@ -51,16 +52,15 @@ const MENU_TRANSITION: Transition = {
 const INSTANT: Transition = { duration: 0 };
 
 export const MOBILE_DOCK_SHELL_CLASS = cn(
-  'relative grid h-(--dock-bar-height) items-center rounded-full px-1',
-  'border border-black/10 bg-background/70 shadow-panel',
-  'supports-[backdrop-filter]:bg-background/45 backdrop-blur-2xl backdrop-saturate-180',
-  'dark:border-white/[0.12] dark:bg-[rgb(9_14_29/0.6)] dark:supports-[backdrop-filter]:bg-[rgb(9_14_29/0.4)]',
+  'relative grid h-(--dock-bar-height) items-center rounded-full px-0.5',
+  'border border-black/10 bg-background shadow-panel',
+  'dark:border-white/[0.12] dark:bg-[rgb(9_14_29)]',
   'before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-black/20 before:to-transparent',
   'dark:before:via-white/40',
 );
 
 const DOCK_ITEM_CLASS =
-  'relative z-0 flex h-14 min-h-11 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50';
+  'relative z-0 flex h-14 min-h-11 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0 text-caption font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50';
 const DOCK_ITEM_ACTIVE_CLASS = 'text-foreground';
 const DOCK_ITEM_IDLE_CLASS = 'text-muted-foreground hover:text-foreground';
 
@@ -91,7 +91,7 @@ const DockLabel = ({ icon: Icon, title, active }: DockLabelProps) => (
     <Icon className="h-5 w-5 shrink-0" aria-hidden />
     <span
       className={cn(
-        'max-w-full truncate text-center leading-tight tracking-tight transition-opacity',
+        'max-w-full text-center leading-tight tracking-tighter transition-opacity',
         active ? 'opacity-100' : 'opacity-60',
       )}
     >
@@ -102,13 +102,14 @@ const DockLabel = ({ icon: Icon, title, active }: DockLabelProps) => (
 
 /**
  * Floating liquid-glass dock (ported from Micasa / Filmia):
- * Hoy · Tickets · + · Clientes · Más, sliding pill on the active slot,
+ * Hoy · Tickets · + · Cobranza · Más, sliding pill on the active slot,
  * center + opens the quick-create glass menu above the dock.
  */
 export const MobileBottomDock = () => {
   const pathname = usePathname();
   const { can } = usePermissions();
   const { setOpenMobile } = useSidebar();
+  const { hasStickyAction } = useMobileChrome();
   const reduceMotion = useReducedMotion();
   const pillLayoutId = useId();
   const menuId = useId();
@@ -127,9 +128,15 @@ export const MobileBottomDock = () => {
   const showCreate = createActions.length > 0;
   const activeHref = getActiveMobileTabHref(pathname, visibleTabs);
   const moreActive = activeHref === null;
-  // The + sits between Tickets and Clientes; with fewer visible tabs it stays centered-ish.
+  // The + sits between Tickets and Cobranza; with fewer visible tabs it stays centered-ish.
   const createSlot = Math.min(MOBILE_DOCK_CREATE_SLOT, visibleTabs.length);
-  const columnCount = visibleTabs.length + 1 + (showCreate ? 1 : 0);
+  // The + needs only its button; the labelled slots share the rest so "Cobranza" fits at 333 px.
+  const labelledSlots = visibleTabs.length + 1;
+  const gridTemplateColumns = [
+    ...Array.from({ length: labelledSlots + (showCreate ? 1 : 0) }, (_, index) =>
+      showCreate && index === createSlot ? '3rem' : 'minmax(0, 1fr)',
+    ),
+  ].join(' ');
 
   useEffect(() => {
     if (!menuOpen) {
@@ -255,12 +262,17 @@ export const MobileBottomDock = () => {
     ...tabNodes.slice(createSlot),
   ];
 
+  // A sticky action bar takes the dock's place (ZIG-I18-6).
+  if (hasStickyAction) {
+    return null;
+  }
+
   return (
     <nav
       aria-label="Navegación principal"
       data-testid="mobile-bottom-tab-bar"
       className={cn(
-        'pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 md:hidden',
+        'pointer-events-none fixed inset-x-0 bottom-0 z-30 px-1.5 md:hidden',
         DOCK_FLOAT_PADDING_CLASS,
       )}
     >
@@ -308,7 +320,7 @@ export const MobileBottomDock = () => {
                       <span className="block text-sm font-semibold text-foreground">
                         {action.title}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="block truncate text-caption text-muted-foreground">
                         {action.hint}
                       </span>
                     </span>
@@ -322,7 +334,7 @@ export const MobileBottomDock = () => {
         <div
           data-testid="mobile-dock-shell"
           className={MOBILE_DOCK_SHELL_CLASS}
-          style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns }}
         >
           {slots}
           <motion.div

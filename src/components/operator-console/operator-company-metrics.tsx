@@ -246,7 +246,7 @@ export const OperatorCompanyMetrics = () => {
                       {userRow.email}
                     </p>
                   </div>
-                  <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                  <p className="shrink-0 text-caption text-muted-foreground tabular-nums">
                     {userRow.lastSignedInAt
                       ? formatRelativeActivityTime(userRow.lastSignedInAt)
                       : 'Sin inicio de sesión'}

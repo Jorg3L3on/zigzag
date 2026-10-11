@@ -211,6 +211,13 @@
       "when": 1782032000000,
       "tag": "0030_service_line_decimal_quantity",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782291200000,
+      "tag": "0033_user_must_change_password",
+      "breakpoints": true
     }
   ]
 }

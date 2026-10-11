@@ -95,7 +95,7 @@ export const CompanyHubTabs = ({
                 {typeof tabCount === 'number' ? (
                   <span
                     className={cn(
-                      'rounded-full px-2 py-0.5 text-xs font-bold tabular-nums',
+                      'rounded-full px-2 py-0.5 text-caption font-bold tabular-nums',
                       isActive
                         ? 'bg-primary/10 text-primary'
                         : 'bg-muted text-muted-foreground',

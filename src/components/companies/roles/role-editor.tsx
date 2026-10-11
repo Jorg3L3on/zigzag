@@ -287,7 +287,7 @@ export const RoleEditor = ({
               Eliminar rol
             </Button>
             {deleteBlockedReason ? (
-              <span id="role-delete-reason" className="text-xs text-muted-foreground">
+              <span id="role-delete-reason" className="text-caption text-muted-foreground">
                 {deleteBlockedReason}
               </span>
             ) : null}

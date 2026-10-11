@@ -25,7 +25,7 @@ const SortableHeader = ({
     <Button
       type="button"
       variant="ghost"
-      className="-ml-2 h-8 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-transparent"
+      className="-ml-2 h-8 px-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground hover:bg-transparent"
       onClick={column.getToggleSortingHandler()}
     >
       {label}
@@ -43,14 +43,14 @@ const SortableHeader = ({
 export const TeamAvatar = ({ name }: { name: string }) => (
   <span
     aria-hidden
-    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground"
+    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-caption font-bold text-muted-foreground"
   >
     {teamMemberInitials(name)}
   </span>
 );
 
 export const TeamRoleChip = ({ name }: { name: string | null }) => (
-  <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
+  <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-caption font-semibold text-foreground">
     {name ?? 'Sin rol'}
   </span>
 );
@@ -58,7 +58,7 @@ export const TeamRoleChip = ({ name }: { name: string | null }) => (
 export const TeamStatus = ({ member }: { member: TeamMember }) => (
   <span
     className={cn(
-      'text-xs font-semibold',
+      'text-caption font-semibold',
       member.emailVerified
         ? 'text-emerald-700 dark:text-emerald-400'
         : 'text-amber-700 dark:text-amber-400',
@@ -83,7 +83,7 @@ export const createTeamColumns = (
             <span className="truncate font-semibold">
               {row.original.name}
               {row.original.isSelf ? (
-                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                <span className="ml-1.5 text-caption font-normal text-muted-foreground">
                   (tú)
                 </span>
               ) : null}

@@ -8,7 +8,7 @@ import {
   loginAsSystemUser,
 } from './helpers/auth';
 import {
-  expectStickyActionAboveDock,
+  expectStickyActionReplacesDock,
   visibleMobileAppBar,
   visiblePageHeader,
 } from './helpers/mobile-chrome';
@@ -247,7 +247,7 @@ test.describe('Mi empresa hub', () => {
           name: 'Guardar cambios',
         }),
       ).toBeVisible();
-      await expectStickyActionAboveDock(page);
+      await expectStickyActionReplacesDock(page);
     });
 
     test('redirects tenant users from the old admin pages to the hub', async ({

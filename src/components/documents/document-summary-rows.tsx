@@ -86,7 +86,7 @@ export const DocumentSummaryRows = ({
                 {line.materials.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground"
+                    className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground"
                   >
                     <span className="min-w-0 truncate" title={item.name}>
                       {item.name}{' '}

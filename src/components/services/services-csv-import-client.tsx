@@ -248,7 +248,7 @@ export const ServicesCsvImportClient = () => {
           <p className="text-sm text-muted-foreground">
             Descarga la plantilla, completa hasta 500 filas y súbela para
             revisar el resultado antes de guardar. Encabezados:{' '}
-            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+            <code className="rounded bg-muted px-1 py-0.5 text-caption">
               nombre,descripción,precio
             </code>
             . También se aceptan alias en inglés.

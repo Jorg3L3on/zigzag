@@ -255,7 +255,7 @@ export const PresupuestosList = () => {
                   )}
                 >
                   {label}
-                  <span className="tabular-nums text-xs text-muted-foreground">
+                  <span className="tabular-nums text-caption text-muted-foreground">
                     {counts[status]}
                   </span>
                 </button>
@@ -312,10 +312,10 @@ export const PresupuestosList = () => {
                           <FormattedCurrency amount={item.total ?? 0} />
                         </span>
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
                         <Badge
                           variant={statusVariant(item.status)}
-                          className="h-5 px-1.5 text-[11px] shadow-none"
+                          className="h-5 px-1.5 text-caption shadow-none"
                         >
                           {item.statusLabel}
                         </Badge>

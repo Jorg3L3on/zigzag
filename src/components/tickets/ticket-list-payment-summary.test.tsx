@@ -38,14 +38,14 @@ describe('TicketListPaymentSummary', () => {
     expect(screen.queryByText('0%')).not.toBeInTheDocument();
   });
 
-  it('keeps bar and amounts for saldado tickets for even row height', () => {
+  it('keeps bar and amounts for pagado tickets for even row height', () => {
     render(<TicketListPaymentSummary total={100} paid={100} />);
 
     expect(screen.getByTestId('ticket-payment-summary')).toHaveAttribute(
       'data-payment-status',
       'paid',
     );
-    expect(screen.getByText('Saldado')).toBeInTheDocument();
+    expect(screen.getByText('Pagado')).toBeInTheDocument();
     expect(
       screen.getByRole('progressbar', {
         name: /progreso de pago 100 por ciento/i,

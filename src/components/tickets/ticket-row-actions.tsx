@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
+import { MoreVertical, Eye, Phone, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
@@ -17,6 +17,7 @@ import {
   type TicketListCollectPaymentResult,
 } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
+import { buildTelHref } from '@/lib/phone-links';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
   canCollectTicketPayment,
@@ -32,6 +33,7 @@ interface Ticket {
   total: number | null;
   paid: number | null;
   client_name?: string | null;
+  client_tel?: string | null;
   ticket_date?: Date | null;
 }
 
@@ -75,6 +77,8 @@ export function TicketRowActions({
     canCollect &&
     ticket.finished &&
     paymentStatus !== 'paid';
+
+  const telHref = buildTelHref(ticket.client_tel);
 
   const handleDownloadTicket = async (event: Event) => {
     event.preventDefault();
@@ -123,11 +127,19 @@ export function TicketRowActions({
           {showCollectAction ? (
             <DropdownMenuItem
               onSelect={() => setCollectOpen(true)}
-              aria-label={`Registrar pago del ticket ${ticket.id.toString()}`}
+              aria-label={`Cobrar el ticket ${ticket.id.toString()}`}
             >
               <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Registrar pago
+              Cobrar
             </DropdownMenuItem>
+          ) : null}
+          {telHref ? (
+            <a href={telHref}>
+              <DropdownMenuItem aria-label={`Llamar al cliente del ticket ${ticket.id.toString()}`}>
+                <Phone className="mr-2 h-4 w-4" data-icon="inline-start" />
+                Llamar
+              </DropdownMenuItem>
+            </a>
           ) : null}
           {canWrite && !ticket.finished && (
             <Link href={`/tickets/${ticket.id}/edit`}>

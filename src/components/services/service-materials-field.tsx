@@ -105,7 +105,7 @@ export const ServiceMaterialsField = ({
             <Package className="h-4 w-4 text-muted-foreground" aria-hidden />
             Materiales
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Se agregan al ticket o presupuesto con este servicio; puedes ajustarlos ahí.
           </p>
         </div>
@@ -136,7 +136,7 @@ export const ServiceMaterialsField = ({
         Agregar material
       </Button>
       {atLimit ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Máximo {MATERIALS_PER_LINE_MAX} materiales por servicio.
         </p>
       ) : null}

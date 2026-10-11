@@ -67,7 +67,7 @@ describe('TicketDetailFinishPanel', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: /finalizar y generar recibo/i }),
+      screen.getByRole('button', { name: /terminar y generar recibo/i }),
     ).toBeDisabled();
     expect(
       screen.getByRole('link', { name: /ir a servicios/i }),
@@ -93,7 +93,7 @@ describe('TicketDetailFinishPanel', () => {
 
     expect(screen.getByText(/no puede ser mayor que el total/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /finalizar y generar recibo/i }),
+      screen.getByRole('button', { name: /terminar y generar recibo/i }),
     ).toBeDisabled();
     expect(mockFinishTicket).not.toHaveBeenCalled();
   });
@@ -116,7 +116,7 @@ describe('TicketDetailFinishPanel', () => {
     for (const radio of screen.getAllByRole('radio')) {
       expect(radio).toHaveAttribute('aria-checked', 'false');
     }
-    const finish = screen.getByRole('button', { name: /finalizar y generar recibo/i });
+    const finish = screen.getByRole('button', { name: /terminar y generar recibo/i });
     expect(finish).toBeDisabled();
     await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
     expect(finish).toBeEnabled();

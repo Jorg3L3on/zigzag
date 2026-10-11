@@ -63,7 +63,7 @@ export const PostHogProvider = ({
       <Suspense
         fallback={
           <div
-            className="pointer-events-none fixed bottom-2 right-2 z-50 flex items-center gap-2 rounded-md border bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm"
+            className="pointer-events-none fixed bottom-2 right-2 z-50 flex items-center gap-2 rounded-md border bg-background/90 px-2 py-1 text-caption text-muted-foreground shadow-sm"
             role="status"
             aria-live="polite"
           >

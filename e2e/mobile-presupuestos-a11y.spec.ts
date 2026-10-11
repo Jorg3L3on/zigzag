@@ -73,7 +73,7 @@ test.describe('Presupuestos accessibility @375px', () => {
     await page.getByRole('button', { name: 'Agregar servicio' }).click();
     const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
     await expect(sheet).toBeVisible();
-    await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+    await sheet.getByRole('radio', { name: /Escribir/ }).click();
     await expect(sheet.getByLabel('Nombre del servicio')).toBeVisible();
     await expectNoSeriousViolations(page);
     await sheet.getByRole('button', { name: 'Cancelar' }).click();

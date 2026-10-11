@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { KeyRound, MoreHorizontal, Pencil, Trash } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +13,14 @@ type UserActionsMenuProps = {
   label?: string;
   onEditRequest: () => void;
   onDeleteRequest: () => void;
+  onResetPasswordRequest?: () => void;
 };
 
 export const UserActionsMenu = ({
   label = 'Abrir menú',
   onEditRequest,
   onDeleteRequest,
+  onResetPasswordRequest,
 }: UserActionsMenuProps) => {
   return (
     <DropdownMenu>
@@ -44,6 +46,17 @@ export const UserActionsMenu = ({
           <Pencil className="mr-2 h-4 w-4" aria-hidden  data-icon="inline-start" />
           Editar
         </DropdownMenuItem>
+        {onResetPasswordRequest ? (
+          <DropdownMenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              onResetPasswordRequest();
+            }}
+          >
+            <KeyRound className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+            Dar contraseña temporal
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           className="text-red-500 hover:text-red-500"
           onClick={(event) => {

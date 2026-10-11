@@ -97,13 +97,13 @@ export const PaymentChoice = ({
         })}
       </div>
       {payMode === null ? (
-        <p className="text-xs text-muted-foreground" data-testid="review-pay-hint">
+        <p className="text-caption text-muted-foreground" data-testid="review-pay-hint">
           Elige cómo pagó el cliente para finalizar.
         </p>
       ) : null}
       {payMode === 'partial' ? (
         <div className="space-y-1.5">
-          <label htmlFor={inputId} className="text-[13px] text-muted-foreground">
+          <label htmlFor={inputId} className="text-caption text-muted-foreground">
             Cuánto pagó
           </label>
           <div className="relative">
@@ -123,7 +123,7 @@ export const PaymentChoice = ({
             />
           </div>
           {partialTooHigh ? (
-            <p className="text-xs text-destructive" role="alert">
+            <p className="text-caption text-destructive" role="alert">
               No puede ser mayor que el total.
             </p>
           ) : null}

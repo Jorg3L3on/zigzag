@@ -31,6 +31,19 @@ const chain = (rows: unknown[], wheres: SQL[]) => {
   };
 };
 
+/** Services summary: from → innerJoin → leftJoin → where → groupBy resolves to `rows`. */
+const summaryChain = (rows: unknown[], wheres: SQL[]) => {
+  const q: Record<string, unknown> = {};
+  q.innerJoin = jest.fn(() => q);
+  q.leftJoin = jest.fn(() => q);
+  q.where = jest.fn((where: SQL) => {
+    wheres.push(where);
+    return q;
+  });
+  q.groupBy = jest.fn(async () => rows);
+  return { from: jest.fn(() => q) };
+};
+
 const sqlOf = (where: SQL) => new PgDialect().sqlToQuery(where);
 
 describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
@@ -44,7 +57,10 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     mockSelect
       .mockReturnValueOnce(chain([{ total: 3, balanceDue: '843164.79' }], wheres)) // count + saldo
       .mockReturnValueOnce(chain([{ dueCount: 2 }], wheres)) // por cobrar count
-      .mockReturnValueOnce(chain([{ id: 1n }], wheres)); // page
+      .mockReturnValueOnce(chain([{ id: 1n }], wheres)) // page
+      .mockReturnValueOnce(
+        summaryChain([{ ticket_id: 1n, summary: 'Compresor, Mano de obra' }], wheres),
+      ); // the work, one aggregate for the page
     const result = await getTicketsPaginated(params);
     return { result, wheres };
   };
@@ -54,6 +70,16 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
 
     expect(result.success).toBe(true);
     expect(result.data).toMatchObject({ total: 3, balanceDue: 843164.79, dueCount: 2 });
+  });
+
+  it('attaches the work summary of each ticket with one company-scoped aggregate (ZIG-I18-8)', async () => {
+    const { result, wheres } = await run({ companyId: 10 });
+
+    expect(result.data?.items[0]).toMatchObject({ id: 1n, services_summary: 'Compresor, Mano de obra' });
+    expect(mockSelect).toHaveBeenCalledTimes(4);
+    const { sql: text, params } = sqlOf(wheres[3]);
+    expect(text).toContain('"company_id"');
+    expect(params).toContain(10);
   });
 
   it('the due filter means a saldo above a cent, parcial or sin pagos', async () => {

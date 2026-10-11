@@ -188,7 +188,7 @@ export const TripledMobileAppBar = ({
           <div className="min-w-0 flex-1 text-center">
             <p className="truncate text-sm font-semibold">{title}</p>
             {subtitle ? (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
+              <p className="text-caption text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
           {endSlot ?? <div className="h-11 w-11" aria-hidden />}
@@ -229,7 +229,7 @@ export const TripledMobileStickyActionBar = ({
     <div
       data-testid="mobile-sticky-action-bar"
       className={cn(
-        // Floats above the dock (same inset and width); z-index under the dock so its + menu opens on top.
+        // Takes the dock's place while it is shown (the dock hides itself).
         'fixed inset-x-3 z-20 mx-auto max-w-lg rounded-2xl border bg-background/95 p-3 shadow-panel backdrop-blur md:hidden',
         STICKY_ACTION_BOTTOM_CLASS,
         className,

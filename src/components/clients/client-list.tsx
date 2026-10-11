@@ -19,7 +19,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { MoreVertical, PenLine, Phone, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
+import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { buildTelHref } from '@/lib/phone-links';
+import { PERMISSIONS } from '@/lib/permissions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -298,6 +307,8 @@ export function ClientList() {
     phoneFilter !== 'all',
   ].filter(Boolean).length;
   const effectiveCanWrite = canWrite && snapshotUpdatedAt == null;
+  const canAnotar = permissions.can(PERMISSIONS.tickets.write) && snapshotUpdatedAt == null;
+  const clientToDeleteName = clients.find((item) => item.id === clientToDelete)?.name ?? null;
 
   const handleDelete = async (id: number) => {
     try {
@@ -526,34 +537,40 @@ export function ClientList() {
                   }}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground">
                       {clientRow.name}
                     </h3>
                     {effectiveCanWrite ? (
-                      <div className="flex shrink-0 gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Editar ${clientRow.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          router.push(`/clients/${clientRow.id}/edit`);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4"  data-icon="inline-start" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Eliminar ${clientRow.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openDeleteDialog(clientRow.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-                      </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="-mr-2 -mt-2 size-11 shrink-0"
+                            aria-label={`Más acciones de ${clientRow.name}`}
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            <MoreVertical className="h-5 w-5" aria-hidden data-icon="inline-start" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                          <DropdownMenuItem
+                            className="min-h-11"
+                            onSelect={() => router.push(`/clients/${clientRow.id}/edit`)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                            Editar cliente
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="min-h-11 text-destructive focus:text-destructive"
+                            onSelect={() => openDeleteDialog(clientRow.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                            Eliminar cliente
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : null}
                   </div>
 
@@ -561,13 +578,7 @@ export function ClientList() {
                     <div className="grid grid-cols-[88px_1fr] gap-2">
                       <dt className="text-muted-foreground">Teléfono</dt>
                       <dd className="truncate">
-                        <ClientPhoneLink
-                          phone={clientRow.phone}
-                          className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          textClassName="tabular-nums"
-                          onClick={(event) => event.stopPropagation()}
-                          onKeyDown={(event) => event.stopPropagation()}
-                        />
+                        <span className="tabular-nums">{clientRow.phone?.trim() || '—'}</span>
                       </dd>
                     </div>
                     <div className="grid grid-cols-[88px_1fr] gap-2">
@@ -579,6 +590,29 @@ export function ClientList() {
                       <dd className="line-clamp-2">{formattedAddress || '—'}</dd>
                     </div>
                   </dl>
+
+                  <div
+                    className="mt-3 flex gap-2"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    {buildTelHref(clientRow.phone) ? (
+                      <Button asChild variant="outline" className="min-h-11 flex-1 text-base">
+                        <a href={buildTelHref(clientRow.phone) ?? undefined}>
+                          <Phone className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                          Llamar
+                        </a>
+                      </Button>
+                    ) : null}
+                    {canAnotar ? (
+                      <Button asChild className="min-h-11 flex-1 text-base">
+                        <Link href={`/anotar?clientId=${clientRow.id}`}>
+                          <PenLine className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                          Anotar trabajo
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </div>
                 </TripledMobileRecordCard>
               );
             })}
@@ -649,7 +683,7 @@ export function ClientList() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Página {table.getState().pagination.pageIndex + 1} de{' '}
               {table.getPageCount()}
             </p>
@@ -681,10 +715,11 @@ export function ClientList() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {clientToDeleteName ? `¿Borrar a ${clientToDeleteName}?` : '¿Borrar este cliente?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el
-              cliente.
+              No se puede deshacer. Sus tickets se quedan, pero ya no podrás elegirlo como cliente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -693,7 +728,7 @@ export function ClientList() {
               onClick={() => clientToDelete && handleDelete(clientToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Eliminar
+              Borrar cliente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

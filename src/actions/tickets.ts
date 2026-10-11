@@ -1,9 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, count, ilike, or } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, count, ilike, or, inArray } from 'drizzle-orm';
 import {
   client,
+  service,
   servicesTickets,
   ticket,
   ticketAuditEvent,
@@ -104,6 +105,8 @@ export type Ticket = {
   updated_at: Date | null;
   deleted_at: Date | null;
   company_id: number | null;
+  /** "Compresor, Mano de obra": the work, for list cards (ZIG-I18-8). */
+  services_summary?: string | null;
 };
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
@@ -847,7 +850,7 @@ export async function getTicketsList(
 }
 
 export interface PaginatedTicketsData {
-  items: TicketRow[];
+  items: Array<TicketRow & { services_summary: string | null }>;
   total: number;
   page: number;
   pageSize: number;
@@ -982,10 +985,39 @@ export async function getTicketsPaginated(params: {
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
+    // The work done, one aggregate over this page's ids (no N+1, company-scoped).
+    const pageIds = items.map((row) => row.id);
+    const serviceLines = pageIds.length
+      ? await db
+          .select({
+            ticket_id: servicesTickets.ticket_id,
+            summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+          })
+          .from(servicesTickets)
+          .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+          .leftJoin(service, eq(service.id, servicesTickets.service_id))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              isNull(ticket.deleted_at),
+              eq(ticket.document_kind, 'ticket'),
+              inArray(servicesTickets.ticket_id, pageIds),
+              isNull(servicesTickets.deleted_at),
+            ),
+          )
+          .groupBy(servicesTickets.ticket_id)
+      : [];
+    const summaryByTicket = new Map(
+      serviceLines.map((r) => [String(r.ticket_id), r.summary]),
+    );
+
     return {
       success: true,
       data: {
-        items,
+        items: items.map((row) => ({
+          ...row,
+          services_summary: summaryByTicket.get(String(row.id)) ?? null,
+        })),
         total: totalCount,
         page,
         pageSize,

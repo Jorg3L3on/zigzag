@@ -27,6 +27,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <LoginForm
         callbackUrl={getSafeAppRedirectPath(resolvedSearchParams.callbackUrl) ?? undefined}
         sessionExpired={isExpiredSessionReason(resolvedSearchParams.reason)}
+        supportWhatsapp={process.env.SUPPORT_WHATSAPP_NUMBER ?? null}
       />
     </LoginStage>
   );

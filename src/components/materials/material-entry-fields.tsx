@@ -240,6 +240,7 @@ export const MaterialEntryFields = ({
           <ServiceLineModeToggle
             idPrefix={`${idPrefix}-source`}
             ariaLabel="Origen del material"
+            catalogLabel="Mis materiales"
             value={entry.mode}
             onValueChange={entry.setMode}
           />
@@ -254,7 +255,7 @@ export const MaterialEntryFields = ({
               <div className="min-w-0">
                 <p className="text-sm font-medium [overflow-wrap:anywhere]">{entry.name}</p>
                 {entry.unit ? (
-                  <p className="text-xs text-muted-foreground">Unidad: {entry.unit}</p>
+                  <p className="text-caption text-muted-foreground">Unidad: {entry.unit}</p>
                 ) : null}
               </div>
               <Button
@@ -313,7 +314,7 @@ export const MaterialEntryFields = ({
             )}
             {isLine ? <PdfCharsWarning text={entry.name} /> : null}
             {!isLine ? (
-              <p id={`${idPrefix}-name-hint`} className="text-xs text-muted-foreground">
+              <p id={`${idPrefix}-name-hint`} className="text-caption text-muted-foreground">
                 {linkedInService
                   ? 'De tu catálogo de materiales.'
                   : 'Si no está en tu catálogo, se agrega al guardar el servicio.'}
@@ -340,7 +341,7 @@ export const MaterialEntryFields = ({
             className="h-12 rounded-xl text-base tabular-nums md:h-10 md:text-sm"
           />
           {entry.quantityError ? (
-            <p id={`${idPrefix}-quantity-error`} role="alert" className="text-xs text-destructive">
+            <p id={`${idPrefix}-quantity-error`} role="alert" className="text-caption text-destructive">
               {entry.quantityError}
             </p>
           ) : null}
@@ -366,7 +367,7 @@ export const MaterialEntryFields = ({
             />
           </div>
           {entry.priceError ? (
-            <p id={`${idPrefix}-price-error`} role="alert" className="text-xs text-destructive">
+            <p id={`${idPrefix}-price-error`} role="alert" className="text-caption text-destructive">
               {entry.priceError}
             </p>
           ) : null}
@@ -383,7 +384,7 @@ export const MaterialEntryFields = ({
               <BookmarkPlus className="h-4 w-4 text-muted-foreground" aria-hidden />
               Guardar en mi catálogo
             </Label>
-            <p id={`${idPrefix}-save-to-catalog-hint`} className="text-xs text-muted-foreground">
+            <p id={`${idPrefix}-save-to-catalog-hint`} className="text-caption text-muted-foreground">
               {entry.saveToCatalog
                 ? 'También quedará en tu catálogo de materiales.'
                 : `Sólo en este ${documentLabel}. Tu catálogo no cambia.`}
@@ -411,7 +412,7 @@ export const MaterialEntryFields = ({
         </span>
       </p>
       {totalError ? (
-        <p role="alert" className="text-right text-xs text-destructive">
+        <p role="alert" className="text-right text-caption text-destructive">
           {totalError}
         </p>
       ) : null}

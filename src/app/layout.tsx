@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { AppToaster } from '@/components/app-toaster';
 import { Providers } from '@/components/providers';
+import { TEXT_SIZE_INIT_SCRIPT } from '@/lib/text-size';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeColorMeta } from '@/components/theme-color-meta';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
@@ -69,6 +70,9 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: TEXT_SIZE_INIT_SCRIPT }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

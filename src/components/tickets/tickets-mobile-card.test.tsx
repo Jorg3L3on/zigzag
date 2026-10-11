@@ -26,6 +26,7 @@ const ticket = {
   updated_at: null,
   deleted_at: null,
   company_id: 1,
+  services_summary: 'Compresor, Mano de obra',
 };
 
 describe('TicketsMobileCard (ZIG-I13-7)', () => {
@@ -38,11 +39,14 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
 
     expect(screen.getByTestId('ticket-card-name')).toHaveTextContent('Cliente Alfa');
     expect(screen.getByText('#42')).toBeInTheDocument();
+    expect(screen.getByTestId('ticket-card-services')).toHaveTextContent(
+      'Compresor, Mano de obra',
+    );
     const meta = screen.getByTestId('ticket-card-meta');
     expect(meta).toHaveTextContent('Pago parcial');
-    expect(meta).toHaveTextContent('555 123 4567');
-    expect(meta).toHaveTextContent('1 may');
-    // The phone is text: tapping the card opens the ticket instead of dialing.
+    expect(meta).toHaveTextContent('vie 1 may');
+    // The phone is not on the card face (Llamar lives in ⋯), so a tap never dials.
+    expect(meta).not.toHaveTextContent('555 123 4567');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(
       screen.getByRole('progressbar', { name: /progreso de pago 40 por ciento/i }),
@@ -80,7 +84,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     }
   });
 
-  it('shows Total once and no progress bar for saldado tickets', () => {
+  it('shows Total once and no progress bar for pagado tickets', () => {
     render(
       <TicketsMobileCard
         ticket={{ ...ticket, total: 1972, paid: 1972 }}
@@ -89,7 +93,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
       />,
     );
 
-    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Saldado');
+    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Pagado');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.getAllByText('$1,972.00')).toHaveLength(1);
     expect(screen.queryByText(/saldo/i)).not.toBeInTheDocument();
@@ -99,7 +103,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     );
   });
 
-  it('shows Sin pagos with the Total when nothing is paid', () => {
+  it('shows Pendiente de pago with the Total when nothing is paid', () => {
     render(
       <TicketsMobileCard
         ticket={{ ...ticket, total: 100, paid: 0 }}
@@ -108,7 +112,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
       />,
     );
 
-    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Sin pagos');
+    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Pendiente de pago');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     const money = screen.getByTestId('ticket-payment-summary');
     expect(money).toHaveTextContent('Total');
@@ -116,7 +120,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     expect(money).not.toHaveTextContent('Saldo');
   });
 
-  it('says hoy for a ticket dated today and omits the phone when there is none', () => {
+  it('says hoy for a ticket dated today', () => {
     render(
       <TicketsMobileCard
         ticket={{ ...ticket, client_tel: null, ticket_date: new Date() }}
@@ -128,5 +132,16 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     const meta = screen.getByTestId('ticket-card-meta');
     expect(meta).toHaveTextContent('hoy');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('omits the work line when the ticket has no lines', () => {
+    render(
+      <TicketsMobileCard
+        ticket={{ ...ticket, services_summary: null }}
+        canWrite
+        onDelete={jest.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('ticket-card-services')).not.toBeInTheDocument();
   });
 });

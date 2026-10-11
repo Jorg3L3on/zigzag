@@ -68,13 +68,13 @@ for (const width of MOBILE_WIDTHS) {
       for (const radio of await page.getByRole('radio').all()) {
         await expect(radio).toHaveAttribute('aria-checked', 'false');
       }
-      await expect(page.getByRole('button', { name: /Finalizar y generar recibo/ })).toBeDisabled();
+      await expect(page.getByRole('button', { name: /Terminar y generar recibo/ })).toBeDisabled();
       await expectNoPageOverflow(page, 'detail unfinalized');
 
       // Finalize with a partial payment (no catalog lines: no reminders dialog).
       await page.getByRole('radio', { name: 'Una parte' }).click();
       await page.getByLabel('Cuánto pagó').fill('500000');
-      await page.getByRole('button', { name: /Finalizar y generar recibo/ }).click();
+      await page.getByRole('button', { name: /Terminar y generar recibo/ }).click();
       await expect(page.getByTestId('ticket-status-pill').filter({ visible: true }).first()).toHaveText(
         'Pago parcial',
         { timeout: 60_000 },
@@ -87,10 +87,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hero.getByRole('progressbar')).toBeVisible();
       await expectInsideViewport(page, hero, 'hero');
 
-      // Quick actions: Cobrar / Compartir recibo / Llamar, all on the first screen.
+      // Quick actions: Cobrar / WhatsApp / Llamar (Compartir recibo lives once, in the sticky bar), all on the first screen.
       const quick = page.getByTestId('ticket-quick-actions').filter({ visible: true }).first();
       await expect(quick.getByRole('button', { name: 'Cobrar' })).toBeVisible();
-      await expect(quick.getByRole('button', { name: 'Compartir recibo' })).toBeVisible();
+      await expect(quick.getByRole('link', { name: 'WhatsApp' })).toBeVisible();
+      await expect(quick.getByRole('button', { name: 'Compartir recibo' })).toHaveCount(0);
       await expect(quick.getByRole('link', { name: 'Llamar' })).toBeVisible();
       await expectInsideViewport(page, quick, 'quick actions');
 
@@ -127,12 +128,12 @@ for (const width of MOBILE_WIDTHS) {
       await expectNoPageOverflow(page, 'detail finalized');
 
       // Sticky Registrar pago opens the same sheet as Cobrar.
-      const sticky = page.getByRole('button', { name: 'Registrar pago' }).filter({ visible: true }).first();
-      await expectInsideViewport(page, sticky, 'Registrar pago');
+      const sticky = page.getByRole('button', { name: 'Cobrar' }).filter({ visible: true }).first();
+      await expectInsideViewport(page, sticky, 'Cobrar');
       await sticky.click();
-      const sheet = page.getByRole('dialog', { name: 'Registrar pago' });
+      const sheet = page.getByRole('dialog', { name: 'Cobrar' });
       await expect(sheet).toBeVisible();
-      await sheet.getByRole('button', { name: 'Cerrar diálogo' }).click();
+      await sheet.getByRole('button', { name: /Cerrar (diálogo|panel)/ }).click();
       await expect(sheet).toBeHidden();
 
       // ⋯ menu: the four actions.

@@ -63,9 +63,9 @@ test.describe('Presupuesto creation (mobile)', () => {
     const inlineName = `Cambio de capacitor ${suffix}`;
 
     await openPresupuestoComposerFromDock(page);
-    // Quotes have no Captura rápida shortcut (the dock menu keeps its own).
+    // Quotes have no Anotar trabajo shortcut (the dock menu keeps its own).
     await expect(
-      page.getByRole('link', { name: 'Captura rápida' }).filter({ visible: true }),
+      page.getByRole('link', { name: 'Anotar trabajo' }).filter({ visible: true }),
     ).toHaveCount(0);
 
     await createClientInComposer(page, {
@@ -94,7 +94,7 @@ test.describe('Presupuesto creation (mobile)', () => {
     await expect(page.getByTestId('review-total')).toHaveText('$5,050.00');
     const reviewLines = page.getByRole('list', { name: LINES_LABEL });
     await expect(reviewLines.getByText(inlineName)).toBeVisible();
-    await expect(page.getByText(/Pagado completo|Finalizar/)).toHaveCount(0);
+    await expect(page.getByText(/Pagado completo|Terminar/)).toHaveCount(0);
 
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
@@ -141,7 +141,7 @@ test.describe('Presupuesto creation (mobile, reduced motion)', () => {
     await page.getByRole('button', { name: 'Agregar servicio' }).click();
     const sheet = page.getByRole('dialog', { name: 'Agregar servicio' });
     await expect(sheet).toBeVisible();
-    await sheet.getByRole('radio', { name: /Nuevo/ }).click();
+    await sheet.getByRole('radio', { name: /Escribir/ }).click();
     await page.waitForTimeout(100);
     expect(await runningAnimations(page)).toBe(0);
     await sheet.getByRole('button', { name: 'Cancelar' }).click();

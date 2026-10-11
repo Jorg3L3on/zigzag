@@ -50,24 +50,11 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { parseFinishedFilter, parseStatusFilter } from '@/components/tickets/tickets-list-types';
 
 type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
 
 const DEFAULT_PAGE_SIZE = 25;
-
-const parseStatusFilter = (value: string | null): StatusFilterValue => {
-  if (value === 'paid' || value === 'partial' || value === 'pending' || value === 'due') {
-    return value;
-  }
-  return 'all';
-};
-
-const parseFinishedFilter = (value: string | null): FinishedFilterValue => {
-  if (value === 'yes' || value === 'no') {
-    return value;
-  }
-  return 'all';
-};
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
@@ -355,7 +342,7 @@ export default function TicketsList() {
   const table = useReactTable({
     data: filteredTickets,
     columns,
-    state: { sorting, pagination },
+    state: { sorting, pagination, columnVisibility: { balance: false } },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),

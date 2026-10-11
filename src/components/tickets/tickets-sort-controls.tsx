@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/select';
 import {
   TICKETS_MOBILE_SORT_OPTIONS,
+  TICKETS_PHONE_SORT_OPTIONS,
   decodeSortingState,
   encodeSortingState,
 } from '@/components/tickets/tickets-sort-presets';
@@ -18,6 +19,8 @@ type TicketsSortControlsProps = {
   id?: string;
   className?: string;
   triggerClassName?: string;
+  /** Three plain options for phones; the sheet and desktop keep the full list (ZIG-I18-9). */
+  variant?: 'full' | 'phone';
 };
 
 export const TicketsSortControls = ({
@@ -26,14 +29,19 @@ export const TicketsSortControls = ({
   id = 'ticket-sort',
   className,
   triggerClassName = 'h-11 w-full',
+  variant = 'full',
 }: TicketsSortControlsProps) => {
-  const mobileSortValue = encodeSortingState(sorting);
+  const options =
+    variant === 'phone' ? TICKETS_PHONE_SORT_OPTIONS : TICKETS_MOBILE_SORT_OPTIONS;
+  const encoded = encodeSortingState(sorting);
+  // A sort picked in the sheet that is not one of the three shows as "Otro orden".
+  const mobileSortValue = options.some((opt) => opt.value === encoded) ? encoded : '';
 
   return (
     <div className={className}>
       <label
         htmlFor={id}
-        className="text-xs font-medium text-muted-foreground"
+        className="text-caption font-medium text-muted-foreground"
       >
         Ordenar por
       </label>
@@ -46,10 +54,10 @@ export const TicketsSortControls = ({
           className={triggerClassName}
           aria-label="Ordenar lista de tickets"
         >
-          <SelectValue placeholder="Ordenar por" />
+          <SelectValue placeholder={variant === 'phone' ? 'Otro orden' : 'Ordenar por'} />
         </SelectTrigger>
         <SelectContent>
-          {TICKETS_MOBILE_SORT_OPTIONS.map((opt) => (
+          {options.map((opt) => (
             <SelectItem key={opt.value} value={opt.value}>
               {opt.label}
             </SelectItem>

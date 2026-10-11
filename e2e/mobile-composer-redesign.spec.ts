@@ -99,13 +99,13 @@ for (const width of MOBILE_WIDTHS) {
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await expect(sheet).toBeVisible();
       await expect(sheet.getByTestId('composer-line-headline')).toContainText('Mantenimiento correctivo');
-      await expect(sheet.getByTestId('composer-line-header')).toContainText('Fuera del catálogo · Cambiar servicio');
-      await expect(sheet.getByRole('radio', { name: /Nuevo/ })).toHaveCount(0);
+      await expect(sheet.getByTestId('composer-line-header')).toContainText('Escrito por ti · Cambiar servicio');
+      await expect(sheet.getByRole('radio', { name: /Escribir/ })).toHaveCount(0);
 
       // The footer stays put with 5 materials: subtotal and buttons are on screen.
       await expect(sheet.getByTestId('composer-line-material-rows').getByRole('listitem')).toHaveCount(5);
       await expectInsideViewport(page, sheet.getByTestId('composer-line-subtotal'), 'subtotal');
-      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Guardar línea' }), 'Guardar línea');
+      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Agregar al ticket' }), 'Agregar al ticket');
       await expectInsideViewport(page, sheet.getByRole('button', { name: 'Cancelar' }), 'Cancelar');
       await expect(sheet.getByTestId('composer-line-breakdown')).toContainText('Materiales $1,255.00');
       await expectNoPageOverflow(page, 'line sheet');
@@ -132,7 +132,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(rows.nth(1).getByTestId('document-line-meta')).toContainText('5 materiales');
     });
 
-    test('a catalog line shows Del catálogo · Cambiar servicio and hides the Nuevo switch', async ({ page }) => {
+    test('a catalog line shows De mis servicios · Cambiar servicio and hides the Nuevo switch', async ({ page }) => {
       const suffix = `${Date.now()}`.slice(-8);
       await openComposer(page);
       await createClientInComposer(page, { name: `Cliente catálogo ${suffix}`, phone: `997${suffix.slice(-7)}` });
@@ -141,15 +141,15 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('list', { name: LINES_LABEL }).getByTestId('composer-line-row').first().click();
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await expect(sheet.getByTestId('composer-line-headline')).toHaveText(serviceName);
-      await expect(sheet.getByTestId('composer-line-header')).toContainText('Del catálogo · Cambiar servicio');
-      await expect(sheet.getByRole('radio', { name: /Nuevo/ })).toHaveCount(0);
+      await expect(sheet.getByTestId('composer-line-header')).toContainText('De mis servicios · Cambiar servicio');
+      await expect(sheet.getByRole('radio', { name: /Escribir/ })).toHaveCount(0);
       await expect(sheet.getByRole('combobox', { name: 'Servicio' })).toHaveCount(0);
 
       // Cambiar servicio brings the picker and the switch back.
       await sheet.getByRole('button', { name: 'Cambiar servicio' }).click();
       await expect(sheet.getByRole('combobox', { name: 'Servicio' })).toBeVisible();
-      await expect(sheet.getByRole('radio', { name: /Nuevo/ })).toBeVisible();
-      await expect(sheet.getByRole('button', { name: 'Guardar línea' })).toBeDisabled();
+      await expect(sheet.getByRole('radio', { name: /Escribir/ })).toBeVisible();
+      await expect(sheet.getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
     });
   });
