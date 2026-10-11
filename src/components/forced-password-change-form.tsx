@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Eye, EyeOff, KeyRound } from 'lucide-react';
 
@@ -10,6 +9,7 @@ import { ErrorText } from '@/components/error-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { navigateTo } from '@/lib/browser-navigation';
 import { validateNewPassword } from '@/lib/password-change';
 
 type ForcedPasswordChangeFormProps = {
@@ -21,7 +21,6 @@ type ForcedPasswordChangeFormProps = {
  * temporary password. Big fields, one action, a way out.
  */
 export const ForcedPasswordChangeForm = ({ homePath }: ForcedPasswordChangeFormProps) => {
-  const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -43,8 +42,8 @@ export const ForcedPasswordChangeForm = ({ homePath }: ForcedPasswordChangeFormP
         setError(result.error ?? 'No se pudo guardar la contraseña. Intenta de nuevo.');
         return;
       }
-      router.replace(homePath);
-      router.refresh();
+      // Full navigation: the server now sees the cleared flag on every request.
+      navigateTo(homePath);
     } catch {
       setError('No se pudo guardar la contraseña. Intenta de nuevo.');
     } finally {

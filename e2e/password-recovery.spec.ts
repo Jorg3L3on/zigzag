@@ -91,10 +91,10 @@ test.describe('Temporary password and forced change', () => {
       await expect(page).toHaveURL(/\/cambiar-contrasena/);
     }
 
-    await page.getByLabel('Contraseña nueva').fill(member.chosen);
+    await page.getByLabel('Contraseña nueva', { exact: true }).fill(member.chosen);
     await page.getByLabel('Repite la contraseña nueva').fill(`${member.chosen}x`);
     await page.getByRole('button', { name: 'Guardar y entrar' }).click();
-    await expect(page.getByRole('alert')).toContainText(/no son iguales/i);
+    await expect(page.getByTestId('forced-password-change').getByRole('alert')).toContainText(/no son iguales/i);
 
     await page.getByLabel('Repite la contraseña nueva').fill(member.chosen);
     await page.getByRole('button', { name: 'Guardar y entrar' }).click();
@@ -111,7 +111,7 @@ test.describe('Temporary password and forced change', () => {
     await loginAsSystemUser(page);
     await page.goto('/users');
     await page.getByPlaceholder(/buscar/i).first().fill(member.email);
-    await page.getByRole('button', { name: 'Abrir menú' }).first().click();
+    await page.getByRole('row').filter({ hasText: member.email }).getByRole('button', { name: 'Abrir menú' }).click();
     await page.getByRole('menuitem', { name: 'Dar contraseña temporal' }).click();
     const dialog = page.getByRole('alertdialog');
     await dialog.getByRole('button', { name: 'Dar contraseña temporal' }).click();

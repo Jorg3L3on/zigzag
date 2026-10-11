@@ -2,9 +2,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ForcedPasswordChangeForm } from '@/components/forced-password-change-form';
 
-const mockReplace = jest.fn();
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: mockReplace, refresh: jest.fn() }),
+const mockAssign = jest.fn();
+jest.mock('@/lib/browser-navigation', () => ({
+  navigateTo: (...args: unknown[]) => mockAssign(...args),
 }));
 jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
 const mockComplete = jest.fn();
@@ -40,6 +40,6 @@ describe('ForcedPasswordChangeForm (ZIG-I18-11)', () => {
       newPassword: 'mi-clave-2026',
       confirmPassword: 'mi-clave-2026',
     });
-    expect(mockReplace).toHaveBeenCalledWith('/dashboard');
+    expect(mockAssign).toHaveBeenCalledWith('/dashboard');
   });
 });

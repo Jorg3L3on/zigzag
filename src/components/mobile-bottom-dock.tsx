@@ -60,7 +60,7 @@ export const MOBILE_DOCK_SHELL_CLASS = cn(
 );
 
 const DOCK_ITEM_CLASS =
-  'relative z-0 flex h-14 min-h-11 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0.5 text-caption font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50';
+  'relative z-0 flex h-14 min-h-11 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-0 text-caption font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50';
 const DOCK_ITEM_ACTIVE_CLASS = 'text-foreground';
 const DOCK_ITEM_IDLE_CLASS = 'text-muted-foreground hover:text-foreground';
 
@@ -91,7 +91,7 @@ const DockLabel = ({ icon: Icon, title, active }: DockLabelProps) => (
     <Icon className="h-5 w-5 shrink-0" aria-hidden />
     <span
       className={cn(
-        'max-w-full text-center leading-tight tracking-tight transition-opacity',
+        'max-w-full text-center leading-tight tracking-tighter transition-opacity',
         active ? 'opacity-100' : 'opacity-60',
       )}
     >
@@ -134,7 +134,7 @@ export const MobileBottomDock = () => {
   const labelledSlots = visibleTabs.length + 1;
   const gridTemplateColumns = [
     ...Array.from({ length: labelledSlots + (showCreate ? 1 : 0) }, (_, index) =>
-      showCreate && index === createSlot ? '3.5rem' : 'minmax(0, 1fr)',
+      showCreate && index === createSlot ? '3rem' : 'minmax(0, 1fr)',
     ),
   ].join(' ');
 
@@ -272,7 +272,7 @@ export const MobileBottomDock = () => {
       aria-label="Navegación principal"
       data-testid="mobile-bottom-tab-bar"
       className={cn(
-        'pointer-events-none fixed inset-x-0 bottom-0 z-30 px-2 md:hidden',
+        'pointer-events-none fixed inset-x-0 bottom-0 z-30 px-1.5 md:hidden',
         DOCK_FLOAT_PADDING_CLASS,
       )}
     >
