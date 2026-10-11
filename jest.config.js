@@ -52,4 +52,15 @@ const customJestConfig = {
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-export default createJestConfig(customJestConfig);
+const withEsmDeps = async () => {
+  const config = await createJestConfig(customJestConfig)();
+  // Session token tests decode real Auth.js JWTs; those packages ship ESM only.
+  // next/jest sets its own transformIgnorePatterns, so extend them here.
+  config.transformIgnorePatterns = [
+    '/node_modules/(?!(jose|@auth/core|next-auth)/)',
+    '^.+\\.module\\.(css|sass|scss)$',
+  ];
+  return config;
+};
+
+export default withEsmDeps;

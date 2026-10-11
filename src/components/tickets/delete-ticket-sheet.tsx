@@ -22,6 +22,8 @@ type DeleteTicketSheetProps = {
   paymentsCount?: number;
   paymentsTotal: number;
   companyId?: number | null;
+  /** Company folio shown instead of the row id. */
+  folio?: string | null;
   /** Where to go once deleted; default the tickets list. null stays where it is (the list). */
   afterDeleteHref?: string | null;
   /** The list removes the row optimistically as soon as the deletion is confirmed. */
@@ -44,6 +46,7 @@ export const DeleteTicketSheet = ({
   paymentsCount,
   paymentsTotal,
   companyId = null,
+  folio = null,
   afterDeleteHref = '/tickets',
   onDeleteStart,
   onDeleteFailed,
@@ -58,7 +61,7 @@ export const DeleteTicketSheet = ({
     try {
       const result = await deleteTicket(ticketId, companyId);
       if (result.success) {
-        toast.success(`Ticket #${ticketId} eliminado`);
+        toast.success(`Ticket ${folio || `#${ticketId}`} eliminado`);
         onOpenChange(false);
         if (afterDeleteHref) {
           router.push(afterDeleteHref);
@@ -85,7 +88,7 @@ export const DeleteTicketSheet = ({
     <ConfirmSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={`¿Eliminar el ticket #${ticketId}?`}
+      title={`¿Eliminar el ticket ${folio || `#${ticketId}`}?`}
       description="Desaparece de tus tickets y de cobranza. No podrás recuperarlo tú; solo soporte puede restaurarlo."
       summary={
         <div

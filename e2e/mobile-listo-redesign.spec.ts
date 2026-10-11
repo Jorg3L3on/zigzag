@@ -43,7 +43,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByTestId('composer-sticky-hint')).toHaveText('8 servicios · 21 materiales');
 
       const ticketId = await saveComposer(page);
-      await expect(page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first()).toBeVisible({
+      await expect(page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first()).toBeVisible({
         timeout: 15_000,
       });
       await page.evaluate(() => {
@@ -95,7 +95,7 @@ for (const width of MOBILE_WIDTHS) {
       await finish.click();
 
       // No Recordatorios dialog before or after sharing.
-      await expect(page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first()).toBeVisible({
+      await expect(page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first()).toBeVisible({
         timeout: 60_000,
       });
       await expect(page.getByRole('dialog')).toHaveCount(0);

@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { user } from '@/db/schema';
 import { db } from '@/lib/db';
 
@@ -16,4 +16,27 @@ export const bumpUserTokenVersion = async (userId: bigint): Promise<void> => {
       updated_at: new Date(),
     })
     .where(eq(user.id, userId));
+};
+
+/**
+ * True when a signed-in session is still the current one: the user exists and
+ * the token carries their current `token_version`. A revoked JWT still decodes,
+ * so anything that sends signed-in people away from /login must check this
+ * first or it loops (login → dashboard → expired → login).
+ */
+export const isSessionCurrent = async (
+  session: { user?: { id?: string; token_version?: number } } | null | undefined,
+): Promise<boolean> => {
+  const userId = session?.user?.id;
+  if (!userId) return false;
+  try {
+    const row = await db.query.user.findFirst({
+      where: and(eq(user.id, BigInt(userId)), isNull(user.deleted_at)),
+      columns: { token_version: true },
+    });
+    if (!row) return false;
+    return (session?.user?.token_version ?? 0) === (row.token_version ?? 0);
+  } catch {
+    return false;
+  }
 };

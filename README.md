@@ -118,7 +118,7 @@ scripts/seed.ts    # Seed script
 docs/              # Production runbook and ops notes
 ```
 
-Contributor and architecture details: **[AGENTS.md](AGENTS.md)**. PRD → issues → PR workflow: **[docs/agents/workflow.md](docs/agents/workflow.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+Contributor and architecture details: **[AGENTS.md](AGENTS.md)** · company folios and session lifetimes: **[docs/agents/folios-and-sessions.md](docs/agents/folios-and-sessions.md)**. PRD → issues → PR workflow: **[docs/agents/workflow.md](docs/agents/workflow.md)** · **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 Optional RAG tooling over internal docs: **[rag/README.md](rag/README.md)** (`npm run rag:index`, `rag:search`, `rag:ask`).
 

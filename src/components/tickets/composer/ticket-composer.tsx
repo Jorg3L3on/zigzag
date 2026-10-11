@@ -185,6 +185,8 @@ type DocumentComposerProps = {
 
 export type ComposerEditState = {
   id: string;
+  /** Company folio for titles and toasts; falls back to `#id`. */
+  folio?: string;
   client: { id: number; label: string; name?: string; phone?: string | null };
   ticketDate: string;
   expiresAt: string | null;
@@ -212,7 +214,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     ? isQuote
       ? {
           ...baseCopy,
-          title: `Editar presupuesto #${edit.id}`,
+          title: `Editar presupuesto ${edit.folio ?? `#${edit.id}`}`,
           subtitle: 'Servicios, vigencia y notas',
           listHref: `/presupuestos/${edit.id}`,
           backLabel: 'Volver al presupuesto',
@@ -221,7 +223,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         }
       : {
           ...baseCopy,
-          title: `Editar ticket #${edit.id}`,
+          title: `Editar ticket ${edit.folio ?? `#${edit.id}`}`,
           subtitle: 'Servicios y total',
           listHref: `/tickets/${edit.id}`,
           backLabel: 'Volver al ticket',
@@ -573,7 +575,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         if (updated.success && updated.data) {
           setSaveState('done');
           vibrateSuccess();
-          toast.success(`Ticket #${edit.id} actualizado`);
+          toast.success(`Ticket ${edit.folio ?? `#${edit.id}`} actualizado`);
           const changed = Math.abs(updated.data.total - ticketEdit.originalTotal) > 0.005;
           // A finalized ticket whose total moved: offer to send the new recibo.
           router.push(
@@ -600,7 +602,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         if (updated.success) {
           setSaveState('done');
           vibrateSuccess();
-          toast.success(`Presupuesto #${edit.id} actualizado`);
+          toast.success(`Presupuesto ${edit.folio ?? `#${edit.id}`} actualizado`);
           router.push(`/presupuestos/${edit.id}`);
           router.refresh();
           return;
@@ -620,7 +622,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         setSaveState('done');
         if (draftKey) clearTicketComposerDraft(draftKey);
         vibrateSuccess();
-        toast.success(`${copy.noun} #${result.data.id} guardado`);
+        toast.success(`${copy.noun} ${result.data.folio ?? `#${result.data.id}`} guardado`);
         router.push(
           isQuote
             ? `/presupuestos/${result.data.id}/listo`

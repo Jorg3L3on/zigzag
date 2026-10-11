@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import {
   client,
   company,
@@ -126,7 +127,14 @@ export const createAgentTicket = async (
   };
 
   const created = await db.transaction(async (tx) => {
-    const [row] = await tx.insert(ticket).values(values).returning();
+    const folio = await allocateDocumentFolio(tx, {
+      companyId: agent.companyId,
+      documentKind: 'ticket',
+    });
+    const [row] = await tx
+      .insert(ticket)
+      .values({ ...values, ...folio })
+      .returning();
     const userRow = await db.query.user.findFirst({
       where: eq(user.id, agent.userId),
       with: { company: true },

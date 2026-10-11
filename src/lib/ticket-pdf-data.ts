@@ -2,6 +2,8 @@ import { format } from 'date-fns';
 import type { InvoiceData } from '@/components/pdf/invoice-types';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import type { TicketDetailData } from '@/actions/tickets';
+import { formatDisplayFolio } from '@/lib/folio';
+import { formatReceiptFolioFor } from '@/lib/receipt-pdf/payload';
 import {
   getServiceLineDescription,
   getServiceLineName,
@@ -44,7 +46,7 @@ export const buildInvoiceDataFromTicketDetail = (
     clientAddress: ticket.client_tel ?? '',
     clientCity: '',
     clientCountry: 'México',
-    ticketNumber: String(ticket.id).padStart(6, '0'),
+    ticketNumber: formatReceiptFolioFor(ticket),
     issueDate,
     dueDate: format(new Date(), 'dd/MM/yyyy'),
     items,
@@ -53,9 +55,17 @@ export const buildInvoiceDataFromTicketDetail = (
   };
 };
 
+const fileFolio = (ticket: Parameters<typeof formatDisplayFolio>[0] & { id: bigint | number | string }): string =>
+  ticket.folio_number != null || ticket.source_presupuesto_folio?.folio_number != null
+    ? formatDisplayFolio(ticket)
+    : String(ticket.id);
+
 export const buildTicketPdfFileName = (
   ticket: Pick<TicketDetailData, 'id' | 'client_name' | 'ticket_date'> & {
     document_kind?: string | null;
+    folio_number?: number | null;
+    folio_prefix?: string | null;
+    source_presupuesto_folio?: { folio_number?: number | null; folio_prefix?: string | null } | null;
   },
 ): string => {
   const safeName = (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() || 'ticket';
@@ -65,5 +75,5 @@ export const buildTicketPdfFileName = (
   // Quotes download as presupuesto_<cliente>_<fecha>_<id>.pdf (ZIG-I5-4).
   const prefix = isPresupuestoTicket(ticket.document_kind) ? 'presupuesto_' : '';
 
-  return `${prefix}${safeName}_${datePart}_${String(ticket.id)}.pdf`;
+  return `${prefix}${safeName}_${datePart}_${fileFolio(ticket)}.pdf`;
 };

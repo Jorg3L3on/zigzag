@@ -89,7 +89,7 @@ test.describe('Presupuesto creation (mobile)', () => {
     expect(presupuestoId).toBeTruthy();
 
     await expect(
-      page.getByRole('heading', { name: `Presupuesto #${presupuestoId} guardado` }),
+      page.getByRole('heading', { name: /Presupuesto (?:#\d+|[A-Z0-9]+-\d+) guardado/ }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('review-total')).toHaveText('$5,050.00');
     const reviewLines = page.getByRole('list', { name: LINES_LABEL });

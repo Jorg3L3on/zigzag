@@ -1,4 +1,9 @@
 import NextAuth from 'next-auth';
+import { encode as defaultEncode } from 'next-auth/jwt';
+import {
+  REMEMBERED_SESSION_MAX_AGE_SECONDS,
+  sessionMaxAgeSeconds,
+} from '@/lib/session-policy';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { and, eq, isNull } from 'drizzle-orm';
@@ -67,10 +72,19 @@ export const {
   },
   session: {
     strategy: 'jwt',
-    // Cap session lifetime; combined with token_version this bounds how long a
-    // stale/compromised token can remain valid.
-    maxAge: 8 * 60 * 60,
+    // Cookie lifetime is the longest a session can be (a remembered device,
+    // 30 days). The token itself carries the real expiry: 8 hours unless the
+    // person remembered the device (see jwt.encode). Combined with token_version
+    // this bounds how long a stale/compromised token can remain valid.
+    maxAge: REMEMBERED_SESSION_MAX_AGE_SECONDS,
     updateAge: 60 * 60,
+  },
+  jwt: {
+    encode: (params) =>
+      defaultEncode({
+        ...params,
+        maxAge: sessionMaxAgeSeconds(Boolean(params.token?.remember)),
+      }),
   },
   providers: [
     CredentialsProvider({
@@ -78,6 +92,7 @@ export const {
       credentials: {
         email: { label: 'Correo', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        remember: { label: 'Recordar', type: 'text' },
       },
       async authorize(credentials, request) {
         try {
@@ -164,6 +179,7 @@ export const {
             company_name: row.company?.name ?? undefined,
             company_is_system: row.company?.is_system ?? false,
             token_version: row.token_version ?? 0,
+            remember: String(credentials.remember) === 'true',
           };
         } catch (error) {
           console.error('[auth][authorize] unexpected error', error);
@@ -180,6 +196,7 @@ export const {
         token.company_name = user.company_name;
         token.company_is_system = user.company_is_system;
         token.token_version = user.token_version ?? 0;
+        token.remember = Boolean(user.remember);
       }
       return token;
     },
@@ -190,6 +207,12 @@ export const {
         session.user.company_name = token.company_name as string;
         session.user.company_is_system = token.company_is_system as boolean;
         session.user.token_version = (token.token_version as number) ?? 0;
+        session.user.remember = Boolean(token.remember);
+        // The token is re-issued with a fresh expiry on every refresh; tell the
+        // client the real end of this session, not the cookie's.
+        session.expires = new Date(
+          Date.now() + sessionMaxAgeSeconds(Boolean(token.remember)) * 1000,
+        ).toISOString() as typeof session.expires;
       }
       return session;
     },

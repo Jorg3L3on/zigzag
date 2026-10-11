@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 
 type TicketDetailQuickActionsProps = {
   ticketId: number;
+  /** Company folio shown in share titles and messages. */
+  folio?: string | null;
   finished: boolean;
   total: number | null;
   paid: number | null;
@@ -31,6 +33,7 @@ const ACTION_CLASS =
  */
 export const TicketDetailQuickActions = ({
   ticketId,
+  folio = null,
   finished,
   total,
   paid,
@@ -49,6 +52,7 @@ export const TicketDetailQuickActions = ({
         phone,
         clientName,
         ticketId,
+        folio,
         total: total ?? 0,
         paid: paid ?? 0,
         companyName: selectedCompany?.name,

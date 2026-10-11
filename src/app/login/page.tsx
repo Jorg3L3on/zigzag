@@ -1,6 +1,7 @@
 import { LoginForm } from '@/components/login-form';
 import { LoginStage } from '@/components/login/login-stage';
 import { auth } from '@/lib/auth';
+import { isSessionCurrent } from '@/lib/session-revocation';
 import {
   getSafeAppRedirectPath,
   isExpiredSessionReason,
@@ -18,7 +19,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const session = await auth();
 
-  if (session?.user) {
+  // Never bounce a revoked session to the dashboard: it would send it straight back here.
+  if (session?.user && (await isSessionCurrent(session))) {
     redirect(session.user.company_is_system ? '/operator-console' : '/dashboard');
   }
 

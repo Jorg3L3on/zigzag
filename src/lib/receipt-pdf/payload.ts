@@ -3,6 +3,7 @@
  * Built from the ticket returned by getTicketById; the renderer only formats
  * and draws what is here.
  */
+import { formatDisplayFolio } from '@/lib/folio';
 import { differenceInCalendarDays, format } from 'date-fns';
 import type {
   Client,
@@ -145,6 +146,14 @@ export const formatReceiptDate = (date: Date): string =>
 
 export const formatReceiptFolio = (id: bigint | number | string): string =>
   String(id).padStart(6, '0');
+
+/** Company folio (P-0003 / R-0012); documents with no folio keep the padded id. */
+export const formatReceiptFolioFor = (
+  ticket: Parameters<typeof formatDisplayFolio>[0] & { id: bigint | number | string },
+): string =>
+  ticket.folio_number != null || ticket.source_presupuesto_folio?.folio_number != null
+    ? formatDisplayFolio(ticket)
+    : formatReceiptFolio(ticket.id);
 
 const moneyFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -298,7 +307,7 @@ export const buildReceiptPdfPayload = (
   return {
     docType,
     docTitle: docType === 'presupuesto' ? 'PRESUPUESTO' : 'RECIBO',
-    folio: formatReceiptFolio(ticket.id),
+    folio: formatReceiptFolioFor(ticket),
     issueDate,
     validity,
     recibo,

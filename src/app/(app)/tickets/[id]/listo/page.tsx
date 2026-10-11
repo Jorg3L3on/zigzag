@@ -1,3 +1,4 @@
+import { formatDisplayFolio } from '@/lib/folio';
 import { notFound, redirect } from 'next/navigation';
 
 import { getTicketById } from '@/actions/tickets';
@@ -34,6 +35,7 @@ export default async function TicketReadyPage({
   return (
     <TicketCreationReview
       ticketId={String(ticket.id)}
+      folio={formatDisplayFolio(ticket)}
       clientId={ticket.client_id}
       clientName={ticket.client_name}
       clientTel={ticket.client_tel}

@@ -3,6 +3,7 @@
  * Saldo/status always come from ticket-payment-status helpers.
  */
 
+import { formatDocumentFolio } from '@/lib/folio';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -25,6 +26,9 @@ export type CobranzaTicketInput = {
   finished: boolean;
   company_id: number | null;
   document_kind?: string | null;
+  client_id?: number | null;
+  folio_number?: number | null;
+  folio_prefix?: string | null;
   /** Latest payment on record; days without payment count from here. */
   last_payment_at?: Date | string | null;
   /** "Compresor, Mano de obra": the work, for the card (ZIG-I18-2). */
@@ -41,6 +45,8 @@ export type CobranzaRow = {
   paid: number | null;
   finished: boolean;
   company_id: number | null;
+  client_id: number | null;
+  folio: string;
   balanceDue: number;
   paymentStatus: TicketPaymentStatus;
   /** Days without payment: since the last payment, else since the work date. */
@@ -148,6 +154,8 @@ export const toCobranzaRow = (
     paid: ticket.paid,
     finished: ticket.finished,
     company_id: ticket.company_id,
+    client_id: ticket.client_id ?? null,
+    folio: formatDocumentFolio(ticket),
     balanceDue,
     paymentStatus,
     daysOutstanding,
@@ -221,13 +229,20 @@ export const filterCobranzaRows = (
     status?: CobranzaStatusFilter;
     aging?: CobranzaAgingBucket;
     search?: string;
+    /** Only the tickets of this client (ZIG-I17-2). */
+    clientId?: number | null;
   },
 ): CobranzaRow[] => {
   const status = options.status ?? 'all';
   const aging = options.aging ?? 'all';
   const search = options.search?.trim().toLowerCase() ?? '';
 
+  const clientId = options.clientId ?? null;
+
   return rows.filter((row) => {
+    if (clientId != null && row.client_id !== clientId) {
+      return false;
+    }
     if (status !== 'all' && row.paymentStatus !== status) {
       return false;
     }

@@ -128,7 +128,7 @@ export const TicketsFilterBar = ({
     searchValue={searchValue}
     onSearchChange={onSearchChange}
     searchPlaceholder="Cliente, número de ticket o teléfono"
-    searchAriaLabel="Buscar tickets por ID, cliente, teléfono o correo"
+    searchAriaLabel="Buscar tickets por folio, cliente, teléfono o correo"
     searchContainerClassName="relative min-w-0 flex-1 lg:min-w-0"
     quickFilters={
       <TicketQuickFilters

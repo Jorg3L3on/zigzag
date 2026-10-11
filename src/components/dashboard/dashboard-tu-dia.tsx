@@ -237,6 +237,7 @@ const CobroRow = ({
     phone: row.client_tel,
     clientName: row.client_name,
     ticketId: row.id,
+    folio: row.folio,
     balanceDue: row.balanceDue,
     companyName,
   });
@@ -247,7 +248,7 @@ const CobroRow = ({
     <li className={ROW_CLASS}>
       <RowText
         title={clientName}
-        context={`#${row.id} · ${row.daysOutstanding} d · ${status}`}
+        context={`${row.folio} · ${row.daysOutstanding} d · ${status}`}
       />
       <span className="shrink-0 text-sm font-semibold tabular-nums">
         {formatTicketListAmount(row.balanceDue)}

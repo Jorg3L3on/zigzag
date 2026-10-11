@@ -46,6 +46,7 @@ Do not add duplicate mutation handlers in API routes for resources that already 
 - Configured in `src/lib/auth.ts`.
 - Session types are extended in `src/types/next-auth.d.ts` with `id`, `company_id`, `company_name`, and `company_is_system`.
 - `src/proxy.ts` protects `/` and `/dashboard/**` at the routing edge. API routes are excluded from proxy and must call `auth()` or `requireSession()`.
+- Sessions last 8 hours, or 30 days on a remembered device; "Cerrar sesión en todos mis dispositivos" bumps `token_version`. Details, and the company folio series (P-0001 / R-0001, migration 0032): [docs/agents/folios-and-sessions.md](docs/agents/folios-and-sessions.md).
 
 ### Company selection
 `src/contexts/company-context.tsx` stores the selected company in React state and localStorage. This is separate from the session's `company_id`; system users can switch context between companies.

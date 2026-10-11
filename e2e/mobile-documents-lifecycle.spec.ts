@@ -114,7 +114,7 @@ for (const width of MOBILE_WIDTHS) {
       // Cancelar the copy: a sheet names the action, the detail becomes read-only.
       await page.goto(`/presupuestos/${copyId}`);
       await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Cancelar presupuesto' }).click();
-      const cancelSheet = page.getByRole('dialog', { name: `¿Cancelar el presupuesto #${copyId}?` });
+      const cancelSheet = page.getByRole('dialog', { name: /¿Cancelar el presupuesto (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(cancelSheet).toBeVisible();
       await expectInsideViewport(page, cancelSheet.getByRole('button', { name: 'Cancelar presupuesto' }), 'cancel confirm');
       await cancelSheet.getByRole('button', { name: 'Cancelar presupuesto' }).click();
@@ -138,7 +138,7 @@ for (const width of MOBILE_WIDTHS) {
       // Convertido: the presupuesto points at the ticket and still duplicates.
       await page.goto(`/presupuestos/${presupuestoId}`);
       await expect(visible(page.getByTestId('presupuesto-status'))).toHaveText('Convertido', { timeout: 15_000 });
-      await expect(visible(page.getByText(`Convertido en Ticket #${convertedId}`))).toBeVisible();
+      await expect(visible(page.getByText('Convertido en ticket'))).toBeVisible();
       await expectLayoutIntact(page, 'presupuesto convertido');
     });
 
@@ -158,7 +158,7 @@ for (const width of MOBILE_WIDTHS) {
       const ticketId = await saveComposer(page);
 
       // Listo: the payment choice is on the first screen with the heavy ticket.
-      await expect(page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first()).toBeVisible({
+      await expect(page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first()).toBeVisible({
         timeout: 15_000,
       });
       const payBox = await page.getByRole('heading', { name: '¿Cómo pagó el cliente?' }).boundingBox();
@@ -237,7 +237,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.goto(`/tickets/${ticketId}`);
       await visible(page.getByRole('button', { name: 'Más acciones del ticket' })).click();
       await page.getByRole('menuitem', { name: 'Eliminar ticket' }).click();
-      const deleteSheet = page.getByRole('dialog', { name: `¿Eliminar el ticket #${ticketId}?` });
+      const deleteSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(deleteSheet).toBeVisible();
       await expect(deleteSheet).toContainText(clientName);
       await expect(deleteSheet).toContainText('Tiene 1 pago registrado por $500,000.00');

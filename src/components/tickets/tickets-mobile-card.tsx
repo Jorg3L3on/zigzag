@@ -1,3 +1,4 @@
+import { formatDocumentFolio } from '@/lib/folio';
 import type { KeyboardEvent } from 'react';
 import type { Ticket } from '@/actions/tickets';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
@@ -95,7 +96,7 @@ export const TicketsMobileCard = ({
           onPointerDown={(event) => event.stopPropagation()}
         >
           <span className="pt-1.5 font-mono text-caption tabular-nums text-muted-foreground">
-            #{ticket.id.toString()}
+            {formatDocumentFolio(ticket)}
           </span>
           <TicketRowActions
             ticket={ticket}

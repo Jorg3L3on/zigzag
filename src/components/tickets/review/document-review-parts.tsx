@@ -301,6 +301,7 @@ export const ReviewSummaryCard = ({
 
 type QuoteSummaryProps = {
   presupuestoId: string;
+  folio?: string | null;
   clientName: string | null;
   dateLabel: string | null;
   expiresLabel: string | null;
@@ -311,6 +312,7 @@ type QuoteSummaryProps = {
 /** HTML stand-in for the PDF where the browser cannot show it inline. */
 export const QuoteSummary = ({
   presupuestoId,
+  folio = null,
   clientName,
   dateLabel,
   expiresLabel,
@@ -322,7 +324,7 @@ export const QuoteSummary = ({
     className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
   >
     <div className="flex items-baseline justify-between gap-3">
-      <p className="font-semibold">Presupuesto #{presupuestoId}</p>
+      <p className="font-semibold">Presupuesto {folio || `#${presupuestoId}`}</p>
       {dateLabel ? <p className="text-caption text-muted-foreground">{dateLabel}</p> : null}
     </div>
     {clientName ? (
@@ -373,6 +375,7 @@ export const QuoteSummary = ({
 
 type ReciboSummaryProps = {
   ticketId: string;
+  folio?: string | null;
   clientName: string | null;
   dateLabel: string | null;
   lines: ReviewLine[];
@@ -383,6 +386,7 @@ type ReciboSummaryProps = {
 /** HTML stand-in for the PDF where the browser cannot show it inline. */
 export const ReciboSummary = ({
   ticketId,
+  folio = null,
   clientName,
   dateLabel,
   lines,
@@ -396,7 +400,7 @@ export const ReciboSummary = ({
       className="rounded-xl border border-dashed border-border/80 bg-background p-4 text-sm"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="font-semibold">Recibo · Ticket #{ticketId}</p>
+        <p className="font-semibold">Recibo · Ticket {folio || `#${ticketId}`}</p>
         {dateLabel ? (
           <p className="text-caption text-muted-foreground">{dateLabel}</p>
         ) : null}

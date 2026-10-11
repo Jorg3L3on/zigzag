@@ -243,7 +243,7 @@ for (const width of MOBILE_WIDTHS) {
       expect(ticketId).toBeTruthy();
 
       await expect(
-        page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
+        page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
       ).toBeVisible({ timeout: 15_000 });
       await expect(page.getByTestId('review-total')).toHaveText(money(TICKET_TOTAL));
       // The Resumen replaces the full recibo; no blank PDF box (ZIG-I13-3).
@@ -264,7 +264,7 @@ for (const width of MOBILE_WIDTHS) {
       });
       await finish.click();
       await expect(
-        page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first(),
+        page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first(),
       ).toBeVisible({ timeout: 60_000 });
       await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
         timeout: 60_000,

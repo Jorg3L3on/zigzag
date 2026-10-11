@@ -22,6 +22,9 @@ import {
   sanitizeUserForAudit,
 } from '@/lib/governance-audit';
 import { bumpUserTokenVersion } from '@/lib/session-revocation';
+import { recordAuthAuditEvent } from '@/lib/audit-security';
+import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
+import { checkRateLimit } from '@/lib/rate-limiter';
 import { generateTemporaryPassword } from '@/lib/temporary-password';
 import { keepsATeamManager } from '@/lib/team-guards';
 
@@ -728,5 +731,49 @@ export async function deleteUser(
     return { success: true, data: updated };
   } catch (e) {
     return handleCodedServerActionError('users.delete', 'US004', e);
+  }
+}
+
+/**
+ * Sign out everywhere (ZIG-I17-9): bumps token_version so every session of the
+ * signed-in user, on any device, fails validation from now on. The caller then
+ * signs out of this browser too.
+ */
+export async function signOutEverywhere(): Promise<{
+  success: boolean;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const authContext = await requireActionAuth();
+    // A handful per quarter hour is plenty; this also stops a loop from locking the account out.
+    if (
+      !(await checkRateLimit(`sign-out-everywhere:${authContext.userId}`, {
+        limit: 5,
+        windowMs: 15 * 60 * 1000,
+      }))
+    ) {
+      return buildActionError('GN004');
+    }
+    await bumpUserTokenVersion(BigInt(authContext.userId));
+    await recordAuthAuditEvent({
+      action: 'signed_out',
+      result: 'success',
+      reason: 'sign_out_everywhere',
+      actor: {
+        userId: authContext.userId,
+        companyId: authContext.companyId,
+        companyIsSystem: authContext.companyIsSystem,
+      },
+      targetCompanyId: authContext.companyId,
+      resourceId: authContext.userId,
+      requestMeta: await buildAuditRequestMetaFromHeaders({
+        route: '/account',
+        method: 'POST',
+      }),
+    });
+    return { success: true };
+  } catch (e) {
+    return handleCodedServerActionError('users.signOutEverywhere', 'US003', e);
   }
 }

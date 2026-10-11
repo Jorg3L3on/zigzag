@@ -12,6 +12,13 @@ import { db } from '@/lib/db';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 
+jest.mock('@/lib/folio-allocator', () => ({
+  allocateDocumentFolio: jest.fn(async (_tx: unknown, input: { documentKind: string }) => ({
+    folio_number: 1,
+    folio_prefix: input.documentKind === 'presupuesto' ? 'P' : 'R',
+  })),
+}));
+
 jest.mock('@/lib/db', () => ({
   db: {
     query: {
@@ -314,7 +321,7 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
 
     const result = await createPresupuestoWithLines(validInput);
 
-    expect(result).toEqual({ success: true, data: { id: '400', total: 5050 } });
+    expect(result).toEqual({ success: true, data: { id: '400', total: 5050, folio: 'P-0001' } });
     expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(inserted[0].table).toBe(ticket);
     expect(inserted[0].values).toMatchObject({

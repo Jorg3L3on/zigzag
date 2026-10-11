@@ -106,7 +106,7 @@ export const finishOnReview = async (
   payment: { mode: 'full' } | { mode: 'partial'; amount: number } | { mode: 'pending' },
 ) => {
   await expect(
-    page.getByText(`Ticket #${ticketId} guardado`).filter({ visible: true }).first(),
+    page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
   ).toBeVisible({ timeout: 15_000 });
   await page.evaluate(() => {
     (window as unknown as { __openedUrls: string[] }).__openedUrls = [];
@@ -127,7 +127,7 @@ export const finishOnReview = async (
 
   // Reminders are ticked on this screen and saved before the share sheet
   // (ZIG-I13-3): no dialog to answer.
-  const heading = page.getByText(`Ticket #${ticketId} finalizado`).filter({ visible: true }).first();
+  const heading = page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first();
   await expect(heading).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
     timeout: 60_000,

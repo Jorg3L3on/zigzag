@@ -1,5 +1,7 @@
 'use server';
 
+import { formatDocumentFolio } from '@/lib/folio';
+import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -86,6 +88,8 @@ export type CreatePresupuestoInput = z.input<typeof presupuestoSchema>;
 
 export type PresupuestoListItem = {
   id: string;
+  /** Company folio, e.g. P-0003. */
+  folio: string;
   clientName: string | null;
   clientTel: string | null;
   ticketDate: string | null;
@@ -140,6 +144,7 @@ const toListItem = (row: TicketRow): PresupuestoListItem => {
   const status = getPresupuestoStatus(row);
   return {
     id: String(row.id),
+    folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }),
     clientName: row.client_name,
     clientTel: row.client_tel,
     ticketDate: row.ticket_date?.toISOString() ?? null,
@@ -223,7 +228,7 @@ export async function createPresupuestoWithLines(
   input: CreatePresupuestoWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number };
+  data?: { id: string; total: number; folio?: string };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -262,9 +267,14 @@ export async function createPresupuestoWithLines(
     );
 
     const created = await db.transaction(async (tx) => {
+      const folio = await allocateDocumentFolio(tx, {
+        companyId: effectiveCompanyId,
+        documentKind: 'presupuesto',
+      });
       const [row] = await tx
         .insert(ticket)
         .values({
+          ...folio,
           client_id: clientRow.id,
           client_name: clientRow.name.slice(0, 100),
           client_tel: (clientRow.phone ?? '').slice(0, 20),
@@ -309,7 +319,7 @@ export async function createPresupuestoWithLines(
         ignoredClientTotal: validated.client_total ?? null,
       });
 
-      return { id: row.id, total: syncedTotal };
+      return { id: row.id, total: syncedTotal, folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }) };
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -317,7 +327,7 @@ export async function createPresupuestoWithLines(
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total },
+      data: { id: String(created.id), total: created.total, folio: created.folio },
     };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {
@@ -576,7 +586,7 @@ export async function convertPresupuestoToTicket(
   companyId?: number | null,
 ): Promise<{
   success: boolean;
-  data?: { presupuesto: PresupuestoListItem; ticketId: string };
+  data?: { presupuesto: PresupuestoListItem; ticketId: string; ticketFolio: string };
   error?: string;
   errorType?: ActionErrorType;
 }> {
@@ -608,9 +618,16 @@ export async function convertPresupuestoToTicket(
     }
 
     const result = await db.transaction(async (tx) => {
+      // The ticket gets its own R folio; the P folio stays on the presupuesto and is
+      // reachable through converted_from_ticket_id (ZIG-I17-4).
+      const folio = await allocateDocumentFolio(tx, {
+        companyId: effectiveCompanyId,
+        documentKind: 'ticket',
+      });
       const [workTicket] = await tx
         .insert(ticket)
         .values({
+          ...folio,
           client_id: source.client_id,
           client_name: source.client_name,
           client_tel: source.client_tel,
@@ -698,6 +715,7 @@ export async function convertPresupuestoToTicket(
       data: {
         presupuesto: toListItem(result.presupuesto),
         ticketId: String(result.workTicket.id),
+        ticketFolio: formatDocumentFolio(result.workTicket),
       },
     };
   } catch (e) {

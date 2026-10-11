@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 
 type TicketDetailPrimaryActionsProps = {
   ticketId: number;
+  /** Company folio shown in share titles and messages. */
+  folio?: string | null;
   clientName: string | null;
   clientTel: string | null;
   finished: boolean;
@@ -34,6 +36,7 @@ type TicketDetailPrimaryActionsProps = {
  */
 export const TicketDetailPrimaryActions = ({
   ticketId,
+  folio = null,
   clientName,
   clientTel,
   finished,
@@ -48,6 +51,7 @@ export const TicketDetailPrimaryActions = ({
   const collect = useTicketCollect();
   const { share, sharing } = useReceiptShare({
     ticketId: String(ticketId),
+    folio,
     downloadFileName,
     clientName,
     clientTel,
@@ -84,6 +88,7 @@ export const TicketDetailPrimaryActions = ({
         {primary}
         <TicketDetailActionsMenu
           ticketId={ticketId}
+          folio={folio}
           clientName={clientName}
           clientTel={clientTel}
           total={total}

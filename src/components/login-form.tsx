@@ -4,7 +4,7 @@ import { ErrorText } from '@/components/error-text';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Check, Eye, EyeOff } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
@@ -31,6 +31,7 @@ export function LoginForm({
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [isStamped, setIsStamped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,6 +65,7 @@ export function LoginForm({
       const result = await signIn('credentials', {
         email,
         password,
+        remember: remember ? 'true' : 'false',
         redirect: false,
       });
 
@@ -203,6 +205,35 @@ export function LoginForm({
                   </div>
                 </div>
               </div>
+
+              <label
+                htmlFor="remember"
+                className="-ml-3 flex min-h-11 cursor-pointer items-center gap-1 text-[14px] text-[color:var(--login-ink)]"
+              >
+                {/* 44px tap area; the native box is invisible and the drawn one tracks it. */}
+                <span className="relative flex size-11 shrink-0 items-center justify-center">
+                  <input
+                    id="remember"
+                    name="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                    className="peer absolute inset-0 size-full cursor-pointer text-base opacity-0"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none flex size-5 items-center justify-center rounded border-2 border-[color:var(--login-ink-muted)] bg-[color:var(--login-field-bg)] peer-checked:border-[color:var(--login-accent-blue)] peer-checked:bg-[color:var(--login-accent-blue)] peer-focus-visible:ring-2 peer-focus-visible:ring-[color:var(--login-accent-blue)] peer-focus-visible:ring-offset-2 peer-checked:[&>svg]:opacity-100"
+                  >
+                    <Check className="size-3.5 text-white opacity-0" strokeWidth={3} />
+                  </span>
+                </span>
+                <span>
+                  Mantener mi sesión en este dispositivo
+                  <span className="block text-[12.5px] text-[color:var(--login-ink-muted)]">
+                    Se queda abierta hasta 30 días. Úsalo solo en tu equipo.
+                  </span>
+                </span>
+              </label>
 
               {error ? (
                 <div

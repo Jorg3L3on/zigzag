@@ -1,10 +1,19 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
+import { DEFAULT_FOLIO_PREFIX, FOLIO_PREFIX_MAX_LENGTH, normalizeFolioPrefix } from '@/lib/folio';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const COMPANY_TAGLINE_MAX = 60;
 
-export const companySettingsSchema = z.object({
+/** Up to five letters or digits; empty keeps the default (P / R). */
+const folioPrefixField = z
+  .string()
+  .trim()
+  .max(FOLIO_PREFIX_MAX_LENGTH, `Máximo ${FOLIO_PREFIX_MAX_LENGTH} caracteres`)
+  .regex(/^[A-Za-z0-9]*$/, 'Usa solo letras y números')
+  .optional();
+
+export const companySettingsBaseSchema = z.object({
   rfc: z.string().optional(),
   /** Lema o giro printed under the company name on PDFs. */
   tagline: z
@@ -13,9 +22,25 @@ export const companySettingsSchema = z.object({
     .max(COMPANY_TAGLINE_MAX, `Máximo ${COMPANY_TAGLINE_MAX} caracteres`)
     .optional(),
   default_currency: z.string().optional(),
+  folio_prefix_presupuesto: folioPrefixField,
+  folio_prefix_ticket: folioPrefixField,
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
     .optional(),
+});
+
+/** The two series must tell documents apart, so their effective prefixes cannot match. */
+export const companySettingsSchema = companySettingsBaseSchema.superRefine((value, ctx) => {
+  const presupuesto =
+    normalizeFolioPrefix(value.folio_prefix_presupuesto) || DEFAULT_FOLIO_PREFIX.presupuesto;
+  const ticket = normalizeFolioPrefix(value.folio_prefix_ticket) || DEFAULT_FOLIO_PREFIX.ticket;
+  if (presupuesto === ticket) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['folio_prefix_ticket'],
+      message: 'Los prefijos de presupuestos y recibos deben ser distintos',
+    });
+  }
 });
 
 export const companyFormSchema = z.object({
@@ -55,6 +80,13 @@ export function normalizeCompanySettingsForDb(
   // Kept even when empty so clearing the field overrides the stored value on merge.
   if (input.tagline !== undefined) {
     out.tagline = input.tagline.trim();
+  }
+  // Kept even when empty so clearing a prefix returns to the default on merge.
+  if (input.folio_prefix_presupuesto !== undefined) {
+    out.folio_prefix_presupuesto = normalizeFolioPrefix(input.folio_prefix_presupuesto);
+  }
+  if (input.folio_prefix_ticket !== undefined) {
+    out.folio_prefix_ticket = normalizeFolioPrefix(input.folio_prefix_ticket);
   }
   if (input.experience_mode === 'campo' || input.experience_mode === 'office') {
     out.experience_mode = input.experience_mode;

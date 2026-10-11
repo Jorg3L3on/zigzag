@@ -57,6 +57,8 @@ export type PresupuestoViewProps = {
   /** review: right after Guardar presupuesto. detail: later visits. */
   variant: 'review' | 'detail';
   presupuestoId: string;
+  /** Company folio (P-0003); falls back to `#id`. */
+  folio?: string | null;
   clientId: number | null;
   clientName: string | null;
   clientTel: string | null;
@@ -81,6 +83,7 @@ export type PresupuestoViewProps = {
 export const PresupuestoView = ({
   variant,
   presupuestoId,
+  folio = null,
   clientId,
   clientName,
   clientTel,
@@ -95,6 +98,7 @@ export const PresupuestoView = ({
   editHref = null,
 }: PresupuestoViewProps) => {
   const router = useRouter();
+  const docLabel = folio || `#${presupuestoId}`;
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
@@ -131,6 +135,7 @@ export const PresupuestoView = ({
       phone: clientTel,
       clientName,
       ticketId: presupuestoId,
+      folio,
       total,
       servicesSummary,
       validUntil: expiresAt,
@@ -150,7 +155,7 @@ export const PresupuestoView = ({
       if (canInvoice) {
         file = await loadPdf();
         result = await shareTicketInvoiceFile(file, {
-          title: `Presupuesto #${presupuestoId}`,
+          title: `Presupuesto ${docLabel}`,
           text: clientName ? `Presupuesto para ${clientName}` : undefined,
         });
       }
@@ -197,7 +202,7 @@ export const PresupuestoView = ({
         toast.error(getErrorDisplayMessage(result, 'No se pudo convertir el presupuesto'));
         return;
       }
-      toast.success(`Convertido a ticket #${result.data.ticketId}`);
+      toast.success(`Convertido a ticket ${result.data.ticketFolio ?? `#${result.data.ticketId}`}`);
       router.push(`/tickets/${result.data.ticketId}`);
     } finally {
       setMutating(false);
@@ -282,7 +287,7 @@ export const PresupuestoView = ({
   const shareCta = renderShareCta(false);
   const compactShareCta = renderShareCta(true);
 
-  const title = `Presupuesto #${presupuestoId} guardado`;
+  const title = `Presupuesto ${docLabel} guardado`;
 
   const confirmSheet = (
     <ConfirmSheet
@@ -292,8 +297,8 @@ export const PresupuestoView = ({
       }}
       title={
         confirm === 'convert'
-          ? `¿Convertir el presupuesto #${presupuestoId} en ticket?`
-          : `¿Cancelar el presupuesto #${presupuestoId}?`
+          ? `¿Convertir el presupuesto ${docLabel} en ticket?`
+          : `¿Cancelar el presupuesto ${docLabel}?`
       }
       description={
         confirm === 'convert'
@@ -313,6 +318,7 @@ export const PresupuestoView = ({
       <>
         <PresupuestoDetailLayout
           presupuestoId={presupuestoId}
+          folio={folio}
           clientId={clientId}
           clientName={clientName}
           ticketDate={ticketDate}
@@ -345,7 +351,7 @@ export const PresupuestoView = ({
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-4">
         <TripledMobileAppBar
-          title={`Presupuesto #${presupuestoId}`}
+          title={`Presupuesto ${docLabel}`}
           subtitle="Guardado"
           backHref="/presupuestos"
           backLabel="Volver a presupuestos"
@@ -365,7 +371,7 @@ export const PresupuestoView = ({
           >
             <span className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en Ticket #{convertedToTicketId}
+              Convertido en ticket
             </span>
             <Link
               href={`/tickets/${convertedToTicketId}`}

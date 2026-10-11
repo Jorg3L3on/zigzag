@@ -158,7 +158,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
           page.getByTestId('presupuesto-summary'),
           page.getByTestId('presupuesto-pdf-preview'),
           page.getByText(/^\$[\d,]+\.\d{2}$/),
-          page.getByText(/^Presupuesto #\d+$/),
+          page.getByText(/^Presupuesto (?:#\d+|[A-Z0-9]+-\d+)$/),
           // App bar subtitle `cliente · fecha`: the fixture's date differs per database.
           page.getByText(FIXTURE_CLIENT, { exact: false }),
         ],

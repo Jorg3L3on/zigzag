@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDocumentFolio } from '@/lib/folio';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -186,6 +187,7 @@ export function TicketRowActions({
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           ticketId={Number(ticket.id)}
+          folio={formatDocumentFolio(ticket)}
           clientName={ticket.client_name ?? null}
           total={ticket.total}
           paymentsTotal={ticket.paid ?? 0}
