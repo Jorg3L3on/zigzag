@@ -48,7 +48,9 @@ export const SignOutEverywhereButton = () => {
         <Button
           type="button"
           variant="outline"
-          className="min-h-11"
+          // The label is long for a 333–375 px card: let it wrap instead of
+          // running past the card edge (the base button is nowrap, fixed height).
+          className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-left"
           data-testid="sign-out-everywhere"
         >
           <LogOut className="size-4" aria-hidden />
