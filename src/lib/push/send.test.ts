@@ -2,7 +2,12 @@
  * @jest-environment node
  */
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { buildPushPayload, sendPushForNotification, sendPushForNotifications } from '@/lib/push/send';
+import {
+  buildPushPayload,
+  pushTagFor,
+  sendPushForNotification,
+  sendPushForNotifications,
+} from '@/lib/push/send';
 
 const dialect = new PgDialect();
 /** The SQL and params a drizzle where-clause renders to. */
@@ -68,7 +73,10 @@ describe('Web Push send (ZIG-I20-2)', () => {
       title: 'Servicio próximo',
       body: 'Mantenimiento para Cliente A',
       url: '/tickets/create?clientId=7&serviceId=9',
-      tag: 'zigzag-notification-1',
+      tag: 'zigzag-schedule-5',
+      type: 'schedule_due_soon',
+      notificationId: 1,
+      actions: [],
     });
     expect(
       buildPushPayload({
@@ -80,6 +88,16 @@ describe('Web Push send (ZIG-I20-2)', () => {
         body: null,
       }),
     ).toMatchObject({ url: '/company', body: null });
+  });
+
+  it('tags by schedule, by digest, or by notification (ZIG-I21-1)', () => {
+    expect(pushTagFor({ ...companyA, type: 'schedule_overdue' })).toBe('zigzag-schedule-5');
+    expect(
+      pushTagFor({ ...companyA, type: 'schedule_daily_digest', resource_id: 'atrasados' }),
+    ).toBe('zigzag-schedule-digest');
+    expect(
+      pushTagFor({ ...companyA, id: 8, type: 'export_ready', resource_type: 'company_export' }),
+    ).toBe('zigzag-notification-8');
   });
 
   it('sends a company notification only to that company (never another company)', async () => {

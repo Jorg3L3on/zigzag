@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import sharp from 'sharp';
+
 import { metadata } from '@/app/layout';
 
 const repoRoot = path.join(__dirname, '..', '..');
@@ -13,6 +15,7 @@ const PWA_ICON_FILES = [
   'public/icons/icon-192.png',
   'public/icons/icon-512.png',
   'public/icons/icon-512-maskable.png',
+  'public/icons/badge-96.png',
   'public/apple-touch-icon.png',
   'src/app/apple-icon.png',
   'src/app/favicon.ico',
@@ -35,6 +38,7 @@ const PNG_ICON_SIZES = {
   'public/icons/icon-192.png': 192,
   'public/icons/icon-512.png': 512,
   'public/icons/icon-512-maskable.png': 512,
+  'public/icons/badge-96.png': 96,
   'public/apple-touch-icon.png': 180,
   'src/app/apple-icon.png': 180,
   'src/app/icon.png': 32,
@@ -106,6 +110,27 @@ describe('PWA icon assets', () => {
     // The favicon.ico file convention emits its own link; a shortcut entry would duplicate it.
     expect(metadata.icons).not.toHaveProperty('shortcut');
     expect(METADATA_ICON_URLS.length).toBeGreaterThan(0);
+  });
+
+  it('the notification badge is a white silhouette on transparent (ZIG-I21-1)', async () => {
+    const { data, info } = await sharp(path.join(repoRoot, 'public/icons/badge-96.png'))
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let opaque = 0;
+    let transparent = 0;
+    for (let i = 0; i < data.length; i += info.channels) {
+      const alpha = data[i + 3];
+      if (alpha === 0) {
+        transparent += 1;
+        continue;
+      }
+      opaque += 1;
+      // Android reads only the alpha channel; every visible pixel is white.
+      expect([data[i], data[i + 1], data[i + 2]]).toEqual([255, 255, 255]);
+    }
+    expect(opaque).toBeGreaterThan(0);
+    expect(transparent).toBeGreaterThan(0);
   });
 
   it('favicon.ico packs the 16, 32 and 64 px brand favicons', () => {

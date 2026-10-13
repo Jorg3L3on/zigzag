@@ -12,15 +12,10 @@ import { pushSubscription, type NotificationRow } from '@/db/schema';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { notificationHref } from '@/lib/notification-href';
+import type { PushPayload } from '@/lib/push/display';
+import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
 
-export type PushPayload = {
-  title: string;
-  body: string | null;
-  /** Page to open on tap; the app origin is added by the service worker. */
-  url: string | null;
-  /** Collapses repeats of the same notification on the device. */
-  tag: string;
-};
+export type { PushPayload } from '@/lib/push/display';
 
 export type PushTarget = Pick<
   NotificationRow,
@@ -30,11 +25,33 @@ export type PushTarget = Pick<
 export const isWebPushConfigured = (): boolean =>
   Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
+/** `scheduleId:clientId:serviceId` rows point at one schedule. */
+const scheduleIdOf = (row: PushTarget): string | null => {
+  if (row.resource_type !== 'client_service_schedule' || !row.resource_id) return null;
+  const parts = row.resource_id.split(':');
+  return parts.length === 3 ? parts[0] : null;
+};
+
+/**
+ * One tag per schedule, so an overdue notice replaces the earlier "próximo"
+ * for the same service (and re-alerts, see `buildNotificationDisplay`); one
+ * tag for the daily digest, so today's replaces yesterday's.
+ */
+export const pushTagFor = (row: PushTarget): string => {
+  if (row.type === SCHEDULE_DAILY_DIGEST_TYPE) return 'zigzag-schedule-digest';
+  const scheduleId = scheduleIdOf(row);
+  if (scheduleId) return `zigzag-schedule-${scheduleId}`;
+  return `zigzag-notification-${row.id}`;
+};
+
 export const buildPushPayload = (row: PushTarget): PushPayload => ({
   title: row.title,
   body: row.body ?? null,
   url: row.resource_type === 'company_export' ? '/company' : notificationHref(row),
-  tag: `zigzag-notification-${row.id}`,
+  tag: pushTagFor(row),
+  type: row.type,
+  notificationId: row.id,
+  actions: [],
 });
 
 type WebPushModule = typeof import('web-push');

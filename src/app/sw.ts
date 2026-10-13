@@ -10,6 +10,7 @@
  * Navigations: network-first with offline fallback to `/offline`.
  */
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
+import { buildNotificationDisplay, type PushPayload } from '../lib/push/display';
 import {
   CacheFirst,
   ExpirationPlugin,
@@ -210,29 +211,20 @@ const serwist = new Serwist({
 serwist.addEventListeners();
 
 /**
- * Web Push (ZIG-I20-2): the server sends `{ title, body, url, tag }` (see
- * src/lib/push/send.ts); a tap focuses an open ZigZag window on that page or
- * opens one.
+ * Web Push (ZIG-I20-2, ZIG-I21): the server sends the payload built in
+ * src/lib/push/send.ts; `buildNotificationDisplay` turns it into the system
+ * notification (monochrome badge, vibration for overdue services). A tap
+ * focuses an open ZigZag window on that page or opens one.
  */
-type PushPayload = { title?: string; body?: string | null; url?: string | null; tag?: string };
-
 self.addEventListener('push', (event) => {
-  let payload: PushPayload = {};
+  let payload: Partial<PushPayload> = {};
   try {
-    payload = (event.data?.json() as PushPayload) ?? {};
+    payload = (event.data?.json() as Partial<PushPayload>) ?? {};
   } catch {
     payload = { title: event.data?.text() ?? 'ZigZag' };
   }
-  const title = payload.title || 'ZigZag';
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body: payload.body ?? undefined,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: payload.tag,
-      data: { url: payload.url ?? '/dashboard' },
-    }),
-  );
+  const { title, options } = buildNotificationDisplay(payload);
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
