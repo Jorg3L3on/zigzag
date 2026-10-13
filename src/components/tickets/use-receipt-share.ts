@@ -101,7 +101,7 @@ export const useReceiptShare = ({
         setSharing(false);
       }
     },
-    [loadReceipt, logShared, ticketId, clientName, clientTel, total, selectedCompany?.name],
+    [loadReceipt, logShared, ticketId, folio, clientName, clientTel, total, selectedCompany?.name],
   );
 
   const download = React.useCallback(async () => {
