@@ -8,6 +8,11 @@ import { formatClientAddressOneLine } from '@/lib/client-address';
 import { formatPhoneDisplay } from '@/lib/phone-links';
 import { buildWhatsAppHref } from '@/lib/whatsapp-share';
 
+// Two columns at 333px leave too little room for "Nuevo presupuesto" on one
+// line, so the label may wrap; the button grows instead of overflowing.
+const ACTION_BUTTON_CLASS =
+  'h-auto min-h-11 gap-2 whitespace-normal rounded-xl py-2 text-center leading-tight';
+
 type ClientDetailHeaderProps = {
   client: Client;
   canWriteClients: boolean;
@@ -66,16 +71,19 @@ export const ClientDetailHeader = ({
         <Detail label="Documento">{client.document?.trim() || '—'}</Detail>
       </dl>
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <div
+        className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"
+        data-testid="client-detail-actions"
+      >
         {canWriteTickets ? (
           <>
-            <Button asChild variant="outline" className="h-11 gap-2 rounded-xl">
+            <Button asChild variant="outline" className={ACTION_BUTTON_CLASS}>
               <Link href={`/tickets/create?clientId=${client.id}`}>
                 <Ticket className="h-4 w-4" aria-hidden />
                 Nuevo ticket
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-11 gap-2 rounded-xl">
+            <Button asChild variant="outline" className={ACTION_BUTTON_CLASS}>
               <Link href={`/presupuestos/create?clientId=${client.id}`}>
                 <ClipboardList className="h-4 w-4" aria-hidden />
                 Nuevo presupuesto
@@ -84,7 +92,7 @@ export const ClientDetailHeader = ({
           </>
         ) : null}
         {whatsapp ? (
-          <Button asChild variant="outline" className="h-11 gap-2 rounded-xl">
+          <Button asChild variant="outline" className={ACTION_BUTTON_CLASS}>
             <a href={whatsapp.href} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="h-4 w-4" aria-hidden />
               WhatsApp
@@ -92,7 +100,7 @@ export const ClientDetailHeader = ({
           </Button>
         ) : null}
         {canWriteClients ? (
-          <Button asChild variant="outline" className="h-11 gap-2 rounded-xl">
+          <Button asChild variant="outline" className={ACTION_BUTTON_CLASS}>
             <Link href={`/clients/${client.id}/edit`}>
               <Pencil className="h-4 w-4" aria-hidden />
               Editar
