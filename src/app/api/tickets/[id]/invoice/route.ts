@@ -1,11 +1,11 @@
-import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getTicketById } from '@/actions/tickets';
 import { fail, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
 import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
+import { buildReceiptPdfEtag } from '@/lib/receipt-pdf/etag';
 import { buildReceiptPdfPayload } from '@/lib/receipt-pdf/payload';
-import { RECEIPT_PDF_RENDERER_VERSION, renderReceiptPdf } from '@/lib/receipt-pdf/render';
+import { renderReceiptPdf } from '@/lib/receipt-pdf/render';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 
@@ -18,23 +18,6 @@ export const dynamic = 'force-dynamic';
  * no logo fetch and no render. Never `public`: it is company data.
  */
 const CACHE_CONTROL = 'private, no-cache';
-
-/**
- * Version of everything the PDF prints: the payload is a pure function of the
- * ticket, its payments, lines and materials and the company (name, address,
- * settings, payment data), the logo URL changes with every upload (Blob adds a
- * suffix) and the renderer version bumps when the layout code changes.
- */
-export const buildReceiptPdfEtag = (
-  payload: ReturnType<typeof buildReceiptPdfPayload>,
-): string => {
-  const hash = createHash('sha1')
-    .update(RECEIPT_PDF_RENDERER_VERSION)
-    .update('\0')
-    .update(JSON.stringify(payload))
-    .digest('base64url');
-  return `"${hash}"`;
-};
 
 /** `If-None-Match` lists one or more entity tags (weak ones with a `W/` prefix). */
 const matchesEtag = (header: string | null, etag: string): boolean =>
