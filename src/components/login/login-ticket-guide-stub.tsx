@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { BookOpen } from 'lucide-react';
-import { useReducedMotion } from 'framer-motion';
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 import {
   openOnboardingGuide,
   PUBLIC_ONBOARDING_GUIDE_LINKS,
@@ -26,7 +26,7 @@ export const LoginTicketGuideStub = ({
   onOpenGuide = openOnboardingGuide,
 }: LoginTicketGuideStubProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

@@ -18,8 +18,8 @@ jest.mock('next-auth/react', () => ({
   signIn: jest.fn(),
 }));
 
-jest.mock('framer-motion', () => ({
-  useReducedMotion: () => true,
+jest.mock('@/hooks/use-prefers-reduced-motion', () => ({
+  usePrefersReducedMotion: () => true,
 }));
 
 const mockSignIn = signIn as jest.MockedFunction<typeof signIn>;
