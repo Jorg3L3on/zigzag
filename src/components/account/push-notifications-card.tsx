@@ -93,9 +93,9 @@ export const PushNotificationsCard = () => {
   if (support === 'ios-needs-install') {
     body = (
       <p className="text-sm text-muted-foreground" data-testid="push-ios-hint">
-        En iPhone los avisos solo llegan con la app en la pantalla de inicio: en
-        Safari toca Compartir y luego <strong>Agregar a inicio</strong>, abre
-        ZigZag desde ahí y vuelve aquí.
+        En iPhone los avisos solo llegan con la app en la pantalla de inicio.
+        Sigue los pasos de <strong>Instalar ZigZag</strong>, abre la app desde
+        tu pantalla de inicio y vuelve aquí para activarlos.
       </p>
     );
   } else if (support === 'unsupported') {

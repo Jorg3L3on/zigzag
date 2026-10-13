@@ -35,7 +35,7 @@ import {
 import { clearFieldJobsOnLogout } from '@/lib/field-jobs';
 
 export function NavUser() {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -101,7 +101,16 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push('/account')}>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Close the Más sheet like the nav links do, or it stays
+                  // open over Mi cuenta on phones.
+                  if (isMobile) {
+                    setOpenMobile(false);
+                  }
+                  router.push('/account');
+                }}
+              >
                 <BadgeCheck className="mr-2 h-4 w-4" data-icon="inline-start" />
                 Cuenta
               </DropdownMenuItem>
