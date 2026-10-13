@@ -11,6 +11,10 @@ let mockGranted: string[] = [];
 let mockLocalJobs: LocalJob[] = [];
 const mockGetQueue = jest.fn();
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('@/actions/dashboard-day-queue', () => ({
   getDashboardDayQueue: (companyId: unknown) => mockGetQueue(companyId),
 }));

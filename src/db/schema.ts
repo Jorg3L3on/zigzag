@@ -55,6 +55,13 @@ export type CompanySettingsJson = {
   folio_prefix_presupuesto?: string;
   /** Folio prefix of tickets/recibos (default R), applied to new documents only. */
   folio_prefix_ticket?: string;
+  /** Datos para pagar por transferencia (ZIG-I20-1): informational only, printed on the recibo and WhatsApp. */
+  payment_bank?: string;
+  payment_holder?: string;
+  /** 18 digits with a valid control digit (src/lib/company-payment-info.ts). */
+  payment_clabe?: string;
+  /** One short line, e.g. "Manda tu comprobante por WhatsApp". */
+  payment_note?: string;
 };
 
 export const company = pgTable(

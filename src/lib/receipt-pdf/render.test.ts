@@ -805,3 +805,43 @@ describe('renderReceiptPdf — unsupported characters and status (ZIG-I12)', () 
     expect(pageText(pages[0])).toContain('PAGO PARCIAL');
   });
 });
+
+describe('renderReceiptPdf — para pagar por transferencia (ZIG-I20-1)', () => {
+  const payment = {
+    bank: 'BBVA',
+    holder: 'Juan Pérez',
+    clabe: '002010077777777771',
+    note: 'Manda tu comprobante por WhatsApp',
+  };
+
+  it('prints the transfer block in the footer of the last page only when there is data', () => {
+    const { pages } = render('recibo-transferencia', recibo({ payment }));
+    const text = pageText(pages[pages.length - 1]);
+    expectInOrder(pages[pages.length - 1], [
+      'Saldo por pagar',
+      'PARA PAGAR POR TRANSFERENCIA',
+      'Banco BBVA · Titular Juan Pérez · CLABE 002010077777777771',
+      'Manda tu comprobante por WhatsApp',
+      'TELÉFONO',
+    ]);
+    expect(text).not.toContain('http');
+
+    const bare = render('recibo-sin-transferencia', recibo({ payment: null }));
+    expect(pageText(bare.pages[0])).not.toContain('TRANSFERENCIA');
+  });
+
+  it('keeps the totals above the taller footer when the page is full', () => {
+    const items = Array.from({ length: 12 }, (_, i) => item(i + 1));
+    const { pages } = render(
+      'recibo-transferencia-lleno',
+      recibo({ items, itemCount: items.length, payment }),
+    );
+    const last = pages[pages.length - 1];
+    const label = last.runs.find((run) => run.text === 'PARA PAGAR POR TRANSFERENCIA');
+    const due = last.runs.find((run) => run.text === 'Saldo por pagar');
+    expect(label).toBeTruthy();
+    expect(due).toBeTruthy();
+    // PDF y grows upward: the big figure sits above the transfer label.
+    expect(due!.y).toBeGreaterThan(label!.y);
+  });
+});

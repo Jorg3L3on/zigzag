@@ -152,4 +152,55 @@ describe('whatsapp-share', () => {
     });
     expect(share?.message).not.toMatch(/saldo/);
   });
+
+  describe('datos para pagar por transferencia (ZIG-I20-1)', () => {
+    const payment = {
+      bank: 'BBVA',
+      holder: 'Juan Pérez',
+      clabe: '002010077777777771',
+      note: 'Manda tu comprobante por WhatsApp',
+    };
+
+    it('appends the transfer data to the cobranza reminder on their own lines', () => {
+      const plain = buildWhatsAppBalanceShare({
+        phone: '9613151559',
+        clientName: 'Leon',
+        ticketId: 1201,
+        balanceDue: 500,
+        companyName: 'ClimaTotal',
+      })!.message;
+      const withData = buildWhatsAppBalanceShare({
+        phone: '9613151559',
+        clientName: 'Leon',
+        ticketId: 1201,
+        balanceDue: 500,
+        companyName: 'ClimaTotal',
+        payment,
+      })!.message;
+      expect(withData).toBe(
+        `${plain}\n\nPara pagar por transferencia:\nBanco BBVA · Titular Juan Pérez · CLABE 002010077777777771\nManda tu comprobante por WhatsApp`,
+      );
+      expect(withData).not.toMatch(/https?:\/\/(?!wa\.me)/);
+    });
+
+    it('keeps the texts exactly as before without data', () => {
+      const base = { phone: '9613151559', clientName: 'Leon', ticketId: 1201 };
+      expect(buildWhatsAppBalanceShare({ ...base, balanceDue: 500, payment: null })!.message).toBe(
+        buildWhatsAppBalanceShare({ ...base, balanceDue: 500 })!.message,
+      );
+      expect(
+        buildWhatsAppReceiptShare({ ...base, total: 100, paid: 20, payment: undefined })!.message,
+      ).toBe(buildWhatsAppReceiptShare({ ...base, total: 100, paid: 20 })!.message);
+    });
+
+    it('adds the data to the recibo only while a balance is due', () => {
+      const base = { phone: '9613151559', clientName: 'Leon', ticketId: 1201, payment };
+      expect(buildWhatsAppReceiptShare({ ...base, total: 100, paid: 20 })!.message).toContain(
+        'CLABE 002010077777777771',
+      );
+      expect(buildWhatsAppReceiptShare({ ...base, total: 100, paid: 100 })!.message).not.toContain(
+        'transferencia',
+      );
+    });
+  });
 });

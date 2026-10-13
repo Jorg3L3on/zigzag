@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Loader2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import {
   Sheet,
   SheetContent,
@@ -74,6 +75,7 @@ export const JobWhatsAppSendMenu = ({
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
   const [busyId, setBusyId] = React.useState<FieldSendOptionId | null>(null);
+  const payment = useCompanyPaymentInfo();
 
   React.useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -117,6 +119,7 @@ export const JobWhatsAppSendMenu = ({
         ticketId: job.ticketId ?? job.localJobId ?? 'pendiente',
         balanceDue: job.balanceDue,
         companyName: job.companyName,
+        payment,
       });
       if (!share) {
         toast.error('Agrega un teléfono al cliente');

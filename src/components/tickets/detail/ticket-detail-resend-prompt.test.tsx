@@ -11,6 +11,10 @@ const mockShare = jest.fn();
 const mockRecord = jest.fn();
 let mockParams = new URLSearchParams('reenviar=1');
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, refresh: jest.fn() }),
   useSearchParams: () => mockParams,

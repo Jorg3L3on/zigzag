@@ -48,6 +48,12 @@ import {
   getErrorMessageByType,
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
+import {
+  CLABE_LENGTH,
+  PAYMENT_BANK_MAX,
+  PAYMENT_HOLDER_MAX,
+  PAYMENT_NOTE_MAX,
+} from '@/lib/company-payment-info';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 import { CompanyFormSection } from '@/components/companies/company-form-section';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
@@ -58,6 +64,7 @@ import {
   readCompanyFormSections,
   summarizeCompanyAddress,
   summarizeCompanyGeneral,
+  summarizeCompanyPayment,
   summarizeCompanySettings,
   writeCompanyFormSections,
   type CompanyFormSectionKey,
@@ -73,6 +80,10 @@ const defaultSettings = {
   folio_prefix_presupuesto: '',
   folio_prefix_ticket: '',
   experience_mode: 'auto' as 'auto' | 'campo' | 'office',
+  payment_bank: '',
+  payment_holder: '',
+  payment_clabe: '',
+  payment_note: '',
 };
 
 const emptyDefaults: CompanyBootstrapFormValues = {
@@ -168,6 +179,10 @@ export const CompanyForm = ({
             folio_prefix_presupuesto: company.settings?.folio_prefix_presupuesto ?? '',
             folio_prefix_ticket: company.settings?.folio_prefix_ticket ?? '',
             experience_mode: company.settings?.experience_mode ?? 'auto',
+            payment_bank: company.settings?.payment_bank ?? '',
+            payment_holder: company.settings?.payment_holder ?? '',
+            payment_clabe: company.settings?.payment_clabe ?? '',
+            payment_note: company.settings?.payment_note ?? '',
           },
           owner: { name: '', email: '', password: '' },
         }
@@ -675,6 +690,109 @@ export const CompanyForm = ({
                     inicio. Déjalo en automático para que empresas de un solo
                     usuario usen Campo.
                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </CompanyFormSection>
+
+        <Separator className={sectionSeparatorClass} />
+
+        <CompanyFormSection
+          title="Para pagar por transferencia"
+          summary={summarizeCompanyPayment(values.settings)}
+          sectioned={isSectioned}
+          collapsible={collapsible}
+          open={openSections.pago}
+          onOpenChange={(open) => setSectionOpen('pago', open)}
+          testId="company-form-section-pago"
+        >
+          <p className="mb-4 text-sm text-muted-foreground">
+            Opcional. Se imprime en tus recibos y se agrega a los mensajes de
+            WhatsApp para que tu cliente sepa a dónde transferir. Aquí no se
+            cobra nada.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="settings.payment_bank"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Banco</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={PAYMENT_BANK_MAX}
+                      placeholder="BBVA"
+                      data-testid="company-payment-bank"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="settings.payment_holder"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>A nombre de</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={PAYMENT_HOLDER_MAX}
+                      placeholder="Nombre del titular de la cuenta"
+                      data-testid="company-payment-holder"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="settings.payment_clabe"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>CLABE</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={CLABE_LENGTH + 5}
+                      placeholder="18 dígitos"
+                      className="font-mono tracking-wide"
+                      data-testid="company-payment-clabe"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Los 18 dígitos de tu cuenta. Revisamos que el último dígito
+                    coincida para evitar errores al copiarla.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="settings.payment_note"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Indicación para tu cliente</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={PAYMENT_NOTE_MAX}
+                      placeholder="Manda tu comprobante por WhatsApp"
+                      data-testid="company-payment-note"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
