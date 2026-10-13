@@ -16,6 +16,10 @@ const mockShareFile = jest.fn();
 const mockDownloadFile = jest.fn();
 let mockGranted = ['tickets.finish', 'tickets.invoice'];
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: mockRefresh, push: jest.fn() }),
   usePathname: () => '/tickets/1201/listo',

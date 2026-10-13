@@ -17,39 +17,19 @@ import {
   markNotificationRead,
 } from '@/actions/notifications';
 import type { NotificationRow } from '@/db/schema';
-import { useRealtimeEvents } from '@/hooks/use-realtime-events';
+import { useVisibleRefresh } from '@/hooks/use-visible-refresh';
 import { toast } from 'sonner';
 import { presentActionError } from '@/lib/network-awareness';
 
-import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
+import { notificationHref } from '@/lib/notification-href';
 
-const POLL_INTERVAL_MS = 60_000;
+/**
+ * Refresh cadence while the tab is visible. Nothing polls in the background
+ * and there is no live stream: the count also refreshes on focus (ZIG-I20-3).
+ */
+export const POLL_INTERVAL_MS = 3 * 60_000;
 
-const resourceHref = (row: NotificationRow): string | null => {
-  if (row.type === SCHEDULE_DAILY_DIGEST_TYPE) {
-    const filter =
-      row.resource_id === 'atrasados' || row.resource_id === 'proximos'
-        ? row.resource_id
-        : 'proximos';
-    return `/service-schedules?filter=${filter}`;
-  }
-
-  if (row.resource_type === 'client_service_schedule' && row.resource_id) {
-    const parts = row.resource_id.split(':');
-    if (parts.length === 3) {
-      const [, clientId, serviceId] = parts;
-      return `/tickets/create?clientId=${clientId}&serviceId=${serviceId}`;
-    }
-    return row.type === 'schedule_overdue'
-      ? '/service-schedules?filter=atrasados'
-      : '/service-schedules?filter=proximos';
-  }
-
-  if (row.resource_type === 'ticket' && row.resource_id) {
-    return `/tickets/${row.resource_id}`;
-  }
-  return null;
-};
+const resourceHref = (row: NotificationRow): string | null => notificationHref(row);
 
 export const NotificationBell = () => {
   const [open, setOpen] = React.useState(false);
@@ -81,34 +61,26 @@ export const NotificationBell = () => {
 
   React.useEffect(() => {
     void refreshCount();
-    const intervalId = window.setInterval(() => {
-      void refreshCount();
-    }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(intervalId);
   }, [refreshCount]);
+
+  // Refresh when the user comes back (focus / visibilitychange) and every few
+  // minutes while the tab is visible; reload the list when the popover is open.
+  useVisibleRefresh(
+    React.useCallback(() => {
+      if (open) {
+        void loadItems();
+      } else {
+        void refreshCount();
+      }
+    }, [open, loadItems, refreshCount]),
+    POLL_INTERVAL_MS,
+  );
 
   React.useEffect(() => {
     if (open) {
       void loadItems();
     }
   }, [open, loadItems]);
-
-  // Live updates via SSE (Postgres LISTEN/NOTIFY) — refresh immediately when a
-  // notification or export-ready event arrives, instead of waiting for the poll.
-  useRealtimeEvents(
-    React.useCallback(
-      (event) => {
-        if (event.type === 'notification' || event.type === 'export_ready') {
-          if (open) {
-            void loadItems();
-          } else {
-            void refreshCount();
-          }
-        }
-      },
-      [open, loadItems, refreshCount],
-    ),
-  );
 
   const handleMarkRead = async (row: NotificationRow) => {
     if (row.read_at !== null) {

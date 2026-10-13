@@ -1,43 +1,59 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import posthog from 'posthog-js';
-import { PostHogProvider as PHProvider, usePostHog } from 'posthog-js/react';
-import { Loader2 } from 'lucide-react';
+import type { PostHog } from 'posthog-js';
 
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const posthogHost =
   process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
 
-let initialized = false;
+let clientPromise: Promise<PostHog | null> | null = null;
 
-const initPosthog = () => {
-  if (initialized || !posthogKey || typeof window === 'undefined') {
-    return;
+/**
+ * Load and initialise posthog-js once, after the page is interactive. The
+ * library is ~80 kB gzipped, so it is imported lazily instead of shipping in
+ * the root layout chunk of every route (ZIG-I20-5).
+ */
+const loadPosthog = (): Promise<PostHog | null> => {
+  if (!posthogKey || typeof window === 'undefined') {
+    return Promise.resolve(null);
   }
-  initialized = true;
-  posthog.init(posthogKey, {
-    api_host: posthogHost,
-    capture_pageview: false,
-    capture_pageleave: true,
-    persistence: 'localStorage+cookie',
-  });
+  if (!clientPromise) {
+    clientPromise = import('posthog-js').then(({ default: posthog }) => {
+      posthog.init(posthogKey, {
+        api_host: posthogHost,
+        capture_pageview: false,
+        capture_pageleave: true,
+        persistence: 'localStorage+cookie',
+      });
+      return posthog;
+    });
+  }
+  return clientPromise;
 };
 
-const PageviewTracker = () => {
-  const posthogClient = usePostHog();
+const whenIdle = (callback: () => void): (() => void) => {
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(callback, { timeout: 2_000 });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = window.setTimeout(callback, 1);
+  return () => window.clearTimeout(id);
+};
+
+const PageviewTracker = ({ client }: { client: PostHog }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!pathname || !posthogClient) {
+    if (!pathname) {
       return;
     }
     const query = searchParams?.toString();
     const url = query ? `${pathname}?${query}` : pathname;
-    posthogClient.capture('$pageview', { $current_url: url });
-  }, [pathname, searchParams, posthogClient]);
+    client.capture('$pageview', { $current_url: url });
+  }, [pathname, searchParams, client]);
 
   return null;
 };
@@ -45,36 +61,38 @@ const PageviewTracker = () => {
 /**
  * Client analytics provider (PostHog, free tier). When
  * `NEXT_PUBLIC_POSTHOG_KEY` is unset this renders children unchanged so the app
- * works without analytics.
+ * works without analytics. `useSearchParams` in the tracker only mounts once
+ * the client has loaded, so no Suspense fallback paints on first render.
  */
 export const PostHogProvider = ({
   children,
 }: {
   children: React.ReactNode;
 }) => {
-  if (!posthogKey) {
-    return <>{children}</>;
-  }
+  const [client, setClient] = useState<PostHog | null>(null);
 
-  initPosthog();
+  useEffect(() => {
+    if (!posthogKey) {
+      return;
+    }
+    let cancelled = false;
+    const cancelIdle = whenIdle(() => {
+      void loadPosthog().then((loaded) => {
+        if (!cancelled && loaded) {
+          setClient(loaded);
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelIdle();
+    };
+  }, []);
 
   return (
-    <PHProvider client={posthog}>
-      <Suspense
-        fallback={
-          <div
-            className="pointer-events-none fixed bottom-2 right-2 z-50 flex items-center gap-2 rounded-md border bg-background/90 px-2 py-1 text-caption text-muted-foreground shadow-sm"
-            role="status"
-            aria-live="polite"
-          >
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            Cargando…
-          </div>
-        }
-      >
-        <PageviewTracker />
-      </Suspense>
+    <>
+      {client ? <PageviewTracker client={client} /> : null}
       {children}
-    </PHProvider>
+    </>
   );
 };

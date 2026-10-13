@@ -56,7 +56,6 @@ test.describe('Lema o giro on the PDF @375px', () => {
     page,
   }) => {
     // Any document works: the header is the same on presupuestos and recibos.
-    // No networkidle: the realtime SSE stream keeps the network busy.
     const firstDocument = async (path: '/presupuestos' | '/tickets') => {
       await page.goto(path);
       const documentLinks = async () =>

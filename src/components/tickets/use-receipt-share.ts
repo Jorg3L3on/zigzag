@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { recordReceiptShared } from '@/actions/tickets';
 import { useCompany } from '@/contexts/company-context';
+import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -39,6 +40,7 @@ export const useReceiptShare = ({
 }: UseReceiptShareInput) => {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
+  const payment = useCompanyPaymentInfo();
   const [sharing, setSharing] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
   const fileRef = React.useRef<File | null>(null);
@@ -84,6 +86,7 @@ export const useReceiptShare = ({
             total,
             paid: paidAmount,
             companyName: selectedCompany?.name,
+            payment,
           });
           if (whatsApp) {
             void logShared();
@@ -101,7 +104,7 @@ export const useReceiptShare = ({
         setSharing(false);
       }
     },
-    [loadReceipt, logShared, ticketId, folio, clientName, clientTel, total, selectedCompany?.name],
+    [loadReceipt, logShared, ticketId, folio, clientName, clientTel, total, selectedCompany?.name, payment],
   );
 
   const download = React.useCallback(async () => {

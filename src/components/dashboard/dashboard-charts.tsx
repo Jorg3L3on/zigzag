@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { format, startOfMonth } from 'date-fns';
-import { useReducedMotion } from 'framer-motion';
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 import {
   Bar,
   BarChart,
@@ -139,7 +139,7 @@ export const DashboardCharts = ({
   revenueMonthCount = 12,
   revenuePeriodControl,
 }: DashboardChartsProps) => {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = usePrefersReducedMotion();
   const periodLabel =
     revenueMonthCount === 1 ? 'último mes' : `últimos ${revenueMonthCount} meses`;
   const hasRevenueData = revenueByMonth.some((m) => m.revenue > 0);

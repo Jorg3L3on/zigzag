@@ -1,7 +1,7 @@
 'use server';
 
 import { count, desc, eq, and, ilike, isNull, or } from 'drizzle-orm';
-import { role, user, type Company, type Role } from '@/db/schema';
+import { pushSubscription, role, user, type Company, type Role } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   AppError,
@@ -756,6 +756,8 @@ export async function signOutEverywhere(): Promise<{
       return buildActionError('GN004');
     }
     await bumpUserTokenVersion(BigInt(authContext.userId));
+    // Push subscriptions of every device go with the sessions (ZIG-I20-2).
+    await db.delete(pushSubscription).where(eq(pushSubscription.user_id, BigInt(authContext.userId)));
     await recordAuthAuditEvent({
       action: 'signed_out',
       result: 'success',

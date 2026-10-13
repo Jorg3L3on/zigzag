@@ -38,6 +38,13 @@ import {
   type ReceiptPdfItem,
   type ReceiptPdfPayload,
 } from './payload';
+import { formatPaymentInfoLine } from '@/lib/company-payment-info';
+
+/**
+ * Bump when the drawing code changes what a PDF looks like: it is part of the
+ * invoice route's ETag (ZIG-I20-4), so cached copies are regenerated.
+ */
+export const RECEIPT_PDF_RENDERER_VERSION = '2026-10-12.1';
 
 export type ReceiptPdfRenderOptions = {
   /** Company logo as a data URL (PNG/JPEG/WEBP); null draws the initial circle. */
@@ -625,9 +632,24 @@ export function renderReceiptPdf(
     footerX += width + FOOTER.gap;
     return { ...group, x, lines: pen.wrap(group.value, S.footerValue, width, 3) };
   });
+  // Para pagar por transferencia (ZIG-I20-1): one labelled block above the
+  // contact groups, so the footer grows and pagination makes room for it.
+  const paymentLines: string[] = payload.payment
+    ? [
+        ...pen.wrap(formatPaymentInfoLine(payload.payment), S.footerValue, CONTENT_WIDTH, 2),
+        ...(payload.payment.note
+          ? pen.wrap(payload.payment.note, S.footerValue, CONTENT_WIDTH, 2)
+          : []),
+      ]
+    : [];
+  const paymentHeight =
+    paymentLines.length > 0
+      ? FOOTER_LABEL_LINE + FOOTER.groupGap + paymentLines.length * FOOTER_LINE + FOOTER.paymentGap
+      : 0;
   const footerHeight =
     FOOTER.border +
     FOOTER.paddingTop +
+    paymentHeight +
     Math.max(
       ...footerGroups.map(
         (group) => FOOTER_LABEL_LINE + FOOTER.groupGap + Math.max(group.lines.length, 1) * FOOTER_LINE,
@@ -1004,7 +1026,21 @@ export function renderReceiptPdf(
 
   const drawFooter = () => {
     pen.fillRect(CONTENT_LEFT, footerTop, CONTENT_WIDTH, FOOTER.border, COLORS.ink);
-    const groupTop = footerTop + FOOTER.border + FOOTER.paddingTop;
+    let groupTop = footerTop + FOOTER.border + FOOTER.paddingTop;
+    if (paymentLines.length > 0) {
+      pen.text(
+        'PARA PAGAR POR TRANSFERENCIA',
+        CONTENT_LEFT,
+        baselineFrom(groupTop, LABEL.size, FOOTER_LABEL_LINE),
+        S.label,
+      );
+      let lineTop = groupTop + FOOTER_LABEL_LINE + FOOTER.groupGap;
+      for (const line of paymentLines) {
+        pen.text(line, CONTENT_LEFT, baselineFrom(lineTop, FOOTER.size, FOOTER_LINE), S.footerValue);
+        lineTop += FOOTER_LINE;
+      }
+      groupTop += paymentHeight;
+    }
     for (const group of footerGroups) {
       pen.text(group.label.toUpperCase(), group.x, baselineFrom(groupTop, LABEL.size, FOOTER_LABEL_LINE), S.label);
       let lineTop = groupTop + FOOTER_LABEL_LINE + FOOTER.groupGap;

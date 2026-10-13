@@ -7,6 +7,10 @@ import userEvent from '@testing-library/user-event';
 import { TicketCollectProvider } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { TicketDetailPrimaryActions } from '@/components/tickets/detail/ticket-detail-primary-actions';
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }));
 jest.mock('next/link', () => ({
   __esModule: true,

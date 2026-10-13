@@ -1,6 +1,6 @@
 import { SessionProvider } from 'next-auth/react';
 import { PostHogProvider } from '@/components/posthog-provider';
-import { ThemeHotkey } from '@/components/theme-toggle';
+import { ThemeHotkey } from '@/components/theme-hotkey';
 import { SessionKeepAlive } from '@/components/session-keep-alive';
 
 export function Providers({ children }: { children: React.ReactNode }) {

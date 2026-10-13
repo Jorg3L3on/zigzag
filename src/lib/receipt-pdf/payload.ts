@@ -15,6 +15,10 @@ import type {
 } from '@/db/schema';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import { collapseBlankLines } from '@/lib/collapse-blank-lines';
+import {
+  getCompanyPaymentInfo,
+  type CompanyPaymentInfo,
+} from '@/lib/company-payment-info';
 import { multiplyMoney, roundMoney } from '@/lib/money';
 import { sanitizePdfText } from '@/lib/pdf-text-support';
 import {
@@ -129,6 +133,11 @@ export type ReceiptPdfPayload = {
     value: number;
   };
   currencyCode: string;
+  /**
+   * Datos para pagar por transferencia (ZIG-I20-1): only on a recibo with a
+   * balance due and only when the company set them. Printed in the footer.
+   */
+  payment: CompanyPaymentInfo | null;
 };
 
 const isFiniteNumber = (value: unknown): value is number =>
@@ -216,6 +225,21 @@ const latestPaymentDate = (ticket: ReceiptPdfTicket): Date | null => {
     .filter((date): date is Date => date !== null);
   if (dates.length === 0) return null;
   return new Date(Math.max(...dates.map((date) => date.getTime())));
+};
+
+const sanitizePayment = (ticket: ReceiptPdfTicket): CompanyPaymentInfo | null => {
+  const info = getCompanyPaymentInfo(
+    ticket.company && !ticket.company.deleted_at ? ticket.company.settings : null,
+  );
+  if (!info) return null;
+  const clean = (value: string | null) => sanitizePdfText(value) || null;
+  const sanitized: CompanyPaymentInfo = {
+    bank: clean(info.bank),
+    holder: clean(info.holder),
+    clabe: clean(info.clabe),
+    note: clean(info.note),
+  };
+  return sanitized.bank || sanitized.holder || sanitized.clabe ? sanitized : null;
 };
 
 export const buildReceiptPdfPayload = (
@@ -336,5 +360,6 @@ export const buildReceiptPdfPayload = (
     balanceDue,
     bigFigure,
     currencyCode,
+    payment: docType === 'recibo' && (balanceDue ?? 0) > 0 ? sanitizePayment(ticket) : null,
   };
 };

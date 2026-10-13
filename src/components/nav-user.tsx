@@ -2,6 +2,7 @@
 
 import { BadgeCheck, BookOpen, ChevronsUpDown, LogOut } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
+import { disablePushOnThisDevice } from '@/lib/push-client';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -40,6 +41,7 @@ export function NavUser() {
 
   const handleLogout = async () => {
     await clearFieldJobsOnLogout();
+    await disablePushOnThisDevice();
     await signOut({ redirect: false });
     router.push('/login');
   };

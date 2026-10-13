@@ -456,3 +456,36 @@ describe('formatReceiptFolioFor (ZIG-I17)', () => {
     expect(formatReceiptFolioFor({ id: 9n })).toBe('000009');
   });
 });
+
+describe('buildReceiptPdfPayload — para pagar por transferencia (ZIG-I20-1)', () => {
+  const settings = {
+    default_currency: 'MXN',
+    payment_bank: 'BBVA',
+    payment_holder: 'Juan Pérez',
+    payment_clabe: '002010077777777771',
+    payment_note: 'Manda tu comprobante 😀 por WhatsApp',
+  };
+
+  it('carries the company data on a recibo with a balance, with unsupported glyphs stripped', () => {
+    const ticket = baseTicket({ paid: 100 });
+    ticket.company!.settings = settings;
+    expect(buildReceiptPdfPayload(ticket).payment).toEqual({
+      bank: 'BBVA',
+      holder: 'Juan Pérez',
+      clabe: '002010077777777771',
+      note: 'Manda tu comprobante por WhatsApp',
+    });
+  });
+
+  it('is null on a presupuesto, on a paid recibo and when the company set nothing', () => {
+    const quote = presupuesto();
+    quote.company!.settings = settings;
+    expect(buildReceiptPdfPayload(quote).payment).toBeNull();
+
+    const paid = baseTicket({ paid: 325 });
+    paid.company!.settings = settings;
+    expect(buildReceiptPdfPayload(paid).payment).toBeNull();
+
+    expect(buildReceiptPdfPayload(baseTicket({ paid: 100 })).payment).toBeNull();
+  });
+});

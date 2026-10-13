@@ -208,3 +208,51 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+/**
+ * Web Push (ZIG-I20-2): the server sends `{ title, body, url, tag }` (see
+ * src/lib/push/send.ts); a tap focuses an open ZigZag window on that page or
+ * opens one.
+ */
+type PushPayload = { title?: string; body?: string | null; url?: string | null; tag?: string };
+
+self.addEventListener('push', (event) => {
+  let payload: PushPayload = {};
+  try {
+    payload = (event.data?.json() as PushPayload) ?? {};
+  } catch {
+    payload = { title: event.data?.text() ?? 'ZigZag' };
+  }
+  const title = payload.title || 'ZigZag';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body ?? undefined,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: payload.tag,
+      data: { url: payload.url ?? '/dashboard' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL(
+    (event.notification.data as { url?: string } | undefined)?.url ?? '/dashboard',
+    self.location.origin,
+  ).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const open = windows.find((client) => client.url.startsWith(self.location.origin));
+      if (open) {
+        await open.focus();
+        if ('navigate' in open && open.url !== target) {
+          await open.navigate(target);
+        }
+        return;
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});

@@ -7,6 +7,10 @@ import userEvent from '@testing-library/user-event';
 import { TicketCollectProvider } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { TicketDetailQuickActions } from '@/components/tickets/detail/ticket-detail-quick-actions';
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock('@/hooks/use-permissions', () => ({ usePermissions: () => ({ can: () => true }) }));
 jest.mock('@/contexts/company-context', () => ({
