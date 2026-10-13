@@ -7,8 +7,8 @@
  * service rejects with 404/410 are deleted. Best effort: never throws into
  * the caller, which already inserted the in-app notification.
  */
-import { and, eq, inArray } from 'drizzle-orm';
-import { pushSubscription, type NotificationRow } from '@/db/schema';
+import { and, count, eq, inArray, isNull, or } from 'drizzle-orm';
+import { notification, pushSubscription, type NotificationRow } from '@/db/schema';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { notificationHref } from '@/lib/notification-href';
@@ -120,6 +120,30 @@ const loadWebPush = (): Promise<WebPushModule | null> => {
   return webPushPromise;
 };
 
+/**
+ * Unread notifications one user sees in the company (same visibility as the
+ * bell: company-wide rows plus the user's own), for the app icon badge
+ * (ZIG-I21-3). Undefined when the count fails: the push still goes out.
+ */
+const unreadCountFor = async (companyId: number, userId: bigint): Promise<number | undefined> => {
+  try {
+    const [row] = await db
+      .select({ total: count() })
+      .from(notification)
+      .where(
+        and(
+          eq(notification.company_id, companyId),
+          isNull(notification.read_at),
+          or(isNull(notification.user_id), eq(notification.user_id, userId)),
+        ),
+      );
+    return Number(row?.total ?? 0);
+  } catch (error) {
+    logger.warn('Web Push unread count failed', { companyId, error });
+    return undefined;
+  }
+};
+
 /** Push-service status codes that mean the subscription is dead. */
 const GONE_STATUSES = new Set([404, 410]);
 
@@ -145,7 +169,15 @@ export const sendPushForNotification = async (row: PushTarget): Promise<number> 
     );
   if (subscriptions.length === 0) return 0;
 
-  const payload = JSON.stringify(buildPushPayload(row));
+  const basePayload = buildPushPayload(row);
+  const userIds = [...new Set(subscriptions.map((subscription) => subscription.user_id))];
+  const unreadByUser = new Map(
+    await Promise.all(
+      userIds.map(async (userId) => [userId, await unreadCountFor(row.company_id, userId)] as const),
+    ),
+  );
+  const payloadFor = (userId: bigint) =>
+    JSON.stringify({ ...basePayload, unread: unreadByUser.get(userId) });
   const gone: number[] = [];
   let delivered = 0;
 
@@ -157,7 +189,7 @@ export const sendPushForNotification = async (row: PushTarget): Promise<number> 
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          payload,
+          payloadFor(subscription.user_id),
           { TTL: 24 * 60 * 60, urgency: 'normal' },
         );
         delivered += 1;

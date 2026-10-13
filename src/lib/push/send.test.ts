@@ -57,7 +57,11 @@ describe('Web Push send (ZIG-I20-2)', () => {
     process.env.VAPID_PRIVATE_KEY = 'priv';
     selectWhere.mockImplementation((clause: unknown) => {
       // Resolve the company filter from the bound params of the where clause.
-      const { params } = renderClause(clause);
+      const { sql, params } = renderClause(clause);
+      if (sql.includes('"read_at" is null')) {
+        // Unread count for the app badge: user 1 has 3, user 2 has 1.
+        return Promise.resolve([{ total: params.includes(1n) ? 3 : 1 }]);
+      }
       const companyId = params.includes(10) ? 10 : 20;
       return Promise.resolve(subscriptionsByCompany[companyId]);
     });
@@ -166,6 +170,37 @@ describe('Web Push send (ZIG-I20-2)', () => {
     const { sql, params } = renderClause(selectWhere.mock.calls[0][0]);
     expect(sql).toContain('"company_id" = ');
     expect(params).toEqual([10]);
+  });
+
+  it('each device gets its user\'s unread count for the app badge (ZIG-I21-3)', async () => {
+    await sendPushForNotification(companyA);
+
+    const unreadByEndpoint = Object.fromEntries(
+      sendNotification.mock.calls.map((call) => [
+        (call[0] as { endpoint: string }).endpoint,
+        (JSON.parse(call[1] as string) as { unread: number }).unread,
+      ]),
+    );
+    expect(unreadByEndpoint).toEqual({ 'https://push/a1': 3, 'https://push/a2': 1 });
+    // The count is scoped to the notification's company and the user.
+    const countClauses = selectWhere.mock.calls
+      .map((call) => renderClause(call[0]))
+      .filter(({ sql }) => sql.includes('"read_at" is null'));
+    expect(countClauses).toHaveLength(2);
+    for (const { params } of countClauses) {
+      expect(params[0]).toBe(10);
+    }
+  });
+
+  it('still sends when the unread count fails', async () => {
+    selectWhere.mockImplementation((clause: unknown) => {
+      const { sql } = renderClause(clause);
+      if (sql.includes('"read_at" is null')) return Promise.reject(new Error('db down'));
+      return Promise.resolve(subscriptionsByCompany[10]);
+    });
+    await expect(sendPushForNotification(companyA)).resolves.toBe(2);
+    const payload = JSON.parse(sendNotification.mock.calls[0][1] as string) as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('unread');
   });
 
   it('deletes subscriptions the push service reports gone (404/410) and keeps the rest', async () => {

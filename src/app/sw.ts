@@ -221,6 +221,23 @@ serwist.addEventListeners();
  * notification (monochrome badge, vibration for overdue services, action
  * buttons). A tap focuses an open ZigZag window on that page or opens one.
  */
+/**
+ * Unread count on the installed app's icon (Badging API, ZIG-I21-3). Android
+ * Chrome and iOS 16.4+ home-screen apps support it; elsewhere it is skipped.
+ */
+const updateAppBadge = async (unread: number | undefined): Promise<void> => {
+  const nav = self.navigator as WorkerNavigator & {
+    setAppBadge?: (contents?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  if (typeof unread !== 'number' || !nav.setAppBadge || !nav.clearAppBadge) return;
+  try {
+    await (unread > 0 ? nav.setAppBadge(unread) : nav.clearAppBadge());
+  } catch {
+    // The badge is a nicety; never fail the notification over it.
+  }
+};
+
 self.addEventListener('push', (event) => {
   let payload: Partial<PushPayload> = {};
   try {
@@ -229,7 +246,12 @@ self.addEventListener('push', (event) => {
     payload = { title: event.data?.text() ?? 'ZigZag' };
   }
   const { title, options } = buildNotificationDisplay(payload);
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      updateAppBadge(payload.unread),
+    ]),
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
