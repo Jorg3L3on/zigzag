@@ -1,7 +1,10 @@
 import type { MetadataRoute } from 'next';
 
+import { MANIFEST_SCREENSHOTS } from '@/lib/manifest-screenshots';
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: '/dashboard',
     name: 'ZigZag',
     short_name: 'ZigZag',
     description: 'Gestión de tickets de servicio multi-empresa',
@@ -13,6 +16,8 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: 'ltr',
     background_color: '#ffffff',
     theme_color: '#ffffff',
+    categories: ['business', 'productivity'],
+    screenshots: MANIFEST_SCREENSHOTS,
     icons: [
       {
         src: '/icons/icon-192.png',

@@ -31,7 +31,7 @@ Core business flows on mobile (create ticket → add service / total → collect
 ## Manual — Android Chrome
 
 - [ ] Login and open sidebar sheet from the menu button; navigation links work.
-- [ ] When not installed, **Instalar ZigZag** banner may appear; dismiss hides it for 30 days; after install banner does not return in standalone mode.
+- [ ] When not installed, **Instalar ZigZag** banner may appear; dismiss hides it for 30 days (Más › Cuenta still offers it); after install banner does not return in standalone mode.
 - [ ] Bottom tabs (**Hoy · Anotar · Clientes · Más**) visible on list pages; Más opens the sidebar sheet; Anotar opens ticket create.
 - [ ] Ticket create sticky save bar hides bottom tabs.
 - [ ] Tickets list cards and filters usable with touch targets.
@@ -39,6 +39,44 @@ Core business flows on mobile (create ticket → add service / total → collect
 - [ ] PDF download on finished ticket.
 - [ ] Airplane mode — offline banner; shell may load from cache after prior online visit; still no offline data sync.
 - [ ] **Install app** / **Add to home screen** — cold start opens Dashboard.
+
+## Manual — Android: instalación, avisos y badge (ZIG-I21)
+
+80 % de los usuarios usa Android. Corre esta lista en **al menos dos teléfonos de marcas distintas** (Pixel, Samsung, Xiaomi…) contra un deploy con `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, y registra cada corrida en Plania (`add_result` en ZIG-I21-5 con `device` y la versión de Chrome).
+
+**Instalar**
+
+- [ ] En Chrome (sin instalar) abre **Más › Cuenta**: aparece **Instalar ZigZag** con el motivo; un toque abre el diálogo de Chrome con las capturas (ficha ampliada) y la app queda en la pantalla de inicio.
+- [ ] Si antes cerraste el banner de instalación, la tarjeta de Cuenta sigue ofreciendo instalar.
+- [ ] Ya instalada, la tarjeta no aparece (ni en la app ni en Chrome si Chrome ya no la ofrece).
+- [ ] La app abre en **Inicio** (`/dashboard`) a pantalla completa, sin barra del navegador.
+
+**Avisos** (abre la app instalada › Más › Cuenta › **Activar avisos aquí**)
+
+- [ ] Con la app **cerrada** llega un aviso de mantenimiento: la barra de estado muestra la **silueta blanca del recibo**, no un cuadro gris.
+- [ ] Un **atrasado** vibra; un **próximo**, el resumen diario y la exportación llegan sin vibrar.
+- [ ] Al expandir el aviso de mantenimiento salen **Crear ticket** y **Ver**: Crear ticket abre el ticket nuevo con cliente y servicio; Ver abre Mantenimientos en el filtro correcto.
+- [ ] Exportación lista: **Descargar** abre el archivo; tocar el aviso abre Mi empresa.
+- [ ] Tocar el aviso o Crear ticket / Ver lo deja **leído** en la campana.
+- [ ] El ícono de ZigZag en la pantalla de inicio muestra el **número de no leídos** (punto o número según el launcher); baja al marcar leídos y desaparece con **Marcar todo**.
+- [ ] **Apagar avisos aquí** deja de recibirlos; **Cerrar sesión** borra la suscripción del teléfono (no llegan más avisos a ese teléfono).
+
+**Ahorro de batería (Xiaomi, Huawei, Samsung)**
+
+Los avisos de una PWA llegan por Chrome; si el sistema duerme a Chrome, llegan tarde o al abrir la app. Si un aviso tarda, pide al usuario permitir a **Chrome**:
+
+- Xiaomi / Redmi / POCO (MIUI, HyperOS): Ajustes › Apps › Administrar apps › Chrome › **Ahorro de batería: Sin restricciones** y **Inicio automático** activado.
+- Huawei / Honor (EMUI): Ajustes › Batería › Inicio de aplicaciones › Chrome › **Administrar manualmente** con las tres opciones activadas.
+- Samsung (One UI): Ajustes › Batería › Límites de uso en segundo plano › quitar Chrome de **Aplicaciones en suspensión** / **en suspensión profunda**.
+
+**Lighthouse / instalable**
+
+- [ ] `npm run lighthouse:mobile` sobre `/dashboard`: rendimiento ≥ 84 (línea base de ZIG-I20-5).
+- [ ] Chrome DevTools › Application › Manifest: sin errores de instalabilidad, iconos y capturas cargan. (Lighthouse 12 quitó la categoría PWA; esta pestaña la reemplaza.)
+
+| Fecha | Teléfono | Android | Chrome | Resultado / notas |
+| --- | --- | --- | --- | --- |
+| | | | | |
 
 ## Regression notes
 

@@ -2,8 +2,10 @@
 
 import * as React from 'react';
 import { Download, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { usePwaInstallPrompt } from '@/hooks/use-pwa-install-prompt';
+import { PWA_INSTALL_EVENTS, trackClientEvent } from '@/lib/client-analytics';
 import { cn } from '@/lib/utils';
 
 const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'scroll'] as const;
@@ -44,6 +46,15 @@ export const PwaInstallBanner = () => {
   const { canPrompt, isInstalling, promptInstall, dismiss } =
     usePwaInstallPrompt();
   const hasInteracted = useHasInteracted();
+  // Mi cuenta has its own Instalar ZigZag card (ZIG-I21-4).
+  const onAccountPage = usePathname() === '/account';
+  const visible = canPrompt && hasInteracted && !onAccountPage;
+
+  React.useEffect(() => {
+    if (visible) {
+      trackClientEvent(PWA_INSTALL_EVENTS.prompt, { surface: 'banner' });
+    }
+  }, [visible]);
 
   const handleInstall = React.useCallback(async () => {
     await promptInstall();
@@ -69,7 +80,7 @@ export const PwaInstallBanner = () => {
     [dismiss],
   );
 
-  if (!canPrompt || !hasInteracted) {
+  if (!visible) {
     return null;
   }
 

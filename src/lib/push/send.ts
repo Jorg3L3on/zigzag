@@ -7,20 +7,20 @@
  * service rejects with 404/410 are deleted. Best effort: never throws into
  * the caller, which already inserted the in-app notification.
  */
-import { and, eq, inArray } from 'drizzle-orm';
-import { pushSubscription, type NotificationRow } from '@/db/schema';
+import { and, count, eq, inArray, isNull, or } from 'drizzle-orm';
+import { notification, pushSubscription, type NotificationRow } from '@/db/schema';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { notificationHref } from '@/lib/notification-href';
+import {
+  MAX_PUSH_ACTIONS,
+  withNotificationParam,
+  type PushAction,
+  type PushPayload,
+} from '@/lib/push/display';
+import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
 
-export type PushPayload = {
-  title: string;
-  body: string | null;
-  /** Page to open on tap; the app origin is added by the service worker. */
-  url: string | null;
-  /** Collapses repeats of the same notification on the device. */
-  tag: string;
-};
+export type { PushPayload } from '@/lib/push/display';
 
 export type PushTarget = Pick<
   NotificationRow,
@@ -30,12 +30,74 @@ export type PushTarget = Pick<
 export const isWebPushConfigured = (): boolean =>
   Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
-export const buildPushPayload = (row: PushTarget): PushPayload => ({
-  title: row.title,
-  body: row.body ?? null,
-  url: row.resource_type === 'company_export' ? '/company' : notificationHref(row),
-  tag: `zigzag-notification-${row.id}`,
-});
+/** `scheduleId:clientId:serviceId` rows point at one schedule. */
+const scheduleIdOf = (row: PushTarget): string | null => {
+  if (row.resource_type !== 'client_service_schedule' || !row.resource_id) return null;
+  const parts = row.resource_id.split(':');
+  return parts.length === 3 ? parts[0] : null;
+};
+
+/**
+ * One tag per schedule, so an overdue notice replaces the earlier "próximo"
+ * for the same service (and re-alerts, see `buildNotificationDisplay`); one
+ * tag for the daily digest, so today's replaces yesterday's.
+ */
+export const pushTagFor = (row: PushTarget): string => {
+  if (row.type === SCHEDULE_DAILY_DIGEST_TYPE) return 'zigzag-schedule-digest';
+  const scheduleId = scheduleIdOf(row);
+  if (scheduleId) return `zigzag-schedule-${scheduleId}`;
+  return `zigzag-notification-${row.id}`;
+};
+
+/** Only Vercel Blob downloads are offered as a Descargar button. */
+const isBlobDownloadUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname.endsWith('.blob.vercel-storage.com');
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Android action buttons (ZIG-I21-2): a schedule reminder offers Crear ticket
+ * (composer prefilled) and Ver (the schedule queue); a ready export offers
+ * Descargar. In-app URLs carry `?notification=<id>` so the page marks it read.
+ */
+export const pushActionsFor = (row: PushTarget): PushAction[] => {
+  const actions: PushAction[] = [];
+  const scheduleId = scheduleIdOf(row);
+  if (scheduleId && row.type !== SCHEDULE_DAILY_DIGEST_TYPE) {
+    const composer = notificationHref(row);
+    if (composer) {
+      actions.push({ action: 'crear', title: 'Crear ticket', url: withNotificationParam(composer, row.id) });
+    }
+    const filter = row.type === 'schedule_overdue' ? 'atrasados' : 'proximos';
+    actions.push({
+      action: 'ver',
+      title: 'Ver',
+      url: withNotificationParam(`/service-schedules?filter=${filter}`, row.id),
+    });
+  }
+  if (row.resource_type === 'company_export' && row.resource_id && isBlobDownloadUrl(row.resource_id)) {
+    actions.push({ action: 'descargar', title: 'Descargar', url: row.resource_id });
+  }
+  return actions.slice(0, MAX_PUSH_ACTIONS);
+};
+
+export const buildPushPayload = (row: PushTarget): PushPayload => {
+  const url =
+    (row.resource_type === 'company_export' ? '/company' : notificationHref(row)) ?? '/dashboard';
+  return {
+    title: row.title,
+    body: row.body ?? null,
+    url: withNotificationParam(url, row.id),
+    tag: pushTagFor(row),
+    type: row.type,
+    notificationId: row.id,
+    actions: pushActionsFor(row),
+  };
+};
 
 type WebPushModule = typeof import('web-push');
 
@@ -56,6 +118,30 @@ const loadWebPush = (): Promise<WebPushModule | null> => {
     });
   }
   return webPushPromise;
+};
+
+/**
+ * Unread notifications one user sees in the company (same visibility as the
+ * bell: company-wide rows plus the user's own), for the app icon badge
+ * (ZIG-I21-3). Undefined when the count fails: the push still goes out.
+ */
+const unreadCountFor = async (companyId: number, userId: bigint): Promise<number | undefined> => {
+  try {
+    const [row] = await db
+      .select({ total: count() })
+      .from(notification)
+      .where(
+        and(
+          eq(notification.company_id, companyId),
+          isNull(notification.read_at),
+          or(isNull(notification.user_id), eq(notification.user_id, userId)),
+        ),
+      );
+    return Number(row?.total ?? 0);
+  } catch (error) {
+    logger.warn('Web Push unread count failed', { companyId, error });
+    return undefined;
+  }
 };
 
 /** Push-service status codes that mean the subscription is dead. */
@@ -83,7 +169,15 @@ export const sendPushForNotification = async (row: PushTarget): Promise<number> 
     );
   if (subscriptions.length === 0) return 0;
 
-  const payload = JSON.stringify(buildPushPayload(row));
+  const basePayload = buildPushPayload(row);
+  const userIds = [...new Set(subscriptions.map((subscription) => subscription.user_id))];
+  const unreadByUser = new Map(
+    await Promise.all(
+      userIds.map(async (userId) => [userId, await unreadCountFor(row.company_id, userId)] as const),
+    ),
+  );
+  const payloadFor = (userId: bigint) =>
+    JSON.stringify({ ...basePayload, unread: unreadByUser.get(userId) });
   const gone: number[] = [];
   let delivered = 0;
 
@@ -95,7 +189,7 @@ export const sendPushForNotification = async (row: PushTarget): Promise<number> 
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          payload,
+          payloadFor(subscription.user_id),
           { TTL: 24 * 60 * 60, urgency: 'normal' },
         );
         delivered += 1;

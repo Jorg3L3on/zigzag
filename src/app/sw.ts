@@ -11,6 +11,12 @@
  */
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
 import {
+  buildNotificationDisplay,
+  resolveNotificationClickUrl,
+  type PushNotificationData,
+  type PushPayload,
+} from '../lib/push/display';
+import {
   CacheFirst,
   ExpirationPlugin,
   NetworkFirst,
@@ -210,49 +216,72 @@ const serwist = new Serwist({
 serwist.addEventListeners();
 
 /**
- * Web Push (ZIG-I20-2): the server sends `{ title, body, url, tag }` (see
- * src/lib/push/send.ts); a tap focuses an open ZigZag window on that page or
- * opens one.
+ * Web Push (ZIG-I20-2, ZIG-I21): the server sends the payload built in
+ * src/lib/push/send.ts; `buildNotificationDisplay` turns it into the system
+ * notification (monochrome badge, vibration for overdue services, action
+ * buttons). A tap focuses an open ZigZag window on that page or opens one.
  */
-type PushPayload = { title?: string; body?: string | null; url?: string | null; tag?: string };
+/**
+ * Unread count on the installed app's icon (Badging API, ZIG-I21-3). Android
+ * Chrome and iOS 16.4+ home-screen apps support it; elsewhere it is skipped.
+ */
+const updateAppBadge = async (unread: number | undefined): Promise<void> => {
+  const nav = self.navigator as WorkerNavigator & {
+    setAppBadge?: (contents?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  if (typeof unread !== 'number' || !nav.setAppBadge || !nav.clearAppBadge) return;
+  try {
+    await (unread > 0 ? nav.setAppBadge(unread) : nav.clearAppBadge());
+  } catch {
+    // The badge is a nicety; never fail the notification over it.
+  }
+};
 
 self.addEventListener('push', (event) => {
-  let payload: PushPayload = {};
+  let payload: Partial<PushPayload> = {};
   try {
-    payload = (event.data?.json() as PushPayload) ?? {};
+    payload = (event.data?.json() as Partial<PushPayload>) ?? {};
   } catch {
     payload = { title: event.data?.text() ?? 'ZigZag' };
   }
-  const title = payload.title || 'ZigZag';
+  const { title, options } = buildNotificationDisplay(payload);
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: payload.body ?? undefined,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: payload.tag,
-      data: { url: payload.url ?? '/dashboard' },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, options),
+      updateAppBadge(payload.unread),
+    ]),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // `event.action` is the Android action button (Crear ticket / Ver /
+  // Descargar); empty for a plain tap, which opens the payload URL.
   const target = new URL(
-    (event.notification.data as { url?: string } | undefined)?.url ?? '/dashboard',
+    resolveNotificationClickUrl(
+      event.notification.data as Partial<PushNotificationData> | undefined,
+      event.action,
+    ),
     self.location.origin,
-  ).href;
+  );
   event.waitUntil(
     (async () => {
+      // The export download lives on Vercel Blob, not in the app.
+      if (target.origin !== self.location.origin) {
+        await self.clients.openWindow(target.href);
+        return;
+      }
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const open = windows.find((client) => client.url.startsWith(self.location.origin));
       if (open) {
         await open.focus();
-        if ('navigate' in open && open.url !== target) {
-          await open.navigate(target);
+        if ('navigate' in open && open.url !== target.href) {
+          await open.navigate(target.href);
         }
         return;
       }
-      await self.clients.openWindow(target);
+      await self.clients.openWindow(target.href);
     })(),
   );
 });

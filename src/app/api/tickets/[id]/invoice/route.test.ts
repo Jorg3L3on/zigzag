@@ -6,7 +6,8 @@ jest.mock('next/server', () => ({
   })),
 }));
 
-import { buildReceiptPdfEtag, GET } from '@/app/api/tickets/[id]/invoice/route';
+import { GET } from '@/app/api/tickets/[id]/invoice/route';
+import { buildReceiptPdfEtag } from '@/lib/receipt-pdf/etag';
 import { getTicketById } from '@/actions/tickets';
 import { requireApiPermission } from '@/lib/api-helpers';
 import { buildReceiptPdfPayload } from '@/lib/receipt-pdf/payload';

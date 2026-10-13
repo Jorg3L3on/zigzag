@@ -6,81 +6,63 @@ import {
   persistPwaInstallBannerDismiss,
 } from '@/lib/pwa-install-persistence';
 import { useDisplayModeStandalone } from '@/hooks/use-display-mode-standalone';
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-};
+import {
+  getPwaInstallServerSnapshot,
+  getPwaInstallSnapshot,
+  promptPwaInstall,
+  subscribePwaInstall,
+  type PwaInstallOutcome,
+} from '@/lib/pwa-install-store';
+import type { PwaInstallSurface } from '@/lib/client-analytics';
 
 export type UsePwaInstallPromptResult = {
   canPrompt: boolean;
   isInstalling: boolean;
-  promptInstall: () => Promise<'accepted' | 'dismissed' | 'unavailable'>;
+  promptInstall: () => Promise<PwaInstallOutcome>;
   dismiss: () => void;
 };
 
-export const usePwaInstallPrompt = (): UsePwaInstallPromptResult => {
+type UsePwaInstallPromptOptions = {
+  /** Where the prompt is offered, for the install funnel (ZIG-I21-4). */
+  surface?: PwaInstallSurface;
+  /**
+   * The banner hides for 30 days after "cerrar"; the Mi cuenta card is the
+   * permanent place to install, so it ignores that snooze.
+   */
+  respectBannerDismissal?: boolean;
+};
+
+export const usePwaInstallPrompt = ({
+  surface = 'banner',
+  respectBannerDismissal = true,
+}: UsePwaInstallPromptOptions = {}): UsePwaInstallPromptResult => {
   const isStandalone = useDisplayModeStandalone();
-  const deferredRef = React.useRef<BeforeInstallPromptEvent | null>(null);
-  const [canPrompt, setCanPrompt] = React.useState(false);
+  const { available } = React.useSyncExternalStore(
+    subscribePwaInstall,
+    getPwaInstallSnapshot,
+    getPwaInstallServerSnapshot,
+  );
+  const [dismissed, setDismissed] = React.useState(
+    () => respectBannerDismissal && isPwaInstallBannerDismissed(),
+  );
   const [isInstalling, setIsInstalling] = React.useState(false);
 
-  React.useEffect(() => {
-    if (isStandalone || isPwaInstallBannerDismissed()) {
-      return;
-    }
-
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      deferredRef.current = event as BeforeInstallPromptEvent;
-      setCanPrompt(true);
-    };
-
-    const handleAppInstalled = () => {
-      persistPwaInstallBannerDismiss();
-      deferredRef.current = null;
-      setCanPrompt(false);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener(
-        'beforeinstallprompt',
-        handleBeforeInstallPrompt,
-      );
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, [isStandalone]);
-
   const promptInstall = React.useCallback(async () => {
-    const deferred = deferredRef.current;
-    if (!deferred) {
-      return 'unavailable';
-    }
-
     setIsInstalling(true);
     try {
-      await deferred.prompt();
-      const choice = await deferred.userChoice;
-      if (choice.outcome === 'accepted') {
-        persistPwaInstallBannerDismiss();
-        setCanPrompt(false);
-      }
-      return choice.outcome;
+      return await promptPwaInstall(surface);
     } finally {
       setIsInstalling(false);
     }
-  }, []);
+  }, [surface]);
 
   const dismiss = React.useCallback(() => {
     persistPwaInstallBannerDismiss();
-    setCanPrompt(false);
+    setDismissed(true);
   }, []);
 
   return {
-    canPrompt: canPrompt && !isStandalone,
+    canPrompt: available && !isStandalone && !(respectBannerDismissal && dismissed),
     isInstalling,
     promptInstall,
     dismiss,

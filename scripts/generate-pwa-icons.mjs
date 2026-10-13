@@ -33,6 +33,19 @@ const COPIES = [
 
 const FAVICON_SIZES = [16, 32, 64];
 const LOGO_SIZE = 512;
+const BADGE_SIZE = 96;
+
+/**
+ * Android paints the notification badge from the alpha channel only, so a
+ * full-colour icon shows as a grey square in the status bar. The badge is the
+ * mark's receipt silhouette (with the Z cut out) in plain white on transparent,
+ * cropped closer than the app icon so it reads at status-bar size.
+ */
+const buildBadgeSvg = () =>
+  fs
+    .readFileSync(brand('zigzag-mark.svg'), 'utf8')
+    .replace('viewBox="0 0 100 100"', 'viewBox="4 4 92 92"')
+    .replace('fill="url(#g)"', 'fill="#fff"');
 
 /** ICO container with PNG-compressed entries (supported by every current browser). */
 const buildIco = (images) => {
@@ -85,6 +98,14 @@ const main = async () => {
     .png({ compressionLevel: 9 })
     .toBuffer();
   write('public/logo.png', logo);
+
+  const badge = await sharp(Buffer.from(buildBadgeSvg()), {
+    density: 72 * (BADGE_SIZE / 100),
+  })
+    .resize(BADGE_SIZE, BADGE_SIZE)
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+  write(`public/icons/badge-${BADGE_SIZE}.png`, badge);
 };
 
 main().catch((error) => {

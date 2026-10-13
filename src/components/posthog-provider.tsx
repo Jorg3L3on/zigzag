@@ -4,34 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { PostHog } from 'posthog-js';
 
-const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-const posthogHost =
-  process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
-
-let clientPromise: Promise<PostHog | null> | null = null;
-
-/**
- * Load and initialise posthog-js once, after the page is interactive. The
- * library is ~80 kB gzipped, so it is imported lazily instead of shipping in
- * the root layout chunk of every route (ZIG-I20-5).
- */
-const loadPosthog = (): Promise<PostHog | null> => {
-  if (!posthogKey || typeof window === 'undefined') {
-    return Promise.resolve(null);
-  }
-  if (!clientPromise) {
-    clientPromise = import('posthog-js').then(({ default: posthog }) => {
-      posthog.init(posthogKey, {
-        api_host: posthogHost,
-        capture_pageview: false,
-        capture_pageleave: true,
-        persistence: 'localStorage+cookie',
-      });
-      return posthog;
-    });
-  }
-  return clientPromise;
-};
+import { isClientAnalyticsEnabled, loadPosthog } from '@/lib/client-analytics';
 
 const whenIdle = (callback: () => void): (() => void) => {
   if (typeof window.requestIdleCallback === 'function') {
@@ -72,7 +45,7 @@ export const PostHogProvider = ({
   const [client, setClient] = useState<PostHog | null>(null);
 
   useEffect(() => {
-    if (!posthogKey) {
+    if (!isClientAnalyticsEnabled()) {
       return;
     }
     let cancelled = false;

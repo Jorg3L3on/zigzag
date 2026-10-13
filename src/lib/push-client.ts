@@ -21,6 +21,9 @@ export const isIosDevice = (userAgent: string, maxTouchPoints = 0): boolean =>
   /iPhone|iPad|iPod/i.test(userAgent) ||
   (/Macintosh/i.test(userAgent) && maxTouchPoints > 1);
 
+/** Android phones and tablets (Chrome, Samsung Internet, …). */
+export const isAndroidDevice = (userAgent: string): boolean => /Android/i.test(userAgent);
+
 export const getPushSupport = (input: {
   hasServiceWorker: boolean;
   hasPushManager: boolean;
