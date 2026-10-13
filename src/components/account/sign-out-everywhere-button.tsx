@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { LogOut } from 'lucide-react';
 
 import { signOutEverywhere } from '@/actions/users';
+import { disablePushOnThisDevice } from '@/lib/push-client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ export const SignOutEverywhereButton = () => {
         setPending(false);
         return;
       }
+      await disablePushOnThisDevice();
       await signOut({ callbackUrl: '/login' });
     } catch {
       toast.error('No se pudo cerrar las sesiones. Intenta de nuevo.');

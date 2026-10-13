@@ -606,6 +606,41 @@ export const notification = pgTable(
 );
 
 /**
+ * Web Push subscriptions of the installed PWA (ZIG-I20-2): one row per
+ * browser/device a user opted in on. `endpoint` is the push service URL and is
+ * unique; `company_id` scopes every send, so a push never carries another
+ * company's data. Rows go when the user turns the device off, signs out
+ * everywhere, or the push service answers 404/410.
+ */
+export const pushSubscription = pgTable(
+  'PushSubscription',
+  {
+    id: serial('id').primaryKey(),
+    company_id: integer('company_id')
+      .notNull()
+      .references(() => company.id),
+    user_id: bigint('user_id', { mode: 'bigint' })
+      .notNull()
+      .references(() => user.id),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    user_agent: text('user_agent'),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    last_seen_at: timestamp('last_seen_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('PushSubscription_endpoint_key').on(t.endpoint),
+    index('PushSubscription_company_id_idx').on(t.company_id),
+    index('PushSubscription_user_id_idx').on(t.user_id),
+  ],
+);
+
+/**
  * Distributed fixed-window rate limit counters (no Redis). One row per
  * identifier (e.g. `login:email:x`, `api:user:1`); the window resets when
  * `reset_at` passes. See `src/lib/rate-limit-store.ts`.
@@ -1088,6 +1123,7 @@ export type TicketLineMaterialRow = typeof ticketLineMaterial.$inferSelect;
 export type ClientServiceScheduleRow = typeof clientServiceSchedule.$inferSelect;
 export type RolePermissionRow = typeof rolePermission.$inferSelect;
 export type NotificationRow = typeof notification.$inferSelect;
+export type PushSubscriptionRow = typeof pushSubscription.$inferSelect;
 export type RateLimitRow = typeof rateLimit.$inferSelect;
 export type JobQueueRow = typeof jobQueue.$inferSelect;
 export type AuditOutboxRow = typeof auditOutbox.$inferSelect;

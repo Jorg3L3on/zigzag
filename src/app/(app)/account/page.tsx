@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PushNotificationsCard } from '@/components/account/push-notifications-card';
 import { SignOutEverywhereButton } from '@/components/account/sign-out-everywhere-button';
 import { AccountFormDialog } from '@/components/account/account-form-dialog';
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,7 @@ export default function AccountPage() {
                   </p>
                   <SignOutEverywhereButton />
                 </div>
+                <PushNotificationsCard />
               </div>
             </CardContent>
           </Card>

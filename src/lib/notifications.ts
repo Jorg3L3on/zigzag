@@ -2,6 +2,7 @@ import { addDays, endOfDay, format, startOfDay } from 'date-fns';
 import { and, eq, isNull, lte } from 'drizzle-orm';
 import { clientServiceSchedule, notification } from '@/db/schema';
 import { db } from '@/lib/db';
+import { sendPushForNotifications } from '@/lib/push/send';
 import { classifyScheduleBucket, DUE_SOON_DAYS } from '@/lib/schedule-buckets';
 import {
   buildScheduleDigestCopy,
@@ -95,7 +96,10 @@ export const materializeScheduleNotificationsForCompany = async (
     return 0;
   }
 
-  await db.insert(notification).values(rows).onConflictDoNothing();
+  // Only the rows this call inserted go out as push (ZIG-I20-2): the
+  // on-demand materialization runs on every bell open and must stay silent.
+  const inserted = await db.insert(notification).values(rows).onConflictDoNothing().returning();
+  await sendPushForNotifications(inserted);
   return rows.length;
 };
 

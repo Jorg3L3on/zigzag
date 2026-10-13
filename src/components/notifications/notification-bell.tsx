@@ -21,7 +21,7 @@ import { useVisibleRefresh } from '@/hooks/use-visible-refresh';
 import { toast } from 'sonner';
 import { presentActionError } from '@/lib/network-awareness';
 
-import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
+import { notificationHref } from '@/lib/notification-href';
 
 /**
  * Refresh cadence while the tab is visible. Nothing polls in the background
@@ -29,31 +29,7 @@ import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
  */
 export const POLL_INTERVAL_MS = 3 * 60_000;
 
-const resourceHref = (row: NotificationRow): string | null => {
-  if (row.type === SCHEDULE_DAILY_DIGEST_TYPE) {
-    const filter =
-      row.resource_id === 'atrasados' || row.resource_id === 'proximos'
-        ? row.resource_id
-        : 'proximos';
-    return `/service-schedules?filter=${filter}`;
-  }
-
-  if (row.resource_type === 'client_service_schedule' && row.resource_id) {
-    const parts = row.resource_id.split(':');
-    if (parts.length === 3) {
-      const [, clientId, serviceId] = parts;
-      return `/tickets/create?clientId=${clientId}&serviceId=${serviceId}`;
-    }
-    return row.type === 'schedule_overdue'
-      ? '/service-schedules?filter=atrasados'
-      : '/service-schedules?filter=proximos';
-  }
-
-  if (row.resource_type === 'ticket' && row.resource_id) {
-    return `/tickets/${row.resource_id}`;
-  }
-  return null;
-};
+const resourceHref = (row: NotificationRow): string | null => notificationHref(row);
 
 export const NotificationBell = () => {
   const [open, setOpen] = React.useState(false);
