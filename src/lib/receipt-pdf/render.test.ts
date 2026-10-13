@@ -413,10 +413,13 @@ describe('renderReceiptPdf — documents without materials', () => {
       ),
     };
     // Hashes of the revision 2 renderer output (CreationDate and ID stripped).
+    // Re-baselined in ZIG-I20-4 when the embedded fonts became Latin subsets:
+    // the drawing code did not change, and the 96 dpi rasters of every fixture
+    // matched the previous ones pixel for pixel (except the Cyrillic fixture).
     expect(hashes).toEqual({
-      recibo: '4955463c2aba211c70e43cd7aec4cecda46ddf381c7ac97cf567add8c3a73ec9',
-      presupuesto: '9c6ae91ccc0dc690ff41a0893514196d424b53e1ea678389cd9526fa8cd56a53',
-      adjustment: '1c537faca99ed0c7f0d302197600e7e052ebb2221961b42fa3b36288d40bab81',
+      recibo: '04a89fc155475b21459ec5c52fbbba6acd91881e84a5c670918a3f3a68c637ca',
+      presupuesto: 'd3a9b6ee0bac1dab4e919f704c970a832e210df0e3cb2a56e4a43391c5761fac',
+      adjustment: '39cd16582b7c7f150bfcbaeddbb23bc2b3691ec289fa5088d55de777c9d612a8',
     });
   });
 });
@@ -794,7 +797,8 @@ describe('renderReceiptPdf — unsupported characters and status (ZIG-I12)', () 
       presupuesto({ items: [item(1, { name: 'Urgente', description: 'Multilenguaje: , , русский' })], itemCount: 1 }),
     );
     expect(pageText(pages[0])).not.toContain('�');
-    expect(pageText(pages[0])).toContain('русский');
+    // Cyrillic left with the Latin font subset (ZIG-I20-4): stripped, never a stray mark.
+    expect(pageText(pages[0])).not.toContain('русский');
   });
 
   it('prints the Pago parcial pill on a partially paid recibo', () => {

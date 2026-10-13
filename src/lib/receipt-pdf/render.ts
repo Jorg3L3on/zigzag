@@ -40,6 +40,12 @@ import {
 } from './payload';
 import { formatPaymentInfoLine } from '@/lib/company-payment-info';
 
+/**
+ * Bump when the drawing code changes what a PDF looks like: it is part of the
+ * invoice route's ETag (ZIG-I20-4), so cached copies are regenerated.
+ */
+export const RECEIPT_PDF_RENDERER_VERSION = '2026-10-12.1';
+
 export type ReceiptPdfRenderOptions = {
   /** Company logo as a data URL (PNG/JPEG/WEBP); null draws the initial circle. */
   logoDataUrl?: string | null;
