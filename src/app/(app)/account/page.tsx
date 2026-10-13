@@ -36,7 +36,7 @@ export default function AccountPage() {
           description="Perfil, empresa y datos de acceso."
           icon={<UserRound className="size-5" aria-hidden />}
         >
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border/60 shadow-sm" data-testid="account-card">
             <CardHeader>
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
