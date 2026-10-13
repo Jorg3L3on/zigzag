@@ -1,7 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { NotificationBell } from '@/components/notifications/notification-bell';
+import {
+  NotificationBell,
+  POLL_INTERVAL_MS,
+} from '@/components/notifications/notification-bell';
 import type { NotificationRow } from '@/db/schema';
 
 jest.mock('@/actions/notifications', () => ({
@@ -9,10 +12,6 @@ jest.mock('@/actions/notifications', () => ({
   getUnreadNotificationCount: jest.fn(),
   markAllNotificationsRead: jest.fn(),
   markNotificationRead: jest.fn(),
-}));
-
-jest.mock('@/hooks/use-realtime-events', () => ({
-  useRealtimeEvents: jest.fn(),
 }));
 
 jest.mock('sonner', () => ({
@@ -97,5 +96,76 @@ describe('NotificationBell optimistic updates', () => {
     expect(
       screen.getByLabelText('Notificaciones (1 sin leer)'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('NotificationBell refresh (ZIG-I20-3)', () => {
+  const setVisibility = (state: 'visible' | 'hidden') => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => state,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    notificationActions.getUnreadNotificationCount.mockReset();
+    notificationActions.getUnreadNotificationCount.mockResolvedValue({
+      success: true,
+      data: 0,
+    });
+    notificationActions.getNotifications.mockResolvedValue({
+      success: true,
+      data: [],
+    });
+  });
+
+  afterEach(() => {
+    setVisibility('visible');
+    jest.useRealTimers();
+  });
+
+  it('never opens a live stream', () => {
+    const eventSource = jest.fn();
+    Object.defineProperty(window, 'EventSource', {
+      configurable: true,
+      writable: true,
+      value: eventSource,
+    });
+    render(<NotificationBell />);
+    expect(eventSource).not.toHaveBeenCalled();
+  });
+
+  it('refreshes on focus and on a visible-tab poll, never in the background', async () => {
+    setVisibility('visible');
+    render(<NotificationBell />);
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(POLL_INTERVAL_MS);
+    });
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      setVisibility('hidden');
+      jest.advanceTimersByTime(POLL_INTERVAL_MS * 5);
+    });
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      setVisibility('visible');
+    });
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      jest.advanceTimersByTime(POLL_INTERVAL_MS);
+    });
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(5);
   });
 });
