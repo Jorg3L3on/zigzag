@@ -22,6 +22,10 @@ import { toast } from 'sonner';
 import { presentActionError } from '@/lib/network-awareness';
 
 import { notificationHref } from '@/lib/notification-href';
+import {
+  announceNotificationsChanged,
+  NOTIFICATIONS_CHANGED_EVENT,
+} from '@/lib/notifications-events';
 
 /**
  * Refresh cadence while the tab is visible. Nothing polls in the background
@@ -30,6 +34,20 @@ import { notificationHref } from '@/lib/notification-href';
 export const POLL_INTERVAL_MS = 3 * 60_000;
 
 const resourceHref = (row: NotificationRow): string | null => notificationHref(row);
+
+/**
+ * Tell the app icon badge (ZIG-I21-3) that the unread count changed. The
+ * bell's own listener ignores this tick: its count is already up to date.
+ */
+let skipOwnAnnouncement = false;
+const announceAppBadgeChange = () => {
+  skipOwnAnnouncement = true;
+  try {
+    announceNotificationsChanged();
+  } finally {
+    skipOwnAnnouncement = false;
+  }
+};
 
 export const NotificationBell = () => {
   const [open, setOpen] = React.useState(false);
@@ -82,6 +100,22 @@ export const NotificationBell = () => {
     }
   }, [open, loadItems]);
 
+  // A push tap marked one read in the page it opened (ZIG-I21-2).
+  React.useEffect(() => {
+    const handleChanged = () => {
+      if (skipOwnAnnouncement) {
+        return;
+      }
+      if (open) {
+        void loadItems();
+      } else {
+        void refreshCount();
+      }
+    };
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, handleChanged);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, handleChanged);
+  }, [open, loadItems, refreshCount]);
+
   const handleMarkRead = async (row: NotificationRow) => {
     if (row.read_at !== null) {
       return;
@@ -102,6 +136,7 @@ export const NotificationBell = () => {
     try {
       const result = await markNotificationRead(row.id);
       if (result.success) {
+        announceAppBadgeChange();
         return;
       }
       failure = result;
@@ -145,6 +180,7 @@ export const NotificationBell = () => {
     try {
       const result = await markAllNotificationsRead();
       if (result.success) {
+        announceAppBadgeChange();
         return;
       }
       failure = result;

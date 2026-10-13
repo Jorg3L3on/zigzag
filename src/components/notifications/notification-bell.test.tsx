@@ -169,3 +169,27 @@ describe('NotificationBell refresh (ZIG-I20-3)', () => {
     expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(5);
   });
 });
+
+describe('NotificationBell and marks made elsewhere (ZIG-I21-2)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    notificationActions.getUnreadNotificationCount.mockResolvedValue({ success: true, data: 2 });
+  });
+
+  it('refreshes its count when a push tap marked one read in the page', async () => {
+    render(<NotificationBell />);
+    await waitFor(() =>
+      expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(1),
+    );
+
+    notificationActions.getUnreadNotificationCount.mockResolvedValue({ success: true, data: 1 });
+    await act(async () => {
+      window.dispatchEvent(new Event('zigzag:notifications-changed'));
+    });
+
+    expect(notificationActions.getUnreadNotificationCount).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Notificaciones (1 sin leer)' })).toBeInTheDocument(),
+    );
+  });
+});

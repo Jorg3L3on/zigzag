@@ -4,6 +4,7 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
 import {
   buildPushPayload,
+  pushActionsFor,
   pushTagFor,
   sendPushForNotification,
   sendPushForNotifications,
@@ -72,11 +73,18 @@ describe('Web Push send (ZIG-I20-2)', () => {
     expect(buildPushPayload(companyA)).toEqual({
       title: 'Servicio próximo',
       body: 'Mantenimiento para Cliente A',
-      url: '/tickets/create?clientId=7&serviceId=9',
+      url: '/tickets/create?clientId=7&serviceId=9&notification=1',
       tag: 'zigzag-schedule-5',
       type: 'schedule_due_soon',
       notificationId: 1,
-      actions: [],
+      actions: [
+        {
+          action: 'crear',
+          title: 'Crear ticket',
+          url: '/tickets/create?clientId=7&serviceId=9&notification=1',
+        },
+        { action: 'ver', title: 'Ver', url: '/service-schedules?filter=proximos&notification=1' },
+      ],
     });
     expect(
       buildPushPayload({
@@ -87,7 +95,50 @@ describe('Web Push send (ZIG-I20-2)', () => {
         resource_id: 'https://blob/export.json',
         body: null,
       }),
-    ).toMatchObject({ url: '/company', body: null });
+    ).toMatchObject({ url: '/company?notification=2', body: null, actions: [] });
+  });
+
+  it('offers actions by type, never more than two (ZIG-I21-2)', () => {
+    expect(pushActionsFor({ ...companyA, type: 'schedule_overdue' })).toEqual([
+      expect.objectContaining({ action: 'crear' }),
+      { action: 'ver', title: 'Ver', url: '/service-schedules?filter=atrasados&notification=1' },
+    ]);
+    expect(
+      pushActionsFor({
+        ...companyA,
+        type: 'export_ready',
+        resource_type: 'company_export',
+        resource_id: 'https://abc.public.blob.vercel-storage.com/exports/x.json',
+      }),
+    ).toEqual([
+      {
+        action: 'descargar',
+        title: 'Descargar',
+        url: 'https://abc.public.blob.vercel-storage.com/exports/x.json',
+      },
+    ]);
+    // Only Vercel Blob downloads become a button.
+    expect(
+      pushActionsFor({
+        ...companyA,
+        type: 'export_ready',
+        resource_type: 'company_export',
+        resource_id: 'https://evil.example/x.json',
+      }),
+    ).toEqual([]);
+    expect(
+      pushActionsFor({ ...companyA, type: 'schedule_daily_digest', resource_id: 'atrasados' }),
+    ).toEqual([]);
+    expect(pushActionsFor({ ...companyA, resource_type: 'ticket', resource_id: '9' })).toEqual([]);
+    for (const type of ['schedule_due_soon', 'schedule_overdue']) {
+      expect(pushActionsFor({ ...companyA, type }).length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('a notification without a page still opens the dashboard and marks it read', () => {
+    expect(
+      buildPushPayload({ ...companyA, id: 3, resource_type: null, resource_id: null }).url,
+    ).toBe('/dashboard?notification=3');
   });
 
   it('tags by schedule, by digest, or by notification (ZIG-I21-1)', () => {

@@ -1,5 +1,6 @@
 import { AppMobileChrome } from '@/components/app-mobile-chrome';
 import { AppSidebar } from '@/components/app-sidebar';
+import { NotificationReadFromUrl } from '@/components/notifications/notification-read-from-url';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { PermissionsProvider } from '@/contexts/permissions-context';
 import { getSessionPermissionMap } from '@/actions/authz';
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
   return (
     <PermissionsProvider initialPermissionMap={initialPermissionMap}>
       <SidebarProvider>
+        <NotificationReadFromUrl />
         <AppSidebar />
         <SidebarInset className="bg-gradient-to-b from-background to-muted/20">
           <AppMobileChrome>{children}</AppMobileChrome>

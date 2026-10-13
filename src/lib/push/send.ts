@@ -12,7 +12,12 @@ import { pushSubscription, type NotificationRow } from '@/db/schema';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { notificationHref } from '@/lib/notification-href';
-import type { PushPayload } from '@/lib/push/display';
+import {
+  MAX_PUSH_ACTIONS,
+  withNotificationParam,
+  type PushAction,
+  type PushPayload,
+} from '@/lib/push/display';
 import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
 
 export type { PushPayload } from '@/lib/push/display';
@@ -44,15 +49,55 @@ export const pushTagFor = (row: PushTarget): string => {
   return `zigzag-notification-${row.id}`;
 };
 
-export const buildPushPayload = (row: PushTarget): PushPayload => ({
-  title: row.title,
-  body: row.body ?? null,
-  url: row.resource_type === 'company_export' ? '/company' : notificationHref(row),
-  tag: pushTagFor(row),
-  type: row.type,
-  notificationId: row.id,
-  actions: [],
-});
+/** Only Vercel Blob downloads are offered as a Descargar button. */
+const isBlobDownloadUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname.endsWith('.blob.vercel-storage.com');
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Android action buttons (ZIG-I21-2): a schedule reminder offers Crear ticket
+ * (composer prefilled) and Ver (the schedule queue); a ready export offers
+ * Descargar. In-app URLs carry `?notification=<id>` so the page marks it read.
+ */
+export const pushActionsFor = (row: PushTarget): PushAction[] => {
+  const actions: PushAction[] = [];
+  const scheduleId = scheduleIdOf(row);
+  if (scheduleId && row.type !== SCHEDULE_DAILY_DIGEST_TYPE) {
+    const composer = notificationHref(row);
+    if (composer) {
+      actions.push({ action: 'crear', title: 'Crear ticket', url: withNotificationParam(composer, row.id) });
+    }
+    const filter = row.type === 'schedule_overdue' ? 'atrasados' : 'proximos';
+    actions.push({
+      action: 'ver',
+      title: 'Ver',
+      url: withNotificationParam(`/service-schedules?filter=${filter}`, row.id),
+    });
+  }
+  if (row.resource_type === 'company_export' && row.resource_id && isBlobDownloadUrl(row.resource_id)) {
+    actions.push({ action: 'descargar', title: 'Descargar', url: row.resource_id });
+  }
+  return actions.slice(0, MAX_PUSH_ACTIONS);
+};
+
+export const buildPushPayload = (row: PushTarget): PushPayload => {
+  const url =
+    (row.resource_type === 'company_export' ? '/company' : notificationHref(row)) ?? '/dashboard';
+  return {
+    title: row.title,
+    body: row.body ?? null,
+    url: withNotificationParam(url, row.id),
+    tag: pushTagFor(row),
+    type: row.type,
+    notificationId: row.id,
+    actions: pushActionsFor(row),
+  };
+};
 
 type WebPushModule = typeof import('web-push');
 

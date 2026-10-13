@@ -10,7 +10,12 @@
  * Navigations: network-first with offline fallback to `/offline`.
  */
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist';
-import { buildNotificationDisplay, type PushPayload } from '../lib/push/display';
+import {
+  buildNotificationDisplay,
+  resolveNotificationClickUrl,
+  type PushNotificationData,
+  type PushPayload,
+} from '../lib/push/display';
 import {
   CacheFirst,
   ExpirationPlugin,
@@ -213,8 +218,8 @@ serwist.addEventListeners();
 /**
  * Web Push (ZIG-I20-2, ZIG-I21): the server sends the payload built in
  * src/lib/push/send.ts; `buildNotificationDisplay` turns it into the system
- * notification (monochrome badge, vibration for overdue services). A tap
- * focuses an open ZigZag window on that page or opens one.
+ * notification (monochrome badge, vibration for overdue services, action
+ * buttons). A tap focuses an open ZigZag window on that page or opens one.
  */
 self.addEventListener('push', (event) => {
   let payload: Partial<PushPayload> = {};
@@ -229,22 +234,32 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // `event.action` is the Android action button (Crear ticket / Ver /
+  // Descargar); empty for a plain tap, which opens the payload URL.
   const target = new URL(
-    (event.notification.data as { url?: string } | undefined)?.url ?? '/dashboard',
+    resolveNotificationClickUrl(
+      event.notification.data as Partial<PushNotificationData> | undefined,
+      event.action,
+    ),
     self.location.origin,
-  ).href;
+  );
   event.waitUntil(
     (async () => {
+      // The export download lives on Vercel Blob, not in the app.
+      if (target.origin !== self.location.origin) {
+        await self.clients.openWindow(target.href);
+        return;
+      }
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const open = windows.find((client) => client.url.startsWith(self.location.origin));
       if (open) {
         await open.focus();
-        if ('navigate' in open && open.url !== target) {
-          await open.navigate(target);
+        if ('navigate' in open && open.url !== target.href) {
+          await open.navigate(target.href);
         }
         return;
       }
-      await self.clients.openWindow(target);
+      await self.clients.openWindow(target.href);
     })(),
   );
 });
