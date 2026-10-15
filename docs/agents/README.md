@@ -9,6 +9,7 @@ Files in this directory are read by Cursor skills (`to-prd`, `to-issues`, etc.) 
 | [issue-tracker.md](./issue-tracker.md) | GitHub Issues + `gh` CLI |
 | [triage-labels.md](./triage-labels.md) | Label vocabulary |
 | [domain.md](./domain.md) | Domain glossary and doc layout |
+| [android-emulator.md](./android-emulator.md) | Pixel emulator on the Mac: install, boot, drive the Android checklist over adb |
 
 **First time:** create GitHub labels with `bash scripts/create-github-labels.sh` (requires `gh auth login`).
 
