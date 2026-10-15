@@ -78,7 +78,7 @@ Los avisos de una PWA llegan por Chrome; si el sistema duerme a Chrome, llegan t
 
 | Fecha | Teléfono | Android | Chrome | Resultado / notas |
 | --- | --- | --- | --- | --- |
-| | | | | |
+| 2026-10-15 | Pixel 7 (emulador, imagen Play Store, sin cuenta Google: atajo, no WebAPK) | 15 | 124.0.6367.219 | OK: ficha de instalación con capturas, app a pantalla completa, avisos con la app cerrada (silueta blanca en la barra, Crear ticket y Ver abren el composer prellenado y la cola y dejan el aviso leído), apagar avisos y cerrar sesión borran la suscripción. No aplica: contador en el icono (el atajo sin WebAPK no lo soporta) y Descargar (sin disparador en prod, ZIG-I21-7). Hallazgos: ZIG-15 (sw.js no instalaba) y `CRON_SECRET` ausente en Vercel. Guía: docs/agents/android-emulator.md |
 
 ## Regression notes
 
