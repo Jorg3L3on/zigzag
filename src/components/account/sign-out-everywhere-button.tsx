@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { LogOut } from 'lucide-react';
 
 import { signOutEverywhere } from '@/actions/users';
+import { disablePushOnThisDevice } from '@/lib/push-client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ export const SignOutEverywhereButton = () => {
         setPending(false);
         return;
       }
+      await disablePushOnThisDevice();
       await signOut({ callbackUrl: '/login' });
     } catch {
       toast.error('No se pudo cerrar las sesiones. Intenta de nuevo.');
@@ -46,7 +48,9 @@ export const SignOutEverywhereButton = () => {
         <Button
           type="button"
           variant="outline"
-          className="min-h-11"
+          // The label is long for a 333–375 px card: let it wrap instead of
+          // running past the card edge (the base button is nowrap, fixed height).
+          className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-left"
           data-testid="sign-out-everywhere"
         >
           <LogOut className="size-4" aria-hidden />

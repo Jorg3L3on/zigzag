@@ -224,13 +224,20 @@
       "version": "7",
       "when": 1782204800000,
       "tag": "0032_company_folios",
-        "breakpoints": true
-      },
-      {
+      "breakpoints": true
+    },
+    {
       "idx": 33,
       "version": "7",
       "when": 1782291200000,
       "tag": "0033_user_must_change_password",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782377600000,
+      "tag": "0034_push_subscriptions",
       "breakpoints": true
     }
   ]

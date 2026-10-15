@@ -48,6 +48,16 @@ for (const width of MOBILE_WIDTHS) {
       }
       await expect(page.getByTestId('client-notes')).toBeVisible();
 
+      // Each action label fits inside its button (Nuevo presupuesto at 333px).
+      const actions = page.getByTestId('client-detail-actions').getByRole('link');
+      await expect(actions.first()).toBeVisible();
+      const overflowing = await actions.evaluateAll((links) =>
+        links
+          .filter((link) => link.scrollWidth > link.clientWidth + 1)
+          .map((link) => link.textContent?.trim()),
+      );
+      expect(overflowing).toEqual([]);
+
       await expectLayoutIntact(page, 'client-detail');
       await expectNoSeriousViolations(page, 'client-detail');
     });

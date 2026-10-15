@@ -2,6 +2,10 @@
  * WhatsApp deep-link helpers (client-side `wa.me` only — no Business API).
  */
 
+import {
+  buildPaymentInfoLines,
+  type CompanyPaymentInfo,
+} from '@/lib/company-payment-info';
 import { normalizePhoneForTel } from '@/lib/phone-links';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 
@@ -38,6 +42,15 @@ export const buildWhatsAppHref = (
   return { href, message, digits };
 };
 
+/** Transfer data on its own lines after the message; nothing is added without data. */
+const appendPaymentInfo = (
+  message: string,
+  payment: CompanyPaymentInfo | null | undefined,
+): string => {
+  const lines = buildPaymentInfoLines(payment);
+  return lines.length > 0 ? [message, '', ...lines].join('\n') : message;
+};
+
 const documentLabel = (input: { ticketId: string | number | null | undefined; folio?: string | null }): string =>
   input.folio?.trim() || `#${input.ticketId}`;
 
@@ -49,6 +62,8 @@ export type WhatsAppBalanceShareInput = {
   folio?: string | null;
   balanceDue: number;
   companyName?: string | null;
+  /** Datos para pagar por transferencia (ZIG-I20-1); the text is unchanged without them. */
+  payment?: CompanyPaymentInfo | null;
 };
 
 export const buildWhatsAppBalanceMessage = (
@@ -61,11 +76,12 @@ export const buildWhatsAppBalanceMessage = (
     ? `Hola, te escribe ${company}.`
     : 'Hola, te escribimos de ZigZag.';
 
-  return [
+  const message = [
     intro,
     `Te recordamos el saldo pendiente del ticket ${documentLabel(input)} a nombre de ${client}: ${balance}.`,
     'Cuando puedas, por favor confirma el pago. ¡Gracias!',
   ].join(' ');
+  return appendPaymentInfo(message, input.payment);
 };
 
 export const buildWhatsAppBalanceShare = (
@@ -85,6 +101,8 @@ export type WhatsAppReceiptShareInput = {
   total: number;
   paid: number;
   companyName?: string | null;
+  /** Datos para pagar por transferencia (ZIG-I20-1); only appended while a balance is due. */
+  payment?: CompanyPaymentInfo | null;
 };
 
 export const buildWhatsAppReceiptMessage = (
@@ -104,11 +122,12 @@ export const buildWhatsAppReceiptMessage = (
     amounts.push(`saldo ${formatTicketListAmount(balance)}`);
   }
 
-  return [
+  const message = [
     intro,
     `Te compartimos el recibo del ticket ${documentLabel(input)} a nombre de ${client}: ${amounts.join(', ')}.`,
     '¡Gracias!',
   ].join(' ');
+  return balance > 0 ? appendPaymentInfo(message, input.payment) : message;
 };
 
 export const buildWhatsAppReceiptShare = (

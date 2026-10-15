@@ -31,12 +31,13 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `/api/companies/[id]/entitlements` | GET | ✅ | `companies/[id]/entitlements/route.test.ts` | #189 |
 | `/api/companies/[id]/operator-summary` | GET | ✅ | `companies/[id]/operator-summary/route.test.ts` | #189 |
 
-## API routes — Audit, dashboard, realtime (#190)
+## API routes — Audit, dashboard (#190)
 
 | Route | Methods | Status | Test file | Slice |
 | ----- | ------- | ------ | --------- | ----- |
 | `/api/audit/events` | GET | ✅ | `audit/events/route.test.ts` | #190 |
-| `/api/realtime` | GET | ⏭️ Exempt | `realtime/route.test.ts` (session-only SSE) | #190 |
+
+`/api/realtime` (session-only SSE over Postgres LISTEN) was removed in ZIG-I20-3; the notification bell refreshes on focus and with a visible-tab poll instead.
 
 ## Server Actions — Clients & Services (#186)
 

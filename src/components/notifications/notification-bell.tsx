@@ -17,38 +17,36 @@ import {
   markNotificationRead,
 } from '@/actions/notifications';
 import type { NotificationRow } from '@/db/schema';
-import { useRealtimeEvents } from '@/hooks/use-realtime-events';
+import { useVisibleRefresh } from '@/hooks/use-visible-refresh';
 import { toast } from 'sonner';
 import { presentActionError } from '@/lib/network-awareness';
 
-import { SCHEDULE_DAILY_DIGEST_TYPE } from '@/lib/schedule-digest';
+import { notificationHref } from '@/lib/notification-href';
+import {
+  announceNotificationsChanged,
+  NOTIFICATIONS_CHANGED_EVENT,
+} from '@/lib/notifications-events';
 
-const POLL_INTERVAL_MS = 60_000;
+/**
+ * Refresh cadence while the tab is visible. Nothing polls in the background
+ * and there is no live stream: the count also refreshes on focus (ZIG-I20-3).
+ */
+export const POLL_INTERVAL_MS = 3 * 60_000;
 
-const resourceHref = (row: NotificationRow): string | null => {
-  if (row.type === SCHEDULE_DAILY_DIGEST_TYPE) {
-    const filter =
-      row.resource_id === 'atrasados' || row.resource_id === 'proximos'
-        ? row.resource_id
-        : 'proximos';
-    return `/service-schedules?filter=${filter}`;
+const resourceHref = (row: NotificationRow): string | null => notificationHref(row);
+
+/**
+ * Tell the app icon badge (ZIG-I21-3) that the unread count changed. The
+ * bell's own listener ignores this tick: its count is already up to date.
+ */
+let skipOwnAnnouncement = false;
+const announceAppBadgeChange = () => {
+  skipOwnAnnouncement = true;
+  try {
+    announceNotificationsChanged();
+  } finally {
+    skipOwnAnnouncement = false;
   }
-
-  if (row.resource_type === 'client_service_schedule' && row.resource_id) {
-    const parts = row.resource_id.split(':');
-    if (parts.length === 3) {
-      const [, clientId, serviceId] = parts;
-      return `/tickets/create?clientId=${clientId}&serviceId=${serviceId}`;
-    }
-    return row.type === 'schedule_overdue'
-      ? '/service-schedules?filter=atrasados'
-      : '/service-schedules?filter=proximos';
-  }
-
-  if (row.resource_type === 'ticket' && row.resource_id) {
-    return `/tickets/${row.resource_id}`;
-  }
-  return null;
 };
 
 export const NotificationBell = () => {
@@ -81,11 +79,20 @@ export const NotificationBell = () => {
 
   React.useEffect(() => {
     void refreshCount();
-    const intervalId = window.setInterval(() => {
-      void refreshCount();
-    }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(intervalId);
   }, [refreshCount]);
+
+  // Refresh when the user comes back (focus / visibilitychange) and every few
+  // minutes while the tab is visible; reload the list when the popover is open.
+  useVisibleRefresh(
+    React.useCallback(() => {
+      if (open) {
+        void loadItems();
+      } else {
+        void refreshCount();
+      }
+    }, [open, loadItems, refreshCount]),
+    POLL_INTERVAL_MS,
+  );
 
   React.useEffect(() => {
     if (open) {
@@ -93,22 +100,21 @@ export const NotificationBell = () => {
     }
   }, [open, loadItems]);
 
-  // Live updates via SSE (Postgres LISTEN/NOTIFY) — refresh immediately when a
-  // notification or export-ready event arrives, instead of waiting for the poll.
-  useRealtimeEvents(
-    React.useCallback(
-      (event) => {
-        if (event.type === 'notification' || event.type === 'export_ready') {
-          if (open) {
-            void loadItems();
-          } else {
-            void refreshCount();
-          }
-        }
-      },
-      [open, loadItems, refreshCount],
-    ),
-  );
+  // A push tap marked one read in the page it opened (ZIG-I21-2).
+  React.useEffect(() => {
+    const handleChanged = () => {
+      if (skipOwnAnnouncement) {
+        return;
+      }
+      if (open) {
+        void loadItems();
+      } else {
+        void refreshCount();
+      }
+    };
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, handleChanged);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, handleChanged);
+  }, [open, loadItems, refreshCount]);
 
   const handleMarkRead = async (row: NotificationRow) => {
     if (row.read_at !== null) {
@@ -130,6 +136,7 @@ export const NotificationBell = () => {
     try {
       const result = await markNotificationRead(row.id);
       if (result.success) {
+        announceAppBadgeChange();
         return;
       }
       failure = result;
@@ -173,6 +180,7 @@ export const NotificationBell = () => {
     try {
       const result = await markAllNotificationsRead();
       if (result.success) {
+        announceAppBadgeChange();
         return;
       }
       failure = result;

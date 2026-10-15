@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
 import { DEFAULT_FOLIO_PREFIX, FOLIO_PREFIX_MAX_LENGTH, normalizeFolioPrefix } from '@/lib/folio';
+import {
+  CLABE_LENGTH,
+  isValidClabe,
+  normalizeClabe,
+  PAYMENT_BANK_MAX,
+  PAYMENT_HOLDER_MAX,
+  PAYMENT_NOTE_MAX,
+} from '@/lib/company-payment-info';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
 export const COMPANY_TAGLINE_MAX = 60;
@@ -26,6 +34,38 @@ export const companySettingsBaseSchema = z.object({
   folio_prefix_ticket: folioPrefixField,
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
+    .optional(),
+  /** Datos para pagar por transferencia (ZIG-I20-1); every field is optional. */
+  payment_bank: z
+    .string()
+    .trim()
+    .max(PAYMENT_BANK_MAX, `Máximo ${PAYMENT_BANK_MAX} caracteres`)
+    .optional(),
+  payment_holder: z
+    .string()
+    .trim()
+    .max(PAYMENT_HOLDER_MAX, `Máximo ${PAYMENT_HOLDER_MAX} caracteres`)
+    .optional(),
+  payment_clabe: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (value) => !value || /^[\d\s-]+$/.test(value),
+      'Usa solo números',
+    )
+    .refine(
+      (value) => !value || normalizeClabe(value).length === CLABE_LENGTH,
+      `La CLABE tiene ${CLABE_LENGTH} dígitos`,
+    )
+    .refine(
+      (value) => !value || isValidClabe(value),
+      'Revisa la CLABE: el último dígito no coincide',
+    ),
+  payment_note: z
+    .string()
+    .trim()
+    .max(PAYMENT_NOTE_MAX, `Máximo ${PAYMENT_NOTE_MAX} caracteres`)
     .optional(),
 });
 
@@ -90,6 +130,19 @@ export function normalizeCompanySettingsForDb(
   }
   if (input.experience_mode === 'campo' || input.experience_mode === 'office') {
     out.experience_mode = input.experience_mode;
+  }
+  // Kept even when empty so clearing a field removes the stored value on merge.
+  if (input.payment_bank !== undefined) {
+    out.payment_bank = input.payment_bank.trim();
+  }
+  if (input.payment_holder !== undefined) {
+    out.payment_holder = input.payment_holder.trim();
+  }
+  if (input.payment_clabe !== undefined) {
+    out.payment_clabe = normalizeClabe(input.payment_clabe);
+  }
+  if (input.payment_note !== undefined) {
+    out.payment_note = input.payment_note.trim();
   }
   return Object.keys(out).length > 0 ? out : null;
 }

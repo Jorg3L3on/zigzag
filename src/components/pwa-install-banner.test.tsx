@@ -10,7 +10,14 @@ jest.mock('@/hooks/use-pwa-install-prompt', () => ({
   }),
 }));
 
+let mockPathname = '/dashboard';
+jest.mock('next/navigation', () => ({ usePathname: () => mockPathname }));
+
 describe('PwaInstallBanner', () => {
+  beforeEach(() => {
+    mockPathname = '/dashboard';
+  });
+
   it('waits for the first interaction so it never becomes the LCP element', () => {
     render(<PwaInstallBanner />);
 
@@ -21,5 +28,14 @@ describe('PwaInstallBanner', () => {
     });
 
     expect(screen.getByTestId('pwa-install-banner')).toBeInTheDocument();
+  });
+
+  it('stays away from Mi cuenta, which has its own install card (ZIG-I21-4)', () => {
+    mockPathname = '/account';
+    render(<PwaInstallBanner />);
+    act(() => {
+      fireEvent.pointerDown(window);
+    });
+    expect(screen.queryByTestId('pwa-install-banner')).not.toBeInTheDocument();
   });
 });

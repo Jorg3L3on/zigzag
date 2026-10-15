@@ -3,6 +3,7 @@ import { getTicketById } from '@/actions/tickets';
 import { fail, requireApiPermission } from '@/lib/api-helpers';
 import { isErrorCode } from '@/lib/error-catalog';
 import { loadCompanyLogoImageDataUrl } from '@/lib/company-logo-branding-server';
+import { buildReceiptPdfEtag } from '@/lib/receipt-pdf/etag';
 import { buildReceiptPdfPayload } from '@/lib/receipt-pdf/payload';
 import { renderReceiptPdf } from '@/lib/receipt-pdf/render';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
@@ -10,6 +11,21 @@ import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/**
+ * Private, revalidate-every-time caching (ZIG-I20-4): the browser keeps the
+ * PDF it has and sends If-None-Match; an unchanged document answers 304 with
+ * no logo fetch and no render. Never `public`: it is company data.
+ */
+const CACHE_CONTROL = 'private, no-cache';
+
+/** `If-None-Match` lists one or more entity tags (weak ones with a `W/` prefix). */
+const matchesEtag = (header: string | null, etag: string): boolean =>
+  header !== null &&
+  header
+    .split(',')
+    .map((tag) => tag.trim().replace(/^W\//, ''))
+    .some((tag) => tag === etag || tag === '*');
 
 export async function GET(
   request: Request,
@@ -59,6 +75,14 @@ export async function GET(
     }
 
     const payload = buildReceiptPdfPayload(result.data);
+    const etag = buildReceiptPdfEtag(payload);
+    if (matchesEtag(request.headers?.get?.('if-none-match') ?? null, etag)) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL },
+      });
+    }
+
     const logoDataUrl = await loadCompanyLogoImageDataUrl(
       payload.company.logoUrl,
     );
@@ -85,7 +109,8 @@ export async function GET(
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `${disposition}; filename="${filename.replace(/"/g, '')}"`,
-        'Cache-Control': 'no-store',
+        'Cache-Control': CACHE_CONTROL,
+        ETag: etag,
       },
     });
   } catch (error) {

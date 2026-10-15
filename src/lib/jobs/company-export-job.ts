@@ -1,16 +1,17 @@
 /**
  * Background handler for company data exports. Builds the export bundle, uploads
  * it to Vercel Blob, and creates an in-app "export ready" notification with the
- * download URL. Runs off the request path via the job queue.
+ * download URL. Runs off the request path via the job queue. The bell picks the
+ * notification up on its next refresh (focus or visible-tab poll, ZIG-I20-3).
  */
 import { put } from '@vercel/blob';
 import { notification } from '@/db/schema';
 import { db } from '@/lib/db';
+import { sendPushForNotifications } from '@/lib/push/send';
 import {
   buildCompanyExportBundle,
   serializeCompanyExportBundle,
 } from '@/lib/company-export';
-import { emitRealtimeEvent } from '@/lib/realtime/events';
 
 export type CompanyExportJobPayload = {
   companyId: number;
@@ -42,20 +43,17 @@ export const runCompanyExportJob = async (
     addRandomSuffix: true,
   });
 
-  await db.insert(notification).values({
-    company_id: companyId,
-    user_id: requestedByUserId ? BigInt(requestedByUserId) : null,
-    type: 'export_ready',
-    title: 'Exportación lista',
-    body: 'La exportación de datos de la empresa está disponible para descargar.',
-    resource_type: 'company_export',
-    resource_id: blob.url,
-  });
-
-  await emitRealtimeEvent({
-    type: 'export_ready',
-    companyId,
-    resourceType: 'company_export',
-    resourceId: blob.url,
-  });
+  const inserted = await db
+    .insert(notification)
+    .values({
+      company_id: companyId,
+      user_id: requestedByUserId ? BigInt(requestedByUserId) : null,
+      type: 'export_ready',
+      title: 'Exportación lista',
+      body: 'La exportación de datos de la empresa está disponible para descargar.',
+      resource_type: 'company_export',
+      resource_id: blob.url,
+    })
+    .returning();
+  await sendPushForNotifications(inserted);
 };

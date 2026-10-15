@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PushNotificationsCard } from '@/components/account/push-notifications-card';
+import { PwaInstallCard } from '@/components/account/pwa-install-card';
 import { SignOutEverywhereButton } from '@/components/account/sign-out-everywhere-button';
 import { AccountFormDialog } from '@/components/account/account-form-dialog';
 import { Button } from '@/components/ui/button';
@@ -35,7 +37,7 @@ export default function AccountPage() {
           description="Perfil, empresa y datos de acceso."
           icon={<UserRound className="size-5" aria-hidden />}
         >
-          <Card className="border-border/60 shadow-sm">
+          <Card className="border-border/60 shadow-sm" data-testid="account-card">
             <CardHeader>
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
@@ -76,6 +78,8 @@ export default function AccountPage() {
                   </p>
                   <SignOutEverywhereButton />
                 </div>
+                <PwaInstallCard />
+                <PushNotificationsCard />
               </div>
             </CardContent>
           </Card>

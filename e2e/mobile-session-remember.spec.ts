@@ -85,4 +85,26 @@ test.describe('Remember this device', () => {
     await expect(page.getByRole('alertdialog')).toBeHidden();
     await expect(page).toHaveURL(/\/account/);
   });
+
+  for (const width of [375, 333]) {
+    test(`the sign-out-everywhere button fits inside the card at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await signIn(page, false);
+      await page.goto('/account');
+      const button = page.getByTestId('sign-out-everywhere');
+      await button.scrollIntoViewIfNeeded();
+      const [buttonBox, cardBox] = await Promise.all([
+        button.boundingBox(),
+        page.getByTestId('account-card').boundingBox(),
+      ]);
+      expect(buttonBox && cardBox).toBeTruthy();
+      expect(buttonBox!.x).toBeGreaterThanOrEqual(cardBox!.x);
+      expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width);
+      expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.visualViewport!.width,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
 });

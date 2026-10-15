@@ -6,7 +6,9 @@ const mockAudit = jest.fn();
 const mockRateLimit = jest.fn();
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
-jest.mock('@/lib/db', () => ({ db: {} }));
+jest.mock('@/lib/db', () => ({
+  db: { delete: () => ({ where: jest.fn(async () => undefined) }) },
+}));
 jest.mock('@/lib/security', () => ({
   requireActionAuth: () => mockRequireActionAuth(),
   requireActionPermission: jest.fn(),

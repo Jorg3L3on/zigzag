@@ -186,4 +186,38 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
       expect.objectContaining({ settings: expect.objectContaining({ tagline: 'Plomería y gas' }) }),
     );
   });
+
+  it('saves banco, titular y CLABE from Para pagar por transferencia and rejects a bad CLABE', async () => {
+    mockUseIsMobile.mockReturnValue(false);
+    mockUpdateOwnCompany.mockResolvedValue({ success: true } as Awaited<ReturnType<typeof updateOwnCompany>>);
+    render(<CompanyForm company={company} mode="self" />);
+
+    const pago = section('pago');
+    expect(within(pago).getByText('Para pagar por transferencia')).toBeInTheDocument();
+    fireEvent.change(within(pago).getByLabelText('Banco'), { target: { value: 'BBVA' } });
+    fireEvent.change(within(pago).getByLabelText('A nombre de'), { target: { value: 'Juan Pérez' } });
+    fireEvent.change(within(pago).getByLabelText('CLABE'), {
+      target: { value: '0020 1007 7777 7777 72' },
+    });
+    fireEvent.submit(document.getElementById('company-form')!);
+    expect(await screen.findByText(/el último dígito no coincide/)).toBeInTheDocument();
+    expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
+
+    fireEvent.change(within(pago).getByLabelText('CLABE'), {
+      target: { value: '0020 1007 7777 7777 71' },
+    });
+    fireEvent.change(within(pago).getByLabelText('Indicación para tu cliente'), {
+      target: { value: 'Manda tu comprobante por WhatsApp' },
+    });
+    fireEvent.submit(document.getElementById('company-form')!);
+    await waitFor(() => expect(mockUpdateOwnCompany).toHaveBeenCalled());
+    expect(mockUpdateOwnCompany.mock.calls[0][0]).toMatchObject({
+      settings: {
+        payment_bank: 'BBVA',
+        payment_holder: 'Juan Pérez',
+        payment_clabe: '0020 1007 7777 7777 71',
+        payment_note: 'Manda tu comprobante por WhatsApp',
+      },
+    });
+  });
 });

@@ -1,5 +1,5 @@
 /** Collapsible sections of the self-service company form on mobile (ZIG-I3-2). */
-export type CompanyFormSectionKey = 'general' | 'direccion' | 'configuracion';
+export type CompanyFormSectionKey = 'general' | 'direccion' | 'configuracion' | 'pago';
 
 export type CompanyFormSectionState = Record<CompanyFormSectionKey, boolean>;
 
@@ -7,6 +7,7 @@ export const DEFAULT_COMPANY_FORM_SECTIONS: CompanyFormSectionState = {
   general: true,
   direccion: false,
   configuracion: false,
+  pago: false,
 };
 
 export const COMPANY_FORM_SECTIONS_STORAGE_KEY = 'zigzag.company-form.sections';
@@ -29,6 +30,10 @@ export const COMPANY_FORM_FIELD_SECTIONS: Array<[string, CompanyFormSectionKey]>
   ['settings.rfc', 'configuracion'],
   ['settings.default_currency', 'configuracion'],
   ['settings.experience_mode', 'configuracion'],
+  ['settings.payment_bank', 'pago'],
+  ['settings.payment_holder', 'pago'],
+  ['settings.payment_clabe', 'pago'],
+  ['settings.payment_note', 'pago'],
 ];
 
 type ErrorTree = { [key: string]: unknown };
@@ -93,6 +98,25 @@ export const summarizeCompanySettings = (settings?: {
     ' · ',
   );
 
+/** One line for the closed "Para pagar por transferencia" section (ZIG-I20-1). */
+export const summarizeCompanyPayment = (settings?: {
+  payment_bank?: string;
+  payment_holder?: string;
+  payment_clabe?: string;
+}) => {
+  const clabe = settings?.payment_clabe?.replace(/[\s-]/g, '') ?? '';
+  return (
+    joinFilled(
+      [
+        settings?.payment_bank,
+        settings?.payment_holder,
+        clabe ? `CLABE ···${clabe.slice(-4)}` : '',
+      ],
+      ' · ',
+    ) || 'Sin datos para pagar'
+  );
+};
+
 export const readCompanyFormSections = (): CompanyFormSectionState => {
   try {
     const raw = window.localStorage.getItem(COMPANY_FORM_SECTIONS_STORAGE_KEY);
@@ -104,6 +128,7 @@ export const readCompanyFormSections = (): CompanyFormSectionState => {
       general: parsed.general ?? DEFAULT_COMPANY_FORM_SECTIONS.general,
       direccion: parsed.direccion ?? DEFAULT_COMPANY_FORM_SECTIONS.direccion,
       configuracion: parsed.configuracion ?? DEFAULT_COMPANY_FORM_SECTIONS.configuracion,
+      pago: parsed.pago ?? DEFAULT_COMPANY_FORM_SECTIONS.pago,
     };
   } catch {
     return DEFAULT_COMPANY_FORM_SECTIONS;

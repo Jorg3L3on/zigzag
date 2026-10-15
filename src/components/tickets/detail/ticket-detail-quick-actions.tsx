@@ -4,6 +4,7 @@ import { MessageCircle, Phone, Wallet } from 'lucide-react';
 
 import { useTicketCollect } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { useCompany } from '@/contexts/company-context';
+import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
@@ -44,6 +45,7 @@ export const TicketDetailQuickActions = ({
   const { can } = usePermissions();
   const collect = useTicketCollect();
   const { selectedCompany } = useCompany();
+  const payment = useCompanyPaymentInfo();
 
   const phone = clientTel?.trim() || null;
   const showCobrar = finished && canCollectTicketPayment(can) && getTicketBalanceDue(total, paid) > 0;
@@ -56,6 +58,7 @@ export const TicketDetailQuickActions = ({
         total: total ?? 0,
         paid: paid ?? 0,
         companyName: selectedCompany?.name,
+        payment,
       })
     : null;
   const count = Number(showCobrar) + Number(Boolean(whatsApp)) + Number(Boolean(phone));

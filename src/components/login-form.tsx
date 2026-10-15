@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, signIn } from 'next-auth/react';
 import { Check, Eye, EyeOff } from 'lucide-react';
-import { useReducedMotion } from 'framer-motion';
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 
 import { cn } from '@/lib/utils';
 import { ZigZagMark } from '@/components/brand/zigzag-mark';
@@ -27,7 +27,7 @@ export function LoginForm({
   supportWhatsapp?: string | null;
 }) {
   const router = useRouter();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

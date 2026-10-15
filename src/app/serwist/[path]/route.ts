@@ -13,6 +13,7 @@ export const { dynamic, dynamicParams, revalidate, generateStaticParams, GET } =
       { url: '/offline', revision },
       { url: '/icons/icon-192.png', revision },
       { url: '/icons/icon-512.png', revision },
+      { url: '/icons/badge-96.png', revision },
       { url: '/favicon.ico', revision },
       { url: '/manifest.webmanifest', revision },
     ],

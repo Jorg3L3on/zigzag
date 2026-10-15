@@ -51,6 +51,9 @@ describe('RBAC coverage', () => {
       // Auth-only: notifications are visible to any authenticated company member
       // and are scoped by company via requireActionAuth (like the account page).
       'src/actions/notifications.ts',
+      // Auth-only: a device's push subscription is bound to the caller's own
+      // user and company by requireActionAuth; no company id is ever accepted.
+      'src/actions/push-subscriptions.ts',
     ]);
 
     const missing = actionFiles

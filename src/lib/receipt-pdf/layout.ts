@@ -192,6 +192,11 @@ export const FOOTER = {
   groupGap: 4,
   /** Keeps the totals panel off the footer when the page is full. */
   minSpacer: 16,
+  /**
+   * "Para pagar por transferencia" (ZIG-I20-1): a labelled row above the
+   * contact groups, same type as them, 14px apart. Only on recibos with data.
+   */
+  paymentGap: 14,
 } as const;
 
 export const COLOPHON = {

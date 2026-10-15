@@ -15,6 +15,10 @@ const mockShareFile = jest.fn();
 const mockDownloadFile = jest.fn();
 let mockCanInvoice = true;
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => (

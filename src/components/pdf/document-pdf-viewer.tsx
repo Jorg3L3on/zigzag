@@ -14,6 +14,7 @@ import {
 } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
 import { useCompany } from '@/contexts/company-context';
+import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
   downloadTicketInvoiceFile,
@@ -87,6 +88,7 @@ export const DocumentPdfViewer = ({
   const pdfViewerEnabled = usePdfViewerEnabled();
   const noun = kind === 'presupuesto' ? 'presupuesto' : 'recibo';
 
+  const payment = useCompanyPaymentInfo();
   const [sharing, setSharing] = React.useState(false);
 
   const openWhatsAppFallback = (): boolean => {
@@ -110,6 +112,7 @@ export const DocumentPdfViewer = ({
             total: whatsApp.total,
             paid: whatsApp.paid,
             companyName: selectedCompany?.name,
+            payment,
           });
     if (!share) return false;
     window.open(share.href, '_blank', 'noopener,noreferrer');

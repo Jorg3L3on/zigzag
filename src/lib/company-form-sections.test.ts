@@ -54,11 +54,12 @@ describe('company-form-sections', () => {
   it('remembers open sections per viewer and survives bad storage', () => {
     expect(readCompanyFormSections()).toEqual(DEFAULT_COMPANY_FORM_SECTIONS);
 
-    writeCompanyFormSections({ general: false, direccion: true, configuracion: false });
+    writeCompanyFormSections({ general: false, direccion: true, configuracion: false, pago: false });
     expect(readCompanyFormSections()).toEqual({
       general: false,
       direccion: true,
       configuracion: false,
+      pago: false,
     });
 
     window.localStorage.setItem(COMPANY_FORM_SECTIONS_STORAGE_KEY, '{not json');

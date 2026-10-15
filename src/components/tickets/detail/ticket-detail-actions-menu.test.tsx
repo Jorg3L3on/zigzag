@@ -10,6 +10,10 @@ const mockPush = jest.fn();
 const mockDeleteTicket = jest.fn();
 let mockCan = () => true;
 
+jest.mock('@/hooks/use-company-payment-info', () => ({
+  useCompanyPaymentInfo: () => null,
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, refresh: jest.fn() }),
 }));

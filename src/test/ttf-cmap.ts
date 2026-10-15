@@ -5,8 +5,8 @@
  */
 import { readFileSync } from 'node:fs';
 
-export const ttfCodePoints = (path: string): Set<number> => {
-  const buffer = readFileSync(path);
+export const ttfCodePoints = (source: string | Buffer): Set<number> => {
+  const buffer = typeof source === 'string' ? readFileSync(source) : source;
   const tableCount = buffer.readUInt16BE(4);
   let cmapOffset = 0;
   for (let i = 0; i < tableCount; i += 1) {

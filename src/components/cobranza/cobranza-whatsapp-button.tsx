@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { CobranzaRow } from '@/lib/cobranza';
+import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
 
 type CobranzaWhatsAppButtonProps = {
@@ -23,6 +24,7 @@ export const CobranzaWhatsAppButton = ({
   companyName,
   variant = 'icon',
 }: CobranzaWhatsAppButtonProps) => {
+  const payment = useCompanyPaymentInfo();
   const share = buildWhatsAppBalanceShare({
     phone: row.client_tel,
     clientName: row.client_name,
@@ -30,6 +32,7 @@ export const CobranzaWhatsAppButton = ({
     folio: row.folio,
     balanceDue: row.balanceDue,
     companyName,
+    payment,
   });
 
   if (variant === 'card') {
