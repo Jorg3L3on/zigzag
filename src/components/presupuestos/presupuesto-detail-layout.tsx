@@ -16,6 +16,7 @@ import {
 
 import {
   DocumentSummaryRows,
+  summaryToggleLabelFor,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
 import { MoneyFigure } from '@/components/documents/money-figure';
@@ -65,9 +66,7 @@ const countLabel = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
 const conceptsToggleLabel = (concepts: number, materials: number) =>
-  materials === 0
-    ? `Ver los ${countLabel(concepts, 'concepto', 'conceptos')}`
-    : `Ver los ${countLabel(concepts, 'concepto', 'conceptos')} y ${countLabel(materials, 'material', 'materiales')}`;
+  summaryToggleLabelFor(concepts, 'concepto', 'conceptos', materials);
 
 /** Notes longer than this fold behind Ver todas. */
 const CONDITIONS_FOLD_CHARS = 160;

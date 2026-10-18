@@ -32,17 +32,29 @@ type DocumentSummaryRowsProps = {
   initialVisible?: number;
   /** Accessible name of the list, e.g. Servicios del ticket. */
   label?: string;
-  /** Text of the collapsed toggle; defaults to "Ver los N servicios y M materiales". */
+  /** Text of the collapsed toggle; defaults to "Ver el servicio" / "Ver los N servicios y M materiales". */
   toggleLabel?: (services: number, materials: number) => string;
   className?: string;
 };
 
-export const summaryToggleLabel = (services: number, materials: number) => {
-  const servicesText = services === 1 ? '1 servicio' : `${services} servicios`;
-  if (materials === 0) return `Ver los ${servicesText}`;
+/**
+ * "Ver el servicio" when there is one item, otherwise "Ver los N servicios".
+ * Zero materials are omitted. One material stays numbered: "y 1 material".
+ */
+export const summaryToggleLabelFor = (
+  count: number,
+  one: string,
+  many: string,
+  materials: number,
+) => {
+  const items = count === 1 ? `el ${one}` : `los ${count} ${many}`;
+  if (materials === 0) return `Ver ${items}`;
   const materialsText = materials === 1 ? '1 material' : `${materials} materiales`;
-  return `Ver los ${servicesText} y ${materialsText}`;
+  return `Ver ${items} y ${materialsText}`;
 };
+
+export const summaryToggleLabel = (services: number, materials: number) =>
+  summaryToggleLabelFor(services, 'servicio', 'servicios', materials);
 
 /**
  * Recibo-style compact rows `2 × Name … $amount` (ZIG-I13-1). The name
