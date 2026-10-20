@@ -92,6 +92,23 @@ Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en 
 - Éxito: `structuredContent` con el JSON y el mismo JSON como bloque de texto. Ids BigInt como string, fechas ISO 8601, montos como número.
 - Error: `isError: true` y `structuredContent.error = { code, message }` con `code` en `unauthorized`, `forbidden`, `not_found`, `validation`, `rate_limited`, `internal`. Los errores internos no exponen el mensaje original.
 
+## Prompts y recursos
+
+Para clientes que muestran prompts y recursos MCP (Claude, Cursor). Los prompts solo generan texto; cada lectura o escritura pasa por las tools, que validan la allow-list y los permisos.
+
+| Prompt | Argumentos | Qué hace |
+|--------|------------|----------|
+| `cobranza_de_hoy` | `company_id` | Usa `get_company_summary` y redacta un recordatorio de WhatsApp por documento pendiente (no envía nada) |
+| `ticket_desde_mensaje` | `company_id`, `mensaje` | Extrae cliente, líneas y fecha de un mensaje de WhatsApp y propone una llamada a `create_document` para confirmar |
+| `resumen_cliente` | `company_id`, `client_id` | Resume contacto, saldo, documentos recientes y la siguiente acción con `get_client` |
+
+| Recurso | Permiso | Contenido |
+|---------|---------|-----------|
+| `zigzag://company/<id>/profile` | `tickets.read` | Nombre, contacto, dirección, datos de transferencia y prefijos de folio |
+| `zigzag://company/<id>/catalog` | `services.read` | Servicios con sus materiales por defecto (hasta 500; `truncated` si hay más) |
+
+`resources/list` solo muestra compañías de la allow-list a las que el usuario tiene acceso y cuyo permiso tiene. Una compañía fuera de la allow-list o sin permiso responde como recurso no encontrado, con el mismo mensaje que las tools.
+
 ## Endpoints OAuth
 
 | Endpoint | Método |
