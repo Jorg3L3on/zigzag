@@ -22,6 +22,8 @@ import { getServiceLineName } from '@/lib/service-line-display';
 export const loadDashboardDayQueueForCompany = async (
   companyId: number,
   today: Date = new Date(),
+  /** Rows per filter (Inicio shows DAY_QUEUE_ROW_LIMIT; the MCP summary asks for 10). */
+  options: { limit?: number } = {},
 ): Promise<DashboardDayQueue> => {
   const [unfinished, finished, schedules] = await Promise.all([
     db.query.ticket.findMany({
@@ -106,5 +108,6 @@ export const loadDashboardDayQueueForCompany = async (
         pausedAt: row.paused_at,
       })),
     today,
+    limit: options.limit,
   });
 };
