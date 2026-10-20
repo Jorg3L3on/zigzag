@@ -1,6 +1,6 @@
-import type { AgentScope } from '@/lib/server/resolve-agent-context';
+import { isAgentScope, type AgentScope } from '@/lib/server/agent-scopes';
 
-export const MCP_OAUTH_SCOPES: AgentScope[] = ['read', 'write'];
+export const MCP_OAUTH_SCOPES: AgentScope[] = ['read', 'write', 'payments'];
 
 export const MCP_RESOURCE_PATH = '/api/mcp';
 
@@ -131,7 +131,7 @@ export const parseScopeParam = (scope: string | null | undefined): AgentScope[] 
   if (!scope?.trim()) return ['read'];
   const parsed = scope
     .split(/[\s+]+/)
-    .filter((value): value is AgentScope => value === 'read' || value === 'write');
+    .filter(isAgentScope);
   if (!parsed.includes('read')) parsed.unshift('read');
   return [...new Set(parsed)];
 };

@@ -11,6 +11,7 @@ import {
 import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
 import { registerCatalogTools } from '@/lib/mcp/tools/catalog';
 import { registerDocumentTools } from '@/lib/mcp/tools/documents';
+import { registerPaymentTools } from '@/lib/mcp/tools/payments';
 import { registerSearchTools } from '@/lib/mcp/tools/search';
 import { registerWriteTools } from '@/lib/mcp/tools/writes';
 import {
@@ -201,4 +202,5 @@ export const registerMcpTools = (server: McpServer) => {
   registerDocumentTools(server);
   registerSearchTools(server);
   registerWriteTools(server);
+  registerPaymentTools(server);
 };

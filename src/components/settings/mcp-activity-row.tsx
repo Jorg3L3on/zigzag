@@ -43,6 +43,9 @@ export function LastActivityLine({ activity }: { activity: LastMcpActivity | nul
   );
 }
 
+/** Tools that move money (ZIG-I23-7); their rows carry a Pago mark. */
+export const PAYMENT_TOOLS = new Set(['register_payment']);
+
 /** One tool call, 44px tall at least so it reads and taps well on a phone. */
 export function McpActivityRow({ item }: { item: McpToolCallItem }) {
   return (
@@ -51,7 +54,14 @@ export function McpActivityRow({ item }: { item: McpToolCallItem }) {
       data-testid="mcp-activity-row"
     >
       <div className="min-w-0">
-        <p className="truncate font-mono text-sm">{item.tool}</p>
+        <p className="flex items-center gap-2 truncate font-mono text-sm">
+          <span className="truncate">{item.tool}</span>
+          {PAYMENT_TOOLS.has(item.tool) ? (
+            <Badge variant="outline" className="shrink-0 font-sans" data-testid="mcp-activity-payment">
+              Pago
+            </Badge>
+          ) : null}
+        </p>
         <p className="flex gap-1 text-caption text-muted-foreground">
           <span className="truncate">{item.company_name ?? 'Sin compañía'}</span>
           <span aria-hidden>·</span>

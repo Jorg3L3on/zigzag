@@ -6,7 +6,7 @@ export const API_KEY_MAX_DAYS = 365;
 export const createApiKeySchema = z.object({
   name: z.string().trim().min(1).max(120),
   scopes: z
-    .array(z.enum(['read', 'write']))
+    .array(z.enum(['read', 'write', 'payments']))
     .min(1)
     .default(['read']),
   allowed_company_ids: z.array(z.number().int().positive()).min(1),

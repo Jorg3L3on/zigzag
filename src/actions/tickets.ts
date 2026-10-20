@@ -1,6 +1,7 @@
 'use server';
 
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
+import { applyTicketPaymentInTx } from '@/lib/documents/apply-payment';
 import { createDocumentWithLines } from '@/lib/documents/create-document';
 import {
   EmptyTicketFinishError,
@@ -26,7 +27,6 @@ import {
   servicesTickets,
   ticket,
   ticketAuditEvent,
-  ticketPayment,
   type Client,
   type Company,
   type Service,
@@ -40,7 +40,6 @@ import { redactAuditDisplayValue } from '@/lib/audit-display';
 import { db } from '@/lib/db';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { invalidateCompanyCache } from '@/lib/cache';
-import { acquireAdvisoryLock, ADVISORY_LOCK_NAMESPACE } from '@/lib/db-locks';
 import {
   AppError,
   AuthenticationError,
@@ -1204,71 +1203,13 @@ export async function applyTicketPayment(
 
     // Authoritative read + write happen inside one transaction guarded by a
     // Postgres advisory lock so concurrent collections cannot double-apply.
-    const result = await db.transaction(async (tx) => {
-      await acquireAdvisoryLock(
-        tx,
-        ADVISORY_LOCK_NAMESPACE.ticketPayment,
+    const result = await db.transaction((tx) =>
+      applyTicketPaymentInTx(tx, context, {
         ticketId,
-      );
-
-      const fresh = await tx.query.ticket.findFirst({
-        where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
-      });
-
-      if (!fresh || !fresh.finished) {
-        return { status: 'invalid' as const };
-      }
-
-      const freshTotal = roundMoney(Number(fresh.total ?? 0));
-      const freshPaid = roundMoney(Number(fresh.paid ?? 0));
-      const newPaid = roundMoney(
-        Math.min(freshTotal, addMoney(freshPaid, additionalPaid)),
-      );
-      const appliedAmount = subtractMoney(newPaid, freshPaid);
-
-      if (appliedAmount <= AMOUNT_TOLERANCE) {
-        // A concurrent collection already covered this balance; no-op.
-        return { status: 'noop' as const, row: fresh };
-      }
-
-      await tx.insert(ticketPayment).values({
-        ticket_id: ticketId,
-        amount: appliedAmount,
-        company_id: fresh.company_id,
-      });
-
-      const [row] = await tx
-        .update(ticket)
-        .set({ paid: newPaid })
-        .where(
-          and(
-            eq(ticket.id, ticketId),
-            eq(ticket.company_id, effectiveCompanyId),
-            isNull(ticket.deleted_at),
-          ),
-        )
-        .returning();
-
-      if (row) {
-        await recordTicketAudit(
-          tx,
-          context,
-          ticketId,
-          effectiveCompanyId,
-          'payment_collected',
-          {
-            before: fresh,
-            after: row,
-            payment: {
-              requestedAmount: additionalPaid,
-              appliedAmount,
-            },
-          },
-        );
-      }
-
-      return { status: 'ok' as const, row };
-    });
+        companyId: effectiveCompanyId,
+        amount: additionalPaid,
+      }),
+    );
 
     if (result.status === 'invalid') {
       return buildActionError(

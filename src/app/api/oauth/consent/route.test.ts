@@ -160,6 +160,32 @@ describe('POST /api/oauth/consent', () => {
     );
   });
 
+  it('grants payments only when allow_payments=true is posted, never with write alone (ZIG-I23-7)', async () => {
+    const requested = { ...basePayload, scope: 'read write payments' };
+
+    await POST(makeJsonRequest(requested));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write'] }),
+    );
+
+    await POST(makeJsonRequest({ ...requested, allow_payments: 'false' }));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write'] }),
+    );
+
+    await POST(makeJsonRequest({ ...requested, allow_payments: 'true' }));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write', 'payments'] }),
+    );
+
+    await POST(
+      makeJsonRequest({ ...requested, allow_write: 'false', allow_payments: 'true' }),
+    );
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'payments'] }),
+    );
+  });
+
   it('returns 401 when session is missing', async () => {
     mockAuth.mockResolvedValue(null);
 

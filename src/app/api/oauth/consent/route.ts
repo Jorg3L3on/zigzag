@@ -22,6 +22,7 @@ const consentFieldsSchema = z.object({
   code_challenge_method: z.literal('S256'),
   resource: z.string().url().optional(),
   allow_write: z.enum(['true', 'false']).optional(),
+  allow_payments: z.enum(['true', 'false']).optional(),
   allowed_company_ids: z
     .union([z.string(), z.array(z.string())])
     .transform((value) => {
@@ -96,6 +97,10 @@ export async function POST(request: NextRequest) {
     let scopes = parseScopeParam(input.scope);
     if (input.allow_write !== 'true') {
       scopes = scopes.filter((scope) => scope !== 'write');
+    }
+    // Payments too (ZIG-I23-7): its own checkbox, never implied by write.
+    if (input.allow_payments !== 'true') {
+      scopes = scopes.filter((scope) => scope !== 'payments');
     }
     if (!scopes.includes('read')) scopes = ['read', ...scopes];
 

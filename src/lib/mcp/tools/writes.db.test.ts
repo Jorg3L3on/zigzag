@@ -175,16 +175,17 @@ describeWithLocalDb('MCP write tools (real Postgres)', () => {
       .set({ settings: { rfc: 'XAXX010101000', default_currency: 'MXN' } })
       .where(inArray(company.id, [companyA, companyB]));
 
-    // ZIG-I23-11: write is opt-in, so this connection was granted it.
+    // ZIG-I23-11: write is opt-in, so this connection was granted it; the
+    // paid create_document cases also need payments (ZIG-I23-7).
     const [key] = await db
       .update(apiKey)
-      .set({ scopes: ['read', 'write'], name: 'Agente de pruebas' })
+      .set({ scopes: ['read', 'write', 'payments'], name: 'Agente de pruebas' })
       .where(eq(apiKey.user_id, fixtureA.userId))
       .returning({ id: apiKey.id });
     keyId = key.id;
     mockAgent.current = {
       userId: fixtureA.userId,
-      scopes: ['read', 'write'],
+      scopes: ['read', 'write', 'payments'],
       allowedCompanyIds: [companyA],
       authSource: 'api_key',
       apiKeyId: keyId,

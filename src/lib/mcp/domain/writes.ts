@@ -62,7 +62,7 @@ export type AgentConnection = {
   name: string | null;
 };
 
-type WriteAgent = Pick<
+export type WriteAgent = Pick<
   AgentContext,
   'userId' | 'companyId' | 'authSource' | 'apiKeyId' | 'oauthGrantId'
 >;
@@ -94,11 +94,14 @@ export type McpAuditInfo = {
   connection: AgentConnection;
   idempotency_key?: string;
   document_id?: string;
+  /** register_payment only (ZIG-I23-7): the method and note the agent gave. */
+  payment_method?: string;
+  payment_note?: string;
 };
 
 export const mcpAuditExtra = (info: McpAuditInfo) => ({ mcp: info });
 
-type WriteSession = {
+export type WriteSession = {
   actor: ActionAuthContext;
   connection: AgentConnection;
   audit: (extra?: Partial<McpAuditInfo>) => {
@@ -108,7 +111,7 @@ type WriteSession = {
   };
 };
 
-const startWrite = async (agent: WriteAgent, tool: string): Promise<WriteSession> => {
+export const startWrite = async (agent: WriteAgent, tool: string): Promise<WriteSession> => {
   const [actor, connection] = await Promise.all([
     resolveAgentActor(agent),
     resolveAgentConnection(agent),
@@ -124,7 +127,7 @@ const startWrite = async (agent: WriteAgent, tool: string): Promise<WriteSession
   };
 };
 
-const afterDocumentWrite = (companyId: number, documentId?: bigint) => {
+export const afterDocumentWrite = (companyId: number, documentId?: bigint) => {
   invalidateCompanyCache(companyId, 'dashboard');
   try {
     revalidatePath('/dashboard');
@@ -202,7 +205,7 @@ export const toMcpWriteError = (error: unknown): unknown => {
   return error;
 };
 
-const mapErrors = async <T>(fn: () => Promise<T>): Promise<T> => {
+export const mapErrors = async <T>(fn: () => Promise<T>): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
@@ -502,7 +505,7 @@ const resolveDocumentClient = async (
 /* ------------------------------------------------------------------------- */
 
 /** Fold a connection + key into the 32-bit advisory lock key space. */
-const idempotencyLockKey = (connection: AgentConnection, key: string): number =>
+export const idempotencyLockKey = (connection: AgentConnection, key: string): number =>
   crypto
     .createHash('sha256')
     .update(`${connection.kind}:${connection.id}:${key}`)
@@ -514,11 +517,12 @@ const idempotencyLockKey = (connection: AgentConnection, key: string): number =>
  * connection in the last 24 h. The key lives in the `created` audit payload,
  * written in the same transaction as the document.
  */
-const findIdempotentDocument = async (
+export const findIdempotentDocument = async (
   tx: Pick<typeof db, 'select'>,
   companyId: number,
   connection: AgentConnection,
   key: string,
+  eventType: 'created' | 'payment_collected' = 'created',
 ): Promise<bigint | null> => {
   const [row] = await tx
     .select({ ticket_id: ticketAuditEvent.ticket_id })
@@ -526,7 +530,7 @@ const findIdempotentDocument = async (
     .where(
       and(
         eq(ticketAuditEvent.company_id, companyId),
-        eq(ticketAuditEvent.event_type, 'created'),
+        eq(ticketAuditEvent.event_type, eventType),
         sql`${ticketAuditEvent.created_at} > now() - make_interval(hours => ${IDEMPOTENCY_WINDOW_HOURS})`,
         sql`${ticketAuditEvent.payload} -> 'mcp' ->> 'idempotency_key' = ${key}`,
         sql`${ticketAuditEvent.payload} -> 'mcp' -> 'connection' ->> 'kind' = ${connection.kind}`,
@@ -631,7 +635,7 @@ export type UpdateDocumentArgs = {
   finished?: boolean;
 };
 
-const loadDocument = async (companyId: number, documentId: bigint) => {
+export const loadDocument = async (companyId: number, documentId: bigint) => {
   const row = await db.query.ticket.findFirst({
     where: and(eq(ticket.id, documentId), eq(ticket.company_id, companyId), isNull(ticket.deleted_at)),
   });
