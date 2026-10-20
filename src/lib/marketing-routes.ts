@@ -6,12 +6,15 @@
 export const MARKETING_HOME_PATH = '/';
 export const PRIVACY_PATH = '/aviso-de-privacidad';
 export const TERMS_PATH = '/terminos-y-condiciones';
+/** Public guide for the MCP connector; OAuth metadata advertises it as service_documentation. */
+export const MCP_DOCS_PATH = '/docs/mcp-connector';
 
 /** Exact public marketing paths that guests may open without auth. */
 export const PUBLIC_MARKETING_PATHS = [
   MARKETING_HOME_PATH,
   PRIVACY_PATH,
   TERMS_PATH,
+  MCP_DOCS_PATH,
 ] as const;
 
 export type PublicMarketingPath = (typeof PUBLIC_MARKETING_PATHS)[number];

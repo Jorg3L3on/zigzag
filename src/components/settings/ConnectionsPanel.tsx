@@ -10,13 +10,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { API_KEY_MAX_DAYS } from '@/schemas/api-key.schema';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
   TripledDashboardShell,
   TripledMobileAppBar,
   TripledPageHeader,
@@ -25,6 +18,8 @@ import {
 import type { LastMcpActivity } from '@/lib/mcp/activity';
 import { McpActivityList } from '@/components/settings/McpActivityList';
 import { LastActivityLine } from '@/components/settings/mcp-activity-row';
+import { McpClientSetupCards } from '@/components/settings/McpClientSetupCards';
+import type { WhoamiByClient } from '@/lib/mcp/client-whoami';
 
 export type ApiKeySummary = {
   id: number;
@@ -75,9 +70,10 @@ const copyToClipboard = async (value: string, message: string) => {
 type ConnectionsPanelProps = {
   mcpUrl: string;
   companies: SelectableCompany[];
+  whoami: WhoamiByClient;
 };
 
-export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
+export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanelProps) {
   const [apiKeys, setApiKeys] = useState<ApiKeySummary[]>([]);
   const [oauthGrants, setOAuthGrants] = useState<OAuthGrantSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,26 +179,10 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
       />
       <TripledResourceCard
         title="Conector MCP"
-        description="Conecta ChatGPT, Cursor u otros clientes MCP a tickets de ZigZag."
+        description="Conecta ChatGPT, Grok, Claude o Cursor a ZigZag."
         icon={<Plug className="size-5" aria-hidden />}
       >
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">URL del servidor</CardTitle>
-            <CardDescription className="break-all">{mcpUrl}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(mcpUrl, 'URL copiada')}
-            >
-              <Copy className="mr-2 size-4" aria-hidden />
-              Copiar URL
-            </Button>
-          </CardContent>
-        </Card>
+        <McpClientSetupCards mcpUrl={mcpUrl} whoami={whoami} />
       </TripledResourceCard>
 
       <TripledResourceCard

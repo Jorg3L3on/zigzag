@@ -7,7 +7,7 @@ import { REQUEST_ID_HEADER } from '@/lib/request-context';
 
 describe('proxy request correlation', () => {
   it('allows unauthenticated guests on public marketing paths', () => {
-    for (const path of ['/', '/aviso-de-privacidad', '/terminos-y-condiciones']) {
+    for (const path of ['/', '/aviso-de-privacidad', '/terminos-y-condiciones', '/docs/mcp-connector']) {
       const request = new NextRequest(`http://localhost:3069${path}`);
       const response = proxy(request);
 
