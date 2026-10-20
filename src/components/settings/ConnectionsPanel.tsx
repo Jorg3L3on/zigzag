@@ -240,7 +240,7 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground" data-testid="new-key-expiry">
+          <p className="text-sm text-muted-foreground" data-testid="new-key-expiry">
             Vence el {formatKeyExpiry(new Date(Date.now() + API_KEY_MAX_DAYS * 24 * 60 * 60 * 1000))}{' '}
             (365 días). Después crea una llave nueva.
           </p>

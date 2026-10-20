@@ -192,7 +192,7 @@ export default function OAuthConsentForm({
                 {writeRequested ? ' — el cliente la solicita' : ''}
               </Label>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Si cambias tu contraseña o se desactiva tu cuenta, esta conexión se revoca.
             </p>
             {submitError ? (
