@@ -329,3 +329,34 @@ export const listMaterialsOutputSchema = z.object({
 });
 
 export const getClientOutputSchema = z.object({ client: clientDetailSchema });
+
+/* ------------------------------------------------------------------------- */
+/* search / fetch (ZIG-I23-5): OpenAI's company-knowledge shape               */
+/* ------------------------------------------------------------------------- */
+
+export const knowledgeIdSchema = z
+  .string()
+  .describe('Id opaco con tipo: doc:<id>, client:<id> o service:<id>.');
+
+export const searchResultSchema = z.object({
+  id: knowledgeIdSchema,
+  title: z.string(),
+  url: z.string().describe('URL absoluta en la app de ZigZag.'),
+});
+
+export const searchOutputSchema = z.object({
+  results: z.array(searchResultSchema).max(20),
+});
+
+export const knowledgeMetadataSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.boolean(), z.null()]),
+);
+
+export const fetchOutputSchema = z.object({
+  id: knowledgeIdSchema,
+  title: z.string(),
+  text: z.string().describe('El registro completo en texto legible (español).'),
+  url: z.string(),
+  metadata: knowledgeMetadataSchema,
+});
