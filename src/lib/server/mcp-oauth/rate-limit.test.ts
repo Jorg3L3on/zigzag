@@ -25,8 +25,6 @@ jest.mock('@/lib/server/mcp-oauth/clients', () => ({
 jest.mock('@/lib/server/mcp-oauth/token-attempt-log', () => ({
   finishTokenAttempt: jest.fn(),
   getTokenAttemptPath: jest.fn(() => '/api/oauth/token'),
-  logTokenGetAttempt: jest.fn(),
-  logTokenPreflightAttempt: jest.fn(),
   sanitizeTokenAttemptBodyFromRecord: jest.fn(() => ({})),
   startTokenAttempt: jest.fn(async () => null),
   updateTokenAttemptBody: jest.fn(),

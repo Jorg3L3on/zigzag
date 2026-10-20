@@ -1,5 +1,11 @@
 import { eq, inArray } from 'drizzle-orm';
-import { apiKey, company, mcpOAuthClient, user } from '@/db/schema';
+import {
+  apiKey,
+  company,
+  governanceAuditEvent,
+  mcpOAuthClient,
+  user,
+} from '@/db/schema';
 import { db } from '@/lib/db';
 import { generateAgentToken, hashAgentToken } from '@/lib/server/agent-token';
 
@@ -84,6 +90,9 @@ export const cleanupMcpDbFixture = async (fixture: McpDbFixture | null) => {
       .delete(mcpOAuthClient)
       .where(inArray(mcpOAuthClient.client_id, fixture.oauthClientIds));
   }
+  await db
+    .delete(governanceAuditEvent)
+    .where(eq(governanceAuditEvent.actor_user_id, fixture.userId));
   await db.delete(apiKey).where(eq(apiKey.user_id, fixture.userId));
   await db.delete(user).where(eq(user.id, fixture.userId));
   await db.delete(company).where(eq(company.id, fixture.companyId));

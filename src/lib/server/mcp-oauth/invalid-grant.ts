@@ -5,6 +5,9 @@ export type InvalidGrantReason =
   | 'client'
   | 'pkce'
   | 'resource'
+  | 'replay'
+  | 'reuse'
+  | 'user'
   | 'other';
 
 export class OAuthInvalidGrantError extends Error {

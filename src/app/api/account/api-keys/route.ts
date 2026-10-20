@@ -5,6 +5,7 @@ import { apiKey } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { checkRateLimit } from '@/lib/rate-limiter';
+import { recordAgentAccessAudit } from '@/lib/server/agent-access-audit';
 import { generateAgentToken, hashAgentToken } from '@/lib/server/agent-token';
 import { createApiKeySchema } from '@/schemas/api-key.schema';
 
@@ -88,10 +89,9 @@ export async function POST(request: NextRequest) {
     const input = createApiKeySchema.parse(body);
     const { token, keyPrefix } = generateAgentToken();
 
-    const expiresAt =
-      input.expires_in_days != null
-        ? new Date(Date.now() + input.expires_in_days * 24 * 60 * 60 * 1000)
-        : null;
+    const expiresAt = new Date(
+      Date.now() + input.expires_in_days * 24 * 60 * 60 * 1000,
+    );
 
     const [created] = await db
       .insert(apiKey)
@@ -115,6 +115,18 @@ export async function POST(request: NextRequest) {
         revoked_at: apiKey.revoked_at,
         created_at: apiKey.created_at,
       });
+
+    await recordAgentAccessAudit({
+      event: 'api_key.created',
+      userId,
+      resourceId: created.id,
+      payload: {
+        key_prefix: created.key_prefix,
+        scopes: created.scopes,
+        allowed_company_ids: created.allowed_company_ids,
+        expires_at: created.expires_at?.toISOString() ?? null,
+      },
+    });
 
     return NextResponse.json({ ...toApiKeyDto(created), token }, { status: 201 });
   } catch (error) {

@@ -19,6 +19,10 @@ jest.mock('@/lib/server/mcp-oauth/clients', () => ({
   assertRedirectUriAllowed: jest.fn(),
 }));
 
+jest.mock('@/lib/server/agent-access-audit', () => ({
+  recordAgentAccessAudit: jest.fn(),
+}));
+
 jest.mock('@/lib/server/mcp-oauth/grants', () => ({
   createAuthorizationCode: jest.fn(),
 }));
@@ -136,6 +140,24 @@ describe('POST /api/oauth/consent', () => {
     const redirectUrl = new URL(location!);
     expect(redirectUrl.searchParams.get('code')).toBe('mock-auth-code');
     expect(redirectUrl.searchParams.get('state')).toBe('oauth-state-token');
+  });
+
+  it('grants write only when allow_write=true is posted', async () => {
+    const { allow_write: _omitted, ...withoutOptIn } = basePayload;
+    await POST(makeJsonRequest(withoutOptIn));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read'] }),
+    );
+
+    await POST(makeJsonRequest({ ...basePayload, allow_write: 'false' }));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read'] }),
+    );
+
+    await POST(makeJsonRequest(basePayload));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write'] }),
+    );
   });
 
   it('returns 401 when session is missing', async () => {

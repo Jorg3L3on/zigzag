@@ -747,6 +747,12 @@ export const mcpOAuthClient = pgTable(
       .default('none'),
     client_uri: text('client_uri'),
     logo_uri: text('logo_uri'),
+    /** CIMD clients: when the metadata document was last fetched (re-fetch after 24 h). */
+    fetched_at: timestamp('fetched_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -793,6 +799,7 @@ export const mcpOAuthAuthorizationCode = pgTable(
     uniqueIndex('McpOAuthAuthorizationCode_code_hash_key').on(t.code_hash),
     index('McpOAuthAuthorizationCode_client_id_idx').on(t.client_id),
     index('McpOAuthAuthorizationCode_user_id_idx').on(t.user_id),
+    index('McpOAuthAuthorizationCode_expires_at_idx').on(t.expires_at),
   ],
 );
 
@@ -832,12 +839,34 @@ export const mcpOAuthGrant = pgTable(
       precision: 3,
       mode: 'date',
     }),
+    /** refresh, refresh_reuse, code_replay, password_changed, user_deactivated, … */
+    revoked_reason: text('revoked_reason'),
+    /** The refresh token stops working here; each refresh moves it out, up to absolute_expires_at. */
+    refresh_expires_at: timestamp('refresh_expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    /** Consent + 365 days: no refresh past this. */
+    absolute_expires_at: timestamp('absolute_expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    /** Hash of the refresh token rotated out last; presenting it again revokes the grant. */
+    previous_refresh_token_hash: text('previous_refresh_token_hash'),
+    /** The code this grant was minted from; replaying the code revokes it. */
+    authorization_code_id: integer('authorization_code_id'),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
   },
   (t) => [
     uniqueIndex('McpOAuthGrant_token_prefix_key').on(t.token_prefix),
+    index('McpOAuthGrant_previous_refresh_token_hash_idx').on(
+      t.previous_refresh_token_hash,
+    ),
+    index('McpOAuthGrant_authorization_code_id_idx').on(t.authorization_code_id),
     uniqueIndex('McpOAuthGrant_refresh_token_hash_key').on(t.refresh_token_hash),
     uniqueIndex('McpOAuthGrant_refresh_token_prefix_key').on(
       t.refresh_token_prefix,
@@ -845,6 +874,24 @@ export const mcpOAuthGrant = pgTable(
     index('McpOAuthGrant_user_id_idx').on(t.user_id),
     index('McpOAuthGrant_client_id_idx').on(t.client_id),
   ],
+);
+
+/** Single-use private_key_jwt assertions: a jti seen before its expiry is a replay. */
+export const mcpOAuthJwtAssertion = pgTable(
+  'McpOAuthJwtAssertion',
+  {
+    jti: text('jti').primaryKey(),
+    client_id: text('client_id').notNull(),
+    expires_at: timestamp('expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }).notNull(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('McpOAuthJwtAssertion_expires_at_idx').on(t.expires_at)],
 );
 
 /** Secret-free log of OAuth token endpoint attempts (diagnostics). */

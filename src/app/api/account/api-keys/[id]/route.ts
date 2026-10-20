@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { apiKey } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { recordAgentAccessAudit } from '@/lib/server/agent-access-audit';
 import { updateApiKeySchema } from '@/schemas/api-key.schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -85,10 +86,18 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Conexión no encontrada' }, { status: 404 });
   }
 
-  await db
-    .update(apiKey)
-    .set({ revoked_at: new Date() })
-    .where(eq(apiKey.id, keyId));
+  if (existing.revoked_at == null) {
+    await db
+      .update(apiKey)
+      .set({ revoked_at: new Date() })
+      .where(eq(apiKey.id, keyId));
+    await recordAgentAccessAudit({
+      event: 'api_key.revoked',
+      userId,
+      resourceId: keyId,
+      payload: { reason: 'revoked_by_user', key_prefix: existing.key_prefix },
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

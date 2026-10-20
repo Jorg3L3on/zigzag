@@ -117,32 +117,6 @@ export const finishTokenAttempt = async (
   }
 };
 
-export const logTokenPreflightAttempt = async (request: Request): Promise<void> => {
-  try {
-    await db.insert(mcpOAuthTokenAttempt).values({
-      path: getTokenAttemptPath(request),
-      method: 'OPTIONS',
-      error: 'preflight',
-      http_status: 204,
-    });
-  } catch (error) {
-    logFailure('preflight', error);
-  }
-};
-
-export const logTokenGetAttempt = async (request: Request): Promise<void> => {
-  try {
-    await db.insert(mcpOAuthTokenAttempt).values({
-      path: getTokenAttemptPath(request),
-      method: 'GET',
-      error: 'method_not_allowed',
-      http_status: 405,
-    });
-  } catch (error) {
-    logFailure('get', error);
-  }
-};
-
 export const sanitizeTokenAttemptBodyFromRecord = (
   raw: Record<string, unknown>,
 ): SanitizedTokenAttemptBody => sanitizeTokenAttemptBody(raw);

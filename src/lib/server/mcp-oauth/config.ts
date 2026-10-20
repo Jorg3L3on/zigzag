@@ -13,9 +13,16 @@ export const OAUTH_REFRESH_TOKEN_PREFIX = 'zigzag_refresh_';
 
 export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000;
 
-export const OAUTH_ACCESS_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const OAUTH_REFRESH_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+/** Access tokens live a day; ChatGPT, Claude and Grok refresh on 401. */
+export const OAUTH_ACCESS_TOKEN_TTL_MS = DAY_MS;
+
+/** A refresh token works for 90 days after it was issued (each refresh moves the window). */
+export const OAUTH_REFRESH_TOKEN_TTL_MS = 90 * DAY_MS;
+
+/** No refresh past consent + 365 days: the user has to authorize again. */
+export const OAUTH_GRANT_ABSOLUTE_TTL_MS = 365 * DAY_MS;
 
 export const OAUTH_TOKEN_LOOKUP_LENGTH = 20;
 

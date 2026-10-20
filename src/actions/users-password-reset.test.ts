@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 import { AuthorizationError } from '@/lib/errors';
 import { recordGovernanceAudit } from '@/lib/governance-audit';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
-import { bumpUserTokenVersion } from '@/lib/session-revocation';
+import { bumpUserTokenVersion, revokeAgentAccessForUser } from '@/lib/session-revocation';
 import { compare, hash } from 'bcryptjs';
 
 jest.mock('@/lib/db', () => ({
@@ -20,7 +20,10 @@ jest.mock('@/lib/security', () => ({
   requireActionPermission: jest.fn(),
 }));
 jest.mock('bcryptjs', () => ({ compare: jest.fn(), hash: jest.fn() }));
-jest.mock('@/lib/session-revocation', () => ({ bumpUserTokenVersion: jest.fn() }));
+jest.mock('@/lib/session-revocation', () => ({
+  bumpUserTokenVersion: jest.fn(),
+  revokeAgentAccessForUser: jest.fn(),
+}));
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 jest.mock('@/lib/governance-audit', () => ({
   actionAuthToGovernanceActor: jest.fn(() => ({ userId: '1' })),
@@ -38,6 +41,7 @@ const mockHash = hash as jest.Mock;
 const mockCompare = compare as jest.Mock;
 const mockAudit = recordGovernanceAudit as jest.Mock;
 const mockBump = bumpUserTokenVersion as jest.Mock;
+const mockRevokeAgents = revokeAgentAccessForUser as jest.Mock;
 
 const member = {
   id: 20n,
@@ -86,6 +90,8 @@ describe('resetUserTemporaryPassword (ZIG-I18-11)', () => {
       expect.objectContaining({ password: 'temp-hash', must_change_password: true }),
     );
     expect(mockBump).toHaveBeenCalledWith(20n);
+    // The reset also ends the member's API keys and OAuth grants.
+    expect(mockRevokeAgents).toHaveBeenCalledWith(20n, 'password_reset', expect.any(BigInt));
     expect(mockAudit).toHaveBeenCalledWith(
       db,
       expect.objectContaining({ eventType: 'password_reset', resourceId: 20n, targetCompanyId: 10 }),
