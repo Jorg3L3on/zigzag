@@ -108,6 +108,117 @@ export const getTicketOutputSchema = z.object({ ticket: ticketDetailSchema });
 
 export const ticketWriteOutputSchema = z.object({ ticket: ticketSummarySchema });
 
+/* Catalog and client read (ZIG-I23-4). Phase 5 (search/fetch) reuses these. */
+
+/** Opaque keyset cursor (base64 of `created_at,id`), see `src/lib/mcp/cursor.ts`. */
+export const cursorSchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .describe('Cursor opaco de paginación: el next_cursor de la respuesta anterior.');
+
+export const nextCursorSchema = z
+  .string()
+  .nullable()
+  .describe('Pásalo como cursor para la siguiente página; null si no hay más.');
+
+export const listLimitSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(100)
+  .describe('Máximo de resultados por página (1-100, 50 por defecto).');
+
+export const searchQuerySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .describe('Texto a buscar (no distingue mayúsculas).');
+
+export const materialSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  unit: z.string().nullable().describe('Unidad corta: pza, m, kg, lt, hr.'),
+  price: z.number().describe('Precio de catálogo por unidad.'),
+});
+
+export const serviceDefaultMaterialSchema = z.object({
+  material_id: z.number().int(),
+  name: z.string(),
+  quantity: z.number(),
+  unit: z.string().nullable(),
+  price: z
+    .number()
+    .describe('Precio por unidad para este servicio (el de catálogo si no tiene uno propio).'),
+});
+
+export const serviceSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  description: z.string(),
+  price: z.number(),
+  default_materials: z.array(serviceDefaultMaterialSchema),
+});
+
+export const clientAddressSchema = z.object({
+  street: z.string().nullable(),
+  exterior_number: z.string().nullable(),
+  interior_number: z.string().nullable(),
+  neighborhood: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  postal_code: z.string().nullable(),
+  country: z.string().nullable(),
+  text: z.string().nullable().describe('Dirección en texto libre (campo anterior).'),
+});
+
+export const clientBalanceSchema = z.object({
+  balance_due: z
+    .number()
+    .describe('Saldo pendiente: lo que deben los tickets terminados sin pagar.'),
+  due_ticket_count: z.number().int(),
+  ticket_count: z.number().int(),
+});
+
+export const clientDocumentSummarySchema = z.object({
+  id: z.string().describe('Id del documento (BigInt serializado como string).'),
+  document_kind: z.enum(['ticket', 'presupuesto']),
+  folio: z.string(),
+  ticket_date: isoDateTimeSchema.nullable(),
+  total: z.number().nullable(),
+  paid: z.number().nullable(),
+  finished: z.boolean(),
+  created_at: isoDateTimeSchema,
+});
+
+export const clientDetailSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  document: z.string().nullable(),
+  notes: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  address: clientAddressSchema,
+  balance: clientBalanceSchema,
+  recent_documents: z.array(clientDocumentSummarySchema),
+  company_id: z.number().int().nullable(),
+  created_at: isoDateTimeSchema,
+});
+
 export const listClientsOutputSchema = z.object({
   clients: z.array(clientSummarySchema),
+  next_cursor: nextCursorSchema,
 });
+
+export const listServicesOutputSchema = z.object({
+  services: z.array(serviceSchema),
+  next_cursor: nextCursorSchema,
+});
+
+export const listMaterialsOutputSchema = z.object({
+  materials: z.array(materialSchema),
+  next_cursor: nextCursorSchema,
+});
+
+export const getClientOutputSchema = z.object({ client: clientDetailSchema });

@@ -5,17 +5,21 @@ import {
   createAgentTicket,
   getAgentIdentity,
   getAgentTicket,
-  listAgentClients,
   listAgentCompanies,
   listAgentTickets,
   updateAgentTicketStatus,
 } from '@/lib/mcp/domain';
+import { listAgentMaterials, listAgentServices } from '@/lib/mcp/domain/catalog';
+import { getAgentClient, listAgentClients } from '@/lib/mcp/domain/clients';
 import { registerMcpTools } from '@/lib/mcp/register-tools';
 import {
   errorSchema,
+  getClientOutputSchema,
   getTicketOutputSchema,
   listClientsOutputSchema,
   listCompaniesOutputSchema,
+  listMaterialsOutputSchema,
+  listServicesOutputSchema,
   listTicketsOutputSchema,
   ticketWriteOutputSchema,
   whoamiSchema,
@@ -39,10 +43,19 @@ jest.mock('@/lib/mcp/domain', () => ({
   createAgentTicket: jest.fn(),
   getAgentIdentity: jest.fn(),
   getAgentTicket: jest.fn(),
-  listAgentClients: jest.fn(),
   listAgentCompanies: jest.fn(),
   listAgentTickets: jest.fn(),
   updateAgentTicketStatus: jest.fn(),
+}));
+
+jest.mock('@/lib/mcp/domain/catalog', () => ({
+  listAgentMaterials: jest.fn(),
+  listAgentServices: jest.fn(),
+}));
+
+jest.mock('@/lib/mcp/domain/clients', () => ({
+  getAgentClient: jest.fn(),
+  listAgentClients: jest.fn(),
 }));
 
 // The in-memory transport carries no HTTP request, so the bearer header is
@@ -61,6 +74,7 @@ jest.mock('@/lib/server/resolve-agent-context', () => {
     parseBearerToken: jest.fn(() => 'zz_test'),
     resolveAgentContext: jest.fn(),
     resolveAgentUser: jest.fn(),
+    assertAgentCompanyAccess: jest.fn().mockResolvedValue(undefined),
     assertScope: jest.fn((agent: { scopes: string[] }, scope: string) => {
       if (!agent.scopes.includes(scope)) {
         throw new MockAgentAuthError(`El token no tiene el scope "${scope}"`, 403);
@@ -189,7 +203,8 @@ beforeEach(() => {
   jest
     .mocked(updateAgentTicketStatus)
     .mockResolvedValue(mapAgentTicketSummary({ ...ticketRow, finished: true }));
-  jest.mocked(listAgentClients).mockResolvedValue([
+  jest.mocked(listAgentClients).mockResolvedValue({
+    clients: [
     {
       id: 42,
       name: 'Sample Client',
@@ -198,7 +213,61 @@ beforeEach(() => {
       company_id: 7,
       created_at: new Date('2026-01-10T08:00:00.000Z'),
     },
-  ]);
+    ],
+    next_cursor: null,
+  });
+  jest.mocked(listAgentServices).mockResolvedValue({
+    services: [
+      {
+        id: 3,
+        name: 'Mantenimiento',
+        description: 'Limpieza de minisplit',
+        price: 650,
+        default_materials: [
+          { material_id: 8, name: 'Gas R410', quantity: 0.5, unit: 'kg', price: 320 },
+        ],
+      },
+    ],
+    next_cursor: 'MjAyNi0wMS0xMFQwODowMDowMC4wMDBaLDM',
+  });
+  jest.mocked(listAgentMaterials).mockResolvedValue({
+    materials: [{ id: 8, name: 'Gas R410', unit: 'kg', price: 300 }],
+    next_cursor: null,
+  });
+  jest.mocked(getAgentClient).mockResolvedValue({
+    id: 42,
+    name: 'Sample Client',
+    document: 'RFC123',
+    notes: null,
+    phone: '5512345678',
+    email: null,
+    address: {
+      street: 'Av. Uno',
+      exterior_number: '10',
+      interior_number: null,
+      neighborhood: 'Centro',
+      city: 'CDMX',
+      state: 'CDMX',
+      postal_code: '06000',
+      country: 'MX',
+      text: null,
+    },
+    balance: { balance_due: 150.5, due_ticket_count: 1, ticket_count: 1 },
+    recent_documents: [
+      {
+        id: '9001',
+        document_kind: 'ticket',
+        folio: 'R-0001',
+        ticket_date: new Date('2026-01-15T10:00:00.000Z'),
+        total: 150.5,
+        paid: 0,
+        finished: true,
+        created_at: new Date('2026-01-15T10:00:00.000Z'),
+      },
+    ],
+    company_id: 7,
+    created_at: new Date('2026-01-10T08:00:00.000Z'),
+  });
 });
 
 const WRITE_TOOLS = new Set(['create_ticket', 'update_ticket_status']);
@@ -211,12 +280,15 @@ describe('tools/list', () => {
     tools = (response.result as { tools: ToolDefinition[] }).tools;
   });
 
-  it('lists whoami plus the six v1 tools', () => {
+  it('lists whoami, the six v1 tools and the catalog tools', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
         'create_ticket',
+        'get_client',
         'get_ticket',
         'list_clients',
+        'list_materials',
+        'list_services',
         'list_companies',
         'list_tickets',
         'update_ticket_status',
@@ -278,6 +350,9 @@ describe('tools/call', () => {
       ticketWriteOutputSchema,
     ],
     ['list_clients', { company_id: 7 }, listClientsOutputSchema],
+    ['list_services', { company_id: 7, query: 'mini' }, listServicesOutputSchema],
+    ['list_materials', { company_id: 7 }, listMaterialsOutputSchema],
+    ['get_client', { company_id: 7, client_id: 42 }, getClientOutputSchema],
   ];
 
   it.each(cases)(
