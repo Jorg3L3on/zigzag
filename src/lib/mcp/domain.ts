@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { mcpAuditExtra, resolveAgentConnection } from '@/lib/mcp/domain/writes';
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import {
   apiKey,
@@ -167,6 +168,7 @@ export const createAgentTicket = async (
     document_kind: 'ticket' as const,
   };
 
+  const connection = await resolveAgentConnection(agent);
   const created = await db.transaction(async (tx) => {
     const folio = await allocateDocumentFolio(tx, {
       companyId: agent.companyId,
@@ -190,7 +192,12 @@ export const createAgentTicket = async (
       row.id,
       agent.companyId,
       'created',
-      { ticket: row },
+      {
+        ticket: row,
+        source: 'mcp',
+        ...mcpAuditExtra({ tool: 'create_ticket', connection }),
+      },
+      'api',
     );
     return row;
   });
@@ -215,6 +222,7 @@ export const updateAgentTicketStatus = async (
     throw new Error('Ticket no encontrado');
   }
 
+  const connection = await resolveAgentConnection(agent);
   const updated = await db.transaction(async (tx) => {
     const [row] = await tx
       .update(ticket)
@@ -243,7 +251,18 @@ export const updateAgentTicketStatus = async (
       ticketId,
       agent.companyId,
       'updated',
-      { before: existing, after: row, statusChanged: true, finished },
+      {
+        before: existing,
+        after: row,
+        statusChanged: true,
+        finished,
+        ...mcpAuditExtra({
+          tool: 'update_ticket_status',
+          connection,
+          document_id: String(ticketId),
+        }),
+      },
+      'api',
     );
     return row;
   });

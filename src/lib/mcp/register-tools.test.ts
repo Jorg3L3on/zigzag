@@ -291,7 +291,15 @@ beforeEach(() => {
   });
 });
 
-const WRITE_TOOLS = new Set(['create_ticket', 'update_ticket_status']);
+const WRITE_TOOLS = new Set([
+  'convert_presupuesto',
+  'create_client',
+  'create_document',
+  'create_ticket',
+  'update_client',
+  'update_document',
+  'update_ticket_status',
+]);
 
 describe('tools/list', () => {
   let tools: ToolDefinition[];
@@ -301,9 +309,12 @@ describe('tools/list', () => {
     tools = (response.result as { tools: ToolDefinition[] }).tools;
   });
 
-  it('lists whoami, the six v1 tools, the catalog, document and search tools', () => {
+  it('lists whoami, the six v1 tools, the catalog, document, search and write tools', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
+        'convert_presupuesto',
+        'create_client',
+        'create_document',
         'create_ticket',
         'fetch',
         'get_client',
@@ -317,6 +328,8 @@ describe('tools/list', () => {
         'list_companies',
         'list_tickets',
         'search',
+        'update_client',
+        'update_document',
         'update_ticket_status',
         'whoami',
       ].sort(),

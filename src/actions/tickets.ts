@@ -1,7 +1,23 @@
 'use server';
 
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
-import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
+import { createDocumentWithLines } from '@/lib/documents/create-document';
+import {
+  EmptyTicketFinishError,
+  FinishPaidExceedsTotalError,
+  finishTicketInTx,
+  TicketAlreadyFinishedError,
+} from '@/lib/documents/finish-ticket';
+import {
+  assertIsWorkTicketRow,
+  assertTicketNotFullyPaid,
+  assertTicketWritable,
+  PresupuestoMutationBlockedError,
+  replaceDocumentLines,
+  TicketAlreadyPaidError,
+  TotalBelowPaidError,
+} from '@/lib/documents/update-document';
+import { normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, count, ilike, or, inArray } from 'drizzle-orm';
 import {
@@ -39,13 +55,11 @@ import type { ValidationIssue } from '@/lib/action-result';
 import {
   assertTicketTotalWithinCap,
   calculateTicketTotal,
-  syncTicketTotal,
 } from '@/lib/ticket-financials';
 import { addMoney, roundMoney, subtractMoney } from '@/lib/money';
 import {
   AMOUNT_TOLERANCE,
   getTicketBalanceDue,
-  isTicketFullyPaid,
   type TicketPaymentStatus,
 } from '@/lib/ticket-payment-status';
 import {
@@ -166,93 +180,6 @@ const syncTicketIdSequence = async (): Promise<void> => {
       false
     );
   `);
-};
-
-const assertTicketWritable = async (
-  ticketId: bigint,
-  companyId: number,
-): Promise<TicketRow> => {
-  const ticketRow = await db.query.ticket.findFirst({
-    where: and(eq(ticket.id, ticketId), isNull(ticket.deleted_at)),
-  });
-
-  if (!ticketRow) {
-    throw new AuthorizationError('Ticket not found');
-  }
-
-  if (ticketRow.company_id !== companyId) {
-    throw new AuthorizationError('Access denied to this ticket');
-  }
-
-  return ticketRow;
-};
-
-class PresupuestoMutationBlockedError extends Error {
-  constructor() {
-    super('Presupuesto mutation blocked');
-    this.name = 'PresupuestoMutationBlockedError';
-  }
-}
-
-const assertIsWorkTicketRow = (ticketRow: {
-  document_kind?: string | null;
-}): void => {
-  if (!isWorkTicket(ticketRow.document_kind)) {
-    throw new PresupuestoMutationBlockedError();
-  }
-};
-
-class FinishPaidExceedsTotalError extends Error {
-  constructor() {
-    super('Paid amount exceeds ticket total');
-    this.name = 'FinishPaidExceedsTotalError';
-  }
-}
-
-class EmptyTicketFinishError extends Error {
-  constructor() {
-    super('Cannot finish a ticket with no active service lines');
-    this.name = 'EmptyTicketFinishError';
-  }
-}
-
-class TicketAlreadyFinishedError extends Error {
-  constructor() {
-    super('Ticket already finished');
-    this.name = 'TicketAlreadyFinishedError';
-  }
-}
-
-class TicketAlreadyPaidError extends Error {
-  constructor() {
-    super('Ticket already fully paid');
-    this.name = 'TicketAlreadyPaidError';
-  }
-}
-
-const assertTicketNotFullyPaid = async (
-  ticketId: bigint,
-  companyId: number,
-): Promise<void> => {
-  const ticketRow = await db.query.ticket.findFirst({
-    where: and(
-      eq(ticket.id, ticketId),
-      eq(ticket.company_id, companyId),
-      isNull(ticket.deleted_at),
-    ),
-    columns: {
-      total: true,
-      paid: true,
-    },
-  });
-
-  if (!ticketRow) {
-    throw new AuthorizationError('Ticket not found');
-  }
-
-  if (isTicketFullyPaid(ticketRow.total, ticketRow.paid)) {
-    throw new TicketAlreadyPaidError();
-  }
 };
 
 /** Active client must belong to the ticket company (TCI-01). */
@@ -382,8 +309,6 @@ export type CreateTicketWithLinesInput = z.input<
   typeof createTicketWithLinesSchema
 >;
 
-const TICKET_EMAIL_MAX_LENGTH = 40;
-
 /**
  * Nuevo ticket composer (ZIG-I2 D2): creates the ticket and all its lines in one
  * transaction. Nothing is persisted before this call. Client snapshot fields come
@@ -408,103 +333,15 @@ export async function createTicketWithLines(
 
     await assertCompanyProductionReady(effectiveCompanyId);
 
-    const clientRow = await db.query.client.findFirst({
-      where: and(
-        eq(client.id, validated.client_id),
-        eq(client.company_id, effectiveCompanyId),
-        isNull(client.deleted_at),
-      ),
-      columns: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        document: true,
-      },
+    const created = await createDocumentWithLines(context, {
+      companyId: effectiveCompanyId,
+      kind: 'ticket',
+      clientId: validated.client_id,
+      ticketDate: validated.ticket_date,
+      workNotes: validated.work_notes,
+      lines: validated.lines,
+      clientTotal: validated.client_total,
     });
-    if (!clientRow) {
-      throw new AuthorizationError('Client not found for this company');
-    }
-
-    await assertCatalogServicesBelongToCompany(
-      db,
-      catalogServiceIds(validated.lines),
-      effectiveCompanyId,
-    );
-
-    const ticketValues = {
-      client_id: clientRow.id,
-      client_name: clientRow.name.slice(0, 100),
-      client_tel: clientRow.phone ?? '',
-      email:
-        clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
-          ? clientRow.email
-          : null,
-      document: clientRow.document ?? null,
-      work_notes: validated.work_notes || null,
-      ticket_date: validated.ticket_date,
-      company_id: effectiveCompanyId,
-      userId: BigInt(context.userId),
-      document_kind: 'ticket' as const,
-      finished: false,
-      paid: 0,
-      total: 0,
-    };
-
-    const runTransaction = () =>
-      db.transaction(async (tx) => {
-        const folio = await allocateDocumentFolio(tx, {
-          companyId: effectiveCompanyId,
-          documentKind: 'ticket',
-        });
-        const [created] = await tx
-          .insert(ticket)
-          .values({ ...ticketValues, ...folio })
-          .returning();
-
-        const { rows: lineRows, createdServiceIds, createdMaterialIds } =
-          await insertServiceLines(tx, {
-            companyId: effectiveCompanyId,
-            ticketId: created.id,
-            lines: validated.lines,
-          });
-
-        const syncedTotal = await syncTicketTotal(tx, created.id);
-
-        await recordTicketAudit(
-          tx,
-          context,
-          created.id,
-          effectiveCompanyId,
-          'created',
-          {
-            ticket: { ...created, total: syncedTotal },
-            source: 'composer',
-            lines: lineRows,
-            ...(createdServiceIds.length > 0
-              ? { savedToCatalogServiceIds: createdServiceIds }
-              : {}),
-            ...(createdMaterialIds.length > 0
-              ? { savedToCatalogMaterialIds: createdMaterialIds }
-              : {}),
-            syncedTotal,
-            ignoredClientTotal: validated.client_total ?? null,
-          },
-        );
-
-        return { id: created.id, total: syncedTotal, folio: formatDocumentFolio(created) };
-      });
-
-    let created: { id: bigint; total: number; folio: string };
-    try {
-      created = await runTransaction();
-    } catch (error) {
-      if (!isTicketPrimaryKeyConflict(error)) {
-        throw error;
-      }
-      await syncTicketIdSequence();
-      created = await runTransaction();
-    }
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     revalidatePath('/dashboard');
@@ -540,14 +377,6 @@ const updateTicketLinesSchema = z.object({
 
 export type UpdateTicketLinesInput = z.input<typeof updateTicketLinesSchema>;
 
-/** The new total would fall below what the client already paid. */
-class TotalBelowPaidError extends Error {
-  constructor(public readonly paid: number) {
-    super('Total below the amount already paid');
-    this.name = 'TotalBelowPaidError';
-  }
-}
-
 const formatPesos = (amount: number) =>
   `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -574,122 +403,15 @@ export async function updateTicketLines(
       validated.company_id,
     );
     const ticketId = BigInt(id);
-    const prior = await assertTicketWritable(ticketId, effectiveCompanyId);
-    assertIsWorkTicketRow(prior);
-    await assertTicketNotFullyPaid(ticketId, effectiveCompanyId);
-
-    const paid = prior.paid ?? 0;
-    if (calculateTicketTotal(validated.lines) < paid - AMOUNT_TOLERANCE) {
-      throw new TotalBelowPaidError(paid);
-    }
-
-    await assertCatalogServicesBelongToCompany(
-      db,
-      catalogServiceIds(validated.lines),
-      effectiveCompanyId,
-    );
-
-    const editable = !prior.finished;
-    let clientSnapshot:
-      | {
-          client_id: number;
-          client_name: string;
-          client_tel: string;
-          email: string | null;
-          document: string | null;
-        }
-      | undefined;
-    if (editable && validated.client_id != null && validated.client_id !== prior.client_id) {
-      const clientRow = await db.query.client.findFirst({
-        where: and(
-          eq(client.id, validated.client_id),
-          eq(client.company_id, effectiveCompanyId),
-          isNull(client.deleted_at),
-        ),
-        columns: { id: true, name: true, phone: true, email: true, document: true },
-      });
-      if (!clientRow) {
-        throw new AuthorizationError('Client not found for this company');
-      }
-      clientSnapshot = {
-        client_id: clientRow.id,
-        client_name: clientRow.name.slice(0, 100),
-        client_tel: clientRow.phone ?? '',
-        email:
-          clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
-            ? clientRow.email
-            : null,
-        document: clientRow.document ?? null,
-      };
-    }
-
-    const beforeLines = await db.query.ticket.findFirst({
-      where: and(
-        eq(ticket.id, ticketId),
-        eq(ticket.company_id, effectiveCompanyId),
-        isNull(ticket.deleted_at),
-      ),
-      with: {
-        services_tickets: {
-          where: isNull(servicesTickets.deleted_at),
-          with: { ...activeLineMaterialsWith },
-        },
-      },
-    });
-
-    const result = await db.transaction(async (tx) => {
-      await tx
-        .update(servicesTickets)
-        .set({ deleted_at: new Date(), updated_at: new Date() })
-        .where(
-          and(eq(servicesTickets.ticket_id, ticketId), isNull(servicesTickets.deleted_at)),
-        );
-
-      const { rows: lineRows, createdServiceIds, createdMaterialIds } =
-        await insertServiceLines(tx, {
-          companyId: effectiveCompanyId,
-          ticketId,
-          lines: validated.lines,
-        });
-
-      const syncedTotal = await syncTicketTotal(tx, ticketId);
-      if (syncedTotal < paid - AMOUNT_TOLERANCE) {
-        // Rolls the replacement back: the lines stay as they were.
-        throw new TotalBelowPaidError(paid);
-      }
-
-      const [row] = await tx
-        .update(ticket)
-        .set({
-          ...(clientSnapshot ?? {}),
-          ...(editable && validated.ticket_date ? { ticket_date: validated.ticket_date } : {}),
-          ...(validated.work_notes !== undefined
-            ? { work_notes: validated.work_notes || null }
-            : {}),
-          updated_at: new Date(),
-        })
-        .where(
-          and(
-            eq(ticket.id, ticketId),
-            eq(ticket.company_id, effectiveCompanyId),
-            isNull(ticket.deleted_at),
-          ),
-        )
-        .returning();
-
-      await recordTicketAudit(tx, context, ticketId, effectiveCompanyId, 'updated', {
-        before: beforeLines,
-        after: row,
-        servicesChanged: true,
-        source: 'composer-edit',
-        previousTotal: prior.total ?? 0,
-        total: syncedTotal,
-        lines: lineRows,
-        ...(createdServiceIds.length > 0 ? { savedToCatalogServiceIds: createdServiceIds } : {}),
-        ...(createdMaterialIds.length > 0 ? { savedToCatalogMaterialIds: createdMaterialIds } : {}),
-      });
-
-      return syncedTotal;
+    // Same rule as before the extraction: this editor is for work tickets only.
+    assertIsWorkTicketRow(await assertTicketWritable(ticketId, effectiveCompanyId));
+    const result = await replaceDocumentLines(context, {
+      companyId: effectiveCompanyId,
+      documentId: ticketId,
+      clientId: validated.client_id,
+      ticketDate: validated.ticket_date,
+      workNotes: validated.work_notes,
+      lines: validated.lines,
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -701,9 +423,9 @@ export async function updateTicketLines(
       success: true,
       data: {
         id: String(ticketId),
-        total: result,
-        previousTotal: prior.total ?? 0,
-        finished: prior.finished,
+        total: result.total,
+        previousTotal: result.previousTotal,
+        finished: result.finished,
       },
     };
   } catch (error) {
@@ -1378,84 +1100,15 @@ export async function finishTicket(
       return buildActionError('TC006', undefined, 'validation');
     }
 
-    const paidAmount = roundMoney(paid);
-
-    const updated = await db.transaction(async (tx) => {
-      await acquireAdvisoryLock(
-        tx,
-        ADVISORY_LOCK_NAMESPACE.ticketFinish,
+    const updated = await db.transaction((tx) =>
+      finishTicketInTx(tx, context, {
         ticketId,
-      );
-
-      const activeLines = await tx
-        .select({ id: servicesTickets.id })
-        .from(servicesTickets)
-        .where(
-          and(
-            eq(servicesTickets.ticket_id, ticketId),
-            isNull(servicesTickets.deleted_at),
-          ),
-        )
-        .limit(1);
-
-      if (activeLines.length === 0) {
-        throw new EmptyTicketFinishError();
-      }
-
-      // Authoritative total comes from active service lines, never the client.
-      const totalAmount = await syncTicketTotal(tx, ticketId);
-
-      if (paidAmount - totalAmount > AMOUNT_TOLERANCE) {
-        throw new FinishPaidExceedsTotalError();
-      }
-
-      const [row] = await tx
-        .update(ticket)
-        .set({
-          finished: true,
-          total: totalAmount,
-          paid: paidAmount,
-        })
-        .where(
-          and(
-            eq(ticket.id, ticketId),
-            eq(ticket.company_id, effectiveCompanyId),
-            isNull(ticket.deleted_at),
-            eq(ticket.finished, false),
-          ),
-        )
-        .returning();
-
-      if (!row) {
-        // Concurrent finish won the race; do not insert payment/audit again.
-        throw new TicketAlreadyFinishedError();
-      }
-
-      if (paidAmount > AMOUNT_TOLERANCE) {
-        await tx.insert(ticketPayment).values({
-          ticket_id: ticketId,
-          amount: paidAmount,
-          company_id: row.company_id,
-        });
-      }
-
-      await recordTicketAudit(
-        tx,
-        context,
-        ticketId,
-        effectiveCompanyId,
-        'finished',
-        {
-          before: prior,
-          after: row,
-          initialPayment: paidAmount > AMOUNT_TOLERANCE ? paidAmount : 0,
-          syncedTotal: totalAmount,
-          ignoredClientTotal: _clientTotal,
-        },
-      );
-
-      return row;
-    });
+        companyId: effectiveCompanyId,
+        paid: roundMoney(paid),
+        prior,
+        clientTotal: _clientTotal,
+      }),
+    );
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     revalidatePath('/dashboard');

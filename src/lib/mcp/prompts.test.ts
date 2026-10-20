@@ -106,6 +106,10 @@ describe('prompts/get', () => {
     expect(text).toContain('list_services');
     expect(text).toContain('create_document');
     expect(text).toContain('No llames create_document hasta que yo la confirme');
+    // The inputs create_document actually takes (ZIG-I23-6).
+    for (const field of ['kind "ticket"', 'client (', 'client_id', '{ name, phone }', 'date (YYYY-MM-DD', 'lines (', 'service_id o name, quantity y price', 'work_notes', 'idempotency_key']) {
+      expect(text).toContain(field);
+    }
   });
 
   it('resumen_cliente asks get_client for that client', async () => {

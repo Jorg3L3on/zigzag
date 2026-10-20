@@ -60,7 +60,7 @@ export const renderTicketDesdeMensaje = ({
       '',
       '1. Extrae el cliente (nombre y teléfono), las líneas de trabajo (servicio, cantidad y precio si se menciona) y la fecha del trabajo.',
       `2. Busca al cliente con list_clients (company_id ${company_id}, query con su nombre o teléfono) y los servicios con list_services para usar sus ids, precios y materiales por defecto. Si algo no coincide, dilo.`,
-      '3. Propón la llamada a create_document (tipo ticket) con esos datos y muéstramela completa en una lista legible.',
+      `3. Propón la llamada a create_document con company_id ${company_id}, kind "ticket", client ({ client_id } si ya existe, o { name, phone } para uno nuevo), date (YYYY-MM-DD, si el mensaje la da), lines (cada una con service_id o name, quantity y price; materials si aplica), work_notes con lo que pidió el cliente e idempotency_key (un identificador único para este mensaje). Muéstramela completa en una lista legible.`,
       '',
       'No llames create_document hasta que yo la confirme. Si esta conexión no tiene create_document o no tiene scope write, muestra solo el resumen.',
     ].join('\n'),

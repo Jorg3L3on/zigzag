@@ -12,6 +12,7 @@ import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
 import { registerCatalogTools } from '@/lib/mcp/tools/catalog';
 import { registerDocumentTools } from '@/lib/mcp/tools/documents';
 import { registerSearchTools } from '@/lib/mcp/tools/search';
+import { registerWriteTools } from '@/lib/mcp/tools/writes';
 import {
   getTicketOutputSchema,
   listCompaniesOutputSchema,
@@ -138,8 +139,9 @@ export const registerMcpTools = (server: McpServer) => {
   server.registerTool(
     'create_ticket',
     {
-      title: 'Crear ticket',
-      description: 'Crea un ticket en una compañía autorizada (scope write).',
+      title: 'Crear ticket (obsoleto)',
+      description:
+        'Obsoleto: usa create_document con kind "ticket", que agrega líneas, materiales y pago. Se mantiene una versión más. Crea un ticket sin líneas en una compañía autorizada (scope write).',
       inputSchema: z.object({
         company_id: companyIdSchema,
         client_name: z.string().min(1).max(100),
@@ -198,4 +200,5 @@ export const registerMcpTools = (server: McpServer) => {
   registerCatalogTools(server);
   registerDocumentTools(server);
   registerSearchTools(server);
+  registerWriteTools(server);
 };
