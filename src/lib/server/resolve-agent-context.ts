@@ -223,9 +223,14 @@ export async function resolveAgentContext(
   authorizationHeader: string | null | undefined,
   companyId: number,
   permission: string,
+  opts: {
+    /** Called once the token is resolved, before the company checks run. */
+    onUser?: (agentUser: Awaited<ReturnType<typeof resolveAgentUser>>) => void;
+  } = {},
 ): Promise<AgentContext> {
   const token = parseBearerToken(authorizationHeader);
   const agentUser = await resolveAgentUser(token);
+  opts.onUser?.(agentUser);
   await assertAgentCompanyAccess(agentUser, companyId, permission);
   return { ...agentUser, companyId };
 }

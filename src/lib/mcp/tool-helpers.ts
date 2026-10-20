@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { startToolActivity } from '@/lib/mcp/activity';
 import { authChallengeMeta } from '@/lib/mcp/auth-challenge';
 import type { McpErrorCode } from '@/lib/mcp/schemas';
 import { checkRateLimit } from '@/lib/rate-limiter';
@@ -221,20 +222,24 @@ export async function runAgentCompanyTool(
   scope: AgentScope,
   fn: (agent: AgentContext) => Promise<JsonObject>,
 ): Promise<McpToolResult> {
+  const activity = startToolActivity(toolName);
   try {
     const agent = await resolveAgentContext(
       getAuthorizationHeader(ctx),
       args.company_id,
       permission,
+      { onUser: activity.identify },
     );
+    activity.identify(agent);
+    activity.company(agent.companyId);
     assertScope(agent, scope);
 
     const limitedResult = await enforceToolRateLimit(ctx, agent.rateLimitIdentity);
-    if (limitedResult) return limitedResult;
+    if (limitedResult) return activity.end(limitedResult);
 
-    return toolResult(await fn(agent));
+    return activity.end(toolResult(await fn(agent)));
   } catch (error) {
-    return toErrorResult(error, toolName, ctx.http?.req);
+    return activity.end(toErrorResult(error, toolName, ctx.http?.req));
   }
 }
 
@@ -249,9 +254,11 @@ export async function runAgentUserTool(
   fn: (user: AgentUser) => Promise<JsonObject>,
   opts: { requireCompanies?: boolean } = {},
 ): Promise<McpToolResult> {
+  const activity = startToolActivity(toolName);
   try {
     const token = parseBearerToken(getAuthorizationHeader(ctx));
     const agentUser = await resolveAgentUser(token);
+    activity.identify(agentUser);
 
     if ((opts.requireCompanies ?? true) && agentUser.allowedCompanyIds.length === 0) {
       throw new AgentAuthError(
@@ -261,10 +268,10 @@ export async function runAgentUserTool(
     }
 
     const limitedResult = await enforceToolRateLimit(ctx, agentUser.rateLimitIdentity);
-    if (limitedResult) return limitedResult;
+    if (limitedResult) return activity.end(limitedResult);
 
-    return toolResult(await fn(agentUser));
+    return activity.end(toolResult(await fn(agentUser)));
   } catch (error) {
-    return toErrorResult(error, toolName, ctx.http?.req);
+    return activity.end(toErrorResult(error, toolName, ctx.http?.req));
   }
 }
