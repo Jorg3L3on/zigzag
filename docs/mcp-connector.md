@@ -70,12 +70,15 @@ Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en 
 | `get_ticket` | read | Detalle de ticket |
 | `create_ticket` | write | Crea ticket (shell; sin pagos) |
 | `update_ticket_status` | write | Marca `finished` true/false |
-| `list_clients` | read | Clientes (id, nombre, email, documento — sin teléfono/dirección) |
+| `list_clients` | read | Clientes (id, nombre, email, documento — sin teléfono/dirección); `query?`, `limit?`, `cursor?` |
+| `get_client` | read | Expediente: teléfono, email, dirección estructurada, notas, saldo y últimos 10 documentos (requiere también `tickets.read`) |
+| `list_services` | read | Servicios con sus materiales por defecto (`services.read`); `query?`, `limit?`, `cursor?` |
+| `list_materials` | read | Materiales con unidad y precio (`services.read`); `query?`, `limit?`, `cursor?` |
 
 ### Flujo típico del agente
 
 1. `whoami` → confirma la cuenta y sus compañías; `list_companies` → elige `company_id`.
-2. `list_tickets` / `list_clients` con ese `company_id`.
+2. `list_tickets` / `list_clients` con ese `company_id`. `list_clients`, `list_services` y `list_materials` paginan con `next_cursor`: pásalo como `cursor` para la siguiente página.
 3. Escrituras solo con scope `write`.
 
 ### Contrato de resultados (v2)

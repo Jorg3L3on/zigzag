@@ -2,7 +2,6 @@ import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import {
   apiKey,
-  client,
   company,
   mcpOAuthGrant,
   servicesTickets,
@@ -250,29 +249,6 @@ export const updateAgentTicketStatus = async (
   });
 
   return mapAgentTicketSummary(updated);
-};
-
-export const listAgentClients = async (
-  agent: AgentContext,
-  input: { limit?: number },
-) => {
-  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
-  return db.query.client.findMany({
-    where: and(
-      eq(client.company_id, agent.companyId),
-      isNull(client.deleted_at),
-    ),
-    orderBy: [desc(client.created_at)],
-    limit,
-    columns: {
-      id: true,
-      name: true,
-      email: true,
-      document: true,
-      company_id: true,
-      created_at: true,
-    },
-  });
 };
 
 export const listSelectableCompaniesForUser = async (userId: bigint) => {

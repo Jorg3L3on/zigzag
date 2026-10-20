@@ -4,15 +4,14 @@ import {
   createAgentTicket,
   getAgentIdentity,
   getAgentTicket,
-  listAgentClients,
   listAgentCompanies,
   listAgentTickets,
   updateAgentTicketStatus,
 } from '@/lib/mcp/domain';
 import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
+import { registerCatalogTools } from '@/lib/mcp/tools/catalog';
 import {
   getTicketOutputSchema,
-  listClientsOutputSchema,
   listCompaniesOutputSchema,
   listTicketsOutputSchema,
   ticketWriteOutputSchema,
@@ -192,29 +191,5 @@ export const registerMcpTools = (server: McpServer) => {
       ),
   );
 
-  server.registerTool(
-    'list_clients',
-    {
-      title: 'Listar clientes',
-      description:
-        'Lista clientes de una compañía (campos mínimos, sin teléfono ni dirección).',
-      inputSchema: z.object({
-        company_id: companyIdSchema,
-        limit: z.number().int().min(1).max(100).optional(),
-      }),
-      outputSchema: listClientsOutputSchema,
-      annotations: READ_ONLY_ANNOTATIONS,
-    },
-    async (args, ctx) =>
-      runAgentCompanyTool(
-        'list_clients',
-        ctx as McpToolContext,
-        args,
-        'clients.read',
-        'read',
-        async (agent) => ({
-          clients: await listAgentClients(agent, { limit: args.limit }),
-        }),
-      ),
-  );
+  registerCatalogTools(server);
 };
