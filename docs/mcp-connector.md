@@ -56,12 +56,13 @@ Al crear una llave o autorizar OAuth, el usuario elige **qué compañías** pued
 2. Elige compañías, scopes y crea la llave.
 3. Copia el token `zigzag_…` — **solo se muestra una vez**.
 
-## Tools v1
+## Tools
 
-Todas las tools (excepto `list_companies`) requieren `company_id` en la allow-list.
+Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en la allow-list.
 
 | Tool | Scope | Descripción |
 |---|---|---|
+| `whoami` | read | Usuario, origen de auth (`api_key`/`oauth_grant`), etiqueta de la conexión, scopes y compañías |
 | `list_companies` | read | Compañías allow-listed visibles para el usuario |
 | `list_tickets` | read | Lista tickets (`company_id`, `limit?`, `finished?`) |
 | `get_ticket` | read | Detalle de ticket |
@@ -71,9 +72,15 @@ Todas las tools (excepto `list_companies`) requieren `company_id` en la allow-li
 
 ### Flujo típico del agente
 
-1. `list_companies` → elige `company_id`.
+1. `whoami` → confirma la cuenta y sus compañías; `list_companies` → elige `company_id`.
 2. `list_tickets` / `list_clients` con ese `company_id`.
 3. Escrituras solo con scope `write`.
+
+### Contrato de resultados (v2)
+
+- Cada tool declara `outputSchema` y anotaciones completas (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint: false`).
+- Éxito: `structuredContent` con el JSON y el mismo JSON como bloque de texto. Ids BigInt como string, fechas ISO 8601, montos como número.
+- Error: `isError: true` y `structuredContent.error = { code, message }` con `code` en `unauthorized`, `forbidden`, `not_found`, `validation`, `rate_limited`, `internal`. Los errores internos no exponen el mensaje original.
 
 ## Endpoints OAuth
 

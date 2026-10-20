@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import {
   createAgentTicket,
+  getAgentIdentity,
   getAgentTicket,
   listAgentClients,
   listAgentCompanies,
@@ -10,9 +11,19 @@ import {
 } from '@/lib/mcp/domain';
 import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
 import {
+  getTicketOutputSchema,
+  listClientsOutputSchema,
+  listCompaniesOutputSchema,
+  listTicketsOutputSchema,
+  ticketWriteOutputSchema,
+  whoamiSchema,
+} from '@/lib/mcp/schemas';
+import {
   companyIdSchema,
+  READ_ONLY_ANNOTATIONS,
   runAgentCompanyTool,
   runAgentUserTool,
+  writeAnnotations,
   type McpToolContext,
 } from '@/lib/mcp/tool-helpers';
 
@@ -22,12 +33,44 @@ const ticketIdSchema = z
 
 export const registerMcpTools = (server: McpServer) => {
   server.registerTool(
+    'whoami',
+    {
+      title: 'Quién soy',
+      description:
+        'Indica a qué usuario de ZigZag pertenece esta conexión, cómo se autenticó, sus scopes y las compañías autorizadas. Llámala primero.',
+      outputSchema: whoamiSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
+      _meta: { 'openai/profile': true },
+    },
+    async (ctx) =>
+      runAgentUserTool(
+        'whoami',
+        ctx as McpToolContext,
+        async (agentUser) => {
+          const [identity, companies] = await Promise.all([
+            getAgentIdentity(agentUser),
+            listAgentCompanies(agentUser),
+          ]);
+          return {
+            user: identity.user,
+            auth_source: agentUser.authSource,
+            connection_label: identity.connectionLabel,
+            scopes: agentUser.scopes,
+            companies,
+          };
+        },
+        { requireCompanies: false },
+      ),
+  );
+
+  server.registerTool(
     'list_companies',
     {
       title: 'Listar compañías',
       description:
         'Lista las compañías autorizadas para esta conexión que el usuario puede ver.',
-      annotations: { readOnlyHint: true },
+      outputSchema: listCompaniesOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (ctx) =>
       runAgentUserTool('list_companies', ctx as McpToolContext, async (agentUser) => ({
@@ -45,7 +88,8 @@ export const registerMcpTools = (server: McpServer) => {
         limit: z.number().int().min(1).max(100).optional(),
         finished: z.boolean().optional(),
       }),
-      annotations: { readOnlyHint: true },
+      outputSchema: listTicketsOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -72,7 +116,8 @@ export const registerMcpTools = (server: McpServer) => {
         company_id: companyIdSchema,
         ticket_id: ticketIdSchema,
       }),
-      annotations: { readOnlyHint: true },
+      outputSchema: getTicketOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -99,7 +144,8 @@ export const registerMcpTools = (server: McpServer) => {
         client_id: z.number().int().positive().optional(),
         email: z.string().email().max(40).optional(),
       }),
-      annotations: { destructiveHint: false },
+      outputSchema: ticketWriteOutputSchema,
+      annotations: writeAnnotations({ idempotent: false }),
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -125,7 +171,9 @@ export const registerMcpTools = (server: McpServer) => {
         ticket_id: ticketIdSchema,
         finished: z.boolean(),
       }),
-      annotations: { destructiveHint: true },
+      outputSchema: ticketWriteOutputSchema,
+      // Reopening undoes it, so it is not destructive; same input, same state.
+      annotations: writeAnnotations({ idempotent: true }),
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -154,7 +202,8 @@ export const registerMcpTools = (server: McpServer) => {
         company_id: companyIdSchema,
         limit: z.number().int().min(1).max(100).optional(),
       }),
-      annotations: { readOnlyHint: true },
+      outputSchema: listClientsOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, ctx) =>
       runAgentCompanyTool(
