@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { registerDynamicOAuthClient } from '@/lib/server/mcp-oauth/clients';
+import { checkDcrMetadata } from '@/lib/server/mcp-oauth/dcr-policy';
 import {
   oauthErrorResponse,
   oauthJsonResponse,
@@ -38,6 +39,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const input = registrationSchema.parse(body);
+    const policyError = checkDcrMetadata(input);
+    if (policyError) {
+      return oauthErrorResponse(policyError.error, policyError.description);
+    }
     const { client, clientSecret } = await registerDynamicOAuthClient(input);
 
     return oauthJsonResponse(

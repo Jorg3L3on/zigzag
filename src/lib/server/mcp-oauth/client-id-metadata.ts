@@ -3,6 +3,10 @@ import {
   cimdClientIdsMatch,
   isClientIdMetadataUrl,
 } from '@/lib/server/mcp-oauth/cimd';
+import {
+  fetchJsonDocument,
+  type FetchJsonDocumentOptions,
+} from '@/lib/server/mcp-oauth/fetch-document';
 
 const clientMetadataSchema = z
   .object({
@@ -40,16 +44,11 @@ export const parseClientIdMetadataDocument = (
 
 export const fetchClientIdMetadataDocument = async (
   clientId: string,
+  options: FetchJsonDocumentOptions = {},
 ): Promise<ClientIdMetadataDocument | null> => {
   if (!isClientIdMetadataUrl(clientId)) return null;
-
-  const response = await fetch(clientId, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) return null;
-
-  const json: unknown = await response.json();
+  const json = await fetchJsonDocument(clientId, options);
+  if (json == null) return null;
   return parseClientIdMetadataDocument(clientId, json);
 };
 

@@ -6,6 +6,7 @@
 import { logger } from '@/lib/logger';
 import { captureException } from '@/lib/observability';
 import { pruneMcpToolCalls } from '@/lib/mcp/activity';
+import { MCP_OAUTH_RETENTION_RULES } from '@/lib/server/mcp-oauth/retention';
 
 export type RetentionRule = {
   name: string;
@@ -15,6 +16,8 @@ export type RetentionRule = {
 export const RETENTION_RULES: RetentionRule[] = [
   // ZIG-I23-8: agent activity log, 90 days.
   { name: 'mcp_tool_calls', run: () => pruneMcpToolCalls() },
+  // ZIG-I23-11: token attempts (30 days), expired codes, stale DCR clients, spent jtis.
+  ...MCP_OAUTH_RETENTION_RULES,
 ];
 
 export type RetentionResult = Record<string, number | 'failed'>;

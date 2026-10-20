@@ -126,6 +126,16 @@ describe('RBAC coverage', () => {
     expect(unguarded).toEqual([]);
   });
 
+  it('rate-limits the public OAuth endpoints that create state', () => {
+    const limited: Record<string, RegExp> = {
+      'src/app/api/oauth/register/route.ts': /enforceOAuthRateLimit\(\s*'register'/,
+      'src/app/api/oauth/token/route.ts': /enforceOAuthRateLimit\(\s*'token'/,
+    };
+    for (const [file, call] of Object.entries(limited)) {
+      expect(read(path.join(root, file))).toMatch(call);
+    }
+  });
+
   it('keeps non-public API routes behind API authorization helpers', () => {
     const routeFiles = [
       ...walk(path.join(root, 'src/app/api')),

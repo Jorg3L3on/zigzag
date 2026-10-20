@@ -1,3 +1,8 @@
+import {
+  consumeJwtAssertionJti,
+  JWT_ASSERTION_MAX_LIFETIME_S,
+} from '@/lib/server/mcp-oauth/jwt-replay';
+
 /** RFC 7523 JWT bearer client assertion. */
 export const CLIENT_ASSERTION_JWT_BEARER =
   'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
@@ -11,6 +16,8 @@ export type VerifyPrivateKeyJwtParams = {
   jwksUri: string;
   jwksJson?: JsonWebKeySet;
   fetchImpl?: typeof fetch;
+  /** Replay store; defaults to the McpOAuthJwtAssertion table. */
+  consumeJti?: typeof consumeJwtAssertionJti;
 };
 
 type JsonWebKeySet = {
@@ -65,13 +72,12 @@ export const verifyPrivateKeyJwtAssertion = async (
     if (params.jwksJson) {
       jwks = params.jwksJson;
     } else {
-      const fetchFn = params.fetchImpl ?? fetch;
-      const response = await fetchFn(params.jwksUri, {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(10_000),
+      const { fetchJsonDocument } = await import('@/lib/server/mcp-oauth/fetch-document');
+      const fetched = await fetchJsonDocument(params.jwksUri, {
+        fetchImpl: params.fetchImpl,
       });
-      if (!response.ok) return false;
-      jwks = (await response.json()) as JsonWebKeySet;
+      if (fetched == null || typeof fetched !== 'object') return false;
+      jwks = fetched as JsonWebKeySet;
     }
 
     if (!Array.isArray(jwks.keys) || jwks.keys.length === 0) {
@@ -92,7 +98,13 @@ export const verifyPrivateKeyJwtAssertion = async (
     const issOk = claimMatchesAllowedClient(payload.iss, allowedClientIds);
     const subOk = claimMatchesAllowedClient(payload.sub, allowedClientIds);
 
-    if (!audOk || !issOk || !subOk) {
+    const lifetimeOk =
+      typeof payload.exp === 'number' &&
+      typeof payload.iat === 'number' &&
+      payload.exp - payload.iat <= JWT_ASSERTION_MAX_LIFETIME_S;
+    const jtiOk = typeof payload.jti === 'string' && payload.jti.length > 0;
+
+    if (!audOk || !issOk || !subOk || !lifetimeOk || !jtiOk) {
       logOAuthJwtAssertionRejected({
         iss: typeof payload.iss === 'string' ? payload.iss : undefined,
         aud: payload.aud,
@@ -103,6 +115,23 @@ export const verifyPrivateKeyJwtAssertion = async (
             : typeof protectedHeader.typ === 'string'
               ? protectedHeader.typ
               : undefined,
+      });
+      return false;
+    }
+
+    // Single use: a jti seen before is a replayed assertion.
+    const consume = params.consumeJti ?? consumeJwtAssertionJti;
+    const fresh = await consume({
+      jti: payload.jti as string,
+      clientId: payload.iss as string,
+      expiresAt: new Date((payload.exp as number) * 1000),
+    });
+    if (!fresh) {
+      logOAuthJwtAssertionRejected({
+        iss: payload.iss as string,
+        aud: payload.aud,
+        sub: payload.sub as string,
+        error: 'jti_replay',
       });
       return false;
     }

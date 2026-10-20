@@ -7,6 +7,7 @@ import {
 } from '@/lib/server/mcp-oauth/clients';
 import {
   oauthErrorResponse,
+  oauthInvalidClientResponse,
   oauthJsonResponse,
   oauthOptionsResponse,
 } from '@/lib/server/mcp-oauth/cors';
@@ -30,8 +31,6 @@ import {
 import {
   finishTokenAttempt,
   getTokenAttemptPath,
-  logTokenGetAttempt,
-  logTokenPreflightAttempt,
   sanitizeTokenAttemptBodyFromRecord,
   startTokenAttempt,
   updateTokenAttemptBody,
@@ -94,13 +93,12 @@ const returnWithAttempt = async (
   return response;
 };
 
-export async function OPTIONS(request: NextRequest) {
-  await logTokenPreflightAttempt(request);
+// Preflights and GETs are not logged: only POST attempts carry diagnostic value.
+export function OPTIONS() {
   return oauthOptionsResponse();
 }
 
-export async function GET(request: NextRequest) {
-  await logTokenGetAttempt(request);
+export function GET() {
   return oauthErrorResponse('invalid_request', 'Use POST', 405);
 }
 
@@ -162,7 +160,7 @@ export async function POST(request: NextRequest) {
         attemptId,
         'invalid_client',
         401,
-        oauthErrorResponse('invalid_client', undefined, 401),
+        oauthInvalidClientResponse(),
       );
     }
     if (!verifyClientSecret(client, input.client_secret)) {
@@ -178,7 +176,7 @@ export async function POST(request: NextRequest) {
         attemptId,
         'invalid_client',
         401,
-        oauthErrorResponse('invalid_client', undefined, 401),
+        oauthInvalidClientResponse(),
       );
     }
 

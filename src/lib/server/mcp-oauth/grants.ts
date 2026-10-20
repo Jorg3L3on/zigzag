@@ -1,14 +1,17 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import {
   mcpOAuthAuthorizationCode,
   mcpOAuthGrant,
   user,
 } from '@/db/schema';
 import { db } from '@/lib/db';
+import { recordAgentAccessAudit } from '@/lib/server/agent-access-audit';
 import type { AgentScope } from '@/lib/server/resolve-agent-context';
 import {
   OAUTH_ACCESS_TOKEN_TTL_MS,
   OAUTH_CODE_TTL_MS,
+  OAUTH_GRANT_ABSOLUTE_TTL_MS,
+  OAUTH_REFRESH_TOKEN_TTL_MS,
   OAUTH_TOKEN_LOOKUP_LENGTH,
   mcpResourcesMatch,
   normalizeMcpResourceUrl,
@@ -28,6 +31,17 @@ import {
   verifyPkceS256,
 } from '@/lib/server/mcp-oauth/tokens';
 import { isValidPkceVerifier } from '@/lib/server/mcp-oauth/token-auth';
+
+/** Why a grant stopped working; stored in McpOAuthGrant.revoked_reason. */
+export type GrantRevokeReason =
+  | 'revoked'
+  | 'revoked_by_user'
+  | 'refresh_reuse'
+  | 'code_replay'
+  | 'user_inactive'
+  | 'password_changed'
+  | 'password_reset'
+  | 'user_deactivated';
 
 export const createAuthorizationCode = async (input: {
   clientId: string;
@@ -72,6 +86,66 @@ export const peekAuthorizationCode = async (code: string) => {
   return row;
 };
 
+/**
+ * Revokes live grants matching `where` and writes one audit row per grant.
+ * Returns how many grants were revoked.
+ */
+const revokeGrantsWhere = async (
+  where: ReturnType<typeof and>,
+  reason: GrantRevokeReason,
+  audit: { actorUserId?: bigint; extra?: Record<string, unknown> } = {},
+): Promise<number> => {
+  const revoked = await db
+    .update(mcpOAuthGrant)
+    .set({ revoked_at: new Date(), revoked_reason: reason })
+    .where(and(where, isNull(mcpOAuthGrant.revoked_at)))
+    .returning({
+      id: mcpOAuthGrant.id,
+      user_id: mcpOAuthGrant.user_id,
+      client_id: mcpOAuthGrant.client_id,
+    });
+  for (const grant of revoked) {
+    await recordAgentAccessAudit({
+      event: reason === 'refresh_reuse' ? 'oauth.refresh_reuse' : 'oauth.grant_revoked',
+      userId: grant.user_id,
+      resourceId: grant.id,
+      actorUserId: audit.actorUserId,
+      payload: { client_id: grant.client_id, reason, ...audit.extra },
+    });
+  }
+  return revoked.length;
+};
+
+export const revokeOAuthGrant = (
+  grantId: number,
+  reason: GrantRevokeReason,
+  audit?: { actorUserId?: bigint },
+) => revokeGrantsWhere(and(eq(mcpOAuthGrant.id, grantId)), reason, audit);
+
+/** Every live grant of a user (password change, reset, deactivation). */
+export const revokeOAuthGrantsForUser = (
+  userId: bigint,
+  reason: GrantRevokeReason,
+  audit?: { actorUserId?: bigint },
+) => revokeGrantsWhere(and(eq(mcpOAuthGrant.user_id, userId)), reason, audit);
+
+const issueGrantTimes = (nowMs = Date.now()) => {
+  const absoluteExpiresAt = oauthExpiresAtFromNow(OAUTH_GRANT_ABSOLUTE_TTL_MS, nowMs);
+  return {
+    expires_at: oauthExpiresAtFromNow(OAUTH_ACCESS_TOKEN_TTL_MS, nowMs),
+    refresh_expires_at: oauthExpiresAtFromNow(OAUTH_REFRESH_TOKEN_TTL_MS, nowMs),
+    absolute_expires_at: absoluteExpiresAt,
+  };
+};
+
+const tokenResponse = (access: string, refresh: string, scopes: string[]) => ({
+  access_token: access,
+  token_type: 'bearer' as const,
+  expires_in: Math.floor(OAUTH_ACCESS_TOKEN_TTL_MS / 1000),
+  refresh_token: refresh,
+  scope: scopes.join(' '),
+});
+
 export const exchangeAuthorizationCode = async (input: {
   code: string;
   clientId: string;
@@ -86,8 +160,16 @@ export const exchangeAuthorizationCode = async (input: {
     where: eq(mcpOAuthAuthorizationCode.code_hash, codeHash),
   });
 
-  if (!row || row.used_at != null) {
-    throw new OAuthInvalidGrantError(row ? 'other' : 'not_found');
+  if (!row) {
+    throw new OAuthInvalidGrantError('not_found');
+  }
+  if (row.used_at != null) {
+    // RFC 6749 §4.1.2: a code presented twice revokes what it already minted.
+    await revokeGrantsWhere(
+      and(eq(mcpOAuthGrant.authorization_code_id, row.id)),
+      'code_replay',
+    );
+    throw new OAuthInvalidGrantError('replay');
   }
   if (isOAuthExpiryPast(row.expires_at)) {
     throw new OAuthInvalidGrantError('expired');
@@ -123,10 +205,20 @@ export const exchangeAuthorizationCode = async (input: {
     throw new OAuthInvalidGrantError('resource');
   }
 
-  await db
+  // Claim the code atomically: of two concurrent exchanges only one gets the row.
+  const claimed = await db
     .update(mcpOAuthAuthorizationCode)
     .set({ used_at: new Date() })
-    .where(eq(mcpOAuthAuthorizationCode.id, row.id));
+    .where(
+      and(
+        eq(mcpOAuthAuthorizationCode.id, row.id),
+        isNull(mcpOAuthAuthorizationCode.used_at),
+      ),
+    )
+    .returning({ id: mcpOAuthAuthorizationCode.id });
+  if (claimed.length === 0) {
+    throw new OAuthInvalidGrantError('replay');
+  }
 
   return issueGrant({
     userId: row.user_id,
@@ -136,6 +228,7 @@ export const exchangeAuthorizationCode = async (input: {
     ),
     allowedCompanyIds: row.allowed_company_ids,
     resource: normalizeMcpResourceUrl(row.resource, input.request),
+    authorizationCodeId: row.id,
   });
 };
 
@@ -145,6 +238,7 @@ export const issueGrant = async (input: {
   scopes: AgentScope[];
   allowedCompanyIds: number[];
   resource: string;
+  authorizationCodeId?: number;
 }) => {
   const access = generateOAuthAccessToken();
   const refresh = generateOAuthRefreshToken();
@@ -159,16 +253,11 @@ export const issueGrant = async (input: {
     scopes: input.scopes,
     allowed_company_ids: input.allowedCompanyIds,
     resource: input.resource,
-    expires_at: oauthExpiresAtFromNow(OAUTH_ACCESS_TOKEN_TTL_MS),
+    authorization_code_id: input.authorizationCodeId ?? null,
+    ...issueGrantTimes(),
   });
 
-  return {
-    access_token: access.token,
-    token_type: 'bearer' as const,
-    expires_in: Math.floor(OAUTH_ACCESS_TOKEN_TTL_MS / 1000),
-    refresh_token: refresh.token,
-    scope: input.scopes.join(' '),
-  };
+  return tokenResponse(access.token, refresh.token, input.scopes);
 };
 
 export const refreshOAuthGrant = async (input: {
@@ -182,8 +271,20 @@ export const refreshOAuthGrant = async (input: {
     where: eq(mcpOAuthGrant.refresh_token_hash, refreshHash),
   });
 
-  if (!row || row.revoked_at != null) {
-    throw new OAuthInvalidGrantError(row ? 'other' : 'not_found');
+  if (!row) {
+    // A rotated-out refresh token coming back means it leaked: kill the grant.
+    const reused = await db.query.mcpOAuthGrant.findFirst({
+      where: eq(mcpOAuthGrant.previous_refresh_token_hash, refreshHash),
+      columns: { id: true },
+    });
+    if (reused) {
+      await revokeOAuthGrant(reused.id, 'refresh_reuse');
+      throw new OAuthInvalidGrantError('reuse');
+    }
+    throw new OAuthInvalidGrantError('not_found');
+  }
+  if (row.revoked_at != null) {
+    throw new OAuthInvalidGrantError('other');
   }
   if (row.client_id !== input.clientId) {
     throw new OAuthInvalidGrantError('client');
@@ -195,51 +296,87 @@ export const refreshOAuthGrant = async (input: {
     throw new OAuthInvalidGrantError('resource');
   }
 
+  const nowMs = Date.now();
+  if (
+    (row.refresh_expires_at != null && isOAuthExpiryPast(row.refresh_expires_at, nowMs)) ||
+    (row.absolute_expires_at != null && isOAuthExpiryPast(row.absolute_expires_at, nowMs))
+  ) {
+    throw new OAuthInvalidGrantError('expired');
+  }
+
+  const owner = await db.query.user.findFirst({
+    where: and(eq(user.id, row.user_id), isNull(user.deleted_at)),
+    columns: { id: true },
+  });
+  if (!owner) {
+    await revokeOAuthGrant(row.id, 'user_inactive');
+    throw new OAuthInvalidGrantError('user');
+  }
+  // Imported lazily: resolve-agent-context imports this module.
+  const { resolveAccessibleCompanyIds } = await import(
+    '@/lib/server/resolve-agent-context'
+  );
+  const accessible = await resolveAccessibleCompanyIds(
+    row.user_id,
+    row.allowed_company_ids,
+  );
+  if (accessible.length === 0) {
+    throw new OAuthInvalidGrantError('user');
+  }
+
   const access = generateOAuthAccessToken();
   const refresh = generateOAuthRefreshToken();
+  const refreshExpiresAt = oauthExpiresAtFromNow(OAUTH_REFRESH_TOKEN_TTL_MS, nowMs);
+  const absoluteExpiresAt =
+    row.absolute_expires_at ??
+    oauthExpiresAtFromNow(OAUTH_GRANT_ABSOLUTE_TTL_MS, row.created_at.getTime());
 
-  await db
+  // Compare-and-swap on the refresh hash so two concurrent refreshes cannot both rotate.
+  const rotated = await db
     .update(mcpOAuthGrant)
     .set({
       token_hash: access.tokenHash,
       token_prefix: access.tokenPrefix,
       refresh_token_hash: refresh.tokenHash,
       refresh_token_prefix: refresh.tokenPrefix,
-      revoked_at: null,
-      expires_at: oauthExpiresAtFromNow(OAUTH_ACCESS_TOKEN_TTL_MS),
+      previous_refresh_token_hash: refreshHash,
+      expires_at: oauthExpiresAtFromNow(OAUTH_ACCESS_TOKEN_TTL_MS, nowMs),
+      refresh_expires_at:
+        refreshExpiresAt.getTime() < absoluteExpiresAt.getTime()
+          ? refreshExpiresAt
+          : absoluteExpiresAt,
+      absolute_expires_at: absoluteExpiresAt,
     })
-    .where(eq(mcpOAuthGrant.id, row.id));
-
-  return {
-    access_token: access.token,
-    token_type: 'bearer' as const,
-    expires_in: Math.floor(OAUTH_ACCESS_TOKEN_TTL_MS / 1000),
-    refresh_token: refresh.token,
-    scope: row.scopes.join(' '),
-  };
-};
-
-export const revokeOAuthToken = async (token: string): Promise<void> => {
-  const tokenHash = hashOAuthSecret(token);
-  const byAccess = await db.query.mcpOAuthGrant.findFirst({
-    where: eq(mcpOAuthGrant.token_hash, tokenHash),
-  });
-  if (byAccess) {
-    await db
-      .update(mcpOAuthGrant)
-      .set({ revoked_at: new Date() })
-      .where(eq(mcpOAuthGrant.id, byAccess.id));
-    return;
+    .where(
+      and(
+        eq(mcpOAuthGrant.id, row.id),
+        eq(mcpOAuthGrant.refresh_token_hash, refreshHash),
+        isNull(mcpOAuthGrant.revoked_at),
+      ),
+    )
+    .returning({ id: mcpOAuthGrant.id });
+  if (rotated.length === 0) {
+    throw new OAuthInvalidGrantError('reuse');
   }
 
-  const byRefresh = await db.query.mcpOAuthGrant.findFirst({
-    where: eq(mcpOAuthGrant.refresh_token_hash, tokenHash),
+  return tokenResponse(access.token, refresh.token, row.scopes);
+};
+
+/** RFC 7009: revoke by access or refresh token. Unknown tokens are a no-op. */
+export const revokeOAuthToken = async (token: string): Promise<void> => {
+  const tokenHash = hashOAuthSecret(token);
+  const grant = await db.query.mcpOAuthGrant.findFirst({
+    where: eq(mcpOAuthGrant.token_hash, tokenHash),
+    columns: { id: true },
   });
+  const byRefresh =
+    grant ??
+    (await db.query.mcpOAuthGrant.findFirst({
+      where: eq(mcpOAuthGrant.refresh_token_hash, tokenHash),
+      columns: { id: true },
+    }));
   if (byRefresh) {
-    await db
-      .update(mcpOAuthGrant)
-      .set({ revoked_at: new Date() })
-      .where(eq(mcpOAuthGrant.id, byRefresh.id));
+    await revokeOAuthGrant(byRefresh.id, 'revoked');
   }
 };
 

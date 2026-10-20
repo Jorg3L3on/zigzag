@@ -21,7 +21,10 @@ import {
   recordGovernanceAudit,
   sanitizeUserForAudit,
 } from '@/lib/governance-audit';
-import { bumpUserTokenVersion } from '@/lib/session-revocation';
+import {
+  bumpUserTokenVersion,
+  revokeAgentAccessForUser,
+} from '@/lib/session-revocation';
 import { recordAuthAuditEvent } from '@/lib/audit-security';
 import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
 import { checkRateLimit } from '@/lib/rate-limiter';
@@ -388,6 +391,10 @@ export async function updateUser(
     if (passwordChanged || roleChanged) {
       await bumpUserTokenVersion(id);
     }
+    // A new password also ends every agent connection authorized under the old one.
+    if (passwordChanged) {
+      await revokeAgentAccessForUser(id, 'password_reset', BigInt(authContext.userId));
+    }
 
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(authContext),
@@ -466,6 +473,7 @@ export async function resetUserTemporaryPassword(id: bigint): Promise<{
       })
       .where(and(eq(user.id, id), isNull(user.deleted_at)));
     await bumpUserTokenVersion(id);
+    await revokeAgentAccessForUser(id, 'password_reset', BigInt(context.userId));
 
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(context),
@@ -642,6 +650,10 @@ export async function updateOwnAccount(
       )
       .returning();
 
+    if (validatedData.newPassword) {
+      await revokeAgentAccessForUser(BigInt(authContext.userId), 'password_changed');
+    }
+
     revalidatePath('/account');
     return { success: true, data: updated };
   } catch (e) {
@@ -713,8 +725,9 @@ export async function deleteUser(
       .where(and(eq(user.id, id), isNull(user.deleted_at)))
       .returning();
 
-    // Immediately invalidate any active sessions for the deleted user.
+    // Immediately invalidate any active sessions and agent connections for the deleted user.
     await bumpUserTokenVersion(id);
+    await revokeAgentAccessForUser(id, 'user_deactivated', BigInt(authContext.userId));
 
     await recordGovernanceAudit(db, {
       actor: actionAuthToGovernanceActor(authContext),

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { BadgeCheck, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -31,6 +32,10 @@ type SelectableCompany = {
 type OAuthConsentFormProps = {
   clientName: string;
   clientUri: string | null;
+  /** Host the authorization code is sent to, from redirect_uri. */
+  redirectHost: string;
+  /** True only for CIMD clients from a trusted host. */
+  verified: boolean;
   requestedScope: string;
   consentParams: ConsentParams;
   companies: SelectableCompany[];
@@ -39,11 +44,15 @@ type OAuthConsentFormProps = {
 export default function OAuthConsentForm({
   clientName,
   clientUri,
+  redirectHost,
+  verified,
   requestedScope,
   consentParams,
   companies,
 }: OAuthConsentFormProps) {
-  const [allowWrite, setAllowWrite] = useState(requestedScope.includes('write'));
+  const writeRequested = requestedScope.split(/\s+/).includes('write');
+  // Write is opt-in: unchecked until the person ticks it.
+  const [allowWrite, setAllowWrite] = useState(false);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>(
     companies.length === 1 ? [companies[0]!.id] : [],
   );
@@ -131,6 +140,24 @@ export default function OAuthConsentForm({
               ) : null}{' '}
               solicita acceso a ZigZag.
             </CardDescription>
+            {verified ? (
+              <Badge variant="secondary" className="w-fit gap-1" data-testid="oauth-client-verified">
+                <BadgeCheck className="size-3.5" aria-hidden />
+                Verificado
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="w-fit gap-1 border-amber-500/50 text-amber-700 dark:text-amber-300"
+                data-testid="oauth-client-unverified"
+              >
+                <ShieldAlert className="size-3.5" aria-hidden />
+                Cliente no verificado
+              </Badge>
+            )}
+            <p className="text-sm text-muted-foreground" data-testid="oauth-redirect-host">
+              Te regresará a <span className="font-medium text-foreground break-all">{redirectHost}</span>
+            </p>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -162,8 +189,12 @@ export default function OAuthConsentForm({
               />
               <Label htmlFor="allow-write" className="text-sm font-normal">
                 Permitir escritura (crear tickets y cambiar estados)
+                {writeRequested ? ' — el cliente la solicita' : ''}
               </Label>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Si cambias tu contraseña o se desactiva tu cuenta, esta conexión se revoca.
+            </p>
             {submitError ? (
               <p className="text-sm text-destructive" role="alert">
                 {submitError}

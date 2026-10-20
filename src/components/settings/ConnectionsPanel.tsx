@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { API_KEY_MAX_DAYS } from '@/schemas/api-key.schema';
 import {
   Card,
   CardContent,
@@ -50,6 +51,10 @@ export type OAuthGrantSummary = {
   created_at: string;
   last_activity?: LastMcpActivity | null;
 };
+
+
+const formatKeyExpiry = (date: Date) =>
+  date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
 
 type SelectableCompany = { id: number; name: string };
 
@@ -240,6 +245,10 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               </div>
             ))}
           </div>
+          <p className="text-sm text-muted-foreground" data-testid="new-key-expiry">
+            Vence el {formatKeyExpiry(new Date(Date.now() + API_KEY_MAX_DAYS * 24 * 60 * 60 * 1000))}{' '}
+            (365 días). Después crea una llave nueva.
+          </p>
           <Button
             type="button"
             onClick={handleCreateKey}
