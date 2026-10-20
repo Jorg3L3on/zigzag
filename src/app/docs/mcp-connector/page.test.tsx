@@ -27,6 +27,8 @@ describe('/docs/mcp-connector', () => {
     const table = screen.getByTestId('docs-tools-table');
     expect(within(table).getByText('whoami')).toBeInTheDocument();
     expect(within(table).getByText('Escritura')).toBeInTheDocument();
+    const list = screen.getByTestId('docs-tools-list');
+    expect(within(list).getByText('create_ticket')).toBeInTheDocument();
     expect(screen.getByTestId('docs-scopes')).toHaveTextContent('read');
     expect(screen.getByTestId('docs-scopes')).toHaveTextContent('write');
     expect(screen.getByText('cobranza_de_hoy')).toBeInTheDocument();

@@ -107,8 +107,22 @@ export default async function McpConnectorDocsPage() {
             Llama <span className="font-mono">whoami</span> primero. Las herramientas de
             escritura piden confirmación en el cliente antes de ejecutarse.
           </p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-left text-sm" data-testid="docs-tools-table">
+          {/* Phones get a stacked list; the table needs room for three columns. */}
+          <ul className="mt-4 space-y-3 sm:hidden" data-testid="docs-tools-list">
+            {catalog.tools.map((tool) => (
+              <li key={tool.name} className="border-b border-[var(--mkt-line)] pb-3">
+                <p className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-mono font-semibold">{tool.name}</span>
+                  <span className="text-sm text-[var(--mkt-muted)]">
+                    {tool.readOnly ? 'Lectura' : 'Escritura'}
+                  </span>
+                </p>
+                <p className="text-sm text-[var(--mkt-muted)]">{tool.description}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 hidden overflow-x-auto sm:block">
+            <table className="w-full text-left text-sm" data-testid="docs-tools-table">
               <thead>
                 <tr className="border-b border-[var(--mkt-line-strong)]">
                   <th className="py-2 pr-3 font-semibold">Herramienta</th>
