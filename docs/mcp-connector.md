@@ -1,6 +1,8 @@
-# MCP connector (ZigZag tickets)
+# MCP connector (ZigZag)
 
-ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /api/mcp` para conectar agentes externos (ChatGPT Developer Mode, Cursor, Claude u otro cliente MCP con Streamable HTTP). Las tools operan sobre tickets y clientes — no sobre pagos ni finanzas.
+ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /api/mcp` para conectar agentes externos: **ChatGPT**, **Grok**, **Claude** y **Cursor** (o cualquier cliente MCP con Streamable HTTP). Las tools leen y preparan documentos (presupuestos, tickets, recibos), clientes y catálogo, y buscan con `search`/`fetch`.
+
+La guía pública vive en la app en **`/docs/mcp-connector`** (es la `service_documentation` que anuncia el servidor OAuth); su tabla de tools se genera del registro, así que siempre coincide con lo desplegado. En la app, **Ajustes → Conexiones** muestra una tarjeta por cliente con la URL, los pasos y el último `whoami` de ese cliente.
 
 ## URL del conector
 
@@ -10,6 +12,28 @@ ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /
 | Local | `http://localhost:3069/api/mcp` |
 
 `/mcp` es un alias de `/api/mcp` (mismo handler; algunos clientes, como ChatGPT, usan `origen + /mcp`). El endpoint responde `OPTIONS` con CORS abierto. Sin un token válido ninguna tool devuelve datos (401 + `WWW-Authenticate` RFC 9728).
+
+## Clientes
+
+| Cliente | Autenticación | Pasos |
+|---|---|---|
+| **ChatGPT** | OAuth (CIMD) | Ajustes → Conectores → Modo desarrollador → Crear; pega la URL; OAuth; inicia sesión en ZigZag, elige compañías y Autorizar |
+| **Grok** | OAuth (si Grok no completa OAuth: llave `zigzag_…`) | grok.com/connectors → New Connector → Custom; pega la URL; completa la autenticación en ZigZag |
+| **Claude** | OAuth (DCR) | claude.ai → Settings → Connectors → Add custom connector; pega la URL; Connect → ZigZag → Autorizar |
+| **Cursor** | Llave `zigzag_…` (Bearer) | Crea una llave en Conexiones; Settings → MCP → Add new MCP server, o `~/.cursor/mcp.json` (abajo) |
+
+```json
+{
+  "mcpServers": {
+    "zigzag": {
+      "url": "https://<tu-dominio>/api/mcp",
+      "headers": { "Authorization": "Bearer zigzag_…" }
+    }
+  }
+}
+```
+
+Claude y Grok se registran por DCR con su propio nombre: se aceptan porque todos sus `redirect_uris` están en los hosts del proveedor (`claude.ai`/`claude.com`/`anthropic.com`, `grok.com`/`x.ai`/`x.com`). Un cliente que usa esos nombres con otro `redirect_uri` se rechaza (`invalid_client_metadata`). La verificación en vivo con los cuatro clientes está pendiente del despliegue (ZIG-I23-9).
 
 ### Origen público (issuer / resource)
 
@@ -30,7 +54,13 @@ Mantén `NEXTAUTH_URL` alineado con la URL canónica de NextAuth en Vercel; el c
 | **Bearer `zigzag_…`** | Cursor, Claude (header manual) | Ajustes → Conexiones → Nueva llave |
 | **OAuth 2.1** | ChatGPT (Developer Mode + OAuth) | Login + consentimiento; DCR automático |
 
-Ambos identifican al **mismo usuario** de ZigZag y respetan scopes `read` / `write`.
+Ambos identifican al **mismo usuario** de ZigZag y respetan los scopes:
+
+| Scope | Qué permite |
+|---|---|
+| `read` | Leer compañías, documentos, clientes, catálogo, `search`/`fetch`. Siempre incluido |
+| `write` | Crear y editar documentos y clientes, convertir presupuestos, cambiar estados. Opt-in al autorizar |
+| `payments` | Registrar pagos y cobros (ZIG-I23-7). Apagado por defecto, se concede aparte de `write` |
 
 ### Allow-list de compañías (fail closed)
 
@@ -83,6 +113,11 @@ Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en 
 | `get_client` | read | Expediente: teléfono, email, dirección estructurada, notas, saldo y últimos 10 documentos (requiere también `tickets.read`) |
 | `list_services` | read | Servicios con sus materiales por defecto (`services.read`); `query?`, `limit?`, `cursor?` |
 | `list_materials` | read | Materiales con unidad y precio (`services.read`); `query?`, `limit?`, `cursor?` |
+| `list_documents` | read | Tickets y presupuestos, del más reciente al más antiguo; filtros por tipo, cliente, folio, fechas, estado de pago, terminado y texto; pagina con `next_cursor` |
+| `get_document` | read | Ticket o presupuesto completo: líneas con materiales, notas, folio, saldo, contacto del cliente y enlaces (app, pdf, share) |
+| `get_company_summary` | read | Resumen del día como en Inicio: trabajos de hoy y atrasados, por cobrar, saldo pendiente y presupuestos abiertos |
+| `search` | read | Texto libre sobre documentos, clientes y servicios (sin `company_id` busca en todas las compañías autorizadas); hasta 20 resultados con `id` (`doc:`, `client:`, `service:`), título y url |
+| `fetch` | read | Lee completo un resultado de `search` por su `id` (forma de conocimiento de OpenAI) |
 
 ### Flujo típico del agente
 
@@ -113,6 +148,10 @@ Para clientes que muestran prompts y recursos MCP (Claude, Cursor). Los prompts 
 
 `resources/list` solo muestra compañías de la allow-list a las que el usuario tiene acceso y cuyo permiso tiene. Una compañía fuera de la allow-list o sin permiso responde como recurso no encontrado, con el mismo mensaje que las tools.
 
+## Registro de actividad
+
+Cada `tools/call` de una conexión identificada queda en `McpToolCall` (tool, compañía, resultado, duración) durante 90 días. En Conexiones cada llave o conexión OAuth muestra su última actividad y un historial, y cada tarjeta de cliente muestra su último `whoami` correcto.
+
 ## Endpoints OAuth
 
 | Endpoint | Método |
@@ -127,7 +166,7 @@ Para clientes que muestran prompts y recursos MCP (Claude, Cursor). Los prompts 
 
 ## Fuera de alcance
 
-- Pagos de tickets / movimiento de dinero.
+- Movimiento de dinero fuera del scope `payments` (ZIG-I23-7).
 - Plugins Directory de ChatGPT.
 - Tools de finanzas (MiCasa).
 

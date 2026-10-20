@@ -5,7 +5,6 @@ import {
   buildAuthorizationServerMetadata,
   buildProtectedResourceMetadata,
   buildWwwAuthenticateChallenge,
-  MCP_SERVICE_DOCUMENTATION_URL,
 } from '@/lib/server/mcp-oauth/metadata';
 
 const STALE_ENV_ORIGIN = 'https://zigzag.vercel.app';
@@ -65,13 +64,10 @@ describe('MCP OAuth well-known metadata', () => {
     expect(JSON.stringify(metadata)).not.toContain('zigzag.vercel.app');
   });
 
-  it('service_documentation points at a page that resolves (the repo doc until ZIG-I23-9)', () => {
+  it('service_documentation points at the public in-app guide on the request host', () => {
     const metadata = buildAuthorizationServerMetadata(buildRequest(LIVE_HOST));
 
-    expect(metadata.service_documentation).toBe(MCP_SERVICE_DOCUMENTATION_URL);
-    expect(MCP_SERVICE_DOCUMENTATION_URL).toBe(
-      'https://github.com/Jorg3L3on/zigzag/blob/main/docs/mcp-connector.md',
-    );
+    expect(metadata.service_documentation).toBe(`https://${LIVE_HOST}/docs/mcp-connector`);
   });
 
   it('WWW-Authenticate resource_metadata points at the request host', () => {

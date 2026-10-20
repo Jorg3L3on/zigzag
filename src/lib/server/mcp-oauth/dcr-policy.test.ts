@@ -26,16 +26,36 @@ describe('DCR policy', () => {
     expect(isAllowedDcrRedirectUri(uri)).toBe(false);
   });
 
+  const phishing = ['https://evil.example.net/cb'];
+
   it.each(['ChatGPT', 'Open AI helper', 'GROK', 'x.AI', 'Claude Desktop', 'anthropic', 'Cursor'])(
-    'treats "%s" as impersonating a known client',
+    'treats "%s" with a foreign redirect as impersonating a known client',
     (name) => {
-      expect(impersonatesKnownClient(name)).toBe(true);
+      expect(impersonatesKnownClient(name, phishing)).toBe(true);
     },
   );
 
+  it.each([
+    ['Claude', ['https://claude.ai/api/mcp/auth_callback']],
+    ['Claude', ['https://claude.ai/api/mcp/auth_callback', 'https://claude.com/api/mcp/auth_callback']],
+    ['Grok', ['https://grok.com/connectors/oauth/callback']],
+    ['ChatGPT', ['https://chatgpt.com/connector_platform_oauth_redirect']],
+  ])('lets the real %s register with its own redirect hosts', (name, uris) => {
+    expect(impersonatesKnownClient(name, uris)).toBe(false);
+  });
+
+  it('rejects a known name when any redirect leaves the vendor', () => {
+    expect(
+      impersonatesKnownClient('Claude', [
+        'https://claude.ai/api/mcp/auth_callback',
+        'https://claude.ai.evil.example/cb',
+      ]),
+    ).toBe(true);
+  });
+
   it('lets ordinary names through', () => {
-    expect(impersonatesKnownClient('Mi agente de soporte')).toBe(false);
-    expect(impersonatesKnownClient(undefined)).toBe(false);
+    expect(impersonatesKnownClient('Mi agente de soporte', phishing)).toBe(false);
+    expect(impersonatesKnownClient(undefined, phishing)).toBe(false);
   });
 
   it('reports the RFC 7591 error codes', () => {

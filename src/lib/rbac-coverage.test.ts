@@ -126,6 +126,15 @@ describe('RBAC coverage', () => {
     expect(unguarded).toEqual([]);
   });
 
+  it('keeps the public MCP guide outside the app shell and listed as public', () => {
+    // The OAuth metadata advertises it as service_documentation, so guests must reach it.
+    expect(existsSync(path.join(root, 'src/app/docs/mcp-connector/page.tsx'))).toBe(true);
+    expect(existsSync(path.join(root, 'src/app/(app)/docs'))).toBe(false);
+    expect(read(path.join(root, 'src/lib/marketing-routes.ts'))).toMatch(
+      /PUBLIC_MARKETING_PATHS = \[[^\]]*MCP_DOCS_PATH/,
+    );
+  });
+
   it('rate-limits the public OAuth endpoints that create state', () => {
     const limited: Record<string, RegExp> = {
       'src/app/api/oauth/register/route.ts': /enforceOAuthRateLimit\(\s*'register'/,

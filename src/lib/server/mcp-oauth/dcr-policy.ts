@@ -1,20 +1,14 @@
 /**
  * What dynamic client registration accepts. DCR is open to anyone, so the
  * metadata is attacker-chosen: redirect URIs must be HTTPS (or loopback for
- * native clients) and names may not pose as a known AI client, since the real
- * ones arrive through CIMD from a trusted host.
+ * native clients), and a name that claims a known AI client (ChatGPT, Grok,
+ * Claude, Cursor…) is only accepted when every redirect URI is on that
+ * vendor's own hosts. Claude and Grok register through DCR under their own
+ * names; a phishing client that borrows the name cannot receive the code there.
  */
-const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
+import { clientNamedIn, isOfficialHost } from '@/lib/mcp-clients';
 
-export const IMPERSONATED_CLIENT_NAMES = [
-  'chatgpt',
-  'openai',
-  'grok',
-  'xai',
-  'claude',
-  'anthropic',
-  'cursor',
-] as const;
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export const isAllowedDcrRedirectUri = (value: string): boolean => {
   let url: URL;
@@ -28,10 +22,13 @@ export const isAllowedDcrRedirectUri = (value: string): boolean => {
   return url.protocol === 'http:' && LOOPBACK_HOSTNAMES.has(url.hostname);
 };
 
-export const impersonatesKnownClient = (name: string | undefined | null): boolean => {
-  if (!name) return false;
-  const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-  return IMPERSONATED_CLIENT_NAMES.some((known) => normalized.includes(known));
+export const impersonatesKnownClient = (
+  name: string | undefined | null,
+  redirectUris: string[],
+): boolean => {
+  const named = clientNamedIn(name);
+  if (!named) return false;
+  return !redirectUris.every((uri) => isOfficialHost(named, uri));
 };
 
 export type DcrPolicyError = {
@@ -51,7 +48,7 @@ export const checkDcrMetadata = (input: {
         'redirect_uris debe usar https:// (o http:// solo en 127.0.0.1, localhost o [::1])',
     };
   }
-  if (impersonatesKnownClient(input.client_name)) {
+  if (impersonatesKnownClient(input.client_name, input.redirect_uris)) {
     return {
       error: 'invalid_client_metadata',
       description: 'client_name no puede hacerse pasar por un cliente conocido',

@@ -4,6 +4,7 @@ import {
   MCP_OAUTH_SCOPES,
   oauthPath,
 } from '@/lib/server/mcp-oauth/config';
+import { MCP_DOCS_PATH } from '@/lib/marketing-routes';
 
 export const buildProtectedResourceMetadata = (request?: Request) => {
   const issuer = getOAuthIssuer(request);
@@ -15,13 +16,6 @@ export const buildProtectedResourceMetadata = (request?: Request) => {
     resource_documentation: `${issuer}/settings/connections`,
   };
 };
-
-/**
- * Public docs for the connector. The in-app /docs/mcp-connector page ships in
- * ZIG-I23-9; until then the repo's markdown on GitHub is the page that resolves.
- */
-export const MCP_SERVICE_DOCUMENTATION_URL =
-  'https://github.com/Jorg3L3on/zigzag/blob/main/docs/mcp-connector.md';
 
 export const OAUTH_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED = [
   'none',
@@ -44,7 +38,7 @@ export const buildAuthorizationServerMetadata = (request?: Request) => {
     ],
     scopes_supported: MCP_OAUTH_SCOPES,
     client_id_metadata_document_supported: true,
-    service_documentation: MCP_SERVICE_DOCUMENTATION_URL,
+    service_documentation: `${issuer}${MCP_DOCS_PATH}`,
   };
 };
 
