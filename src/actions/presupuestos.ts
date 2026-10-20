@@ -1,14 +1,12 @@
 'use server';
 
 import { formatDocumentFolio } from '@/lib/folio';
-import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
   servicesTickets,
   ticket,
-  ticketLineMaterial,
   type Client,
   type Service,
   type ServicesTicketsRow,
@@ -16,6 +14,12 @@ import {
   type TicketRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
+import { createDocumentWithLines } from '@/lib/documents/create-document';
+import {
+  convertPresupuesto,
+  PresupuestoNotConvertibleError,
+  PresupuestoNotFoundError,
+} from '@/lib/documents/convert-presupuesto';
 import {
   AuthenticationError,
   AuthorizationError,
@@ -36,7 +40,6 @@ import { recordTicketAudit } from '@/lib/ticket-audit';
 import {
   assertTicketTotalWithinCap,
   calculateTicketTotal,
-  syncTicketTotal,
 } from '@/lib/ticket-financials';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 import {
@@ -53,8 +56,6 @@ import {
 } from '@/lib/ticket-service-line-schema';
 import {
   catalogServiceIds,
-  copyLineMaterialValues,
-  copyServiceLineValues,
   insertServiceLines,
 } from '@/lib/service-lines-server';
 import { activeLineMaterialsWith } from '@/lib/line-materials-query';
@@ -188,8 +189,6 @@ export async function getPresupuestosList(
   }
 }
 
-const TICKET_EMAIL_MAX_LENGTH = 40;
-
 const startOfDay = (value: Date): number => {
   const day = new Date(value);
   day.setHours(0, 0, 0, 0);
@@ -243,83 +242,15 @@ export async function createPresupuestoWithLines(
 
     await assertCompanyProductionReady(effectiveCompanyId);
 
-    const clientRow = await db.query.client.findFirst({
-      where: and(
-        eq(client.id, validated.client_id),
-        eq(client.company_id, effectiveCompanyId),
-        isNull(client.deleted_at),
-      ),
-      columns: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        document: true,
-      },
-    });
-    if (!clientRow) {
-      throw new AuthorizationError('Client not found for this company');
-    }
-
-    await assertServicesBelongToCompany(
-      catalogServiceIds(validated.lines),
-      effectiveCompanyId,
-    );
-
-    const created = await db.transaction(async (tx) => {
-      const folio = await allocateDocumentFolio(tx, {
-        companyId: effectiveCompanyId,
-        documentKind: 'presupuesto',
-      });
-      const [row] = await tx
-        .insert(ticket)
-        .values({
-          ...folio,
-          client_id: clientRow.id,
-          client_name: clientRow.name.slice(0, 100),
-          client_tel: (clientRow.phone ?? '').slice(0, 20),
-          email:
-            clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH
-              ? clientRow.email
-              : null,
-          document: clientRow.document ?? null,
-          work_notes: validated.work_notes || null,
-          ticket_date: validated.ticket_date,
-          expires_at: validated.expires_at ?? null,
-          company_id: effectiveCompanyId,
-          userId: BigInt(context.userId),
-          document_kind: 'presupuesto',
-          finished: false,
-          paid: 0,
-          total: 0,
-        })
-        .returning();
-
-      const { rows: lineRows, createdServiceIds, createdMaterialIds } =
-        await insertServiceLines(tx, {
-          companyId: effectiveCompanyId,
-          ticketId: row.id,
-          lines: validated.lines,
-        });
-
-      const syncedTotal = await syncTicketTotal(tx, row.id);
-
-      await recordTicketAudit(tx, context, row.id, effectiveCompanyId, 'created', {
-        ticket: { ...row, total: syncedTotal },
-        document_kind: 'presupuesto',
-        source: 'composer',
-        lines: lineRows,
-        ...(createdServiceIds.length > 0
-          ? { savedToCatalogServiceIds: createdServiceIds }
-          : {}),
-        ...(createdMaterialIds.length > 0
-          ? { savedToCatalogMaterialIds: createdMaterialIds }
-          : {}),
-        syncedTotal,
-        ignoredClientTotal: validated.client_total ?? null,
-      });
-
-      return { id: row.id, total: syncedTotal, folio: formatDocumentFolio({ ...row, document_kind: 'presupuesto' }) };
+    const created = await createDocumentWithLines(context, {
+      companyId: effectiveCompanyId,
+      kind: 'presupuesto',
+      clientId: validated.client_id,
+      ticketDate: validated.ticket_date,
+      expiresAt: validated.expires_at ?? null,
+      workNotes: validated.work_notes,
+      lines: validated.lines,
+      clientTotal: validated.client_total,
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -594,119 +525,9 @@ export async function convertPresupuestoToTicket(
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       companyId ?? undefined,
     );
-    const sourceId = BigInt(id);
-
-    const source = await db.query.ticket.findFirst({
-      where: and(
-        eq(ticket.id, sourceId),
-        eq(ticket.company_id, effectiveCompanyId),
-        isNull(ticket.deleted_at),
-      ),
-      with: {
-        services_tickets: {
-          where: isNull(servicesTickets.deleted_at),
-          with: { ...activeLineMaterialsWith },
-        },
-      },
-    });
-
-    if (!source || !isPresupuestoTicket(source.document_kind)) {
-      return buildActionError('TC008');
-    }
-    if (!isPresupuestoMutable(source)) {
-      return buildActionError('TC009', undefined, 'validation');
-    }
-
-    const result = await db.transaction(async (tx) => {
-      // The ticket gets its own R folio; the P folio stays on the presupuesto and is
-      // reachable through converted_from_ticket_id (ZIG-I17-4).
-      const folio = await allocateDocumentFolio(tx, {
-        companyId: effectiveCompanyId,
-        documentKind: 'ticket',
-      });
-      const [workTicket] = await tx
-        .insert(ticket)
-        .values({
-          ...folio,
-          client_id: source.client_id,
-          client_name: source.client_name,
-          client_tel: source.client_tel,
-          email: source.email,
-          document: source.document,
-          ticket_date: source.ticket_date ?? new Date(),
-          company_id: effectiveCompanyId,
-          userId: BigInt(context.userId),
-          document_kind: 'ticket',
-          finished: false,
-          paid: 0,
-          total: source.total ?? 0,
-          converted_from_ticket_id: sourceId,
-        })
-        .returning();
-
-      const activeLines = source.services_tickets ?? [];
-      // Catalog and inline lines (ZIG-I5) and their materials (ZIG-I10) are
-      // copied verbatim. One insert per line keeps each material set on the
-      // matching new line id.
-      for (const line of activeLines) {
-        const [copied] = await tx
-          .insert(servicesTickets)
-          .values(copyServiceLineValues([line], workTicket.id))
-          .returning({ id: servicesTickets.id });
-        const lineMaterials = line.materials ?? [];
-        if (lineMaterials.length > 0) {
-          await tx
-            .insert(ticketLineMaterial)
-            .values(copyLineMaterialValues(lineMaterials, copied.id));
-        }
-      }
-
-      const [presupuesto] = await tx
-        .update(ticket)
-        .set({
-          converted_to_ticket_id: workTicket.id,
-          updated_at: new Date(),
-        })
-        .where(
-          and(
-            eq(ticket.id, sourceId),
-            eq(ticket.company_id, effectiveCompanyId),
-            isNull(ticket.deleted_at),
-            isNull(ticket.converted_to_ticket_id),
-            isNull(ticket.canceled_at),
-          ),
-        )
-        .returning();
-
-      if (!presupuesto) {
-        throw new Error('PRESUPUESTO_ALREADY_CONVERTED');
-      }
-
-      await recordTicketAudit(
-        tx,
-        context,
-        sourceId,
-        effectiveCompanyId,
-        'presupuesto_converted',
-        {
-          sourcePresupuestoId: String(sourceId),
-          targetTicketId: String(workTicket.id),
-        },
-      );
-
-      await recordTicketAudit(
-        tx,
-        context,
-        workTicket.id,
-        effectiveCompanyId,
-        'created',
-        {
-          ticket: workTicket,
-          converted_from_presupuesto_id: String(sourceId),
-        },
-      );
-
-      return { presupuesto, workTicket };
+    const result = await convertPresupuesto(context, {
+      companyId: effectiveCompanyId,
+      presupuestoId: BigInt(id),
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -719,7 +540,10 @@ export async function convertPresupuestoToTicket(
       },
     };
   } catch (e) {
-    if (e instanceof Error && e.message === 'PRESUPUESTO_ALREADY_CONVERTED') {
+    if (e instanceof PresupuestoNotFoundError) {
+      return buildActionError('TC008');
+    }
+    if (e instanceof PresupuestoNotConvertibleError) {
       return buildActionError('TC009', undefined, 'validation');
     }
     return handleCodedServerActionError('presupuestos.convert', 'TC001', e);

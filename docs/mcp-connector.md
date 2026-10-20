@@ -73,8 +73,12 @@ Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en 
 | `list_companies` | read | Compañías allow-listed visibles para el usuario |
 | `list_tickets` | read | Lista tickets (`company_id`, `limit?`, `finished?`) |
 | `get_ticket` | read | Detalle de ticket |
-| `create_ticket` | write | Crea ticket (shell; sin pagos) |
+| `create_ticket` | write | **Obsoleto** (una versión más): crea un ticket sin líneas. Usa `create_document` |
 | `update_ticket_status` | write | Marca `finished` true/false |
+| `create_document` | write | Ticket o presupuesto con líneas y materiales, con las reglas del compositor (folio siguiente, total del servidor, límites ZIG-I12). `client`: `{ client_id }` o `{ name, phone, email? }` (reusa el cliente con ese teléfono). `payment?` solo tickets (`pendiente`, `pagado`, `{ parcial }`): lo termina como el paso Listo. `idempotency_key?`: un reintento con la misma clave en 24 h por conexión devuelve el primer documento (`replayed: true`) |
+| `update_document` | write | Cliente, fecha, líneas (reemplazo completo), notas o `finished`. Rechaza con `validation` un documento pagado por completo o un presupuesto convertido/cancelado; el folio no cambia |
+| `convert_presupuesto` | write | Presupuesto vigente → ticket nuevo con folio R y las mismas líneas; devuelve el ticket con `source_presupuesto_folio` |
+| `create_client` / `update_client` | write | Nombre, teléfono (7–20 dígitos, único por compañía: el error trae el `client_id` existente), email, documento, dirección estructurada y notas (`clients.write`) |
 | `list_clients` | read | Clientes (id, nombre, email, documento — sin teléfono/dirección); `query?`, `limit?`, `cursor?` |
 | `get_client` | read | Expediente: teléfono, email, dirección estructurada, notas, saldo y últimos 10 documentos (requiere también `tickets.read`) |
 | `list_services` | read | Servicios con sus materiales por defecto (`services.read`); `query?`, `limit?`, `cursor?` |
@@ -84,7 +88,7 @@ Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en 
 
 1. `whoami` → confirma la cuenta y sus compañías; `list_companies` → elige `company_id`.
 2. `list_tickets` / `list_clients` con ese `company_id`. `list_clients`, `list_services` y `list_materials` paginan con `next_cursor`: pásalo como `cursor` para la siguiente página.
-3. Escrituras solo con scope `write`.
+3. Escrituras solo con scope `write` (opt-in en el consentimiento). Cada escritura queda en Auditoría y en el historial del documento como `Agente MCP: <tool> · <conexión>`.
 
 ### Contrato de resultados (v2)
 
