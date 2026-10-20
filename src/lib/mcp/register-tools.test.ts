@@ -40,6 +40,12 @@ jest.mock('@/lib/rate-limiter', () => ({
 }));
 
 // Document tools (ZIG-I23-3) have their own suite in tools/documents.test.ts.
+// search/fetch run end to end in tools/search.db.test.ts.
+jest.mock('@/lib/mcp/domain/search', () => ({
+  fetchKnowledge: jest.fn(),
+  searchKnowledge: jest.fn(),
+}));
+
 jest.mock('@/lib/mcp/domain/documents', () => ({
   getAgentCompanySummary: jest.fn(),
   getAgentDocument: jest.fn(),
@@ -295,10 +301,11 @@ describe('tools/list', () => {
     tools = (response.result as { tools: ToolDefinition[] }).tools;
   });
 
-  it('lists whoami, the six v1 tools, the catalog tools and the document tools', () => {
+  it('lists whoami, the six v1 tools, the catalog, document and search tools', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
         'create_ticket',
+        'fetch',
         'get_client',
         'get_company_summary',
         'get_document',
@@ -309,6 +316,7 @@ describe('tools/list', () => {
         'list_services',
         'list_companies',
         'list_tickets',
+        'search',
         'update_ticket_status',
         'whoami',
       ].sort(),

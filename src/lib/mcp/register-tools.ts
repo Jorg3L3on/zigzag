@@ -11,6 +11,7 @@ import {
 import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
 import { registerCatalogTools } from '@/lib/mcp/tools/catalog';
 import { registerDocumentTools } from '@/lib/mcp/tools/documents';
+import { registerSearchTools } from '@/lib/mcp/tools/search';
 import {
   getTicketOutputSchema,
   listCompaniesOutputSchema,
@@ -196,4 +197,5 @@ export const registerMcpTools = (server: McpServer) => {
 
   registerCatalogTools(server);
   registerDocumentTools(server);
+  registerSearchTools(server);
 };
