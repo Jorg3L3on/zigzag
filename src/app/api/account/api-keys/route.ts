@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { apiKey } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { lastMcpActivityByConnection } from '@/lib/mcp/activity';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { recordAgentAccessAudit } from '@/lib/server/agent-access-audit';
 import { generateAgentToken, hashAgentToken } from '@/lib/server/agent-token';
@@ -62,7 +63,18 @@ export async function GET() {
       orderBy: (fields, { desc }) => [desc(fields.created_at)],
     });
 
-    return NextResponse.json(keys.map(toApiKeyDto), { status: 200 });
+    const lastActivity = await lastMcpActivityByConnection(
+      'api_key',
+      keys.map((key) => key.id),
+    );
+
+    return NextResponse.json(
+      keys.map((key) => ({
+        ...toApiKeyDto(key),
+        last_activity: lastActivity.get(key.id) ?? null,
+      })),
+      { status: 200 },
+    );
   } catch (error) {
     console.error('Error listing api keys:', error);
     return NextResponse.json(

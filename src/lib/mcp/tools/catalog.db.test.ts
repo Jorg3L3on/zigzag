@@ -371,7 +371,13 @@ describeDb('catalog and client tools (real Postgres)', () => {
     });
     const docs = detail.recent_documents as Array<Record<string, unknown>>;
     expect(docs).toHaveLength(10);
-    expect(docs[0]).toMatchObject({ document_kind: 'presupuesto', total: 100 });
+    expect(docs[0]).toMatchObject({ kind: 'presupuesto', total: 100 });
+    // Same summary as list_documents (ZIG-I23-3).
+    expect(docs[0]).toMatchObject({
+      folio: { label: expect.any(String) },
+      payment_status: expect.any(String),
+      balance: expect.any(Number),
+    });
     expect(docs.every((doc) => doc.total === 100)).toBe(true);
     expect(jest.mocked(assertAgentCompanyAccess)).toHaveBeenCalledWith(
       expect.objectContaining({ companyId: companyA }),

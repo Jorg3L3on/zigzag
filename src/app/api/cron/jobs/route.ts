@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runDueJobs } from '@/lib/jobs/queue';
 import { processAuditOutbox } from '@/lib/jobs/audit-outbox';
-import { runMcpOAuthRetention } from '@/lib/server/mcp-oauth/retention';
+import { runRetention } from '@/lib/jobs/retention';
 import { captureException } from '@/lib/observability';
 import {
   REQUEST_ID_HEADER,
@@ -44,8 +44,8 @@ export async function GET(request: Request) {
   try {
     const jobs = await runDueJobs();
     const outbox = await processAuditOutbox();
-    const oauthRetention = await runMcpOAuthRetention();
-    const response = NextResponse.json({ success: true, jobs, outbox, oauthRetention });
+    const retention = await runRetention();
+    const response = NextResponse.json({ success: true, jobs, outbox, retention });
     response.headers.set(REQUEST_ID_HEADER, requestId);
     return response;
   } catch (error) {

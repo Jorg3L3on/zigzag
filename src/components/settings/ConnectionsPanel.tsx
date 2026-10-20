@@ -22,6 +22,9 @@ import {
   TripledPageHeader,
   TripledResourceCard,
 } from '@/components/tripled';
+import type { LastMcpActivity } from '@/lib/mcp/activity';
+import { McpActivityList } from '@/components/settings/McpActivityList';
+import { LastActivityLine } from '@/components/settings/mcp-activity-row';
 
 export type ApiKeySummary = {
   id: number;
@@ -33,6 +36,7 @@ export type ApiKeySummary = {
   expires_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  last_activity?: LastMcpActivity | null;
 };
 
 export type OAuthGrantSummary = {
@@ -45,6 +49,7 @@ export type OAuthGrantSummary = {
   expires_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  last_activity?: LastMcpActivity | null;
 };
 
 
@@ -283,27 +288,36 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
             activeKeys.map((key) => (
               <div
                 key={key.id}
-                className="flex flex-col gap-2 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="rounded-xl border border-border/60 p-3"
+                data-testid="api-key-card"
               >
-                <div>
-                  <p className="font-medium">{key.name}</p>
-                  <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
-                    <Badge variant="outline">
-                      {key.allowed_company_ids.length} compañía(s)
-                    </Badge>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">{key.name}</p>
+                    <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
+                      <Badge variant="outline">
+                        {key.allowed_company_ids.length} compañía(s)
+                      </Badge>
+                    </div>
+                    <div className="mt-1">
+                      <LastActivityLine activity={key.last_activity ?? null} />
+                    </div>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRevokeKey(key.id)}
+                  >
+                    <ShieldOff className="mr-2 size-4" aria-hidden />
+                    Revocar
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRevokeKey(key.id)}
-                >
-                  <ShieldOff className="mr-2 size-4" aria-hidden />
-                  Revocar
-                </Button>
+                <div className="mt-2 border-t border-border/60 pt-1">
+                  <McpActivityList kind="api_key" connectionId={key.id} />
+                </div>
               </div>
             ))
           )}
@@ -325,23 +339,32 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               .map((grant) => (
                 <div
                   key={grant.id}
-                  className="flex flex-col gap-2 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="rounded-xl border border-border/60 p-3"
+                  data-testid="oauth-grant-card"
                 >
-                  <div>
-                    <p className="font-medium">{grant.client_name}</p>
-                    <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
-                    <Badge variant="outline" className="mt-1">
-                      {grant.allowed_company_ids.length} compañía(s)
-                    </Badge>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">{grant.client_name}</p>
+                      <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
+                      <Badge variant="outline" className="mt-1">
+                        {grant.allowed_company_ids.length} compañía(s)
+                      </Badge>
+                      <div className="mt-1">
+                        <LastActivityLine activity={grant.last_activity ?? null} />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRevokeGrant(grant.id)}
+                    >
+                      Revocar
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRevokeGrant(grant.id)}
-                  >
-                    Revocar
-                  </Button>
+                  <div className="mt-2 border-t border-border/60 pt-1">
+                    <McpActivityList kind="oauth_grant" connectionId={grant.id} />
+                  </div>
                 </div>
               ))
           )}

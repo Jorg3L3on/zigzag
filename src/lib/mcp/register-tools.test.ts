@@ -39,6 +39,13 @@ jest.mock('@/lib/rate-limiter', () => ({
   checkRateLimit: jest.fn().mockResolvedValue(true),
 }));
 
+// Document tools (ZIG-I23-3) have their own suite in tools/documents.test.ts.
+jest.mock('@/lib/mcp/domain/documents', () => ({
+  getAgentCompanySummary: jest.fn(),
+  getAgentDocument: jest.fn(),
+  listAgentDocuments: jest.fn(),
+}));
+
 jest.mock('@/lib/mcp/domain', () => ({
   createAgentTicket: jest.fn(),
   getAgentIdentity: jest.fn(),
@@ -114,6 +121,7 @@ type RpcResponse = {
 
 type ToolDefinition = {
   name: string;
+  description?: string;
   annotations?: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
   _meta?: Record<string, unknown>;
@@ -256,13 +264,20 @@ beforeEach(() => {
     recent_documents: [
       {
         id: '9001',
-        document_kind: 'ticket',
-        folio: 'R-0001',
+        client_id: 42,
+        client_name: 'Sample Client',
         ticket_date: new Date('2026-01-15T10:00:00.000Z'),
         total: 150.5,
         paid: 0,
         finished: true,
+        company_id: 7,
         created_at: new Date('2026-01-15T10:00:00.000Z'),
+        kind: 'ticket' as const,
+        folio: { prefix: 'R', number: 1, label: 'R-0001' },
+        payment_status: 'pendiente' as const,
+        balance: 150.5,
+        presupuesto_status: null,
+        updated_at: null,
       },
     ],
     company_id: 7,
@@ -280,12 +295,15 @@ describe('tools/list', () => {
     tools = (response.result as { tools: ToolDefinition[] }).tools;
   });
 
-  it('lists whoami, the six v1 tools and the catalog tools', () => {
+  it('lists whoami, the six v1 tools, the catalog tools and the document tools', () => {
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
         'create_ticket',
         'get_client',
+        'get_company_summary',
+        'get_document',
         'get_ticket',
+        'list_documents',
         'list_clients',
         'list_materials',
         'list_services',
@@ -325,6 +343,14 @@ describe('tools/list', () => {
       destructiveHint: false,
       idempotentHint: true,
     });
+  });
+
+  it('list_tickets and get_ticket say they are deprecated and point to the document tools', () => {
+    const byName = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
+    expect(byName.list_tickets.description).toMatch(/deprecated/);
+    expect(byName.list_tickets.description).toContain('list_documents');
+    expect(byName.get_ticket.description).toMatch(/deprecated/);
+    expect(byName.get_ticket.description).toContain('get_document');
   });
 
   it("whoami carries _meta['openai/profile'] = true", () => {
@@ -386,6 +412,27 @@ describe('tools/call', () => {
     const result = await callTool('whoami');
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent).toMatchObject({ companies: [] });
+  });
+
+  it('list_tickets and get_ticket keep the v1 shape (no document fields)', async () => {
+    const v1Keys = [
+      'client_id',
+      'client_name',
+      'company_id',
+      'created_at',
+      'finished',
+      'id',
+      'paid',
+      'ticket_date',
+      'total',
+    ];
+    const list = await callTool('list_tickets', { company_id: 7 });
+    const [first] = (list.structuredContent as { tickets: Array<Record<string, unknown>> })
+      .tickets;
+    expect(Object.keys(first).sort()).toEqual(v1Keys);
+    const detail = await callTool('get_ticket', { company_id: 7, ticket_id: '9001' });
+    const ticket = (detail.structuredContent as { ticket: Record<string, unknown> }).ticket;
+    expect(Object.keys(ticket).sort()).toEqual([...v1Keys, 'services_tickets'].sort());
   });
 
   it('serialises ids as strings and dates as ISO', async () => {

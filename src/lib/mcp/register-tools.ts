@@ -10,6 +10,7 @@ import {
 } from '@/lib/mcp/domain';
 import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
 import { registerCatalogTools } from '@/lib/mcp/tools/catalog';
+import { registerDocumentTools } from '@/lib/mcp/tools/documents';
 import {
   getTicketOutputSchema,
   listCompaniesOutputSchema,
@@ -81,7 +82,8 @@ export const registerMcpTools = (server: McpServer) => {
     'list_tickets',
     {
       title: 'Listar tickets',
-      description: 'Lista tickets de una compañía autorizada.',
+      description:
+        'Obsoleta (deprecated): usa list_documents. Lista tickets de una compañía autorizada (formato v1, se retirará).',
       inputSchema: z.object({
         company_id: companyIdSchema,
         limit: z.number().int().min(1).max(100).optional(),
@@ -110,7 +112,8 @@ export const registerMcpTools = (server: McpServer) => {
     'get_ticket',
     {
       title: 'Obtener ticket',
-      description: 'Obtiene un ticket por id dentro de una compañía autorizada.',
+      description:
+        'Obsoleta (deprecated): usa get_document. Obtiene un ticket por id dentro de una compañía autorizada (formato v1, se retirará).',
       inputSchema: z.object({
         company_id: companyIdSchema,
         ticket_id: ticketIdSchema,
@@ -192,4 +195,5 @@ export const registerMcpTools = (server: McpServer) => {
   );
 
   registerCatalogTools(server);
+  registerDocumentTools(server);
 };

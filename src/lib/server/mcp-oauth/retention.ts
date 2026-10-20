@@ -1,6 +1,7 @@
 /**
  * Retention for the OAuth tables (ZIG-I23-11). Each rule deletes what is past
- * its window and returns how many rows went; the daily cron runs them.
+ * its window and returns how many rows went; `runRetention` (src/lib/jobs/retention.ts)
+ * runs them with the other daily rules.
  */
 import { and, lt, notExists, notLike, sql } from 'drizzle-orm';
 import {
@@ -11,7 +12,7 @@ import {
   mcpOAuthTokenAttempt,
 } from '@/db/schema';
 import { db } from '@/lib/db';
-import { captureException } from '@/lib/observability';
+import type { RetentionRule } from '@/lib/jobs/retention';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -69,27 +70,9 @@ export const pruneExpiredJwtAssertions = async (nowMs = Date.now()) =>
       .returning({ jti: mcpOAuthJwtAssertion.jti })
   ).length;
 
-export type RetentionRule = { name: string; run: () => Promise<number> };
-
 export const MCP_OAUTH_RETENTION_RULES: RetentionRule[] = [
   { name: 'oauth_token_attempts', run: () => pruneTokenAttempts() },
   { name: 'oauth_expired_codes', run: () => pruneExpiredAuthorizationCodes() },
   { name: 'oauth_stale_dcr_clients', run: () => pruneStaleDcrClients() },
   { name: 'oauth_jwt_assertions', run: () => pruneExpiredJwtAssertions() },
 ];
-
-/** Runs every rule; one failing rule never stops the others. */
-export const runMcpOAuthRetention = async (
-  rules: RetentionRule[] = MCP_OAUTH_RETENTION_RULES,
-): Promise<Record<string, number | 'failed'>> => {
-  const result: Record<string, number | 'failed'> = {};
-  for (const rule of rules) {
-    try {
-      result[rule.name] = await rule.run();
-    } catch (error) {
-      captureException(error, { retention: rule.name });
-      result[rule.name] = 'failed';
-    }
-  }
-  return result;
-};

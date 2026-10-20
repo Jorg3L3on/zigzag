@@ -241,6 +241,13 @@
       "breakpoints": true
     },
     {
+      "idx": 35,
+      "version": "7",
+      "when": 1782464000000,
+      "tag": "0035_mcp_tool_call",
+      "breakpoints": true
+    },
+    {
       "idx": 36,
       "version": "7",
       "when": 1782550400000,
