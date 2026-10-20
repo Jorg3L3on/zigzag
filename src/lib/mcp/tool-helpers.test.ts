@@ -183,7 +183,9 @@ describe('runAgentCompanyTool', () => {
       async () => ({ tickets: [{ id: 1n }] }),
     );
     expect(result.structuredContent).toEqual({ tickets: [{ id: '1' }] });
-    expect(resolveAgentContext).toHaveBeenCalledWith('Bearer zz_x', 7, 'tickets.read');
+    expect(resolveAgentContext).toHaveBeenCalledWith('Bearer zz_x', 7, 'tickets.read', {
+      onUser: expect.any(Function),
+    });
   });
 
   it('returns forbidden when the token lacks the scope', async () => {

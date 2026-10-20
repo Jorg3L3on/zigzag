@@ -155,6 +155,7 @@ describe('RBAC coverage', () => {
       'src/app/api/account/api-keys/[id]/route.ts',
       'src/app/api/account/oauth-grants/route.ts',
       'src/app/api/account/oauth-grants/[id]/route.ts',
+      'src/app/api/account/mcp-activity/route.ts',
     ]);
 
     const missing = routeFiles
@@ -178,6 +179,7 @@ describe('RBAC coverage', () => {
       'src/app/(app)/account/page.tsx',
       'src/app/(app)/forbidden/page.tsx',
       'src/app/(app)/settings/connections/page.tsx',
+      'src/app/(app)/settings/connections/[kind]/[id]/actividad/page.tsx',
       'src/app/(app)/oauth/consent/page.tsx',
     ]);
 

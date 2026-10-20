@@ -847,6 +847,48 @@ export const mcpOAuthGrant = pgTable(
   ],
 );
 
+/**
+ * One row per MCP `tools/call` the agent could be identified for (ZIG-I23-8):
+ * which connection (API key or OAuth grant) called which tool, in which
+ * company, and how it went. `company_id` is only set once the connection was
+ * allowed into that company, so a list never names another tenant. Written
+ * fire-and-forget by `src/lib/mcp/activity.ts`; rows older than 90 days are
+ * deleted by the daily retention job.
+ */
+export const mcpToolCall = pgTable(
+  'McpToolCall',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    company_id: integer('company_id').references(() => company.id, {
+      onDelete: 'set null',
+    }),
+    user_id: bigint('user_id', { mode: 'bigint' })
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    api_key_id: integer('api_key_id').references(() => apiKey.id, {
+      onDelete: 'cascade',
+    }),
+    oauth_grant_id: integer('oauth_grant_id').references(() => mcpOAuthGrant.id, {
+      onDelete: 'cascade',
+    }),
+    tool: text('tool').notNull(),
+    ok: boolean('ok').notNull(),
+    error_code: text('error_code'),
+    duration_ms: integer('duration_ms').notNull(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('McpToolCall_api_key_id_created_at_idx').on(t.api_key_id, t.created_at),
+    index('McpToolCall_oauth_grant_id_created_at_idx').on(
+      t.oauth_grant_id,
+      t.created_at,
+    ),
+    index('McpToolCall_created_at_idx').on(t.created_at),
+  ],
+);
+
 /** Secret-free log of OAuth token endpoint attempts (diagnostics). */
 export const mcpOAuthTokenAttempt = pgTable(
   'McpOAuthTokenAttempt',
@@ -1133,3 +1175,4 @@ export type McpOAuthAuthorizationCodeRow =
   typeof mcpOAuthAuthorizationCode.$inferSelect;
 export type McpOAuthGrantRow = typeof mcpOAuthGrant.$inferSelect;
 export type McpOAuthTokenAttemptRow = typeof mcpOAuthTokenAttempt.$inferSelect;
+export type McpToolCallRow = typeof mcpToolCall.$inferSelect;

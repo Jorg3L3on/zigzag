@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { OAuthConnectionsCard } from '@/components/account/oauth-connections-card';
 import { PushNotificationsCard } from '@/components/account/push-notifications-card';
 import { PwaInstallCard } from '@/components/account/pwa-install-card';
 import { SignOutEverywhereButton } from '@/components/account/sign-out-everywhere-button';
@@ -80,6 +81,7 @@ export default function AccountPage() {
                 </div>
                 <PwaInstallCard />
                 <PushNotificationsCard />
+                <OAuthConnectionsCard />
               </div>
             </CardContent>
           </Card>
