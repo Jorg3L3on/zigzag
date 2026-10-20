@@ -13,10 +13,11 @@ import {
 import { OAUTH_ACCESS_TOKEN_PREFIX } from '@/lib/server/mcp-oauth/config';
 import { resolveOAuthGrantUser } from '@/lib/server/mcp-oauth/grants';
 import { isOAuthExpiryPast } from '@/lib/server/mcp-oauth/oauth-expiry';
+import { isAgentScope, type AgentScope } from '@/lib/server/agent-scopes';
 
 export { AGENT_TOKEN_LOOKUP_LENGTH, AGENT_TOKEN_PREFIX };
 
-export type AgentScope = 'read' | 'write';
+export type { AgentScope };
 
 export type AgentAuthSource = 'api_key' | 'oauth_grant';
 
@@ -132,7 +133,7 @@ export async function resolveAgentUser(token: string): Promise<{
     .catch(() => undefined);
 
   const scopes = row.scopes.filter(
-    (scope): scope is AgentScope => scope === 'read' || scope === 'write',
+    isAgentScope,
   );
 
   return {

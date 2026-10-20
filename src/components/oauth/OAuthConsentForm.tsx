@@ -53,6 +53,9 @@ export default function OAuthConsentForm({
   const writeRequested = requestedScope.split(/\s+/).includes('write');
   // Write is opt-in: unchecked until the person ticks it.
   const [allowWrite, setAllowWrite] = useState(false);
+  // Payments are a separate opt-in (ZIG-I23-7), also unchecked until ticked.
+  const paymentsRequested = requestedScope.split(/\s+/).includes('payments');
+  const [allowPayments, setAllowPayments] = useState(false);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>(
     companies.length === 1 ? [companies[0]!.id] : [],
   );
@@ -96,6 +99,7 @@ export default function OAuthConsentForm({
           code_challenge_method: consentParams.code_challenge_method,
           resource: consentParams.resource,
           allow_write: allowWrite ? 'true' : 'false',
+          allow_payments: allowPayments ? 'true' : 'false',
           allowed_company_ids: selectedCompanyIds.map(String),
         }),
       });
@@ -190,6 +194,17 @@ export default function OAuthConsentForm({
               <Label htmlFor="allow-write" className="text-sm font-normal">
                 Permitir escritura (crear tickets y cambiar estados)
                 {writeRequested ? ' — el cliente la solicita' : ''}
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="allow-payments"
+                checked={allowPayments}
+                onCheckedChange={(checked) => setAllowPayments(checked === true)}
+              />
+              <Label htmlFor="allow-payments" className="text-sm font-normal">
+                Registrar pagos (el agente podrá marcar cobros)
+                {paymentsRequested ? ' — el cliente la solicita' : ''}
               </Label>
             </div>
             <p className="text-sm text-muted-foreground">

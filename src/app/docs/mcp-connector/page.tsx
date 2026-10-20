@@ -23,7 +23,7 @@ const SCOPE_DESCRIPTIONS: Record<string, string> = {
   write:
     'Crear y editar documentos y clientes, convertir presupuestos y cambiar estados. Solo si lo marcas al autorizar.',
   payments:
-    'Registrar pagos y cobros. Apagado por defecto; se concede aparte de la escritura.',
+    'Registrar cobros en tickets terminados (register_payment) y crear tickets ya pagados. Apagado por defecto; se concede aparte de la escritura y nunca se agrega a una conexión existente. Sin reembolsos ni borrado de pagos.',
 };
 
 const sectionTitle =

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import OAuthConsentForm from '@/components/oauth/OAuthConsentForm';
 
 const consentParams = {
@@ -44,5 +44,32 @@ describe('OAuthConsentForm trust cues', () => {
     expect(
       screen.getByText(/Si cambias tu contraseña o se desactiva tu cuenta/),
     ).toBeInTheDocument();
+  });
+
+  it('starts with payments unchecked even when the client asks for it, and posts the choice (ZIG-I23-7)', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ redirect_to: 'https://evil.example.net/cb?code=x' }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    renderForm({ verified: true, requestedScope: 'read write payments' });
+    const payments = screen.getByRole('checkbox', {
+      name: /Registrar pagos \(el agente podrá marcar cobros\)/,
+    });
+    expect(payments).not.toBeChecked();
+    expect(screen.getByText(/Registrar pagos .* — el cliente la solicita/)).toBeInTheDocument();
+
+    // The only company starts selected, so the form can be sent as is.
+    fireEvent.submit(payments.closest('form')!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      allow_write: 'false',
+      allow_payments: 'false',
+    });
+
+    fetchMock.mockClear();
+    fireEvent.click(payments);
+    expect(payments).toBeChecked();
   });
 });

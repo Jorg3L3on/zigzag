@@ -58,6 +58,14 @@ type CreatedKeyResponse = ApiKeySummary & { token: string };
 const scopesLabel = (scopes: string[]) =>
   scopes.includes('write') ? 'Lectura y escritura' : 'Solo lectura';
 
+/** The connection may register payments (ZIG-I23-7). */
+const PaymentsBadge = ({ scopes }: { scopes: string[] }) =>
+  scopes.includes('payments') ? (
+    <Badge variant="default" data-testid="payments-badge">
+      Pagos
+    </Badge>
+  ) : null;
+
 const copyToClipboard = async (value: string, message: string) => {
   try {
     await navigator.clipboard.writeText(value);
@@ -80,6 +88,8 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [allowWrite, setAllowWrite] = useState(false);
+  // Payments are a separate opt-in, off by default (ZIG-I23-7).
+  const [allowPayments, setAllowPayments] = useState(false);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>(
     companies.length === 1 ? [companies[0]!.id] : [],
   );
@@ -129,7 +139,11 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newName.trim(),
-          scopes: allowWrite ? ['read', 'write'] : ['read'],
+          scopes: [
+            'read',
+            ...(allowWrite ? ['write'] : []),
+            ...(allowPayments ? ['payments'] : []),
+          ],
           allowed_company_ids: selectedCompanyIds,
         }),
       });
@@ -140,6 +154,7 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
       }
       setCreatedToken((payload as CreatedKeyResponse).token);
       setNewName('');
+      setAllowPayments(false);
       await loadConnections();
       toast.success('Conexión creada');
     } catch {
@@ -206,6 +221,16 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
             />
             <Label htmlFor="new-allow-write" className="text-sm font-normal">
               Permitir escritura (crear tickets y cambiar estados)
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="new-allow-payments"
+              checked={allowPayments}
+              onCheckedChange={(checked) => setAllowPayments(checked === true)}
+            />
+            <Label htmlFor="new-allow-payments" className="text-sm font-normal">
+              Registrar pagos (el agente podrá marcar cobros)
             </Label>
           </div>
           <div className="space-y-2 rounded-xl border border-border/60 p-3">
@@ -277,6 +302,7 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
                     <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
                     <div className="mt-1 flex flex-wrap gap-1">
                       <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
+                      <PaymentsBadge scopes={key.scopes} />
                       <Badge variant="outline">
                         {key.allowed_company_ids.length} compañía(s)
                       </Badge>
@@ -326,9 +352,12 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
                     <div>
                       <p className="font-medium">{grant.client_name}</p>
                       <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
-                      <Badge variant="outline" className="mt-1">
-                        {grant.allowed_company_ids.length} compañía(s)
-                      </Badge>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        <Badge variant="outline">
+                          {grant.allowed_company_ids.length} compañía(s)
+                        </Badge>
+                        <PaymentsBadge scopes={grant.scopes} />
+                      </div>
                       <div className="mt-1">
                         <LastActivityLine activity={grant.last_activity ?? null} />
                       </div>

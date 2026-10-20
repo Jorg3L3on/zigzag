@@ -24,6 +24,7 @@ import {
   type McpToolContext,
 } from '@/lib/mcp/tool-helpers';
 import { getOAuthIssuer } from '@/lib/server/mcp-oauth/config';
+import { assertScope } from '@/lib/server/resolve-agent-context';
 
 const isoDateSchema = z.iso.date();
 
@@ -98,7 +99,7 @@ const paymentSchema = z
     z.object({ parcial: z.number().positive().describe('Monto pagado (MXN).') }),
   ])
   .describe(
-    'Solo tickets. Si lo indicas, el ticket queda terminado (paso Listo) con ese pago: pendiente, pagado o { parcial: monto }. Sin payment el ticket queda en proceso y pendiente.',
+    'Solo tickets. Si lo indicas, el ticket queda terminado (paso Listo) con ese pago: pendiente, pagado o { parcial: monto }. pagado y parcial registran dinero y requieren el scope payments. Sin payment el ticket queda en proceso y pendiente.',
   );
 
 const clientAddressInputSchema = z.object({
@@ -168,6 +169,10 @@ export const registerWriteTools = (server: McpServer) => {
         'write',
         async (agent) => {
           const { company_id: _companyId, ...input } = args;
+          // Recording money is the payments scope's job (ZIG-I23-7), not write's.
+          if (input.payment !== undefined && input.payment !== 'pendiente') {
+            assertScope(agent, 'payments');
+          }
           const created = await createAgentDocument(agent, input);
           return {
             document: await getAgentDocument(agent, created.id, {

@@ -60,7 +60,7 @@ Ambos identifican al **mismo usuario** de ZigZag y respetan los scopes:
 |---|---|
 | `read` | Leer compañías, documentos, clientes, catálogo, `search`/`fetch`. Siempre incluido |
 | `write` | Crear y editar documentos y clientes, convertir presupuestos, cambiar estados. Opt-in al autorizar |
-| `payments` | Registrar pagos y cobros (ZIG-I23-7). Apagado por defecto, se concede aparte de `write` |
+| `payments` | `register_payment` y los pagos de `create_document` (`pagado`, `parcial`). Apagado por defecto en el consentimiento y en Nueva llave; se concede aparte de `write` y las conexiones existentes nunca lo ganan |
 
 ### Allow-list de compañías (fail closed)
 
@@ -105,10 +105,11 @@ Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en 
 | `get_ticket` | read | Detalle de ticket |
 | `create_ticket` | write | **Obsoleto** (una versión más): crea un ticket sin líneas. Usa `create_document` |
 | `update_ticket_status` | write | Marca `finished` true/false |
-| `create_document` | write | Ticket o presupuesto con líneas y materiales, con las reglas del compositor (folio siguiente, total del servidor, límites ZIG-I12). `client`: `{ client_id }` o `{ name, phone, email? }` (reusa el cliente con ese teléfono). `payment?` solo tickets (`pendiente`, `pagado`, `{ parcial }`): lo termina como el paso Listo. `idempotency_key?`: un reintento con la misma clave en 24 h por conexión devuelve el primer documento (`replayed: true`) |
+| `create_document` | write | Ticket o presupuesto con líneas y materiales, con las reglas del compositor (folio siguiente, total del servidor, límites ZIG-I12). `client`: `{ client_id }` o `{ name, phone, email? }` (reusa el cliente con ese teléfono). `payment?` solo tickets (`pendiente`, `pagado`, `{ parcial }`): lo termina como el paso Listo; `pagado` y `parcial` requieren además el scope `payments`. `idempotency_key?`: un reintento con la misma clave en 24 h por conexión devuelve el primer documento (`replayed: true`) |
 | `update_document` | write | Cliente, fecha, líneas (reemplazo completo), notas o `finished`. Rechaza con `validation` un documento pagado por completo o un presupuesto convertido/cancelado; el folio no cambia |
 | `convert_presupuesto` | write | Presupuesto vigente → ticket nuevo con folio R y las mismas líneas; devuelve el ticket con `source_presupuesto_folio` |
 | `create_client` / `update_client` | write | Nombre, teléfono (7–20 dígitos, único por compañía: el error trae el `client_id` existente), email, documento, dirección estructurada y notas (`clients.write`) |
+| `register_payment` | payments | Registra un cobro en un ticket terminado por el mismo camino que Registrar cobro en la app (`paid`, estado de pago y auditoría). `amount` > 0 y no mayor al saldo; `method?` (`efectivo`, `transferencia`, `tarjeta`, `otro`) y `note?` quedan en la auditoría; `idempotency_key?` evita cobrar dos veces. `destructiveHint: true`: el cliente pide confirmación. Sin reembolsos ni borrado de pagos |
 | `list_clients` | read | Clientes (id, nombre, email, documento — sin teléfono/dirección); `query?`, `limit?`, `cursor?` |
 | `get_client` | read | Expediente: teléfono, email, dirección estructurada, notas, saldo y últimos 10 documentos (requiere también `tickets.read`) |
 | `list_services` | read | Servicios con sus materiales por defecto (`services.read`); `query?`, `limit?`, `cursor?` |

@@ -6,7 +6,7 @@ import {
 } from '@/db/schema';
 import { db } from '@/lib/db';
 import { recordAgentAccessAudit } from '@/lib/server/agent-access-audit';
-import type { AgentScope } from '@/lib/server/resolve-agent-context';
+import { isAgentScope, type AgentScope } from '@/lib/server/agent-scopes';
 import {
   OAUTH_ACCESS_TOKEN_TTL_MS,
   OAUTH_CODE_TTL_MS,
@@ -224,7 +224,7 @@ export const exchangeAuthorizationCode = async (input: {
     userId: row.user_id,
     clientId: row.client_id,
     scopes: row.scopes.filter(
-      (scope): scope is AgentScope => scope === 'read' || scope === 'write',
+      isAgentScope,
     ),
     allowedCompanyIds: row.allowed_company_ids,
     resource: normalizeMcpResourceUrl(row.resource, input.request),
@@ -403,7 +403,7 @@ export const resolveOAuthGrantUser = async (accessToken: string) => {
     .catch(() => undefined);
 
   const scopes = grant.scopes.filter(
-    (scope): scope is AgentScope => scope === 'read' || scope === 'write',
+    isAgentScope,
   );
 
   return {
