@@ -161,6 +161,124 @@ export const serviceSchema = z.object({
   default_materials: z.array(serviceDefaultMaterialSchema),
 });
 
+/* ------------------------------------------------------------------------- */
+/* Documents (ZIG-I23-3): tickets and presupuestos over Ticket.document_kind  */
+/* ------------------------------------------------------------------------- */
+
+export const documentKindSchema = z.enum(['ticket', 'presupuesto']);
+
+/** Payment status as the app labels it (Pendiente, Pago parcial, Pagado). */
+export const documentPaymentStatusSchema = z.enum(['pendiente', 'parcial', 'pagado']);
+
+export const presupuestoStatusSchema = z.enum([
+  'abierto',
+  'vencido',
+  'convertido',
+  'cancelado',
+]);
+
+export const documentFolioSchema = z.object({
+  prefix: z.string().nullable(),
+  number: z.number().int().nullable(),
+  label: z.string().describe('Folio como se imprime, p. ej. R-0012 (o #id sin folio).'),
+});
+
+export const documentUrlsSchema = z.object({
+  app: z.string().describe('Documento en la app de ZigZag (requiere sesión).'),
+  pdf: z.string().describe('Vista del PDF en la app (requiere sesión).'),
+  share: z
+    .string()
+    .nullable()
+    .describe('Enlace público para el cliente; null cuando la app no ofrece uno.'),
+});
+
+/** One document in a list; phase 5 (search/fetch) reuses it. */
+export const documentSummarySchema = ticketSummarySchema.extend({
+  kind: documentKindSchema,
+  folio: documentFolioSchema,
+  payment_status: documentPaymentStatusSchema,
+  balance: z.number().describe('Saldo por pagar (0 si está pagado).'),
+  presupuesto_status: presupuestoStatusSchema
+    .nullable()
+    .describe('Solo presupuestos; null en tickets.'),
+  updated_at: isoDateTimeSchema.nullable(),
+});
+
+export const documentLineSchema = z.object({
+  id: z.number().int(),
+  service_id: z.number().int().nullable(),
+  name: z.string(),
+  quantity: z.number(),
+  price: z.number(),
+  subtotal: z.number().describe('cantidad × precio más los materiales de la línea.'),
+  materials: z.array(ticketLineMaterialSchema),
+});
+
+export const documentClientSchema = z.object({
+  id: z.number().int().nullable(),
+  name: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  address: z.string().nullable(),
+});
+
+export const documentDetailSchema = documentSummarySchema.extend({
+  lines: z.array(documentLineSchema),
+  work_notes: z.string().nullable(),
+  source_presupuesto_folio: documentFolioSchema
+    .nullable()
+    .describe('Folio del presupuesto de origen cuando el ticket viene de una conversión.'),
+  converted_to_document_id: z
+    .string()
+    .nullable()
+    .describe('Ticket que resultó de convertir este presupuesto.'),
+  client: documentClientSchema,
+  created_by: z.object({ id: z.string(), name: z.string() }).nullable(),
+  urls: documentUrlsSchema,
+});
+
+export const listDocumentsOutputSchema = z.object({
+  documents: z.array(documentSummarySchema),
+  next_cursor: z
+    .string()
+    .nullable()
+    .describe('Pásalo como cursor para la siguiente página; null en la última.'),
+});
+
+export const getDocumentOutputSchema = z.object({ document: documentDetailSchema });
+
+const paymentStatusBucketSchema = z.object({
+  count: z.number().int(),
+  amount: z.number(),
+});
+
+export const companySummaryOutputSchema = z.object({
+  date: z.iso.date(),
+  queue: z.object({
+    counts: z.object({
+      hoy: z.number().int(),
+      atrasados: z.number().int(),
+      por_cobrar: z.number().int(),
+      recordatorios: z.number().int(),
+    }),
+    hoy: z.array(documentSummarySchema).describe('Primeros 10 trabajos de hoy.'),
+    atrasados: z.array(documentSummarySchema).describe('Primeros 10 trabajos atrasados.'),
+  }),
+  por_cobrar_balance: z
+    .number()
+    .describe('Saldo de los trabajos terminados por cobrar (tarjeta Por cobrar de Inicio).'),
+  pending_balance_total: z
+    .number()
+    .describe('Saldo pendiente de todos los tickets (KPI Saldo por cobrar del dashboard).'),
+  active_tickets: z.number().int(),
+  payment_status_counts: z.object({
+    pendiente: paymentStatusBucketSchema,
+    parcial: paymentStatusBucketSchema,
+    pagado: paymentStatusBucketSchema,
+  }),
+  presupuestos_open: z.number().int(),
+});
+
 export const clientAddressSchema = z.object({
   street: z.string().nullable(),
   exterior_number: z.string().nullable(),
@@ -181,17 +299,6 @@ export const clientBalanceSchema = z.object({
   ticket_count: z.number().int(),
 });
 
-export const clientDocumentSummarySchema = z.object({
-  id: z.string().describe('Id del documento (BigInt serializado como string).'),
-  document_kind: z.enum(['ticket', 'presupuesto']),
-  folio: z.string(),
-  ticket_date: isoDateTimeSchema.nullable(),
-  total: z.number().nullable(),
-  paid: z.number().nullable(),
-  finished: z.boolean(),
-  created_at: isoDateTimeSchema,
-});
-
 export const clientDetailSchema = z.object({
   id: z.number().int(),
   name: z.string(),
@@ -201,7 +308,7 @@ export const clientDetailSchema = z.object({
   email: z.string().nullable(),
   address: clientAddressSchema,
   balance: clientBalanceSchema,
-  recent_documents: z.array(clientDocumentSummarySchema),
+  recent_documents: z.array(documentSummarySchema),
   company_id: z.number().int().nullable(),
   created_at: isoDateTimeSchema,
 });
