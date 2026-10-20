@@ -160,9 +160,10 @@ describeWithLocalDb('/api/mcp (real handler, local Postgres)', () => {
     expect(response.status).toBe(200);
     const result = (await readMcpJsonRpc(response)).result as ToolCallResult;
     expect(result.isError).toBe(true);
-    expect(JSON.parse(result.content[0].text).error).toBe(
-      'Compañía no autorizada para esta conexión',
-    );
+    expect(JSON.parse(result.content[0].text).error).toEqual({
+      code: 'forbidden',
+      message: 'Compañía no autorizada para esta conexión',
+    });
   });
 
   it('answers OPTIONS with 204 and the CORS headers', () => {

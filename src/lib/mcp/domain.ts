@@ -1,8 +1,10 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import {
+  apiKey,
   client,
   company,
+  mcpOAuthGrant,
   servicesTickets,
   ticket,
   ticketLineMaterial,
@@ -14,7 +16,10 @@ import {
   mapAgentTicketSummary,
 } from '@/lib/mcp/serialize-ticket';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import type { AgentContext } from '@/lib/server/resolve-agent-context';
+import type {
+  AgentAuthSource,
+  AgentContext,
+} from '@/lib/server/resolve-agent-context';
 import { resolveAccessibleCompanyIds } from '@/lib/server/resolve-agent-context';
 
 export const listAgentCompanies = async (agent: Pick<AgentContext, 'userId' | 'allowedCompanyIds'>) => {
@@ -33,6 +38,43 @@ export const listAgentCompanies = async (agent: Pick<AgentContext, 'userId' | 'a
     .from(company)
     .where(and(inArray(company.id, accessibleIds), isNull(company.deleted_at)))
     .orderBy(company.name);
+};
+
+/**
+ * Who the token belongs to (whoami): the user's name and the connection label
+ * the user sees in Conexiones (API key name or the OAuth client's name).
+ */
+export const getAgentIdentity = async (agent: {
+  userId: bigint;
+  authSource: AgentAuthSource;
+  apiKeyId?: number;
+  oauthGrantId?: number;
+}) => {
+  const userRow = await db.query.user.findFirst({
+    where: eq(user.id, agent.userId),
+    columns: { id: true, name: true },
+  });
+
+  let connectionLabel: string | null = null;
+  if (agent.authSource === 'api_key' && agent.apiKeyId != null) {
+    const row = await db.query.apiKey.findFirst({
+      where: eq(apiKey.id, agent.apiKeyId),
+      columns: { name: true },
+    });
+    connectionLabel = row?.name ?? null;
+  } else if (agent.authSource === 'oauth_grant' && agent.oauthGrantId != null) {
+    const row = await db.query.mcpOAuthGrant.findFirst({
+      where: eq(mcpOAuthGrant.id, agent.oauthGrantId),
+      columns: { id: true },
+      with: { client: { columns: { client_name: true } } },
+    });
+    connectionLabel = row?.client?.client_name ?? null;
+  }
+
+  return {
+    user: { id: agent.userId.toString(), name: userRow?.name ?? '' },
+    connectionLabel,
+  };
 };
 
 export const listAgentTickets = async (

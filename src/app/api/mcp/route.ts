@@ -7,12 +7,12 @@ const mcpHandler = createMcpHandler(
     registerMcpTools(server);
   },
   {
-    serverInfo: { name: 'zigzag', version: '1.0.0' },
+    serverInfo: { name: 'zigzag', version: '2.0.0' },
     capabilities: {
       tools: { listChanged: true },
     },
     instructions:
-      'Conector MCP de ZigZag (tickets). Llama list_companies primero para ver qué compañías autorizó el usuario. Todas las demás herramientas requieren company_id en la allow-list.',
+      'Conector MCP de ZigZag. Llama whoami primero para saber a qué cuenta pertenece la conexión, sus scopes y sus compañías; después list_companies cuando necesites elegir compañía. Todas las demás herramientas requieren company_id en la allow-list. Los resultados vienen en structuredContent; los errores traen error.code (unauthorized, forbidden, not_found, validation, rate_limited, internal).',
   },
 );
 

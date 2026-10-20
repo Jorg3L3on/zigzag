@@ -1,51 +1,45 @@
 /**
  * @jest-environment node
  */
-import {
-  MCP_WWW_AUTHENTICATE_META_KEY,
-  withAuthChallenge,
-} from '@/lib/mcp/auth-challenge';
+import { MCP_WWW_AUTHENTICATE_META_KEY } from '@/lib/mcp/auth-challenge';
+import { toErrorResult } from '@/lib/mcp/tool-helpers';
 import { AgentAuthError } from '@/lib/server/resolve-agent-context';
 
 jest.mock('@/lib/auth', () => ({ auth: jest.fn() }));
 
-const result = { content: [{ type: 'text' as const, text: '{}' }], isError: true };
 const request = new Request('https://zigzag-hazel.vercel.app/api/mcp');
 
-describe('withAuthChallenge', () => {
-  it('adds the WWW-Authenticate challenge to a 401 tool error', () => {
-    const tagged = withAuthChallenge(
-      result,
+describe('401 tool errors carry the mcp/www_authenticate challenge', () => {
+  it('adds the invalid_token challenge with resource_metadata to the unauthorized result', () => {
+    const result = toErrorResult(
       new AgentAuthError('Token OAuth inválido o expirado', 401),
+      'list_companies',
       request,
     );
 
-    expect(tagged).toEqual({
-      ...result,
-      _meta: {
-        [MCP_WWW_AUTHENTICATE_META_KEY]: [
-          'Bearer error="invalid_token", error_description="Token OAuth inválido o expirado", resource_metadata="https://zigzag-hazel.vercel.app/.well-known/oauth-protected-resource"',
-        ],
-      },
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({
+      error: { code: 'unauthorized', message: 'Token OAuth inválido o expirado' },
+    });
+    expect(result._meta).toEqual({
+      [MCP_WWW_AUTHENTICATE_META_KEY]: [
+        'Bearer error="invalid_token", error_description="Token OAuth inválido o expirado", resource_metadata="https://zigzag-hazel.vercel.app/.well-known/oauth-protected-resource"',
+      ],
     });
   });
 
   it('strips quotes from the description so the challenge stays parseable', () => {
-    const tagged = withAuthChallenge(
-      result,
-      new AgentAuthError('Falta "Bearer"', 401),
-      request,
-    ) as { _meta: Record<string, string[]> };
+    const result = toErrorResult(new AgentAuthError('Falta "Bearer"', 401), 'x', request);
 
-    expect(tagged._meta[MCP_WWW_AUTHENTICATE_META_KEY][0]).toContain(
-      'error_description="Falta Bearer"',
-    );
+    expect(
+      (result._meta?.[MCP_WWW_AUTHENTICATE_META_KEY] as string[])[0],
+    ).toContain('error_description="Falta Bearer"');
   });
 
-  it('leaves 403s and other errors untouched', () => {
-    expect(withAuthChallenge(result, new AgentAuthError('Forbidden', 403), request)).toBe(
-      result,
-    );
-    expect(withAuthChallenge(result, new Error('boom'), request)).toBe(result);
+  it('leaves 403s and other errors without _meta', () => {
+    expect(
+      toErrorResult(new AgentAuthError('Forbidden', 403), 'x', request)._meta,
+    ).toBeUndefined();
+    expect(toErrorResult(new Error('boom'), 'x', request)._meta).toBeUndefined();
   });
 });
