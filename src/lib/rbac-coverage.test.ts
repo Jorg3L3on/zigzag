@@ -127,15 +127,18 @@ describe('RBAC coverage', () => {
   });
 
   it('keeps non-public API routes behind API authorization helpers', () => {
-    const routeFiles = walk(path.join(root, 'src/app/api')).filter((filePath) =>
-      filePath.endsWith('/route.ts'),
-    );
+    const routeFiles = [
+      ...walk(path.join(root, 'src/app/api')),
+      ...walk(path.join(root, 'src/app/mcp')),
+      ...walk(path.join(root, 'src/app/.well-known')),
+    ].filter((filePath) => filePath.endsWith('/route.ts'));
     const allowedPublicRoutes = new Set([
       'src/app/api/auth/[...nextauth]/route.ts',
       'src/app/api/health/route.ts',
       'src/app/api/cron/notifications/route.ts',
       'src/app/api/cron/jobs/route.ts',
       'src/app/api/mcp/route.ts',
+      'src/app/mcp/route.ts',
       'src/app/api/oauth/authorize/route.ts',
       'src/app/api/oauth/token/route.ts',
       'src/app/api/oauth/consent/route.ts',
@@ -143,6 +146,7 @@ describe('RBAC coverage', () => {
       'src/app/api/oauth/revoke/route.ts',
       'src/app/.well-known/oauth-protected-resource/route.ts',
       'src/app/.well-known/oauth-protected-resource/api/mcp/route.ts',
+      'src/app/.well-known/oauth-protected-resource/mcp/route.ts',
       'src/app/.well-known/oauth-authorization-server/route.ts',
     ]);
 

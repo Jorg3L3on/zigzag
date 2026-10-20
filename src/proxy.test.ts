@@ -16,6 +16,16 @@ describe('proxy request correlation', () => {
     }
   });
 
+  it('lets unauthenticated MCP clients reach /mcp and its well-known metadata', () => {
+    for (const path of ['/mcp', '/.well-known/oauth-protected-resource/mcp']) {
+      const request = new NextRequest(`http://localhost:3069${path}`, { method: 'POST' });
+      const response = proxy(request);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
+    }
+  });
+
   it('redirects unauthenticated /dashboard to /login', () => {
     const request = new NextRequest('http://localhost:3069/dashboard');
     const response = proxy(request);

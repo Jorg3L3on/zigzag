@@ -9,7 +9,7 @@ ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /
 | Producción | `https://<tu-dominio>/api/mcp` |
 | Local | `http://localhost:3069/api/mcp` |
 
-El endpoint responde `OPTIONS` con CORS abierto. Sin un token válido ninguna tool devuelve datos (401 + `WWW-Authenticate` RFC 9728).
+`/mcp` es un alias de `/api/mcp` (mismo handler; algunos clientes, como ChatGPT, usan `origen + /mcp`). El endpoint responde `OPTIONS` con CORS abierto. Sin un token válido ninguna tool devuelve datos (401 + `WWW-Authenticate` RFC 9728).
 
 ### Origen público (issuer / resource)
 
@@ -42,12 +42,14 @@ Al crear una llave o autorizar OAuth, el usuario elige **qué compañías** pued
 
 ### OAuth (ChatGPT)
 
-- **Protected Resource Metadata:** `GET /.well-known/oauth-protected-resource` (también `…/api/mcp`).
+- **Protected Resource Metadata:** `GET /.well-known/oauth-protected-resource` (también `…/api/mcp` y `…/mcp`).
 - **Authorization Server Metadata:** `GET /.well-known/oauth-authorization-server`.
-- **DCR:** `POST /api/oauth/register`.
+- **DCR:** `POST /api/oauth/register` (máximo 10 registros por hora por IP; después `429 too_many_requests`).
+- **Token:** `POST /api/oauth/token` (máximo 60 llamadas por minuto por IP).
 - **CIMD:** soportado cuando `client_id` es una URL HTTPS con metadata JSON.
 - **Flujo:** authorization code + PKCE (`S256`) + parámetro `resource` (RFC 8707).
 - **Access token:** prefijo `zigzag_oauth_…`.
+- **Token vencido a mitad de sesión:** si una tool falla con 401, el resultado de error lleva `_meta['mcp/www_authenticate']` con el challenge `Bearer error="invalid_token", …, resource_metadata="…"` para que el cliente vuelva a pedir autorización.
 - **Expiry:** columnas `timestamptz` (instante UTC); no usar `timestamp` naive.
 
 ### Bearer token (manual)

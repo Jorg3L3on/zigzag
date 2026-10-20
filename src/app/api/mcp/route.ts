@@ -43,6 +43,7 @@ const withCors =
 
 export const GET = withCors(authenticatedHandler);
 export const POST = withCors(authenticatedHandler);
+export const DELETE = withCors(authenticatedHandler);
 
 export function OPTIONS(): Response {
   return new Response(null, { status: 204, headers: CORS_HEADERS });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { withAuthChallenge } from '@/lib/mcp/auth-challenge';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import {
   AgentAuthError,
@@ -91,7 +92,7 @@ export async function runAgentCompanyTool(
     const data = await fn(agent);
     return jsonResult(data);
   } catch (error) {
-    return toErrorResult(error);
+    return withAuthChallenge(toErrorResult(error), error, ctx.http?.req);
   }
 }
 
@@ -117,6 +118,6 @@ export async function runAgentUserTool(
     const data = await fn(agentUser);
     return jsonResult(data);
   } catch (error) {
-    return toErrorResult(error);
+    return withAuthChallenge(toErrorResult(error), error, ctx.http?.req);
   }
 }
