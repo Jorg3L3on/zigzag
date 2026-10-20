@@ -1,4 +1,4 @@
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import type { AuthInfo } from '@modelcontextprotocol/server';
 import { resolveAgentUser } from '@/lib/server/resolve-agent-context';
 
 /** Bearer verifier for MCP transport auth. Accepts API keys and OAuth access tokens. */

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { authChallengeMeta } from '@/lib/mcp/auth-challenge';
 import type { McpErrorCode } from '@/lib/mcp/schemas';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import {
@@ -144,13 +145,25 @@ const authStatusToCode = (status: number): McpErrorCode => {
   return 'internal';
 };
 
-/** Maps any thrown value to a coded error result without leaking internals. */
-export const toErrorResult = (error: unknown, toolName?: string): McpToolResult => {
+/**
+ * Maps any thrown value to a coded error result without leaking internals. A
+ * 401 also carries the `mcp/www_authenticate` challenge so the client re-auths.
+ */
+export const toErrorResult = (
+  error: unknown,
+  toolName?: string,
+  request?: Request,
+): McpToolResult => {
   if (error instanceof McpToolError) {
     return errorResult(error.code, error.message);
   }
   if (error instanceof AgentAuthError) {
     const code = authStatusToCode(error.status);
+    if (code === 'unauthorized') {
+      return errorResult(code, error.message, {
+        _meta: authChallengeMeta(error.message, request),
+      });
+    }
     return errorResult(code, code === 'internal' ? INTERNAL_MESSAGE : error.message);
   }
   if (error instanceof z.ZodError) {
@@ -221,7 +234,7 @@ export async function runAgentCompanyTool(
 
     return toolResult(await fn(agent));
   } catch (error) {
-    return toErrorResult(error, toolName);
+    return toErrorResult(error, toolName, ctx.http?.req);
   }
 }
 
@@ -252,6 +265,6 @@ export async function runAgentUserTool(
 
     return toolResult(await fn(agentUser));
   } catch (error) {
-    return toErrorResult(error, toolName);
+    return toErrorResult(error, toolName, ctx.http?.req);
   }
 }

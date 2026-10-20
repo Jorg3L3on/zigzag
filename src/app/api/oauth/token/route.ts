@@ -24,6 +24,10 @@ import {
   logOAuthTokenFailure,
 } from '@/lib/server/mcp-oauth/oauth-token-log';
 import {
+  enforceOAuthRateLimit,
+  OAUTH_TOKEN_RATE_LIMIT,
+} from '@/lib/server/mcp-oauth/rate-limit';
+import {
   finishTokenAttempt,
   getTokenAttemptPath,
   logTokenGetAttempt,
@@ -101,6 +105,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceOAuthRateLimit('token', request, OAUTH_TOKEN_RATE_LIMIT);
+  if (limited) return limited;
+
   const path = getTokenAttemptPath(request);
   const contentType = request.headers.get('content-type');
   const attemptId = await startTokenAttempt({
