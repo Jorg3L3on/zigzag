@@ -64,6 +64,12 @@ describe('MCP OAuth well-known metadata', () => {
     expect(JSON.stringify(metadata)).not.toContain('zigzag.vercel.app');
   });
 
+  it('service_documentation points at the public in-app guide on the request host', () => {
+    const metadata = buildAuthorizationServerMetadata(buildRequest(LIVE_HOST));
+
+    expect(metadata.service_documentation).toBe(`https://${LIVE_HOST}/docs/mcp-connector`);
+  });
+
   it('WWW-Authenticate resource_metadata points at the request host', () => {
     const request = buildRequest(LIVE_HOST, '/api/mcp');
     const challenge = buildWwwAuthenticateChallenge(request);

@@ -21,6 +21,8 @@ export const ADVISORY_LOCK_NAMESPACE = {
   ticketPayment: 1,
   /** Serialize finish + payment money mutations on the same ticket. */
   ticketFinish: 2,
+  /** One MCP idempotency key per connection at a time (ZIG-I23-6). */
+  mcpIdempotency: 3,
 } as const;
 
 export type AdvisoryLockNamespace =

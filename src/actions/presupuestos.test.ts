@@ -26,6 +26,7 @@ jest.mock('@/lib/db', () => ({
       client: { findFirst: jest.fn() },
       service: { findMany: jest.fn() },
     },
+    select: jest.fn(),
     transaction: jest.fn(),
   },
 }));
@@ -61,7 +62,20 @@ const mockDb = db as unknown as {
     client: { findFirst: jest.Mock };
     service: { findMany: jest.Mock };
   };
+  select: jest.Mock;
   transaction: jest.Mock;
+};
+
+/**
+ * db.select().from().where() → rows for the composer's catalog check, which
+ * filters by the requested ids in SQL (src/lib/documents/create-document.ts).
+ */
+const mockServiceRows = (rows: Array<{ id: number }>) => {
+  mockDb.select.mockReturnValue({
+    from: jest.fn(() => ({
+      where: jest.fn(async () => rows),
+    })),
+  });
 };
 
 const authContext = { userId: '1', companyId: 10, companyIsSystem: false };
@@ -298,7 +312,7 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
       companyId: 10,
     });
     mockDb.query.client.findFirst.mockResolvedValue(clientRow);
-    mockDb.query.service.findMany.mockResolvedValue([{ id: 7 }]);
+    mockServiceRows([{ id: 7 }]);
   });
 
   it('refuses a total above the Ticket.total cap before touching the database (ZIG-I12)', async () => {
@@ -464,7 +478,8 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
   });
 
   it('rejects a catalog service from another tenant', async () => {
-    mockDb.query.service.findMany.mockResolvedValue([{ id: 8 }]);
+    // Service 7 is not this company's, so the id-filtered query finds nothing.
+    mockServiceRows([]);
 
     const result = await createPresupuestoWithLines(validInput);
 

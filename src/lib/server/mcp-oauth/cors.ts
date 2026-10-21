@@ -45,3 +45,10 @@ export const oauthErrorResponse = (
     },
     { status },
   );
+
+/** RFC 6749 §5.2: a failed client authentication answers 401 with a challenge. */
+export const oauthInvalidClientResponse = (): Response => {
+  const response = oauthErrorResponse('invalid_client', undefined, 401);
+  response.headers.set('WWW-Authenticate', 'Basic realm="oauth"');
+  return response;
+};

@@ -1,3 +1,4 @@
+import { formatMcpAgentDetail } from '@/lib/mcp-audit-display';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCompactCurrency } from '@/lib/format-compact';
@@ -330,10 +331,11 @@ export const formatTicketTimelineEntry = (
   input: TicketTimelineEntryInput,
 ): TicketTimelineFormatted => {
   const amount = extractTicketAuditAmount(input.eventType, input.payload);
-  const details =
-    input.eventType === 'updated'
-      ? buildTicketAuditUpdateDetails(input.payload)
-      : [];
+  const agentDetail = formatMcpAgentDetail(input.payload);
+  const details = [
+    ...(agentDetail ? [agentDetail] : []),
+    ...(input.eventType === 'updated' ? buildTicketAuditUpdateDetails(input.payload) : []),
+  ];
 
   return {
     title: formatTicketTimelineTitle(input),

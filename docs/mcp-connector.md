@@ -1,6 +1,8 @@
-# MCP connector (ZigZag tickets)
+# MCP connector (ZigZag)
 
-ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /api/mcp` para conectar agentes externos (ChatGPT Developer Mode, Cursor, Claude u otro cliente MCP con Streamable HTTP). Las tools operan sobre tickets y clientes — no sobre pagos ni finanzas.
+ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /api/mcp` para conectar agentes externos: **ChatGPT**, **Grok**, **Claude** y **Cursor** (o cualquier cliente MCP con Streamable HTTP). Las tools leen y preparan documentos (presupuestos, tickets, recibos), clientes y catálogo, y buscan con `search`/`fetch`.
+
+La guía pública vive en la app en **`/docs/mcp-connector`** (es la `service_documentation` que anuncia el servidor OAuth); su tabla de tools se genera del registro, así que siempre coincide con lo desplegado. En la app, **Ajustes → Conexiones** muestra una tarjeta por cliente con la URL, los pasos y el último `whoami` de ese cliente.
 
 ## URL del conector
 
@@ -9,7 +11,29 @@ ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /
 | Producción | `https://<tu-dominio>/api/mcp` |
 | Local | `http://localhost:3069/api/mcp` |
 
-El endpoint responde `OPTIONS` con CORS abierto. Sin un token válido ninguna tool devuelve datos (401 + `WWW-Authenticate` RFC 9728).
+`/mcp` es un alias de `/api/mcp` (mismo handler; algunos clientes, como ChatGPT, usan `origen + /mcp`). El endpoint responde `OPTIONS` con CORS abierto. Sin un token válido ninguna tool devuelve datos (401 + `WWW-Authenticate` RFC 9728).
+
+## Clientes
+
+| Cliente | Autenticación | Pasos |
+|---|---|---|
+| **ChatGPT** | OAuth (CIMD) | Ajustes → Conectores → Modo desarrollador → Crear; pega la URL; OAuth; inicia sesión en ZigZag, elige compañías y Autorizar |
+| **Grok** | OAuth (si Grok no completa OAuth: llave `zigzag_…`) | grok.com/connectors → New Connector → Custom; pega la URL; completa la autenticación en ZigZag |
+| **Claude** | OAuth (DCR) | claude.ai → Settings → Connectors → Add custom connector; pega la URL; Connect → ZigZag → Autorizar |
+| **Cursor** | Llave `zigzag_…` (Bearer) | Crea una llave en Conexiones; Settings → MCP → Add new MCP server, o `~/.cursor/mcp.json` (abajo) |
+
+```json
+{
+  "mcpServers": {
+    "zigzag": {
+      "url": "https://<tu-dominio>/api/mcp",
+      "headers": { "Authorization": "Bearer zigzag_…" }
+    }
+  }
+}
+```
+
+Claude y Grok se registran por DCR con su propio nombre: se aceptan porque todos sus `redirect_uris` están en los hosts del proveedor (`claude.ai`/`claude.com`/`anthropic.com`, `grok.com`/`x.ai`/`x.com`). Un cliente que usa esos nombres con otro `redirect_uri` se rechaza (`invalid_client_metadata`). La verificación en vivo con los cuatro clientes está pendiente del despliegue (ZIG-I23-9).
 
 ### Origen público (issuer / resource)
 
@@ -30,7 +54,13 @@ Mantén `NEXTAUTH_URL` alineado con la URL canónica de NextAuth en Vercel; el c
 | **Bearer `zigzag_…`** | Cursor, Claude (header manual) | Ajustes → Conexiones → Nueva llave |
 | **OAuth 2.1** | ChatGPT (Developer Mode + OAuth) | Login + consentimiento; DCR automático |
 
-Ambos identifican al **mismo usuario** de ZigZag y respetan scopes `read` / `write`.
+Ambos identifican al **mismo usuario** de ZigZag y respetan los scopes:
+
+| Scope | Qué permite |
+|---|---|
+| `read` | Leer compañías, documentos, clientes, catálogo, `search`/`fetch`. Siempre incluido |
+| `write` | Crear y editar documentos y clientes, convertir presupuestos, cambiar estados. Opt-in al autorizar |
+| `payments` | `register_payment` y los pagos de `create_document` (`pagado`, `parcial`). Apagado por defecto en el consentimiento y en Nueva llave; se concede aparte de `write` y las conexiones existentes nunca lo ganan |
 
 ### Allow-list de compañías (fail closed)
 
@@ -42,12 +72,19 @@ Al crear una llave o autorizar OAuth, el usuario elige **qué compañías** pued
 
 ### OAuth (ChatGPT)
 
-- **Protected Resource Metadata:** `GET /.well-known/oauth-protected-resource` (también `…/api/mcp`).
+- **Protected Resource Metadata:** `GET /.well-known/oauth-protected-resource` (también `…/api/mcp` y `…/mcp`).
 - **Authorization Server Metadata:** `GET /.well-known/oauth-authorization-server`.
-- **DCR:** `POST /api/oauth/register`.
+- **DCR:** `POST /api/oauth/register` (máximo 10 registros por hora por IP; después `429 too_many_requests`). Los `redirect_uris` deben ser `https://` (o `http://` solo en `127.0.0.1`, `localhost` o `[::1]`): otro esquema responde `invalid_redirect_uri`. Un `client_name` que se haga pasar por ChatGPT, OpenAI, Grok, xAI, Claude, Anthropic o Cursor responde `invalid_client_metadata`. Los clientes DCR que nunca obtuvieron un token se borran a los 7 días.
+- **Consentimiento:** la pantalla muestra el host al que regresa el código, la insignia **Verificado** solo para clientes CIMD de un host de confianza (ChatGPT) y **Cliente no verificado** para el resto. La escritura es opt-in: la casilla empieza sin marcar y el servidor solo concede `write` cuando recibe `allow_write=true`.
+- **Token:** `POST /api/oauth/token` (máximo 60 llamadas por minuto por IP).
 - **CIMD:** soportado cuando `client_id` es una URL HTTPS con metadata JSON.
 - **Flujo:** authorization code + PKCE (`S256`) + parámetro `resource` (RFC 8707).
-- **Access token:** prefijo `zigzag_oauth_…`.
+- **Access token:** prefijo `zigzag_oauth_…`, dura 24 h; ChatGPT, Claude y Grok renuevan con el refresh token al recibir 401.
+- **Refresh token:** rota en cada uso y vale 90 días desde su emisión, nunca más allá de un año desde el consentimiento. Reusar un refresh token ya rotado revoca la conexión (`invalid_grant`). Un código de autorización es de un solo uso: presentarlo otra vez revoca lo que ya emitió.
+- **Revocación:** cambiar la contraseña, que un admin la restablezca o desactivar al usuario revoca todas sus llaves y conexiones OAuth. Las llaves vencen a los 365 días como máximo.
+- **CIMD y JWKS:** solo `https://` a nombres públicos (sin IPs, `localhost`, `.local` ni `.internal`), máximo 64 KiB, una redirección al mismo host; el documento CIMD se vuelve a pedir pasadas 24 h. Un `jti` de `private_key_jwt` sirve una sola vez y la aserción no puede durar más de 10 minutos.
+- **Retención:** los intentos al token endpoint (solo POST) se guardan 30 días.
+- **Token vencido a mitad de sesión:** si una tool falla con 401, el resultado de error lleva `_meta['mcp/www_authenticate']` con el challenge `Bearer error="invalid_token", …, resource_metadata="…"` para que el cliente vuelva a pedir autorización.
 - **Expiry:** columnas `timestamptz` (instante UTC); no usar `timestamp` naive.
 
 ### Bearer token (manual)
@@ -56,24 +93,65 @@ Al crear una llave o autorizar OAuth, el usuario elige **qué compañías** pued
 2. Elige compañías, scopes y crea la llave.
 3. Copia el token `zigzag_…` — **solo se muestra una vez**.
 
-## Tools v1
+## Tools
 
-Todas las tools (excepto `list_companies`) requieren `company_id` en la allow-list.
+Todas las tools (excepto `whoami` y `list_companies`) requieren `company_id` en la allow-list.
 
 | Tool | Scope | Descripción |
 |---|---|---|
+| `whoami` | read | Usuario, origen de auth (`api_key`/`oauth_grant`), etiqueta de la conexión, scopes y compañías |
 | `list_companies` | read | Compañías allow-listed visibles para el usuario |
 | `list_tickets` | read | Lista tickets (`company_id`, `limit?`, `finished?`) |
 | `get_ticket` | read | Detalle de ticket |
-| `create_ticket` | write | Crea ticket (shell; sin pagos) |
+| `create_ticket` | write | **Obsoleto** (una versión más): crea un ticket sin líneas. Usa `create_document` |
 | `update_ticket_status` | write | Marca `finished` true/false |
-| `list_clients` | read | Clientes (id, nombre, email, documento — sin teléfono/dirección) |
+| `create_document` | write | Ticket o presupuesto con líneas y materiales, con las reglas del compositor (folio siguiente, total del servidor, límites ZIG-I12). `client`: `{ client_id }` o `{ name, phone, email? }` (reusa el cliente con ese teléfono). `payment?` solo tickets (`pendiente`, `pagado`, `{ parcial }`): lo termina como el paso Listo; `pagado` y `parcial` requieren además el scope `payments`. `idempotency_key?`: un reintento con la misma clave en 24 h por conexión devuelve el primer documento (`replayed: true`) |
+| `update_document` | write | Cliente, fecha, líneas (reemplazo completo), notas o `finished`. Rechaza con `validation` un documento pagado por completo o un presupuesto convertido/cancelado; el folio no cambia |
+| `convert_presupuesto` | write | Presupuesto vigente → ticket nuevo con folio R y las mismas líneas; devuelve el ticket con `source_presupuesto_folio` |
+| `create_client` / `update_client` | write | Nombre, teléfono (7–20 dígitos, único por compañía: el error trae el `client_id` existente), email, documento, dirección estructurada y notas (`clients.write`) |
+| `register_payment` | payments | Registra un cobro en un ticket terminado por el mismo camino que Registrar cobro en la app (`paid`, estado de pago y auditoría). `amount` > 0 y no mayor al saldo; `method?` (`efectivo`, `transferencia`, `tarjeta`, `otro`) y `note?` quedan en la auditoría; `idempotency_key?` evita cobrar dos veces. `destructiveHint: true`: el cliente pide confirmación. Sin reembolsos ni borrado de pagos |
+| `list_clients` | read | Clientes (id, nombre, email, documento — sin teléfono/dirección); `query?`, `limit?`, `cursor?` |
+| `get_client` | read | Expediente: teléfono, email, dirección estructurada, notas, saldo y últimos 10 documentos (requiere también `tickets.read`) |
+| `list_services` | read | Servicios con sus materiales por defecto (`services.read`); `query?`, `limit?`, `cursor?` |
+| `list_materials` | read | Materiales con unidad y precio (`services.read`); `query?`, `limit?`, `cursor?` |
+| `list_documents` | read | Tickets y presupuestos, del más reciente al más antiguo; filtros por tipo, cliente, folio, fechas, estado de pago, terminado y texto; pagina con `next_cursor` |
+| `get_document` | read | Ticket o presupuesto completo: líneas con materiales, notas, folio, saldo, contacto del cliente y enlaces (app, pdf, share) |
+| `get_company_summary` | read | Resumen del día como en Inicio: trabajos de hoy y atrasados, por cobrar, saldo pendiente y presupuestos abiertos |
+| `search` | read | Texto libre sobre documentos, clientes y servicios (sin `company_id` busca en todas las compañías autorizadas); hasta 20 resultados con `id` (`doc:`, `client:`, `service:`), título y url |
+| `fetch` | read | Lee completo un resultado de `search` por su `id` (forma de conocimiento de OpenAI) |
 
 ### Flujo típico del agente
 
-1. `list_companies` → elige `company_id`.
-2. `list_tickets` / `list_clients` con ese `company_id`.
-3. Escrituras solo con scope `write`.
+1. `whoami` → confirma la cuenta y sus compañías; `list_companies` → elige `company_id`.
+2. `list_tickets` / `list_clients` con ese `company_id`. `list_clients`, `list_services` y `list_materials` paginan con `next_cursor`: pásalo como `cursor` para la siguiente página.
+3. Escrituras solo con scope `write` (opt-in en el consentimiento). Cada escritura queda en Auditoría y en el historial del documento como `Agente MCP: <tool> · <conexión>`.
+
+### Contrato de resultados (v2)
+
+- Cada tool declara `outputSchema` y anotaciones completas (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint: false`).
+- Éxito: `structuredContent` con el JSON y el mismo JSON como bloque de texto. Ids BigInt como string, fechas ISO 8601, montos como número.
+- Error: `isError: true` y `structuredContent.error = { code, message }` con `code` en `unauthorized`, `forbidden`, `not_found`, `validation`, `rate_limited`, `internal`. Los errores internos no exponen el mensaje original.
+
+## Prompts y recursos
+
+Para clientes que muestran prompts y recursos MCP (Claude, Cursor). Los prompts solo generan texto; cada lectura o escritura pasa por las tools, que validan la allow-list y los permisos.
+
+| Prompt | Argumentos | Qué hace |
+|--------|------------|----------|
+| `cobranza_de_hoy` | `company_id` | Usa `get_company_summary` y redacta un recordatorio de WhatsApp por documento pendiente (no envía nada) |
+| `ticket_desde_mensaje` | `company_id`, `mensaje` | Extrae cliente, líneas y fecha de un mensaje de WhatsApp y propone una llamada a `create_document` para confirmar |
+| `resumen_cliente` | `company_id`, `client_id` | Resume contacto, saldo, documentos recientes y la siguiente acción con `get_client` |
+
+| Recurso | Permiso | Contenido |
+|---------|---------|-----------|
+| `zigzag://company/<id>/profile` | `tickets.read` | Nombre, contacto, dirección, datos de transferencia y prefijos de folio |
+| `zigzag://company/<id>/catalog` | `services.read` | Servicios con sus materiales por defecto (hasta 500; `truncated` si hay más) |
+
+`resources/list` solo muestra compañías de la allow-list a las que el usuario tiene acceso y cuyo permiso tiene. Una compañía fuera de la allow-list o sin permiso responde como recurso no encontrado, con el mismo mensaje que las tools.
+
+## Registro de actividad
+
+Cada `tools/call` de una conexión identificada queda en `McpToolCall` (tool, compañía, resultado, duración) durante 90 días. En Conexiones cada llave o conexión OAuth muestra su última actividad y un historial, y cada tarjeta de cliente muestra su último `whoami` correcto.
 
 ## Endpoints OAuth
 
@@ -89,7 +167,7 @@ Todas las tools (excepto `list_companies`) requieren `company_id` en la allow-li
 
 ## Fuera de alcance
 
-- Pagos de tickets / movimiento de dinero.
+- Movimiento de dinero fuera del scope `payments` (ZIG-I23-7).
 - Plugins Directory de ChatGPT.
 - Tools de finanzas (MiCasa).
 

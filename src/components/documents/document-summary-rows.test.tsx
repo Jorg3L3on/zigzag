@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import {
   DocumentSummaryRows,
   summaryToggleLabel,
+  summaryToggleLabelFor,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
 
@@ -26,13 +27,32 @@ const makeLines = (count: number, materialsPerLine = 0): DocumentSummaryLine[] =
     })),
   }));
 
-describe('DocumentSummaryRows (ZIG-I13-1)', () => {
-  it('words the toggle with singular/plural and omits 0 materials', () => {
-    expect(summaryToggleLabel(8, 21)).toBe('Ver los 8 servicios y 21 materiales');
-    expect(summaryToggleLabel(1, 1)).toBe('Ver los 1 servicio y 1 material');
-    expect(summaryToggleLabel(5, 0)).toBe('Ver los 5 servicios');
+describe('summaryToggleLabel', () => {
+  it.each([
+    [1, 0, 'Ver el servicio'],
+    [1, 1, 'Ver el servicio y 1 material'],
+    [1, 3, 'Ver el servicio y 3 materiales'],
+    [3, 0, 'Ver los 3 servicios'],
+    [3, 1, 'Ver los 3 servicios y 1 material'],
+    [3, 2, 'Ver los 3 servicios y 2 materiales'],
+    [8, 21, 'Ver los 8 servicios y 21 materiales'],
+  ])('services %i, materials %i → %s', (services, materials, expected) => {
+    expect(summaryToggleLabel(services, materials)).toBe(expected);
   });
 
+  it.each([
+    [1, 0, 'Ver el concepto'],
+    [1, 1, 'Ver el concepto y 1 material'],
+    [1, 3, 'Ver el concepto y 3 materiales'],
+    [3, 0, 'Ver los 3 conceptos'],
+    [3, 1, 'Ver los 3 conceptos y 1 material'],
+    [3, 2, 'Ver los 3 conceptos y 2 materiales'],
+  ])('conceptos %i, materials %i → %s', (concepts, materials, expected) => {
+    expect(summaryToggleLabelFor(concepts, 'concepto', 'conceptos', materials)).toBe(expected);
+  });
+});
+
+describe('DocumentSummaryRows (ZIG-I13-1)', () => {
   it('shows the first 3 rows, then expands in place with materials', async () => {
     const user = userEvent.setup();
     render(<DocumentSummaryRows lines={makeLines(8, 3)} />);

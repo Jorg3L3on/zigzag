@@ -8,19 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { API_KEY_MAX_DAYS } from '@/schemas/api-key.schema';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
   TripledPageHeader,
   TripledResourceCard,
 } from '@/components/tripled';
+import type { LastMcpActivity } from '@/lib/mcp/activity';
+import { McpActivityList } from '@/components/settings/McpActivityList';
+import { LastActivityLine } from '@/components/settings/mcp-activity-row';
+import { McpClientSetupCards } from '@/components/settings/McpClientSetupCards';
+import type { WhoamiByClient } from '@/lib/mcp/client-whoami';
 
 export type ApiKeySummary = {
   id: number;
@@ -32,6 +31,7 @@ export type ApiKeySummary = {
   expires_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  last_activity?: LastMcpActivity | null;
 };
 
 export type OAuthGrantSummary = {
@@ -44,7 +44,12 @@ export type OAuthGrantSummary = {
   expires_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  last_activity?: LastMcpActivity | null;
 };
+
+
+const formatKeyExpiry = (date: Date) =>
+  date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
 
 type SelectableCompany = { id: number; name: string };
 
@@ -52,6 +57,14 @@ type CreatedKeyResponse = ApiKeySummary & { token: string };
 
 const scopesLabel = (scopes: string[]) =>
   scopes.includes('write') ? 'Lectura y escritura' : 'Solo lectura';
+
+/** The connection may register payments (ZIG-I23-7). */
+const PaymentsBadge = ({ scopes }: { scopes: string[] }) =>
+  scopes.includes('payments') ? (
+    <Badge variant="default" data-testid="payments-badge">
+      Pagos
+    </Badge>
+  ) : null;
 
 const copyToClipboard = async (value: string, message: string) => {
   try {
@@ -65,15 +78,18 @@ const copyToClipboard = async (value: string, message: string) => {
 type ConnectionsPanelProps = {
   mcpUrl: string;
   companies: SelectableCompany[];
+  whoami: WhoamiByClient;
 };
 
-export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
+export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanelProps) {
   const [apiKeys, setApiKeys] = useState<ApiKeySummary[]>([]);
   const [oauthGrants, setOAuthGrants] = useState<OAuthGrantSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [allowWrite, setAllowWrite] = useState(false);
+  // Payments are a separate opt-in, off by default (ZIG-I23-7).
+  const [allowPayments, setAllowPayments] = useState(false);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>(
     companies.length === 1 ? [companies[0]!.id] : [],
   );
@@ -123,7 +139,11 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newName.trim(),
-          scopes: allowWrite ? ['read', 'write'] : ['read'],
+          scopes: [
+            'read',
+            ...(allowWrite ? ['write'] : []),
+            ...(allowPayments ? ['payments'] : []),
+          ],
           allowed_company_ids: selectedCompanyIds,
         }),
       });
@@ -134,6 +154,7 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
       }
       setCreatedToken((payload as CreatedKeyResponse).token);
       setNewName('');
+      setAllowPayments(false);
       await loadConnections();
       toast.success('Conexión creada');
     } catch {
@@ -173,26 +194,10 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
       />
       <TripledResourceCard
         title="Conector MCP"
-        description="Conecta ChatGPT, Cursor u otros clientes MCP a tickets de ZigZag."
+        description="Conecta ChatGPT, Grok, Claude o Cursor a ZigZag."
         icon={<Plug className="size-5" aria-hidden />}
       >
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">URL del servidor</CardTitle>
-            <CardDescription className="break-all">{mcpUrl}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(mcpUrl, 'URL copiada')}
-            >
-              <Copy className="mr-2 size-4" aria-hidden />
-              Copiar URL
-            </Button>
-          </CardContent>
-        </Card>
+        <McpClientSetupCards mcpUrl={mcpUrl} whoami={whoami} />
       </TripledResourceCard>
 
       <TripledResourceCard
@@ -218,6 +223,16 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               Permitir escritura (crear tickets y cambiar estados)
             </Label>
           </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="new-allow-payments"
+              checked={allowPayments}
+              onCheckedChange={(checked) => setAllowPayments(checked === true)}
+            />
+            <Label htmlFor="new-allow-payments" className="text-sm font-normal">
+              Registrar pagos (el agente podrá marcar cobros)
+            </Label>
+          </div>
           <div className="space-y-2 rounded-xl border border-border/60 p-3">
             <p className="text-sm font-medium">Compañías autorizadas</p>
             {companies.map((company) => (
@@ -235,6 +250,10 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               </div>
             ))}
           </div>
+          <p className="text-sm text-muted-foreground" data-testid="new-key-expiry">
+            Vence el {formatKeyExpiry(new Date(Date.now() + API_KEY_MAX_DAYS * 24 * 60 * 60 * 1000))}{' '}
+            (365 días). Después crea una llave nueva.
+          </p>
           <Button
             type="button"
             onClick={handleCreateKey}
@@ -274,27 +293,37 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
             activeKeys.map((key) => (
               <div
                 key={key.id}
-                className="flex flex-col gap-2 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="rounded-xl border border-border/60 p-3"
+                data-testid="api-key-card"
               >
-                <div>
-                  <p className="font-medium">{key.name}</p>
-                  <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
-                    <Badge variant="outline">
-                      {key.allowed_company_ids.length} compañía(s)
-                    </Badge>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">{key.name}</p>
+                    <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
+                      <PaymentsBadge scopes={key.scopes} />
+                      <Badge variant="outline">
+                        {key.allowed_company_ids.length} compañía(s)
+                      </Badge>
+                    </div>
+                    <div className="mt-1">
+                      <LastActivityLine activity={key.last_activity ?? null} />
+                    </div>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRevokeKey(key.id)}
+                  >
+                    <ShieldOff className="mr-2 size-4" aria-hidden />
+                    Revocar
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRevokeKey(key.id)}
-                >
-                  <ShieldOff className="mr-2 size-4" aria-hidden />
-                  Revocar
-                </Button>
+                <div className="mt-2 border-t border-border/60 pt-1">
+                  <McpActivityList kind="api_key" connectionId={key.id} />
+                </div>
               </div>
             ))
           )}
@@ -316,23 +345,35 @@ export function ConnectionsPanel({ mcpUrl, companies }: ConnectionsPanelProps) {
               .map((grant) => (
                 <div
                   key={grant.id}
-                  className="flex flex-col gap-2 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="rounded-xl border border-border/60 p-3"
+                  data-testid="oauth-grant-card"
                 >
-                  <div>
-                    <p className="font-medium">{grant.client_name}</p>
-                    <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
-                    <Badge variant="outline" className="mt-1">
-                      {grant.allowed_company_ids.length} compañía(s)
-                    </Badge>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">{grant.client_name}</p>
+                      <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        <Badge variant="outline">
+                          {grant.allowed_company_ids.length} compañía(s)
+                        </Badge>
+                        <PaymentsBadge scopes={grant.scopes} />
+                      </div>
+                      <div className="mt-1">
+                        <LastActivityLine activity={grant.last_activity ?? null} />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRevokeGrant(grant.id)}
+                    >
+                      Revocar
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRevokeGrant(grant.id)}
-                  >
-                    Revocar
-                  </Button>
+                  <div className="mt-2 border-t border-border/60 pt-1">
+                    <McpActivityList kind="oauth_grant" connectionId={grant.id} />
+                  </div>
                 </div>
               ))
           )}

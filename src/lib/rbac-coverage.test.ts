@@ -126,16 +126,38 @@ describe('RBAC coverage', () => {
     expect(unguarded).toEqual([]);
   });
 
-  it('keeps non-public API routes behind API authorization helpers', () => {
-    const routeFiles = walk(path.join(root, 'src/app/api')).filter((filePath) =>
-      filePath.endsWith('/route.ts'),
+  it('keeps the public MCP guide outside the app shell and listed as public', () => {
+    // The OAuth metadata advertises it as service_documentation, so guests must reach it.
+    expect(existsSync(path.join(root, 'src/app/docs/mcp-connector/page.tsx'))).toBe(true);
+    expect(existsSync(path.join(root, 'src/app/(app)/docs'))).toBe(false);
+    expect(read(path.join(root, 'src/lib/marketing-routes.ts'))).toMatch(
+      /PUBLIC_MARKETING_PATHS = \[[^\]]*MCP_DOCS_PATH/,
     );
+  });
+
+  it('rate-limits the public OAuth endpoints that create state', () => {
+    const limited: Record<string, RegExp> = {
+      'src/app/api/oauth/register/route.ts': /enforceOAuthRateLimit\(\s*'register'/,
+      'src/app/api/oauth/token/route.ts': /enforceOAuthRateLimit\(\s*'token'/,
+    };
+    for (const [file, call] of Object.entries(limited)) {
+      expect(read(path.join(root, file))).toMatch(call);
+    }
+  });
+
+  it('keeps non-public API routes behind API authorization helpers', () => {
+    const routeFiles = [
+      ...walk(path.join(root, 'src/app/api')),
+      ...walk(path.join(root, 'src/app/mcp')),
+      ...walk(path.join(root, 'src/app/.well-known')),
+    ].filter((filePath) => filePath.endsWith('/route.ts'));
     const allowedPublicRoutes = new Set([
       'src/app/api/auth/[...nextauth]/route.ts',
       'src/app/api/health/route.ts',
       'src/app/api/cron/notifications/route.ts',
       'src/app/api/cron/jobs/route.ts',
       'src/app/api/mcp/route.ts',
+      'src/app/mcp/route.ts',
       'src/app/api/oauth/authorize/route.ts',
       'src/app/api/oauth/token/route.ts',
       'src/app/api/oauth/consent/route.ts',
@@ -143,6 +165,7 @@ describe('RBAC coverage', () => {
       'src/app/api/oauth/revoke/route.ts',
       'src/app/.well-known/oauth-protected-resource/route.ts',
       'src/app/.well-known/oauth-protected-resource/api/mcp/route.ts',
+      'src/app/.well-known/oauth-protected-resource/mcp/route.ts',
       'src/app/.well-known/oauth-authorization-server/route.ts',
     ]);
 
@@ -151,6 +174,7 @@ describe('RBAC coverage', () => {
       'src/app/api/account/api-keys/[id]/route.ts',
       'src/app/api/account/oauth-grants/route.ts',
       'src/app/api/account/oauth-grants/[id]/route.ts',
+      'src/app/api/account/mcp-activity/route.ts',
     ]);
 
     const missing = routeFiles
@@ -174,6 +198,7 @@ describe('RBAC coverage', () => {
       'src/app/(app)/account/page.tsx',
       'src/app/(app)/forbidden/page.tsx',
       'src/app/(app)/settings/connections/page.tsx',
+      'src/app/(app)/settings/connections/[kind]/[id]/actividad/page.tsx',
       'src/app/(app)/oauth/consent/page.tsx',
     ]);
 

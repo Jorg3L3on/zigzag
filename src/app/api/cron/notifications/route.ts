@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { materializeScheduleNotificationsForAllCompanies } from '@/lib/notifications';
 import { runDueJobs } from '@/lib/jobs/queue';
 import { processAuditOutbox } from '@/lib/jobs/audit-outbox';
+import { runRetention } from '@/lib/jobs/retention';
 import { captureException } from '@/lib/observability';
 import {
   REQUEST_ID_HEADER,
@@ -50,11 +51,13 @@ export async function GET(request: Request) {
     const result = await materializeScheduleNotificationsForAllCompanies();
     const jobs = await runDueJobs();
     const outbox = await processAuditOutbox();
+    const retention = await runRetention();
     const response = NextResponse.json({
       success: true,
       ...result,
       jobs,
       outbox,
+      retention,
     });
     response.headers.set(REQUEST_ID_HEADER, requestId);
     return response;

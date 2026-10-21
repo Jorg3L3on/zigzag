@@ -44,6 +44,8 @@ Core business flows on mobile (create ticket → add service / total → collect
 
 80 % de los usuarios usa Android. Corre esta lista en **al menos dos teléfonos de marcas distintas** (Pixel, Samsung, Xiaomi…) contra un deploy con `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, y registra cada corrida en Plania (`add_result` en ZIG-I21-5 con `device` y la versión de Chrome).
 
+Un agente puede correrla en el emulador Pixel de la Mac por `adb` (Jorge solo inicia sesión): ver [docs/agents/android-emulator.md](../docs/agents/android-emulator.md).
+
 **Instalar**
 
 - [ ] En Chrome (sin instalar) abre **Más › Cuenta**: aparece **Instalar ZigZag** con el motivo; un toque abre el diálogo de Chrome con las capturas (ficha ampliada) y la app queda en la pantalla de inicio.
@@ -76,7 +78,7 @@ Los avisos de una PWA llegan por Chrome; si el sistema duerme a Chrome, llegan t
 
 | Fecha | Teléfono | Android | Chrome | Resultado / notas |
 | --- | --- | --- | --- | --- |
-| | | | | |
+| 2026-10-15 | Pixel 7 (emulador, imagen Play Store, sin cuenta Google: atajo, no WebAPK) | 15 | 124.0.6367.219 | OK: ficha de instalación con capturas, app a pantalla completa, avisos con la app cerrada (silueta blanca en la barra, Crear ticket y Ver abren el composer prellenado y la cola y dejan el aviso leído), apagar avisos y cerrar sesión borran la suscripción. No aplica: contador en el icono (el atajo sin WebAPK no lo soporta) y Descargar (sin disparador en prod, ZIG-I21-7). Hallazgos: ZIG-15 (sw.js no instalaba) y `CRON_SECRET` ausente en Vercel. Guía: docs/agents/android-emulator.md |
 
 ## Regression notes
 

@@ -248,7 +248,7 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByText(/Gas R410A/)).toBeNull();
     // 2100 + 570 + 1100
     expect(screen.getAllByText('$3,770.00').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: 'Ver los 1 servicio y 2 materiales' }));
+    await user.click(screen.getByRole('button', { name: 'Ver el servicio y 2 materiales' }));
     expect(screen.getByText(/Gas R410A/)).toBeTruthy();
     expect(screen.getByText(/1.5 kg × \$380.00/)).toBeTruthy();
   });
@@ -277,7 +277,7 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByText(/Gas R410A/)).toBeNull();
     // 2100 + 570 + 1100
     expect(screen.getAllByText('$3,770.00').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: 'Ver los 1 concepto y 2 materiales' }));
+    await user.click(screen.getByRole('button', { name: 'Ver el concepto y 2 materiales' }));
     expect(screen.getByText(/Gas R410A/)).toBeTruthy();
     expect(screen.getByText(/1.5 kg × \$380.00/)).toBeTruthy();
     expect(screen.getByText('$570.00')).toBeTruthy();

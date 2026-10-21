@@ -7,8 +7,18 @@ import { REQUEST_ID_HEADER } from '@/lib/request-context';
 
 describe('proxy request correlation', () => {
   it('allows unauthenticated guests on public marketing paths', () => {
-    for (const path of ['/', '/aviso-de-privacidad', '/terminos-y-condiciones']) {
+    for (const path of ['/', '/aviso-de-privacidad', '/terminos-y-condiciones', '/docs/mcp-connector']) {
       const request = new NextRequest(`http://localhost:3069${path}`);
+      const response = proxy(request);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
+    }
+  });
+
+  it('lets unauthenticated MCP clients reach /mcp and its well-known metadata', () => {
+    for (const path of ['/mcp', '/.well-known/oauth-protected-resource/mcp']) {
+      const request = new NextRequest(`http://localhost:3069${path}`, { method: 'POST' });
       const response = proxy(request);
 
       expect(response.status).toBe(200);

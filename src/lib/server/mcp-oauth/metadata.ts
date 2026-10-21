@@ -4,6 +4,7 @@ import {
   MCP_OAUTH_SCOPES,
   oauthPath,
 } from '@/lib/server/mcp-oauth/config';
+import { MCP_DOCS_PATH } from '@/lib/marketing-routes';
 
 export const buildProtectedResourceMetadata = (request?: Request) => {
   const issuer = getOAuthIssuer(request);
@@ -37,12 +38,21 @@ export const buildAuthorizationServerMetadata = (request?: Request) => {
     ],
     scopes_supported: MCP_OAUTH_SCOPES,
     client_id_metadata_document_supported: true,
-    service_documentation: `${issuer}/docs/mcp-connector`,
+    service_documentation: `${issuer}${MCP_DOCS_PATH}`,
   };
 };
 
-export const buildWwwAuthenticateChallenge = (request?: Request): string => {
-  const issuer = getOAuthIssuer(request);
-  const resourceMetadataUrl = `${issuer}/.well-known/oauth-protected-resource`;
-  return `Bearer realm="mcp", resource_metadata="${resourceMetadataUrl}", scope="read"`;
+const getResourceMetadataUrl = (request?: Request): string =>
+  `${getOAuthIssuer(request)}/.well-known/oauth-protected-resource`;
+
+export const buildWwwAuthenticateChallenge = (request?: Request): string =>
+  `Bearer realm="mcp", resource_metadata="${getResourceMetadataUrl(request)}", scope="read"`;
+
+/** RFC 6750 challenge for a token that stopped working mid-session (expired or revoked). */
+export const buildInvalidTokenChallenge = (
+  description: string,
+  request?: Request,
+): string => {
+  const quoted = description.replace(/["\\]/g, '');
+  return `Bearer error="invalid_token", error_description="${quoted}", resource_metadata="${getResourceMetadataUrl(request)}"`;
 };

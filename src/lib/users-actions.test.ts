@@ -17,6 +17,7 @@ import {
   requireSystemUser,
 } from '@/lib/security';
 import { compare, hash } from 'bcryptjs';
+import { revokeAgentAccessForUser } from '@/lib/session-revocation';
 import { keepsATeamManager } from '@/lib/team-guards';
 
 jest.mock('@/lib/db', () => ({
@@ -53,6 +54,7 @@ jest.mock('@/lib/team-guards', () => ({
 
 jest.mock('@/lib/session-revocation', () => ({
   bumpUserTokenVersion: jest.fn(),
+  revokeAgentAccessForUser: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({
@@ -208,6 +210,10 @@ describe('user actions', () => {
           password: 'new-hash',
         }),
       );
+      expect(revokeAgentAccessForUser).toHaveBeenCalledWith(
+        expect.any(BigInt),
+        'password_changed',
+      );
     });
   });
 
@@ -341,6 +347,11 @@ describe('user actions', () => {
       expect(result.success).toBe(true);
       expect(set).toHaveBeenCalledWith(
         expect.objectContaining({ deleted_at: expect.any(Date) }),
+      );
+      expect(revokeAgentAccessForUser).toHaveBeenCalledWith(
+        2n,
+        'user_deactivated',
+        expect.any(BigInt),
       );
     });
   });
