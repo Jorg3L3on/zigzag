@@ -30,10 +30,10 @@ const makeLines = (count: number, materialsPerLine = 0): DocumentSummaryLine[] =
 describe('summaryToggleLabel', () => {
   it.each([
     [1, 0, 'Ver el servicio'],
-    [1, 1, 'Ver el servicio y 1 material'],
-    [1, 3, 'Ver el servicio y 3 materiales'],
+    [1, 1, 'Ver el servicio y el material'],
+    [1, 3, 'Ver el servicio y los 3 materiales'],
     [3, 0, 'Ver los 3 servicios'],
-    [3, 1, 'Ver los 3 servicios y 1 material'],
+    [3, 1, 'Ver los 3 servicios y el material'],
     [3, 2, 'Ver los 3 servicios y 2 materiales'],
     [8, 21, 'Ver los 8 servicios y 21 materiales'],
   ])('services %i, materials %i → %s', (services, materials, expected) => {
@@ -42,10 +42,10 @@ describe('summaryToggleLabel', () => {
 
   it.each([
     [1, 0, 'Ver el concepto'],
-    [1, 1, 'Ver el concepto y 1 material'],
-    [1, 3, 'Ver el concepto y 3 materiales'],
+    [1, 1, 'Ver el concepto y el material'],
+    [1, 3, 'Ver el concepto y los 3 materiales'],
     [3, 0, 'Ver los 3 conceptos'],
-    [3, 1, 'Ver los 3 conceptos y 1 material'],
+    [3, 1, 'Ver los 3 conceptos y el material'],
     [3, 2, 'Ver los 3 conceptos y 2 materiales'],
   ])('conceptos %i, materials %i → %s', (concepts, materials, expected) => {
     expect(summaryToggleLabelFor(concepts, 'concepto', 'conceptos', materials)).toBe(expected);

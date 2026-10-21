@@ -245,8 +245,9 @@ type ReviewSummaryCardProps = {
 
 /**
  * Resumen card of the listo screens (ZIG-I13-3): the Total, the first three
- * lines recibo-style and "Ver el servicio" / "Ver los N servicios y M materiales". Replaces the full
- * line list and the duplicated recibo summary.
+ * lines recibo-style and the collapsed toggle ("Ver el servicio y el material",
+ * "Ver los N servicios y M materiales"; ZIG-17 for the singular forms). Replaces
+ * the full line list and the duplicated recibo summary.
  */
 export const ReviewSummaryCard = ({
   lines,
