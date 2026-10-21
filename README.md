@@ -38,6 +38,22 @@ More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel
 - Mobile-friendly UI (responsive lists, touch targets, accessibility)
 - Installable PWA (`start_url` → `/dashboard`; service worker caches app shell; field jobs can be created offline and sync via IndexedDB outbox — see `tasks/prd-offline-first-jobs.md`)
 - UI with shadcn/ui and Tailwind CSS
+- **MCP connector** for ChatGPT, Grok, Claude and Cursor — see [MCP connector](#mcp-connector)
+
+## MCP connector
+
+ZigZag runs an MCP server at `/api/mcp` (alias `/mcp`) so AI clients can read and prepare documents, clients and the catalog on a user's behalf. Setup cards per client live in **Settings → Conexiones**; the public guide is `/docs/mcp-connector` in the app (its tools table is generated from the server registry). Full reference: [`docs/mcp-connector.md`](docs/mcp-connector.md).
+
+| Client | Auth |
+|--------|------|
+| ChatGPT (Developer Mode) | OAuth 2.1 (CIMD) |
+| Grok (custom connector) | OAuth, or a `zigzag_…` bearer key |
+| Claude (custom connector) | OAuth 2.1 (DCR) |
+| Cursor (`mcp.json`) | `zigzag_…` bearer key |
+
+- **Tools:** `whoami`, `list_companies`, `list_documents`, `get_document`, `get_company_summary`, `list_clients`, `get_client`, `list_services`, `list_materials`, `search`, `fetch`, and the write tools (`create_ticket`, `update_ticket_status`, plus the document and client writes of ZIG-I23-6). Prompts: `cobranza_de_hoy`, `ticket_desde_mensaje`, `resumen_cliente`.
+- **Scopes:** `read` (always), `write` (opt-in at consent), `payments` (ZIG-I23-7, off by default).
+- **Safety:** each connection is limited to the companies the user picks; 120 calls/min per connection; 24 h access tokens with rotating refresh; a password change or deactivation revokes every connection; every call is logged per connection for 90 days.
 
 ## Tech stack
 

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import OAuthConsentForm from '@/components/oauth/OAuthConsentForm';
 import { auth } from '@/lib/auth';
 import { listSelectableCompaniesForUser } from '@/lib/mcp/domain';
+import { isTrustedCimdClient } from '@/lib/server/mcp-oauth/cimd';
 import { resolveOAuthClient } from '@/lib/server/mcp-oauth/clients';
 import { getMcpResourceUrl, normalizeMcpResourceUrl } from '@/lib/server/mcp-oauth/config';
 
@@ -38,6 +39,20 @@ export default async function OAuthConsentPage({ searchParams }: PageProps) {
     );
   }
 
+  let redirectHost: string;
+  try {
+    redirectHost = new URL(redirectUri).host;
+  } catch {
+    return (
+      <div className="mx-auto max-w-md px-4 py-10 text-sm text-muted-foreground">
+        Solicitud OAuth incompleta o inválida.
+      </div>
+    );
+  }
+  // Only a CIMD document served from a trusted host proves who the client is;
+  // a DCR client's name and links are whatever it typed.
+  const verified = isTrustedCimdClient(clientId);
+
   const companies = await listSelectableCompaniesForUser(BigInt(session.user.id));
   const resource = normalizeMcpResourceUrl(
     String(params.resource ?? getMcpResourceUrl()),
@@ -46,7 +61,9 @@ export default async function OAuthConsentPage({ searchParams }: PageProps) {
   return (
     <OAuthConsentForm
       clientName={client.client_name}
-      clientUri={client.client_uri}
+      clientUri={verified ? client.client_uri : null}
+      redirectHost={redirectHost}
+      verified={verified}
       requestedScope={String(params.scope ?? 'read')}
       companies={companies}
       consentParams={{

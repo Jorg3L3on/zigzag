@@ -49,36 +49,64 @@ const toResolvedClient = (row: {
   client_secret_hash: row.client_secret_hash,
 });
 
+/** CIMD documents are re-fetched once the stored copy is older than this. */
+export const CIMD_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
+
+const cimdRowValues = (
+  metadata: NonNullable<Awaited<ReturnType<typeof fetchClientIdMetadataDocument>>>,
+) => ({
+  client_name: metadata.client_name,
+  redirect_uris: metadata.redirect_uris,
+  grant_types: metadata.grant_types ?? ['authorization_code', 'refresh_token'],
+  response_types: metadata.response_types ?? ['code'],
+  token_endpoint_auth_method: metadata.token_endpoint_auth_method ?? 'none',
+  client_uri: metadata.client_uri ?? null,
+  logo_uri: metadata.logo_uri ?? null,
+  fetched_at: new Date(),
+});
+
+const isCimdRowStale = (fetchedAt: Date | null, nowMs = Date.now()): boolean =>
+  fetchedAt == null || nowMs - fetchedAt.getTime() >= CIMD_REFRESH_AFTER_MS;
+
 export const resolveOAuthClient = async (
   clientId: string,
+  options: { fetchImpl?: typeof fetch } = {},
 ): Promise<ResolvedOAuthClient | null> => {
   const existing = await db.query.mcpOAuthClient.findFirst({
     where: eq(mcpOAuthClient.client_id, clientId),
   });
-  if (existing) return toResolvedClient(existing);
+
+  if (existing) {
+    if (!isClientIdMetadataUrl(clientId) || !isCimdRowStale(existing.fetched_at)) {
+      return toResolvedClient(existing);
+    }
+    // Stale CIMD copy: refresh it, but keep serving the old row if the fetch fails.
+    const metadata = await fetchClientIdMetadataDocument(clientId, options);
+    if (!metadata) return toResolvedClient(existing);
+    const [updated] = await db
+      .update(mcpOAuthClient)
+      .set(cimdRowValues(metadata))
+      .where(eq(mcpOAuthClient.id, existing.id))
+      .returning();
+    return toResolvedClient(updated ?? existing);
+  }
 
   if (!isClientIdMetadataUrl(clientId)) return null;
 
-  const metadata = await fetchClientIdMetadataDocument(clientId);
+  const metadata = await fetchClientIdMetadataDocument(clientId, options);
   if (!metadata) return null;
-
-  const authMethod = metadata.token_endpoint_auth_method ?? 'none';
 
   const [created] = await db
     .insert(mcpOAuthClient)
-    .values({
-      client_id: clientId,
-      client_name: metadata.client_name,
-      redirect_uris: metadata.redirect_uris,
-      grant_types: metadata.grant_types ?? ['authorization_code', 'refresh_token'],
-      response_types: metadata.response_types ?? ['code'],
-      token_endpoint_auth_method: authMethod,
-      client_uri: metadata.client_uri ?? null,
-      logo_uri: metadata.logo_uri ?? null,
-    })
+    .values({ client_id: clientId, ...cimdRowValues(metadata) })
+    .onConflictDoNothing()
     .returning();
+  if (created) return toResolvedClient(created);
 
-  return toResolvedClient(created);
+  const raced = await db.query.mcpOAuthClient.findFirst({
+    where: eq(mcpOAuthClient.client_id, clientId),
+  });
+  return raced ? toResolvedClient(raced) : null;
 };
 
 export type DynamicClientRegistrationInput = {

@@ -18,6 +18,8 @@ export const recordResourceAudit = async (
     before?: unknown;
     after?: unknown;
     source: Extract<AuditSource, 'action' | 'api'>;
+    /** Extra payload keys, e.g. `mcp: { tool, connection }` for agent writes. */
+    extra?: Record<string, unknown>;
   },
 ): Promise<void> => {
   await recordAuditEvent(tx, {
@@ -41,6 +43,7 @@ export const recordResourceAudit = async (
       targetCompanyId: input.targetCompanyId,
       before: input.before,
       after: input.after,
+      extra: input.extra,
     }),
   });
 };

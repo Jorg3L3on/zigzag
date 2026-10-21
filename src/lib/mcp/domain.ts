@@ -1,8 +1,10 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { mcpAuditExtra, resolveAgentConnection } from '@/lib/mcp/domain/writes';
 import { allocateDocumentFolio } from '@/lib/folio-allocator';
 import {
-  client,
+  apiKey,
   company,
+  mcpOAuthGrant,
   servicesTickets,
   ticket,
   ticketLineMaterial,
@@ -14,7 +16,10 @@ import {
   mapAgentTicketSummary,
 } from '@/lib/mcp/serialize-ticket';
 import { recordTicketAudit } from '@/lib/ticket-audit';
-import type { AgentContext } from '@/lib/server/resolve-agent-context';
+import type {
+  AgentAuthSource,
+  AgentContext,
+} from '@/lib/server/resolve-agent-context';
 import { resolveAccessibleCompanyIds } from '@/lib/server/resolve-agent-context';
 
 export const listAgentCompanies = async (agent: Pick<AgentContext, 'userId' | 'allowedCompanyIds'>) => {
@@ -33,6 +38,43 @@ export const listAgentCompanies = async (agent: Pick<AgentContext, 'userId' | 'a
     .from(company)
     .where(and(inArray(company.id, accessibleIds), isNull(company.deleted_at)))
     .orderBy(company.name);
+};
+
+/**
+ * Who the token belongs to (whoami): the user's name and the connection label
+ * the user sees in Conexiones (API key name or the OAuth client's name).
+ */
+export const getAgentIdentity = async (agent: {
+  userId: bigint;
+  authSource: AgentAuthSource;
+  apiKeyId?: number;
+  oauthGrantId?: number;
+}) => {
+  const userRow = await db.query.user.findFirst({
+    where: eq(user.id, agent.userId),
+    columns: { id: true, name: true },
+  });
+
+  let connectionLabel: string | null = null;
+  if (agent.authSource === 'api_key' && agent.apiKeyId != null) {
+    const row = await db.query.apiKey.findFirst({
+      where: eq(apiKey.id, agent.apiKeyId),
+      columns: { name: true },
+    });
+    connectionLabel = row?.name ?? null;
+  } else if (agent.authSource === 'oauth_grant' && agent.oauthGrantId != null) {
+    const row = await db.query.mcpOAuthGrant.findFirst({
+      where: eq(mcpOAuthGrant.id, agent.oauthGrantId),
+      columns: { id: true },
+      with: { client: { columns: { client_name: true } } },
+    });
+    connectionLabel = row?.client?.client_name ?? null;
+  }
+
+  return {
+    user: { id: agent.userId.toString(), name: userRow?.name ?? '' },
+    connectionLabel,
+  };
 };
 
 export const listAgentTickets = async (
@@ -126,6 +168,7 @@ export const createAgentTicket = async (
     document_kind: 'ticket' as const,
   };
 
+  const connection = await resolveAgentConnection(agent);
   const created = await db.transaction(async (tx) => {
     const folio = await allocateDocumentFolio(tx, {
       companyId: agent.companyId,
@@ -149,7 +192,12 @@ export const createAgentTicket = async (
       row.id,
       agent.companyId,
       'created',
-      { ticket: row },
+      {
+        ticket: row,
+        source: 'mcp',
+        ...mcpAuditExtra({ tool: 'create_ticket', connection }),
+      },
+      'api',
     );
     return row;
   });
@@ -174,6 +222,7 @@ export const updateAgentTicketStatus = async (
     throw new Error('Ticket no encontrado');
   }
 
+  const connection = await resolveAgentConnection(agent);
   const updated = await db.transaction(async (tx) => {
     const [row] = await tx
       .update(ticket)
@@ -202,35 +251,23 @@ export const updateAgentTicketStatus = async (
       ticketId,
       agent.companyId,
       'updated',
-      { before: existing, after: row, statusChanged: true, finished },
+      {
+        before: existing,
+        after: row,
+        statusChanged: true,
+        finished,
+        ...mcpAuditExtra({
+          tool: 'update_ticket_status',
+          connection,
+          document_id: String(ticketId),
+        }),
+      },
+      'api',
     );
     return row;
   });
 
   return mapAgentTicketSummary(updated);
-};
-
-export const listAgentClients = async (
-  agent: AgentContext,
-  input: { limit?: number },
-) => {
-  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
-  return db.query.client.findMany({
-    where: and(
-      eq(client.company_id, agent.companyId),
-      isNull(client.deleted_at),
-    ),
-    orderBy: [desc(client.created_at)],
-    limit,
-    columns: {
-      id: true,
-      name: true,
-      email: true,
-      document: true,
-      company_id: true,
-      created_at: true,
-    },
-  });
 };
 
 export const listSelectableCompaniesForUser = async (userId: bigint) => {

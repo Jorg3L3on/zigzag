@@ -2,17 +2,31 @@ import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import {
   createAgentTicket,
+  getAgentIdentity,
   getAgentTicket,
-  listAgentClients,
   listAgentCompanies,
   listAgentTickets,
   updateAgentTicketStatus,
 } from '@/lib/mcp/domain';
 import { parseAgentTicketId } from '@/lib/mcp/serialize-ticket';
+import { registerCatalogTools } from '@/lib/mcp/tools/catalog';
+import { registerDocumentTools } from '@/lib/mcp/tools/documents';
+import { registerPaymentTools } from '@/lib/mcp/tools/payments';
+import { registerSearchTools } from '@/lib/mcp/tools/search';
+import { registerWriteTools } from '@/lib/mcp/tools/writes';
+import {
+  getTicketOutputSchema,
+  listCompaniesOutputSchema,
+  listTicketsOutputSchema,
+  ticketWriteOutputSchema,
+  whoamiSchema,
+} from '@/lib/mcp/schemas';
 import {
   companyIdSchema,
+  READ_ONLY_ANNOTATIONS,
   runAgentCompanyTool,
   runAgentUserTool,
+  writeAnnotations,
   type McpToolContext,
 } from '@/lib/mcp/tool-helpers';
 
@@ -22,12 +36,44 @@ const ticketIdSchema = z
 
 export const registerMcpTools = (server: McpServer) => {
   server.registerTool(
+    'whoami',
+    {
+      title: 'Quién soy',
+      description:
+        'Indica a qué usuario de ZigZag pertenece esta conexión, cómo se autenticó, sus scopes y las compañías autorizadas. Llámala primero.',
+      outputSchema: whoamiSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
+      _meta: { 'openai/profile': true },
+    },
+    async (ctx) =>
+      runAgentUserTool(
+        'whoami',
+        ctx as McpToolContext,
+        async (agentUser) => {
+          const [identity, companies] = await Promise.all([
+            getAgentIdentity(agentUser),
+            listAgentCompanies(agentUser),
+          ]);
+          return {
+            user: identity.user,
+            auth_source: agentUser.authSource,
+            connection_label: identity.connectionLabel,
+            scopes: agentUser.scopes,
+            companies,
+          };
+        },
+        { requireCompanies: false },
+      ),
+  );
+
+  server.registerTool(
     'list_companies',
     {
       title: 'Listar compañías',
       description:
         'Lista las compañías autorizadas para esta conexión que el usuario puede ver.',
-      annotations: { readOnlyHint: true },
+      outputSchema: listCompaniesOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (ctx) =>
       runAgentUserTool('list_companies', ctx as McpToolContext, async (agentUser) => ({
@@ -39,13 +85,15 @@ export const registerMcpTools = (server: McpServer) => {
     'list_tickets',
     {
       title: 'Listar tickets',
-      description: 'Lista tickets de una compañía autorizada.',
+      description:
+        'Obsoleta (deprecated): usa list_documents. Lista tickets de una compañía autorizada (formato v1, se retirará).',
       inputSchema: z.object({
         company_id: companyIdSchema,
         limit: z.number().int().min(1).max(100).optional(),
         finished: z.boolean().optional(),
       }),
-      annotations: { readOnlyHint: true },
+      outputSchema: listTicketsOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -67,12 +115,14 @@ export const registerMcpTools = (server: McpServer) => {
     'get_ticket',
     {
       title: 'Obtener ticket',
-      description: 'Obtiene un ticket por id dentro de una compañía autorizada.',
+      description:
+        'Obsoleta (deprecated): usa get_document. Obtiene un ticket por id dentro de una compañía autorizada (formato v1, se retirará).',
       inputSchema: z.object({
         company_id: companyIdSchema,
         ticket_id: ticketIdSchema,
       }),
-      annotations: { readOnlyHint: true },
+      outputSchema: getTicketOutputSchema,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -90,8 +140,9 @@ export const registerMcpTools = (server: McpServer) => {
   server.registerTool(
     'create_ticket',
     {
-      title: 'Crear ticket',
-      description: 'Crea un ticket en una compañía autorizada (scope write).',
+      title: 'Crear ticket (obsoleto)',
+      description:
+        'Obsoleto: usa create_document con kind "ticket", que agrega líneas, materiales y pago. Se mantiene una versión más. Crea un ticket sin líneas en una compañía autorizada (scope write).',
       inputSchema: z.object({
         company_id: companyIdSchema,
         client_name: z.string().min(1).max(100),
@@ -99,7 +150,8 @@ export const registerMcpTools = (server: McpServer) => {
         client_id: z.number().int().positive().optional(),
         email: z.string().email().max(40).optional(),
       }),
-      annotations: { destructiveHint: false },
+      outputSchema: ticketWriteOutputSchema,
+      annotations: writeAnnotations({ idempotent: false }),
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -125,7 +177,9 @@ export const registerMcpTools = (server: McpServer) => {
         ticket_id: ticketIdSchema,
         finished: z.boolean(),
       }),
-      annotations: { destructiveHint: true },
+      outputSchema: ticketWriteOutputSchema,
+      // Reopening undoes it, so it is not destructive; same input, same state.
+      annotations: writeAnnotations({ idempotent: true }),
     },
     async (args, ctx) =>
       runAgentCompanyTool(
@@ -144,28 +198,9 @@ export const registerMcpTools = (server: McpServer) => {
       ),
   );
 
-  server.registerTool(
-    'list_clients',
-    {
-      title: 'Listar clientes',
-      description:
-        'Lista clientes de una compañía (campos mínimos, sin teléfono ni dirección).',
-      inputSchema: z.object({
-        company_id: companyIdSchema,
-        limit: z.number().int().min(1).max(100).optional(),
-      }),
-      annotations: { readOnlyHint: true },
-    },
-    async (args, ctx) =>
-      runAgentCompanyTool(
-        'list_clients',
-        ctx as McpToolContext,
-        args,
-        'clients.read',
-        'read',
-        async (agent) => ({
-          clients: await listAgentClients(agent, { limit: args.limit }),
-        }),
-      ),
-  );
+  registerCatalogTools(server);
+  registerDocumentTools(server);
+  registerSearchTools(server);
+  registerWriteTools(server);
+  registerPaymentTools(server);
 };

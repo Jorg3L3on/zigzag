@@ -1,0 +1,51 @@
+{
+  "$comment": "Copied from OpenAI's MCP server guide (ChatGPT connectors, company knowledge and deep research): the search and fetch tools must return exactly one content item of type text whose text is a JSON-encoded object with these shapes. https://platform.openai.com/docs/mcp — kept in the repo so the contract test does not depend on the network (ZIG-I23-5).",
+  "search": {
+    "input": {
+      "type": "object",
+      "properties": { "query": { "type": "string" } },
+      "required": ["query"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "url": { "type": "string" }
+            },
+            "required": ["id", "title", "url"]
+          }
+        }
+      },
+      "required": ["results"]
+    }
+  },
+  "fetch": {
+    "input": {
+      "type": "object",
+      "properties": { "id": { "type": "string" } },
+      "required": ["id"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "url": { "type": "string" },
+        "metadata": {
+          "anyOf": [
+            { "type": "object", "additionalProperties": true },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["id", "title", "text", "url"]
+    }
+  }
+}

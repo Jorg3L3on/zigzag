@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { mcpOAuthGrant } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { updateOAuthGrantAllowList } from '@/lib/server/mcp-oauth/grants';
+import {
+  revokeOAuthGrant,
+  updateOAuthGrantAllowList,
+} from '@/lib/server/mcp-oauth/grants';
 import { updateOAuthGrantSchema } from '@/schemas/api-key.schema';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -62,15 +65,14 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'Id inválido' }, { status: 400 });
   }
 
-  const result = await db
-    .update(mcpOAuthGrant)
-    .set({ revoked_at: new Date() })
-    .where(and(eq(mcpOAuthGrant.id, grantId), eq(mcpOAuthGrant.user_id, userId)))
-    .returning({ id: mcpOAuthGrant.id });
-
-  if (result.length === 0) {
+  const owned = await db.query.mcpOAuthGrant.findFirst({
+    where: and(eq(mcpOAuthGrant.id, grantId), eq(mcpOAuthGrant.user_id, userId)),
+    columns: { id: true },
+  });
+  if (!owned) {
     return NextResponse.json({ error: 'Conexión no encontrada' }, { status: 404 });
   }
 
+  await revokeOAuthGrant(grantId, 'revoked_by_user');
   return NextResponse.json({ success: true });
 }

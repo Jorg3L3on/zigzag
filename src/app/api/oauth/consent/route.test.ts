@@ -19,6 +19,10 @@ jest.mock('@/lib/server/mcp-oauth/clients', () => ({
   assertRedirectUriAllowed: jest.fn(),
 }));
 
+jest.mock('@/lib/server/agent-access-audit', () => ({
+  recordAgentAccessAudit: jest.fn(),
+}));
+
 jest.mock('@/lib/server/mcp-oauth/grants', () => ({
   createAuthorizationCode: jest.fn(),
 }));
@@ -136,6 +140,50 @@ describe('POST /api/oauth/consent', () => {
     const redirectUrl = new URL(location!);
     expect(redirectUrl.searchParams.get('code')).toBe('mock-auth-code');
     expect(redirectUrl.searchParams.get('state')).toBe('oauth-state-token');
+  });
+
+  it('grants write only when allow_write=true is posted', async () => {
+    const { allow_write: _omitted, ...withoutOptIn } = basePayload;
+    await POST(makeJsonRequest(withoutOptIn));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read'] }),
+    );
+
+    await POST(makeJsonRequest({ ...basePayload, allow_write: 'false' }));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read'] }),
+    );
+
+    await POST(makeJsonRequest(basePayload));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write'] }),
+    );
+  });
+
+  it('grants payments only when allow_payments=true is posted, never with write alone (ZIG-I23-7)', async () => {
+    const requested = { ...basePayload, scope: 'read write payments' };
+
+    await POST(makeJsonRequest(requested));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write'] }),
+    );
+
+    await POST(makeJsonRequest({ ...requested, allow_payments: 'false' }));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write'] }),
+    );
+
+    await POST(makeJsonRequest({ ...requested, allow_payments: 'true' }));
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'write', 'payments'] }),
+    );
+
+    await POST(
+      makeJsonRequest({ ...requested, allow_write: 'false', allow_payments: 'true' }),
+    );
+    expect(mockCreateAuthorizationCode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scopes: ['read', 'payments'] }),
+    );
   });
 
   it('returns 401 when session is missing', async () => {

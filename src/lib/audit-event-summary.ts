@@ -1,4 +1,5 @@
 import { formatCompactCurrency } from '@/lib/format-compact';
+import { formatMcpAgentDetail } from '@/lib/mcp-audit-display';
 import {
   formatAuditActionLabel,
   formatAuditResourceTypeLabel,
@@ -140,6 +141,10 @@ export const formatAuditEventSummary = (
   const payload = input.payload;
   const name = resourceDisplayName(payload);
   const details: string[] = [];
+  const agentDetail = formatMcpAgentDetail(payload);
+  if (agentDetail) {
+    details.push(agentDetail);
+  }
 
   if (input.action === 'sign_in_failed' || (input.resource_type === 'auth' && input.result === 'failed')) {
     const email = asString(payload?.email);

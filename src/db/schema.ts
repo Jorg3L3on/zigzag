@@ -747,6 +747,12 @@ export const mcpOAuthClient = pgTable(
       .default('none'),
     client_uri: text('client_uri'),
     logo_uri: text('logo_uri'),
+    /** CIMD clients: when the metadata document was last fetched (re-fetch after 24 h). */
+    fetched_at: timestamp('fetched_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
@@ -793,6 +799,7 @@ export const mcpOAuthAuthorizationCode = pgTable(
     uniqueIndex('McpOAuthAuthorizationCode_code_hash_key').on(t.code_hash),
     index('McpOAuthAuthorizationCode_client_id_idx').on(t.client_id),
     index('McpOAuthAuthorizationCode_user_id_idx').on(t.user_id),
+    index('McpOAuthAuthorizationCode_expires_at_idx').on(t.expires_at),
   ],
 );
 
@@ -832,12 +839,34 @@ export const mcpOAuthGrant = pgTable(
       precision: 3,
       mode: 'date',
     }),
+    /** refresh, refresh_reuse, code_replay, password_changed, user_deactivated, … */
+    revoked_reason: text('revoked_reason'),
+    /** The refresh token stops working here; each refresh moves it out, up to absolute_expires_at. */
+    refresh_expires_at: timestamp('refresh_expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    /** Consent + 365 days: no refresh past this. */
+    absolute_expires_at: timestamp('absolute_expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }),
+    /** Hash of the refresh token rotated out last; presenting it again revokes the grant. */
+    previous_refresh_token_hash: text('previous_refresh_token_hash'),
+    /** The code this grant was minted from; replaying the code revokes it. */
+    authorization_code_id: integer('authorization_code_id'),
     created_at: timestamp('created_at', { precision: 3, mode: 'date' })
       .notNull()
       .defaultNow(),
   },
   (t) => [
     uniqueIndex('McpOAuthGrant_token_prefix_key').on(t.token_prefix),
+    index('McpOAuthGrant_previous_refresh_token_hash_idx').on(
+      t.previous_refresh_token_hash,
+    ),
+    index('McpOAuthGrant_authorization_code_id_idx').on(t.authorization_code_id),
     uniqueIndex('McpOAuthGrant_refresh_token_hash_key').on(t.refresh_token_hash),
     uniqueIndex('McpOAuthGrant_refresh_token_prefix_key').on(
       t.refresh_token_prefix,
@@ -845,6 +874,66 @@ export const mcpOAuthGrant = pgTable(
     index('McpOAuthGrant_user_id_idx').on(t.user_id),
     index('McpOAuthGrant_client_id_idx').on(t.client_id),
   ],
+);
+
+/**
+ * One row per MCP `tools/call` the agent could be identified for (ZIG-I23-8):
+ * which connection (API key or OAuth grant) called which tool, in which
+ * company, and how it went. `company_id` is only set once the connection was
+ * allowed into that company, so a list never names another tenant. Written
+ * fire-and-forget by `src/lib/mcp/activity.ts`; rows older than 90 days are
+ * deleted by the daily retention job.
+ */
+export const mcpToolCall = pgTable(
+  'McpToolCall',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    company_id: integer('company_id').references(() => company.id, {
+      onDelete: 'set null',
+    }),
+    user_id: bigint('user_id', { mode: 'bigint' })
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    api_key_id: integer('api_key_id').references(() => apiKey.id, {
+      onDelete: 'cascade',
+    }),
+    oauth_grant_id: integer('oauth_grant_id').references(() => mcpOAuthGrant.id, {
+      onDelete: 'cascade',
+    }),
+    tool: text('tool').notNull(),
+    ok: boolean('ok').notNull(),
+    error_code: text('error_code'),
+    duration_ms: integer('duration_ms').notNull(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('McpToolCall_api_key_id_created_at_idx').on(t.api_key_id, t.created_at),
+    index('McpToolCall_oauth_grant_id_created_at_idx').on(
+      t.oauth_grant_id,
+      t.created_at,
+    ),
+    index('McpToolCall_created_at_idx').on(t.created_at),
+  ],
+);
+
+/** Single-use private_key_jwt assertions: a jti seen before its expiry is a replay. */
+export const mcpOAuthJwtAssertion = pgTable(
+  'McpOAuthJwtAssertion',
+  {
+    jti: text('jti').primaryKey(),
+    client_id: text('client_id').notNull(),
+    expires_at: timestamp('expires_at', {
+      withTimezone: true,
+      precision: 3,
+      mode: 'date',
+    }).notNull(),
+    created_at: timestamp('created_at', { precision: 3, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('McpOAuthJwtAssertion_expires_at_idx').on(t.expires_at)],
 );
 
 /** Secret-free log of OAuth token endpoint attempts (diagnostics). */
@@ -1133,3 +1222,4 @@ export type McpOAuthAuthorizationCodeRow =
   typeof mcpOAuthAuthorizationCode.$inferSelect;
 export type McpOAuthGrantRow = typeof mcpOAuthGrant.$inferSelect;
 export type McpOAuthTokenAttemptRow = typeof mcpOAuthTokenAttempt.$inferSelect;
+export type McpToolCallRow = typeof mcpToolCall.$inferSelect;

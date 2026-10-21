@@ -1,11 +1,16 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { registerDynamicOAuthClient } from '@/lib/server/mcp-oauth/clients';
+import { checkDcrMetadata } from '@/lib/server/mcp-oauth/dcr-policy';
 import {
   oauthErrorResponse,
   oauthJsonResponse,
   oauthOptionsResponse,
 } from '@/lib/server/mcp-oauth/cors';
+import {
+  enforceOAuthRateLimit,
+  OAUTH_REGISTER_RATE_LIMIT,
+} from '@/lib/server/mcp-oauth/rate-limit';
 
 const registrationSchema = z
   .object({
@@ -24,9 +29,20 @@ export function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceOAuthRateLimit(
+    'register',
+    request,
+    OAUTH_REGISTER_RATE_LIMIT,
+  );
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const input = registrationSchema.parse(body);
+    const policyError = checkDcrMetadata(input);
+    if (policyError) {
+      return oauthErrorResponse(policyError.error, policyError.description);
+    }
     const { client, clientSecret } = await registerDynamicOAuthClient(input);
 
     return oauthJsonResponse(

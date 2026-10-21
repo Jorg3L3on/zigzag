@@ -11,6 +11,7 @@ import {
   parseScopeParam,
 } from '@/lib/server/mcp-oauth/config';
 import { createAuthorizationCode } from '@/lib/server/mcp-oauth/grants';
+import { recordAgentAccessAudit } from '@/lib/server/agent-access-audit';
 
 const consentFieldsSchema = z.object({
   client_id: z.string().min(1),
@@ -21,6 +22,7 @@ const consentFieldsSchema = z.object({
   code_challenge_method: z.literal('S256'),
   resource: z.string().url().optional(),
   allow_write: z.enum(['true', 'false']).optional(),
+  allow_payments: z.enum(['true', 'false']).optional(),
   allowed_company_ids: z
     .union([z.string(), z.array(z.string())])
     .transform((value) => {
@@ -91,9 +93,14 @@ export async function POST(request: NextRequest) {
 
     assertRedirectUriAllowed(client, input.redirect_uri);
 
+    // Write is opt-in: granted only when the person ticked it (allow_write=true).
     let scopes = parseScopeParam(input.scope);
-    if (input.allow_write === 'false') {
+    if (input.allow_write !== 'true') {
       scopes = scopes.filter((scope) => scope !== 'write');
+    }
+    // Payments too (ZIG-I23-7): its own checkbox, never implied by write.
+    if (input.allow_payments !== 'true') {
+      scopes = scopes.filter((scope) => scope !== 'payments');
     }
     if (!scopes.includes('read')) scopes = ['read', ...scopes];
 
@@ -112,6 +119,18 @@ export async function POST(request: NextRequest) {
       codeChallengeMethod: input.code_challenge_method,
       resource,
       request,
+    });
+
+    await recordAgentAccessAudit({
+      event: 'oauth.consent_granted',
+      userId: BigInt(session.user.id),
+      resourceId: input.client_id,
+      payload: {
+        client_name: client.client_name,
+        redirect_host: new URL(input.redirect_uri).host,
+        scopes,
+        allowed_company_ids: input.allowed_company_ids,
+      },
     });
 
     const redirect = buildOAuthCallbackUrl({

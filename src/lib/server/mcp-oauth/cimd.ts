@@ -19,6 +19,10 @@ export const isClientIdMetadataUrl = (clientId: string): boolean => {
   }
 };
 
+/** A CIMD client whose metadata document lives on a trusted host (ChatGPT). */
+export const isTrustedCimdClient = (clientId: string): boolean =>
+  isClientIdMetadataUrl(clientId) && isTrustedCimdHost(clientId);
+
 export const cimdClientIdsMatch = (
   fetchUrl: string,
   documentClientId: string,

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { mcpOAuthGrant, mcpOAuthClient } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { lastMcpActivityByConnection } from '@/lib/mcp/activity';
 
 export async function GET() {
   const session = await auth();
@@ -27,6 +28,11 @@ export async function GET() {
     .innerJoin(mcpOAuthClient, eq(mcpOAuthGrant.client_id, mcpOAuthClient.client_id))
     .where(eq(mcpOAuthGrant.user_id, userId));
 
+  const lastActivity = await lastMcpActivityByConnection(
+    'oauth_grant',
+    grants.map((grant) => grant.id),
+  );
+
   return NextResponse.json(
     grants.map((grant) => ({
       id: grant.id,
@@ -38,6 +44,7 @@ export async function GET() {
       expires_at: grant.expires_at?.toISOString() ?? null,
       revoked_at: grant.revoked_at?.toISOString() ?? null,
       created_at: grant.created_at.toISOString(),
+      last_activity: lastActivity.get(grant.id) ?? null,
     })),
   );
 }
