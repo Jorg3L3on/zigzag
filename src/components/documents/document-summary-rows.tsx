@@ -39,7 +39,9 @@ type DocumentSummaryRowsProps = {
 
 /**
  * "Ver el servicio" when there is one item, otherwise "Ver los N servicios".
- * Zero materials are omitted. One material stays numbered: "y 1 material".
+ * Zero materials are omitted; one reads "y el material" (ZIG-17). With several
+ * materials "los" distributes over both plurals ("Ver los 3 servicios y 2
+ * materiales") but not over a singular, so one item gets "y los M materiales".
  */
 export const summaryToggleLabelFor = (
   count: number,
@@ -49,7 +51,8 @@ export const summaryToggleLabelFor = (
 ) => {
   const items = count === 1 ? `el ${one}` : `los ${count} ${many}`;
   if (materials === 0) return `Ver ${items}`;
-  const materialsText = materials === 1 ? '1 material' : `${materials} materiales`;
+  if (materials === 1) return `Ver ${items} y el material`;
+  const materialsText = count === 1 ? `los ${materials} materiales` : `${materials} materiales`;
   return `Ver ${items} y ${materialsText}`;
 };
 

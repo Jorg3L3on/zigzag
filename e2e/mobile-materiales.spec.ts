@@ -198,8 +198,9 @@ test.describe('Materiales (mobile)', () => {
     await expect(page.getByTestId('review-total')).toHaveText(money(4390), {
       timeout: 15_000,
     });
-    // Materials sit behind Ver los N servicios y M materiales (ZIG-I13-3).
-    await page.getByRole('button', { name: /^Ver los \d+ servicio/ }).click();
+    // Materials sit behind the collapsed toggle (ZIG-I13-3); one line and two
+    // materials read "Ver el servicio y los 2 materiales" (ZIG-17).
+    await page.getByRole('button', { name: 'Ver el servicio y los 2 materiales' }).click();
     const reviewLines = page.getByRole('list', { name: LINES_LABEL });
     const reviewMaterials = reviewLines.getByRole('list', { name: /^Materiales/ });
     await expect(reviewMaterials.getByText(gas)).toBeVisible();

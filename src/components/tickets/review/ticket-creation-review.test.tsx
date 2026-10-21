@@ -164,8 +164,36 @@ describe('TicketCreationReview', () => {
     });
 
     expect(screen.queryByText(/Servicio 4/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Ver los 5 servicios y 1 material' }));
+    await user.click(screen.getByRole('button', { name: 'Ver los 5 servicios y el material' }));
     expect(screen.getByText(/Servicio 5/)).toBeTruthy();
+    expect(screen.getByText(/Filtro/)).toBeTruthy();
+  });
+
+  it.each([
+    ['guardado', { finished: false, paid: 0 }],
+    ['finalizado', { finished: true, paid: 4250 }],
+  ])('reads Ver el servicio y el material with one of each (%s, ZIG-17)', async (state, props) => {
+    const user = userEvent.setup();
+    renderReview({
+      ...props,
+      total: 4250,
+      lines: [
+        {
+          id: 1,
+          serviceId: 7,
+          name: 'Mantenimiento',
+          quantity: 1,
+          price: 4200,
+          materials: [{ id: 1, name: 'Filtro', quantity: 1, unit: 'pza', price: 50, inline: false }],
+        },
+      ],
+    });
+
+    expect(screen.getByRole('heading', { name: `Ticket #1201 ${state}` })).toBeTruthy();
+    expect(screen.queryByText(/Filtro/)).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Ver el servicio y el material' });
+    expect(screen.queryByText(/Ver los 1 servicio/)).toBeNull();
+    await user.click(toggle);
     expect(screen.getByText(/Filtro/)).toBeTruthy();
   });
 
