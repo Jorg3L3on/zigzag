@@ -199,18 +199,18 @@ export const PresupuestoDetailLayout = ({
   const shareButton = canShare ? (
     <Button
       type="button"
-      variant="ghost"
-      size="icon"
-      className="h-11 w-11 shrink-0"
+      variant="outline"
+      className="h-11 shrink-0 gap-1.5 rounded-xl px-2.5 text-sm font-semibold"
       aria-label="Compartir presupuesto"
       disabled={sharing}
       onClick={onShare}
     >
       {sharing ? (
-        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
       ) : (
-        <Share2 className="h-5 w-5" aria-hidden />
+        <Share2 className="h-4 w-4" aria-hidden />
       )}
+      Compartir
     </Button>
   ) : null;
 

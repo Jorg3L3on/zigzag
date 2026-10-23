@@ -112,6 +112,14 @@ describe('ticket PDF data', () => {
     );
   });
 
+  it('uses the Mexico City day in the issue date and the file name at 23:00 (ZIG-19)', () => {
+    const evening = new Date('2026-10-23T23:00:00-06:00');
+    expect(evening.toISOString().slice(0, 10)).toBe('2026-10-24');
+    const ticket = { ...baseTicket, ticket_date: evening };
+    expect(buildInvoiceDataFromTicketDetail(ticket).issueDate).toBe('23/10/2026');
+    expect(buildTicketPdfFileName(ticket)).toBe('Acme Corp_2026-10-23_42.pdf');
+  });
+
   it('prefixes presupuesto file names (ZIG-I5-4)', () => {
     expect(
       buildTicketPdfFileName({ ...baseTicket, document_kind: 'presupuesto' }),

@@ -14,6 +14,7 @@ describe('PDFDownloadButton', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -54,7 +55,9 @@ describe('PDFDownloadButton', () => {
       expect(button).toBeEnabled();
     });
     expect(toast.error).toHaveBeenCalledWith('No se pudo generar el PDF', {
-      description: expect.stringContaining('PDF001'),
+      description: 'No se pudo generar el PDF',
     });
+    expect(screen.queryByText(/PDF001|Código/)).not.toBeInTheDocument();
+    expect(console.warn).toHaveBeenCalledWith('support error code', 'PDF001');
   });
 });

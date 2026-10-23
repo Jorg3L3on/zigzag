@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 
+import { LineMaterialsDisclosure } from '@/components/documents/line-materials-disclosure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { formatMaterialQuantity } from '@/lib/material-drafts';
 import { roundMoney } from '@/lib/money';
@@ -93,6 +94,13 @@ export const DocumentSummaryRows = ({
                 {formatServiceCurrency(line.amount)}
               </span>
             </div>
+            {!expanded && line.materials && line.materials.length > 0 ? (
+              <LineMaterialsDisclosure
+                materials={line.materials}
+                lineName={line.name}
+                className="mt-0.5"
+              />
+            ) : null}
             {expanded && line.materials && line.materials.length > 0 ? (
               <ul
                 aria-label={`Materiales de ${line.name}`}

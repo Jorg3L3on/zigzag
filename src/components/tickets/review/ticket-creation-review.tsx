@@ -36,6 +36,7 @@ import {
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
+import { buildTicketInvoicePreviewUrl } from '@/lib/ticket-invoice-url';
 import { canDownloadTicketInvoice, canFinishTicket } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
@@ -100,6 +101,18 @@ export const TicketCreationReview = ({
   const paymentChoice = usePaymentChoice(total);
   const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
   const [phase, setPhase] = React.useState<Phase>('idle');
+  const pdfHref = finished
+    ? `/tickets/${ticketId}/recibo?from=listo`
+    : buildTicketInvoicePreviewUrl(ticketId, companyId);
+
+  React.useEffect(() => {
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      // The Jest runtime rejects this call; the browser still starts at the top.
+    }
+  }, []);
+
   const {
     share: shareReceiptFile,
     download: handleDownload,
@@ -324,7 +337,10 @@ export const TicketCreationReview = ({
               data-testid="review-recibo-links"
             >
               <Button asChild variant="outline" className="h-12 min-w-0 rounded-xl text-base">
-                <Link href={`/tickets/${ticketId}/recibo?from=listo`}>
+                <Link
+                  href={pdfHref}
+                  {...(finished ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                >
                   <FileText className="h-4 w-4" aria-hidden />
                   Abrir PDF
                 </Link>
@@ -349,12 +365,9 @@ export const TicketCreationReview = ({
 
         <div className="hidden items-center justify-between gap-4 md:flex">
           {!finished ? (
-            <Link
-              href={`/tickets/${ticketId}`}
-              className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Guardar sin terminar
-            </Link>
+            <Button asChild variant="outline" className="h-12 rounded-xl px-4 text-base font-semibold">
+              <Link href={`/tickets/${ticketId}`}>Guardar sin terminar</Link>
+            </Button>
           ) : (
             <Link
               href={`/tickets/${ticketId}`}
@@ -366,21 +379,27 @@ export const TicketCreationReview = ({
           {primaryCta}
         </div>
 
-        <div className="flex justify-center gap-6 text-sm md:hidden">
-          <Link
-            href={`/tickets/${ticketId}`}
-            className="inline-flex min-h-11 items-center font-medium text-muted-foreground underline-offset-4 hover:underline"
-          >
-            {finished ? 'Ver ticket' : 'Guardar sin terminar'}
-          </Link>
-          {finished ? (
-            <Link
-              href="/tickets/create"
-              className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Nuevo ticket
-            </Link>
-          ) : null}
+        <div className="md:hidden">
+          {!finished ? (
+            <Button asChild variant="outline" className="h-12 w-full rounded-xl text-base font-semibold">
+              <Link href={`/tickets/${ticketId}`}>Guardar sin terminar</Link>
+            </Button>
+          ) : (
+            <div className="flex justify-center gap-6 text-sm">
+              <Link
+                href={`/tickets/${ticketId}`}
+                className="inline-flex min-h-11 items-center font-medium text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Ver ticket
+              </Link>
+              <Link
+                href="/tickets/create"
+                className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Nuevo ticket
+              </Link>
+            </div>
+          )}
         </div>
       </TripledDashboardShell>
 

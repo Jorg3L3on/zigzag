@@ -930,7 +930,13 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                         quantity={line.quantity}
                         price={line.price}
                         amount={lineTotalWithMaterials(line)}
-                        materialCount={line.materials?.length ?? 0}
+                        materials={(line.materials ?? []).map((item) => ({
+                          id: item.key,
+                          name: item.name,
+                          quantity: item.quantity,
+                          unit: item.unit,
+                          price: item.price,
+                        }))}
                         error={lineErrors[line.key]}
                         onClick={() => openEditLine(line.key)}
                         data-testid="composer-line-row"
@@ -1052,6 +1058,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           lineSheet.editingKey ? () => handleRemoveLine(lineSheet.editingKey as string) : undefined
         }
         documentLabel={copy.documentLabel}
+        documentKind={kind}
         otherLinesTotal={addMoney(
           ...lines
             .filter((line) => line.key !== lineSheet.editingKey)

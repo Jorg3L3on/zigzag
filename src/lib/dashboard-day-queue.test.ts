@@ -146,4 +146,10 @@ describe('daysLate', () => {
     expect(daysLate(day(-40).toISOString(), today)).toBe(40);
     expect(daysLate(day(0).toISOString(), today)).toBe(0);
   });
+
+  it('counts the Mexico City day at 23:00, when UTC is already tomorrow (ZIG-25)', () => {
+    const evening = new Date('2026-10-23T23:00:00-06:00');
+    expect(daysLate('2026-10-23T23:30:00-06:00', evening)).toBe(0);
+    expect(daysLate('2026-10-22T18:00:00-06:00', evening)).toBe(1);
+  });
 });

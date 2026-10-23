@@ -1,9 +1,5 @@
-import {
-  addDays,
-  endOfDay,
-  isWithinInterval,
-  startOfDay,
-} from 'date-fns';
+import { addDays } from 'date-fns';
+import { companyDay } from '@/lib/company-day';
 
 export const DUE_SOON_DAYS = 14;
 
@@ -33,20 +29,15 @@ export const classifyScheduleBucket = (
     return 'pausados';
   }
 
-  const dayStart = startOfDay(today);
-  const dueDay = startOfDay(nextDueAt);
-  const soonEnd = endOfDay(addDays(dayStart, DUE_SOON_DAYS));
+  const dayStart = companyDay(today).date.getTime();
+  const dueDay = companyDay(nextDueAt).date.getTime();
+  const soonEnd = addDays(companyDay(today).date, DUE_SOON_DAYS).getTime();
 
   if (dueDay < dayStart) {
     return 'atrasados';
   }
 
-  if (
-    isWithinInterval(dueDay, {
-      start: dayStart,
-      end: soonEnd,
-    })
-  ) {
+  if (dueDay <= soonEnd) {
     return 'proximos';
   }
 

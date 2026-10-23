@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { logSupportCode } from '@/lib/support-code-log';
 import type { Service } from '@/db/schema';
 import { createService, updateService } from '@/actions/services';
 import { ServiceMaterialsField } from '@/components/services/service-materials-field';
@@ -95,7 +96,8 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
 
   const handleSubmit = async (data: ServiceFormValues) => {
     if (!selectedCompany?.id) {
-      toast.error('Selecciona una empresa para continuar. Código: CO006');
+      logSupportCode('CO006');
+      toast.error('Selecciona una empresa para continuar.');
       return;
     }
 

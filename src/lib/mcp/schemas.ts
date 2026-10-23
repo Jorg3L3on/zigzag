@@ -43,6 +43,15 @@ export const companySchema = z.object({
   status: z.enum(['SETUP', 'ACTIVE', 'SUSPENDED', 'ARCHIVED', 'INACTIVE']),
 });
 
+/** One payment method per company (ZIG-23). `kind` is absent when settings have no payment_kind (legacy CLABE). */
+export const companyPaymentInfoSchema = z.object({
+  bank: z.string().nullable(),
+  holder: z.string().nullable(),
+  clabe: z.string().nullable(),
+  note: z.string().nullable(),
+  kind: z.enum(['clabe', 'card', 'account']).optional(),
+});
+
 export const ticketSummarySchema = z.object({
   id: z.string().describe('Id del ticket (BigInt serializado como string).'),
   client_id: z.number().int().nullable(),

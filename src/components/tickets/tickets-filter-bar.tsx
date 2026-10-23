@@ -3,7 +3,6 @@ import type { DateRange } from 'react-day-picker';
 import {
   TicketDateRangeFilter,
   TicketFinishedFilter,
-  TicketStatusFilter,
 } from '@/components/tickets/tickets-filter-fields';
 import type {
   FinishedFilterValue,
@@ -79,8 +78,6 @@ const TicketQuickFilters = ({
 );
 
 const renderTicketFilters = (
-  statusFilter: StatusFilterValue,
-  onStatusFilterChange: (value: StatusFilterValue) => void,
   finishedFilter: FinishedFilterValue,
   onFinishedFilterChange: (value: FinishedFilterValue) => void,
   dateRange: DateRange | undefined,
@@ -88,11 +85,6 @@ const renderTicketFilters = (
   layout: 'desktop' | 'sheet',
 ) => (
   <>
-    <TicketStatusFilter
-      layout={layout}
-      value={statusFilter}
-      onChange={onStatusFilterChange}
-    />
     <TicketFinishedFilter
       layout={layout}
       value={finishedFilter}
@@ -168,8 +160,6 @@ export const TicketsFilterBar = ({
     sheetContent={
       <>
         {renderTicketFilters(
-          statusFilter,
-          onStatusFilterChange,
           finishedFilter,
           onFinishedFilterChange,
           dateRange,
@@ -187,8 +177,6 @@ export const TicketsFilterBar = ({
     desktopContent={
       <div className="flex flex-wrap items-center gap-3">
         {renderTicketFilters(
-          statusFilter,
-          onStatusFilterChange,
           finishedFilter,
           onFinishedFilterChange,
           dateRange,

@@ -9,6 +9,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { getCompanyPaymentInfo } from '@/lib/company-payment-info';
+import { companyPaymentInfoSchema } from '@/lib/mcp/schemas';
 import { resolveFolioPrefix } from '@/lib/folio';
 import { logger } from '@/lib/logger';
 import { listAgentCompanies } from '@/lib/mcp/domain';
@@ -75,7 +76,10 @@ export const getCompanyProfile = async (companyId: number) => {
       postal_code: row.postal_code,
       country: row.country,
     },
-    payment_info: getCompanyPaymentInfo(row.settings),
+    payment_info: (() => {
+      const info = getCompanyPaymentInfo(row.settings);
+      return info ? companyPaymentInfoSchema.parse(info) : null;
+    })(),
     folio_prefixes: {
       ticket: resolveFolioPrefix('ticket', row.settings),
       presupuesto: resolveFolioPrefix('presupuesto', row.settings),

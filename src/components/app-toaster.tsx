@@ -2,14 +2,22 @@
 
 import { Toaster, toast } from 'sonner';
 import { splitErrorCode } from '@/lib/error-code-display';
+import { logSupportCode } from '@/lib/support-code-log';
 import { useTheme } from 'next-themes';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 /**
- * Error toasts keep the support code off the sentence (ZIG-I18-3): the message
- * is the title, "Código: XX000" the description underneath. Patched once here
- * so the ~50 call sites keep passing a single string.
+ * Support codes stay out of error toasts (ZIG-24). Call sites may still pass
+ * "Código: XX000" in the title or the description; it is logged and removed.
  */
+const stripSupportCode = (
+  value: unknown,
+): { text: string; code: string | null } | null => {
+  if (typeof value !== 'string') return null;
+  const split = splitErrorCode(value);
+  return { text: split.message, code: split.code };
+};
+
 const patchToastErrorCodes = () => {
   const target = toast as unknown as Record<string, unknown> & {
     __codeSplit?: boolean;
@@ -19,11 +27,18 @@ const patchToastErrorCodes = () => {
   for (const kind of ['error', 'warning'] as const) {
     const original = target[kind] as (message: unknown, data?: Record<string, unknown>) => unknown;
     target[kind] = (message: unknown, data?: Record<string, unknown>) => {
-      if (typeof message === 'string' && !data?.description) {
-        const { message: text, code } = splitErrorCode(message);
-        if (code) return original(text, { ...data, description: `Código: ${code}` });
+      const title = stripSupportCode(message);
+      const description = stripSupportCode(data?.description);
+      const codes = [title?.code, description?.code].filter(
+        (code): code is string => Boolean(code),
+      );
+      for (const code of new Set(codes)) {
+        logSupportCode(code);
       }
-      return original(message, data);
+      const nextMessage = title ? title.text : message;
+      if (!description?.code) return original(nextMessage, data);
+      const cleaned = description.text.trim();
+      return original(nextMessage, { ...data, description: cleaned || undefined });
     };
   }
 };

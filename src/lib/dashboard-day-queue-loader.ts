@@ -17,6 +17,7 @@ import {
   type DashboardDayQueue,
 } from '@/lib/dashboard-day-queue';
 import { buildTechnicianDayQueue } from '@/lib/technician-day-queue';
+import { companyDay } from '@/lib/company-day';
 import { getServiceLineName } from '@/lib/service-line-display';
 
 export const loadDashboardDayQueueForCompany = async (
@@ -25,6 +26,7 @@ export const loadDashboardDayQueueForCompany = async (
   /** Rows per filter (Inicio shows DAY_QUEUE_ROW_LIMIT; the MCP summary asks for 10). */
   options: { limit?: number } = {},
 ): Promise<DashboardDayQueue> => {
+  const companyToday = companyDay(today).date;
   const [unfinished, finished, schedules] = await Promise.all([
     db.query.ticket.findMany({
       where: and(
@@ -73,7 +75,7 @@ export const loadDashboardDayQueueForCompany = async (
       document_kind: row.document_kind,
       serviceNames: row.services_tickets.map((line) => getServiceLineName(line)),
     })),
-    today,
+    companyToday,
   );
 
   const cobranzaRows = buildCobranzaRows(
@@ -89,7 +91,7 @@ export const loadDashboardDayQueueForCompany = async (
       company_id: row.company_id,
       document_kind: row.document_kind,
     })),
-    today,
+    companyToday,
   );
 
   return buildDashboardDayQueue({
@@ -107,7 +109,7 @@ export const loadDashboardDayQueueForCompany = async (
         nextDueAt: row.next_due_at,
         pausedAt: row.paused_at,
       })),
-    today,
+    today: companyToday,
     limit: options.limit,
   });
 };

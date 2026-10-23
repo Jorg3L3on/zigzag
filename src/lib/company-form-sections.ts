@@ -32,7 +32,10 @@ export const COMPANY_FORM_FIELD_SECTIONS: Array<[string, CompanyFormSectionKey]>
   ['settings.experience_mode', 'configuracion'],
   ['settings.payment_bank', 'pago'],
   ['settings.payment_holder', 'pago'],
+  ['settings.payment_kind', 'pago'],
   ['settings.payment_clabe', 'pago'],
+  ['settings.payment_card', 'pago'],
+  ['settings.payment_account', 'pago'],
   ['settings.payment_note', 'pago'],
 ];
 
@@ -98,19 +101,32 @@ export const summarizeCompanySettings = (settings?: {
     ' · ',
   );
 
-/** One line for the closed "Para pagar por transferencia" section (ZIG-I20-1). */
+/** One line for the closed "Para pagar por transferencia" section (ZIG-I20-1, ZIG-23). */
 export const summarizeCompanyPayment = (settings?: {
+  payment_kind?: string;
   payment_bank?: string;
   payment_holder?: string;
   payment_clabe?: string;
+  payment_card?: string;
+  payment_account?: string;
 }) => {
-  const clabe = settings?.payment_clabe?.replace(/[\s-]/g, '') ?? '';
+  const kind = settings?.payment_kind === 'card' || settings?.payment_kind === 'account'
+    ? settings.payment_kind
+    : 'clabe';
+  const raw =
+    kind === 'card'
+      ? settings?.payment_card
+      : kind === 'account'
+        ? settings?.payment_account
+        : settings?.payment_clabe;
+  const digits = raw?.replace(/[\s-]/g, '') ?? '';
+  const label = kind === 'card' ? 'Tarjeta' : kind === 'account' ? 'Cuenta' : 'CLABE';
   return (
     joinFilled(
       [
         settings?.payment_bank,
         settings?.payment_holder,
-        clabe ? `CLABE ···${clabe.slice(-4)}` : '',
+        digits ? `${label} ···${digits.slice(-4)}` : '',
       ],
       ' · ',
     ) || 'Sin datos para pagar'

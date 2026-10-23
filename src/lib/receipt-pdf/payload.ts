@@ -4,6 +4,7 @@
  * and draws what is here.
  */
 import { formatDisplayFolio } from '@/lib/folio';
+import { companyDay } from '@/lib/company-day';
 import { differenceInCalendarDays, format } from 'date-fns';
 import type {
   Client,
@@ -149,9 +150,9 @@ const toDate = (value: Date | string | null | undefined): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-/** `10 / 10 / 2026` */
+/** `10 / 10 / 2026`, on the company calendar (America/Mexico_City). */
 export const formatReceiptDate = (date: Date): string =>
-  format(date, 'dd / MM / yyyy');
+  format(companyDay(date).date, 'dd / MM / yyyy');
 
 export const formatReceiptFolio = (id: bigint | number | string): string =>
   String(id).padStart(6, '0');
@@ -238,6 +239,7 @@ const sanitizePayment = (ticket: ReceiptPdfTicket): CompanyPaymentInfo | null =>
     holder: clean(info.holder),
     clabe: clean(info.clabe),
     note: clean(info.note),
+    ...(info.kind ? { kind: info.kind } : {}),
   };
   return sanitized.bank || sanitized.holder || sanitized.clabe ? sanitized : null;
 };
@@ -304,7 +306,10 @@ export const buildReceiptPdfPayload = (
     const expiresAt = toDate(ticket.expires_at);
     if (expiresAt) {
       validity = {
-        days: Math.max(0, differenceInCalendarDays(expiresAt, issuedAt)),
+        days: Math.max(
+          0,
+          differenceInCalendarDays(companyDay(expiresAt).date, companyDay(issuedAt).date),
+        ),
         expiryDate: formatReceiptDate(expiresAt),
       };
     }

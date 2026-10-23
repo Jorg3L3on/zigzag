@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type { InvoiceData } from '@/components/pdf/invoice-types';
+import { companyDay } from '@/lib/company-day';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import type { TicketDetailData } from '@/actions/tickets';
 import { formatDisplayFolio } from '@/lib/folio';
@@ -14,9 +15,10 @@ import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 export const buildInvoiceDataFromTicketDetail = (
   ticket: TicketDetailData,
 ): InvoiceData => {
-  const issueDate = ticket.ticket_date
-    ? format(new Date(ticket.ticket_date), 'dd/MM/yyyy')
-    : format(new Date(), 'dd/MM/yyyy');
+  const issueDate = format(
+    companyDay(ticket.ticket_date ? new Date(ticket.ticket_date) : new Date()).date,
+    'dd/MM/yyyy',
+  );
 
   const paidAmount =
     typeof ticket.paid === 'number' && Number.isFinite(ticket.paid)
@@ -48,7 +50,7 @@ export const buildInvoiceDataFromTicketDetail = (
     clientCountry: 'México',
     ticketNumber: formatReceiptFolioFor(ticket),
     issueDate,
-    dueDate: format(new Date(), 'dd/MM/yyyy'),
+    dueDate: format(companyDay(new Date()).date, 'dd/MM/yyyy'),
     items,
     total: totalStr,
     paidAmount: paidAmount.toFixed(2),
@@ -69,9 +71,9 @@ export const buildTicketPdfFileName = (
   },
 ): string => {
   const safeName = (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() || 'ticket';
-  const datePart = ticket.ticket_date
-    ? format(new Date(ticket.ticket_date), 'yyyy-MM-dd')
-    : format(new Date(), 'yyyy-MM-dd');
+  const datePart = companyDay(
+    ticket.ticket_date ? new Date(ticket.ticket_date) : new Date(),
+  ).iso;
   // Quotes download as presupuesto_<cliente>_<fecha>_<id>.pdf (ZIG-I5-4).
   const prefix = isPresupuestoTicket(ticket.document_kind) ? 'presupuesto_' : '';
 
