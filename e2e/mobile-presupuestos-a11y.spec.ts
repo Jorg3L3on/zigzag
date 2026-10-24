@@ -53,12 +53,6 @@ test.describe('Presupuestos accessibility @375px', () => {
       timeout: 15_000,
     });
     await expectNoSeriousViolations(page);
-
-    await page.goto(`${href}/listo`);
-    await expect(page.getByTestId('review-header').first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await expectNoSeriousViolations(page);
   });
 
   test('composer and the Nuevo line sheet have no serious axe violations (cancel, no save)', async ({

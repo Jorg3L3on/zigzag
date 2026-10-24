@@ -97,6 +97,21 @@ jest.mock('@/actions/services', () => ({
 jest.mock('@/actions/tickets', () => ({
   createTicketWithLines: (...args: unknown[]) => mockCreateTicketWithLines(...args),
   updateTicketLines: (...args: unknown[]) => mockUpdateTicketLines(...args),
+  finishTicket: (...args: unknown[]) => mockFinishTicket(...args),
+}));
+
+const mockFinishTicket = jest.fn();
+const mockListSchedules = jest.fn();
+const mockUpsertSchedule = jest.fn();
+let mockCanFinish = true;
+
+jest.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({ can: (key: string) => (key === 'tickets.write' ? mockCanFinish : true) }),
+}));
+
+jest.mock('@/actions/client-service-schedules', () => ({
+  listClientServiceSchedulesForClient: (...args: unknown[]) => mockListSchedules(...args),
+  upsertClientServiceSchedule: (...args: unknown[]) => mockUpsertSchedule(...args),
 }));
 
 jest.mock('@/actions/presupuestos', () => ({
@@ -231,7 +246,7 @@ describe('TicketComposer', () => {
       ],
       client_total: 12950,
     });
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1201/listo'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1201'));
     expect(
       window.localStorage.getItem(buildTicketComposerDraftKey(10)),
     ).toBeNull();
@@ -973,5 +988,109 @@ describe('DocumentComposer on desktop (ZIG-I24-2)', () => {
     expect(
       within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByText('Instalación'),
     ).toBeTruthy();
+  });
+});
+
+describe('Nuevo ticket finishes the ticket itself (ZIG-I24-4)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockToast.mockClear();
+    (mockToast as unknown as { error: jest.Mock }).error.mockClear();
+    mockCreateTicketWithLines.mockReset();
+    mockFinishTicket.mockReset();
+    mockListSchedules.mockReset();
+    mockUpsertSchedule.mockReset();
+    mockListSchedules.mockResolvedValue({ success: true, data: [] });
+    mockUpsertSchedule.mockResolvedValue({ success: true });
+    mockSearchParams = new URLSearchParams();
+    mockCanFinish = true;
+  });
+
+  const finishButtons = () => screen.getAllByRole('button', { name: /^(Guardar y terminar|Terminar)$/ });
+
+  it('saves En proceso and opens the detail when no payment is chosen', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1401', total: 4200 } });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    expect(screen.getByRole('heading', { name: '¿Cómo pagó el cliente? (opcional)' })).toBeTruthy();
+    await user.click(saveButtons()[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1401'));
+    expect(mockFinishTicket).not.toHaveBeenCalled();
+  });
+
+  it('Guardar y terminar saves, finishes with the payment, saves reminders and offers the recibo', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1402', total: 8400, folio: 'R-0102' } });
+    mockFinishTicket.mockResolvedValue({ success: true });
+    // The client already has a reminder for Mantenimiento: it comes checked.
+    mockListSchedules.mockResolvedValue({
+      success: true,
+      data: [{ serviceId: 7, intervalValue: 3, intervalUnit: 'month' }],
+    });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '2');
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
+    await user.type(screen.getByLabelText('Cuánto pagó'), '3000');
+    await waitFor(() => expect(finishButtons().length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Se termina con $3,000.00 pagado').length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Programar el próximo servicio' })).toBeTruthy();
+
+    await user.click(finishButtons()[0]);
+
+    await waitFor(() => expect(mockFinishTicket).toHaveBeenCalledWith(1402, 8400, 3000, 10));
+    await waitFor(() => expect(mockUpsertSchedule).toHaveBeenCalledTimes(1));
+    expect(mockUpsertSchedule.mock.calls[0][0]).toMatchObject({ clientId: 5, serviceId: 7, intervalValue: 3 });
+    expect(mockPush).toHaveBeenCalledWith('/tickets/1402?enviar=1');
+    expect((mockToast as unknown as { success: jest.Mock }).success).toHaveBeenCalledWith('Ticket R-0102 terminado');
+  });
+
+  it('refuses a partial payment above the total, and Todavía no termina goes back to En proceso', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
+    await user.type(screen.getByLabelText('Cuánto pagó'), '900');
+    await user.click(finishButtons()[0]);
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((alert) => /Lo pagado no puede ser mayor que el total/.test(alert.textContent ?? ''))).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Todavía no termina' }));
+    expect(screen.getAllByRole('button', { name: /^Guardar( ticket)?$/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Guardar y terminar' })).toBeNull();
+  });
+
+  it('keeps the saved ticket and sends the user to it when finishing fails', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1403', total: 350 } });
+    mockFinishTicket.mockResolvedValue({ success: false, error: 'No se pudo' });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await user.click(screen.getByRole('radio', { name: 'Todo' }));
+    await user.click(finishButtons()[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1403'));
+    expect((mockToast as unknown as { error: jest.Mock }).error).toHaveBeenCalledWith(
+      'Ticket #1403 guardado, pero no se pudo terminar',
+      expect.anything(),
+    );
+    expect(mockUpsertSchedule).not.toHaveBeenCalled();
+  });
+
+  it('offers no payment question without permission to finish, on a presupuesto or when editing', () => {
+    mockCanFinish = false;
+    renderComposer();
+    expect(screen.queryByRole('heading', { name: /¿Cómo pagó el cliente\?/ })).toBeNull();
   });
 });

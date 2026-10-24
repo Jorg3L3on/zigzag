@@ -5,7 +5,11 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
-import { addInlineComposerLine } from './helpers/ticket-composer';
+import {
+  addInlineComposerLine,
+  chooseComposerPayment,
+  saveAndFinishComposer,
+} from './helpers/ticket-composer';
 import { extractPdfText, pageText, type PdfTextPage } from '../src/test/pdf-text';
 import { MOBILE_WIDTHS } from './helpers/layout';
 
@@ -237,38 +241,16 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByTestId('composer-line-row').first().focus();
       await expectLayoutIntact(page, 'composer');
 
-      await page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first().click();
-      await page.waitForURL(/\/tickets\/\d+\/listo$/, { timeout: 60_000 });
-      const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1] as string;
-      expect(ticketId).toBeTruthy();
-
-      await expect(
-        page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
-      ).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByTestId('review-total')).toHaveText(money(TICKET_TOTAL));
-      // The Resumen replaces the full recibo; no blank PDF box (ZIG-I13-3).
-      await expect(page.getByTestId('review-summary')).toBeVisible();
-      await expect(page.getByTestId('recibo-summary')).toHaveCount(0);
-      await expect(page.getByTestId('recibo-pdf-preview')).toHaveCount(0);
-
-      // No payment is chosen for the user: Terminar waits for a choice.
-      const finish = page.getByRole('button', { name: 'Terminar y enviar' }).first();
-      await expect(finish).toBeDisabled();
-      await page.getByRole('radio', { name: 'Una parte' }).click();
-      await page.getByLabel('Cuánto pagó').fill('1234.567');
-      await expect(page.getByTestId('review-sticky-amount')).toHaveText(money(TICKET_BALANCE));
-      await expectLayoutIntact(page, 'listo');
-
-      await page.evaluate(() => {
-        window.open = (() => null) as typeof window.open;
-      });
-      await finish.click();
-      await expect(
-        page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first(),
-      ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
-        timeout: 60_000,
-      });
+      // No payment is chosen for the user (ZIG-I12 Q2): until one is picked, Guardar keeps it En proceso.
+      await expect(page.getByRole('button', { name: 'Guardar y terminar' })).toHaveCount(0);
+      await chooseComposerPayment(page, { mode: 'partial', amount: 1234.567 });
+      await expect(page.getByTestId('composer-sticky-hint')).toHaveText('Se termina con $1,234.57 pagado');
+      await expectLayoutIntact(page, 'composer with payment');
+      const { ticketId } = await saveAndFinishComposer(
+        page,
+        { mode: 'partial', amount: 1234.567 },
+        { send: false },
+      );
 
       // Detail: Total / Pagado / Saldo exact and whole.
       await page.goto(`/tickets/${ticketId}`);
@@ -355,13 +337,13 @@ for (const width of MOBILE_WIDTHS) {
       await expectLayoutIntact(page, 'presupuesto composer');
 
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
-      await expect(page.getByTestId('review-total')).toHaveText(money(PRESUPUESTO_TOTAL), {
-        timeout: 15_000,
-      });
-      await expect(page.getByTestId('presupuesto-pdf-preview')).toHaveCount(0);
-      await expectLayoutIntact(page, 'presupuesto listo');
+      // Guardar presupuesto lands on the detail (ZIG-I24-4).
+      await expect(page.getByTestId('review-total').filter({ visible: true }).first()).toHaveText(
+        money(PRESUPUESTO_TOTAL),
+        { timeout: 15_000 },
+      );
 
       await page.goto(`/presupuestos/${presupuestoId}`);
       await expect(page.getByTestId('presupuesto-notes').filter({ visible: true }).first()).toContainText('El cliente compra el equipo.');

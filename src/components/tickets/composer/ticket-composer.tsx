@@ -23,7 +23,12 @@ import {
   createPresupuestoWithLines,
   updatePresupuesto,
 } from '@/actions/presupuestos';
-import { createTicketWithLines, updateTicketLines } from '@/actions/tickets';
+import { createTicketWithLines, finishTicket, updateTicketLines } from '@/actions/tickets';
+import {
+  listClientServiceSchedulesForClient,
+  upsertClientServiceSchedule,
+  type ClientServiceScheduleListItem,
+} from '@/actions/client-service-schedules';
 import { ClientForm } from '@/components/clients/client-form';
 import { PdfCharsWarning } from '@/components/pdf/pdf-chars-warning';
 import { CharCounter } from '@/components/ui/char-counter';
@@ -37,6 +42,12 @@ import {
   type ComposerLineInput,
 } from '@/components/tickets/composer/composer-line-sheet';
 import { ExpiresAtField } from '@/components/tickets/composer/expires-at-field';
+import { PaymentChoice, usePaymentChoice } from '@/components/tickets/review/payment-choice';
+import { InlineSchedulePicker } from '@/components/service-schedules/inline-schedule-picker';
+import {
+  buildScheduleLineState,
+  type TicketFinishScheduleLine,
+} from '@/components/service-schedules/schedule-lines';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import {
   TripledDashboardShell,
@@ -65,6 +76,7 @@ import {
 } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
+import { usePermissions } from '@/hooks/use-permissions';
 import type { ValidationIssue } from '@/lib/action-result';
 import { mapServerIssues } from '@/lib/composer-server-errors';
 import { addMoney, lineTotalWithMaterials, roundMoney } from '@/lib/money';
@@ -73,7 +85,12 @@ import {
   materialDraftsTotal,
 } from '@/lib/material-drafts';
 import type { ServiceWithMaterials } from '@/actions/services';
-import { buildToastErrorContent } from '@/lib/network-awareness';
+import {
+  buildToastErrorContent,
+  classifyClientError,
+  getErrorMessageByType,
+} from '@/lib/network-awareness';
+import { canFinishTicket } from '@/lib/tickets-rbac';
 import {
   buildPresupuestoComposerDraftKey,
   buildTicketComposerDraftKey,
@@ -176,6 +193,12 @@ const COMPOSER_COPY: Record<
  * rail on the right keeps the total, Guardar and the draft state in view; the
  * line editor becomes a side panel. No keyboard shortcuts (Jorge, 2026-10-24).
  * Phones keep the single column and the sticky bar.
+ *
+ * Finishing (ZIG-I24-4): a new ticket can be finished right here. ¿Cómo pagó
+ * el cliente? is optional: nothing chosen saves it En proceso; a choice turns
+ * Guardar into Guardar y terminar, which saves, finishes with that payment and
+ * saves the reminders picked below it. Either way the user lands on the
+ * ticket detail (there is no listo screen anymore).
  */
 type DocumentComposerProps = {
   /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
@@ -287,6 +310,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   // Last time the local draft was written, for the rail's Borrador guardado (ZIG-I24-2).
   const [draftSavedAt, setDraftSavedAt] = React.useState<Date | null>(null);
   const servicePrefillAppliedRef = React.useRef(false);
+  const { can } = usePermissions();
+  // Only a new work ticket can be finished from here; edits and presupuestos cannot.
+  const finishable = !isQuote && !isEdit && canFinishTicket(can);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
   // Editing an existing quote keeps no local draft: the server row is the source.
@@ -300,6 +326,12 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const totalDelta = ticketEdit ? roundMoney(total - ticketEdit.originalTotal) : 0;
   const belowPaid = ticketEdit ? total < ticketEdit.paid - 0.01 : false;
   const canSave = Boolean(companyId && client && lines.length > 0 && !belowPaid);
+  // No default: nothing is recorded as paid unless the user picks it (ZIG-I12 Q2).
+  const paymentChoice = usePaymentChoice(total);
+  const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
+  const finishing = finishable && payMode !== null;
+  const paymentInvalid = finishing && (!hasPayChoice || partialTooHigh);
+  const [scheduleLines, setScheduleLines] = React.useState<TicketFinishScheduleLine[]>([]);
   const editingLine = lines.find((line) => line.key === lineSheet.editingKey) ?? null;
 
   // Restore the local draft once per company.
@@ -456,6 +488,58 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     );
   }, [prefillServiceId, draftReady, services]);
 
+  // Reminders to offer when finishing: catalog services only, with what the client
+  // already has; a line the user already set keeps its choice (ZIG-I24-4).
+  const catalogServiceKey = lines
+    .filter((line) => line.service_id != null)
+    .map((line) => `${line.service_id}:${line.service_name}`)
+    .join('|');
+  React.useEffect(() => {
+    if (!finishing || !client || !catalogServiceKey) {
+      setScheduleLines([]);
+      return;
+    }
+    const services = Array.from(
+      new Map(
+        catalogServiceKey.split('|').map((entry) => {
+          const [id, ...name] = entry.split(':');
+          return [Number(id), name.join(':')] as const;
+        }),
+      ).entries(),
+    ).map(([serviceId, serviceName]) => ({ serviceId, serviceName }));
+    let cancelled = false;
+    void listClientServiceSchedulesForClient(client.id, companyId).then((result) => {
+      if (cancelled) return;
+      const existing: ClientServiceScheduleListItem[] = result.data ?? [];
+      setScheduleLines((previous) =>
+        services.map(
+          (line) =>
+            previous.find((item) => item.serviceId === line.serviceId) ??
+            buildScheduleLineState(line, ticketDate, existing),
+        ),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [finishing, client, companyId, catalogServiceKey, ticketDate]);
+
+  const saveSchedules = async (clientId: number) => {
+    for (const line of scheduleLines.filter((item) => item.checked)) {
+      const upsert = await upsertClientServiceSchedule({
+        clientId,
+        serviceId: line.serviceId,
+        intervalValue: line.intervalValue,
+        intervalUnit: line.intervalUnit,
+        lastServiceAt: line.lastServiceAt,
+        companyId,
+      });
+      if (!upsert.success) {
+        toast.error(upsert.error || 'No se pudo guardar un recordatorio');
+      }
+    }
+  };
+
   const clientOptions = React.useMemo(() => {
     const options: SearchableSelectOption[] = clients.map((item) => ({
       value: String(item.id),
@@ -544,7 +628,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     if (saveState !== 'idle') {
       return;
     }
-    if (!client || lines.length === 0) {
+    if (!client || lines.length === 0 || paymentInvalid) {
       setAttemptedSave(true);
       return;
     }
@@ -630,13 +714,42 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       if (result.success && result.data) {
         setSaveState('done');
         if (draftKey) clearTicketComposerDraft(draftKey);
+        const savedLabel = `${copy.noun} ${result.data.folio ?? `#${result.data.id}`}`;
+        if (isQuote) {
+          vibrateSuccess();
+          toast.success(`${savedLabel} guardado`);
+          router.push(`/presupuestos/${result.data.id}`);
+          return;
+        }
+        if (!finishing) {
+          vibrateSuccess();
+          toast.success(`${savedLabel} guardado`);
+          router.push(`/tickets/${result.data.id}`);
+          return;
+        }
+        // Guardar y terminar (ZIG-I24-4): the ticket exists now; finish it with the
+        // chosen payment, save the reminders, then offer the recibo on the detail.
+        const finished = await finishTicket(
+          Number(result.data.id),
+          result.data.total,
+          roundMoney(chosenPaid),
+          companyId,
+        ).catch(() => null);
+        if (!finished?.success) {
+          const errorType = classifyClientError(null, undefined, finished?.errorType);
+          toast.error(`${savedLabel} guardado, pero no se pudo terminar`, {
+            description: getErrorMessageByType(
+              errorType,
+              finished?.error || 'Termínalo desde el ticket.',
+            ),
+          });
+          router.push(`/tickets/${result.data.id}`);
+          return;
+        }
+        await saveSchedules(client.id);
         vibrateSuccess();
-        toast.success(`${copy.noun} ${result.data.folio ?? `#${result.data.id}`} guardado`);
-        router.push(
-          isQuote
-            ? `/presupuestos/${result.data.id}/listo`
-            : `/tickets/${result.data.id}/listo`,
-        );
+        toast.success(`${savedLabel} terminado`);
+        router.push(`/tickets/${result.data.id}?enviar=1`);
         return;
       }
 
@@ -674,10 +787,12 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       )}
     </ActionSwap>
   );
-  const saveLabel = renderSaveLabel(copy.saveLabel);
+  const saveLabel = renderSaveLabel(finishing ? 'Guardar y terminar' : copy.saveLabel);
   // The sticky bar is tight at 333px next to a seven-figure total: the screen's
   // title already says what is being saved.
-  const mobileSaveLabel = renderSaveLabel(isEdit ? copy.saveLabel : 'Guardar');
+  const mobileSaveLabel = renderSaveLabel(
+    isEdit ? copy.saveLabel : finishing ? 'Terminar' : 'Guardar',
+  );
 
   const materialCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
   const countsLabel = [
@@ -692,15 +807,27 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const editHint = ticketEdit?.finished
     ? `Antes ${formatServiceCurrency(ticketEdit.originalTotal)} · ${totalDelta < 0 ? '−' : '+'}${formatServiceCurrency(Math.abs(totalDelta))}`
     : null;
+  // What Guardar y terminar records, or what the payment still needs (ZIG-I24-4).
+  const finishHint = !finishing
+    ? null
+    : partialTooHigh
+      ? 'Lo pagado no puede ser mayor que el total'
+      : !hasPayChoice
+        ? 'Escribe cuánto pagó'
+        : payMode === 'full'
+          ? 'Se termina pagado completo'
+          : payMode === 'pending'
+            ? 'Se termina sin pago'
+            : `Se termina con ${formatServiceCurrency(chosenPaid)} pagado`;
   const ctaHint = !client
     ? 'Elige un cliente'
     : lines.length === 0
       ? 'Agrega al menos un servicio'
       : belowPaid && ticketEdit
         ? `Abajo de lo ya pagado (${formatServiceCurrency(ticketEdit.paid)})`
-        : (editHint ?? countsLabel);
+        : (finishHint ?? editHint ?? countsLabel);
 
-  const missingRequired = !client || lines.length === 0;
+  const missingRequired = !client || lines.length === 0 || paymentInvalid;
   const hintIsError = attemptedSave && missingRequired;
   const hintClass = hintIsError ? 'font-medium text-destructive' : 'text-muted-foreground';
 
@@ -1009,6 +1136,23 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                 ) : null}
               </section>
             </BlurFade>
+
+            {finishable ? (
+              <BlurFade delay={0.12}>
+                <PaymentChoice choice={paymentChoice} idPrefix="composer" optional />
+              </BlurFade>
+            ) : null}
+
+            {finishing && scheduleLines.length > 0 ? (
+              <BlurFade delay={0.14}>
+                <InlineSchedulePicker
+                  className={SECTION_CLASS}
+                  lines={scheduleLines}
+                  onChange={setScheduleLines}
+                  disabled={saveState !== 'idle'}
+                />
+              </BlurFade>
+            ) : null}
 
             <div className="hidden items-center justify-between gap-4 md:flex lg:hidden">
               <p className={cn('text-sm', hintClass)} role={hintIsError ? 'alert' : undefined}>

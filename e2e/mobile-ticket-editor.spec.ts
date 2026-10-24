@@ -10,7 +10,7 @@ import {
   createClientInComposer,
   expectInsideViewport,
   expectNoPageOverflow,
-  finishOnReview,
+  saveAndFinishComposer,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -50,8 +50,10 @@ for (const width of MOBILE_WIDTHS) {
       await addCustomComposerLine(page, { name: 'Instalación de evaporador', quantity: '1', price: '3000', materials: 2 });
       await addCustomComposerLine(page, { name: 'Recarga de gas', quantity: '2', price: '500' });
       await addCustomComposerLine(page, { name: 'Limpieza de condensador', quantity: '1', price: '800' });
-      const ticketId = await saveComposer(page);
-      const opened = await finishOnReview(page, ticketId, { mode: 'partial', amount: 1000 });
+      const { ticketId, openedUrls: opened } = await saveAndFinishComposer(page, {
+        mode: 'partial',
+        amount: 1000,
+      });
       expect(opened.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
 
       // The old routes land in the editor.
@@ -146,8 +148,11 @@ for (const width of MOBILE_WIDTHS) {
       await createClientInComposer(page, { name: clientName, phone: `992${suffix.slice(-7)}` });
       await addCustomComposerLine(page, { name: 'Servicio de prueba A', quantity: '1', price: '1500', materials: 1 });
       await addCustomComposerLine(page, { name: 'Servicio de prueba B', quantity: '2', price: '250' });
-      const firstId = await saveComposer(page);
-      await finishOnReview(page, firstId, { mode: 'partial', amount: 500 });
+      const { ticketId: firstId } = await saveAndFinishComposer(
+        page,
+        { mode: 'partial', amount: 500 },
+        { send: false },
+      );
 
       // From the list: the row menu opens the same sheet, Conservar keeps the ticket.
       await page.goto('/tickets');

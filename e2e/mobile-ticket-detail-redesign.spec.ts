@@ -46,7 +46,7 @@ for (const width of MOBILE_WIDTHS) {
       await createClientInComposer(page, { name: clientName, phone: `995${suffix.slice(-7)}` });
       await addHeavyLines(page, { catalog: false });
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
 
       await page.goto(`/presupuestos/${presupuestoId}`);

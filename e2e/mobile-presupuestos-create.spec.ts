@@ -84,14 +84,15 @@ test.describe('Presupuesto creation (mobile)', () => {
     const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
     await expect(save).toBeEnabled();
     await save.click();
-    await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+    await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
     const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1];
     expect(presupuestoId).toBeTruthy();
 
+    // Guardar presupuesto lands on the detail (ZIG-I24-4).
     await expect(
-      page.getByRole('heading', { name: /Presupuesto (?:#\d+|[A-Z0-9]+-\d+) guardado/ }),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('review-total')).toHaveText('$5,050.00');
+      page.getByTestId('presupuesto-status').filter({ visible: true }).first(),
+    ).toHaveText('Abierto', { timeout: 15_000 });
+    await expect(page.getByTestId('review-total').filter({ visible: true }).first()).toHaveText('$5,050.00');
     const reviewLines = page.getByRole('list', { name: LINES_LABEL });
     await expect(reviewLines.getByText(inlineName)).toBeVisible();
     await expect(page.getByText(/Pagado completo|Terminar/)).toHaveCount(0);
@@ -102,11 +103,7 @@ test.describe('Presupuesto creation (mobile)', () => {
     ]);
     expect(download.suggestedFilename()).toMatch(/^presupuesto_.*\.pdf$/);
 
-    await page.getByRole('link', { name: 'Ver presupuesto' }).first().click();
-    await page.waitForURL(new RegExp(`/presupuestos/${presupuestoId}$`));
-    await expect(
-      page.getByTestId('presupuesto-status').filter({ visible: true }).first(),
-    ).toHaveText('Abierto', { timeout: 15_000 });
+    await expect(page).toHaveURL(new RegExp(`/presupuestos/${presupuestoId}$`));
 
     // The inline line never reached the catalog.
     await page.goto('/services');

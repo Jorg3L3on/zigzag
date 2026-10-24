@@ -191,16 +191,16 @@ test.describe('Materiales (mobile)', () => {
 
     const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
     await save.click();
-    await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+    await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
     const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1];
 
-    // 3. Review: both materials under the line, total with materials.
-    await expect(page.getByTestId('review-total')).toHaveText(money(4390), {
+    // 3. The detail (no listo since ZIG-I24-4): both materials under the line, total with materials.
+    await expect(page.getByTestId('review-total').filter({ visible: true }).first()).toHaveText(money(4390), {
       timeout: 15_000,
     });
-    // Materials sit behind the collapsed toggle (ZIG-I13-3); one line and two
-    // materials read "Ver el servicio y los 2 materiales" (ZIG-17).
-    await page.getByRole('button', { name: 'Ver el servicio y los 2 materiales' }).click();
+    // Materials sit behind the collapsed toggle (ZIG-I13-5); one concept and two
+    // materials read "Ver el concepto y los 2 materiales" (ZIG-17).
+    await page.getByRole('button', { name: 'Ver el concepto y los 2 materiales' }).click();
     const reviewLines = page.getByRole('list', { name: LINES_LABEL });
     const reviewMaterials = reviewLines.getByRole('list', { name: /^Materiales/ });
     await expect(reviewMaterials.getByText(gas)).toBeVisible();
