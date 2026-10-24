@@ -87,9 +87,11 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('button', { name: 'Nuevo cliente' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Agregar servicio' })).toBeVisible();
     await expect(page.getByTestId('composer-total')).toHaveText('$0.00');
+    // Guardar stays tappable; the hint names what is missing (ZIG-I18-13).
     await expect(
       page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first(),
-    ).toBeDisabled();
+    ).toBeEnabled();
+    await expect(page.getByTestId('composer-sticky-hint')).toHaveText('Elige un cliente');
     // No wizard copy and nothing says Crear before saving (the dock's + is labelled Crear).
     await expect(page.getByText(/Paso \d de \d/)).toHaveCount(0);
     await expect(
@@ -159,7 +161,9 @@ test.describe('Mobile ticket screens', () => {
 
     // ZIG-I9: the recibo opens inside the app and back returns to the ticket.
     await page.goto(`/tickets/${ticketId}/recibo`);
-    await expect(page.getByTestId('mobile-app-bar')).toContainText(/Recibo (?:#\d+|[A-Z0-9]+-\d+)/);
+    await expect(
+      page.getByTestId('mobile-app-bar').filter({ visible: true }).first(),
+    ).toContainText(/Recibo (?:#\d+|[A-Z0-9]+-\d+)/);
     await page.getByRole('link', { name: 'Volver al ticket' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}$`));
 
