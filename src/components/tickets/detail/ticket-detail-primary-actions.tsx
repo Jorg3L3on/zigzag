@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageCircle, Share2, Wallet } from 'lucide-react';
+import { Download, Loader2, MessageCircle, Share2, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
@@ -52,7 +52,7 @@ export const TicketDetailPrimaryActions = ({
 }: TicketDetailPrimaryActionsProps) => {
   const { can } = usePermissions();
   const collect = useTicketCollect();
-  const { share, sharing } = useReceiptShare({
+  const { share, sharing, download, downloading } = useReceiptShare({
     ticketId: String(ticketId),
     folio,
     downloadFileName,
@@ -62,7 +62,8 @@ export const TicketDetailPrimaryActions = ({
   });
 
   const canCollect = canCollectTicketPayment(can) && finished && getTicketBalanceDue(total, paid) > 0;
-  const canShare = canDownloadTicketInvoice(can) && finished;
+  const canPdf = canDownloadTicketInvoice(can);
+  const canShare = canPdf && finished;
   const { selectedCompany } = useCompany();
   const payment = useCompanyPaymentInfo();
   // Desktop only (ZIG-I24): the recibo text on WhatsApp sits with the header
@@ -117,6 +118,24 @@ export const TicketDetailPrimaryActions = ({
               <MessageCircle className="h-4 w-4" aria-hidden />
               WhatsApp
             </a>
+          </Button>
+        ) : null}
+        {canPdf ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+            aria-label="Descargar PDF"
+            disabled={downloading}
+            onClick={() => void download()}
+            data-testid="ticket-detail-pdf"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden />
+            )}
+            PDF
           </Button>
         ) : null}
         <TicketDetailActionsMenu

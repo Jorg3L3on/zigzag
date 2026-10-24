@@ -95,6 +95,23 @@ describe('TicketDetailPrimaryActions (ZIG-I13-4)', () => {
     expect(whatsApp).toHaveClass('hidden', 'lg:inline-flex');
   });
 
+  it('has a PDF button that downloads the recibo, from 1024px (ZIG-I24)', async () => {
+    const user = userEvent.setup();
+    const invoice = jest.requireMock('@/lib/ticket-invoice-download') as {
+      fetchTicketInvoiceFile: jest.Mock;
+      downloadTicketInvoiceFile: jest.Mock;
+    };
+    const file = new File(['%PDF'], 't.pdf');
+    invoice.fetchTicketInvoiceFile.mockResolvedValue(file);
+    renderActions({ finished: true, total: 100, paid: 40 });
+
+    const pdf = screen.getByRole('button', { name: 'Descargar PDF' });
+    expect(pdf).toHaveTextContent('PDF');
+    expect(pdf).toHaveClass('hidden', 'lg:inline-flex');
+    await user.click(pdf);
+    expect(invoice.downloadTicketInvoiceFile).toHaveBeenCalledWith(file);
+  });
+
   it('offers no WhatsApp without a phone or before the ticket is finished', () => {
     renderActions({ finished: true, total: 100, paid: 100 });
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();

@@ -44,8 +44,9 @@ type TicketDetailActionsMenuProps = {
   downloadFileName: string;
   /**
    * Header on desktop (ZIG-I24-3): from 1024px Editar servicios is an Editar
-   * button next to ⋯, which keeps Descargar PDF, Duplicar and Eliminar, so the
-   * header fits one row with Cobrar / Compartir recibo and WhatsApp.
+   * button and Descargar PDF a PDF button next to ⋯, which keeps Duplicar and
+   * Eliminar, so the header is Cobrar / Compartir recibo · WhatsApp · PDF ·
+   * Editar · ⋯.
    */
   inlineFromLg?: boolean;
   className?: string;
@@ -114,7 +115,7 @@ export const TicketDetailActionsMenu = ({
 
   if (!canEditServices && !canPdf && !canWrite) return null;
 
-  // Editar servicios is a button from lg, so it leaves the menu there.
+  // Editar servicios and Descargar PDF are buttons from lg, so they leave the menu there.
   const inlineItemClass = inlineFromLg ? 'lg:hidden' : undefined;
 
   return (
@@ -154,7 +155,10 @@ export const TicketDetailActionsMenu = ({
             </DropdownMenuItem>
           ) : null}
           {canPdf ? (
-            <DropdownMenuItem className="min-h-11" onSelect={() => void download()}>
+            <DropdownMenuItem
+              className={cn('min-h-11', inlineItemClass)}
+              onSelect={() => void download()}
+            >
               <Download className="mr-2 h-4 w-4" aria-hidden />
               Descargar PDF
             </DropdownMenuItem>
