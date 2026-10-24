@@ -212,9 +212,7 @@ export const DocumentPdfViewer = ({
               companyId={companyId}
               noun={noun}
               className="h-[calc(100dvh-4.25rem-var(--dock-clearance)-3.5rem)] min-h-[320px] md:h-[calc(100dvh-10rem)] md:min-h-[480px]"
-            >
-              {summary}
-            </DocumentPdfEmbed>
+            />
           </>
         ) : (
           <>

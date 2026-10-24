@@ -57,7 +57,7 @@ describe('DocumentPdfAside (ZIG-I24-3)', () => {
     expect(screen.getByRole('button', { name: 'Descargar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument();
     expect(screen.getByTestId('pdf-viewer-embed')).toHaveAttribute(
-      'data',
+      'src',
       '/api/tickets/77/invoice?disposition=inline&company_id=4',
     );
   });

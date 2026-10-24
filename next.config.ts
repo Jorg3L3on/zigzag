@@ -81,6 +81,16 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // The in-app PDF viewers embed the recibo / presupuesto in a same-origin
+        // iframe (ZIG-I24). Later rules win for the same key: only this route
+        // may be framed, and only by our own pages.
+        source: '/api/tickets/:id/invoice',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        ],
+      },
     ];
   },
 };
