@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 import type { Service } from '@/db/schema';
@@ -91,7 +91,7 @@ type SheetStep = { kind: 'line' } | { kind: 'material'; editing: MaterialDraft |
  *
  * Desktop (ZIG-I24-2): from 1024px the same form is a right-hand side panel and
  * a material is added or edited inline under the rows, so the line stays in
- * view. Ctrl/⌘+Enter adds the line (or the open material).
+ * view.
  */
 export const ComposerLineSheet = ({
   open,
@@ -299,25 +299,6 @@ export const ComposerLineSheet = ({
     }
     onOpenChange(false);
   };
-
-  // Ctrl/⌘+Enter: add the open material, or the line (ZIG-I24-2).
-  const submitShortcutRef = useRef<() => void>(() => undefined);
-  useEffect(() => {
-    submitShortcutRef.current = () => {
-      if (step.kind === 'material') submitMaterial();
-      else handleSubmit();
-    };
-  });
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey) || event.isComposing) return;
-      event.preventDefault();
-      submitShortcutRef.current();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open]);
 
   if (step.kind === 'material' && !isDesktop) {
     const editingMaterial = step.editing;

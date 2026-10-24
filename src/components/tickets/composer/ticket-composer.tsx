@@ -53,7 +53,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Kbd, useShortcutModifierLabel } from '@/components/ui/kbd';
 import { Label } from '@/components/ui/label';
 import {
   Popover,
@@ -168,28 +167,15 @@ const COMPOSER_COPY: Record<
   },
 };
 
-/** Typing in a field, or a menu / list that owns its keys: N is a letter there. */
-const isTypingTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  return Boolean(
-    target.closest('input, textarea, select, [role="combobox"], [role="listbox"], [role="menu"]'),
-  );
-};
-
-/** Any open dialog, sheet, side panel or popover takes the keyboard first. */
-const overlayOpen = (): boolean =>
-  typeof document !== 'undefined' && document.querySelector('[role="dialog"]') !== null;
-
 /**
  * Nuevo ticket (ZIG-I2-4): one screen for client, date, service lines with a
  * running total and notes. Nothing is persisted until Guardar ticket, which
  * creates the ticket and its lines in one transaction.
  *
  * Desktop (ZIG-I24-2): from 1024px the form is the left column and a 300px
- * rail on the right keeps the total, Guardar and the draft state in view.
- * N opens Agregar servicio and Ctrl/⌘+Enter saves; the line editor becomes a
- * side panel. Phones keep the single column and the sticky bar.
+ * rail on the right keeps the total, Guardar and the draft state in view; the
+ * line editor becomes a side panel. No keyboard shortcuts (Jorge, 2026-10-24).
+ * Phones keep the single column and the sticky bar.
  */
 type DocumentComposerProps = {
   /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
@@ -300,7 +286,6 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const [draftReady, setDraftReady] = React.useState(false);
   // Last time the local draft was written, for the rail's Borrador guardado (ZIG-I24-2).
   const [draftSavedAt, setDraftSavedAt] = React.useState<Date | null>(null);
-  const modifierLabel = useShortcutModifierLabel();
   const servicePrefillAppliedRef = React.useRef(false);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
@@ -672,36 +657,6 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     }
   };
 
-  // N adds a service, Ctrl/⌘+Enter saves (ZIG-I24-2). The latest handlers live in
-  // a ref so the listener is attached once.
-  const shortcutsRef = React.useRef({ save: () => {}, addLine: () => {} });
-  React.useEffect(() => {
-    shortcutsRef.current = { save: () => void handleSave(), addLine: openAddLine };
-  });
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || overlayOpen()) return;
-      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        shortcutsRef.current.save();
-        return;
-      }
-      if (
-        (event.key === 'n' || event.key === 'N') &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !event.repeat &&
-        !isTypingTarget(event.target)
-      ) {
-        event.preventDefault();
-        shortcutsRef.current.addLine();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   const renderSaveLabel = (idleLabel: string) => (
     <ActionSwap swapKey={saveState}>
       {saveState === 'saving' ? (
@@ -958,11 +913,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                     variant="outline"
                     className="h-11 gap-1.5 rounded-xl"
                     onClick={openAddLine}
-                    aria-keyshortcuts="N"
                   >
                     <Plus className="h-4 w-4" aria-hidden />
                     Agregar servicio
-                    <Kbd className="ml-1 hidden lg:inline-flex">N</Kbd>
                   </Button>
                 </div>
 
@@ -1109,12 +1062,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                 className="h-11 w-full gap-2 rounded-xl text-base font-semibold"
                 disabled={belowPaid || saveState !== 'idle'}
                 onClick={handleSave}
-                aria-keyshortcuts="Control+Enter Meta+Enter"
               >
                 {saveLabel}
-                {saveState === 'idle' ? (
-                  <Kbd className="ml-1">{modifierLabel} ↵</Kbd>
-                ) : null}
               </Button>
               <p
                 className="flex items-center gap-1.5 text-caption text-muted-foreground"
@@ -1130,10 +1079,6 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                 ) : (
                   'Se guarda un borrador mientras escribes.'
                 )}
-              </p>
-              <p aria-hidden className="border-t border-border/60 pt-3 text-caption text-muted-foreground">
-                <Kbd className="mr-1">N</Kbd> agrega un servicio ·{' '}
-                <Kbd className="mx-1">{modifierLabel} ↵</Kbd> guarda
               </p>
             </div>
           </aside>

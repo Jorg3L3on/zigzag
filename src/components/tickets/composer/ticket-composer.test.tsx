@@ -883,10 +883,7 @@ describe('DocumentComposer on desktop (ZIG-I24-2)', () => {
     expect(within(rail).getByTestId('composer-draft-state')).toHaveTextContent(
       'Se guarda un borrador mientras escribes.',
     );
-    expect(within(rail).getByRole('button', { name: 'Guardar ticket' })).toHaveAttribute(
-      'aria-keyshortcuts',
-      'Control+Enter Meta+Enter',
-    );
+    expect(within(rail).getByRole('button', { name: 'Guardar ticket' })).toBeInTheDocument();
 
     await pickClient(user);
     await addLine(user, 'Mantenimiento · $4,200.00', '2');
@@ -899,36 +896,20 @@ describe('DocumentComposer on desktop (ZIG-I24-2)', () => {
     );
   });
 
-  it('opens Agregar servicio with N and saves with Ctrl+Enter, not while typing', async () => {
+  it('has no keyboard shortcuts: N and Ctrl+Enter do nothing (Jorge, 2026-10-24)', async () => {
     const user = userEvent.setup();
-    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1301', total: 4200 } });
     renderComposer();
 
     await pickClient(user);
-    // N inside a field is just a letter.
-    await user.type(screen.getByRole('textbox', { name: /Notas/ }), 'n');
-    expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull();
-
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
     await user.click(document.body);
     await user.keyboard('n');
-    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
-    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
-    const listbox = await screen.findByRole('listbox', { name: 'Servicio' });
-    await user.click(within(listbox).getByText('Mantenimiento · $4,200.00'));
-    // Ctrl+Enter inside the panel adds the line; it does not save the ticket.
     await user.keyboard('{Control>}{Enter}{/Control}');
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
-    );
-    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
 
-    await user.keyboard('{Control>}{Enter}{/Control}');
-    await waitFor(() => expect(mockCreateTicketWithLines).toHaveBeenCalledTimes(1));
-    expect(mockCreateTicketWithLines.mock.calls[0][0]).toMatchObject({
-      client_id: 5,
-      work_notes: 'n',
-      lines: [{ service_id: 7, quantity: 1, price: 4200 }],
-    });
+    expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull();
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
+    expect(document.querySelector('kbd, [aria-keyshortcuts]')).toBeNull();
   });
 
   it('edits the line in a side panel and adds materials inline, without a second step', async () => {
