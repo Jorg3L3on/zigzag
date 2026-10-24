@@ -5,6 +5,9 @@ jest.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NEXT_NOT_FOUND');
   },
+  redirect: (url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  },
 }));
 jest.mock('@/lib/page-authz', () => ({
   requirePagePermission: (...args: unknown[]) => mockRequirePagePermission(...args),
@@ -70,12 +73,13 @@ describe('/tickets/[id]/recibo page', () => {
     await expect(call('1113')).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('renders not found for a ticket that is not finished yet', async () => {
+  it('redirects an unfinished ticket to the ticket, with or without from=listo (ZIG-22)', async () => {
     mockGetTicketById.mockResolvedValue({
       success: true,
       data: { ...ticket, finished: false },
     });
-    await expect(call('1113')).rejects.toThrow('NEXT_NOT_FOUND');
+    await expect(call('1113')).rejects.toThrow('NEXT_REDIRECT:/tickets/1113');
+    await expect(call('1113', 'listo')).rejects.toThrow('NEXT_REDIRECT:/tickets/1113');
   });
 
   it('goes back to the ticket detail by default', async () => {

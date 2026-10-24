@@ -2,12 +2,20 @@ import { z } from 'zod';
 import type { CompanySettingsJson } from '@/db/schema';
 import { DEFAULT_FOLIO_PREFIX, FOLIO_PREFIX_MAX_LENGTH, normalizeFolioPrefix } from '@/lib/folio';
 import {
+  ACCOUNT_MAX_LENGTH,
+  ACCOUNT_MIN_LENGTH,
+  CARD_MAX_LENGTH,
+  CARD_MIN_LENGTH,
   CLABE_LENGTH,
+  isPaymentKind,
+  isValidAccountNumber,
+  isValidCardNumber,
   isValidClabe,
   normalizeClabe,
   PAYMENT_BANK_MAX,
   PAYMENT_HOLDER_MAX,
   PAYMENT_NOTE_MAX,
+  type PaymentKind,
 } from '@/lib/company-payment-info';
 
 /** Settings stored in `Company.settings` (JSON). Replace-on-save from the form. */
@@ -35,7 +43,8 @@ export const companySettingsBaseSchema = z.object({
   experience_mode: z
     .union([z.enum(['campo', 'office', 'auto']), z.literal('')])
     .optional(),
-  /** Datos para pagar por transferencia (ZIG-I20-1); every field is optional. */
+  /** Datos para pagar (ZIG-23). Empty keeps the stored kind; absent on read is CLABE. */
+  payment_kind: z.union([z.enum(['clabe', 'card', 'account']), z.literal('')]).optional(),
   payment_bank: z
     .string()
     .trim()
@@ -46,28 +55,22 @@ export const companySettingsBaseSchema = z.object({
     .trim()
     .max(PAYMENT_HOLDER_MAX, `Máximo ${PAYMENT_HOLDER_MAX} caracteres`)
     .optional(),
-  payment_clabe: z
-    .string()
-    .trim()
-    .optional()
-    .refine(
-      (value) => !value || /^[\d\s-]+$/.test(value),
-      'Usa solo números',
-    )
-    .refine(
-      (value) => !value || normalizeClabe(value).length === CLABE_LENGTH,
-      `La CLABE tiene ${CLABE_LENGTH} dígitos`,
-    )
-    .refine(
-      (value) => !value || isValidClabe(value),
-      'Revisa la CLABE: el último dígito no coincide',
-    ),
+  payment_clabe: z.string().trim().optional(),
+  payment_card: z.string().trim().optional(),
+  payment_account: z.string().trim().optional(),
   payment_note: z
     .string()
     .trim()
     .max(PAYMENT_NOTE_MAX, `Máximo ${PAYMENT_NOTE_MAX} caracteres`)
     .optional(),
 });
+
+const digitsOnly = (value: string | undefined): boolean =>
+  !value || /^[\d\s-]+$/.test(value);
+
+const activePaymentKind = (
+  value: z.infer<typeof companySettingsBaseSchema>,
+): PaymentKind => (isPaymentKind(value.payment_kind) ? value.payment_kind : 'clabe');
 
 /** The two series must tell documents apart, so their effective prefixes cannot match. */
 export const companySettingsSchema = companySettingsBaseSchema.superRefine((value, ctx) => {
@@ -80,6 +83,56 @@ export const companySettingsSchema = companySettingsBaseSchema.superRefine((valu
       path: ['folio_prefix_ticket'],
       message: 'Los prefijos de presupuestos y recibos deben ser distintos',
     });
+  }
+
+  const kind = activePaymentKind(value);
+  if (kind === 'clabe' && value.payment_clabe) {
+    if (!digitsOnly(value.payment_clabe)) {
+      ctx.addIssue({ code: 'custom', path: ['payment_clabe'], message: 'Usa solo números' });
+    } else if (normalizeClabe(value.payment_clabe).length !== CLABE_LENGTH) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['payment_clabe'],
+        message: `La CLABE tiene ${CLABE_LENGTH} dígitos`,
+      });
+    } else if (!isValidClabe(value.payment_clabe)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['payment_clabe'],
+        message: 'Revisa la CLABE: el último dígito no coincide',
+      });
+    }
+  }
+  if (kind === 'card' && value.payment_card) {
+    if (!digitsOnly(value.payment_card)) {
+      ctx.addIssue({ code: 'custom', path: ['payment_card'], message: 'Usa solo números' });
+    } else if (
+      normalizeClabe(value.payment_card).length < CARD_MIN_LENGTH ||
+      normalizeClabe(value.payment_card).length > CARD_MAX_LENGTH
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['payment_card'],
+        message: `La tarjeta tiene de ${CARD_MIN_LENGTH} a ${CARD_MAX_LENGTH} dígitos`,
+      });
+    } else if (!isValidCardNumber(value.payment_card)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['payment_card'],
+        message: 'Revisa el número de tarjeta: los dígitos no coinciden',
+      });
+    }
+  }
+  if (kind === 'account' && value.payment_account) {
+    if (!digitsOnly(value.payment_account)) {
+      ctx.addIssue({ code: 'custom', path: ['payment_account'], message: 'Usa solo números' });
+    } else if (!isValidAccountNumber(value.payment_account)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['payment_account'],
+        message: `La cuenta tiene de ${ACCOUNT_MIN_LENGTH} a ${ACCOUNT_MAX_LENGTH} dígitos`,
+      });
+    }
   }
 });
 
@@ -132,6 +185,9 @@ export function normalizeCompanySettingsForDb(
     out.experience_mode = input.experience_mode;
   }
   // Kept even when empty so clearing a field removes the stored value on merge.
+  if (isPaymentKind(input.payment_kind)) {
+    out.payment_kind = input.payment_kind;
+  }
   if (input.payment_bank !== undefined) {
     out.payment_bank = input.payment_bank.trim();
   }
@@ -140,6 +196,12 @@ export function normalizeCompanySettingsForDb(
   }
   if (input.payment_clabe !== undefined) {
     out.payment_clabe = normalizeClabe(input.payment_clabe);
+  }
+  if (input.payment_card !== undefined) {
+    out.payment_card = normalizeClabe(input.payment_card);
+  }
+  if (input.payment_account !== undefined) {
+    out.payment_account = normalizeClabe(input.payment_account);
   }
   if (input.payment_note !== undefined) {
     out.payment_note = input.payment_note.trim();

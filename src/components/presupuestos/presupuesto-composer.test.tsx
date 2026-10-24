@@ -130,7 +130,7 @@ const addLine = async (
   const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
   await user.clear(qty);
   await user.type(qty, quantity);
-  await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Agregar al presupuesto' }));
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
   );

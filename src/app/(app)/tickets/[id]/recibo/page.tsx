@@ -1,6 +1,6 @@
 import { formatDisplayFolio } from '@/lib/folio';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { getTicketById } from '@/actions/tickets';
 import { DocumentPdfViewer } from '@/components/pdf/document-pdf-viewer';
@@ -48,8 +48,10 @@ export default async function TicketReciboPage({
   if (!result.success || !result.data) notFound();
 
   const ticket = result.data;
-  // Quotes have /presupuestos/[id]/pdf; an unfinished ticket has no recibo yet.
-  if (isPresupuestoTicket(ticket.document_kind) || !ticket.finished) notFound();
+  // Quotes have /presupuestos/[id]/pdf.
+  if (isPresupuestoTicket(ticket.document_kind)) notFound();
+  // Jorge 2026-10-22: an unfinished ticket has no recibo page; send them to the ticket.
+  if (!ticket.finished) redirect(`/tickets/${String(ticket.id)}`);
 
   const ticketId = String(ticket.id);
   const folio = formatDisplayFolio(ticket);

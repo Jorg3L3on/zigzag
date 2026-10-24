@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { companyDay } from '@/lib/company-day';
 import {
   Banknote,
   CalendarClock,
@@ -427,7 +428,7 @@ export const DashboardTuDia = ({
     return null;
   }
 
-  const today = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  const today = format(companyDay(new Date()).date, "EEEE d 'de' MMMM", { locale: es });
   const panelId = 'dashboard-tu-dia-panel';
 
   const renderRows = () => {

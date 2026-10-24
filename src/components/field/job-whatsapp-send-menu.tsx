@@ -26,6 +26,7 @@ import {
   buildWhatsAppOfflineReceiptShare,
   buildWhatsAppQuoteShare,
 } from '@/lib/whatsapp-share';
+import { companyDay } from '@/lib/company-day';
 import { cn } from '@/lib/utils';
 
 export type JobWhatsAppSendMenuProps = {
@@ -46,9 +47,9 @@ export type JobWhatsAppSendMenuProps = {
 const buildPdfFileName = (job: FieldJobSnapshot): string => {
   const safeName =
     (job.clientName ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() || 'ticket';
-  const datePart = job.ticketDate
-    ? job.ticketDate.slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+  const datePart = companyDay(
+    job.ticketDate ? new Date(job.ticketDate) : new Date(),
+  ).iso;
   const id = job.ticketId ?? 'local';
   return `${safeName}_${datePart}_${id}.pdf`;
 };

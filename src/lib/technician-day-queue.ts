@@ -2,7 +2,7 @@
  * Technician day-queue helpers — unfinished Tickets for today + overdue.
  */
 
-import { startOfDay } from 'date-fns';
+import { companyDay } from '@/lib/company-day';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -74,9 +74,9 @@ export const isTechnicianDayQueueTicket = (
 ): boolean => {
   if (!isWorkTicket(ticket.document_kind)) return false;
   if (ticket.finished) return false;
-  const workDate = startOfDay(getTicketWorkDate(ticket.ticket_date, ticket.created_at));
-  const todayStart = startOfDay(today);
-  return workDate.getTime() <= todayStart.getTime();
+  const workDay = companyDay(getTicketWorkDate(ticket.ticket_date, ticket.created_at)).date.getTime();
+  const todayDay = companyDay(today).date.getTime();
+  return workDay <= todayDay;
 };
 
 export const toTechnicianDayTicket = (
@@ -87,8 +87,8 @@ export const toTechnicianDayTicket = (
     return null;
   }
   const workDate = getTicketWorkDate(ticket.ticket_date, ticket.created_at);
-  const todayStart = startOfDay(today);
-  const isOverdue = startOfDay(workDate).getTime() < todayStart.getTime();
+  const isOverdue =
+    companyDay(workDate).date.getTime() < companyDay(today).date.getTime();
 
   return {
     id: String(ticket.id),

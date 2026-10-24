@@ -220,4 +220,26 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
       },
     });
   });
+
+  it('warns on a card and never asks for vencimiento or CVV (ZIG-23)', async () => {
+    mockUseIsMobile.mockReturnValue(false);
+    render(
+      <CompanyForm
+        company={{
+          ...company,
+          settings: { ...company.settings, payment_kind: 'card' },
+        }}
+        mode="self"
+      />,
+    );
+
+    const pago = section('pago');
+    expect(within(pago).getByTestId('card-payment-warning')).toHaveTextContent(/CONDUSEF/);
+    expect(within(pago).getByLabelText('Número de tarjeta')).toBeInTheDocument();
+    expect(within(pago).queryByLabelText('CLABE')).not.toBeInTheDocument();
+    expect(within(pago).queryByLabelText(/vencimiento/i)).not.toBeInTheDocument();
+    expect(within(pago).queryByLabelText(/cvv/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/vencimiento/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/cvv/i)).not.toBeInTheDocument();
+  });
 });

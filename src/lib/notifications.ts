@@ -1,4 +1,5 @@
-import { addDays, endOfDay, format, startOfDay } from 'date-fns';
+import { addDays, endOfDay } from 'date-fns';
+import { companyDay } from '@/lib/company-day';
 import { and, eq, isNull, lte } from 'drizzle-orm';
 import { clientServiceSchedule, notification } from '@/db/schema';
 import { db } from '@/lib/db';
@@ -10,7 +11,7 @@ import {
   scheduleDigestDedupeKey,
 } from '@/lib/schedule-digest';
 
-const dueDateKey = (date: Date): string => format(startOfDay(date), 'yyyy-MM-dd');
+const dueDateKey = (date: Date): string => companyDay(date).iso;
 
 type NotificationInsert = typeof notification.$inferInsert;
 
@@ -27,7 +28,9 @@ export const materializeScheduleNotificationsForCompany = async (
   companyId: number,
   today: Date = new Date(),
 ): Promise<number> => {
-  const horizon = endOfDay(addDays(startOfDay(today), DUE_SOON_DAYS));
+  // One extra civil day past the company horizon so a due time late in
+  // Mexico City is not dropped before classifyScheduleBucket sees it.
+  const horizon = endOfDay(addDays(companyDay(today).date, DUE_SOON_DAYS + 1));
 
   const schedules = await db.query.clientServiceSchedule.findMany({
     where: and(

@@ -16,6 +16,7 @@ import {
   sanitizeCompanyForAudit,
 } from '@/lib/governance-audit';
 import { revalidatePath } from 'next/cache';
+import { logger } from '@/lib/logger';
 import {
   requireActionAuth,
   requireActionPermission,
@@ -47,6 +48,7 @@ export async function setCompanyLifecycleStatus(
 
     const validation = validateCompanyLifecycleChange(existing, nextStatus);
     if (!validation.allowed) {
+      logger.warn('support error code', { code: 'GN003' });
       return {
         ...buildActionError(
           'GN003',

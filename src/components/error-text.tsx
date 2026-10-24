@@ -1,16 +1,17 @@
-import { splitErrorCode } from '@/lib/error-code-display';
+'use client';
 
-/** The message in plain Spanish; its support code on a second, smaller line. */
+import { useEffect } from 'react';
+
+import { splitErrorCode } from '@/lib/error-code-display';
+import { logSupportCode } from '@/lib/support-code-log';
+
+/** Plain Spanish. The support code is logged and never shown (ZIG-24). */
 export const ErrorText = ({ message }: { message: string }) => {
   const { message: text, code } = splitErrorCode(message);
-  return (
-    <>
-      <span>{text}</span>
-      {code ? (
-        <span className="mt-0.5 block text-sm font-normal opacity-80" data-testid="error-code">
-          Código: {code}
-        </span>
-      ) : null}
-    </>
-  );
+
+  useEffect(() => {
+    logSupportCode(code);
+  }, [code]);
+
+  return <span>{text}</span>;
 };

@@ -5,7 +5,9 @@ import {
   type ActionFailure,
 } from '@/lib/action-result';
 import type { ActionErrorType } from '@/lib/errors';
+import { splitErrorCode } from '@/lib/error-code-display';
 import { ERROR_CATALOG, isErrorCode, type ErrorCode } from '@/lib/error-catalog';
+import { logSupportCode } from '@/lib/support-code-log';
 
 type NetworkErrorCandidate = {
   code?: string;
@@ -99,35 +101,50 @@ export function classifyClientError(
   return 'unknown';
 }
 
+/** Spanish for the screen. Any support code in the text is logged and dropped. */
+const withoutSupportCode = (message: string): string => {
+  const split = splitErrorCode(message);
+  logSupportCode(split.code);
+  return split.message;
+};
+
 export function getErrorMessageByType(
   errorType: ActionErrorType,
   fallbackMessage: string,
 ): string {
   if (fallbackMessage.includes('Código:')) {
-    return fallbackMessage;
+    return withoutSupportCode(fallbackMessage);
   }
 
   if (errorType === 'network') {
-    return 'No se pudo completar por problemas de conexión. Verifica tu internet e intenta de nuevo. Código: GN002';
+    return withoutSupportCode(
+      'No se pudo completar por problemas de conexión. Verifica tu internet e intenta de nuevo. Código: GN002',
+    );
   }
 
   if (errorType === 'auth') {
-    return 'Tu sesión expiró o no tienes permisos para realizar esta acción. Código: AU002';
+    return withoutSupportCode(
+      'Tu sesión expiró o no tienes permisos para realizar esta acción. Código: AU002',
+    );
   }
 
   if (errorType === 'server') {
-    return 'Ocurrió un error del servidor. Intenta de nuevo en unos momentos. Código: GN001';
+    return withoutSupportCode(
+      'Ocurrió un error del servidor. Intenta de nuevo en unos momentos. Código: GN001',
+    );
   }
 
   if (errorType === 'validation') {
-    return 'Revisa los campos marcados e intenta de nuevo. Código: GN003';
+    return withoutSupportCode('Revisa los campos marcados e intenta de nuevo. Código: GN003');
   }
 
   if (errorType === 'unknown') {
-    return 'No se pudo completar la operación. Intenta de nuevo. Código: GN001';
+    return withoutSupportCode(
+      'No se pudo completar la operación. Intenta de nuevo. Código: GN001',
+    );
   }
 
-  return `${fallbackMessage} Código: GN003`;
+  return withoutSupportCode(`${fallbackMessage} Código: GN003`);
 }
 
 function fallbackCodeForType(errorType: ActionErrorType): ErrorCode {
@@ -161,14 +178,12 @@ export function buildToastErrorContent(
     : fallbackCodeForType(errorType);
   const catalogEntry = ERROR_CATALOG[code];
   const title = payload?.errorTitle || catalogEntry.title;
-  const message = (payload?.error || fallbackMessage).replace(
-    /\s*Código:\s*[A-Z]{2}\d{3}\.?$/,
-    '',
-  );
+  const message = splitErrorCode(payload?.error || fallbackMessage).message;
+  logSupportCode(code);
 
   return {
     title,
-    description: `${message} Código: ${code}`,
+    description: message,
     errorType,
   };
 }

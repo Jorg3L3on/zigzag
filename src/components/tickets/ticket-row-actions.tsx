@@ -1,5 +1,6 @@
 'use client';
 
+import { companyDay } from '@/lib/company-day';
 import { formatDocumentFolio } from '@/lib/folio';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -51,9 +52,9 @@ const buildListTicketPdfFileName = (ticket: Ticket): string => {
   const safeName =
     (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() ||
     'ticket';
-  const datePart = ticket.ticket_date
-    ? ticket.ticket_date.toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+  const datePart = companyDay(
+    ticket.ticket_date ? new Date(ticket.ticket_date) : new Date(),
+  ).iso;
   return `${safeName}_${datePart}_${ticket.id.toString()}.pdf`;
 };
 

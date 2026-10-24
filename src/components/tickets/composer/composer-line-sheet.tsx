@@ -62,6 +62,8 @@ type ComposerLineSheetProps = {
   onRemove?: () => void;
   /** Noun for copy ("ticket" / "presupuesto"). */
   documentLabel?: string;
+  /** Which document the line is added to. Drives the submit label (ZIG-21). */
+  documentKind?: 'ticket' | 'presupuesto';
   /** Total of the document's other lines, for the total cap (ZIG-I12). */
   otherLinesTotal?: number;
 };
@@ -95,6 +97,7 @@ export const ComposerLineSheet = ({
   onSubmit,
   onRemove,
   documentLabel = 'ticket',
+  documentKind = 'ticket',
   otherLinesTotal = 0,
 }: ComposerLineSheetProps) => {
   const undoToast = useUndoToast();
@@ -435,7 +438,7 @@ export const ComposerLineSheet = ({
               disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              Agregar al ticket
+              {documentKind === 'presupuesto' ? 'Agregar al presupuesto' : 'Agregar al ticket'}
             </Button>
           </div>
         </div>

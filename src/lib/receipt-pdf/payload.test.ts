@@ -1,3 +1,4 @@
+import { buildReceiptPdfEtag } from '@/lib/receipt-pdf/etag';
 import {
   buildReceiptPdfPayload,
   formatReceiptFolio,
@@ -487,5 +488,69 @@ describe('buildReceiptPdfPayload — para pagar por transferencia (ZIG-I20-1)', 
     expect(buildReceiptPdfPayload(paid).payment).toBeNull();
 
     expect(buildReceiptPdfPayload(baseTicket({ paid: 100 })).payment).toBeNull();
+  });
+
+  it('never prints card data on a presupuesto (ZIG-23)', () => {
+    const quote = presupuesto();
+    quote.company!.settings = {
+      ...settings,
+      payment_kind: 'card',
+      payment_card: '4111111111111111',
+    };
+    expect(buildReceiptPdfPayload(quote).payment).toBeNull();
+  });
+});
+
+describe('company day on the PDF (ZIG-19, ZIG-20)', () => {
+  const evening = new Date('2026-10-23T23:00:00-06:00');
+
+  it('prints the Mexico City day at 23:00 for a ticket and a presupuesto', () => {
+    expect(evening.toISOString().slice(0, 10)).toBe('2026-10-24');
+    expect(buildReceiptPdfPayload(baseTicket({ ticket_date: evening }), evening).issueDate).toBe(
+      '23 / 10 / 2026',
+    );
+    expect(
+      buildReceiptPdfPayload(presupuesto({ ticket_date: evening }), evening).issueDate,
+    ).toBe('23 / 10 / 2026');
+  });
+
+  it('prints the 15 vigencia days chosen, including after 18:00 CDMX', () => {
+    const issued = new Date('2026-10-22T23:00:00-06:00');
+    const expires = new Date('2026-11-06T06:00:00.000Z');
+    const payload = buildReceiptPdfPayload(
+      presupuesto({ ticket_date: issued, expires_at: expires }),
+      issued,
+    );
+    expect(payload.issueDate).toBe('22 / 10 / 2026');
+    expect(payload.validity).toEqual({ days: 15, expiryDate: '06 / 11 / 2026' });
+  });
+
+  it('changes the ETag when the issue date changes', () => {
+    const nextEvening = new Date('2026-10-24T23:00:00-06:00');
+    const first = buildReceiptPdfPayload(baseTicket({ ticket_date: evening, paid: 100 }), evening);
+    const second = buildReceiptPdfPayload(
+      baseTicket({ ticket_date: nextEvening, paid: 100 }),
+      nextEvening,
+    );
+    expect(first.issueDate).not.toBe(second.issueDate);
+    expect(buildReceiptPdfEtag(first)).not.toBe(buildReceiptPdfEtag(second));
+  });
+
+  it('prints a card in groups of 4 and leaves a legacy CLABE ungrouped', () => {
+    const cardTicket = baseTicket({ paid: 100, ticket_date: evening });
+    cardTicket.company!.settings = {
+      default_currency: 'MXN',
+      payment_kind: 'card',
+      payment_bank: 'BBVA',
+      payment_holder: 'Juan Pérez',
+      payment_card: '4111111111111111',
+    };
+    expect(buildReceiptPdfPayload(cardTicket, evening).payment).toEqual({
+      bank: 'BBVA',
+      holder: 'Juan Pérez',
+      clabe: '4111111111111111',
+      note: null,
+      kind: 'card',
+    });
   });
 });

@@ -49,6 +49,9 @@ import {
 } from '@/lib/network-awareness';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
 import {
+  ACCOUNT_MAX_LENGTH,
+  CARD_MAX_LENGTH,
+  CARD_PAYMENT_WARNING,
   CLABE_LENGTH,
   PAYMENT_BANK_MAX,
   PAYMENT_HOLDER_MAX,
@@ -82,7 +85,10 @@ const defaultSettings = {
   experience_mode: 'auto' as 'auto' | 'campo' | 'office',
   payment_bank: '',
   payment_holder: '',
+  payment_kind: '' as '' | 'clabe' | 'card' | 'account',
   payment_clabe: '',
+  payment_card: '',
+  payment_account: '',
   payment_note: '',
 };
 
@@ -181,13 +187,22 @@ export const CompanyForm = ({
             experience_mode: company.settings?.experience_mode ?? 'auto',
             payment_bank: company.settings?.payment_bank ?? '',
             payment_holder: company.settings?.payment_holder ?? '',
+            payment_kind: company.settings?.payment_kind ?? '',
             payment_clabe: company.settings?.payment_clabe ?? '',
+            payment_card: company.settings?.payment_card ?? '',
+            payment_account: company.settings?.payment_account ?? '',
             payment_note: company.settings?.payment_note ?? '',
           },
           owner: { name: '', email: '', password: '' },
         }
       : emptyDefaults,
   });
+
+  const paymentKindValue = form.watch('settings.payment_kind');
+  const paymentKind =
+    paymentKindValue === 'card' || paymentKindValue === 'account' || paymentKindValue === 'clabe'
+      ? paymentKindValue
+      : 'clabe';
 
   const handleSubmit = async (data: CompanyBootstrapFormValues) => {
     try {
@@ -754,30 +769,122 @@ export const CompanyForm = ({
             />
             <FormField
               control={form.control}
-              name="settings.payment_clabe"
+              name="settings.payment_kind"
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
-                  <FormLabel>CLABE</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      inputMode="numeric"
-                      autoComplete="off"
-                      maxLength={CLABE_LENGTH + 5}
-                      placeholder="18 dígitos"
-                      className="font-mono tracking-wide"
-                      data-testid="company-payment-clabe"
-                    />
-                  </FormControl>
+                  <FormLabel>Tipo</FormLabel>
+                  <Select
+                    value={field.value || 'clabe'}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-11" data-testid="company-payment-kind">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="clabe">CLABE</SelectItem>
+                      <SelectItem value="card">Tarjeta</SelectItem>
+                      <SelectItem value="account">Cuenta</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormDescription>
-                    Los 18 dígitos de tu cuenta. Revisamos que el último dígito
-                    coincida para evitar errores al copiarla.
+                    Un solo método por empresa. El recibo del ticket imprime el
+                    que elijas.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            {paymentKind === 'card' ? (
+              <p
+                role="note"
+                data-testid="card-payment-warning"
+                className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 md:col-span-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+              >
+                {CARD_PAYMENT_WARNING}
+              </p>
+            ) : null}
+            {paymentKind === 'clabe' ? (
+              <FormField
+                control={form.control}
+                name="settings.payment_clabe"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>CLABE</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={CLABE_LENGTH + 5}
+                        placeholder="18 dígitos"
+                        className="font-mono tracking-wide"
+                        data-testid="company-payment-clabe"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Los 18 dígitos de tu cuenta. Revisamos que el último dígito
+                      coincida para evitar errores al copiarla.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
+            {paymentKind === 'card' ? (
+              <FormField
+                control={form.control}
+                name="settings.payment_card"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Número de tarjeta</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={CARD_MAX_LENGTH + 5}
+                        placeholder="15 a 19 dígitos"
+                        className="font-mono tracking-wide"
+                        data-testid="company-payment-card"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Sólo el número para el depósito. No pedimos vencimiento ni CVV.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
+            {paymentKind === 'account' ? (
+              <FormField
+                control={form.control}
+                name="settings.payment_account"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Número de cuenta</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={ACCOUNT_MAX_LENGTH + 5}
+                        placeholder="10 u 11 dígitos"
+                        className="font-mono tracking-wide"
+                        data-testid="company-payment-account"
+                      />
+                    </FormControl>
+                    <FormDescription>De 10 a 11 dígitos.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
             <FormField
               control={form.control}
               name="settings.payment_note"

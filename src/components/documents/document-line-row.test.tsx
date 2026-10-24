@@ -57,6 +57,35 @@ describe('DocumentLineRow (ZIG-I13-1)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('opens N materiales with the keyboard and leaves the amount alone (ZIG-18)', async () => {
+    const user = userEvent.setup();
+    render(
+      <DocumentLineRow
+        name="Mantenimiento"
+        quantity={1}
+        price={850}
+        amount={900}
+        materials={[{ id: 1, name: 'Filtro', quantity: 2, unit: 'pza', price: 25 }]}
+        onClick={() => undefined}
+      />,
+    );
+    const amount = screen.getByTestId('document-line-amount');
+    expect(amount).toHaveTextContent('$900.00');
+    const toggle = screen.getByRole('button', { name: '1 material' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/Filtro/)).toBeNull();
+
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('list', { name: 'Materiales de Mantenimiento' })).toHaveTextContent(
+      'Filtro',
+    );
+    expect(screen.getByText(/2 pza/)).toBeInTheDocument();
+    expect(screen.getByText(/\$25\.00/)).toBeInTheDocument();
+    expect(amount).toHaveTextContent('$900.00');
+  });
+
   it('shows the changed marker and the server error, and never a Nuevo pill', () => {
     render(
       <DocumentLineRow

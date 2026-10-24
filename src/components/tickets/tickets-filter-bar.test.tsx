@@ -81,6 +81,17 @@ describe('TicketsFilterBar', () => {
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
   });
 
+  it('keeps a single payment filter: the Por cobrar chips (ZIG-24)', async () => {
+    const user = userEvent.setup();
+    render(<TicketsFilterBar {...baseProps} />);
+
+    expect(screen.queryByLabelText('Filtrar por pagado')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Por cobrar' }).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /más filtros/i }));
+    expect(screen.queryByLabelText('Filtrar por pagado')).not.toBeInTheDocument();
+  });
+
   it('shows the phone sort beside Más filtros (ZIG-I18-9)', () => {
     render(<TicketsFilterBar {...baseProps} />);
 

@@ -137,8 +137,9 @@ describe('TicketCreationReview', () => {
     expect(screen.queryByTestId('recibo-pdf-preview')).toBeNull();
     expect(screen.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
       'href',
-      '/tickets/1201/recibo?from=listo',
+      '/api/tickets/1201/invoice?disposition=inline&company_id=10',
     );
+    expect(screen.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('button', { name: /Descargar PDF/ })).toBeTruthy();
 
     for (const noise of [/Creado/, /Actualizado/, /Actividad/, /Más acciones/]) {
@@ -385,6 +386,10 @@ describe('TicketCreationReview', () => {
     expect(summary).toHaveTextContent('Pagado$5,000.00');
     expect(summary).toHaveTextContent('Saldo$7,950.00');
     expect(screen.getAllByRole('button', { name: /Enviar por WhatsApp/ }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
+      'href',
+      '/tickets/1201/recibo?from=listo',
+    );
     expect(screen.getByRole('link', { name: /Abrir PDF/ })).not.toHaveAttribute('target');
   });
 });

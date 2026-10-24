@@ -277,6 +277,8 @@ export type OfflineReceiptInput = {
   balanceDue: number;
   ticketDate?: Date | string | null;
   companyName?: string | null;
+  /** Same payment block as WhatsApp. Omitted lines stay out of the simple receipt. */
+  payment?: CompanyPaymentInfo | null;
 };
 
 /** Plain-text recibo for offline WhatsApp when branded PDF is unavailable. */
@@ -311,8 +313,12 @@ export const buildOfflineReceiptText = (input: OfflineReceiptInput): string => {
     `Total: ${formatTicketListAmount(input.total)}`,
     `Pagado: ${formatTicketListAmount(input.paid)}`,
     `Saldo: ${formatTicketListAmount(input.balanceDue)}`,
-    'Sin internet — recibo simple. El PDF oficial se envía cuando haya señal.',
   );
+  const paymentLines = buildPaymentInfoLines(input.payment);
+  if (input.balanceDue > 0 && paymentLines.length > 0) {
+    lines.push(...paymentLines);
+  }
+  lines.push('Sin internet — recibo simple. El PDF oficial se envía cuando haya señal.');
   return lines.join('\n');
 };
 
