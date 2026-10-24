@@ -56,20 +56,13 @@ describe('TicketRowActions', () => {
     jest.restoreAllMocks();
   });
 
-  it('offers Llamar with a tel: link only when the client has a phone (ZIG-I18-8)', async () => {
+  it('offers no Llamar, even when the client has a phone (ZIG-27)', async () => {
     const user = userEvent.setup();
-    const { unmount } = render(
-      <TicketRowActions ticket={{ ...ticket, client_tel: '998 345 7712' }} canWrite />,
-    );
-    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
-    const call = await screen.findByRole('menuitem', { name: /llamar/i });
-    expect(call.closest('a')).toHaveAttribute('href', expect.stringMatching(/^tel:\+?\d+$/));
-    unmount();
-
-    render(<TicketRowActions ticket={{ ...ticket, client_tel: null }} canWrite />);
+    render(<TicketRowActions ticket={{ ...ticket, client_tel: '998 345 7712' }} canWrite />);
     await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
     await screen.findByRole('menuitem', { name: /ver detalles/i });
     expect(screen.queryByRole('menuitem', { name: /llamar/i })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
   });
 
   it('shows Descargar ticket for finished tickets without a stored document', async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageCircle, Phone, Wallet } from 'lucide-react';
+import { MessageCircle, Wallet } from 'lucide-react';
 
 import { useTicketCollect } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { useCompany } from '@/contexts/company-context';
@@ -27,9 +27,9 @@ const ACTION_CLASS =
   'flex h-[72px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-1 text-caption text-foreground outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
 
 /**
- * Cobrar / WhatsApp / Llamar (ZIG-I13-4, ZIG-I18-16). Cobrar opens the Registrar
- * pago sheet; WhatsApp opens wa.me with the recibo text; Llamar is a tel: link.
- * The last two are hidden without a phone. Compartir recibo lives only in the
+ * Cobrar / WhatsApp (ZIG-I13-4, ZIG-I18-16). Cobrar opens the Registrar pago
+ * sheet; WhatsApp opens wa.me with the recibo text (hidden without a phone).
+ * No Llamar anywhere (Jorge, ZIG-27). Compartir recibo lives only in the
  * sticky bar and the header, so it shows once.
  */
 export const TicketDetailQuickActions = ({
@@ -61,14 +61,14 @@ export const TicketDetailQuickActions = ({
         payment,
       })
     : null;
-  const count = Number(showCobrar) + Number(Boolean(whatsApp)) + Number(Boolean(phone));
+  const count = Number(showCobrar) + Number(Boolean(whatsApp));
   if (count === 0) return null;
 
   return (
     <div
       className={cn(
         'grid gap-2',
-        count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-3',
+        count === 1 ? 'grid-cols-1' : 'grid-cols-2',
         className,
       )}
       data-testid="ticket-quick-actions"
@@ -88,12 +88,6 @@ export const TicketDetailQuickActions = ({
         >
           <MessageCircle className="h-5 w-5" aria-hidden />
           WhatsApp
-        </a>
-      ) : null}
-      {phone ? (
-        <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className={ACTION_CLASS}>
-          <Phone className="h-5 w-5" aria-hidden />
-          Llamar
         </a>
       ) : null}
     </div>

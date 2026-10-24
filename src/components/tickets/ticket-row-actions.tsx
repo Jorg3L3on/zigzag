@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Phone, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
+import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
@@ -19,7 +19,6 @@ import {
   type TicketListCollectPaymentResult,
 } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
-import { buildTelHref } from '@/lib/phone-links';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
   canCollectTicketPayment,
@@ -80,7 +79,6 @@ export function TicketRowActions({
     ticket.finished &&
     paymentStatus !== 'paid';
 
-  const telHref = buildTelHref(ticket.client_tel);
 
   const handleDownloadTicket = async (event: Event) => {
     event.preventDefault();
@@ -134,14 +132,6 @@ export function TicketRowActions({
               <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
               Cobrar
             </DropdownMenuItem>
-          ) : null}
-          {telHref ? (
-            <a href={telHref}>
-              <DropdownMenuItem aria-label={`Llamar al cliente del ticket ${ticket.id.toString()}`}>
-                <Phone className="mr-2 h-4 w-4" data-icon="inline-start" />
-                Llamar
-              </DropdownMenuItem>
-            </a>
           ) : null}
           {canWrite && !ticket.finished && (
             <Link href={`/tickets/${ticket.id}/edit`}>

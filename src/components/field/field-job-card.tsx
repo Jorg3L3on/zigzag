@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Banknote, Phone } from 'lucide-react';
+import { Banknote } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FormattedDate } from '@/components/formatted-date';
@@ -13,7 +13,6 @@ import {
 } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketPaymentBadge } from '@/components/tickets/ticket-payment-badge';
 import type { FieldJobSnapshot } from '@/lib/field-job-snapshot';
-import { buildTelHref } from '@/lib/phone-links';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
@@ -35,7 +34,6 @@ export const FieldJobCard = ({
   asListItem = true,
 }: FieldJobCardProps) => {
   const [collectOpen, setCollectOpen] = React.useState(false);
-  const telHref = buildTelHref(job.clientTel);
   const displayId = job.ticketId ?? job.localJobId ?? 'local';
   const isQuote = isPresupuestoTicket(job.documentKind);
   const showCollect =
@@ -142,31 +140,6 @@ export const FieldJobCard = ({
             Cobrar
           </Button>
         ) : null}
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="min-h-11 rounded-lg sm:min-h-9"
-          disabled={!telHref}
-          asChild={Boolean(telHref)}
-          aria-label={
-            telHref
-              ? `Llamar a ${job.clientName ?? job.clientTel}`
-              : `Sin teléfono para ${displayId}`
-          }
-        >
-          {telHref ? (
-            <a href={telHref}>
-              <Phone className="h-4 w-4" aria-hidden data-icon="inline-start" />
-              Llamar
-            </a>
-          ) : (
-            <span>
-              <Phone className="h-4 w-4" aria-hidden data-icon="inline-start" />
-              Llamar
-            </span>
-          )}
-        </Button>
 
         <JobWhatsAppSendMenu job={job} />
       </div>

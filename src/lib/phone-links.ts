@@ -10,11 +10,6 @@ export const normalizePhoneForTel = (
   return trimmed.startsWith('+') ? `+${digits}` : digits;
 };
 
-export const buildTelHref = (value: string | null | undefined): string | null => {
-  const normalized = normalizePhoneForTel(value);
-  return normalized ? `tel:${normalized}` : null;
-};
-
 /**
  * A phone as people read it: ten digits as `998 345 7712`, a +52 prefix kept;
  * anything else comes back as typed (ZIG-I13-7).
