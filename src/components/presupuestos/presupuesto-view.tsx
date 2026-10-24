@@ -267,7 +267,6 @@ export const PresupuestoView = ({
         editHref={editHref}
         canWrite={canWrite}
         canInvoice={canInvoice}
-        downloadFileName={downloadFileName}
         isMutable={isMutable}
         mutating={mutating}
         sharing={phase === 'sharing'}

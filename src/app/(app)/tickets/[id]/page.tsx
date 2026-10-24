@@ -29,7 +29,6 @@ import { TicketDetailStatusPill } from '@/components/tickets/detail/ticket-detai
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
-import { DocumentPdfAside } from '@/components/documents/document-pdf-aside';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
 
@@ -146,80 +145,73 @@ export default async function TicketDetailsPage({
             }
           />
 
-          {/* Desktop (ZIG-I24-3): the detail on the left, the recibo PDF on the right. */}
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(400px,480px)] lg:items-start lg:gap-8">
-            <div className="flex min-w-0 flex-col gap-4 md:gap-6">
-              <TicketDetailHeader
+          <div className="flex flex-col gap-4 md:gap-6">
+            <TicketDetailHeader
+              ticketId={ticket.id}
+              folio={folioLabel}
+              fromPresupuestoFolio={fromPresupuestoFolio}
+              clientName={ticket.client_name}
+              clientId={ticket.client_id}
+              finished={ticket.finished}
+              total={total}
+              paid={paid}
+              ticketDate={ticket.ticket_date}
+              creatorName={creatorName}
+              fromPresupuestoId={fromPresupuestoId}
+              actions={<TicketDetailPrimaryActions {...primaryActionProps} placement="desktop" />}
+            />
+
+            <TicketDetailHero finished={ticket.finished} total={total} paid={paid} />
+
+            <TicketDetailQuickActions
+              {...documentProps}
+              finished={ticket.finished}
+              // Desktop has Cobrar / Compartir recibo and WhatsApp in the header (ZIG-I24).
+              className="md:max-w-md lg:hidden"
+            />
+
+            {!ticket.finished ? (
+              <TicketDetailFinishPanel
                 ticketId={ticket.id}
-                folio={folioLabel}
-                fromPresupuestoFolio={fromPresupuestoFolio}
-                clientName={ticket.client_name}
                 clientId={ticket.client_id}
-                finished={ticket.finished}
+                clientName={ticket.client_name}
                 total={total}
-                paid={paid}
                 ticketDate={ticket.ticket_date}
-                creatorName={creatorName}
-                fromPresupuestoId={fromPresupuestoId}
-                actions={<TicketDetailPrimaryActions {...primaryActionProps} placement="desktop" />}
+                serviceLines={serviceLines}
+                lineCount={ticket.services_tickets.length}
+                downloadFileName={downloadFileName}
               />
+            ) : null}
 
-              <TicketDetailHero finished={ticket.finished} total={total} paid={paid} />
-
-              <TicketDetailQuickActions
-                {...documentProps}
-                finished={ticket.finished}
-                // Desktop has Cobrar / Compartir recibo and WhatsApp in the header (ZIG-I24).
-                className="md:max-w-md lg:hidden"
-              />
-
-              {!ticket.finished ? (
-                <TicketDetailFinishPanel
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] lg:items-start lg:gap-8">
+              <div className="flex min-w-0 flex-col gap-4 md:gap-6">
+                <TicketDetailServicesSection
                   ticketId={ticket.id}
-                  clientId={ticket.client_id}
-                  clientName={ticket.client_name}
                   total={total}
-                  ticketDate={ticket.ticket_date}
-                  serviceLines={serviceLines}
-                  lineCount={ticket.services_tickets.length}
-                  downloadFileName={downloadFileName}
+                  paid={paid}
+                  services={ticket.services_tickets}
                 />
-              ) : null}
 
-              <TicketDetailServicesSection
-                ticketId={ticket.id}
-                total={total}
-                paid={paid}
-                services={ticket.services_tickets}
-              />
+                {ticket.finished ? <TicketDetailPaymentsSection payments={payments} /> : null}
 
-              {ticket.finished ? <TicketDetailPaymentsSection payments={payments} /> : null}
-
-              <TicketDetailTimeline
-                entries={auditEntries}
-                createdAt={ticket.created_at}
-                updatedAt={ticket.updated_at}
-              />
-            </div>
-
-            <aside className="hidden min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:flex">
-              {ticket.finished ? (
-                <DocumentPdfAside
-                  ticketId={String(ticket.id)}
-                  kind="recibo"
-                  viewerHref={`/tickets/${String(ticket.id)}/recibo`}
-                  downloadFileName={downloadFileName}
-                  version={`${total}-${paid}-${payments.length}-${ticket.updated_at ? new Date(ticket.updated_at).getTime() : 0}`}
-                />
-              ) : (
-                <div
-                  className="rounded-xl border border-dashed border-border/70 bg-muted/25 px-4 py-6 text-center text-sm text-muted-foreground"
-                  data-testid="ticket-recibo-pending"
-                >
-                  El recibo en PDF aparece aquí cuando finalices el trabajo.
+                <div className="lg:hidden">
+                  <TicketDetailTimeline
+                    entries={auditEntries}
+                    createdAt={ticket.created_at}
+                    updatedAt={ticket.updated_at}
+                  />
                 </div>
-              )}
-            </aside>
+              </div>
+
+              <aside className="hidden min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:flex">
+                <TicketDetailTimeline
+                  entries={auditEntries}
+                  defaultOpen
+                  createdAt={ticket.created_at}
+                  updatedAt={ticket.updated_at}
+                />
+              </aside>
+            </div>
           </div>
         </TripledDashboardShell>
 

@@ -18,11 +18,10 @@ import {
   type TicketTimelineIconKey,
 } from '@/lib/ticket-audit-display';
 import { formatRelativeActivityTime } from '@/lib/format-relative-time';
-import { useIsDesktop } from '@/hooks/use-desktop';
 
 type TicketDetailTimelineProps = {
   entries: TicketAuditHistoryEntry[];
-  /** Folded on phones; open from 1024px (ZIG-I13-4, ZIG-I24-3) unless set. */
+  /** Folded on phones; the desktop side column starts open (ZIG-I13-4). */
   defaultOpen?: boolean;
   createdAt?: Date | null;
   updatedAt?: Date | null;
@@ -50,12 +49,6 @@ export const TicketDetailTimeline = ({
   updatedAt = null,
 }: TicketDetailTimelineProps) => {
   const [open, setOpen] = useState(defaultOpen);
-  const isDesktop = useIsDesktop();
-
-  // The desktop detail keeps Actividad unfolded, as its old side column did.
-  useEffect(() => {
-    if (isDesktop) setOpen(true);
-  }, [isDesktop]);
   const [visibleCount, setVisibleCount] = useState(() =>
     Math.min(ACTIVITY_VIEWPORT_ROWS, entries.length),
   );
