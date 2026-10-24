@@ -953,6 +953,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                             }))}
                             error={lineErrors[line.key]}
                             onClick={() => openEditLine(line.key)}
+                            onRemove={() => handleRemoveLine(line.key)}
                             data-testid="composer-line-row"
                           />
                         </motion.li>

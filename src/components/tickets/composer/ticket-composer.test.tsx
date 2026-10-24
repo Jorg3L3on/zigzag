@@ -143,7 +143,8 @@ const saveButtons = () => screen.getAllByRole('button', { name: /^Guardar( ticke
 const openLine = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
   // The previous sheet may still be animating out (it keeps the page inert).
   const lines = await screen.findByRole('list', { name: 'Servicios del ticket' });
-  await user.click(within(lines).getByRole('button', { name: new RegExp(name) }));
+  // The row's name starts with the line; Quitar <line> is the hover delete (ZIG-I24).
+  await user.click(within(lines).getByRole('button', { name: new RegExp(`^${name}`) }));
 };
 
 const pickClient = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -797,7 +798,7 @@ describe('TicketEditComposer (ZIG-I13-6)', () => {
     // Quitar the 2 × $150 line: 4,200 < 4,400 paid.
     await user.click(
       within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByRole('button', {
-        name: /Soporte de pared/,
+        name: /^Soporte de pared/,
       }),
     );
     const sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
@@ -910,6 +911,26 @@ describe('DocumentComposer on desktop (ZIG-I24-2)', () => {
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull();
     expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
     expect(document.querySelector('kbd, [aria-keyshortcuts]')).toBeNull();
+  });
+
+  it('removes a line from its hover Quitar button, with Deshacer', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    await user.click(within(lines).getByRole('button', { name: 'Quitar Mantenimiento' }));
+
+    await waitFor(() => expect(within(lines).queryByText('Mantenimiento')).toBeNull());
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mockToast).toHaveBeenCalledWith(
+      'Quitaste Mantenimiento',
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Deshacer' }) }),
+    );
+    const { action } = mockToast.mock.calls.at(-1)![1];
+    act(() => action.onClick());
+    expect(await within(lines).findByText('Mantenimiento')).toBeTruthy();
   });
 
   it('edits the line in a side panel and adds materials inline, without a second step', async () => {

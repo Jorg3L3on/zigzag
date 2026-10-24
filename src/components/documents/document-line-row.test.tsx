@@ -117,6 +117,34 @@ describe('DocumentLineRow (ZIG-I13-1)', () => {
     expect(screen.getByTestId('document-line-amount')).toHaveTextContent('$8,700.00');
   });
 
+  it('offers Quitar on desktop hover only when onRemove is set (ZIG-I24)', async () => {
+    const user = userEvent.setup();
+    const onRemove = jest.fn();
+    const onClick = jest.fn();
+    const { rerender } = render(
+      <DocumentLineRow name="Recarga" quantity={1} price={10} amount={10} onClick={onClick} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Quitar Recarga' })).toBeNull();
+
+    rerender(
+      <DocumentLineRow
+        name="Recarga"
+        quantity={1}
+        price={10}
+        amount={10}
+        onClick={onClick}
+        onRemove={onRemove}
+      />,
+    );
+    const remove = screen.getByRole('button', { name: 'Quitar Recarga' });
+    // Hidden on phones, shown on hover or focus from lg.
+    expect(remove).toHaveClass('hidden', 'lg:inline-flex', 'opacity-0', 'group-hover:opacity-100');
+    expect(screen.getByTestId('document-line-row')).toContainElement(remove);
+    await user.click(remove);
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it('shows the changed marker and the server error, and never a Nuevo pill', () => {
     render(
       <DocumentLineRow
