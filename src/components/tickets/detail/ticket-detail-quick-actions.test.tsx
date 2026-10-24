@@ -40,7 +40,7 @@ const renderActions = (props: Partial<React.ComponentProps<typeof TicketDetailQu
   );
 
 describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
-  it('shows Cobrar, WhatsApp and Llamar for a finalized ticket with a balance', () => {
+  it('shows Cobrar and WhatsApp for a finalized ticket with a balance, never Llamar (ZIG-27)', () => {
     renderActions();
 
     expect(screen.getByRole('button', { name: 'Cobrar' })).toBeInTheDocument();
@@ -53,7 +53,8 @@ describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
     expect(text).toContain('recibo del ticket #7');
     expect(text).toContain('a nombre de Cliente');
     expect(text).toContain('saldo');
-    expect(screen.getByRole('link', { name: 'Llamar' })).toHaveAttribute('href', 'tel:9981234567');
+    expect(screen.queryByRole('link', { name: 'Llamar' })).toBeNull();
+    expect(screen.getByTestId('ticket-quick-actions')).toHaveClass('grid-cols-2');
   });
 
   it('Cobrar opens the Cobrar sheet', async () => {
@@ -64,20 +65,15 @@ describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
     expect(await screen.findByRole('dialog', { name: 'Cobrar' })).toBeInTheDocument();
   });
 
-  it('hides Llamar without a phone and Cobrar once settled', () => {
+  it('hides WhatsApp without a phone and Cobrar once settled', () => {
     renderActions({ clientTel: null, paid: 100 });
 
-    expect(screen.queryByRole('link', { name: 'Llamar' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Compartir recibo' })).toBeNull();
+    expect(screen.queryByTestId('ticket-quick-actions')).toBeNull();
   });
 
-  it('an unfinished ticket only offers Llamar', () => {
+  it('an unfinished ticket has no quick actions', () => {
     renderActions({ finished: false });
 
-    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Llamar' })).toBeInTheDocument();
+    expect(screen.queryByTestId('ticket-quick-actions')).toBeNull();
   });
 });

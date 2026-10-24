@@ -2,13 +2,11 @@
 
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
-import { Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
 import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
-import { buildTelHref } from '@/lib/phone-links';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
 
@@ -122,7 +120,6 @@ export const createServiceSchedulesColumns = ({
     cell: ({ row }) => {
       const schedule = row.original;
       const isPaused = Boolean(schedule.pausedAt);
-      const telHref = buildTelHref(schedule.clientPhone);
       const whatsapp = buildWhatsAppVisitShare({
         phone: schedule.clientPhone,
         clientName: schedule.clientName,
@@ -136,25 +133,6 @@ export const createServiceSchedulesColumns = ({
           className="flex flex-wrap justify-end gap-1"
           onPointerDown={(event) => event.stopPropagation()}
         >
-          {telHref ? (
-            <Button variant="outline" size="sm" className="rounded-lg" asChild>
-              <a href={telHref} aria-label={`Llamar a ${schedule.clientName}`}>
-                <Phone className="mr-1 h-3.5 w-3.5" aria-hidden />
-                Llamar
-              </a>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-lg"
-              disabled
-              aria-label="Sin teléfono para llamar"
-            >
-              Llamar
-            </Button>
-          )}
           {whatsapp ? (
             <Button variant="outline" size="sm" className="rounded-lg" asChild>
               <a

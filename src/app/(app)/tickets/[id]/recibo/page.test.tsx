@@ -35,11 +35,7 @@ const ticket = {
   ],
 };
 
-const call = (id: string, from?: string) =>
-  TicketReciboPage({
-    params: Promise.resolve({ id }),
-    searchParams: Promise.resolve(from ? { from } : {}),
-  });
+const call = (id: string) => TicketReciboPage({ params: Promise.resolve({ id }) });
 
 describe('/tickets/[id]/recibo page', () => {
   beforeEach(() => {
@@ -73,13 +69,12 @@ describe('/tickets/[id]/recibo page', () => {
     await expect(call('1113')).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('redirects an unfinished ticket to the ticket, with or without from=listo (ZIG-22)', async () => {
+  it('redirects an unfinished ticket to the ticket (ZIG-22)', async () => {
     mockGetTicketById.mockResolvedValue({
       success: true,
       data: { ...ticket, finished: false },
     });
     await expect(call('1113')).rejects.toThrow('NEXT_REDIRECT:/tickets/1113');
-    await expect(call('1113', 'listo')).rejects.toThrow('NEXT_REDIRECT:/tickets/1113');
   });
 
   it('goes back to the ticket detail by default', async () => {
@@ -95,13 +90,14 @@ describe('/tickets/[id]/recibo page', () => {
     });
   });
 
-  it('goes back to the creation review when reached from it', async () => {
+  it('always goes back to the ticket: the listo review is gone (ZIG-I24-4)', async () => {
     mockGetTicketById.mockResolvedValue({ success: true, data: { ...ticket, paid: 0 } });
-    const element = await call('1113', 'listo');
+    const element = await call('1113');
 
     expect(element.props).toMatchObject({
       subtitle: 'Trabajo terminado · Pendiente',
-      backHref: '/tickets/1113/listo',
+      backHref: '/tickets/1113',
+      backLabel: 'Volver al ticket',
     });
   });
 });

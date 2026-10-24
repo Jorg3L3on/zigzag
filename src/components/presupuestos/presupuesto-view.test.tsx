@@ -89,7 +89,7 @@ const baseProps = {
 const renderView = (props: Partial<React.ComponentProps<typeof PresupuestoView>> = {}) =>
   render(
     <MobileChromeProvider>
-      <PresupuestoView variant="detail" {...baseProps} {...props} />
+      <PresupuestoView {...baseProps} {...props} />
     </MobileChromeProvider>,
   );
 
@@ -100,30 +100,8 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     mockFetchFile.mockResolvedValue(new File(['%PDF'], baseProps.downloadFileName));
   });
 
-  it('review shows the saved header, lines, total, Vence and the PDF, and no ticket concepts', () => {
-    renderView({ variant: 'review' });
-
-    expect(
-      screen.getByRole('heading', { name: 'Presupuesto #400 guardado' }),
-    ).toBeTruthy();
-    const lines = screen.getByRole('list', { name: 'Servicios del presupuesto' });
-    expect(within(lines).getByText('Cambio de capacitor')).toBeTruthy();
-    expect(screen.getByTestId('review-total')).toHaveTextContent('$2,950.00');
-    // The listo uses the same compact Resumen as the ticket listo (ZIG-I13-3).
-    expect(screen.getByTestId('review-summary')).toBeTruthy();
-    expect(screen.queryByTestId('presupuesto-summary')).toBeNull();
-    expect(screen.getByTestId('presupuesto-expires')).toHaveTextContent('24 de octubre 2026');
-    expect(screen.getAllByRole('button', { name: /Compartir/ }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Descargar PDF/ })).toBeTruthy();
-    for (const forbidden of [/Pago/, /Finalizar/, /Recordatorios/, /Creado/, /Actividad/, /Saldo/, /Ticket #/]) {
-      expect(screen.queryByText(forbidden)).toBeNull();
-    }
-    // Convert / cancel live on the detail page, not the review.
-    expect(screen.queryByRole('button', { name: 'Convertir a ticket' })).toBeNull();
-  });
-
   it('Abrir PDF is an in-app link to the viewer page, never a new tab (ZIG-I9)', () => {
-    renderView({ variant: 'detail' });
+    renderView();
 
     const open = screen.getByRole('link', { name: /Abrir PDF/ });
     expect(open).toHaveAttribute('href', '/presupuestos/400/pdf');
@@ -164,7 +142,7 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
   it('a converted quote links to its ticket and offers no convert, cancel or edit', () => {
     renderView({ status: 'convertido', convertedToTicketId: '401', editHref: '/x' });
 
-    expect(screen.getByText('Convertido en ticket')).toBeTruthy();
+    expect(screen.getByText('Aceptado · convertido en ticket')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Ver ticket' })).toHaveAttribute(
       'href',
       '/tickets/401',
@@ -225,38 +203,9 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByRole('button', { name: 'Cancelar presupuesto' })).toBeNull();
   });
 
-  it('review folds the materials behind Ver los N servicios y M materiales (ZIG-I13-3)', async () => {
-    const user = userEvent.setup();
-    renderView({
-      variant: 'review',
-      total: 3770,
-      lines: [
-        {
-          id: 1,
-          serviceId: 11,
-          name: 'Mantenimiento de cuarto frío',
-          quantity: 1,
-          price: 2100,
-          materials: [
-            { id: 7, name: 'Gas R410A', quantity: 1.5, unit: 'kg', price: 380, inline: false },
-            { id: 8, name: 'Soporte', quantity: 2, unit: 'pza', price: 550, inline: true },
-          ],
-        },
-      ],
-    });
-
-    expect(screen.queryByText(/Gas R410A/)).toBeNull();
-    // 2100 + 570 + 1100
-    expect(screen.getAllByText('$3,770.00').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: 'Ver el servicio y los 2 materiales' }));
-    expect(screen.getByText(/Gas R410A/)).toBeTruthy();
-    expect(screen.getByText(/1.5 kg × \$380.00/)).toBeTruthy();
-  });
-
   it('lists materials behind the Conceptos fold and the line amount includes them (ZIG-I10-4, ZIG-I13-5)', async () => {
     const user = userEvent.setup();
     renderView({
-      variant: 'detail',
       total: 3770,
       lines: [
         {

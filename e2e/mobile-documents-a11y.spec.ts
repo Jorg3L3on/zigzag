@@ -5,9 +5,9 @@ import { expectLayoutIntact, MOBILE_WIDTHS } from './helpers/layout';
 import {
   addCustomComposerLine,
   createClientInComposer,
-  finishOnReview,
+  chooseComposerPayment,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 /**
@@ -37,7 +37,7 @@ for (const width of MOBILE_WIDTHS) {
       await expectLayoutIntact(page, label);
     };
 
-    test('composer, sheets, listo, details, editor and list have no serious violations', async ({ page }) => {
+    test('composer, sheets, details, editor and list have no serious violations', async ({ page }) => {
       const suffix = `${Date.now()}`.slice(-8);
       const clientName = `Visual documentos ${suffix}`;
 
@@ -61,7 +61,7 @@ for (const width of MOBILE_WIDTHS) {
         price: '980',
       });
       await axe(page, 'composer');
-      await page.getByTestId('composer-line-row').first().click();
+      await page.getByTestId('composer-line-row').first().click({ position: { x: 12, y: 12 } });
       await expect(page.getByRole('dialog', { name: 'Editar servicio' })).toBeVisible();
       await axe(page, 'line-sheet');
       await page
@@ -70,15 +70,10 @@ for (const width of MOBILE_WIDTHS) {
         .click();
       await expect(page.getByRole('dialog', { name: 'Editar servicio' })).toBeHidden();
 
-      // Listo, then finalize half paid with the recibo shared.
-      const ticketId = await saveComposer(page);
-      await expect(page.getByRole('heading', { name: '¿Cómo pagó el cliente?' })).toBeVisible({
-        timeout: 15_000,
-      });
-      await page.getByRole('radio', { name: 'Una parte' }).click();
-      await page.getByLabel('Cuánto pagó').fill('3000');
-      await axe(page, 'listo');
-      await finishOnReview(page, ticketId, { mode: 'partial', amount: 3000 });
+      // Finish half paid from the composer (ZIG-I24-4), recibo sent from the detail prompt.
+      await chooseComposerPayment(page, { mode: 'partial', amount: 3000 });
+      await axe(page, 'composer with payment');
+      const { ticketId } = await saveAndFinishComposer(page, { mode: 'partial', amount: 3000 });
 
       // Ticket detail.
       await page.goto(`/tickets/${ticketId}`);
@@ -150,7 +145,7 @@ for (const width of MOBILE_WIDTHS) {
         .filter({ visible: true })
         .first()
         .click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
       await page.goto(`/presupuestos/${presupuestoId}`);
       await expect(page.getByTestId('presupuesto-accept').filter({ visible: true }).first()).toBeVisible({

@@ -3,7 +3,11 @@
 import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 
-import { LineMaterialsDisclosure } from '@/components/documents/line-materials-disclosure';
+import {
+  LineMaterialsBreakdown,
+  LineMaterialsDisclosure,
+  type LineServicePart,
+} from '@/components/documents/line-materials-disclosure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { formatMaterialQuantity } from '@/lib/material-drafts';
 import { roundMoney } from '@/lib/money';
@@ -60,6 +64,12 @@ export const summaryToggleLabelFor = (
 export const summaryToggleLabel = (services: number, materials: number) =>
   summaryToggleLabelFor(services, 'servicio', 'servicios', materials);
 
+/** The service part of a summary line: its amount less its materials. */
+const summaryService = (line: DocumentSummaryLine): LineServicePart => ({
+  quantity: line.quantity,
+  amount: roundMoney(line.amount - (line.materials ?? []).reduce((sum, item) => sum + item.amount, 0)),
+});
+
 /**
  * Recibo-style compact rows `2 × Name … $amount` (ZIG-I13-1). The name
  * truncates with an ellipsis; the amount never does. Beyond `initialVisible`
@@ -98,32 +108,17 @@ export const DocumentSummaryRows = ({
               <LineMaterialsDisclosure
                 materials={line.materials}
                 lineName={line.name}
+                service={summaryService(line)}
                 className="mt-0.5"
               />
             ) : null}
             {expanded && line.materials && line.materials.length > 0 ? (
-              <ul
-                aria-label={`Materiales de ${line.name}`}
-                className="mt-1 space-y-1 border-l-2 border-border/60 pl-3"
-              >
-                {line.materials.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground"
-                  >
-                    <span className="min-w-0 truncate" title={item.name}>
-                      {item.name}{' '}
-                      <span className="tabular-nums">
-                        {formatMaterialQuantity(item.quantity, item.unit)} ×{' '}
-                        {formatServiceCurrency(item.price)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatServiceCurrency(item.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <LineMaterialsBreakdown
+                materials={line.materials}
+                lineName={line.name}
+                service={summaryService(line)}
+                className="mt-1"
+              />
             ) : null}
           </li>
         ))}

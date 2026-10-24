@@ -73,6 +73,24 @@ describe('TicketDetailActionsMenu (ZIG-I13-4)', () => {
     expect(screen.getByRole('menuitem', { name: 'Eliminar ticket' })).toBeInTheDocument();
   });
 
+  it('brings Editar out of ⋯ from 1024px; Duplicar, Descargar and Eliminar stay (ZIG-I24-3)', async () => {
+    const user = userEvent.setup();
+    render(<TicketDetailActionsMenu {...props} inlineFromLg />);
+
+    const edit = screen.getByRole('link', { name: 'Editar servicios' });
+    expect(edit).toHaveAttribute('href', '/tickets/1123/edit');
+    expect(edit).toHaveTextContent('Editar');
+    expect(screen.getByTestId('ticket-detail-inline-actions')).toHaveClass('hidden', 'lg:inline-flex');
+    expect(screen.queryByRole('button', { name: 'Duplicar' })).toBeNull();
+
+    // The menu keeps Editar servicios for md, hidden from lg; the rest always.
+    await user.click(screen.getByRole('button', { name: 'Más acciones del ticket' }));
+    expect(screen.getByRole('menuitem', { name: 'Editar servicios' })).toHaveClass('lg:hidden');
+    expect(screen.getByRole('menuitem', { name: 'Duplicar ticket' })).not.toHaveClass('lg:hidden');
+    expect(screen.getByRole('menuitem', { name: 'Descargar PDF' })).not.toHaveClass('lg:hidden');
+    expect(screen.getByRole('menuitem', { name: 'Eliminar ticket' })).not.toHaveClass('lg:hidden');
+  });
+
   it('Duplicar ticket writes a draft for the composer and opens it', async () => {
     const user = userEvent.setup();
     window.localStorage.clear();

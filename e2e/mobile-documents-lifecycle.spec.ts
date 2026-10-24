@@ -11,9 +11,9 @@ import {
   addHeavyLines,
   createClientInComposer,
   expectInsideViewport,
-  finishOnReview,
+  chooseComposerPayment,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 /**
@@ -63,7 +63,7 @@ for (const width of MOBILE_WIDTHS) {
       await ensureTenantCompany(page);
     });
 
-    test('presupuesto: create, listo, detail, duplicate, convert, cancel', async ({ page }) => {
+    test('presupuesto: create, detail, duplicate, convert, cancel', async ({ page }) => {
       const suffix = `${Date.now()}`.slice(-8);
       const clientName = `Cliente ciclo ${suffix}`;
 
@@ -80,12 +80,10 @@ for (const width of MOBILE_WIDTHS) {
       await expectInsideViewport(page, saveButton(page), 'Guardar presupuesto');
       await saveButton(page).click();
 
-      // Listo: Compartir presupuesto is the one primary action.
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      // Guardar presupuesto lands on the detail (ZIG-I24-4): no listo screen.
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
       await expect(visible(page.getByTestId('review-total'))).toBeVisible({ timeout: 15_000 });
-      await expectInsideViewport(page, visible(page.getByRole('button', { name: /Compartir/ })), 'Compartir presupuesto');
-      await expectLayoutIntact(page, 'presupuesto listo');
 
       // Detail: Convertir a ticket is on the first screen.
       await page.goto(`/presupuestos/${presupuestoId}`);
@@ -107,7 +105,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByTestId('composer-sticky-hint')).toHaveText('4 servicios · 7 materiales');
       await expectLayoutIntact(page, 'duplicated presupuesto composer');
       await saveButton(page).click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const copyId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
       expect(copyId).not.toBe(presupuestoId);
 
@@ -137,12 +135,12 @@ for (const width of MOBILE_WIDTHS) {
 
       // Convertido: the presupuesto points at the ticket and still duplicates.
       await page.goto(`/presupuestos/${presupuestoId}`);
-      await expect(visible(page.getByTestId('presupuesto-status'))).toHaveText('Convertido', { timeout: 15_000 });
-      await expect(visible(page.getByText('Convertido en ticket'))).toBeVisible();
+      await expect(visible(page.getByTestId('presupuesto-status'))).toHaveText('Aceptado', { timeout: 15_000 });
+      await expect(visible(page.getByText('Aceptado · convertido en ticket'))).toBeVisible();
       await expectLayoutIntact(page, 'presupuesto convertido');
     });
 
-    test('ticket: create, listo, finalize, detail, edit, resend, list, duplicate, delete', async ({ page }) => {
+    test('ticket: create and finish, detail, edit, resend, list, duplicate, delete', async ({ page }) => {
       const suffix = `${Date.now()}`.slice(-8);
       const clientName = `Cliente ciclo ticket ${suffix}`;
 
@@ -155,21 +153,13 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByTestId('composer-sticky-hint')).toHaveText('8 servicios · 21 materiales');
       await expectLayoutIntact(page, 'ticket composer');
       await expectInsideViewport(page, saveButton(page), 'Guardar');
-      const ticketId = await saveComposer(page);
 
-      // Listo: the payment choice is on the first screen with the heavy ticket.
-      await expect(page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first()).toBeVisible({
-        timeout: 15_000,
-      });
-      const payBox = await page.getByRole('heading', { name: '¿Cómo pagó el cliente?' }).boundingBox();
-      expect(payBox!.y, 'payment choice on the first screen').toBeLessThan(812);
-      await expectLayoutIntact(page, 'ticket listo');
-      await page.getByRole('radio', { name: 'Una parte' }).click();
-      await page.getByLabel('Cuánto pagó').fill('500000');
-      await expect(page.getByTestId('review-sticky-amount')).toBeVisible();
-      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Terminar y enviar' })), 'Terminar y enviar');
-      await expectLayoutIntact(page, 'ticket listo with payment');
-      await finishOnReview(page, ticketId, { mode: 'partial', amount: 500000 });
+      // Finish from the composer (ZIG-I24-4): the payment choice under Notas, Terminar in the sticky bar.
+      await chooseComposerPayment(page, { mode: 'partial', amount: 500000 });
+      await expect(page.getByTestId('composer-sticky-hint')).toHaveText('Se termina con $500,000.00 pagado');
+      await expectInsideViewport(page, visible(page.getByRole('button', { name: 'Terminar', exact: true })), 'Terminar');
+      await expectLayoutIntact(page, 'ticket composer with payment');
+      const { ticketId } = await saveAndFinishComposer(page, { mode: 'partial', amount: 500000 });
 
       // Detail: balance first, quick actions and the services summary on the first screens.
       await page.goto(`/tickets/${ticketId}`);
@@ -190,8 +180,8 @@ for (const width of MOBILE_WIDTHS) {
       await rows.nth(1).click();
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Agregar al ticket' }), 'Agregar al ticket');
-      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+      await expectInsideViewport(page, sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }), 'Agregar al ticket');
+      await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       await rows.nth(7).click();
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Quitar este servicio' }).click();

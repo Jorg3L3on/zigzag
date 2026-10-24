@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import { anotarCapture } from '@/actions/anotar';
 import { getClient, getClients, type Client } from '@/actions/clients';
 import { ClientForm } from '@/components/clients/client-form';
-import { ClientPhoneLink } from '@/components/client-phone-link';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import {
   TripledDashboardShell,
@@ -745,7 +744,7 @@ const AnotarPageContent = () => {
                       <div>
                         <p className="font-semibold">{selectedClient.name}</p>
                         {selectedClient.phone ? (
-                          <ClientPhoneLink phone={selectedClient.phone} />
+                          <span>{selectedClient.phone}</span>
                         ) : null}
                       </div>
                     </div>

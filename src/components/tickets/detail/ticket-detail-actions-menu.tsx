@@ -30,6 +30,7 @@ import {
   canDownloadTicketInvoice,
   canWriteTickets,
 } from '@/lib/tickets-rbac';
+import { cn } from '@/lib/utils';
 
 type TicketDetailActionsMenuProps = {
   ticketId: number;
@@ -41,13 +42,19 @@ type TicketDetailActionsMenuProps = {
   paid: number | null;
   paymentsCount: number;
   downloadFileName: string;
+  /**
+   * Header on desktop (ZIG-I24-3): from 1024px Editar servicios is an Editar
+   * button next to ⋯, which keeps Descargar PDF, Duplicar and Eliminar, so the
+   * header fits one row with Cobrar / Compartir recibo and WhatsApp.
+   */
+  inlineFromLg?: boolean;
   className?: string;
 };
 
 /**
  * ⋯ menu of the ticket detail (ZIG-I13-4): Editar servicios, Descargar PDF,
  * Duplicar ticket, Eliminar ticket. Lives in the app bar on mobile and in the
- * header actions on desktop.
+ * header actions on desktop, where `inlineFromLg` brings the first ones out.
  */
 export const TicketDetailActionsMenu = ({
   ticketId,
@@ -58,6 +65,7 @@ export const TicketDetailActionsMenu = ({
   paid,
   paymentsCount,
   downloadFileName,
+  inlineFromLg = false,
   className,
 }: TicketDetailActionsMenuProps) => {
   const { can } = usePermissions();
@@ -106,8 +114,24 @@ export const TicketDetailActionsMenu = ({
 
   if (!canEditServices && !canPdf && !canWrite) return null;
 
+  // Editar servicios is a button from lg, so it leaves the menu there.
+  const inlineItemClass = inlineFromLg ? 'lg:hidden' : undefined;
+
   return (
     <>
+      {inlineFromLg && canEditServices ? (
+        <Button
+          asChild
+          variant="outline"
+          className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+          data-testid="ticket-detail-inline-actions"
+        >
+          <Link href={`/tickets/${ticketId}/edit`} aria-label="Editar servicios">
+            <Pencil className="h-4 w-4" aria-hidden />
+            Editar
+          </Link>
+        </Button>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -122,7 +146,7 @@ export const TicketDetailActionsMenu = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           {canEditServices ? (
-            <DropdownMenuItem asChild className="min-h-11">
+            <DropdownMenuItem asChild className={cn('min-h-11', inlineItemClass)}>
               <Link href={`/tickets/${ticketId}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" aria-hidden />
                 Editar servicios
@@ -136,7 +160,10 @@ export const TicketDetailActionsMenu = ({
             </DropdownMenuItem>
           ) : null}
           {canWrite ? (
-            <DropdownMenuItem className="min-h-11" onSelect={() => void handleDuplicate()}>
+            <DropdownMenuItem
+              className="min-h-11"
+              onSelect={() => void handleDuplicate()}
+            >
               <Copy className="mr-2 h-4 w-4" aria-hidden />
               Duplicar ticket
             </DropdownMenuItem>

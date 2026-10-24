@@ -143,11 +143,6 @@ const MoreMenu = ({ label, items }: { label: string; items: MoreItem[] }) => {
   );
 };
 
-const telHref = (phone: string | null | undefined) => {
-  const digits = phone?.replace(/[^\d+]/g, '');
-  return digits ? `tel:${digits}` : null;
-};
-
 type SendRequest = { job: FieldJobSnapshot; highlightId?: FieldSendOptionId };
 
 const TicketRow = ({
@@ -172,7 +167,6 @@ const TicketRow = ({
     (localOnly
       ? 'Anotar trabajo'
       : `#${item.id} · ${format(new Date(item.ticketDate), 'd MMM', { locale: es })}`);
-  const call = telHref(item.clientTel);
   const job = toFieldJobSnapshotFromDayTicket(item, {
     companyId,
     companyName,
@@ -213,7 +207,6 @@ const TicketRow = ({
         label={`Más acciones para ${clientName}`}
         items={[
           { label: 'Enviar por WhatsApp…', onSelect: () => onSend({ job }) },
-          ...(call ? [{ label: 'Llamar', href: call }] : []),
         ]}
       />
     </li>
@@ -242,7 +235,6 @@ const CobroRow = ({
     balanceDue: row.balanceDue,
     companyName,
   });
-  const call = telHref(row.client_tel);
   const status = row.paymentStatus === 'partial' ? 'parcial' : 'pendiente';
 
   return (
@@ -290,7 +282,6 @@ const CobroRow = ({
                 highlightId: 'recordar_saldo',
               }),
           },
-          ...(call ? [{ label: 'Llamar', href: call }] : []),
           { label: 'Ver ticket', href: `/tickets/${row.id}` },
         ]}
       />
@@ -305,7 +296,6 @@ const ScheduleRow = ({
   row: DayQueueScheduleRow;
   canWrite: boolean;
 }) => {
-  const call = telHref(row.clientPhone);
   return (
     <li className={ROW_CLASS}>
       <RowText title={row.clientName} context={row.serviceName} />
@@ -324,7 +314,6 @@ const ScheduleRow = ({
       <MoreMenu
         label={`Más acciones para ${row.clientName}`}
         items={[
-          ...(call ? [{ label: 'Llamar', href: call }] : []),
           { label: 'Ver recordatorios', href: '/service-schedules' },
         ]}
       />

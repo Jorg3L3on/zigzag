@@ -19,6 +19,7 @@ import {
   summaryToggleLabelFor,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
+import { DocumentPdfAside } from '@/components/documents/document-pdf-aside';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { BlurFade } from '@/components/motion';
 import { REVIEW_SECTION_CLASS, type ReviewLine } from '@/components/tickets/review/document-review-parts';
@@ -118,6 +119,8 @@ export type PresupuestoDetailLayoutProps = {
   editHref: string | null;
   canWrite: boolean;
   canInvoice: boolean;
+  /** PDF file name for the desktop aside's Descargar (ZIG-I24-3). */
+  downloadFileName: string;
   /** Abierto or Vencido: can still be edited, converted or cancelled. */
   isMutable: boolean;
   mutating: boolean;
@@ -136,6 +139,10 @@ export type PresupuestoDetailLayoutProps = {
  * validity, "¿Lo aceptó el cliente?" with Convertir a ticket near the top,
  * Condiciones, a Conceptos summary and an Editar / Duplicar / Cancelar row.
  * Sharing is the icon in the app bar.
+ *
+ * Desktop (ZIG-I24-3): from 1024px the detail is the left column and the PDF
+ * sits on the right with Editar / Duplicar / Cancelar above it, so neither
+ * needs a scroll.
  */
 export const PresupuestoDetailLayout = ({
   presupuestoId,
@@ -152,6 +159,7 @@ export const PresupuestoDetailLayout = ({
   editHref,
   canWrite,
   canInvoice,
+  downloadFileName,
   isMutable,
   mutating,
   sharing,
@@ -254,10 +262,21 @@ export const PresupuestoDetailLayout = ({
     </>
   ) : null;
   const actionCount = Number(showEdit) + Number(canWrite) + Number(showCancel);
+  // What the PDF prints: the desktop preview reloads when any of it changes.
+  const pdfVersion = [
+    total,
+    expiresAt ?? '',
+    status,
+    workNotes?.length ?? 0,
+    rows.map((row) => `${row.id}:${row.amount}`).join(','),
+  ].join('|');
 
   return (
     <>
-      <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-3 md:space-y-4">
+      <TripledDashboardShell
+        maxWidthClassName="max-w-2xl lg:max-w-6xl"
+        contentClassName="space-y-3 md:space-y-4"
+      >
         <TripledMobileAppBar
           title={`Presupuesto ${folio || `#${presupuestoId}`}`}
           backHref="/presupuestos"
@@ -270,163 +289,184 @@ export const PresupuestoDetailLayout = ({
           }
         />
 
-        <BlurFade>
-          <header className="min-w-0 space-y-1" data-testid="presupuesto-header">
-            <div className="hidden flex-wrap items-center gap-2 md:flex">
-              <p className="font-mono text-sm font-medium tabular-nums text-muted-foreground">
-                Presupuesto {folio || `#${presupuestoId}`}
-              </p>
-              <PresupuestoStatusPill status={status} />
-              {shareButton}
-            </div>
-            <h1 className="text-[19px] font-bold leading-snug tracking-tight [overflow-wrap:anywhere] md:text-3xl md:font-semibold">
-              {clientId ? (
-                <Link href={`/clients/${clientId}`} className="outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring">
-                  {clientName ?? 'Cliente'}
-                </Link>
-              ) : (
-                (clientName ?? 'Cliente')
-              )}
-            </h1>
-            {issued ? <p className="text-caption text-muted-foreground md:text-sm">Emitido el {issued}</p> : null}
-          </header>
-        </BlurFade>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(400px,480px)] lg:items-start lg:gap-8">
+          <div className="min-w-0 space-y-3 md:space-y-4">
+            <BlurFade>
+              <header className="min-w-0 space-y-1" data-testid="presupuesto-header">
+                <div className="hidden flex-wrap items-center gap-2 md:flex">
+                  <p className="font-mono text-sm font-medium tabular-nums text-muted-foreground">
+                    Presupuesto {folio || `#${presupuestoId}`}
+                  </p>
+                  <PresupuestoStatusPill status={status} />
+                  {shareButton}
+                </div>
+                <h1 className="text-[19px] font-bold leading-snug tracking-tight [overflow-wrap:anywhere] md:text-3xl md:font-semibold">
+                  {clientId ? (
+                    <Link href={`/clients/${clientId}`} className="outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring">
+                      {clientName ?? 'Cliente'}
+                    </Link>
+                  ) : (
+                    (clientName ?? 'Cliente')
+                  )}
+                </h1>
+                {issued ? <p className="text-caption text-muted-foreground md:text-sm">Emitido el {issued}</p> : null}
+              </header>
+            </BlurFade>
 
-        <BlurFade delay={0.04}>
-          <section aria-label="Total y vigencia" className={cn(REVIEW_SECTION_CLASS, 'space-y-2')}>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-caption text-muted-foreground">Total del presupuesto</span>
-              <span className="text-right text-caption text-muted-foreground" data-testid="presupuesto-counts">
-                {counts}
-              </span>
-            </div>
-            <MoneyFigure
-              amount={total}
-              size="hero"
-              className="block font-bold leading-tight"
-              data-testid="review-total"
-            />
-            <p
-              className={cn(
-                'flex items-center gap-2 text-caption',
-                vigencia.tone === 'expired'
-                  ? 'text-red-700 dark:text-red-300'
-                  : vigencia.tone === 'soon'
-                    ? 'text-amber-700 dark:text-amber-300'
-                    : 'text-muted-foreground',
-              )}
-              data-testid="presupuesto-expires"
-            >
-              <CalendarClock className="h-4 w-4 shrink-0" aria-hidden />
-              {vigencia.text}
-            </p>
-          </section>
-        </BlurFade>
+            <BlurFade delay={0.04}>
+              <section aria-label="Total y vigencia" className={cn(REVIEW_SECTION_CLASS, 'space-y-2')}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-caption text-muted-foreground">Total del presupuesto</span>
+                  <span className="text-right text-caption text-muted-foreground" data-testid="presupuesto-counts">
+                    {counts}
+                  </span>
+                </div>
+                <MoneyFigure
+                  amount={total}
+                  size="hero"
+                  className="block font-bold leading-tight"
+                  data-testid="review-total"
+                />
+                <p
+                  className={cn(
+                    'flex items-center gap-2 text-caption',
+                    vigencia.tone === 'expired'
+                      ? 'text-red-700 dark:text-red-300'
+                      : vigencia.tone === 'soon'
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-muted-foreground',
+                  )}
+                  data-testid="presupuesto-expires"
+                >
+                  <CalendarClock className="h-4 w-4 shrink-0" aria-hidden />
+                  {vigencia.text}
+                </p>
+              </section>
+            </BlurFade>
 
-        {canWrite && isMutable ? (
-          <BlurFade delay={0.08}>
-            <section
-              aria-labelledby="presupuesto-accept-heading"
-              className="space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-3.5"
-              data-testid="presupuesto-accept"
-            >
-              <h2 id="presupuesto-accept-heading" className="text-[15px] font-semibold">
-                ¿Lo aceptó el cliente?
-              </h2>
-              <p className="text-caption text-muted-foreground">
-                Conviértelo en ticket para trabajarlo y cobrar el anticipo.
-              </p>
-              <Button
-                type="button"
-                className="h-12 w-full rounded-xl text-[15px] font-semibold"
-                disabled={mutating}
-                onClick={onConvert}
+            {canWrite && isMutable ? (
+              <BlurFade delay={0.08}>
+                <section
+                  aria-labelledby="presupuesto-accept-heading"
+                  className="space-y-2.5 rounded-xl border border-primary/30 bg-primary/5 p-3.5"
+                  data-testid="presupuesto-accept"
+                >
+                  <h2 id="presupuesto-accept-heading" className="text-[15px] font-semibold">
+                    ¿Lo aceptó el cliente?
+                  </h2>
+                  <p className="text-caption text-muted-foreground">
+                    Conviértelo en ticket para trabajarlo y cobrar el anticipo.
+                  </p>
+                  <Button
+                    type="button"
+                    className="h-12 w-full rounded-xl text-[15px] font-semibold"
+                    disabled={mutating}
+                    onClick={onConvert}
+                  >
+                    Convertir a ticket
+                  </Button>
+                </section>
+              </BlurFade>
+            ) : null}
+
+            {status === 'convertido' && convertedToTicketId ? (
+              <div
+                role="status"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm"
               >
-                Convertir a ticket
-              </Button>
-            </section>
-          </BlurFade>
-        ) : null}
+                <span className="flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  Aceptado · convertido en ticket
+                </span>
+                <Link
+                  href={`/tickets/${convertedToTicketId}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Ver ticket
+                </Link>
+              </div>
+            ) : null}
+            {status === 'cancelado' ? (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground"
+              >
+                <Ban className="h-4 w-4" aria-hidden />
+                Presupuesto cancelado. Sólo lectura.
+              </div>
+            ) : null}
 
-        {status === 'convertido' && convertedToTicketId ? (
-          <div
-            role="status"
-            className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm"
-          >
-            <span className="flex items-center gap-2">
-              <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en ticket
-            </span>
-            <Link
-              href={`/tickets/${convertedToTicketId}`}
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Ver ticket
-            </Link>
+            {workNotes?.trim() ? (
+              <BlurFade delay={0.1}>
+                <PresupuestoConditions notes={workNotes} />
+              </BlurFade>
+            ) : null}
+
+            <BlurFade delay={0.12}>
+              <section aria-labelledby="presupuesto-concepts-heading">
+                <h2 id="presupuesto-concepts-heading" className="mb-2 text-[15px] font-semibold">
+                  Conceptos
+                </h2>
+                <DocumentSummaryRows
+                  lines={rows}
+                  label="Servicios del presupuesto"
+                  toggleLabel={conceptsToggleLabel}
+                />
+              </section>
+            </BlurFade>
+
+            {canInvoice ? (
+              <div
+                className="flex flex-wrap items-center justify-center gap-x-6 lg:hidden"
+                data-testid="presupuesto-pdf-links"
+              >
+                <Link
+                  href={`/presupuestos/${presupuestoId}/pdf`}
+                  className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  <FileText className="h-4 w-4" aria-hidden />
+                  Abrir PDF
+                </Link>
+                <button
+                  type="button"
+                  disabled={downloading}
+                  onClick={onDownload}
+                  className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
+                >
+                  {downloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Download className="h-4 w-4" aria-hidden />
+                  )}
+                  Descargar PDF
+                </button>
+              </div>
+            ) : null}
+
+            {actionButtons ? (
+              <div
+                className={cn(
+                  'hidden gap-2 md:grid lg:hidden',
+                  actionCount === 3 ? 'grid-cols-3' : 'grid-cols-2',
+                )}
+                data-testid="presupuesto-actions-desktop"
+              >
+                {actionButtons}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-        {status === 'cancelado' ? (
-          <div
-            role="status"
-            className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground"
-          >
-            <Ban className="h-4 w-4" aria-hidden />
-            Presupuesto cancelado. Sólo lectura.
-          </div>
-        ) : null}
 
-        {workNotes?.trim() ? (
-          <BlurFade delay={0.1}>
-            <PresupuestoConditions notes={workNotes} />
-          </BlurFade>
-        ) : null}
-
-        <BlurFade delay={0.12}>
-          <section aria-labelledby="presupuesto-concepts-heading">
-            <h2 id="presupuesto-concepts-heading" className="mb-2 text-[15px] font-semibold">
-              Conceptos
-            </h2>
-            <DocumentSummaryRows
-              lines={rows}
-              label="Servicios del presupuesto"
-              toggleLabel={conceptsToggleLabel}
+          <aside className="hidden min-w-0 lg:sticky lg:top-20 lg:block">
+            <DocumentPdfAside
+              ticketId={presupuestoId}
+              kind="presupuesto"
+              viewerHref={`/presupuestos/${presupuestoId}/pdf`}
+              downloadFileName={downloadFileName}
+              version={pdfVersion}
+              actions={actionButtons}
             />
-          </section>
-        </BlurFade>
-
-        {canInvoice ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-6" data-testid="presupuesto-pdf-links">
-            <Link
-              href={`/presupuestos/${presupuestoId}/pdf`}
-              className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              <FileText className="h-4 w-4" aria-hidden />
-              Abrir PDF
-            </Link>
-            <button
-              type="button"
-              disabled={downloading}
-              onClick={onDownload}
-              className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
-            >
-              {downloading ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Download className="h-4 w-4" aria-hidden />
-              )}
-              Descargar PDF
-            </button>
-          </div>
-        ) : null}
-
-        {actionButtons ? (
-          <div
-            className={cn('hidden gap-2 md:grid', actionCount === 3 ? 'grid-cols-3' : 'grid-cols-2')}
-            data-testid="presupuesto-actions-desktop"
-          >
-            {actionButtons}
-          </div>
-        ) : null}
+          </aside>
+        </div>
       </TripledDashboardShell>
 
       {actionButtons ? (

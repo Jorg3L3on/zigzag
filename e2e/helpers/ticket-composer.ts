@@ -75,7 +75,7 @@ export const addComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   await expect(
     page
@@ -86,56 +86,100 @@ export const addComposerLine = async (
   return serviceName;
 };
 
+export type ComposerPayment =
+  | { mode: 'full' }
+  | { mode: 'partial'; amount: number }
+  | { mode: 'pending' };
+
+const paymentLabel = (payment: ComposerPayment) =>
+  payment.mode === 'full' ? 'Todo' : payment.mode === 'partial' ? 'Una parte' : 'Nada aún';
+
+/** Guardar ticket without a payment: saved En proceso, lands on the detail (ZIG-I24-4). */
 export const saveComposer = async (page: Page) => {
   const save = page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first();
   await expect(save).toBeEnabled();
   await save.click();
-  await page.waitForURL(/\/tickets\/\d+\/listo$/, { timeout: 60_000 });
+  await page.waitForURL(/\/tickets\/\d+$/, { timeout: 60_000 });
   const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1];
   expect(ticketId).toBeTruthy();
   return ticketId!;
 };
 
-/**
- * Creation review (ZIG-I2-5): choose the payment and tap Terminar y enviar.
- * window.open is stubbed so the WhatsApp fallback never leaves the app in tests.
- */
-export const finishOnReview = async (
-  page: Page,
-  ticketId: string,
-  payment: { mode: 'full' } | { mode: 'partial'; amount: number } | { mode: 'pending' },
-) => {
-  await expect(
-    page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.evaluate(() => {
-    (window as unknown as { __openedUrls: string[] }).__openedUrls = [];
+/** ¿Cómo pagó el cliente? (opcional) in Nuevo ticket (ZIG-I24-4). */
+export const chooseComposerPayment = async (page: Page, payment: ComposerPayment) => {
+  await page.getByRole('radio', { name: paymentLabel(payment), exact: true }).first().click();
+  if (payment.mode === 'partial') {
+    await page.getByLabel('Cuánto pagó').first().fill(String(payment.amount));
+  }
+};
+
+const stubWindowOpen = (page: Page) =>
+  page.evaluate(() => {
+    const target = window as unknown as { __openedUrls?: string[] };
+    if (target.__openedUrls) return;
+    target.__openedUrls = [];
     window.open = ((url?: string | URL) => {
-      (window as unknown as { __openedUrls: string[] }).__openedUrls.push(String(url));
+      target.__openedUrls!.push(String(url));
       return null;
     }) as typeof window.open;
   });
 
-  const label =
-    payment.mode === 'full' ? 'Todo' : payment.mode === 'partial' ? 'Una parte' : 'Nada aún';
-  await page.getByRole('radio', { name: label, exact: true }).click();
-  if (payment.mode === 'partial') {
-    await page.getByLabel('Cuánto pagó').fill(String(payment.amount));
+const readOpenedUrls = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __openedUrls?: string[] }).__openedUrls ?? []);
+
+/**
+ * Guardar y terminar from Nuevo ticket (ZIG-I24-4): picks the payment, saves and
+ * finishes, then answers the detail's "Ticket … terminado" prompt: Enviar
+ * recibo (send, the default) or Ahora no. window.open is stubbed so the
+ * WhatsApp fallback never leaves the app; its URLs come back with the id.
+ */
+export const saveAndFinishComposer = async (
+  page: Page,
+  payment: ComposerPayment,
+  { send = true }: { send?: boolean } = {},
+) => {
+  await stubWindowOpen(page);
+  await chooseComposerPayment(page, payment);
+  const finish = page
+    .getByRole('button', { name: /^(Guardar y terminar|Terminar)$/ })
+    .filter({ visible: true })
+    .first();
+  await expect(finish).toBeEnabled();
+  await finish.click();
+  await page.waitForURL(/\/tickets\/\d+\?enviar=1$/, { timeout: 60_000 });
+  const ticketId = page.url().match(/\/tickets\/(\d+)/)?.[1];
+  expect(ticketId).toBeTruthy();
+
+  const prompt = page.getByRole('dialog', { name: /Ticket (?:#\d+|[A-Z0-9]+-\d+) terminado/ });
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await stubWindowOpen(page);
+  await prompt.getByRole('button', { name: send ? 'Enviar recibo' : 'Ahora no' }).click();
+  await expect(prompt).toBeHidden({ timeout: 60_000 });
+  return { ticketId: ticketId!, openedUrls: await readOpenedUrls(page) };
+};
+
+/**
+ * Finish an En proceso ticket from its detail (Terminar ticket panel): pick the
+ * payment, Terminar y generar recibo, skip the reminders dialog when it shows,
+ * and wait until the panel is gone. The recibo download is accepted.
+ */
+export const finishOnDetail = async (page: Page, ticketId: string, payment: ComposerPayment) => {
+  if (!new RegExp(`/tickets/${ticketId}(\\?|$)`).test(page.url())) {
+    await page.goto(`/tickets/${ticketId}`);
   }
-
-  await page.getByRole('button', { name: 'Terminar y enviar' }).first().click();
-
-  // Reminders are ticked on this screen and saved before the share sheet
-  // (ZIG-I13-3): no dialog to answer.
-  const heading = page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) finalizado/).filter({ visible: true }).first();
-  await expect(heading).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole('button', { name: /Enviar por WhatsApp/ }).first()).toBeEnabled({
-    timeout: 60_000,
-  });
-
-  return page.evaluate(
-    () => (window as unknown as { __openedUrls: string[] }).__openedUrls,
-  );
+  const panel = page.locator('#finalizar').filter({ visible: true }).first();
+  await expect(panel).toBeVisible({ timeout: 15_000 });
+  await panel.getByRole('radio', { name: paymentLabel(payment), exact: true }).click();
+  if (payment.mode === 'partial') {
+    await panel.getByLabel('Cuánto pagó').fill(String(payment.amount));
+  }
+  await panel.getByRole('button', { name: 'Terminar y generar recibo' }).click();
+  const skip = page.getByRole('dialog').getByRole('button', { name: 'Omitir' });
+  await Promise.race([
+    skip.waitFor({ state: 'visible', timeout: 15_000 }).then(() => skip.click()),
+    panel.waitFor({ state: 'detached', timeout: 15_000 }),
+  ]).catch(() => undefined);
+  await expect(page.locator('#finalizar').filter({ visible: true })).toHaveCount(0, { timeout: 60_000 });
 };
 
 /**
@@ -166,7 +210,7 @@ export const addInlineComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   const lines = page.getByRole('list', { name: linesLabel });
   await expect(lines.getByText(name).first()).toBeVisible();
@@ -190,7 +234,10 @@ export const addCustomComposerLine = async (
   await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill(price);
   for (let i = 1; i <= materials; i += 1) {
     await sheet.getByRole('button', { name: 'Agregar material' }).click();
-    const step = page.getByRole('dialog', { name: 'Agregar material' });
+    // Phones: a nested step of the sheet. Desktop (ZIG-I24-2): a form inside the side panel.
+    const step = page
+      .getByRole('dialog', { name: 'Agregar material' })
+      .or(sheet.getByRole('group', { name: 'Agregar material' }));
     await step.getByRole('radio', { name: /Escribir/ }).click();
     await step.getByLabel('Nombre del material').fill(`Material de prueba número ${i} con nombre largo`);
     await step.getByLabel('Cantidad').fill('2');
@@ -198,7 +245,7 @@ export const addCustomComposerLine = async (
     await step.getByRole('button', { name: 'Agregar material' }).click();
     await expect(step.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
   }
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
 };
 

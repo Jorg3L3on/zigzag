@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreVertical, PenLine, Phone, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { MoreVertical, PenLine, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -27,7 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { buildTelHref } from '@/lib/phone-links';
 import { PERMISSIONS } from '@/lib/permissions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -592,28 +591,20 @@ export function ClientList() {
                     </div>
                   </dl>
 
-                  <div
-                    className="mt-3 flex gap-2"
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => event.stopPropagation()}
-                  >
-                    {buildTelHref(clientRow.phone) ? (
-                      <Button asChild variant="outline" className="min-h-11 flex-1 text-base">
-                        <a href={buildTelHref(clientRow.phone) ?? undefined}>
-                          <Phone className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                          Llamar
-                        </a>
-                      </Button>
-                    ) : null}
-                    {canAnotar ? (
+                  {canAnotar ? (
+                    <div
+                      className="mt-3 flex gap-2"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
                       <Button asChild className="min-h-11 flex-1 text-base">
                         <Link href={`/anotar?clientId=${clientRow.id}`}>
                           <PenLine className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
                           Anotar trabajo
                         </Link>
                       </Button>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </TripledMobileRecordCard>
               );
             })}

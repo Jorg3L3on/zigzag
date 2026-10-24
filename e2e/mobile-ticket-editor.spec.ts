@@ -10,7 +10,7 @@ import {
   createClientInComposer,
   expectInsideViewport,
   expectNoPageOverflow,
-  finishOnReview,
+  saveAndFinishComposer,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -50,8 +50,10 @@ for (const width of MOBILE_WIDTHS) {
       await addCustomComposerLine(page, { name: 'Instalación de evaporador', quantity: '1', price: '3000', materials: 2 });
       await addCustomComposerLine(page, { name: 'Recarga de gas', quantity: '2', price: '500' });
       await addCustomComposerLine(page, { name: 'Limpieza de condensador', quantity: '1', price: '800' });
-      const ticketId = await saveComposer(page);
-      const opened = await finishOnReview(page, ticketId, { mode: 'partial', amount: 1000 });
+      const { ticketId, openedUrls: opened } = await saveAndFinishComposer(page, {
+        mode: 'partial',
+        amount: 1000,
+      });
       expect(opened.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
 
       // The old routes land in the editor.
@@ -74,11 +76,12 @@ for (const width of MOBILE_WIDTHS) {
 
       // The line sheet in edit mode: materials come back, removing shows Deshacer.
       const rows = page.getByRole('list', { name: 'Servicios del ticket' }).getByTestId('composer-line-row');
-      await rows.first().click();
+      // Rows with materials hold a materials toggle in the middle (ZIG-18): click the name line.
+      await rows.first().click({ position: { x: 12, y: 12 } });
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await expect(sheet.getByTestId('composer-line-material-rows').getByRole('listitem')).toHaveCount(2);
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+      await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       // Quitar a line: gone, with Deshacer; undo brings it back.
       await rows.nth(2).click();
@@ -89,11 +92,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hint).toHaveText(/^Antes \$[\d,]+\.\d{2} · \+\$[\d,]+\.\d{2}$/);
 
       // Below what is paid: Guardar waits. Remove two lines so the total drops under $1,000.
-      await rows.nth(0).click();
+      await rows.nth(0).click({ position: { x: 12, y: 12 } });
       const dialog = page.getByRole('dialog', { name: 'Editar servicio' });
       await dialog.getByRole('button', { name: 'Quitar este servicio' }).click();
       await expect(rows).toHaveCount(2);
-      await rows.nth(0).click();
+      await rows.nth(0).click({ position: { x: 12, y: 12 } });
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Quitar este servicio' }).click();
       await expect(rows).toHaveCount(1);
       await expect(page.getByTestId('composer-sticky-hint')).toHaveText('Abajo de lo ya pagado ($1,000.00)');
@@ -145,8 +148,11 @@ for (const width of MOBILE_WIDTHS) {
       await createClientInComposer(page, { name: clientName, phone: `992${suffix.slice(-7)}` });
       await addCustomComposerLine(page, { name: 'Servicio de prueba A', quantity: '1', price: '1500', materials: 1 });
       await addCustomComposerLine(page, { name: 'Servicio de prueba B', quantity: '2', price: '250' });
-      const firstId = await saveComposer(page);
-      await finishOnReview(page, firstId, { mode: 'partial', amount: 500 });
+      const { ticketId: firstId } = await saveAndFinishComposer(
+        page,
+        { mode: 'partial', amount: 500 },
+        { send: false },
+      );
 
       // From the list: the row menu opens the same sheet, Conservar keeps the ticket.
       await page.goto('/tickets');

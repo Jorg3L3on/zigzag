@@ -46,7 +46,7 @@ for (const width of MOBILE_WIDTHS) {
       await createClientInComposer(page, { name: clientName, phone: `995${suffix.slice(-7)}` });
       await addHeavyLines(page, { catalog: false });
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
 
       await page.goto(`/presupuestos/${presupuestoId}`);
@@ -87,12 +87,12 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hero.getByRole('progressbar')).toBeVisible();
       await expectInsideViewport(page, hero, 'hero');
 
-      // Quick actions: Cobrar / WhatsApp / Llamar (Compartir recibo lives once, in the sticky bar), all on the first screen.
+      // Quick actions: Cobrar / WhatsApp, no Llamar (ZIG-27); Compartir recibo lives once, in the sticky bar.
       const quick = page.getByTestId('ticket-quick-actions').filter({ visible: true }).first();
       await expect(quick.getByRole('button', { name: 'Cobrar' })).toBeVisible();
       await expect(quick.getByRole('link', { name: 'WhatsApp' })).toBeVisible();
       await expect(quick.getByRole('button', { name: 'Compartir recibo' })).toHaveCount(0);
-      await expect(quick.getByRole('link', { name: 'Llamar' })).toBeVisible();
+      await expect(quick.getByRole('link', { name: 'Llamar' })).toHaveCount(0);
       await expectInsideViewport(page, quick, 'quick actions');
 
       // Check 1: hero, quick actions and the services summary within 1.5 screens; page much shorter.
