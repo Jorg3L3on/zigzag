@@ -1,5 +1,19 @@
 import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
+
+/**
+ * tailwind-merge only knows Tailwind's own sizes, so it read our `text-caption`
+ * (globals.css @theme, ZIG-I18-5) as a text color: `cn('text-caption',
+ * 'text-muted-foreground')` dropped one of the two (ZIG-26). Registering it as
+ * a font size keeps both; two sizes or two colors still merge as before.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      text: ['caption'],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
