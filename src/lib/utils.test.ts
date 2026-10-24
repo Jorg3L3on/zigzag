@@ -1,4 +1,21 @@
-import { convertBigIntToString } from '@/lib/utils';
+import { cn, convertBigIntToString } from '@/lib/utils';
+
+describe('cn (ZIG-26)', () => {
+  it('keeps text-caption and a text color together, in either order', () => {
+    expect(cn('text-caption', 'text-muted-foreground')).toBe('text-caption text-muted-foreground');
+    expect(cn('text-primary-foreground', 'text-caption')).toBe('text-primary-foreground text-caption');
+    expect(cn('rounded-full text-caption font-semibold', 'bg-blue-500/15 text-blue-700')).toBe(
+      'rounded-full text-caption font-semibold bg-blue-500/15 text-blue-700',
+    );
+  });
+
+  it('still merges two sizes or two colors: the last one wins', () => {
+    expect(cn('text-xs', 'text-caption')).toBe('text-caption');
+    expect(cn('text-caption', 'text-sm')).toBe('text-sm');
+    expect(cn('text-muted-foreground', 'text-destructive')).toBe('text-destructive');
+    expect(cn('text-caption', 'md:text-sm')).toBe('text-caption md:text-sm');
+  });
+});
 
 describe('convertBigIntToString', () => {
   it('converts bigint values recursively', () => {
