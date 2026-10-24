@@ -43,8 +43,9 @@ type TicketDetailActionsMenuProps = {
   paymentsCount: number;
   downloadFileName: string;
   /**
-   * Header on desktop (ZIG-I24-3): from 1024px Editar servicios and Duplicar
-   * are buttons next to ⋯, which keeps Descargar PDF and Eliminar.
+   * Header on desktop (ZIG-I24-3): from 1024px Editar servicios is an Editar
+   * button next to ⋯, which keeps Descargar PDF, Duplicar and Eliminar, so the
+   * header fits one row with Cobrar / Compartir recibo and WhatsApp.
    */
   inlineFromLg?: boolean;
   className?: string;
@@ -113,33 +114,23 @@ export const TicketDetailActionsMenu = ({
 
   if (!canEditServices && !canPdf && !canWrite) return null;
 
-  // Items shown as buttons from lg leave the menu there.
+  // Editar servicios is a button from lg, so it leaves the menu there.
   const inlineItemClass = inlineFromLg ? 'lg:hidden' : undefined;
 
   return (
     <>
-      {inlineFromLg && (canEditServices || canWrite) ? (
-        <div className="hidden items-center gap-2 lg:flex" data-testid="ticket-detail-inline-actions">
-          {canEditServices ? (
-            <Button asChild variant="outline" className="h-10 gap-2 rounded-xl">
-              <Link href={`/tickets/${ticketId}/edit`}>
-                <Pencil className="h-4 w-4" aria-hidden />
-                Editar servicios
-              </Link>
-            </Button>
-          ) : null}
-          {canWrite ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 gap-2 rounded-xl"
-              onClick={() => void handleDuplicate()}
-            >
-              <Copy className="h-4 w-4" aria-hidden />
-              Duplicar
-            </Button>
-          ) : null}
-        </div>
+      {inlineFromLg && canEditServices ? (
+        <Button
+          asChild
+          variant="outline"
+          className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+          data-testid="ticket-detail-inline-actions"
+        >
+          <Link href={`/tickets/${ticketId}/edit`} aria-label="Editar servicios">
+            <Pencil className="h-4 w-4" aria-hidden />
+            Editar
+          </Link>
+        </Button>
       ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -170,7 +161,7 @@ export const TicketDetailActionsMenu = ({
           ) : null}
           {canWrite ? (
             <DropdownMenuItem
-              className={cn('min-h-11', inlineItemClass)}
+              className="min-h-11"
               onSelect={() => void handleDuplicate()}
             >
               <Copy className="mr-2 h-4 w-4" aria-hidden />
@@ -179,7 +170,7 @@ export const TicketDetailActionsMenu = ({
           ) : null}
           {canWrite ? (
             <>
-              <DropdownMenuSeparator className={canPdf ? undefined : inlineItemClass} />
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="min-h-11 text-destructive focus:text-destructive"
                 onSelect={() => setDeleteOpen(true)}

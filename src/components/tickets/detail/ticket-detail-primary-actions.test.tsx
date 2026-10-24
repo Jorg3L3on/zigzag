@@ -83,5 +83,23 @@ describe('TicketDetailPrimaryActions (ZIG-I13-4)', () => {
 
     expect(screen.getByTestId('sticky')).toHaveTextContent('Cobrar');
     expect(screen.queryByRole('button', { name: /más acciones/i })).toBeNull();
+    // Phones keep WhatsApp in the quick-action tiles, not in the sticky bar.
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+  });
+
+  it('puts WhatsApp with the header actions from 1024px when the client has a phone (ZIG-I24)', () => {
+    renderActions({ finished: true, total: 100, paid: 40, clientTel: '998 123 4567' });
+
+    const whatsApp = screen.getByRole('link', { name: 'WhatsApp' });
+    expect(whatsApp).toHaveAttribute('href', expect.stringMatching(/^https:\/\/wa\.me\/\d+\?text=/));
+    expect(whatsApp).toHaveClass('hidden', 'lg:inline-flex');
+  });
+
+  it('offers no WhatsApp without a phone or before the ticket is finished', () => {
+    renderActions({ finished: true, total: 100, paid: 100 });
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+
+    renderActions({ finished: false, total: 100, paid: 0, clientTel: '998 123 4567' });
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
   });
 });
