@@ -145,6 +145,11 @@ describe('PresupuestosList', () => {
     const rows = screen.getAllByTestId('presupuesto-row');
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByRole('link')).toHaveAttribute('href', '/presupuestos/1');
+    // The detail's soft pill, not a solid Badge that lost its text color (ZIG-I24).
+    const pill = within(rows[0]).getByTestId('presupuesto-status');
+    expect(pill).toHaveTextContent('Abierto');
+    expect(pill).toHaveClass('bg-blue-500/15', 'text-blue-700');
+    expect(within(rows[1]).getByTestId('presupuesto-status')).toHaveClass('text-red-700');
     expect(screen.queryByText('Convertido SA')).toBeNull();
     // Convertir / Cancelar moved to the detail page.
     expect(screen.queryByRole('button', { name: /Convertir/ })).toBeNull();
