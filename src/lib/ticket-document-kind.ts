@@ -16,10 +16,14 @@ export type PresupuestoStatus =
   | 'convertido'
   | 'cancelado';
 
+/**
+ * What people read. A converted presupuesto is the one the client accepted
+ * (Jorge, ZIG-I24): it reads Aceptado; the key stays `convertido` (MCP, filters).
+ */
 export const PRESUPUESTO_STATUS_LABEL: Record<PresupuestoStatus, string> = {
   abierto: 'Abierto',
   vencido: 'Vencido',
-  convertido: 'Convertido',
+  convertido: 'Aceptado',
   cancelado: 'Cancelado',
 };
 

@@ -9,6 +9,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Calendar as CalendarIcon,
   Check,
+  CloudCheck,
   Loader2,
   Plus,
   Receipt,
@@ -52,6 +53,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Kbd, useShortcutModifierLabel } from '@/components/ui/kbd';
 import { Label } from '@/components/ui/label';
 import {
   Popover,
@@ -166,10 +168,28 @@ const COMPOSER_COPY: Record<
   },
 };
 
+/** Typing in a field, or a menu / list that owns its keys: N is a letter there. */
+const isTypingTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return Boolean(
+    target.closest('input, textarea, select, [role="combobox"], [role="listbox"], [role="menu"]'),
+  );
+};
+
+/** Any open dialog, sheet, side panel or popover takes the keyboard first. */
+const overlayOpen = (): boolean =>
+  typeof document !== 'undefined' && document.querySelector('[role="dialog"]') !== null;
+
 /**
  * Nuevo ticket (ZIG-I2-4): one screen for client, date, service lines with a
  * running total and notes. Nothing is persisted until Guardar ticket, which
  * creates the ticket and its lines in one transaction.
+ *
+ * Desktop (ZIG-I24-2): from 1024px the form is the left column and a 300px
+ * rail on the right keeps the total, Guardar and the draft state in view.
+ * N opens Agregar servicio and Ctrl/⌘+Enter saves; the line editor becomes a
+ * side panel. Phones keep the single column and the sticky bar.
  */
 type DocumentComposerProps = {
   /** Work ticket (ZIG-I2) or presupuesto (ZIG-I5-3); they share everything but copy, Vence and the save action. */
@@ -278,6 +298,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const [lineErrors, setLineErrors] = React.useState<Record<string, string>>({});
   const [notesError, setNotesError] = React.useState<string | null>(null);
   const [draftReady, setDraftReady] = React.useState(false);
+  // Last time the local draft was written, for the rail's Borrador guardado (ZIG-I24-2).
+  const [draftSavedAt, setDraftSavedAt] = React.useState<Date | null>(null);
+  const modifierLabel = useShortcutModifierLabel();
   const servicePrefillAppliedRef = React.useRef(false);
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
@@ -324,6 +347,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       work_notes: notes,
       lines,
     });
+    setDraftSavedAt(client || lines.length > 0 || notes.trim() ? new Date() : null);
   }, [
     draftKey,
     draftReady,
@@ -648,6 +672,36 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     }
   };
 
+  // N adds a service, Ctrl/⌘+Enter saves (ZIG-I24-2). The latest handlers live in
+  // a ref so the listener is attached once.
+  const shortcutsRef = React.useRef({ save: () => {}, addLine: () => {} });
+  React.useEffect(() => {
+    shortcutsRef.current = { save: () => void handleSave(), addLine: openAddLine };
+  });
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || overlayOpen()) return;
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        shortcutsRef.current.save();
+        return;
+      }
+      if (
+        (event.key === 'n' || event.key === 'N') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.repeat &&
+        !isTypingTarget(event.target)
+      ) {
+        event.preventDefault();
+        shortcutsRef.current.addLine();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const renderSaveLabel = (idleLabel: string) => (
     <ActionSwap swapKey={saveState}>
       {saveState === 'saving' ? (
@@ -715,7 +769,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       />
 
       <TripledDashboardShell
-        maxWidthClassName="max-w-2xl"
+        maxWidthClassName="max-w-2xl lg:max-w-6xl"
         contentClassName="space-y-4"
       >
         <TripledMobileAppBar
@@ -752,271 +806,338 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
           </div>
         ) : null}
 
-        <BlurFade>
-          {showPartyForm ? (
-            <section aria-labelledby="composer-client-heading" className={SECTION_CLASS}>
-              <div className="flex items-center justify-between gap-3">
-                <h2 id="composer-client-heading" className="text-base font-semibold">
-                  Cliente
-                </h2>
-                {client ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="-mr-2 h-9 px-2 text-sm font-semibold text-primary"
-                    onClick={() => setPartyOpen(false)}
+        <div
+          className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-6"
+          data-testid="composer-columns"
+        >
+          <div className="min-w-0 space-y-4">
+            <BlurFade>
+              {showPartyForm ? (
+                <section aria-labelledby="composer-client-heading" className={SECTION_CLASS}>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 id="composer-client-heading" className="text-base font-semibold">
+                      Cliente
+                    </h2>
+                    {client ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="-mr-2 h-9 px-2 text-sm font-semibold text-primary"
+                        onClick={() => setPartyOpen(false)}
+                      >
+                        Listo
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <SearchableSelect
+                        id="composer-client"
+                        aria-label="Cliente"
+                        options={clientOptions}
+                        value={client ? String(client.id) : ''}
+                        onValueChange={handleClientChange}
+                        onSearchChange={setClientQuery}
+                        isLoading={isClientsLoading}
+                        disabled={clientLocked}
+                        placeholder="Busca o elige un cliente"
+                        searchPlaceholder="Buscar por nombre o teléfono…"
+                        emptyText="Sin clientes que coincidan"
+                        className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
+                      />
+                    </div>
+                    {clientLocked ? null : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-12 gap-2 rounded-xl md:h-10"
+                        onClick={() => setIsNewClientOpen(true)}
+                      >
+                        <UserPlus className="h-4 w-4" aria-hidden />
+                        Nuevo cliente
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="composer-date" className="text-sm font-medium">
+                      Fecha
+                    </Label>
+                    <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="composer-date"
+                          type="button"
+                          variant="outline"
+                          disabled={dateLocked}
+                          className="h-12 w-full justify-start gap-2 rounded-xl text-left text-base font-normal md:h-10 md:text-sm"
+                        >
+                          <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
+                          {dateLabel}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={ticketDate}
+                          onSelect={(value) => {
+                            if (value) {
+                              setTicketDate(value);
+                              setIsDateOpen(false);
+                            }
+                          }}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date('1900-01-01')
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </section>
+              ) : (
+                <section
+                  aria-label="Cliente y fecha"
+                  data-testid="composer-party-card"
+                  className={cn(SECTION_CLASS, 'flex items-start gap-3')}
+                >
+                  <div
+                    aria-hidden
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary"
                   >
-                    Listo
-                  </Button>
-                ) : null}
-              </div>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1">
-                  <SearchableSelect
-                    id="composer-client"
-                    aria-label="Cliente"
-                    options={clientOptions}
-                    value={client ? String(client.id) : ''}
-                    onValueChange={handleClientChange}
-                    onSearchChange={setClientQuery}
-                    isLoading={isClientsLoading}
-                    disabled={clientLocked}
-                    placeholder="Busca o elige un cliente"
-                    searchPlaceholder="Buscar por nombre o teléfono…"
-                    emptyText="Sin clientes que coincidan"
-                    className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
-                  />
-                </div>
-                {clientLocked ? null : (
+                    {(clientCard?.name.trim().charAt(0) || '?').toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="font-semibold leading-snug [overflow-wrap:anywhere]"
+                      data-testid="composer-party-name"
+                    >
+                      {clientCard?.name}
+                    </p>
+                    <p className="flex flex-wrap gap-x-1.5 text-sm tabular-nums text-muted-foreground">
+                      {clientCard?.phone ? (
+                        <span className="[overflow-wrap:anywhere]">{clientCard.phone} ·</span>
+                      ) : null}
+                      <span className="whitespace-nowrap">{shortDateLabel}</span>
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-12 gap-2 rounded-xl md:h-10"
-                    onClick={() => setIsNewClientOpen(true)}
+                    className="h-9 shrink-0 rounded-lg px-3 text-sm"
+                    onClick={() => setPartyOpen(true)}
                   >
-                    <UserPlus className="h-4 w-4" aria-hidden />
-                    Nuevo cliente
+                    Cambiar
                   </Button>
-                )}
-              </div>
+                </section>
+              )}
+            </BlurFade>
 
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="composer-date" className="text-sm font-medium">
-                  Fecha
-                </Label>
-                <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="composer-date"
-                      type="button"
-                      variant="outline"
-                      disabled={dateLocked}
-                      className="h-12 w-full justify-start gap-2 rounded-xl text-left text-base font-normal md:h-10 md:text-sm"
-                    >
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
-                      {dateLabel}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={ticketDate}
-                      onSelect={(value) => {
-                        if (value) {
-                          setTicketDate(value);
-                          setIsDateOpen(false);
-                        }
-                      }}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date('1900-01-01')
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </section>
-          ) : (
-            <section
-              aria-label="Cliente y fecha"
-              data-testid="composer-party-card"
-              className={cn(SECTION_CLASS, 'flex items-start gap-3')}
-            >
-              <div
-                aria-hidden
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary"
-              >
-                {(clientCard?.name.trim().charAt(0) || '?').toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p
-                  className="font-semibold leading-snug [overflow-wrap:anywhere]"
-                  data-testid="composer-party-name"
-                >
-                  {clientCard?.name}
-                </p>
-                <p className="flex flex-wrap gap-x-1.5 text-sm tabular-nums text-muted-foreground">
-                  {clientCard?.phone ? (
-                    <span className="[overflow-wrap:anywhere]">{clientCard.phone} ·</span>
-                  ) : null}
-                  <span className="whitespace-nowrap">{shortDateLabel}</span>
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 shrink-0 rounded-lg px-3 text-sm"
-                onClick={() => setPartyOpen(true)}
-              >
-                Cambiar
-              </Button>
-            </section>
-          )}
-        </BlurFade>
-
-        {isQuote ? (
-          <BlurFade delay={0.03}>
-            <section className={SECTION_CLASS}>
-              <ExpiresAtField value={expiresAt} onChange={setExpiresAt} minDate={ticketDate} />
-            </section>
-          </BlurFade>
-        ) : null}
-
-        <BlurFade delay={0.05}>
-          <section
-            aria-labelledby="composer-services-heading"
-            className={SECTION_CLASS}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h2 id="composer-services-heading" className="text-base font-semibold">
-                Servicios
-                {lines.length > 0 ? (
-                  <span className="font-normal text-muted-foreground"> · {lines.length}</span>
-                ) : null}
-              </h2>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 gap-1.5 rounded-xl"
-                onClick={openAddLine}
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                Agregar servicio
-              </Button>
-            </div>
-
-            {lines.length === 0 ? (
-              <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/70 bg-muted/25 px-4 py-6 text-center text-sm text-muted-foreground">
-                <Receipt className="h-5 w-5" aria-hidden />
-                <p>Agrega el primer servicio para ver el total.</p>
-              </div>
-            ) : (
-              <ul
-                aria-label={copy.linesLabel}
-                className="mt-2 divide-y divide-border/60"
-              >
-                <AnimatePresence initial={false}>
-                  {lines.map((line) => (
-                    <motion.li
-                      key={line.key}
-                      layout={!reduceMotion}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
-                      transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                    >
-                      <DocumentLineRow
-                        name={line.service_name}
-                        quantity={line.quantity}
-                        price={line.price}
-                        amount={lineTotalWithMaterials(line)}
-                        materials={(line.materials ?? []).map((item) => ({
-                          id: item.key,
-                          name: item.name,
-                          quantity: item.quantity,
-                          unit: item.unit,
-                          price: item.price,
-                        }))}
-                        error={lineErrors[line.key]}
-                        onClick={() => openEditLine(line.key)}
-                        data-testid="composer-line-row"
-                      />
-                    </motion.li>
-                  ))}
-                </AnimatePresence>
-              </ul>
-            )}
-
-            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3">
-              <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
-                Total
-              </span>
-              <NumberTicker
-                value={total}
-                format={formatServiceCurrency}
-                className="min-w-0 text-right text-xl font-semibold text-foreground [overflow-wrap:anywhere] min-[400px]:text-2xl"
-                data-testid="composer-total"
-              />
-            </div>
-          </section>
-        </BlurFade>
-
-        <BlurFade delay={0.1}>
-          <section aria-labelledby="composer-notes-heading" className={SECTION_CLASS}>
-            <div className="flex items-baseline justify-between gap-2">
-              <Label
-                id="composer-notes-heading"
-                htmlFor="composer-notes"
-                className="text-base font-semibold"
-              >
-                Notas <span className="font-normal text-muted-foreground">(opcional)</span>
-              </Label>
-              <CharCounter value={notes} max={NOTES_MAX_LENGTH} />
-            </div>
-            <Textarea
-              id="composer-notes"
-              value={notes}
-              maxLength={NOTES_MAX_LENGTH}
-              onChange={(event) => {
-                setNotes(event.target.value);
-                setNotesError(null);
-              }}
-              aria-invalid={notesError ? true : undefined}
-              aria-describedby={notesError ? 'composer-notes-error' : undefined}
-              placeholder={copy.notesPlaceholder}
-              className="mt-3 min-h-[88px] rounded-xl"
-            />
-            <PdfCharsWarning text={notes} />
-            {notesError ? (
-              <p id="composer-notes-error" role="alert" className="mt-1 text-caption text-destructive">
-                {notesError}
-              </p>
+            {isQuote ? (
+              <BlurFade delay={0.03}>
+                <section className={SECTION_CLASS}>
+                  <ExpiresAtField value={expiresAt} onChange={setExpiresAt} minDate={ticketDate} />
+                </section>
+              </BlurFade>
             ) : null}
-          </section>
-        </BlurFade>
 
-        <div className="hidden items-center justify-between gap-4 md:flex">
-          <p className={cn('text-sm', hintClass)} role={hintIsError ? 'alert' : undefined}>
-            {ctaHint}
-          </p>
-          <Button
-            type="button"
-            className="h-11 min-w-44 rounded-xl text-base font-semibold"
-            disabled={belowPaid || saveState !== 'idle'}
-            onClick={handleSave}
+            <BlurFade delay={0.05}>
+              <section
+                aria-labelledby="composer-services-heading"
+                className={SECTION_CLASS}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h2 id="composer-services-heading" className="text-base font-semibold">
+                    Servicios
+                    {lines.length > 0 ? (
+                      <span className="font-normal text-muted-foreground"> · {lines.length}</span>
+                    ) : null}
+                  </h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 gap-1.5 rounded-xl"
+                    onClick={openAddLine}
+                    aria-keyshortcuts="N"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                    Agregar servicio
+                    <Kbd className="ml-1 hidden lg:inline-flex">N</Kbd>
+                  </Button>
+                </div>
+
+                {lines.length === 0 ? (
+                  <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/70 bg-muted/25 px-4 py-6 text-center text-sm text-muted-foreground">
+                    <Receipt className="h-5 w-5" aria-hidden />
+                    <p>Agrega el primer servicio para ver el total.</p>
+                  </div>
+                ) : (
+                  <ul
+                    aria-label={copy.linesLabel}
+                    className="mt-2 divide-y divide-border/60"
+                  >
+                    <AnimatePresence initial={false}>
+                      {lines.map((line) => (
+                        <motion.li
+                          key={line.key}
+                          layout={!reduceMotion}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
+                          transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                        >
+                          <DocumentLineRow
+                            name={line.service_name}
+                            quantity={line.quantity}
+                            price={line.price}
+                            amount={lineTotalWithMaterials(line)}
+                            materials={(line.materials ?? []).map((item) => ({
+                              id: item.key,
+                              name: item.name,
+                              quantity: item.quantity,
+                              unit: item.unit,
+                              price: item.price,
+                            }))}
+                            error={lineErrors[line.key]}
+                            onClick={() => openEditLine(line.key)}
+                            data-testid="composer-line-row"
+                          />
+                        </motion.li>
+                      ))}
+                    </AnimatePresence>
+                  </ul>
+                )}
+
+                <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3 lg:hidden">
+                  <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+                    Total
+                  </span>
+                  <NumberTicker
+                    value={total}
+                    format={formatServiceCurrency}
+                    className="min-w-0 text-right text-xl font-semibold text-foreground [overflow-wrap:anywhere] min-[400px]:text-2xl"
+                    data-testid="composer-total"
+                  />
+                </div>
+              </section>
+            </BlurFade>
+
+            <BlurFade delay={0.1}>
+              <section aria-labelledby="composer-notes-heading" className={SECTION_CLASS}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label
+                    id="composer-notes-heading"
+                    htmlFor="composer-notes"
+                    className="text-base font-semibold"
+                  >
+                    Notas <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </Label>
+                  <CharCounter value={notes} max={NOTES_MAX_LENGTH} />
+                </div>
+                <Textarea
+                  id="composer-notes"
+                  value={notes}
+                  maxLength={NOTES_MAX_LENGTH}
+                  onChange={(event) => {
+                    setNotes(event.target.value);
+                    setNotesError(null);
+                  }}
+                  aria-invalid={notesError ? true : undefined}
+                  aria-describedby={notesError ? 'composer-notes-error' : undefined}
+                  placeholder={copy.notesPlaceholder}
+                  className="mt-3 min-h-[88px] rounded-xl"
+                />
+                <PdfCharsWarning text={notes} />
+                {notesError ? (
+                  <p id="composer-notes-error" role="alert" className="mt-1 text-caption text-destructive">
+                    {notesError}
+                  </p>
+                ) : null}
+              </section>
+            </BlurFade>
+
+            <div className="hidden items-center justify-between gap-4 md:flex lg:hidden">
+              <p className={cn('text-sm', hintClass)} role={hintIsError ? 'alert' : undefined}>
+                {ctaHint}
+              </p>
+              <Button
+                type="button"
+                className="h-11 min-w-44 rounded-xl text-base font-semibold"
+                disabled={belowPaid || saveState !== 'idle'}
+                onClick={handleSave}
+              >
+                {saveLabel}
+              </Button>
+            </div>
+
+            {isQuote ? null : (
+              <p className="text-center text-caption text-muted-foreground md:hidden">
+                ¿Sin señal o con prisa?{' '}
+                <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Anotar trabajo
+                </Link>
+              </p>
+            )}
+          </div>
+
+          <aside
+            aria-label="Total y acciones"
+            data-testid="composer-rail"
+            className="hidden lg:sticky lg:top-20 lg:block"
           >
-            {saveLabel}
-          </Button>
+            <div className={cn(SECTION_CLASS, 'space-y-4 sm:p-5')}>
+              <div className="space-y-1">
+                <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+                  Total
+                </p>
+                <NumberTicker
+                  value={total}
+                  format={formatServiceCurrency}
+                  className="block text-3xl font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]"
+                  data-testid="composer-rail-total"
+                />
+                <p
+                  className={cn('text-sm', hintClass)}
+                  data-testid="composer-rail-hint"
+                  role={hintIsError ? 'alert' : undefined}
+                >
+                  {ctaHint}
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="h-11 w-full gap-2 rounded-xl text-base font-semibold"
+                disabled={belowPaid || saveState !== 'idle'}
+                onClick={handleSave}
+                aria-keyshortcuts="Control+Enter Meta+Enter"
+              >
+                {saveLabel}
+                {saveState === 'idle' ? (
+                  <Kbd className="ml-1">{modifierLabel} ↵</Kbd>
+                ) : null}
+              </Button>
+              <p
+                className="flex items-center gap-1.5 text-caption text-muted-foreground"
+                data-testid="composer-draft-state"
+              >
+                {isEdit ? (
+                  'Nada cambia hasta Guardar cambios.'
+                ) : draftSavedAt ? (
+                  <>
+                    <CloudCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Borrador guardado en este equipo
+                  </>
+                ) : (
+                  'Se guarda un borrador mientras escribes.'
+                )}
+              </p>
+              <p aria-hidden className="border-t border-border/60 pt-3 text-caption text-muted-foreground">
+                <Kbd className="mr-1">N</Kbd> agrega un servicio ·{' '}
+                <Kbd className="mx-1">{modifierLabel} ↵</Kbd> guarda
+              </p>
+            </div>
+          </aside>
         </div>
-
-        {isQuote ? null : (
-          <p className="text-center text-caption text-muted-foreground md:hidden">
-            ¿Sin señal o con prisa?{' '}
-            <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
-              Anotar trabajo
-            </Link>
-          </p>
-        )}
       </TripledDashboardShell>
 
       <TripledMobileStickyActionBar>

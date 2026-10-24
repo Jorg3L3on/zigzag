@@ -46,7 +46,7 @@ const shortDate = (value: string): string => {
 const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
   { status: 'abierto', label: 'Abiertos' },
   { status: 'vencido', label: 'Vencidos' },
-  { status: 'convertido', label: 'Convertidos' },
+  { status: 'convertido', label: 'Aceptados' },
   { status: 'cancelado', label: 'Cancelados' },
 ];
 

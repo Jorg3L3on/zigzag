@@ -61,7 +61,7 @@ for (const width of MOBILE_WIDTHS) {
         price: '980',
       });
       await axe(page, 'composer');
-      await page.getByTestId('composer-line-row').first().click();
+      await page.getByTestId('composer-line-row').first().click({ position: { x: 12, y: 12 } });
       await expect(page.getByRole('dialog', { name: 'Editar servicio' })).toBeVisible();
       await axe(page, 'line-sheet');
       await page

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { DocumentPdfEmbed } from '@/components/pdf/document-pdf-embed';
 import { PDFDownloadButton } from '@/components/pdf-download-button';
 import { usePdfViewerEnabled } from '@/components/tickets/review/document-review-parts';
 import {
@@ -21,7 +22,6 @@ import {
   fetchTicketInvoiceFile,
   shareTicketInvoiceFile,
 } from '@/lib/ticket-invoice-download';
-import { buildTicketInvoicePreviewUrl } from '@/lib/ticket-invoice-url';
 import { canDownloadTicketInvoice } from '@/lib/tickets-rbac';
 import {
   buildWhatsAppQuoteShare,
@@ -207,15 +207,14 @@ export const DocumentPdfViewer = ({
               {downloadButton('h-10 flex-1 rounded-xl md:flex-none')}
               {shareButton('h-10 flex-1 rounded-xl md:flex-none')}
             </div>
-            <object
-              data={buildTicketInvoicePreviewUrl(ticketId, companyId)}
-              type="application/pdf"
-              aria-label={`Vista del ${noun} ${ticketId}`}
-              data-testid="pdf-viewer-embed"
-              className="h-[calc(100dvh-4.25rem-var(--dock-clearance)-3.5rem)] min-h-[320px] w-full rounded-xl border border-border/60 bg-muted/20 md:h-[calc(100dvh-10rem)] md:min-h-[480px]"
+            <DocumentPdfEmbed
+              ticketId={ticketId}
+              companyId={companyId}
+              noun={noun}
+              className="h-[calc(100dvh-4.25rem-var(--dock-clearance)-3.5rem)] min-h-[320px] md:h-[calc(100dvh-10rem)] md:min-h-[480px]"
             >
               {summary}
-            </object>
+            </DocumentPdfEmbed>
           </>
         ) : (
           <>

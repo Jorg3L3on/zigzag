@@ -137,8 +137,8 @@ for (const width of MOBILE_WIDTHS) {
 
       // Convertido: the presupuesto points at the ticket and still duplicates.
       await page.goto(`/presupuestos/${presupuestoId}`);
-      await expect(visible(page.getByTestId('presupuesto-status'))).toHaveText('Convertido', { timeout: 15_000 });
-      await expect(visible(page.getByText('Convertido en ticket'))).toBeVisible();
+      await expect(visible(page.getByTestId('presupuesto-status'))).toHaveText('Aceptado', { timeout: 15_000 });
+      await expect(visible(page.getByText('Aceptado · convertido en ticket'))).toBeVisible();
       await expectLayoutIntact(page, 'presupuesto convertido');
     });
 
@@ -190,8 +190,8 @@ for (const width of MOBILE_WIDTHS) {
       await rows.nth(1).click();
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Agregar al ticket' }), 'Agregar al ticket');
-      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+      await expectInsideViewport(page, sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }), 'Agregar al ticket');
+      await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       await rows.nth(7).click();
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Quitar este servicio' }).click();

@@ -202,7 +202,7 @@ export const PresupuestoView = ({
         toast.error(getErrorDisplayMessage(result, 'No se pudo convertir el presupuesto'));
         return;
       }
-      toast.success(`Convertido a ticket ${result.data.ticketFolio ?? `#${result.data.ticketId}`}`);
+      toast.success(`Presupuesto aceptado: ticket ${result.data.ticketFolio ?? `#${result.data.ticketId}`}`);
       router.push(`/tickets/${result.data.ticketId}`);
     } finally {
       setMutating(false);
@@ -302,7 +302,7 @@ export const PresupuestoView = ({
       }
       description={
         confirm === 'convert'
-          ? 'Se crea un ticket de trabajo con los mismos servicios y precios. El presupuesto queda como Convertido.'
+          ? 'Se crea un ticket de trabajo con los mismos servicios y precios. El presupuesto queda como Aceptado.'
           : 'Sale de los presupuestos abiertos y queda sólo para consulta. No se puede deshacer.'
       }
       confirmLabel={confirm === 'convert' ? 'Convertir a ticket' : 'Cancelar presupuesto'}
@@ -331,6 +331,7 @@ export const PresupuestoView = ({
           editHref={editHref}
           canWrite={canWrite}
           canInvoice={canInvoice}
+          downloadFileName={downloadFileName}
           isMutable={isMutable}
           mutating={mutating}
           sharing={phase === 'sharing'}
@@ -371,7 +372,7 @@ export const PresupuestoView = ({
           >
             <span className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en ticket
+              Aceptado · convertido en ticket
             </span>
             <Link
               href={`/tickets/${convertedToTicketId}`}

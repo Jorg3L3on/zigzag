@@ -95,6 +95,7 @@ export const TicketDetailPrimaryActions = ({
           paid={paid}
           paymentsCount={paymentsCount}
           downloadFileName={downloadFileName}
+          inlineFromLg
           className="h-10 w-10 shrink-0 border border-input"
         />
       </div>

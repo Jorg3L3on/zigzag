@@ -93,7 +93,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await addCustomComposerLine(page, { name: 'Mantenimiento correctivo de unidad manejadora', quantity: '2', price: '4200', materials: 2 });
       await addCustomComposerLine(page, { name: 'Recarga de gas refrigerante', quantity: '3', price: '980' });
       await shot(page, 'composer');
-      await page.getByTestId('composer-line-row').first().click();
+      await page.getByTestId('composer-line-row').first().click({ position: { x: 12, y: 12 } });
       await expect(page.getByRole('dialog', { name: 'Editar servicio' })).toBeVisible();
       await shot(page, 'line-sheet');
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Cancelar' }).click();

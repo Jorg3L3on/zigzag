@@ -171,7 +171,7 @@ const addHostileLine = async (
     await expect(materialSheet.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
   }
 
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
 };
 
@@ -217,7 +217,7 @@ for (const width of MOBILE_WIDTHS) {
       );
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('1.5');
       await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill('100');
-      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+      await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
 
       // 1.5 stays 1.5; HTML is text; the total is exact (no phantom cents).
@@ -345,7 +345,7 @@ for (const width of MOBILE_WIDTHS) {
       await expect(sheet.getByTestId('composer-line-total-error')).toContainText(
         '$9,999,999,999.99',
       );
-      await expect(sheet.getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
+      await expect(sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ })).toBeDisabled();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
       await expect(sheet).toBeHidden();
 

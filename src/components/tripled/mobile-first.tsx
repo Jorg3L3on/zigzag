@@ -42,7 +42,9 @@ export const TripledDashboardShell = ({
     >
       <div
         className={cn(
-          'mx-auto w-full min-w-0 overflow-x-hidden',
+          // clip, not hidden: hidden makes a scroll container and turns lg:sticky
+          // asides (composer rail, document PDF) into plain blocks (ZIG-I24).
+          'mx-auto w-full min-w-0 overflow-x-clip',
           maxWidthClassName,
           contentClassName,
         )}

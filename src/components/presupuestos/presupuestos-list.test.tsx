@@ -123,7 +123,7 @@ describe('PresupuestosList', () => {
       data: [
         row('1', 'Abierto SA', 'abierto', 'Abierto'),
         row('2', 'Vencido SA', 'vencido', 'Vencido'),
-        row('3', 'Convertido SA', 'convertido', 'Convertido'),
+        row('3', 'Convertido SA', 'convertido', 'Aceptado'),
         row('4', 'Cancelado SA', 'cancelado', 'Cancelado'),
       ],
     });
@@ -137,7 +137,7 @@ describe('PresupuestosList', () => {
       'aria-pressed',
       'true',
     );
-    expect(within(chips).getByRole('button', { name: /Convertidos/ })).toHaveAttribute(
+    expect(within(chips).getByRole('button', { name: /Aceptados/ })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
@@ -149,7 +149,7 @@ describe('PresupuestosList', () => {
     // Convertir / Cancelar moved to the detail page.
     expect(screen.queryByRole('button', { name: /Convertir/ })).toBeNull();
 
-    fireEvent.click(within(chips).getByRole('button', { name: /Convertidos/ }));
+    fireEvent.click(within(chips).getByRole('button', { name: /Aceptados/ }));
     expect(screen.getAllByTestId('presupuesto-row')).toHaveLength(3);
     expect(screen.getByText('Convertido SA')).toBeTruthy();
   });
@@ -157,7 +157,7 @@ describe('PresupuestosList', () => {
   it('shows an empty state when the filter hides everything', async () => {
     mockGetPresupuestosList.mockResolvedValue({
       success: true,
-      data: [row('3', 'Convertido SA', 'convertido', 'Convertido')],
+      data: [row('3', 'Convertido SA', 'convertido', 'Aceptado')],
     });
     render(<PresupuestosList />);
 

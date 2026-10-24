@@ -5,6 +5,7 @@ import {
   isPresupuestoTicket,
   isWorkTicket,
   normalizeTicketDocumentKind,
+  PRESUPUESTO_STATUS_LABEL,
 } from '@/lib/ticket-document-kind';
 
 describe('ticket-document-kind', () => {
@@ -17,6 +18,10 @@ describe('ticket-document-kind', () => {
     expect(isWorkTicket('presupuesto')).toBe(false);
     expect(isPresupuestoTicket('presupuesto')).toBe(true);
     expect(normalizeTicketDocumentKind('weird')).toBe('ticket');
+  });
+
+  it('reads a converted presupuesto as Aceptado (ZIG-I24)', () => {
+    expect(PRESUPUESTO_STATUS_LABEL.convertido).toBe('Aceptado');
   });
 
   it('computes presupuesto status', () => {

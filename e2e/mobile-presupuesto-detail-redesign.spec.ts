@@ -109,7 +109,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('dialog').getByRole('button', { name: 'Convertir a ticket' }).click();
       await page.waitForURL(/\/tickets\/\d+$/, { timeout: 60_000 });
       await page.goto(`/presupuestos/${firstId}`);
-      await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Convertido');
+      await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Aceptado');
       await expect(visible(page.getByTestId('presupuesto-accept'))).toHaveCount(0);
       await expect(visible(page.getByTestId('presupuesto-actions')).getByRole('link', { name: 'Editar' })).toHaveCount(0);
       await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Duplicar' }).click();

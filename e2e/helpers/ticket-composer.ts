@@ -75,7 +75,7 @@ export const addComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   await expect(
     page
@@ -166,7 +166,7 @@ export const addInlineComposerLine = async (
   await sheet
     .getByRole('spinbutton', { name: 'Precio del servicio' })
     .fill(String(price));
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
   const lines = page.getByRole('list', { name: linesLabel });
   await expect(lines.getByText(name).first()).toBeVisible();
@@ -190,7 +190,10 @@ export const addCustomComposerLine = async (
   await sheet.getByRole('spinbutton', { name: 'Precio del servicio' }).fill(price);
   for (let i = 1; i <= materials; i += 1) {
     await sheet.getByRole('button', { name: 'Agregar material' }).click();
-    const step = page.getByRole('dialog', { name: 'Agregar material' });
+    // Phones: a nested step of the sheet. Desktop (ZIG-I24-2): a form inside the side panel.
+    const step = page
+      .getByRole('dialog', { name: 'Agregar material' })
+      .or(sheet.getByRole('group', { name: 'Agregar material' }));
     await step.getByRole('radio', { name: /Escribir/ }).click();
     await step.getByLabel('Nombre del material').fill(`Material de prueba número ${i} con nombre largo`);
     await step.getByLabel('Cantidad').fill('2');
@@ -198,7 +201,7 @@ export const addCustomComposerLine = async (
     await step.getByRole('button', { name: 'Agregar material' }).click();
     await expect(step.getByLabel('Nombre del material')).toBeHidden({ timeout: 10_000 });
   }
-  await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+  await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
   await expect(sheet).toBeHidden({ timeout: 10_000 });
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 import type { Service } from '@/db/schema';
@@ -11,7 +11,7 @@ import {
 import { MaterialRows } from '@/components/materials/material-rows';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { useUndoToast } from '@/components/documents/use-undo-toast';
-import { BottomSheet } from '@/components/motion';
+import { BottomSheet, SidePanel } from '@/components/motion';
 import {
   InlineServiceFields,
   ServiceLineModeToggle,
@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import {
   materialDraftAmount,
   materialDraftsFromServiceDefaults,
@@ -42,6 +43,7 @@ import { addMoney, multiplyMoney, roundMoney } from '@/lib/money';
 import type { ServiceMaterialView } from '@/lib/service-materials';
 import type { TicketComposerDraftLine } from '@/lib/ticket-composer-draft';
 import { MATERIALS_PER_LINE_MAX } from '@/lib/ticket-service-line-schema';
+import { cn } from '@/lib/utils';
 
 export type ComposerLineInput = Omit<TicketComposerDraftLine, 'key'>;
 
@@ -86,6 +88,10 @@ type SheetStep = { kind: 'line' } | { kind: 'material'; editing: MaterialDraft |
  * rows are editable and removable, and Agregar material opens a nested step
  * (Del catálogo or Nuevo) inside the same sheet. Materials add on top of
  * quantity × price.
+ *
+ * Desktop (ZIG-I24-2): from 1024px the same form is a right-hand side panel and
+ * a material is added or edited inline under the rows, so the line stays in
+ * view. Ctrl/⌘+Enter adds the line (or the open material).
  */
 export const ComposerLineSheet = ({
   open,
@@ -101,6 +107,8 @@ export const ComposerLineSheet = ({
   otherLinesTotal = 0,
 }: ComposerLineSheetProps) => {
   const undoToast = useUndoToast();
+  const isDesktop = useIsDesktop();
+  const Panel = isDesktop ? SidePanel : BottomSheet;
   const [materials, setMaterials] = useState<MaterialDraft[]>(
     () => initialLine?.materials ?? [],
   );
@@ -172,7 +180,10 @@ export const ComposerLineSheet = ({
   const priceError = validatePriceText(price);
   const lineAmountError =
     quantityError || priceError ? null : validateLineAmount(lineTotal, otherLinesTotal);
+  // Desktop edits a material inline; the line waits until it is added or cancelled.
+  const inlineMaterialOpen = isDesktop && step.kind === 'material';
   const canSubmit =
+    !inlineMaterialOpen &&
     !quantityError &&
     !priceError &&
     !lineAmountError &&
@@ -289,7 +300,26 @@ export const ComposerLineSheet = ({
     onOpenChange(false);
   };
 
-  if (step.kind === 'material') {
+  // Ctrl/⌘+Enter: add the open material, or the line (ZIG-I24-2).
+  const submitShortcutRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    submitShortcutRef.current = () => {
+      if (step.kind === 'material') submitMaterial();
+      else handleSubmit();
+    };
+  });
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey) || event.isComposing) return;
+      event.preventDefault();
+      submitShortcutRef.current();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  if (step.kind === 'material' && !isDesktop) {
     const editingMaterial = step.editing;
     return (
       <BottomSheet
@@ -378,8 +408,48 @@ export const ComposerLineSheet = ({
     </div>
   );
 
+  const editingMaterial = step.kind === 'material' ? step.editing : null;
+  const inlineMaterialEditor = inlineMaterialOpen ? (
+    <div
+      role="group"
+      aria-label={editingMaterial ? 'Editar material' : 'Agregar material'}
+      data-testid="composer-material-inline"
+      className="space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-4"
+    >
+      <p className="text-sm font-semibold">
+        {editingMaterial ? 'Editar material' : 'Agregar material'}
+      </p>
+      <MaterialEntryFields
+        idPrefix="composer-material"
+        entry={materialEntry}
+        companyId={companyId}
+        documentLabel={documentLabel}
+        autoFocus
+        totalError={materialTotalError}
+      />
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 flex-1"
+          onClick={() => setStep({ kind: 'line' })}
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          className="h-10 flex-1"
+          disabled={!materialEntry.canSubmit || Boolean(materialTotalError)}
+          onClick={submitMaterial}
+        >
+          {editingMaterial ? 'Guardar material' : 'Agregar material'}
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <BottomSheet
+    <Panel
       open={open}
       onOpenChange={onOpenChange}
       title={isEditing ? 'Editar servicio' : 'Agregar servicio'}
@@ -421,6 +491,11 @@ export const ComposerLineSheet = ({
               data-testid="composer-line-total-error"
             >
               {lineAmountError}
+            </p>
+          ) : null}
+          {inlineMaterialOpen ? (
+            <p className="text-caption text-muted-foreground" data-testid="composer-line-material-pending">
+              Agrega o cancela el material para seguir.
             </p>
           ) : null}
           <div className="grid grid-cols-2 gap-3">
@@ -513,8 +588,11 @@ export const ComposerLineSheet = ({
             <Button
               type="button"
               variant="ghost"
-              className="-mr-2 h-10 gap-1.5 px-2 font-semibold text-primary"
-              disabled={materials.length >= MATERIALS_PER_LINE_MAX}
+              className={cn(
+                '-mr-2 h-10 gap-1.5 px-2 font-semibold text-primary',
+                inlineMaterialOpen && 'invisible',
+              )}
+              disabled={materials.length >= MATERIALS_PER_LINE_MAX || inlineMaterialOpen}
               onClick={() => openMaterialStep(null)}
             >
               <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
@@ -555,11 +633,11 @@ export const ComposerLineSheet = ({
               </div>
             </div>
           ) : null}
-          {materials.length === 0 ? (
+          {materials.length === 0 && !inlineMaterialOpen ? (
             <p className="text-caption text-muted-foreground">
               Sin materiales. Se suman al precio del servicio.
             </p>
-          ) : (
+          ) : materials.length === 0 ? null : (
             <>
               <MaterialRows
                 compact
@@ -571,10 +649,13 @@ export const ComposerLineSheet = ({
                 data-testid="composer-line-material-rows"
               />
               <p className="pt-1 text-caption text-muted-foreground">
-                Toca un material para cambiar cantidad o precio.
+                {isDesktop
+                  ? 'Haz clic en un material para cambiar cantidad o precio.'
+                  : 'Toca un material para cambiar cantidad o precio.'}
               </p>
             </>
           )}
+          {inlineMaterialEditor}
         </section>
 
         {isEditing && onRemove ? (
@@ -592,6 +673,6 @@ export const ComposerLineSheet = ({
           </Button>
         ) : null}
       </div>
-    </BottomSheet>
+    </Panel>
   );
 };

@@ -837,3 +837,139 @@ describe('TicketEditComposer (ZIG-I13-6)', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 });
+
+/** jsdom has no layout: answer the 1024px query like a desktop window (ZIG-I24). */
+const mockDesktopWidth = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: desktop && query === '(min-width: 1024px)',
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+};
+
+describe('DocumentComposer on desktop (ZIG-I24-2)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockToast.mockClear();
+    mockCreateTicketWithLines.mockReset();
+    mockSearchParams = new URLSearchParams();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it('keeps the total, Guardar and the draft state in the right rail', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const rail = screen.getByRole('complementary', { name: 'Total y acciones' });
+    expect(within(rail).getByTestId('composer-draft-state')).toHaveTextContent(
+      'Se guarda un borrador mientras escribes.',
+    );
+    expect(within(rail).getByRole('button', { name: 'Guardar ticket' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'Control+Enter Meta+Enter',
+    );
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '2');
+    await waitFor(() =>
+      expect(within(rail).getByTestId('composer-rail-total')).toHaveTextContent('$8,400.00'),
+    );
+    expect(within(rail).getByTestId('composer-rail-hint')).toHaveTextContent('1 servicio');
+    expect(within(rail).getByTestId('composer-draft-state')).toHaveTextContent(
+      'Borrador guardado en este equipo',
+    );
+  });
+
+  it('opens Agregar servicio with N and saves with Ctrl+Enter, not while typing', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1301', total: 4200 } });
+    renderComposer();
+
+    await pickClient(user);
+    // N inside a field is just a letter.
+    await user.type(screen.getByRole('textbox', { name: /Notas/ }), 'n');
+    expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull();
+
+    await user.click(document.body);
+    await user.keyboard('n');
+    const sheet = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    await user.click(within(sheet).getByRole('combobox', { name: 'Servicio' }));
+    const listbox = await screen.findByRole('listbox', { name: 'Servicio' });
+    await user.click(within(listbox).getByText('Mantenimiento · $4,200.00'));
+    // Ctrl+Enter inside the panel adds the line; it does not save the ticket.
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
+
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await waitFor(() => expect(mockCreateTicketWithLines).toHaveBeenCalledTimes(1));
+    expect(mockCreateTicketWithLines.mock.calls[0][0]).toMatchObject({
+      client_id: 5,
+      work_notes: 'n',
+      lines: [{ service_id: 7, quantity: 1, price: 4200 }],
+    });
+  });
+
+  it('edits the line in a side panel and adds materials inline, without a second step', async () => {
+    mockDesktopWidth(true);
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const panel = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    expect(panel).toHaveAttribute('data-panel', 'side');
+
+    await user.click(within(panel).getByRole('radio', { name: /Escribir/ }));
+    await user.type(within(panel).getByLabelText('Nombre del servicio'), 'Instalación');
+    await user.type(within(panel).getByRole('spinbutton', { name: 'Precio del servicio' }), '1000');
+
+    await user.click(within(panel).getByRole('button', { name: 'Agregar material' }));
+    // Same panel: the material form opens under the rows, the line stays in view.
+    const inline = within(panel).getByRole('group', { name: 'Agregar material' });
+    expect(screen.queryByRole('dialog', { name: 'Agregar material' })).toBeNull();
+    expect(within(panel).getByLabelText('Nombre del servicio')).toHaveValue('Instalación');
+    expect(within(panel).getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
+
+    await user.click(within(inline).getByRole('radio', { name: 'Escribir' }));
+    await user.type(within(inline).getByLabelText('Nombre del material'), 'Soporte de pared');
+    await user.click(within(inline).getByRole('button', { name: 'pza' }));
+    await user.type(within(inline).getByLabelText('Precio / pza'), '320');
+    await user.click(within(inline).getByRole('button', { name: 'Agregar material' }));
+
+    expect(within(panel).queryByRole('group', { name: 'Agregar material' })).toBeNull();
+    expect(
+      within(within(panel).getByTestId('composer-line-material-rows')).getByText('Soporte de pared'),
+    ).toBeTruthy();
+    expect(within(panel).getByTestId('composer-line-breakdown')).toHaveTextContent(
+      'Servicio $1,000.00 Materiales $320.00',
+    );
+    await user.click(within(panel).getByRole('button', { name: 'Agregar al ticket' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+    expect(
+      within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByText('Instalación'),
+    ).toBeTruthy();
+  });
+});

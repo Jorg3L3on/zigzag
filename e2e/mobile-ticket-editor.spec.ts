@@ -74,11 +74,12 @@ for (const width of MOBILE_WIDTHS) {
 
       // The line sheet in edit mode: materials come back, removing shows Deshacer.
       const rows = page.getByRole('list', { name: 'Servicios del ticket' }).getByTestId('composer-line-row');
-      await rows.first().click();
+      // Rows with materials hold a materials toggle in the middle (ZIG-18): click the name line.
+      await rows.first().click({ position: { x: 12, y: 12 } });
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await expect(sheet.getByTestId('composer-line-material-rows').getByRole('listitem')).toHaveCount(2);
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+      await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       // Quitar a line: gone, with Deshacer; undo brings it back.
       await rows.nth(2).click();
@@ -89,11 +90,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hint).toHaveText(/^Antes \$[\d,]+\.\d{2} · \+\$[\d,]+\.\d{2}$/);
 
       // Below what is paid: Guardar waits. Remove two lines so the total drops under $1,000.
-      await rows.nth(0).click();
+      await rows.nth(0).click({ position: { x: 12, y: 12 } });
       const dialog = page.getByRole('dialog', { name: 'Editar servicio' });
       await dialog.getByRole('button', { name: 'Quitar este servicio' }).click();
       await expect(rows).toHaveCount(2);
-      await rows.nth(0).click();
+      await rows.nth(0).click({ position: { x: 12, y: 12 } });
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Quitar este servicio' }).click();
       await expect(rows).toHaveCount(1);
       await expect(page.getByTestId('composer-sticky-hint')).toHaveText('Abajo de lo ya pagado ($1,000.00)');
