@@ -34,7 +34,7 @@ const line = (id: number, name: string, materials = 0) => ({
 });
 
 describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
-  it('shows three rows with Editar and folds the rest behind Ver detalle con N materiales', async () => {
+  it('shows every service with Editar; Ver detalle opens all the materials (ZIG-I24)', async () => {
     const user = userEvent.setup();
     render(
       <TicketDetailServicesSection
@@ -49,10 +49,11 @@ describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
       'href',
       '/tickets/5/edit',
     );
+    // All four lines, not the first three.
     expect(screen.getByText(/Tres/)).toBeInTheDocument();
-    expect(screen.queryByText(/Cuatro/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Ver detalle con 4 materiales' }));
     expect(screen.getByText(/Cuatro/)).toBeInTheDocument();
+    expect(screen.queryByText(/Material 1.1/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ver detalle con 4 materiales' }));
     expect(screen.getByText(/Material 1.1/)).toBeInTheDocument();
   });
 
