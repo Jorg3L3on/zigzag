@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { DocumentLineRow } from '@/components/documents/document-line-row';
@@ -84,6 +84,37 @@ describe('DocumentLineRow (ZIG-I13-1)', () => {
     expect(screen.getByText(/2 pza/)).toBeInTheDocument();
     expect(screen.getByText(/\$25\.00/)).toBeInTheDocument();
     expect(amount).toHaveTextContent('$900.00');
+  });
+
+  it('opens a breakdown with Servicio, Materiales and each material amount', async () => {
+    const user = userEvent.setup();
+    render(
+      <DocumentLineRow
+        name="Instalación mini-split"
+        quantity={2}
+        price={4200}
+        amount={8700}
+        materials={[
+          { id: 1, name: 'Filtro de aire', quantity: 1, unit: 'pza', price: 150 },
+          { id: 2, name: 'Tubo de cobre', quantity: 2, unit: 'm', price: 75 },
+        ]}
+        onClick={() => undefined}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: '2 materiales' }));
+
+    const breakdown = screen.getByRole('group', { name: 'Desglose de Instalación mini-split' });
+    expect(within(breakdown).getByTestId('line-breakdown-service')).toHaveTextContent(
+      'Servicio · 2 × $4,200.00$8,400.00',
+    );
+    expect(within(breakdown).getByTestId('line-breakdown-materials')).toHaveTextContent(
+      'Materiales$300.00',
+    );
+    const items = within(breakdown).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Filtro de aire · 1 pza × $150.00$150.00');
+    expect(items[1]).toHaveTextContent('Tubo de cobre · 2 m × $75.00$150.00');
+    // The line total stays on the line: Servicio + Materiales.
+    expect(screen.getByTestId('document-line-amount')).toHaveTextContent('$8,700.00');
   });
 
   it('shows the changed marker and the server error, and never a Nuevo pill', () => {

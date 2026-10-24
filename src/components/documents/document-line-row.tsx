@@ -4,12 +4,13 @@ import * as React from 'react';
 import Link from 'next/link';
 
 import {
-  LineMaterialsDisclosure,
+  LineMaterialsBreakdown,
+  LineMaterialsToggle,
   type LineMaterialDetail,
 } from '@/components/documents/line-materials-disclosure';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
-import { roundMoney } from '@/lib/money';
+import { multiplyMoney, roundMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
 export const formatMaterialsCount = (count: number) =>
@@ -23,7 +24,10 @@ type DocumentLineRowProps = {
   /** The line's amount: quantity × price plus its materials. */
   amount: number;
   materialCount?: number;
-  /** When set, "N material(es)" opens each material. The line amount is not recomputed. */
+  /**
+   * When set, "N material(es)" opens the line's breakdown: Servicio, Materiales
+   * and each material with its amount. The line amount is not recomputed.
+   */
   materials?: ReadonlyArray<LineMaterialDetail>;
   /** Marks a line that differs from the saved document (edit view). */
   changed?: boolean;
@@ -56,6 +60,8 @@ export const DocumentLineRow = ({
   className,
   'data-testid': testId = 'document-line-row',
 }: DocumentLineRowProps) => {
+  const [materialsOpen, setMaterialsOpen] = React.useState(false);
+  const breakdownId = React.useId();
   const listed = materials ?? [];
   const count = listed.length > 0 ? listed.length : materialCount;
   const priceLabel = `${roundMoney(quantity)} × ${formatServiceCurrency(price)}`;
@@ -159,7 +165,13 @@ export const DocumentLineRow = ({
           >
             <span>{priceLabel}</span>
             <span aria-hidden> · </span>
-            <LineMaterialsDisclosure materials={listed} lineName={name} className="inline-block align-baseline" />
+            <LineMaterialsToggle
+              count={listed.length}
+              open={materialsOpen}
+              onOpenChange={setMaterialsOpen}
+              controls={breakdownId}
+              className="-my-3 align-baseline"
+            />
           </div>
           {href ? (
             <Link href={href} className={hitClass} aria-label={`Total de ${name}`}>
@@ -173,6 +185,15 @@ export const DocumentLineRow = ({
             amountNode
           )}
         </div>
+        {materialsOpen ? (
+          <LineMaterialsBreakdown
+            id={breakdownId}
+            materials={listed}
+            lineName={name}
+            service={{ quantity, price, amount: multiplyMoney(price, quantity) }}
+            className="mt-2"
+          />
+        ) : null}
         {errorNode}
       </div>
     );
