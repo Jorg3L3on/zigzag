@@ -25,7 +25,7 @@ export const TicketsListTable = ({ table, canWrite }: TicketsListTableProps) => 
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id}>
+              <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
                 {header.isPlaceholder
                   ? null
                   : flexRender(

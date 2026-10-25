@@ -76,6 +76,8 @@ export const createServicesColumns = ({
   {
     id: 'description',
     accessorKey: 'description',
+    // Below 1280px the description gives its room to Precio and ⋮ (ZIG-I27-2).
+    meta: { className: 'hidden xl:table-cell' },
     header: ({ column }) => (
       <ServiceSortableHeader column={column} label="Descripción" />
     ),

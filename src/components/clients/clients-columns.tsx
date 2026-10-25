@@ -116,6 +116,8 @@ export const createClientsColumns = ({
   {
     id: 'address',
     accessorFn: (row) => formatClientAddressOneLine(row),
+    // Below 1280px the address gives its room to Alta and ⋮ (ZIG-I27-2).
+    meta: { className: 'hidden xl:table-cell' },
     header: ({ column }) => (
       <ClientSortableHeader column={column} label="Dirección" />
     ),
