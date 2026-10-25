@@ -1,0 +1,174 @@
+import { test, expect, type Page } from '@playwright/test';
+import { e2eCredentialsSkipReason, ensureTenantCompany, hasE2eCredentials, login } from './helpers/auth';
+import { TEXT_SIZE_STORAGE_KEY } from '../src/lib/text-size';
+
+/**
+ * ZIG-I27-1: small desktop windows with the sidebar open (256px). `<main>` used to
+ * grow with its widest table, so the page scrolled sideways and the create button
+ * fell off screen. Every desktop spec runs at 1280; this one covers 1024 and 1120.
+ * Read only: it opens pages and scrolls, nothing is saved.
+ */
+const ROUTES: { path: string; create?: RegExp }[] = [
+  { path: '/tickets', create: /^Nuevo ticket$/ },
+  { path: '/clients', create: /^Nuevo cliente$/ },
+  { path: '/services', create: /^Nuevo servicio$/ },
+  { path: '/cobranza' },
+  { path: '/company/equipo', create: /^Agregar usuario$/ },
+  { path: '/dashboard' },
+];
+
+const WIDTHS = [1024, 1120];
+
+const pageOverflow = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+
+const expectSidebarOpen = async (page: Page) => {
+  await expect(page.locator('.peer[data-side="left"]').first()).toHaveAttribute('data-state', 'expanded');
+};
+
+const expectCreateButtonInside = async (page: Page, name: RegExp, label: string) => {
+  const button = page.getByRole('link', { name }).or(page.getByRole('button', { name })).filter({ visible: true }).first();
+  await expect(button, `${label}: create button`).toBeVisible();
+  const { right, innerWidth } = await button.evaluate((el) => ({
+    right: el.getBoundingClientRect().right,
+    innerWidth: window.innerWidth,
+  }));
+  expect(right, `${label}: create button past the right edge`).toBeLessThanOrEqual(innerWidth);
+};
+
+/** The ⋮ column is either on screen or reachable by scrolling the table's own wrapper. */
+const expectLastColumnReachable = async (page: Page, label: string) => {
+  const table = page.locator('main table').filter({ visible: true }).first();
+  await expect(table, `${label}: table`).toBeVisible();
+  const box = await table.evaluate((el) => {
+    const wrapper = el.parentElement as HTMLElement;
+    wrapper.scrollLeft = wrapper.scrollWidth;
+    const header = el.querySelector('thead tr');
+    const last = header?.lastElementChild as HTMLElement | null;
+    return {
+      lastRight: last?.getBoundingClientRect().right ?? 0,
+      wrapperRight: wrapper.getBoundingClientRect().right,
+      innerWidth: window.innerWidth,
+    };
+  });
+  expect(box.lastRight, `${label}: last column past its card`).toBeLessThanOrEqual(box.wrapperRight + 1);
+  expect(box.lastRight, `${label}: last column past the window`).toBeLessThanOrEqual(box.innerWidth);
+};
+
+test.describe('Desktop shell without overflow (ZIG-I27-1)', () => {
+  test.setTimeout(240_000);
+
+  test.beforeEach(async ({ page }) => {
+    test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
+    await login(page);
+    await ensureTenantCompany(page);
+  });
+
+  for (const width of WIDTHS) {
+    test(`lists fit the window at ${width}px with the sidebar open`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      for (const route of ROUTES) {
+        const label = `${route.path} @${width}`;
+        await page.goto(route.path);
+        await expect(page.getByTestId('page-header').first()).toBeVisible();
+        await page.waitForLoadState('networkidle');
+        await expectSidebarOpen(page);
+        expect(await pageOverflow(page), `${label}: document wider than the window`).toBeLessThanOrEqual(0);
+        if (route.create) {
+          await expectCreateButtonInside(page, route.create, label);
+        }
+      }
+    });
+  }
+
+  test('the tickets table keeps ⋮ reachable inside its card at 1024 and 1120', async ({ page }) => {
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/tickets');
+      await page.waitForLoadState('networkidle');
+      await expectLastColumnReachable(page, `/tickets @${width}`);
+      expect(await pageOverflow(page)).toBeLessThanOrEqual(0);
+    }
+  });
+
+  test('Texto grande at 1120 keeps Nuevo ticket on screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1120, height: 800 });
+    await page.goto('/tickets');
+    await page.evaluate((key) => window.localStorage.setItem(key, 'large'), TEXT_SIZE_STORAGE_KEY);
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-text-size', 'large');
+    await page.waitForLoadState('networkidle');
+    expect(await pageOverflow(page), '/tickets large text: document wider than the window').toBeLessThanOrEqual(0);
+    await expectCreateButtonInside(page, /^Nuevo ticket$/, '/tickets large text');
+    await expectLastColumnReachable(page, '/tickets large text');
+    await page.evaluate((key) => window.localStorage.removeItem(key), TEXT_SIZE_STORAGE_KEY);
+  });
+
+  test('page header and the ticket aside stay sticky at 1280', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.goto('/tickets');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect
+      .poll(() => page.getByTestId('page-header').first().evaluate((el) => Math.round(el.getBoundingClientRect().top)))
+      .toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    const firstRow = page.locator('main table tbody tr').filter({ visible: true }).first();
+    test.skip((await firstRow.count()) === 0, 'No tickets in this tenant');
+    await firstRow.locator('td').first().click();
+    await page.waitForURL(/\/tickets\/\d+$/);
+    await page.waitForLoadState('networkidle');
+    const aside = page.locator('main aside[aria-label="Cobro del ticket"]');
+    await expect(aside).toBeVisible();
+    // A short ticket barely scrolls: make the main column tall so sticky has room to act.
+    const before = await aside.evaluate((el) => {
+      const spacer = document.createElement('div');
+      spacer.style.height = '1600px';
+      el.nextElementSibling?.appendChild(spacer);
+      return el.getBoundingClientRect().top;
+    });
+    await page.evaluate((by) => window.scrollBy(0, by), Math.round(before) + 200);
+    // lg:top-20 = 80px; a non-sticky aside would be ~200px above the window by now.
+    await expect
+      .poll(() => aside.evaluate((el) => Math.round(el.getBoundingClientRect().top)))
+      .toBeGreaterThanOrEqual(78);
+    expect(await aside.evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBeLessThanOrEqual(82);
+  });
+});
+
+test.describe('Desktop tables fit at 1120 (ZIG-I27-2)', () => {
+  test.setTimeout(180_000);
+
+  test.beforeEach(async ({ page }) => {
+    test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
+    await login(page);
+    await ensureTenantCompany(page);
+  });
+
+  test('the five lists show their last column and ⋮ without scrolling inside the card', async ({ page }) => {
+    await page.setViewportSize({ width: 1120, height: 800 });
+    for (const path of ['/tickets', '/clients', '/services', '/cobranza', '/company/equipo']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      const table = page.locator('main table').filter({ visible: true }).first();
+      if ((await table.count()) === 0) continue; // empty list: nothing to fit
+      const { scroll, client } = await table.evaluate((el) => {
+        const wrapper = el.parentElement as HTMLElement;
+        return { scroll: wrapper.scrollWidth, client: wrapper.clientWidth };
+      });
+      expect(scroll, `${path} @1120: table scrolls inside its card`).toBeLessThanOrEqual(client + 1);
+      await expectLastColumnReachable(page, `${path} @1120`);
+    }
+  });
+
+  test('at 1024 every list keeps ⋮ reachable', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 800 });
+    for (const path of ['/tickets', '/clients', '/services', '/cobranza', '/company/equipo']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      if ((await page.locator('main table').filter({ visible: true }).count()) === 0) continue;
+      await expectLastColumnReachable(page, `${path} @1024`);
+    }
+  });
+});

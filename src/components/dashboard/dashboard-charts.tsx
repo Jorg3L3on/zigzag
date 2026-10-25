@@ -53,23 +53,27 @@ const RevenueChartDataTable = ({
   }
 
   return (
-    <table className="sr-only">
-      <caption>Ingresos por mes (datos numéricos)</caption>
-      <thead>
-        <tr>
-          <th scope="col">Mes</th>
-          <th scope="col">Ingresos</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.monthKey}>
-            <td>{row.label}</td>
-            <td>{formatMxCurrency(row.revenue)}</td>
+    // A table never shrinks below its min-content, so sr-only alone pokes out of
+    // narrow cards; the clipped wrapper keeps it out of the layout (ZIG-I27-1).
+    <div className="sr-only">
+      <table>
+        <caption>Ingresos por mes (datos numéricos)</caption>
+        <thead>
+          <tr>
+            <th scope="col">Mes</th>
+            <th scope="col">Ingresos</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.monthKey}>
+              <td>{row.label}</td>
+              <td>{formatMxCurrency(row.revenue)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
@@ -87,25 +91,29 @@ const PaymentStatusDataTable = ({
   }
 
   return (
-    <table className="sr-only">
-      <caption>Estado de cobro de tickets</caption>
-      <thead>
-        <tr>
-          <th scope="col">Estado</th>
-          <th scope="col">Tickets</th>
-          <th scope="col">Monto</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.status}>
-            <td>{row.label}</td>
-            <td>{row.count}</td>
-            <td>{formatMxCurrency(row.amount)}</td>
+    // A table never shrinks below its min-content, so sr-only alone pokes out of
+    // narrow cards; the clipped wrapper keeps it out of the layout (ZIG-I27-1).
+    <div className="sr-only">
+      <table>
+        <caption>Estado de cobro de tickets</caption>
+        <thead>
+          <tr>
+            <th scope="col">Estado</th>
+            <th scope="col">Tickets</th>
+            <th scope="col">Monto</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.status}>
+              <td>{row.label}</td>
+              <td>{row.count}</td>
+              <td>{formatMxCurrency(row.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
