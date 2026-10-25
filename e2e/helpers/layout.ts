@@ -22,7 +22,7 @@ export const expectLayoutIntact = async (page: Page, label: string) => {
     const visualWidth = window.visualViewport?.width ?? window.innerWidth;
     const shown = (el: Element) => el.getClientRects().length > 0;
 
-    const clipped = [...document.querySelectorAll<HTMLElement>('[class*="overflow-x-hidden"]')]
+    const clipped = [...document.querySelectorAll<HTMLElement>('[class*="overflow-x-hidden"], [class*="overflow-x-clip"]')]
       .filter(shown)
       .filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollLeft > 0)
       .map((el) => `${el.tagName}.${String(el.className).slice(0, 60)} ${el.scrollWidth}>${el.clientWidth}`);

@@ -7,12 +7,14 @@ import type { Column } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { FormattedDate } from '@/components/formatted-date';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { getTicketBalanceDue, getTicketPaymentStatusSortRank } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
+import { formatListDate } from '@/lib/format-list-date';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 function TicketSortableHeader<TData>({
   column,
@@ -50,6 +52,16 @@ function TicketSortableHeader<TData>({
   );
 }
 
+/** Short date on one line, `mié 22 oct`, with the full date on hover (ZIG-I27-2). */
+const TicketListDate = ({ date }: { date: Date | null }) => {
+  if (!date) return <span>Sin fecha</span>;
+  return (
+    <span className="whitespace-nowrap" title={format(new Date(date), 'PPP', { locale: es })}>
+      {formatListDate(date)}
+    </span>
+  );
+};
+
 export type TicketsColumnsOptions = {
   onDelete: (id: number) => void;
   onDeleteFailed?: (id: number) => void;
@@ -81,7 +93,12 @@ export const createTicketsColumns = ({
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Cliente" />
     ),
-    cell: ({ row }) => row.original.client_name ?? '—',
+    // Long names truncate with the full name on hover, so Total and ⋮ fit (ZIG-I27-2).
+    cell: ({ row }) => (
+      <span className="block max-w-[9rem] truncate xl:max-w-[11rem]" title={row.original.client_name ?? undefined}>
+        {row.original.client_name ?? '—'}
+      </span>
+    ),
     sortingFn: (a, b) => {
       const na = (a.original.client_name ?? '').toLocaleLowerCase();
       const nb = (b.original.client_name ?? '').toLocaleLowerCase();
@@ -91,6 +108,8 @@ export const createTicketsColumns = ({
   {
     id: 'client_tel',
     accessorKey: 'client_tel',
+    // Below 1280px the phone gives its room to Total and ⋮ (ZIG-I27-2).
+    meta: { className: 'hidden xl:table-cell' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Teléfono" />
     ),
@@ -109,7 +128,7 @@ export const createTicketsColumns = ({
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Fecha" />
     ),
-    cell: ({ row }) => <FormattedDate date={row.original.ticket_date} />,
+    cell: ({ row }) => <TicketListDate date={row.original.ticket_date} />,
     sortingFn: (rowA, rowB) => {
       const ta = rowA.original.ticket_date?.getTime();
       const tb = rowB.original.ticket_date?.getTime();

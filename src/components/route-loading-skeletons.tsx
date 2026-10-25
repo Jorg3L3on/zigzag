@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 type ResourceRouteLoadingProps = {
   title: string;
   description: string;
-  desktopDescription: string;
   icon: ReactNode;
   label: string;
 };
@@ -78,7 +77,6 @@ const ResourceListPlaceholder = ({ label }: { label: string }) => (
 export const ResourceRouteLoading = ({
   title,
   description,
-  desktopDescription,
   icon,
   label,
 }: ResourceRouteLoadingProps) => (
@@ -88,7 +86,6 @@ export const ResourceRouteLoading = ({
       <TripledResourceCard
         title={title}
         description={description}
-        desktopDescription={desktopDescription}
         icon={icon}
         action={
           <Skeleton className="h-11 w-full rounded-xl sm:h-10 sm:w-36" />

@@ -55,7 +55,7 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
   const run = async (params: Parameters<typeof getTicketsPaginated>[0]) => {
     const wheres: SQL[] = [];
     mockSelect
-      .mockReturnValueOnce(chain([{ total: 3, balanceDue: '843164.79' }], wheres)) // count + saldo
+      .mockReturnValueOnce(chain([{ total: 3 }], wheres)) // count
       .mockReturnValueOnce(chain([{ dueCount: 2 }], wheres)) // por cobrar count
       .mockReturnValueOnce(chain([{ id: 1n }], wheres)) // page
       .mockReturnValueOnce(
@@ -65,11 +65,12 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     return { result, wheres };
   };
 
-  it('returns the saldo of every ticket matching the filters and the Por cobrar count', async () => {
+  it('returns the count and the Por cobrar count, without a saldo total (ZIG-I27-3)', async () => {
     const { result } = await run({ companyId: 10, statusFilter: 'due' });
 
     expect(result.success).toBe(true);
-    expect(result.data).toMatchObject({ total: 3, balanceDue: 843164.79, dueCount: 2 });
+    expect(result.data).toMatchObject({ total: 3, dueCount: 2 });
+    expect(result.data).not.toHaveProperty('balanceDue');
   });
 
   it('attaches the work summary of each ticket with one company-scoped aggregate (ZIG-I18-8)', async () => {
@@ -100,22 +101,10 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
       expect(query.sql).toContain('"document_kind" = $');
       expect(query.params).toEqual(expect.arrayContaining([10, 'ticket']));
     }
-    // 0: list + saldo (paid chip on), 1: due count (search kept, status chip replaced by "due").
+    // 0: list count (paid chip on), 1: due count (search kept, status chip replaced by "due").
     const dueCount = sqlOf(wheres[1]);
     expect(dueCount.params).toEqual(expect.arrayContaining(['%torres%']));
     expect(dueCount.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
     expect(sqlOf(wheres[0]).sql).toContain('>= COALESCE("Ticket"."total", 0) - 0.01');
-  });
-
-  it('rounds the saldo to cents', async () => {
-    const wheres: SQL[] = [];
-    mockSelect
-      .mockReturnValueOnce(chain([{ total: 1, balanceDue: '100.004999' }], wheres))
-      .mockReturnValueOnce(chain([{ dueCount: 1 }], wheres))
-      .mockReturnValueOnce(chain([], wheres));
-
-    const result = await getTicketsPaginated({ companyId: 10 });
-
-    expect(result.data?.balanceDue).toBe(100);
   });
 });

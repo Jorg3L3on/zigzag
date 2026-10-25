@@ -20,8 +20,7 @@ export default async function AuditPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Auditoría"
-          description="Registro unificado de actividad de la plataforma."
-          desktopDescription="Visible solo para usuarios de la empresa System."
+          description="Visible solo para usuarios de la empresa System."
           icon={<ClipboardList className="size-5" aria-hidden />}
         >
           <AuditList />

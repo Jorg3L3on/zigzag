@@ -1,3 +1,4 @@
+import type * as React from 'react';
 import { CalendarDays } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
@@ -14,73 +15,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TICKET_PAYMENT_STATUS_LABEL } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
 import { formatDateRangeLabel } from '@/components/tickets/tickets-list-filter-utils';
-import type {
-  FinishedFilterValue,
-  StatusFilterValue,
-} from '@/components/tickets/tickets-list-types';
+import type { FinishedFilterValue } from '@/components/tickets/tickets-list-types';
 
 type FilterFieldLayout = 'desktop' | 'sheet';
 
-const statusTriggerClass = (layout: FilterFieldLayout) =>
-  layout === 'desktop'
-    ? 'h-10 min-w-[12rem] max-w-[15rem] shrink-0'
-    : 'h-11 w-full';
+/**
+ * Desktop controls match the Cobro chips: same 44px height, pill radius and text size,
+ * fixed widths so the two never wrap onto separate rows (ZIG-I27-3).
+ */
+const DESKTOP_CONTROL_CLASS = 'h-11 shrink-0 rounded-full px-4 text-base md:h-11';
 
-const finishedTriggerClass = (layout: FilterFieldLayout) =>
-  layout === 'desktop'
-    ? 'h-10 min-w-[11rem] max-w-[14rem] shrink-0'
-    : 'h-11 w-full';
-
-type TicketStatusFilterProps = {
-  layout: FilterFieldLayout;
-  value: StatusFilterValue;
-  onChange: (value: StatusFilterValue) => void;
-};
-
-export const TicketStatusFilter = ({
+/** The caption above each control: the sheet always had one, desktop now too (ZIG-I27-3). */
+const FilterField = ({
+  label,
+  htmlFor,
   layout,
-  value,
-  onChange,
-}: TicketStatusFilterProps) => {
-  const id =
-    layout === 'sheet' ? 'ticket-filter-status-sheet' : 'ticket-filter-status';
-
-  const field = (
-    <Select value={value} onValueChange={(next) => onChange(next as StatusFilterValue)}>
-      <SelectTrigger
-        id={id}
-        className={statusTriggerClass(layout)}
-        aria-label="Filtrar por pagado"
-      >
-        <SelectValue placeholder="¿Pagado?" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">Todos</SelectItem>
-        <SelectItem value="due">Por cobrar (con saldo)</SelectItem>
-        <SelectItem value="paid">{TICKET_PAYMENT_STATUS_LABEL.paid}</SelectItem>
-        <SelectItem value="partial">
-          {TICKET_PAYMENT_STATUS_LABEL.partial}
-        </SelectItem>
-        <SelectItem value="pending">
-          {TICKET_PAYMENT_STATUS_LABEL.pending}
-        </SelectItem>
-      </SelectContent>
-    </Select>
-  );
-
-  if (layout === 'desktop') {
-    return field;
-  }
-
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  layout: FilterFieldLayout;
+  children: React.ReactNode;
+}) => {
+  const Caption = htmlFor ? 'label' : 'span';
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
-        ¿Pagado?
-      </label>
-      {field}
+    <div className={layout === 'desktop' ? 'flex flex-col gap-1.5' : 'space-y-2'}>
+      <Caption htmlFor={htmlFor} className="text-caption font-medium text-muted-foreground">
+        {label}
+      </Caption>
+      {children}
     </div>
   );
 };
@@ -99,37 +64,25 @@ export const TicketFinishedFilter = ({
   const id =
     layout === 'sheet' ? 'ticket-filter-finished-sheet' : 'ticket-filter-finished';
 
-  const field = (
-    <Select
-      value={value}
-      onValueChange={(next) => onChange(next as FinishedFilterValue)}
-    >
-      <SelectTrigger
-        id={id}
-        className={finishedTriggerClass(layout)}
-        aria-label="Filtrar por trabajo terminado"
-      >
-        <SelectValue placeholder="¿Terminado?" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">Todos</SelectItem>
-        <SelectItem value="yes">Trabajo terminado</SelectItem>
-        <SelectItem value="no">En proceso</SelectItem>
-      </SelectContent>
-    </Select>
-  );
-
-  if (layout === 'desktop') {
-    return field;
-  }
-
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
-        ¿Terminado?
-      </label>
-      {field}
-    </div>
+    <FilterField label="Trabajo" htmlFor={id} layout={layout}>
+      <Select
+        value={value}
+        onValueChange={(next) => onChange(next as FinishedFilterValue)}
+      >
+        <SelectTrigger
+          id={id}
+          className={layout === 'desktop' ? cn(DESKTOP_CONTROL_CLASS, 'w-56') : 'h-11 w-full'}
+        >
+          <SelectValue placeholder="Todos los trabajos" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos los trabajos</SelectItem>
+          <SelectItem value="yes">Terminados</SelectItem>
+          <SelectItem value="no">En proceso</SelectItem>
+        </SelectContent>
+      </Select>
+    </FilterField>
   );
 };
 
@@ -150,7 +103,7 @@ export const TicketDateRangeFilter = ({
       variant="outline"
       className={cn(
         layout === 'desktop'
-          ? 'h-10 min-w-[14rem] max-w-[17rem] shrink-0 justify-start text-left font-normal'
+          ? cn(DESKTOP_CONTROL_CLASS, 'w-64 justify-start text-left font-normal')
           : 'h-11 w-full justify-start text-left font-normal',
         !value?.from && 'text-muted-foreground',
       )}
@@ -191,16 +144,9 @@ export const TicketDateRangeFilter = ({
     </Popover>
   );
 
-  if (layout === 'desktop') {
-    return calendar;
-  }
-
   return (
-    <div className="space-y-2">
-      <span className="text-caption font-medium text-muted-foreground">
-        Fechas
-      </span>
+    <FilterField label="Fechas" layout={layout}>
       {calendar}
-    </div>
+    </FilterField>
   );
 };

@@ -25,8 +25,7 @@ export default async function RolesPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Roles (todas las empresas)"
-          description="Perfiles de acceso y permisos asignados."
-          desktopDescription="Roles de todas las empresas y roles compartidos. Cada empresa edita los suyos en Mi empresa › Roles."
+          description="Roles de todas las empresas y roles compartidos. Cada empresa edita los suyos en Mi empresa › Roles."
           icon={<Shield className="size-5" aria-hidden />}
         >
           <RolesList />

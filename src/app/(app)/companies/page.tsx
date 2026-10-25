@@ -28,8 +28,7 @@ export default async function CompaniesPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Empresas"
-          description="Contextos de trabajo del sistema."
-          desktopDescription="Administra las empresas disponibles en el sistema"
+          description="Administra las empresas disponibles en el sistema"
           icon={<Building2 className="size-5" aria-hidden />}
           action={
             canWriteCompanies ? (

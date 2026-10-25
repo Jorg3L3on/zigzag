@@ -28,8 +28,7 @@ export default async function UsersPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Usuarios (todas las empresas)"
-          description="Cuentas, roles y empresas asignadas."
-          desktopDescription="Usuarios de todas las empresas. Cada empresa gestiona su equipo en Mi empresa › Equipo."
+          description="Usuarios de todas las empresas. Cada empresa gestiona su equipo en Mi empresa › Equipo."
           icon={<Users className="size-5" aria-hidden />}
         >
           <UsersList />

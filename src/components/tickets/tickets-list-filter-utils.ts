@@ -31,7 +31,7 @@ export const ticketMatchesDateRange = (
 
 export const formatDateRangeLabel = (range: DateRange | undefined): string => {
   if (!range?.from) {
-    return 'Fechas';
+    return 'Todas las fechas';
   }
   if (!range.to) {
     return format(range.from, 'd MMM yyyy', { locale: es });

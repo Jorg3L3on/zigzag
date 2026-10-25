@@ -14,6 +14,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { TripledFilterChips } from "@/components/tripled";
+import { cn } from "@/lib/utils";
+
+/** Clearing filters destroys nothing: neutral ghost, not red (ZIG-I27-3). */
+const CLEAR_FILTERS_CLASS =
+  "min-h-11 text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
 export type ListFilterChip = {
   key: string;
@@ -42,8 +47,6 @@ export type ListFilterBarShellProps = {
   showFilterSheet?: boolean;
   /** One-tap filters between the search row and the chips (ZIG-I13-7). */
   quickFilters?: ReactNode;
-  /** Right-aligned next to the chips, e.g. a total for the filter (ZIG-I13-7). */
-  chipsTrailing?: ReactNode;
   /**
    * Phones only (ZIG-I18-9): a short sort control beside a text button that opens the
    * full sheet. Without `moreFiltersLabel` the sheet stays an icon beside the search.
@@ -71,7 +74,6 @@ export const ListFilterBarShell = ({
   showDesktopClear = true,
   showFilterSheet = true,
   quickFilters,
-  chipsTrailing,
   mobileSort,
   moreFiltersLabel,
 }: ListFilterBarShellProps) => {
@@ -158,7 +160,7 @@ export const ListFilterBarShell = ({
             <Button
               type="button"
               variant="ghost"
-              className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className={cn(CLEAR_FILTERS_CLASS, "w-full justify-start")}
               onClick={onClearFilters}
               aria-label="Limpiar todos los filtros activos"
             >
@@ -204,48 +206,45 @@ export const ListFilterBarShell = ({
         {moreFiltersLabel ? null : sheet}
       </div>
 
-      {quickFilters}
+      {/* Phones: one control per row (contents). From lg the chips, the labelled controls and
+          Limpiar share one row, bottoms aligned (ZIG-I27-3). */}
+      <div className="contents lg:flex lg:flex-wrap lg:items-end lg:gap-x-6 lg:gap-y-3">
+        {quickFilters}
 
-      {moreFiltersLabel && (mobileSort || sheet) ? (
-        <div
-          className="flex items-end gap-2 lg:hidden"
-          data-testid="list-mobile-controls"
-        >
-          {mobileSort}
-          {sheet}
-        </div>
-      ) : null}
+        {moreFiltersLabel && (mobileSort || sheet) ? (
+          <div
+            className="flex items-end gap-2 lg:hidden"
+            data-testid="list-mobile-controls"
+          >
+            {mobileSort}
+            {sheet}
+          </div>
+        ) : null}
 
-      {showFilterSheet ? (
-        <div className="hidden gap-6 lg:flex lg:flex-wrap lg:items-start">
-          {desktopContent}
-          {showDesktopClear && hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="min-h-11 shrink-0 self-end text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={onClearFilters}
-              aria-label={clearFiltersAriaLabel}
-            >
-              <X
-                className="mr-2 h-4 w-4"
-                aria-hidden
-                data-icon="inline-start"
-              />
-              Limpiar filtros
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+        {showFilterSheet ? (
+          <div className="hidden gap-x-6 gap-y-3 lg:flex lg:flex-wrap lg:items-end">
+            {desktopContent}
+            {showDesktopClear && hasActiveFilters ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className={cn(CLEAR_FILTERS_CLASS, "shrink-0")}
+                onClick={onClearFilters}
+                aria-label={clearFiltersAriaLabel}
+              >
+                <X
+                  className="mr-2 h-4 w-4"
+                  aria-hidden
+                  data-icon="inline-start"
+                />
+                Limpiar filtros
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
-      {chipsTrailing ? (
-        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-          <TripledFilterChips chips={filterChips} />
-          {chipsTrailing}
-        </div>
-      ) : (
-        <TripledFilterChips chips={filterChips} />
-      )}
+      <TripledFilterChips chips={filterChips} />
     </div>
   );
 };

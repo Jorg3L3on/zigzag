@@ -22,8 +22,7 @@ export default function ServicesImportPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Importar servicios"
-          description="Valida el CSV antes de guardar en el catálogo."
-          desktopDescription="Plantilla, vista previa, progreso y resultado de la importación"
+          description="Plantilla, vista previa, progreso y resultado de la importación"
           icon={<Wrench className="size-5" aria-hidden />}
         >
           <ServicesCsvImportClient />

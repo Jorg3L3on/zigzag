@@ -71,6 +71,7 @@ import { SystemCompanyContextEmptyState } from '@/components/system-company-cont
 import { formatClientAddressOneLine } from '@/lib/client-address';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
@@ -622,9 +623,10 @@ export function ClientList() {
                     {headerGroup.headers.map((header) => (
                       <TableHead
                         key={header.id}
-                        className={
-                          header.column.id === 'actions' ? 'text-right' : undefined
-                        }
+                        className={cn(
+                          header.column.id === 'actions' && 'text-right',
+                          header.column.columnDef.meta?.className,
+                        )}
                       >
                         {header.isPlaceholder
                           ? null
@@ -661,9 +663,10 @@ export function ClientList() {
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={
-                          cell.column.id === 'actions' ? 'text-right' : undefined
-                        }
+                        className={cn(
+                          cell.column.id === 'actions' && 'text-right',
+                          cell.column.columnDef.meta?.className,
+                        )}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>

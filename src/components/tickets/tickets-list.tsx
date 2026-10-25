@@ -44,7 +44,6 @@ import {
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
-import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
 import { Ticket as TicketIcon } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
@@ -69,8 +68,7 @@ export default function TicketsList() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
-  // Σ saldo and Por cobrar count for the current filters, computed by the server (ZIG-I13-7).
-  const [balanceDue, setBalanceDue] = React.useState(0);
+  // Por cobrar count for the current filters, computed by the server (ZIG-I13-7).
   const [dueCount, setDueCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   // The full-page skeleton only covers the first load (and SSR). Once the
@@ -174,13 +172,6 @@ export default function TicketsList() {
           setTickets(snapshot.data);
           ticketsRef.current = snapshot.data;
           setTotalCount(snapshot.data.length);
-          // Offline: only what was cached, summed here.
-          setBalanceDue(
-            snapshot.data.reduce(
-              (sum, row) => sum + getTicketBalanceDue(row.total, row.paid),
-              0,
-            ),
-          );
           setDueCount(null);
           setSnapshotUpdatedAt(snapshot.updatedAt);
           setLoadError(null);
@@ -214,7 +205,6 @@ export default function TicketsList() {
           setTickets(pageItems);
           ticketsRef.current = pageItems;
           setTotalCount(result.data.total);
-          setBalanceDue(result.data.balanceDue ?? 0);
           setDueCount(result.data.dueCount ?? null);
           setSnapshotUpdatedAt(null);
           setLoadError(null);
@@ -406,7 +396,6 @@ export default function TicketsList() {
     <div className="space-y-4">
       <TicketsFilterBar
         dueCount={dueCount}
-        balanceDue={balanceDue}
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         statusFilter={statusFilter}

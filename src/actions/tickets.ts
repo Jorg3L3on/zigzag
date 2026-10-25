@@ -606,8 +606,6 @@ export interface PaginatedTicketsData {
   page: number;
   pageSize: number;
   totalPages: number;
-  /** Σ saldo of every ticket matching the filters, not just this page (ZIG-I13-7). */
-  balanceDue: number;
   /** Tickets with a saldo under the search/date/finished filters, whatever the status chip (ZIG-I13-7). */
   dueCount: number;
 }
@@ -729,11 +727,8 @@ export async function getTicketsPaginated(params: {
       ...(paymentStatusCondition ? [paymentStatusCondition] : []),
     );
 
-    const [{ total, balanceDue }] = await db
-      .select({
-        total: count(),
-        balanceDue: sql<string>`COALESCE(SUM(CASE WHEN ${TICKET_DUE_CONDITION} THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END), 0)`,
-      })
+    const [{ total }] = await db
+      .select({ total: count() })
       .from(ticket)
       .where(whereCondition);
     const [{ dueCount }] = await db
@@ -787,7 +782,6 @@ export async function getTicketsPaginated(params: {
         page,
         pageSize,
         totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
-        balanceDue: roundMoney(Number(balanceDue ?? 0)),
         dueCount: Number(dueCount ?? 0),
       },
     };

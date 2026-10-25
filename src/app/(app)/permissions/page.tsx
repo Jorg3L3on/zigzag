@@ -25,8 +25,7 @@ export default async function PermissionsPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Catálogo de permisos"
-          description="Capacidades del sistema y alcance por empresa."
-          desktopDescription="Claves de permiso que revisa el código. Solo para operadores del sistema."
+          description="Claves de permiso que revisa el código. Solo para operadores del sistema."
           icon={<KeyRound className="size-5" aria-hidden />}
         >
           <PermissionsList />

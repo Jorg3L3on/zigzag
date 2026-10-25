@@ -17,9 +17,11 @@ import {
   formatAuditResultLabel,
 } from '@/lib/audit-labels';
 import {
+  FILTER_SELECTED_CLASS,
   ListFilterBarShell,
   type ListFilterChip,
 } from '@/components/list-filter';
+import { cn } from '@/lib/utils';
 
 type OperatorActivityFilterBarProps = {
   searchValue: string;
@@ -42,15 +44,14 @@ const renderSelectFilters = (
   props: OperatorActivityFilterBarProps,
   layout: 'desktop' | 'sheet',
 ) => {
-  const stackClass = layout === 'sheet' ? 'space-y-4' : 'flex flex-wrap gap-3';
-  const fieldClass = layout === 'sheet' ? 'space-y-2' : 'min-w-[12rem] flex-1';
+  // Every select keeps its caption on desktop too (ZIG-I27-3).
+  const stackClass = layout === 'sheet' ? 'space-y-4' : 'flex flex-wrap items-end gap-3';
+  const fieldClass = layout === 'sheet' ? 'space-y-2' : 'flex min-w-[12rem] flex-1 flex-col gap-1.5';
 
   return (
     <div className={stackClass}>
       <div className={fieldClass}>
-        {layout === 'sheet' ? (
-          <p className="text-caption font-medium text-muted-foreground">Recurso</p>
-        ) : null}
+        <p className="text-caption font-medium text-muted-foreground">Recurso</p>
         <Select value={props.resourceType} onValueChange={props.onResourceTypeChange}>
           <SelectTrigger
             className="min-h-11 rounded-xl"
@@ -69,9 +70,7 @@ const renderSelectFilters = (
         </Select>
       </div>
       <div className={fieldClass}>
-        {layout === 'sheet' ? (
-          <p className="text-caption font-medium text-muted-foreground">Acción</p>
-        ) : null}
+        <p className="text-caption font-medium text-muted-foreground">Acción</p>
         <Select value={props.actionFilter} onValueChange={props.onActionFilterChange}>
           <SelectTrigger className="min-h-11 rounded-xl" aria-label="Filtrar por acción">
             <SelectValue placeholder="Acción" />
@@ -87,9 +86,7 @@ const renderSelectFilters = (
         </Select>
       </div>
       <div className={fieldClass}>
-        {layout === 'sheet' ? (
-          <p className="text-caption font-medium text-muted-foreground">Resultado</p>
-        ) : null}
+        <p className="text-caption font-medium text-muted-foreground">Resultado</p>
         <Select value={props.resultFilter} onValueChange={props.onResultFilterChange}>
           <SelectTrigger className="min-h-11 rounded-xl" aria-label="Filtrar por resultado">
             <SelectValue placeholder="Resultado" />
@@ -104,14 +101,12 @@ const renderSelectFilters = (
           </SelectContent>
         </Select>
       </div>
-      <div className={layout === 'sheet' ? 'space-y-2' : ''}>
-        {layout === 'sheet' ? (
-          <p className="text-caption font-medium text-muted-foreground">Incidentes</p>
-        ) : null}
+      <div className={layout === 'sheet' ? 'space-y-2' : 'flex flex-col gap-1.5'}>
+        <p className="text-caption font-medium text-muted-foreground">Incidentes</p>
         <Button
           type="button"
-          variant={props.incidentsOnly ? 'default' : 'outline'}
-          className="min-h-11 w-full rounded-xl lg:w-auto"
+          variant="outline"
+          className={cn('min-h-11 w-full rounded-xl lg:w-auto', props.incidentsOnly && FILTER_SELECTED_CLASS)}
           onClick={() => props.onIncidentsOnlyChange(!props.incidentsOnly)}
           aria-pressed={props.incidentsOnly}
         >

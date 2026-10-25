@@ -64,8 +64,12 @@ export const createServicesColumns = ({
     header: ({ column }) => (
       <ServiceSortableHeader column={column} label="Nombre" />
     ),
+    // Two lines at most, like the clients list, so a long name never pushes Precio and ⋮
+    // out of the card (ZIG-I27-2).
     cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
+      <span className="line-clamp-2 max-w-[14rem] font-medium" title={row.original.name}>
+        {row.original.name}
+      </span>
     ),
     sortingFn: (a, b) => {
       const na = a.original.name.toLocaleLowerCase();
@@ -76,6 +80,8 @@ export const createServicesColumns = ({
   {
     id: 'description',
     accessorKey: 'description',
+    // Below 1280px the description gives its room to Precio and ⋮ (ZIG-I27-2).
+    meta: { className: 'hidden xl:table-cell' },
     header: ({ column }) => (
       <ServiceSortableHeader column={column} label="Descripción" />
     ),

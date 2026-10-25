@@ -203,12 +203,12 @@ for (const width of MOBILE_WIDTHS) {
       await expect(resend).toBeHidden({ timeout: 60_000 });
       await expectLayoutIntact(page, 'ticket detail after edit');
 
-      // The list: compact cards, whole money, Por cobrar header.
+      // The list: compact cards, whole money, no Por cobrar total (ZIG-I27-3).
       await page.goto('/tickets');
       const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
       await search.fill(suffix);
       await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
-      await expect(visible(page.getByTestId('tickets-balance-due'))).toBeVisible();
+      await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
       await expectLayoutIntact(page, 'tickets list');
 
       // Duplicar ticket: the composer opens prefilled with every line and material.

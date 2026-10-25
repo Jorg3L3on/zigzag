@@ -32,8 +32,7 @@ export default async function ServiceSchedulesPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Recordatorios de servicio"
-          description="Clientes y servicios con próxima visita programada."
-          desktopDescription="Gestiona recordatorios por cliente y servicio"
+          description="Gestiona recordatorios por cliente y servicio"
           icon={<CalendarClock className="size-5" aria-hidden />}
         >
           <ServiceSchedulesList />

@@ -32,7 +32,6 @@ export default async function CobranzaPage() {
         <TripledResourceCard
           title="Cobranza"
           description="Quién te debe y desde cuándo."
-          desktopDescription="Quién te debe y desde cuándo"
           icon={<Banknote className="size-5" aria-hidden />}
         >
           <CobranzaList />

@@ -56,6 +56,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { canWriteServices } from '@/lib/services-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
+import { cn } from '@/lib/utils';
 
 export function ServicesListClient() {
   const { selectedCompany } = useCompany();
@@ -458,7 +459,10 @@ export function ServicesListClient() {
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className={header.id === 'price' ? 'text-right' : undefined}>
+                      <TableHead
+                        key={header.id}
+                        className={cn(header.id === 'price' && 'text-right', header.column.columnDef.meta?.className)}
+                      >
                         {header.isPlaceholder
                           ? null
                           : flexRender(
@@ -494,7 +498,7 @@ export function ServicesListClient() {
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={cell.column.id === 'price' ? 'text-right' : undefined}
+                        className={cn(cell.column.id === 'price' && 'text-right', cell.column.columnDef.meta?.className)}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
