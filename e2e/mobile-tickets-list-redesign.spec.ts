@@ -72,9 +72,8 @@ for (const width of MOBILE_WIDTHS) {
       await search.fill(suffix);
       await expect(page.getByText(`Búsqueda: ${suffix}`)).toBeVisible({ timeout: 15_000 });
 
-      // Header: Por cobrar sums the saldos of the filter (3 tickets: 1,300,488.89 × 3 − 500,000).
-      const header = page.getByTestId('tickets-balance-due').filter({ visible: true }).first();
-      await expect(header).toContainText('$3,401,466.67');
+      // No Por cobrar total above the list in any width (ZIG-I27-3); the chip keeps its count.
+      await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
 
       const cards = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).filter({ visible: true });
       await expect(cards).toHaveCount(3, { timeout: 15_000 });

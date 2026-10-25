@@ -41,7 +41,6 @@ const dynamicRegions = (page: Page) => [
   page.getByTestId('review-summary'),
   page.getByTestId('presupuesto-counts'),
   page.getByTestId('presupuesto-expires'),
-  page.getByTestId('tickets-balance-due'),
   page.getByTestId('delete-ticket-summary'),
   page.locator('h1'),
   page.locator('time'),

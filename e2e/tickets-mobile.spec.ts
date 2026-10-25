@@ -44,7 +44,8 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('button', { name: /Más filtros/ })).toBeVisible();
     // Nuevo ticket lives in the dock's + on phones; the list shows the cobro chips (ZIG-I13-7).
     await expect(page.getByRole('group', { name: 'Filtro de cobro' })).toBeVisible();
-    await expect(page.getByTestId('tickets-balance-due')).toBeVisible();
+    // No Por cobrar total (ZIG-I27-3).
+    await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
     await expect(page.getByText(/de \d+ tickets/)).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

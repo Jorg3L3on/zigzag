@@ -90,7 +90,7 @@ const makeTicket = (overrides = {}) => ({
 
 const paginatedResult = (
   items: ReturnType<typeof makeTicket>[],
-  summary: { balanceDue?: number; dueCount?: number } = {},
+  summary: { dueCount?: number } = {},
 ): Awaited<ReturnType<typeof getTicketsPaginated>> => ({
   success: true,
   data: {
@@ -99,7 +99,6 @@ const paginatedResult = (
     page: 1,
     pageSize: 25,
     totalPages: 1,
-    balanceDue: summary.balanceDue ?? 0,
     dueCount: summary.dueCount ?? 0,
   },
 });
@@ -270,15 +269,16 @@ describe('TicketsList', () => {
     expect(screen.queryByText('Editar')).not.toBeInTheDocument();
   });
 
-  it('shows the Por cobrar total and count from the server, and the chips drive the status filter (ZIG-I13-7)', async () => {
+  it('shows the Por cobrar count from the server, no saldo total, and the chips drive the status filter (ZIG-I13-7, ZIG-I27-3)', async () => {
     arrange({
-      result: paginatedResult([makeTicket()], { balanceDue: 3790794.79, dueCount: 3 }),
+      result: paginatedResult([makeTicket()], { dueCount: 3 }),
     });
 
     render(<TicketsList />);
 
-    expect(await screen.findByTestId('tickets-balance-due')).toHaveTextContent('$3,790,794.79');
-    const group = screen.getByRole('group', { name: 'Filtro de cobro' });
+    const group = await screen.findByRole('group', { name: 'Filtro de cobro' });
+    expect(screen.queryByTestId('tickets-balance-due')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Por cobrar$/)).not.toBeInTheDocument();
     const todos = within(group).getByRole('button', { name: 'Todos' });
     const porCobrar = within(group).getByRole('button', { name: 'Por cobrar · 3' });
     expect(todos).toHaveAttribute('aria-pressed', 'true');

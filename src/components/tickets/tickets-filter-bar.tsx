@@ -9,9 +9,9 @@ import type {
   StatusFilterValue,
 } from '@/components/tickets/tickets-list-types';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
-import { MoneyFigure } from '@/components/documents/money-figure';
 import { cn } from '@/lib/utils';
 import {
+  FILTER_SELECTED_CLASS,
   ListFilterBarShell,
   type ListFilterChip,
 } from '@/components/list-filter';
@@ -19,8 +19,6 @@ import {
 type TicketsFilterBarProps = {
   /** Tickets with a saldo under the search/date/finished filters (Por cobrar chip). */
   dueCount?: number | null;
-  /** Σ saldo of the tickets matching the filters, shown as "Por cobrar". */
-  balanceDue?: number | null;
   searchValue: string;
   onSearchChange: (value: string) => void;
   statusFilter: StatusFilterValue;
@@ -43,7 +41,10 @@ const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
   { value: 'paid', label: 'Pagados' },
 ];
 
-/** Todos / Por cobrar / Pagados over the existing payment status filter (ZIG-I13-7). */
+/**
+ * Todos / Por cobrar / Pagados over the existing payment status filter (ZIG-I13-7). The
+ * chosen chip is a state, tinted, never the solid blue of the page action (ZIG-I27-3).
+ */
 const TicketQuickFilters = ({
   value,
   onChange,
@@ -53,27 +54,32 @@ const TicketQuickFilters = ({
   onChange: (value: StatusFilterValue) => void;
   dueCount: number | null;
 }) => (
-  <div role="group" aria-label="Filtro de cobro" className="flex flex-wrap gap-2">
-    {QUICK_FILTERS.map((option) => {
-      const pressed = value === option.value;
-      return (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={pressed}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'min-h-11 rounded-full border px-4 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-            pressed
-              ? 'border-foreground bg-foreground font-semibold text-background'
-              : 'border-border text-muted-foreground hover:bg-muted/50',
-          )}
-        >
-          {option.label}
-          {option.value === 'due' && dueCount != null && dueCount > 0 ? ` · ${dueCount}` : ''}
-        </button>
-      );
-    })}
+  <div className="flex flex-col gap-1.5">
+    <span className="hidden text-caption font-medium text-muted-foreground lg:block" aria-hidden>
+      Cobro
+    </span>
+    <div role="group" aria-label="Filtro de cobro" className="flex flex-wrap gap-2">
+      {QUICK_FILTERS.map((option) => {
+        const pressed = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={pressed}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              'min-h-11 rounded-full border px-4 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+              pressed
+                ? FILTER_SELECTED_CLASS
+                : 'border-border text-muted-foreground hover:bg-muted/50',
+            )}
+          >
+            {option.label}
+            {option.value === 'due' && dueCount != null && dueCount > 0 ? ` · ${dueCount}` : ''}
+          </button>
+        );
+      })}
+    </div>
   </div>
 );
 
@@ -100,7 +106,6 @@ const renderTicketFilters = (
 
 export const TicketsFilterBar = ({
   dueCount = null,
-  balanceDue = null,
   searchValue,
   onSearchChange,
   statusFilter,
@@ -128,17 +133,6 @@ export const TicketsFilterBar = ({
         onChange={onStatusFilterChange}
         dueCount={dueCount}
       />
-    }
-    chipsTrailing={
-      balanceDue == null ? undefined : (
-        <p
-          className="flex shrink-0 items-baseline gap-1.5 pt-1 text-caption text-muted-foreground"
-          data-testid="tickets-balance-due"
-        >
-          <span>Por cobrar</span>
-          <MoneyFigure amount={balanceDue} size="md" className="text-[15px] text-foreground" />
-        </p>
-      )
     }
     moreFiltersLabel="Más filtros"
     mobileSort={
@@ -175,7 +169,7 @@ export const TicketsFilterBar = ({
       </>
     }
     desktopContent={
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         {renderTicketFilters(
           finishedFilter,
           onFinishedFilterChange,

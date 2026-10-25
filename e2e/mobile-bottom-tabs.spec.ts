@@ -71,7 +71,7 @@ test.describe('Mobile bottom dock', () => {
     );
     // The page header drops Nuevo ticket on phones (the dock's + creates it, ZIG-I13-7);
     // the list itself is on screen.
-    await expect(page.getByTestId('tickets-balance-due')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Filtro de cobro' })).toBeVisible();
   });
 
   test('+ opens the create menu and navigates to Nuevo ticket', async ({

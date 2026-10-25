@@ -101,4 +101,36 @@ describe('TicketsFilterBar', () => {
       within(controls).getByRole('combobox', { name: /ordenar lista de tickets/i }),
     ).toHaveTextContent('Más recientes');
   });
+
+  it('labels both desktop controls and reads without context (ZIG-I27-3)', () => {
+    render(<TicketsFilterBar {...baseProps} />);
+
+    const trabajo = screen.getByRole('combobox', { name: 'Trabajo' });
+    expect(trabajo).toHaveTextContent('Todos los trabajos');
+    expect(screen.getByText('Fechas')).toBeInTheDocument();
+    expect(screen.getByText('Cobro')).toBeInTheDocument();
+  });
+
+  it('tints the chosen chip instead of the solid page-action style (ZIG-I27-3)', () => {
+    render(<TicketsFilterBar {...baseProps} statusFilter="due" dueCount={4} />);
+
+    const group = screen.getByRole('group', { name: 'Filtro de cobro' });
+    const chosen = within(group).getByRole('button', { name: 'Por cobrar · 4' });
+    expect(chosen).toHaveAttribute('aria-pressed', 'true');
+    expect(chosen.className).toContain('bg-primary/10');
+    expect(chosen.className).not.toMatch(/\bbg-foreground\b/);
+  });
+
+  it('never shows a Por cobrar total (ZIG-I27-3)', () => {
+    render(<TicketsFilterBar {...baseProps} dueCount={4} />);
+
+    expect(screen.queryByTestId('tickets-balance-due')).not.toBeInTheDocument();
+  });
+
+  it('clears filters with a neutral button, not a destructive one (ZIG-I27-3)', () => {
+    render(<TicketsFilterBar {...baseProps} hasActiveFilters />);
+
+    const clear = screen.getByRole('button', { name: 'Limpiar filtros' });
+    expect(clear.className).not.toContain('text-destructive');
+  });
 });
