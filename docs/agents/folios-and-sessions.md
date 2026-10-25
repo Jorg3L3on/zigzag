@@ -6,7 +6,7 @@
 - `Ticket.folio_number` and `Ticket.folio_prefix` are a snapshot taken when the document is created. Changing the prefix in Mi empresa only affects new documents.
 - `DocumentFolioCounter (company_id, document_kind, last_number)` hands out numbers. The allocator (`src/lib/folio-allocator.ts`) runs inside the same transaction as the insert, so a rollback gives the number back and two creations at once never share one. A unique index on `(company_id, document_kind, folio_number)` is the safety net.
 - Numbers never restart and are never reused. Deleted documents keep theirs.
-- A recibo created by converting a presupuesto shows the presupuesto's `P` folio in the PDF and the ticket detail. The ticket still owns its own `R` folio, which the lists show.
+- A recibo created by converting a presupuesto shows its own `R` folio everywhere: lists, detail, recibo page, PDF and its file name, WhatsApp (ZIG-I26-2, replacing ZIG-I17 Q1). The detail links back with «Desde presupuesto P-0006» and the PDF prints «Presupuesto P-0006» under Estado (`formatSourcePresupuestoFolio`).
 - Search accepts `R-0034`, `r34`, `34` or `0034`.
 - Rows without a folio (none exist after migration 0032) display as `#id`.
 

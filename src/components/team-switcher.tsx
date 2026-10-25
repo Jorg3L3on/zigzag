@@ -113,7 +113,7 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
       <SidebarMenu>
         <SidebarMenuItem>
           <div
-            className="flex h-12 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-2"
+            className="flex h-12 w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
             aria-label={`Empresa: ${selectedCompany.name}`}
           >
             {companyBrandContent}

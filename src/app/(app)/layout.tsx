@@ -9,6 +9,8 @@ import { CHANGE_PASSWORD_PATH } from '@/lib/password-change';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { PasswordChangeRequiredError } from '@/lib/errors';
 import { requireActionAuth } from '@/lib/security';
+import { isSidebarOpenFromCookie, SIDEBAR_COOKIE_NAME } from '@/lib/sidebar-state';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -29,10 +31,12 @@ export default async function DashboardLayout({
   }
 
   const initialPermissionMap = await getSessionPermissionMap();
+  // The collapsed sidebar survives a reload (ZIG-I26-3).
+  const sidebarOpen = isSidebarOpenFromCookie((await cookies()).get(SIDEBAR_COOKIE_NAME)?.value);
 
   return (
     <PermissionsProvider initialPermissionMap={initialPermissionMap}>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={sidebarOpen}>
         <NotificationReadFromUrl />
         <AppBadgeSync />
         <AppSidebar />

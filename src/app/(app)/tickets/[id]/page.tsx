@@ -1,4 +1,4 @@
-import { formatDisplayFolio, formatDocumentFolio } from '@/lib/folio';
+import { formatDocumentFolio, formatSourcePresupuestoFolio } from '@/lib/folio';
 import { getTicketById, getTicketAuditHistory } from '@/actions/tickets';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -74,10 +74,8 @@ export default async function TicketDetailsPage({
 
   const fromPresupuestoId =
     ticket.converted_from_ticket_id != null ? String(ticket.converted_from_ticket_id) : null;
-  const folioLabel = formatDisplayFolio(ticket);
-  const fromPresupuestoFolio = ticket.source_presupuesto_folio
-    ? formatDocumentFolio({ ...ticket.source_presupuesto_folio, document_kind: 'presupuesto' })
-    : null;
+  const folioLabel = formatDocumentFolio(ticket);
+  const fromPresupuestoFolio = formatSourcePresupuestoFolio(ticket.source_presupuesto_folio);
   const total = ticket.total;
   const paid = ticket.paid;
 
