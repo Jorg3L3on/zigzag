@@ -34,13 +34,14 @@ const renderActions = (props: Partial<React.ComponentProps<typeof TicketDetailQu
         paid={40}
         clientName="Cliente"
         clientTel="998 123 4567"
+        downloadFileName="t.pdf"
         {...props}
       />
     </TicketCollectProvider>,
   );
 
 describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
-  it('shows Cobrar, WhatsApp and Llamar for a finalized ticket with a balance', () => {
+  it('shows Cobrar, WhatsApp and PDF for a finalized ticket with a balance, never Llamar (ZIG-27)', () => {
     renderActions();
 
     expect(screen.getByRole('button', { name: 'Cobrar' })).toBeInTheDocument();
@@ -53,7 +54,9 @@ describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
     expect(text).toContain('recibo del ticket #7');
     expect(text).toContain('a nombre de Cliente');
     expect(text).toContain('saldo');
-    expect(screen.getByRole('link', { name: 'Llamar' })).toHaveAttribute('href', 'tel:9981234567');
+    expect(screen.queryByRole('link', { name: 'Llamar' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toHaveTextContent('PDF');
+    expect(screen.getByTestId('ticket-quick-actions')).toHaveClass('grid-cols-3');
   });
 
   it('Cobrar opens the Cobrar sheet', async () => {
@@ -64,20 +67,29 @@ describe('TicketDetailQuickActions (ZIG-I13-4)', () => {
     expect(await screen.findByRole('dialog', { name: 'Cobrar' })).toBeInTheDocument();
   });
 
-  it('hides Llamar without a phone and Cobrar once settled', () => {
-    renderActions({ clientTel: null, paid: 100 });
+  it('PDF downloads the recibo (ZIG-I24)', async () => {
+    const user = userEvent.setup();
+    const invoice = jest.requireMock('@/lib/ticket-invoice-download') as {
+      downloadTicketInvoiceFile: jest.Mock;
+    };
+    renderActions();
 
-    expect(screen.queryByRole('link', { name: 'Llamar' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Compartir recibo' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Descargar PDF' }));
+    expect(invoice.downloadTicketInvoiceFile).toHaveBeenCalledTimes(1);
   });
 
-  it('an unfinished ticket only offers Llamar', () => {
+  it('hides WhatsApp without a phone and Cobrar once settled; PDF stays', () => {
+    renderActions({ clientTel: null, paid: 100 });
+
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toBeInTheDocument();
+    expect(screen.getByTestId('ticket-quick-actions')).toHaveClass('grid-cols-1');
+  });
+
+  it('an unfinished ticket has no quick actions', () => {
     renderActions({ finished: false });
 
-    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'WhatsApp' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Llamar' })).toBeInTheDocument();
+    expect(screen.queryByTestId('ticket-quick-actions')).toBeNull();
   });
 });

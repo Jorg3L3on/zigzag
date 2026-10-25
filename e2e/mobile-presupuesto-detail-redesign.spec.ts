@@ -66,7 +66,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('button', { name: '15 días' }).click();
       await page.getByRole('textbox', { name: /Notas/ }).fill(CONDITIONS);
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const firstId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
 
       // Detail: the accept card with Convertir a ticket is on the first screen.
@@ -82,7 +82,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(visible(page.getByRole('heading', { name: 'Condiciones' }))).toBeVisible();
       await expect(visible(page.getByRole('button', { name: 'Ver todas' }))).toBeVisible();
       await expect(visible(page.getByRole('heading', { name: 'Conceptos' }))).toBeVisible();
-      await expect(visible(page.getByRole('button', { name: 'Ver los 4 conceptos y 7 materiales' }))).toBeVisible();
+      // Every concepto is listed (ZIG-I24); the fold only opens the materials.
+      await expect(
+        visible(page.getByRole('list', { name: 'Servicios del presupuesto' })).locator(':scope > li'),
+      ).toHaveCount(4);
+      await expect(visible(page.getByRole('button', { name: 'Ver los 7 materiales' }))).toBeVisible();
       await expectNoPageOverflow(page, 'presupuesto detail');
 
       // Bottom row on the dock: Editar / Duplicar / Cancelar; share is the icon in the app bar.
@@ -99,7 +103,7 @@ for (const width of MOBILE_WIDTHS) {
       await row.getByRole('button', { name: 'Duplicar' }).click();
       await expectDraftOpened(page);
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const secondId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
       expect(secondId).not.toBe(firstId);
 
@@ -109,7 +113,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.getByRole('dialog').getByRole('button', { name: 'Convertir a ticket' }).click();
       await page.waitForURL(/\/tickets\/\d+$/, { timeout: 60_000 });
       await page.goto(`/presupuestos/${firstId}`);
-      await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Convertido');
+      await expect(page.getByTestId('presupuesto-status').filter({ visible: true }).first()).toHaveText('Aceptado');
       await expect(visible(page.getByTestId('presupuesto-accept'))).toHaveCount(0);
       await expect(visible(page.getByTestId('presupuesto-actions')).getByRole('link', { name: 'Editar' })).toHaveCount(0);
       await visible(page.getByTestId('presupuesto-actions')).getByRole('button', { name: 'Duplicar' }).click();

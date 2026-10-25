@@ -45,7 +45,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     const meta = screen.getByTestId('ticket-card-meta');
     expect(meta).toHaveTextContent('Pago parcial');
     expect(meta).toHaveTextContent('vie 1 may');
-    // The phone is not on the card face (Llamar lives in ⋯), so a tap never dials.
+    // The phone is not on the card face, so a tap never dials.
     expect(meta).not.toHaveTextContent('555 123 4567');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(

@@ -28,19 +28,16 @@ export const generateMetadata = async ({
 };
 
 /**
- * In-app PDF viewer for a ticket recibo (ZIG-I9-1). Back goes to the creation
- * review when reached from it (?from=listo), otherwise to the ticket detail.
+ * In-app PDF viewer for a ticket recibo (ZIG-I9-1). Back goes to the ticket
+ * detail (the listo review is gone since ZIG-I24-4).
  */
 export default async function TicketReciboPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string | string[] }>;
 }) {
   await requirePagePermission('tickets.read');
   const { id } = await params;
-  const { from } = await searchParams;
   const numericId = Number(id);
   if (!Number.isSafeInteger(numericId) || numericId <= 0) notFound();
 
@@ -61,7 +58,6 @@ export default async function TicketReciboPage({
   const dateLabel = formatLongDate(
     ticket.ticket_date ? new Date(ticket.ticket_date).toISOString() : null,
   );
-  const fromReview = from === 'listo';
 
   return (
     <DocumentPdfViewer
@@ -69,8 +65,8 @@ export default async function TicketReciboPage({
       kind="recibo"
       title={`Recibo ${folio}`}
       subtitle={`Trabajo terminado · ${TICKET_PAYMENT_STATUS_LABEL[getTicketPaymentStatus(total, paid)]}`}
-      backHref={fromReview ? `/tickets/${ticketId}/listo` : `/tickets/${ticketId}`}
-      backLabel={fromReview ? 'Volver al resumen del ticket' : 'Volver al ticket'}
+      backHref={`/tickets/${ticketId}`}
+      backLabel="Volver al ticket"
       downloadFileName={buildTicketPdfFileName(ticket)}
       summary={
         <ReciboSummary

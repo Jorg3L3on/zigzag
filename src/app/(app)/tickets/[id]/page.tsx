@@ -166,7 +166,8 @@ export default async function TicketDetailsPage({
             <TicketDetailQuickActions
               {...documentProps}
               finished={ticket.finished}
-              className="md:max-w-md"
+              // Desktop has Cobrar / Compartir recibo and WhatsApp in the header (ZIG-I24).
+              className="md:max-w-md lg:hidden"
             />
 
             {!ticket.finished ? (

@@ -16,7 +16,6 @@ import {
 
 import {
   DocumentSummaryRows,
-  summaryToggleLabelFor,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
 import { MoneyFigure } from '@/components/documents/money-figure';
@@ -65,8 +64,9 @@ export const PresupuestoStatusPill = ({
 const countLabel = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
-const conceptsToggleLabel = (concepts: number, materials: number) =>
-  summaryToggleLabelFor(concepts, 'concepto', 'conceptos', materials);
+/** Every concepto is listed (ZIG-I24), so the fold only opens the materials. */
+const materialsToggleLabel = (_concepts: number, materials: number) =>
+  materials === 1 ? 'Ver el material' : `Ver los ${materials} materiales`;
 
 /** Notes longer than this fold behind Ver todas. */
 const CONDITIONS_FOLD_CHARS = 160;
@@ -355,7 +355,7 @@ export const PresupuestoDetailLayout = ({
           >
             <span className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en ticket
+              Aceptado · convertido en ticket
             </span>
             <Link
               href={`/tickets/${convertedToTicketId}`}
@@ -388,8 +388,9 @@ export const PresupuestoDetailLayout = ({
             </h2>
             <DocumentSummaryRows
               lines={rows}
+              initialVisible={rows.length}
               label="Servicios del presupuesto"
-              toggleLabel={conceptsToggleLabel}
+              toggleLabel={materialsToggleLabel}
             />
           </section>
         </BlurFade>

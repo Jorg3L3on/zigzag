@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ClipboardList, MessageCircle, Pencil, Ticket } from 'lucide-react';
 
 import type { Client } from '@/actions/clients';
-import { ClientPhoneLink } from '@/components/client-phone-link';
 import { Button } from '@/components/ui/button';
 import { formatClientAddressOneLine } from '@/lib/client-address';
 import { formatPhoneDisplay } from '@/lib/phone-links';
@@ -59,12 +58,7 @@ export const ClientDetailHeader = ({
 
       <dl className="grid gap-3 sm:grid-cols-2">
         <Detail label="Teléfono">
-          <ClientPhoneLink
-            phone={client.phone}
-            className="underline-offset-4 hover:underline"
-          >
-            {phone}
-          </ClientPhoneLink>
+          {phone}
         </Detail>
         <Detail label="Correo">{client.email?.trim() || '—'}</Detail>
         <Detail label="Dirección">{address || '—'}</Detail>

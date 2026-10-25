@@ -105,7 +105,7 @@ for (const width of MOBILE_WIDTHS) {
       // The footer stays put with 5 materials: subtotal and buttons are on screen.
       await expect(sheet.getByTestId('composer-line-material-rows').getByRole('listitem')).toHaveCount(5);
       await expectInsideViewport(page, sheet.getByTestId('composer-line-subtotal'), 'subtotal');
-      await expectInsideViewport(page, sheet.getByRole('button', { name: 'Agregar al ticket' }), 'Agregar al ticket');
+      await expectInsideViewport(page, sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }), 'Agregar al ticket');
       await expectInsideViewport(page, sheet.getByRole('button', { name: 'Cancelar' }), 'Cancelar');
       await expect(sheet.getByTestId('composer-line-breakdown')).toContainText('Materiales $1,255.00');
       await expectNoPageOverflow(page, 'line sheet');
@@ -149,7 +149,7 @@ for (const width of MOBILE_WIDTHS) {
       await sheet.getByRole('button', { name: 'Cambiar servicio' }).click();
       await expect(sheet.getByRole('combobox', { name: 'Servicio' })).toBeVisible();
       await expect(sheet.getByRole('radio', { name: /Escribir/ })).toBeVisible();
-      await expect(sheet.getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
+      await expect(sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ })).toBeDisabled();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
     });
   });

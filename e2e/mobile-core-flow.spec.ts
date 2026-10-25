@@ -8,7 +8,7 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
-  finishOnReview,
+  finishOnDetail,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -50,7 +50,7 @@ const finishWithPartialPayment = async (
   ticketId: string,
   partialAmount: number,
 ) => {
-  await finishOnReview(page, ticketId, { mode: 'partial', amount: partialAmount });
+  await finishOnDetail(page, ticketId, { mode: 'partial', amount: partialAmount });
 
   await page.goto(`/tickets/${ticketId}`);
   // Status chip is always visible; avoid matching the mobile app bar subtitle alone.
@@ -153,7 +153,7 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expect(
       editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
     ).toHaveValue(String(UPDATED_QUANTITY));
-    await editSheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+    await editSheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
     await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 

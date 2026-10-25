@@ -5,14 +5,14 @@ import { expectLayoutIntact } from './helpers/layout';
 import {
   addCustomComposerLine,
   createClientInComposer,
-  finishOnReview,
+  chooseComposerPayment,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 /**
  * ZIG-I13-8: the redesign is mobile first, but desktop shares the components. One
- * pass at 1280px over the composer, listo, detail, editor and list: the same lines
+ * pass at 1280px over the composer, detail, editor and list: the same lines
  * and totals, no overflow, no serious axe violations. Saves data: scratch DB or CI.
  */
 test.describe('Documents desktop @1280px', () => {
@@ -25,7 +25,7 @@ test.describe('Documents desktop @1280px', () => {
     await ensureTenantCompany(page);
   });
 
-  test('composer, listo, detail, editor and list keep their structure on desktop', async ({ page }) => {
+  test('composer, detail, editor and list keep their structure on desktop', async ({ page }) => {
     const suffix = `${Date.now()}`.slice(-8);
     const clientName = `Cliente escritorio ${suffix}`;
     const check = async (label: string, { axe = true } = {}) => {
@@ -58,9 +58,10 @@ test.describe('Documents desktop @1280px', () => {
     await expect(rows).toHaveCount(2);
     await check('composer');
 
-    const ticketId = await saveComposer(page);
-    await check('listo');
-    await finishOnReview(page, ticketId, { mode: 'partial', amount: 3000 });
+    // Finish from the composer (ZIG-I24-4): the payment sits under Notas.
+    await chooseComposerPayment(page, { mode: 'partial', amount: 3000 });
+    await check('composer with payment');
+    const { ticketId } = await saveAndFinishComposer(page, { mode: 'partial', amount: 3000 });
 
     await page.goto(`/tickets/${ticketId}`);
     await expect(page.getByTestId('ticket-hero').filter({ visible: true }).first()).toContainText(

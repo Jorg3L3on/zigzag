@@ -20,9 +20,6 @@ import { MOBILE_WIDTHS } from './helpers/layout';
  * and walks the detail. Saves data: run it in CI or against a scratch database.
  */
 
-/** The page height of this ticket before the redesign (2026-10-10 QA run). */
-const BASELINE_PAGE_HEIGHT = 3911;
-
 for (const width of MOBILE_WIDTHS) {
   test.describe(`Ticket detail redesign @${width}px`, () => {
     test.use({ viewport: { width, height: 812 } });
@@ -46,7 +43,7 @@ for (const width of MOBILE_WIDTHS) {
       await createClientInComposer(page, { name: clientName, phone: `995${suffix.slice(-7)}` });
       await addHeavyLines(page, { catalog: false });
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
 
       await page.goto(`/presupuestos/${presupuestoId}`);
@@ -87,29 +84,24 @@ for (const width of MOBILE_WIDTHS) {
       await expect(hero.getByRole('progressbar')).toBeVisible();
       await expectInsideViewport(page, hero, 'hero');
 
-      // Quick actions: Cobrar / WhatsApp / Llamar (Compartir recibo lives once, in the sticky bar), all on the first screen.
+      // Quick actions: Cobrar / WhatsApp, no Llamar (ZIG-27); Compartir recibo lives once, in the sticky bar.
       const quick = page.getByTestId('ticket-quick-actions').filter({ visible: true }).first();
       await expect(quick.getByRole('button', { name: 'Cobrar' })).toBeVisible();
       await expect(quick.getByRole('link', { name: 'WhatsApp' })).toBeVisible();
       await expect(quick.getByRole('button', { name: 'Compartir recibo' })).toHaveCount(0);
-      await expect(quick.getByRole('link', { name: 'Llamar' })).toBeVisible();
+      await expect(quick.getByRole('link', { name: 'Llamar' })).toHaveCount(0);
       await expectInsideViewport(page, quick, 'quick actions');
 
-      // Check 1: hero, quick actions and the services summary within 1.5 screens; page much shorter.
+      // Servicios lists every line (Jorge, ZIG-I24: not just the first three), Editar, and
+      // Ver detalle to open the 21 materials.
       const servicesHeading = page.getByRole('heading', { name: /^Servicios/ }).filter({ visible: true }).first();
-      const summaryToggle = page.getByRole('button', { name: /^Ver detalle con \d+ materiales$/ });
-      const toggleBox = await summaryToggle.boundingBox();
-      const scrollTop = await page.evaluate(() => window.scrollY);
-      expect(toggleBox!.y + scrollTop + toggleBox!.height, 'services summary within 1.5 screens').toBeLessThanOrEqual(
-        812 * 1.5,
-      );
       await expect(servicesHeading).toBeVisible();
-      const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-      expect(pageHeight, `page height ${pageHeight}px vs ${BASELINE_PAGE_HEIGHT}px before`).toBeLessThanOrEqual(
-        BASELINE_PAGE_HEIGHT * 0.6,
-      );
-
-      // Servicios: three rows, Editar, and the fold with the 21 materials.
+      const serviceRows = page
+        .getByRole('list', { name: 'Servicios del ticket' })
+        .filter({ visible: true })
+        .first()
+        .locator(':scope > li');
+      await expect(serviceRows).toHaveCount(8);
       await expect(page.getByRole('link', { name: 'Editar servicios' }).first()).toHaveAttribute(
         'href',
         `/tickets/${ticketId}/edit`,

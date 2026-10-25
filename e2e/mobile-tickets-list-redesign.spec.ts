@@ -9,7 +9,7 @@ import {
   addCustomComposerLine,
   createClientInComposer,
   expectNoPageOverflow,
-  finishOnReview,
+  saveAndFinishComposer,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -52,9 +52,10 @@ for (const width of MOBILE_WIDTHS) {
           await page.getByRole('option', { name: new RegExp(suffix) }).first().click();
         });
         await addCustomComposerLine(page, { name: 'Sustitución de sistema central', quantity: '1', price: '1300488.89' });
-        const id = await saveComposer(page);
+        const id = paid
+          ? (await saveAndFinishComposer(page, { mode: 'partial', amount: 500000 }, { send: false })).ticketId
+          : await saveComposer(page);
         ids.push(id);
-        if (paid) await finishOnReview(page, id, { mode: 'partial', amount: 500000 });
       }
 
       await page.goto('/tickets');

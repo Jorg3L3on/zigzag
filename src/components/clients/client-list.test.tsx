@@ -134,15 +134,15 @@ describe('ClientList', () => {
     mockWriteOfflineSnapshot.mockResolvedValue({} as never);
   });
 
-  it('cards offer Llamar and Anotar trabajo, and delete only from the menu with a named confirm (ZIG-I18-14)', async () => {
+  it('cards offer Anotar trabajo, no Llamar, and delete only from the menu with a named confirm (ZIG-I18-14, ZIG-27)', async () => {
     const user = userEvent.setup();
     arrange({ canAnotar: true, result: { success: true, data: [makeClient({ name: 'Sra. López' })] } });
 
     render(<ClientList />);
 
     await screen.findAllByText('Sra. López');
-    const call = screen.getByRole('link', { name: 'Llamar' });
-    expect(call).toHaveAttribute('href', expect.stringMatching(/^tel:/));
+    expect(screen.queryByRole('link', { name: 'Llamar' })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
     expect(screen.getByRole('link', { name: 'Anotar trabajo' })).toHaveAttribute(
       'href',
       '/anotar?clientId=10',
@@ -154,7 +154,7 @@ describe('ClientList', () => {
     expect(screen.queryByText('¿Estás seguro?')).not.toBeInTheDocument();
   });
 
-  it('hides Llamar without a phone and Anotar trabajo without permission (ZIG-I18-14)', async () => {
+  it('hides Anotar trabajo without permission (ZIG-I18-14)', async () => {
     arrange({ result: { success: true, data: [makeClient({ phone: null })] } });
 
     render(<ClientList />);

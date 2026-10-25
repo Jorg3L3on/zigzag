@@ -54,9 +54,10 @@ const detailToggleLabel = (_services: number, materials: number) =>
       : `Ver detalle con ${materials} materiales`;
 
 /**
- * Servicios as a compact summary (ZIG-I13-4): three recibo-style rows, Editar
- * (the one editor, phase 6) and "Ver detalle con N materiales". A settled
- * ticket cannot be edited.
+ * Servicios as a compact summary (ZIG-I13-4): every line recibo-style (Jorge
+ * asked to see them all, not the first three), each with its materials behind
+ * its own toggle, Editar (the one editor, phase 6) and "Ver detalle con N
+ * materiales" to open them all. A settled ticket cannot be edited.
  */
 export const TicketDetailServicesSection = ({
   ticketId,
@@ -123,7 +124,12 @@ export const TicketDetailServicesSection = ({
           }
         />
       ) : (
-        <DocumentSummaryRows lines={rows} label="Servicios del ticket" toggleLabel={detailToggleLabel} />
+        <DocumentSummaryRows
+          lines={rows}
+          initialVisible={rows.length}
+          label="Servicios del ticket"
+          toggleLabel={detailToggleLabel}
+        />
       )}
     </TicketDetailSectionCard>
   );

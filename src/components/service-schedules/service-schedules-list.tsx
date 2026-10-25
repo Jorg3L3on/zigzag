@@ -59,7 +59,6 @@ import { FormattedDate } from '@/components/formatted-date';
 import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { buildTelHref } from '@/lib/phone-links';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { canCreateTicketFromSchedule, canReadServiceSchedules, canWriteServiceSchedules, needsSelectedCompanyForSchedules } from '@/lib/service-schedules-rbac';
 
@@ -452,7 +451,6 @@ export const ServiceSchedulesList = () => {
                     </dl>
                     <div className="flex flex-wrap gap-2 pt-1">
                       {(() => {
-                        const telHref = buildTelHref(schedule.clientPhone);
                         const whatsapp = buildWhatsAppVisitShare({
                           phone: schedule.clientPhone,
                           clientName: schedule.clientName,
@@ -462,16 +460,6 @@ export const ServiceSchedulesList = () => {
                         });
                         return (
                           <>
-                            {telHref ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="rounded-lg"
-                                asChild
-                              >
-                                <a href={telHref}>Llamar</a>
-                              </Button>
-                            ) : null}
                             {whatsapp ? (
                               <Button
                                 variant="outline"

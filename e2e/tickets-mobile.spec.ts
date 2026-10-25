@@ -13,9 +13,8 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
-  finishOnReview,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -88,9 +87,11 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('button', { name: 'Nuevo cliente' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Agregar servicio' })).toBeVisible();
     await expect(page.getByTestId('composer-total')).toHaveText('$0.00');
+    // Guardar stays tappable; the hint names what is missing (ZIG-I18-13).
     await expect(
       page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first(),
-    ).toBeDisabled();
+    ).toBeEnabled();
+    await expect(page.getByTestId('composer-sticky-hint')).toHaveText('Elige un cliente');
     // No wizard copy and nothing says Crear before saving (the dock's + is labelled Crear).
     await expect(page.getByText(/Paso \d de \d/)).toHaveCount(0);
     await expect(
@@ -149,44 +150,27 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByTestId('composer-total')).toHaveText('$12,950.00', {
       timeout: 15_000,
     });
-    const ticketId = await saveComposer(page);
+    // Guardar y terminar from the composer (ZIG-I24-4): no review screen in between.
+    const { ticketId, openedUrls } = await saveAndFinishComposer(page, { mode: 'full' });
     expect(Number(ticketId)).toBeGreaterThan(0);
-
-    // Creation review: summary, pago and recibo; none of the detail-page noise.
-    await expect(
-      page.getByText(/Ticket (?:#\d+|[A-Z0-9]+-\d+) guardado/).filter({ visible: true }).first(),
-    ).toBeVisible();
-    await expect(page.getByTestId('review-total')).toHaveText('$12,950.00');
-    await expect(page.getByRole('radio', { name: 'Una parte' })).toBeVisible();
-    await expect(page.getByRole('radio', { name: 'Nada aún' })).toBeVisible();
-    await expect(page.getByTestId('review-summary')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Descargar PDF/ })).toBeVisible();
-    for (const noise of ['Creado', 'Actualizado', 'Actividad']) {
-      await expect(page.getByText(noise, { exact: true })).toHaveCount(0);
-    }
-    await expect(page.getByRole('button', { name: 'Más acciones del ticket' })).toHaveCount(0);
-
-    const openedUrls = await finishOnReview(page, ticketId, { mode: 'full' });
     // Headless Chromium has no file share: falls back to WhatsApp with the recibo text.
     expect(openedUrls.some((url) => url.startsWith('https://wa.me/'))).toBe(true);
-    // Once finalized the Resumen shows Pagado and Saldo, with Abrir PDF below.
-    await expect(page.getByTestId('review-summary')).toContainText('Pagado');
-    await expect(page.getByRole('link', { name: /Abrir PDF/ })).toHaveAttribute(
-      'href',
-      `/tickets/${ticketId}/recibo?from=listo`,
-    );
+    await expect(
+      page.getByTestId('ticket-status-pill').filter({ visible: true }).first(),
+    ).toHaveText('Pagado', { timeout: 15_000 });
 
-    // ZIG-I9: Abrir PDF stays inside the app and back returns to the review.
-    await page.getByRole('link', { name: /Abrir PDF/ }).click();
-    await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/recibo\\?from=listo$`));
-    await expect(page.getByTestId('mobile-app-bar')).toContainText(/Recibo (?:#\d+|[A-Z0-9]+-\d+)/);
-    await page.getByRole('link', { name: 'Volver al resumen del ticket' }).first().click();
-    await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}/listo$`));
-    await expect(page.getByTestId('review-summary')).toBeVisible();
+    // ZIG-I9: the recibo opens inside the app and back returns to the ticket.
+    await page.goto(`/tickets/${ticketId}/recibo`);
+    await expect(
+      page.getByTestId('mobile-app-bar').filter({ visible: true }).first(),
+    ).toContainText(/Recibo (?:#\d+|[A-Z0-9]+-\d+)/);
+    await page.getByRole('link', { name: 'Volver al ticket' }).first().click();
+    await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}$`));
 
+    await page.getByRole('button', { name: 'Más acciones del ticket' }).filter({ visible: true }).first().click();
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
-      page.getByRole('button', { name: /Descargar PDF/ }).click(),
+      page.getByRole('menuitem', { name: 'Descargar PDF' }).click(),
     ]);
     expect(download.suggestedFilename()).toMatch(/\.pdf$/);
 

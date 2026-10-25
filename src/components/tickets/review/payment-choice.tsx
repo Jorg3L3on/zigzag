@@ -50,17 +50,24 @@ type PaymentChoiceProps = {
   choice: PaymentChoiceState;
   /** Unique per screen so the input id never collides. */
   idPrefix?: string;
+  /**
+   * Nuevo ticket (ZIG-I24-4): answering is optional. The heading says so, the
+   * hint explains that nothing chosen keeps the ticket En proceso, and a choice
+   * can be undone with Todavía no termina.
+   */
+  optional?: boolean;
   className?: string;
 };
 
 /**
- * Todo / Una parte / Nada aún, and Cuánto pagó for Una parte. Shared by the
- * listo screen and the finish panel of the ticket detail, so a converted,
- * unfinalized ticket asks the same question (ZIG-I13-4).
+ * Todo / Una parte / Nada aún, and Cuánto pagó for Una parte. Shared by Nuevo
+ * ticket (optional, ZIG-I24-4) and the finish panel of the ticket detail, so
+ * every ticket is finished with the same question (ZIG-I13-4).
  */
 export const PaymentChoice = ({
   choice,
   idPrefix = 'review',
+  optional = false,
   className,
 }: PaymentChoiceProps) => {
   const { payMode, setPayMode, partialInput, setPartialInput, partialTooHigh } = choice;
@@ -71,9 +78,21 @@ export const PaymentChoice = ({
       aria-labelledby={headingId}
       className={cn(GLASS_CARD_CLASS, 'space-y-3', className)}
     >
-      <h2 id={headingId} className="text-[15px] font-semibold">
-        ¿Cómo pagó el cliente?
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id={headingId} className="text-[15px] font-semibold">
+          ¿Cómo pagó el cliente?
+          {optional ? <span className="font-normal text-muted-foreground"> (opcional)</span> : null}
+        </h2>
+        {optional && payMode !== null ? (
+          <button
+            type="button"
+            onClick={() => setPayMode(null)}
+            className="min-h-11 shrink-0 rounded-md px-1 text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Todavía no termina
+          </button>
+        ) : null}
+      </div>
       <div role="radiogroup" aria-labelledby={headingId} className="flex gap-2">
         {PAY_OPTIONS.map((option) => {
           const selected = payMode === option.mode;
@@ -98,7 +117,9 @@ export const PaymentChoice = ({
       </div>
       {payMode === null ? (
         <p className="text-caption text-muted-foreground" data-testid="review-pay-hint">
-          Elige cómo pagó el cliente para finalizar.
+          {optional
+            ? 'Si ya terminaste el trabajo, elige cómo pagó y se termina al guardar. Si no, queda En proceso.'
+            : 'Elige cómo pagó el cliente para finalizar.'}
         </p>
       ) : null}
       {payMode === 'partial' ? (

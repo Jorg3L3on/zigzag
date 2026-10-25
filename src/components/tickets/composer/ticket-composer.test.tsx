@@ -97,6 +97,21 @@ jest.mock('@/actions/services', () => ({
 jest.mock('@/actions/tickets', () => ({
   createTicketWithLines: (...args: unknown[]) => mockCreateTicketWithLines(...args),
   updateTicketLines: (...args: unknown[]) => mockUpdateTicketLines(...args),
+  finishTicket: (...args: unknown[]) => mockFinishTicket(...args),
+}));
+
+const mockFinishTicket = jest.fn();
+const mockListSchedules = jest.fn();
+const mockUpsertSchedule = jest.fn();
+let mockCanFinish = true;
+
+jest.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({ can: (key: string) => (key === 'tickets.write' ? mockCanFinish : true) }),
+}));
+
+jest.mock('@/actions/client-service-schedules', () => ({
+  listClientServiceSchedulesForClient: (...args: unknown[]) => mockListSchedules(...args),
+  upsertClientServiceSchedule: (...args: unknown[]) => mockUpsertSchedule(...args),
 }));
 
 jest.mock('@/actions/presupuestos', () => ({
@@ -143,7 +158,8 @@ const saveButtons = () => screen.getAllByRole('button', { name: /^Guardar( ticke
 const openLine = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
   // The previous sheet may still be animating out (it keeps the page inert).
   const lines = await screen.findByRole('list', { name: 'Servicios del ticket' });
-  await user.click(within(lines).getByRole('button', { name: new RegExp(name) }));
+  // The row's name starts with the line; Quitar <line> is the hover delete (ZIG-I24).
+  await user.click(within(lines).getByRole('button', { name: new RegExp(`^${name}`) }));
 };
 
 const pickClient = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -230,7 +246,7 @@ describe('TicketComposer', () => {
       ],
       client_total: 12950,
     });
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1201/listo'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1201'));
     expect(
       window.localStorage.getItem(buildTicketComposerDraftKey(10)),
     ).toBeNull();
@@ -797,7 +813,7 @@ describe('TicketEditComposer (ZIG-I13-6)', () => {
     // Quitar the 2 × $150 line: 4,200 < 4,400 paid.
     await user.click(
       within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByRole('button', {
-        name: /Soporte de pared/,
+        name: /^Soporte de pared/,
       }),
     );
     const sheet = await screen.findByRole('dialog', { name: 'Editar servicio' });
@@ -835,5 +851,246 @@ describe('TicketEditComposer (ZIG-I13-6)', () => {
       ),
     );
     expect(mockPush).not.toHaveBeenCalled();
+  });
+});
+
+/** jsdom has no layout: answer the 1024px query like a desktop window (ZIG-I24). */
+const mockDesktopWidth = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: desktop && query === '(min-width: 1024px)',
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+};
+
+describe('DocumentComposer on desktop (ZIG-I24-2)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockToast.mockClear();
+    mockCreateTicketWithLines.mockReset();
+    mockSearchParams = new URLSearchParams();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it('keeps the total, Guardar and the draft state in the right rail', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const rail = screen.getByRole('complementary', { name: 'Total y acciones' });
+    expect(within(rail).getByTestId('composer-draft-state')).toHaveTextContent(
+      'Se guarda un borrador mientras escribes.',
+    );
+    expect(within(rail).getByRole('button', { name: 'Guardar ticket' })).toBeInTheDocument();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '2');
+    await waitFor(() =>
+      expect(within(rail).getByTestId('composer-rail-total')).toHaveTextContent('$8,400.00'),
+    );
+    expect(within(rail).getByTestId('composer-rail-hint')).toHaveTextContent('1 servicio');
+    expect(within(rail).getByTestId('composer-draft-state')).toHaveTextContent(
+      'Borrador guardado en este equipo',
+    );
+  });
+
+  it('has no keyboard shortcuts: N and Ctrl+Enter do nothing (Jorge, 2026-10-24)', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    await user.click(document.body);
+    await user.keyboard('n');
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
+
+    expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull();
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
+    expect(document.querySelector('kbd, [aria-keyshortcuts]')).toBeNull();
+  });
+
+  it('removes a line from its hover Quitar button, with Deshacer', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    const lines = screen.getByRole('list', { name: 'Servicios del ticket' });
+    await user.click(within(lines).getByRole('button', { name: 'Quitar Mantenimiento' }));
+
+    await waitFor(() => expect(within(lines).queryByText('Mantenimiento')).toBeNull());
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mockToast).toHaveBeenCalledWith(
+      'Quitaste Mantenimiento',
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Deshacer' }) }),
+    );
+    const { action } = mockToast.mock.calls.at(-1)![1];
+    act(() => action.onClick());
+    expect(await within(lines).findByText('Mantenimiento')).toBeTruthy();
+  });
+
+  it('edits the line in a side panel and adds materials inline, without a second step', async () => {
+    mockDesktopWidth(true);
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar servicio' }));
+    const panel = await screen.findByRole('dialog', { name: 'Agregar servicio' });
+    expect(panel).toHaveAttribute('data-panel', 'side');
+
+    await user.click(within(panel).getByRole('radio', { name: /Escribir/ }));
+    await user.type(within(panel).getByLabelText('Nombre del servicio'), 'Instalación');
+    await user.type(within(panel).getByRole('spinbutton', { name: 'Precio del servicio' }), '1000');
+
+    await user.click(within(panel).getByRole('button', { name: 'Agregar material' }));
+    // Same panel: the material form opens under the rows, the line stays in view.
+    const inline = within(panel).getByRole('group', { name: 'Agregar material' });
+    expect(screen.queryByRole('dialog', { name: 'Agregar material' })).toBeNull();
+    expect(within(panel).getByLabelText('Nombre del servicio')).toHaveValue('Instalación');
+    expect(within(panel).getByRole('button', { name: 'Agregar al ticket' })).toBeDisabled();
+
+    await user.click(within(inline).getByRole('radio', { name: 'Escribir' }));
+    await user.type(within(inline).getByLabelText('Nombre del material'), 'Soporte de pared');
+    await user.click(within(inline).getByRole('button', { name: 'pza' }));
+    await user.type(within(inline).getByLabelText('Precio / pza'), '320');
+    await user.click(within(inline).getByRole('button', { name: 'Agregar material' }));
+
+    expect(within(panel).queryByRole('group', { name: 'Agregar material' })).toBeNull();
+    expect(
+      within(within(panel).getByTestId('composer-line-material-rows')).getByText('Soporte de pared'),
+    ).toBeTruthy();
+    expect(within(panel).getByTestId('composer-line-breakdown')).toHaveTextContent(
+      'Servicio $1,000.00 Materiales $320.00',
+    );
+    await user.click(within(panel).getByRole('button', { name: 'Agregar al ticket' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
+    );
+    expect(
+      within(screen.getByRole('list', { name: 'Servicios del ticket' })).getByText('Instalación'),
+    ).toBeTruthy();
+  });
+});
+
+describe('Nuevo ticket finishes the ticket itself (ZIG-I24-4)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPush.mockReset();
+    mockToast.mockClear();
+    (mockToast as unknown as { error: jest.Mock }).error.mockClear();
+    mockCreateTicketWithLines.mockReset();
+    mockFinishTicket.mockReset();
+    mockListSchedules.mockReset();
+    mockUpsertSchedule.mockReset();
+    mockListSchedules.mockResolvedValue({ success: true, data: [] });
+    mockUpsertSchedule.mockResolvedValue({ success: true });
+    mockSearchParams = new URLSearchParams();
+    mockCanFinish = true;
+  });
+
+  const finishButtons = () => screen.getAllByRole('button', { name: /^(Guardar y terminar|Terminar)$/ });
+
+  it('saves En proceso and opens the detail when no payment is chosen', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1401', total: 4200 } });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '1');
+    expect(screen.getByRole('heading', { name: '¿Cómo pagó el cliente? (opcional)' })).toBeTruthy();
+    await user.click(saveButtons()[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1401'));
+    expect(mockFinishTicket).not.toHaveBeenCalled();
+  });
+
+  it('Guardar y terminar saves, finishes with the payment, saves reminders and offers the recibo', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1402', total: 8400, folio: 'R-0102' } });
+    mockFinishTicket.mockResolvedValue({ success: true });
+    // The client already has a reminder for Mantenimiento: it comes checked.
+    mockListSchedules.mockResolvedValue({
+      success: true,
+      data: [{ serviceId: 7, intervalValue: 3, intervalUnit: 'month' }],
+    });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Mantenimiento · $4,200.00', '2');
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
+    await user.type(screen.getByLabelText('Cuánto pagó'), '3000');
+    await waitFor(() => expect(finishButtons().length).toBeGreaterThan(0));
+    expect(screen.getAllByText('Se termina con $3,000.00 pagado').length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Programar el próximo servicio' })).toBeTruthy();
+
+    await user.click(finishButtons()[0]);
+
+    await waitFor(() => expect(mockFinishTicket).toHaveBeenCalledWith(1402, 8400, 3000, 10));
+    await waitFor(() => expect(mockUpsertSchedule).toHaveBeenCalledTimes(1));
+    expect(mockUpsertSchedule.mock.calls[0][0]).toMatchObject({ clientId: 5, serviceId: 7, intervalValue: 3 });
+    expect(mockPush).toHaveBeenCalledWith('/tickets/1402?enviar=1');
+    expect((mockToast as unknown as { success: jest.Mock }).success).toHaveBeenCalledWith('Ticket R-0102 terminado');
+  });
+
+  it('refuses a partial payment above the total, and Todavía no termina goes back to En proceso', async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await user.click(screen.getByRole('radio', { name: 'Una parte' }));
+    await user.type(screen.getByLabelText('Cuánto pagó'), '900');
+    await user.click(finishButtons()[0]);
+    expect(mockCreateTicketWithLines).not.toHaveBeenCalled();
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((alert) => /Lo pagado no puede ser mayor que el total/.test(alert.textContent ?? ''))).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Todavía no termina' }));
+    expect(screen.getAllByRole('button', { name: /^Guardar( ticket)?$/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Guardar y terminar' })).toBeNull();
+  });
+
+  it('keeps the saved ticket and sends the user to it when finishing fails', async () => {
+    const user = userEvent.setup();
+    mockCreateTicketWithLines.mockResolvedValue({ success: true, data: { id: '1403', total: 350 } });
+    mockFinishTicket.mockResolvedValue({ success: false, error: 'No se pudo' });
+    renderComposer();
+
+    await pickClient(user);
+    await addLine(user, 'Recarga de gas · $350.00', '1');
+    await user.click(screen.getByRole('radio', { name: 'Todo' }));
+    await user.click(finishButtons()[0]);
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/tickets/1403'));
+    expect((mockToast as unknown as { error: jest.Mock }).error).toHaveBeenCalledWith(
+      'Ticket #1403 guardado, pero no se pudo terminar',
+      expect.anything(),
+    );
+    expect(mockUpsertSchedule).not.toHaveBeenCalled();
+  });
+
+  it('offers no payment question without permission to finish, on a presupuesto or when editing', () => {
+    mockCanFinish = false;
+    renderComposer();
+    expect(screen.queryByRole('heading', { name: /¿Cómo pagó el cliente\?/ })).toBeNull();
   });
 });

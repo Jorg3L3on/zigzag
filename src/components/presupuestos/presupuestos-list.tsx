@@ -10,8 +10,8 @@ import {
   type PresupuestoListItem,
 } from '@/actions/presupuestos';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PDFDownloadButton } from '@/components/pdf-download-button';
+import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-detail-layout';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import {
   TripledEmptyState,
@@ -27,15 +27,6 @@ import { canWriteTickets } from '@/lib/tickets-rbac';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
 
-const statusVariant = (
-  status: PresupuestoListItem['status'],
-): 'default' | 'secondary' | 'destructive' | 'outline' => {
-  if (status === 'cancelado') return 'outline';
-  if (status === 'vencido') return 'destructive';
-  if (status === 'convertido') return 'secondary';
-  return 'default';
-};
-
 const shortDate = (value: string): string => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
@@ -46,7 +37,7 @@ const shortDate = (value: string): string => {
 const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
   { status: 'abierto', label: 'Abiertos' },
   { status: 'vencido', label: 'Vencidos' },
-  { status: 'convertido', label: 'Convertidos' },
+  { status: 'convertido', label: 'Aceptados' },
   { status: 'cancelado', label: 'Cancelados' },
 ];
 
@@ -313,12 +304,9 @@ export const PresupuestosList = () => {
                         </span>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
-                        <Badge
-                          variant={statusVariant(item.status)}
-                          className="h-5 px-1.5 text-caption shadow-none"
-                        >
-                          {item.statusLabel}
-                        </Badge>
+                        {/* The detail's soft pill: the Badge lost its white text to tailwind-merge
+                            (it reads text-caption as a color), leaving grey on solid blue. */}
+                        <PresupuestoStatusPill status={item.status} className="px-2 py-0.5" />
                         <span>{item.folio}</span>
                         {item.ticketDate ? (
                           <>

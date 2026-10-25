@@ -1,16 +1,19 @@
 'use client';
 
-import { Share2, Wallet } from 'lucide-react';
+import { Download, Loader2, MessageCircle, Share2, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
 import { useTicketCollect } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { TicketDetailActionsMenu } from '@/components/tickets/detail/ticket-detail-actions-menu';
 import { useReceiptShare } from '@/components/tickets/use-receipt-share';
+import { useCompany } from '@/contexts/company-context';
+import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
 import { canCollectTicketPayment, canDownloadTicketInvoice } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
+import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
 type TicketDetailPrimaryActionsProps = {
   ticketId: number;
@@ -49,7 +52,7 @@ export const TicketDetailPrimaryActions = ({
 }: TicketDetailPrimaryActionsProps) => {
   const { can } = usePermissions();
   const collect = useTicketCollect();
-  const { share, sharing } = useReceiptShare({
+  const { share, sharing, download, downloading } = useReceiptShare({
     ticketId: String(ticketId),
     folio,
     downloadFileName,
@@ -59,7 +62,25 @@ export const TicketDetailPrimaryActions = ({
   });
 
   const canCollect = canCollectTicketPayment(can) && finished && getTicketBalanceDue(total, paid) > 0;
-  const canShare = canDownloadTicketInvoice(can) && finished;
+  const canPdf = canDownloadTicketInvoice(can);
+  const canShare = canPdf && finished;
+  const { selectedCompany } = useCompany();
+  const payment = useCompanyPaymentInfo();
+  // Desktop only (ZIG-I24): the recibo text on WhatsApp sits with the header
+  // actions; phones keep it in the Cobrar / WhatsApp tiles.
+  const whatsApp =
+    placement === 'desktop' && canShare
+      ? buildWhatsAppReceiptShare({
+          phone: clientTel?.trim() || null,
+          clientName,
+          ticketId,
+          folio,
+          total: total ?? 0,
+          paid: paid ?? 0,
+          companyName: selectedCompany?.name,
+          payment,
+        })
+      : null;
 
   const primary = canCollect ? (
     <Button
@@ -86,6 +107,37 @@ export const TicketDetailPrimaryActions = ({
     return (
       <div className={cn('flex flex-wrap items-center gap-2', className)}>
         {primary}
+        {whatsApp ? (
+          <Button
+            asChild
+            variant="outline"
+            className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+            data-testid="ticket-detail-whatsapp"
+          >
+            <a href={whatsApp.href} target="_blank" rel="noopener noreferrer">
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              WhatsApp
+            </a>
+          </Button>
+        ) : null}
+        {canPdf ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+            aria-label="Descargar PDF"
+            disabled={downloading}
+            onClick={() => void download()}
+            data-testid="ticket-detail-pdf"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden />
+            )}
+            PDF
+          </Button>
+        ) : null}
         <TicketDetailActionsMenu
           ticketId={ticketId}
           folio={folio}
@@ -95,6 +147,7 @@ export const TicketDetailPrimaryActions = ({
           paid={paid}
           paymentsCount={paymentsCount}
           downloadFileName={downloadFileName}
+          inlineFromLg
           className="h-10 w-10 shrink-0 border border-input"
         />
       </div>

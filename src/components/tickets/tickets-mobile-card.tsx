@@ -36,7 +36,7 @@ const CARD_STATUS_LABEL: Record<TicketPaymentStatus, string> = {
 /**
  * Compact ticket card (ZIG-I13-7): the name in up to two lines with the ticket number,
  * the work done (one line), one meta line `status · date`
- * (the phone lives in ⋯ as Llamar, so a tap on the card never dials), a progress bar once something is paid,
+ * (no phone on the card, so a tap never dials), a progress bar once something is paid,
  * and Pagado / Saldo that wrap instead of truncating. The whole card opens the
  * ticket; ⋯ keeps Cobrar / Descargar / Eliminar.
  */
