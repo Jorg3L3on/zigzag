@@ -29,8 +29,7 @@ export default async function ServicesPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Servicios"
-          description="Catálogo de servicios y precios."
-          desktopDescription="Administra el catálogo de servicios disponibles"
+          description="Administra el catálogo de servicios disponibles"
           icon={<Wrench className="size-5" aria-hidden />}
           action={
             canWriteServices ? (

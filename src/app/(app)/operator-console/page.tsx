@@ -22,8 +22,7 @@ export default async function OperatorConsolePage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Consola operadora"
-          description="Selecciona una empresa para ver su salud operativa y operarla."
-          desktopDescription="Flota de tenants, métricas, actividad, acceso y ciclo de vida en un solo lugar."
+          description="Flota de tenants, métricas, actividad, acceso y ciclo de vida en un solo lugar."
           icon={<Building2 className="size-5" aria-hidden />}
         >
           <Suspense fallback={null}>

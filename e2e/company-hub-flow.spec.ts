@@ -80,7 +80,7 @@ test.describe('Mi empresa: team and role flow', () => {
     await loginAs(page, member.email, member.password);
     await page.goto('/services');
     await expect(page).toHaveURL(/\/services/);
-    await expect(page.getByText('Catálogo de servicios y precios.').first()).toBeVisible();
+    await expect(page.getByText('Administra el catálogo de servicios disponibles').first()).toBeVisible();
     // Neither the header link nor the empty-state button to create services.
     await expect(page.getByRole('link', { name: /Nuevo servicio/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Nuevo servicio/i })).toHaveCount(0);

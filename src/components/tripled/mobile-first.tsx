@@ -57,8 +57,8 @@ export const TripledDashboardShell = ({
 
 type TripledResourceCardProps = {
   title: string;
+  /** The one line under the title, every width (ZIG-I27-4). */
   description: string;
-  desktopDescription?: string;
   icon?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -75,7 +75,6 @@ type TripledResourceCardProps = {
 export const TripledResourceCard = ({
   title,
   description,
-  desktopDescription,
   icon,
   action,
   children,
@@ -122,11 +121,6 @@ export const TripledResourceCard = ({
                 </CardDescription>
               </div>
             </div>
-            {desktopDescription ? (
-              <CardDescription className="hidden text-base sm:block">
-                {desktopDescription}
-              </CardDescription>
-            ) : null}
           </div>
           {compactOnMobile && action ? <div className="contents max-sm:hidden">{action}</div> : action}
         </div>

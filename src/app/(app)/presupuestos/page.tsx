@@ -31,8 +31,7 @@ export default async function PresupuestosPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Presupuestos"
-          description="Cotiza trabajo y conviértelo en ticket cuando se acepte."
-          desktopDescription="Cola comercial de presupuestos"
+          description="Cola comercial de presupuestos"
           icon={<FileText className="size-5" aria-hidden />}
         >
           <PresupuestosList />
