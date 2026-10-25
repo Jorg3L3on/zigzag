@@ -8,7 +8,9 @@ import {
   DocumentSummaryRows,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
+import { TicketDetailDocument } from '@/components/tickets/detail/ticket-detail-document';
 import { Button } from '@/components/ui/button';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
@@ -26,7 +28,8 @@ type ServiceLine = {
   price: number;
   service_id?: number | null;
   name?: string | null;
-  service: { name: string | null } | null;
+  description?: string | null;
+  service: { name: string | null; description?: string | null } | null;
   /** Active materials (ZIG-I10). */
   materials?: Array<{
     id: number;
@@ -42,6 +45,8 @@ type TicketDetailServicesSectionProps = {
   ticketId: number | bigint;
   total: number | null;
   paid: number | null;
+  finished?: boolean;
+  workNotes?: string | null;
   services: ServiceLine[];
 };
 
@@ -63,8 +68,11 @@ export const TicketDetailServicesSection = ({
   ticketId,
   total,
   paid,
+  finished = false,
+  workNotes = null,
   services,
 }: TicketDetailServicesSectionProps) => {
+  const isDesktop = useIsDesktop();
   const { can } = usePermissions();
   const canManage = canAssignTicketServices(can) && !isTicketFullyPaid(total, paid);
   const id = Number(ticketId);
@@ -76,7 +84,10 @@ export const TicketDetailServicesSection = ({
         return {
           id: review.id,
           name: review.name,
+          description: review.description,
+          serviceId: review.serviceId,
           quantity: review.quantity,
+          price: review.price,
           amount: reviewLineAmount(review),
           materials: (review.materials ?? []).map((item) => ({
             id: item.id,
@@ -90,6 +101,20 @@ export const TicketDetailServicesSection = ({
       }),
     [services],
   );
+
+  if (isDesktop && services.length > 0) {
+    return (
+      <TicketDetailDocument
+        ticketId={id}
+        lines={rows}
+        total={total}
+        paid={paid}
+        finished={finished}
+        workNotes={workNotes}
+        canManage={canManage}
+      />
+    );
+  }
 
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-services-heading">

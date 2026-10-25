@@ -162,3 +162,138 @@ describe('DocumentLineRow (ZIG-I13-1)', () => {
     expect(screen.queryByText('Nuevo')).toBeNull();
   });
 });
+
+const mockDesktopWidth = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: desktop && query === '(min-width: 1024px)',
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+};
+
+const receiptMaterials = [
+  { id: 1, name: 'Filtro de aire', quantity: 1, unit: 'pza', price: 150 },
+  { id: 2, name: 'Tubo de cobre', quantity: 2, unit: 'm', price: 75 },
+];
+
+describe('DocumentLineRow receipt grid (ZIG-I28-1)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockDesktopWidth(true);
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it('shows the description, a service-only importe and the group subtotal', () => {
+    render(
+      <DocumentLineRow
+        layout="receipt"
+        index={1}
+        name="Instalación mini-split"
+        description="Equipo de 1 tonelada en recámara"
+        serviceId={null}
+        quantity={1.5}
+        price={4200}
+        amount={6600}
+        materials={receiptMaterials}
+      />,
+    );
+
+    const row = screen.getByTestId('document-line-row');
+    expect(row).toHaveAttribute('data-layout', 'receipt');
+    expect(row).toHaveTextContent('01');
+    expect(screen.getByTestId('document-line-description')).toHaveTextContent(
+      'Equipo de 1 tonelada en recámara',
+    );
+    expect(screen.getByTestId('document-line-uncatalogued')).toHaveTextContent('Fuera de catálogo');
+    expect(screen.getByTestId('document-line-meta')).toHaveTextContent('1.5');
+    // Importe is quantity × unit price, not the line total with materials.
+    expect(screen.getByTestId('document-line-amount')).toHaveTextContent('$6,300.00');
+    expect(screen.getByText('Materiales · 2')).toBeInTheDocument();
+    expect(screen.getByText('Filtro de aire')).toBeInTheDocument();
+    expect(screen.getByText('1 pza')).toBeInTheDocument();
+    expect(screen.getByTestId('document-line-subtotal')).toHaveTextContent(
+      'Subtotal Instalación mini-split · servicio + materiales',
+    );
+    expect(screen.getByTestId('document-line-subtotal').parentElement).toHaveTextContent('$6,600.00');
+    expect(row.className).not.toContain('truncate');
+    expect(screen.getByText('Instalación mini-split').className).toContain('[overflow-wrap:anywhere]');
+  });
+
+  it('in Compacto the chip names the materials total and opens only that line', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <DocumentLineRow
+          layout="receipt"
+          name="Instalación"
+          quantity={2}
+          price={4200}
+          amount={8700}
+          density="compact"
+          materials={receiptMaterials}
+        />
+        <DocumentLineRow
+          layout="receipt"
+          name="Mantenimiento"
+          quantity={1}
+          price={100}
+          amount={125}
+          density="compact"
+          materials={[{ id: 3, name: 'Gas', quantity: 1, unit: 'kg', price: 25 }]}
+        />
+      </>,
+    );
+
+    const chip = screen.getByRole('button', { name: '2 materiales · $300.00' });
+    expect(chip).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Filtro de aire')).toBeNull();
+    expect(screen.getAllByTestId('document-line-subtotal')).toHaveLength(2);
+
+    await user.click(chip);
+    expect(chip).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Filtro de aire')).toBeInTheDocument();
+    expect(screen.queryByText('Gas')).toBeNull();
+  });
+
+  it('keeps the phone row when the receipt layout is below 1024px', () => {
+    mockDesktopWidth(false);
+    render(
+      <DocumentLineRow
+        layout="receipt"
+        name="Instalación mini-split"
+        description="No se muestra en el teléfono"
+        serviceId={null}
+        quantity={2}
+        price={4200}
+        amount={8700}
+        materials={receiptMaterials}
+        onClick={() => undefined}
+      />,
+    );
+
+    expect(screen.getByTestId('document-line-row')).not.toHaveAttribute('data-layout', 'receipt');
+    expect(screen.queryByTestId('document-line-description')).toBeNull();
+    expect(screen.queryByText('Fuera de catálogo')).toBeNull();
+    expect(screen.getByTestId('document-line-meta')).toHaveTextContent('2 × $4,200.00');
+    expect(screen.getByTestId('document-line-amount')).toHaveTextContent('$8,700.00');
+    expect(screen.queryByText('Filtro de aire')).toBeNull();
+  });
+});

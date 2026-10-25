@@ -1,12 +1,24 @@
 import { differenceInCalendarDays } from 'date-fns';
 
 import type { PresupuestoDetailData } from '@/actions/presupuestos';
+import { formatClientAddressOneLine } from '@/lib/client-address';
 import { formatDocumentFolio } from '@/lib/folio';
 import { materialDraftsFromStoredRows } from '@/lib/material-drafts';
 import { buildReviewLine } from '@/lib/review-lines';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { getPresupuestoStatus } from '@/lib/ticket-document-kind';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
+
+const toIso = (value: Date | string | null | undefined): string | null => {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const trimmed = (value: string | null | undefined): string | null => {
+  const text = value?.trim();
+  return text ? text : null;
+};
 
 /** Server row → PresupuestoView props (shared by /presupuestos/[id] and /listo). */
 export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
@@ -15,8 +27,13 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   clientId: row.client_id,
   clientName: row.client_name,
   clientTel: row.client_tel,
-  ticketDate: row.ticket_date ? new Date(row.ticket_date).toISOString() : null,
-  expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+  clientPhone: trimmed(row.client?.phone),
+  clientEmail: trimmed(row.client?.email) ?? trimmed(row.email),
+  clientAddress: row.client ? trimmed(formatClientAddressOneLine(row.client)) : null,
+  ticketDate: toIso(row.ticket_date),
+  expiresAt: toIso(row.expires_at),
+  createdAt: toIso(row.created_at),
+  updatedAt: toIso(row.updated_at),
   workNotes: row.work_notes,
   total: Number(row.total) || 0,
   lines: row.services_tickets.map(buildReviewLine),

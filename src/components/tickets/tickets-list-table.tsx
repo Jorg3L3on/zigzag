@@ -2,7 +2,6 @@ import { flexRender, type Table as ReactTable } from '@tanstack/react-table';
 import type { Ticket } from '@/actions/tickets';
 import { TicketsListRow } from '@/components/tickets/tickets-list-row';
 import {
-  Table,
   TableBody,
   TableHead,
   TableHeader,
@@ -15,14 +14,14 @@ type TicketsListTableProps = {
 };
 
 export const TicketsListTable = ({ table, canWrite }: TicketsListTableProps) => (
-  <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-    <Table
+  <div className="hidden md:block">
+    <table
       className={
-        // px-3 instead of p-4's 16px: six columns get 48px of headroom at 1120 (ZIG-I27-2).
-        '[&_td]:px-3 [&_td]:py-3 [&_td]:align-middle [&_th]:h-10 [&_th]:px-3 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
+        // 56px rows, fixed to the card so ⋮ stays on screen at 1024 with the sidebar open.
+        'w-full table-fixed caption-bottom border-collapse text-sm [&_td]:h-14 [&_td]:px-3 [&_td]:py-0 [&_td]:align-middle [&_th]:h-10 [&_th]:bg-background [&_th]:px-3 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
       }
     >
-      <TableHeader>
+      <TableHeader className="sticky top-16 z-20 bg-background">
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
@@ -43,6 +42,6 @@ export const TicketsListTable = ({ table, canWrite }: TicketsListTableProps) => 
           <TicketsListRow key={row.id} row={row} canWrite={canWrite} />
         ))}
       </TableBody>
-    </Table>
+    </table>
   </div>
 );

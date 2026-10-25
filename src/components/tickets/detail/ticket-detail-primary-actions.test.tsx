@@ -60,6 +60,8 @@ describe('TicketDetailPrimaryActions (ZIG-I13-4)', () => {
 
     renderActions({ finished: false, total: 100, paid: 0 });
     expect(screen.queryByRole('button', { name: /registrar pago|compartir recibo/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Terminar ticket' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Descargar PDF' })).toBeNull();
     expect(screen.getByRole('button', { name: /más acciones del ticket/i })).toBeInTheDocument();
   });
 

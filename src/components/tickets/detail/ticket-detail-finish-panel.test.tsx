@@ -72,6 +72,8 @@ describe('TicketDetailFinishPanel', () => {
     expect(
       screen.getByRole('link', { name: /ir a servicios/i }),
     ).toHaveAttribute('href', '/tickets/5/edit');
+    expect(document.getElementById('terminar-ticket')).toBeNull();
+    expect(document.getElementById('finalizar')?.tagName).toBe('SECTION');
   });
 
   it('blocks partial amount above total', async () => {
@@ -120,5 +122,118 @@ describe('TicketDetailFinishPanel', () => {
     expect(finish).toBeDisabled();
     await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
     expect(finish).toBeEnabled();
+  });
+});
+
+const mockDesktopWidth = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: desktop && query === '(min-width: 1024px)',
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+};
+
+describe('TicketDetailFinishPanel desktop (ZIG-I28-3)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    mockFinishTicket.mockReset();
+    mockToastError.mockClear();
+    mockDesktopWidth(true);
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it('shows Terminar ticket, the total, bordered options and a focusable 44px button', async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketDetailFinishPanel
+        ticketId={5}
+        clientId={2}
+        clientName="Cliente"
+        total={100}
+        folio="R-0012"
+        ticketDate={new Date('2026-07-01')}
+        serviceLines={[{ serviceId: 1, serviceName: 'Servicio' }]}
+        downloadFileName="t.pdf"
+      />,
+    );
+
+    const card = document.getElementById('terminar-ticket');
+    expect(card?.tagName).toBe('SECTION');
+    expect(card).toHaveAttribute('tabindex', '-1');
+    card?.focus();
+    expect(card).toHaveFocus();
+
+    expect(screen.getByRole('heading', { name: 'Terminar ticket' })).toBeInTheDocument();
+    expect(screen.getByText('Total del ticket')).toBeInTheDocument();
+    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.queryByText('Registra el pago inicial y genera el recibo')).toBeNull();
+
+    for (const name of ['Todo', 'Una parte', 'Nada aún']) {
+      const option = screen.getByRole('radio', { name });
+      expect(option).toHaveClass('border');
+      expect(option).toHaveAttribute('aria-checked', 'false');
+    }
+
+    const finish = screen.getByRole('button', { name: /terminar y generar recibo/i });
+    expect(finish).toBeDisabled();
+    expect(finish).toHaveClass('h-11', 'md:h-11');
+    expect(finish.className).not.toContain('md:h-10');
+    expect(finish).toHaveAttribute('id', 'terminar-ticket-button');
+    expect(
+      screen.getByText(
+        'Se registra el pago, se crea el recibo R-0012 y te preguntamos si quieres recordatorios de servicio.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
+    expect(finish).toBeEnabled();
+    finish.focus();
+    expect(finish).toHaveFocus();
+  });
+
+  it('stays disabled without services, with the warning and no invented folio', () => {
+    render(
+      <TicketDetailFinishPanel
+        ticketId={5}
+        clientId={2}
+        clientName="Cliente"
+        total={100}
+        ticketDate={new Date('2026-07-01')}
+        serviceLines={[]}
+        downloadFileName="t.pdf"
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /terminar y generar recibo/i }),
+    ).toBeDisabled();
+    expect(screen.getByRole('link', { name: /ir a servicios/i })).toHaveAttribute(
+      'href',
+      '/tickets/5/edit',
+    );
+    expect(screen.getByText(/agrega al menos un servicio/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Se registra el pago, se crea el recibo y te preguntamos si quieres recordatorios de servicio.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/R-\d|R-nnnn/)).toBeNull();
   });
 });

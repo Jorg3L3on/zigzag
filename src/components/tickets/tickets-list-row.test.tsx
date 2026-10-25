@@ -61,7 +61,9 @@ describe('TicketsListRow', () => {
     const user = userEvent.setup();
     render(<RowHarness />);
 
-    await user.click(screen.getByRole('row'));
+    const row = screen.getByRole('row');
+    expect(row).toHaveClass('h-14', 'group');
+    await user.click(row);
     expect(mockPush).toHaveBeenCalledWith('/tickets/7');
   });
 

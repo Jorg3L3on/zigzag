@@ -6,7 +6,9 @@ type TicketDetailSectionCardProps = {
   children: ReactNode;
   className?: string;
   id?: string;
+  tabIndex?: number;
   'aria-labelledby'?: string;
+  'data-testid'?: string;
 };
 
 /** Quiet section surface shared by ticket detail workspace blocks. */
@@ -14,12 +16,16 @@ export const TicketDetailSectionCard = ({
   children,
   className,
   id,
+  tabIndex,
   'aria-labelledby': ariaLabelledBy,
+  'data-testid': testId,
 }: TicketDetailSectionCardProps) => {
   return (
     <section
       id={id}
+      tabIndex={tabIndex}
       aria-labelledby={ariaLabelledBy}
+      data-testid={testId}
       className={cn(
         DASHBOARD_CARD_CLASS,
         'rounded-xl border p-4 sm:p-5',

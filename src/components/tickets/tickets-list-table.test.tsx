@@ -52,5 +52,6 @@ describe('TicketsListTable', () => {
 
     expect(screen.getByText('Cliente')).toBeInTheDocument();
     expect(screen.getByTestId('ticket-row')).toHaveTextContent('Cliente Gamma');
+    expect(document.querySelector('thead')).toHaveClass('sticky', 'top-16');
   });
 });

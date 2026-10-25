@@ -146,6 +146,8 @@ export type TicketDetailData = TicketRow & {
   ticket_payments?: TicketPaymentRow[];
   /** Folio of the presupuesto this ticket came from; the recibo shows it (ZIG-I17-5). */
   source_presupuesto_folio?: FolioParts | null;
+  /** Active tickets for this client in the company (ZIG-I28-2). Null without a client. */
+  client_ticket_count?: number | null;
 };
 
 export type GetTicketByIdResult =
@@ -600,13 +602,22 @@ export async function getTicketsList(
   }
 }
 
+/** Tab counts for the collections list, scoped to the current search and date range (ZIG-I28-4). */
+export type TicketListCounts = {
+  all: number;
+  due: number;
+  inProgress: number;
+  paid: number;
+};
+
 export interface PaginatedTicketsData {
   items: Array<TicketRow & { services_summary: string | null }>;
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
-  /** Tickets with a saldo under the search/date/finished filters, whatever the status chip (ZIG-I13-7). */
+  counts: TicketListCounts;
+  /** Alias of `counts.due`. */
   dueCount: number;
 }
 
@@ -713,28 +724,47 @@ export async function getTicketsPaginated(params: {
       ? sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`
       : undefined;
 
-    const baseConditions = [
+    const tenantConditions = [
       eq(ticket.company_id, effectiveCompanyId),
       isNull(ticket.deleted_at),
       eq(ticket.document_kind, 'ticket'),
+    ];
+    const searchAndDateConditions = [
       ...(searchCondition ? [searchCondition] : []),
-      ...(finishedCondition ? [finishedCondition] : []),
       ...(dateFromCondition ? [dateFromCondition] : []),
       ...(dateToCondition ? [dateToCondition] : []),
     ];
+    // Tab counts ignore the view itself (status / finished) so the four numbers stay put.
+    const countScope = and(...tenantConditions, ...searchAndDateConditions);
     const whereCondition = and(
-      ...baseConditions,
+      ...tenantConditions,
+      ...searchAndDateConditions,
+      ...(finishedCondition ? [finishedCondition] : []),
       ...(paymentStatusCondition ? [paymentStatusCondition] : []),
     );
+
+    const dueCondition = buildTicketPaymentStatusCondition('due') ?? sql`false`;
+    const paidCondition = buildTicketPaymentStatusCondition('paid') ?? sql`false`;
 
     const [{ total }] = await db
       .select({ total: count() })
       .from(ticket)
       .where(whereCondition);
-    const [{ dueCount }] = await db
-      .select({ dueCount: count() })
+    const [countRow] = await db
+      .select({
+        allCount: count(),
+        dueCount: sql<number>`count(*) FILTER (WHERE ${dueCondition})`,
+        inProgressCount: sql<number>`count(*) FILTER (WHERE ${eq(ticket.finished, false)})`,
+        paidCount: sql<number>`count(*) FILTER (WHERE ${paidCondition})`,
+      })
       .from(ticket)
-      .where(and(...baseConditions, TICKET_DUE_CONDITION));
+      .where(countScope);
+    const counts: TicketListCounts = {
+      all: Number(countRow?.allCount ?? 0),
+      due: Number(countRow?.dueCount ?? 0),
+      inProgress: Number(countRow?.inProgressCount ?? 0),
+      paid: Number(countRow?.paidCount ?? 0),
+    };
 
     const totalCount = Number(total ?? 0);
     const items = await db
@@ -782,7 +812,8 @@ export async function getTicketsPaginated(params: {
         page,
         pageSize,
         totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
-        dueCount: Number(dueCount ?? 0),
+        counts,
+        dueCount: counts.due,
       },
     };
   } catch (e) {
@@ -832,6 +863,22 @@ export async function getTicketById(
       return buildActionError('TC008');
     }
 
+    let clientTicketCount: number | null = null;
+    if (ticketRow.client_id != null && ticketRow.company_id != null) {
+      const [countRow] = await db
+        .select({ value: count() })
+        .from(ticket)
+        .where(
+          and(
+            eq(ticket.company_id, ticketRow.company_id),
+            eq(ticket.client_id, ticketRow.client_id),
+            eq(ticket.document_kind, 'ticket'),
+            isNull(ticket.deleted_at),
+          ),
+        );
+      clientTicketCount = Number(countRow?.value ?? 0);
+    }
+
     let sourceFolio: FolioParts | null = null;
     if (ticketRow.converted_from_ticket_id != null) {
       const source = await db.query.ticket.findFirst({
@@ -843,7 +890,11 @@ export async function getTicketById(
 
     return {
       success: true,
-      data: { ...ticketRow, source_presupuesto_folio: sourceFolio } as TicketDetailData,
+      data: {
+        ...ticketRow,
+        source_presupuesto_folio: sourceFolio,
+        client_ticket_count: clientTicketCount,
+      } as TicketDetailData,
     };
   } catch (e) {
     return handleCodedServerActionError('tickets.get', 'TC003', e);

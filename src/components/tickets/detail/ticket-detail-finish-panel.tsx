@@ -20,9 +20,11 @@ import {
   TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
 import { PaymentChoice, usePaymentChoice } from '@/components/tickets/review/payment-choice';
+import { MoneyFigure } from '@/components/documents/money-figure';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { useCompany } from '@/contexts/company-context';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import { usePermissions } from '@/hooks/use-permissions';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
@@ -47,6 +49,18 @@ type TicketDetailFinishPanelProps = {
   /** All active lines (catalog + inline); finishing needs at least one. */
   lineCount?: number;
   downloadFileName: string;
+  /**
+   * Folio already assigned to this ticket (R-0012). The detail page passes it.
+   * Without it the desktop note names the recibo and does not invent a number.
+   */
+  folio?: string | null;
+};
+
+/** Desktop note under Terminar y generar recibo (ZIG-I28-3). */
+const finishReceiptNote = (folio: string | null | undefined) => {
+  const label = folio?.trim();
+  const receipt = label ? `el recibo ${label}` : 'el recibo';
+  return `Se registra el pago, se crea ${receipt} y te preguntamos si quieres recordatorios de servicio.`;
 };
 
 const FINISH_RETRY_GUIDANCE =
@@ -61,10 +75,12 @@ export const TicketDetailFinishPanel = ({
   serviceLines,
   lineCount,
   downloadFileName,
+  folio = null,
 }: TicketDetailFinishPanelProps) => {
   const router = useRouter();
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
+  const isDesktop = useIsDesktop();
   const canFinish = canFinishTicket(can);
 
   // No default: nothing is recorded as paid unless the user picks it (ZIG-I12 Q2).
@@ -221,6 +237,88 @@ export const TicketDetailFinishPanel = ({
   };
 
   const paidExceedsTotal = partialTooHigh;
+  const finishBlocked = isSubmitting || !hasServices || paidExceedsTotal || !hasPayChoice;
+
+  const schedulesDialog = (
+    <TicketFinishSchedulesDialog
+      open={schedulesDialogOpen}
+      onOpenChange={setSchedulesDialogOpen}
+      ticketDate={ticketDate ?? new Date()}
+      serviceLines={serviceLines}
+      existingSchedules={existingSchedules}
+      saving={isSubmitting}
+      onConfirm={(lines) => void handleSchedulesConfirm(lines)}
+      onSkip={() => void handleSchedulesSkip()}
+    />
+  );
+
+  const finishButtonLabel = isSubmitting ? (
+    <>
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+      Finalizando...
+    </>
+  ) : (
+    <>
+      <FileText className="h-4 w-4" aria-hidden />
+      Terminar y generar recibo
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <>
+        {/* #finalizar stays so deep links and the desktop e2e still find the panel. */}
+        <div id="finalizar" className="min-w-0">
+          <TicketDetailSectionCard
+            id="terminar-ticket"
+            tabIndex={-1}
+            aria-labelledby="ticket-finish-heading"
+            className="scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <TicketDetailSectionHeading id="ticket-finish-heading" title="Terminar ticket" />
+
+            <p className="text-caption text-muted-foreground">Total del ticket</p>
+            <MoneyFigure
+              amount={ticketTotal}
+              size="hero"
+              className="mt-1 block text-[30px] font-bold leading-none"
+            />
+
+            <PaymentChoice
+              choice={paymentChoice}
+              idPrefix="detail"
+              className="mt-4 border-border bg-background shadow-none"
+            />
+
+            <Button
+              type="button"
+              id="terminar-ticket-button"
+              onClick={() => void handleFinishClick()}
+              disabled={finishBlocked}
+              className="mt-4 h-11 w-full gap-2 md:h-11"
+            >
+              {finishButtonLabel}
+            </Button>
+
+            <p className="mt-3 text-sm text-muted-foreground">{finishReceiptNote(folio)}</p>
+
+            {!hasServices ? (
+              <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+                Agrega al menos un servicio para poder finalizar.{' '}
+                <Link
+                  href={`/tickets/${Number(ticketId)}/edit`}
+                  className="font-medium underline underline-offset-4"
+                >
+                  Ir a servicios
+                </Link>
+              </p>
+            ) : null}
+          </TicketDetailSectionCard>
+        </div>
+        {schedulesDialog}
+      </>
+    );
+  }
 
   return (
     <>
@@ -273,17 +371,7 @@ export const TicketDetailFinishPanel = ({
           ) : null}
         </div>
       </TicketDetailSectionCard>
-
-      <TicketFinishSchedulesDialog
-        open={schedulesDialogOpen}
-        onOpenChange={setSchedulesDialogOpen}
-        ticketDate={ticketDate ?? new Date()}
-        serviceLines={serviceLines}
-        existingSchedules={existingSchedules}
-        saving={isSubmitting}
-        onConfirm={(lines) => void handleSchedulesConfirm(lines)}
-        onSkip={() => void handleSchedulesSkip()}
-      />
+      {schedulesDialog}
     </>
   );
 };

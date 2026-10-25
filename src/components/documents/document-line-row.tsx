@@ -7,15 +7,28 @@ import { Trash2 } from 'lucide-react';
 import {
   LineMaterialsBreakdown,
   LineMaterialsToggle,
+  lineMaterialsListedTotal,
   type LineMaterialDetail,
 } from '@/components/documents/line-materials-disclosure';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
-import { multiplyMoney, roundMoney } from '@/lib/money';
+import { useDocumentLinesDensity } from '@/hooks/use-document-lines-density';
+import { useIsDesktop } from '@/hooks/use-desktop';
+import type { DocumentLinesDensity } from '@/lib/document-lines-density';
+import { lineTotalWithMaterials, multiplyMoney, roundMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
 export const formatMaterialsCount = (count: number) =>
   count === 1 ? '1 material' : `${count} materiales`;
+
+const RECEIPT_COLUMNS = 'grid-cols-[minmax(0,1fr)_72px_120px_130px]';
+
+const formatCapturedQuantity = (quantity: number) => String(roundMoney(quantity));
+
+const formatLineIndex = (index: number) => String(index).padStart(2, '0');
+
+const materialsChipLabel = (count: number, total: number) =>
+  `${count === 1 ? '1 material' : `${count} materiales`} · ${formatServiceCurrency(total)}`;
 
 type DocumentLineRowProps = {
   name: string;
@@ -24,6 +37,19 @@ type DocumentLineRowProps = {
   price: number;
   /** The line's amount: quantity × price plus its materials. */
   amount: number;
+  /**
+   * `stack` is the phone row and the composer. `receipt` is the desktop
+   * document grid from 1024px (ZIG-I28-1); below that it still paints `stack`.
+   */
+  layout?: 'stack' | 'receipt';
+  /** 1-based position, printed as two digits on the receipt grid. */
+  index?: number;
+  /** Full description under the name. Receipt desktop only. */
+  description?: string;
+  /** Null marks an inline line (Fuera de catálogo) on the receipt grid. */
+  serviceId?: number | null;
+  /** Overrides the stored Detallado / Compacto choice. Receipt desktop only. */
+  density?: DocumentLinesDensity;
   materialCount?: number;
   /**
    * When set, "N material(es)" opens the line's breakdown: Servicio, Materiales
@@ -46,18 +72,159 @@ type DocumentLineRowProps = {
   'data-testid'?: string;
 };
 
+type ReceiptDocumentLineProps = DocumentLineRowProps & {
+  density: DocumentLinesDensity;
+};
+
+/**
+ * Desktop document row (ZIG-I28-1): Concepto · Cant. · P. unitario · Importe.
+ * Importe is the service only (quantity × price). Materials sit in a rail
+ * under the name and share those numeric columns.
+ */
+const ReceiptDocumentLine = ({
+  name,
+  quantity,
+  price,
+  index,
+  description,
+  serviceId,
+  density,
+  materials,
+  changed = false,
+  error,
+  className,
+  'data-testid': testId = 'document-line-row',
+}: ReceiptDocumentLineProps) => {
+  const [materialsOpen, setMaterialsOpen] = React.useState(false);
+  const breakdownId = React.useId();
+  const listed = materials ?? [];
+  const serviceAmount = multiplyMoney(price, quantity);
+  const groupTotal = lineTotalWithMaterials({
+    quantity,
+    price,
+    materials: listed.map((item) => ({ quantity: item.quantity, price: item.price })),
+  });
+  const showMaterials = listed.length > 0 && (density === 'detailed' || materialsOpen);
+  const descriptionText = description?.trim() ?? '';
+
+  return (
+    <div
+      className={cn('grid items-baseline gap-x-2 py-3', RECEIPT_COLUMNS, className)}
+      data-testid={testId}
+      data-layout="receipt"
+      data-density={density}
+      data-invalid={error ? 'true' : undefined}
+    >
+      <div className="min-w-0">
+        <p className="text-[15px] font-semibold leading-snug text-foreground">
+          {index != null ? (
+            <span className="mr-2 font-mono text-caption font-normal tabular-nums text-muted-foreground">
+              {formatLineIndex(index)}
+            </span>
+          ) : null}
+          <span className="[overflow-wrap:anywhere]">{name}</span>
+        </p>
+        {descriptionText ? (
+          <p
+            className="mt-0.5 text-caption leading-snug text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400"
+            data-testid="document-line-description"
+          >
+            {descriptionText}
+          </p>
+        ) : null}
+        {serviceId === null ? (
+          <p className="mt-0.5 text-caption text-muted-foreground" data-testid="document-line-uncatalogued">
+            Fuera de catálogo
+          </p>
+        ) : null}
+        {density === 'compact' && listed.length > 0 ? (
+          <button
+            type="button"
+            aria-expanded={materialsOpen}
+            aria-controls={breakdownId}
+            onClick={() => setMaterialsOpen((open) => !open)}
+            data-testid="document-line-materials-chip"
+            className="mt-1 inline-flex items-center rounded-md px-1.5 py-0.5 text-caption font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {materialsChipLabel(listed.length, lineMaterialsListedTotal(listed))}
+          </button>
+        ) : null}
+        {changed ? (
+          <span
+            className="mt-1 block text-caption font-medium text-amber-600 dark:text-amber-400"
+            data-testid="document-line-changed"
+          >
+            Cambió
+          </span>
+        ) : null}
+      </div>
+      <span
+        className="text-right text-sm tabular-nums text-foreground"
+        data-testid="document-line-meta"
+      >
+        {formatCapturedQuantity(quantity)}
+      </span>
+      <span className="text-right">
+        <MoneyFigure amount={price} size="sm" />
+      </span>
+      <span className="text-right">
+        <MoneyFigure amount={serviceAmount} size="sm" data-testid="document-line-amount" />
+      </span>
+      {showMaterials ? (
+        <LineMaterialsBreakdown
+          id={breakdownId}
+          layout="receipt"
+          materials={listed}
+          lineName={name}
+          service={{ quantity, price, amount: serviceAmount }}
+        />
+      ) : null}
+      {listed.length > 0 ? (
+        <div className="col-span-4 mt-1 grid grid-cols-subgrid items-baseline border-t border-dashed border-border pt-1.5">
+          <span
+            className="min-w-0 text-caption text-muted-foreground [overflow-wrap:anywhere]"
+            data-testid="document-line-subtotal"
+          >
+            Subtotal {name} · servicio + materiales
+          </span>
+          <span />
+          <span />
+          <span className="text-right">
+            <MoneyFigure amount={groupTotal} size="sm" />
+          </span>
+        </div>
+      ) : null}
+      {error ? (
+        <span
+          role="alert"
+          data-testid="document-line-error"
+          className="col-span-4 mt-1 text-caption font-medium text-destructive [overflow-wrap:anywhere]"
+        >
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+};
+
 /**
  * One service line of a document (ZIG-I13-1): the name uses the full width and
  * wraps; a second row holds `qty × price · N materiales` on the left and the
  * amount on the right, which is never squeezed. The whole row is one tap target
  * (no ⋮ menu): tapping opens the editor. From 1024px the hover background has
  * side padding (the text stays aligned) and `onRemove` adds a Quitar button.
+ * `layout="receipt"` swaps in the desktop grid from 1024px (ZIG-I28-1).
  */
 export const DocumentLineRow = ({
   name,
   quantity,
   price,
   amount,
+  layout = 'stack',
+  index,
+  description,
+  serviceId,
+  density,
   materialCount = 0,
   materials,
   changed = false,
@@ -68,8 +235,29 @@ export const DocumentLineRow = ({
   className,
   'data-testid': testId = 'document-line-row',
 }: DocumentLineRowProps) => {
+  const isDesktop = useIsDesktop();
+  const storedDensity = useDocumentLinesDensity();
   const [materialsOpen, setMaterialsOpen] = React.useState(false);
   const breakdownId = React.useId();
+  if (layout === 'receipt' && isDesktop) {
+    return (
+      <ReceiptDocumentLine
+        name={name}
+        quantity={quantity}
+        price={price}
+        amount={amount}
+        index={index}
+        description={description}
+        serviceId={serviceId}
+        density={density ?? storedDensity.density}
+        materials={materials}
+        changed={changed}
+        error={error}
+        className={className}
+        data-testid={testId}
+      />
+    );
+  }
   const listed = materials ?? [];
   const count = listed.length > 0 ? listed.length : materialCount;
   const priceLabel = `${roundMoney(quantity)} × ${formatServiceCurrency(price)}`;

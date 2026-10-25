@@ -64,12 +64,11 @@ test.describe('Documents desktop @1280px', () => {
     const { ticketId } = await saveAndFinishComposer(page, { mode: 'partial', amount: 3000 });
 
     await page.goto(`/tickets/${ticketId}`);
-    await expect(page.getByTestId('ticket-hero').filter({ visible: true }).first()).toContainText(
-      'Saldo por cobrar',
-      {
-        timeout: 15_000,
-      },
-    );
+    const collect = page.getByTestId('ticket-collect-card').filter({ visible: true }).first();
+    await expect(collect).toContainText('Saldo por cobrar', { timeout: 15_000 });
+    await expect(page.getByTestId('ticket-hero').filter({ visible: true })).toHaveCount(0);
+    await expect(page.getByText('P. unitario').first()).toBeVisible();
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
     await check('detail');
 
     await page.goto(`/tickets/${ticketId}/edit`);
@@ -80,8 +79,8 @@ test.describe('Documents desktop @1280px', () => {
     await check('editor');
 
     await page.goto('/tickets');
-    await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
-    await expect(page.getByText('1 de 1 tickets')).toBeVisible({
+    await page.getByPlaceholder('Buscar por cliente, folio o teléfono').fill(suffix);
+    await expect(page.getByText('1\u20131 de 1 tickets').filter({ visible: true })).toBeVisible({
       timeout: 20_000,
     });
     // The tickets table puts aria-sort on its sort buttons (shared by every list table, not part of

@@ -49,6 +49,9 @@ describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
       status: 'abierto',
       downloadFileName: 'presupuesto_Plaza Comercial Aurora_2026-10-09_1057.pdf',
     });
+    expect(props.clientAddress).toBeNull();
+    expect(props.clientEmail).toBeNull();
+    expect(props.clientPhone).toBeNull();
     expect(props.lines).toEqual([
       {
         id: 90,
@@ -67,6 +70,38 @@ describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
         price: 2100,
       },
     ]);
+  });
+
+  it('maps the client email, phone and address for the desktop card (ZIG-I28-5)', () => {
+    const props = buildPresupuestoViewProps({
+      ...(row as object),
+      email: 'copia@ticket.test',
+      client: {
+        email: 'aurora@plaza.test',
+        phone: '9982000002',
+        street: 'Av. Reforma',
+        exterior_number: '100',
+        interior_number: null,
+        neighborhood: 'Centro',
+        city: 'Cancún',
+        state: null,
+        postal_code: null,
+        country: null,
+        address: null,
+      },
+    } as never);
+    expect(props.clientEmail).toBe('aurora@plaza.test');
+    expect(props.clientPhone).toBe('9982000002');
+    expect(props.clientAddress).toBe('Av. Reforma #100, Centro, Cancún');
+
+    const fallback = buildPresupuestoViewProps({
+      ...(row as object),
+      email: 'copia@ticket.test',
+      client: { email: '  ', phone: ' ', address: '   ' },
+    } as never);
+    expect(fallback.clientEmail).toBe('copia@ticket.test');
+    expect(fallback.clientPhone).toBeNull();
+    expect(fallback.clientAddress).toBeNull();
   });
 
   it('maps the row into composer edit state, keeping inline lines inline', () => {

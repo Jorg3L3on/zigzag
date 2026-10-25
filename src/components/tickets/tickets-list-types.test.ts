@@ -1,6 +1,8 @@
 import {
+  filtersForTicketCollectionView,
   parseFinishedFilter,
   parseStatusFilter,
+  ticketCollectionView,
 } from '@/components/tickets/tickets-list-types';
 import {
   DEFAULT_TICKET_SORTING,
@@ -22,6 +24,28 @@ describe('tickets list URL params (ZIG-I18-9)', () => {
     expect(parseFinishedFilter('yes')).toBe('yes');
     expect(parseFinishedFilter('no')).toBe('no');
     expect(parseFinishedFilter('x')).toBe('all');
+  });
+});
+
+describe('collection views (ZIG-I28-4)', () => {
+  it('maps each tab onto one existing URL filter and clears the other', () => {
+    expect(filtersForTicketCollectionView('all')).toEqual({ status: 'all', finished: 'all' });
+    expect(filtersForTicketCollectionView('due')).toEqual({ status: 'due', finished: 'all' });
+    expect(filtersForTicketCollectionView('paid')).toEqual({ status: 'paid', finished: 'all' });
+    expect(filtersForTicketCollectionView('inProgress')).toEqual({
+      status: 'all',
+      finished: 'no',
+    });
+  });
+
+  it('selects a tab only when the URL is exactly that view', () => {
+    expect(ticketCollectionView('all', 'all')).toBe('all');
+    expect(ticketCollectionView('due', 'all')).toBe('due');
+    expect(ticketCollectionView('paid', 'all')).toBe('paid');
+    expect(ticketCollectionView('all', 'no')).toBe('inProgress');
+    expect(ticketCollectionView('due', 'no')).toBeNull();
+    expect(ticketCollectionView('all', 'yes')).toBeNull();
+    expect(ticketCollectionView('partial', 'all')).toBeNull();
   });
 });
 
