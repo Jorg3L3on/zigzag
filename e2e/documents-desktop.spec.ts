@@ -83,8 +83,6 @@ test.describe('Documents desktop @1280px', () => {
     await expect(page.getByText('1\u20131 de 1 tickets').filter({ visible: true })).toBeVisible({
       timeout: 20_000,
     });
-    // The tickets table puts aria-sort on its sort buttons (shared by every list table, not part of
-    // this redesign): layout only here.
-    await check('list', { axe: false });
+    await check('list');
   });
 });

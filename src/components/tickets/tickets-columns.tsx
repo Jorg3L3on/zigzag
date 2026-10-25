@@ -39,9 +39,6 @@ function TicketSortableHeader<TData>({
         className,
       )}
       onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
     >
       {label}
       {sorted === 'desc' ? (

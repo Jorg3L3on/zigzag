@@ -207,7 +207,7 @@ for (const width of MOBILE_WIDTHS) {
       await page.goto('/tickets');
       const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
       await search.fill(suffix);
-      await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText('1 de 1 tickets', { exact: true }).filter({ visible: true })).toBeVisible({ timeout: 20_000 });
       await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
       await expectLayoutIntact(page, 'tickets list');
 

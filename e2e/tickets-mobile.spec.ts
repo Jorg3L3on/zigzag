@@ -46,7 +46,7 @@ test.describe('Mobile ticket screens', () => {
     await expect(page.getByRole('group', { name: 'Filtro de cobro' })).toBeVisible();
     // No Por cobrar total (ZIG-I27-3).
     await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
-    await expect(page.getByText(/de \d+ tickets/)).toBeVisible();
+    await expect(page.getByText(/de \d+ tickets/).filter({ visible: true })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 

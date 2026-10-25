@@ -24,16 +24,28 @@ export const TicketsListTable = ({ table, canWrite }: TicketsListTableProps) => 
       <TableHeader className="sticky top-16 z-20 bg-background">
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-              </TableHead>
-            ))}
+            {headerGroup.headers.map((header) => {
+              const sorted = header.column.getCanSort() ? header.column.getIsSorted() : false;
+              return (
+                <TableHead
+                  key={header.id}
+                  className={header.column.columnDef.meta?.className}
+                  aria-sort={
+                    sorted === 'asc'
+                      ? 'ascending'
+                      : sorted === 'desc'
+                        ? 'descending'
+                        : header.column.getCanSort()
+                          ? 'none'
+                          : undefined
+                  }
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext())}
+                </TableHead>
+              );
+            })}
           </TableRow>
         ))}
       </TableHeader>
