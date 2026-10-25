@@ -226,10 +226,28 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     expect(screen.queryByText(/Gas R410A/)).toBeNull();
     // 2100 + 570 + 1100
     expect(screen.getAllByText('$3,770.00').length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('button', { name: 'Ver el concepto y los 2 materiales' }));
+    await user.click(screen.getByRole('button', { name: 'Ver los 2 materiales' }));
     expect(screen.getByText(/Gas R410A/)).toBeTruthy();
     expect(screen.getByText(/1.5 kg × \$380.00/)).toBeTruthy();
     expect(screen.getByText('$570.00')).toBeTruthy();
+  });
+
+  it('lists every concepto, not the first three (ZIG-I24)', () => {
+    renderView({
+      total: 400,
+      lines: [1, 2, 3, 4, 5].map((n) => ({
+        id: n,
+        serviceId: null,
+        name: `Concepto ${n}`,
+        quantity: 1,
+        price: 80,
+        materials: [],
+      })),
+    });
+
+    const list = screen.getByRole('list', { name: 'Servicios del presupuesto' });
+    expect(within(list).getByText('Concepto 5')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Ver (los|el) / })).toBeNull();
   });
 
   describe('detail redesign (ZIG-I13-5)', () => {

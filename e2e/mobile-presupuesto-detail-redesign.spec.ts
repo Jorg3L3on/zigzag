@@ -82,7 +82,11 @@ for (const width of MOBILE_WIDTHS) {
       await expect(visible(page.getByRole('heading', { name: 'Condiciones' }))).toBeVisible();
       await expect(visible(page.getByRole('button', { name: 'Ver todas' }))).toBeVisible();
       await expect(visible(page.getByRole('heading', { name: 'Conceptos' }))).toBeVisible();
-      await expect(visible(page.getByRole('button', { name: 'Ver los 4 conceptos y 7 materiales' }))).toBeVisible();
+      // Every concepto is listed (ZIG-I24); the fold only opens the materials.
+      await expect(
+        visible(page.getByRole('list', { name: 'Servicios del presupuesto' })).locator(':scope > li'),
+      ).toHaveCount(4);
+      await expect(visible(page.getByRole('button', { name: 'Ver los 7 materiales' }))).toBeVisible();
       await expectNoPageOverflow(page, 'presupuesto detail');
 
       // Bottom row on the dock: Editar / Duplicar / Cancelar; share is the icon in the app bar.
