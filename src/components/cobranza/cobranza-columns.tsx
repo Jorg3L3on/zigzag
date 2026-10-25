@@ -45,16 +45,21 @@ export const createCobranzaColumns = ({
     id: 'client_name',
     accessorKey: 'client_name',
     header: 'Cliente',
+    // Long names truncate with the full name on hover, so Saldo and ⋮ fit (ZIG-I27-2).
     cell: ({ row }) =>
       row.original.client_id != null ? (
         <Link
           href={`/clients/${row.original.client_id}`}
-          className="font-medium inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+          className="font-medium flex min-h-11 max-w-[11rem] items-center underline-offset-4 hover:underline xl:max-w-[14rem]"
+          title={row.original.client_name ?? undefined}
         >
-          {row.original.client_name ?? 'Sin cliente'}
+          <span className="truncate">{row.original.client_name ?? 'Sin cliente'}</span>
         </Link>
       ) : (
-        <span className="font-medium">
+        <span
+          className="block max-w-[11rem] truncate font-medium xl:max-w-[14rem]"
+          title={row.original.client_name ?? undefined}
+        >
           {row.original.client_name ?? 'Sin cliente'}
         </span>
       ),
