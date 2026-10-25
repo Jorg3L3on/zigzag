@@ -444,17 +444,28 @@ describe('buildReceiptPdfPayload — notes and unsupported characters (ZIG-I12)'
 });
 
 describe('formatReceiptFolioFor (ZIG-I17)', () => {
-  it('prints the company folio, the presupuesto folio on a converted recibo, or the padded id', () => {
+  it('prints the company folio, or the padded id', () => {
     expect(formatReceiptFolioFor({ id: 9n, folio_number: 12, folio_prefix: 'R' })).toBe('R-0012');
-    expect(
-      formatReceiptFolioFor({
-        id: 9n,
-        folio_number: 12,
-        folio_prefix: 'R',
-        source_presupuesto_folio: { folio_number: 3, folio_prefix: 'P' },
-      }),
-    ).toBe('P-0003');
     expect(formatReceiptFolioFor({ id: 9n })).toBe('000009');
+  });
+});
+
+describe('buildReceiptPdfPayload — converted recibo (ZIG-I26-2)', () => {
+  const source = { folio_number: 3, folio_prefix: 'P' };
+
+  it('prints its own R folio and the presupuesto as a reference', () => {
+    const payload = buildReceiptPdfPayload(
+      baseTicket({ folio_number: 12, folio_prefix: 'R', source_presupuesto_folio: source }),
+    );
+    expect(payload.folio).toBe('R-0012');
+    expect(payload.sourcePresupuestoFolio).toBe('P-0003');
+  });
+
+  it('has no reference on a ticket made directly, nor on a presupuesto', () => {
+    expect(buildReceiptPdfPayload(baseTicket()).sourcePresupuestoFolio).toBeNull();
+    expect(
+      buildReceiptPdfPayload(presupuesto({ source_presupuesto_folio: source })).sourcePresupuestoFolio,
+    ).toBeNull();
   });
 });
 
