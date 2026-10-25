@@ -6,6 +6,7 @@ import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar-state"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +26,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
@@ -275,16 +275,23 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state, isMobile } = useSidebar()
+  // On the phone it opens the navigation sheet; on desktop it folds the
+  // sidebar, so the tooltip and the label say which way (ZIG-I26-3).
+  const label = isMobile
+    ? "Abrir menú de navegación"
+    : state === "expanded"
+      ? "Cerrar menú"
+      : "Abrir menú"
 
-  return (
+  const button = (
     <Button
       ref={ref}
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
       className={cn("shrink-0", className)}
-      aria-label="Abrir menú de navegación"
+      aria-label={label}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -293,6 +300,17 @@ const SidebarTrigger = React.forwardRef<
     >
       <PanelLeft aria-hidden />
     </Button>
+  )
+
+  if (isMobile) return button
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side={state === "collapsed" ? "right" : "bottom"}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   )
 })
 SidebarTrigger.displayName = "SidebarTrigger"

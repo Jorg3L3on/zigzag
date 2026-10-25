@@ -3,7 +3,11 @@
  * Built from the ticket returned by getTicketById; the renderer only formats
  * and draws what is here.
  */
-import { formatDisplayFolio } from '@/lib/folio';
+import {
+  formatDocumentFolio,
+  formatSourcePresupuestoFolio,
+  type FolioParts,
+} from '@/lib/folio';
 import { companyDay } from '@/lib/company-day';
 import { differenceInCalendarDays, format } from 'date-fns';
 import type {
@@ -59,6 +63,8 @@ export type ReceiptPdfTicket = TicketRow & {
     }
   >;
   ticket_payments?: TicketPaymentRow[];
+  /** The presupuesto a converted work ticket came from (getTicketById). */
+  source_presupuesto_folio?: FolioParts | null;
 };
 
 export type ReceiptPdfDocType = 'presupuesto' | 'recibo';
@@ -88,8 +94,13 @@ export type ReceiptPdfItem = {
 export type ReceiptPdfPayload = {
   docType: ReceiptPdfDocType;
   docTitle: 'PRESUPUESTO' | 'RECIBO';
-  /** Six-digit folio, e.g. `001114`. */
+  /** Company folio (`R-0012`), or the six-digit id (`001114`) when there is none. */
   folio: string;
+  /**
+   * Recibo of a converted ticket: the presupuesto's folio, printed as a reference
+   * line (`Presupuesto P-0006`). The recibo keeps its own folio (ZIG-I26-2).
+   */
+  sourcePresupuestoFolio: string | null;
   /** `DD / MM / YYYY` */
   issueDate: string;
   /** Presupuestos with an expiry; null prints `Sin vencimiento` (or nothing on a recibo). */
@@ -159,11 +170,9 @@ export const formatReceiptFolio = (id: bigint | number | string): string =>
 
 /** Company folio (P-0003 / R-0012); documents with no folio keep the padded id. */
 export const formatReceiptFolioFor = (
-  ticket: Parameters<typeof formatDisplayFolio>[0] & { id: bigint | number | string },
+  ticket: Parameters<typeof formatDocumentFolio>[0] & { id: bigint | number | string },
 ): string =>
-  ticket.folio_number != null || ticket.source_presupuesto_folio?.folio_number != null
-    ? formatDisplayFolio(ticket)
-    : formatReceiptFolio(ticket.id);
+  ticket.folio_number != null ? formatDocumentFolio(ticket) : formatReceiptFolio(ticket.id);
 
 const moneyFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -337,6 +346,8 @@ export const buildReceiptPdfPayload = (
     docType,
     docTitle: docType === 'presupuesto' ? 'PRESUPUESTO' : 'RECIBO',
     folio: formatReceiptFolioFor(ticket),
+    sourcePresupuestoFolio:
+      docType === 'recibo' ? formatSourcePresupuestoFolio(ticket.source_presupuesto_folio) : null,
     issueDate,
     validity,
     recibo,

@@ -3,7 +3,7 @@ import type { InvoiceData } from '@/components/pdf/invoice-types';
 import { companyDay } from '@/lib/company-day';
 import { invoiceIssuerFromCompany } from '@/components/pdf/invoice-company';
 import type { TicketDetailData } from '@/actions/tickets';
-import { formatDisplayFolio } from '@/lib/folio';
+import { formatDocumentFolio } from '@/lib/folio';
 import { formatReceiptFolioFor } from '@/lib/receipt-pdf/payload';
 import {
   getServiceLineDescription,
@@ -57,17 +57,14 @@ export const buildInvoiceDataFromTicketDetail = (
   };
 };
 
-const fileFolio = (ticket: Parameters<typeof formatDisplayFolio>[0] & { id: bigint | number | string }): string =>
-  ticket.folio_number != null || ticket.source_presupuesto_folio?.folio_number != null
-    ? formatDisplayFolio(ticket)
-    : String(ticket.id);
+const fileFolio = (ticket: Parameters<typeof formatDocumentFolio>[0] & { id: bigint | number | string }): string =>
+  ticket.folio_number != null ? formatDocumentFolio(ticket) : String(ticket.id);
 
 export const buildTicketPdfFileName = (
   ticket: Pick<TicketDetailData, 'id' | 'client_name' | 'ticket_date'> & {
     document_kind?: string | null;
     folio_number?: number | null;
     folio_prefix?: string | null;
-    source_presupuesto_folio?: { folio_number?: number | null; folio_prefix?: string | null } | null;
   },
 ): string => {
   const safeName = (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() || 'ticket';

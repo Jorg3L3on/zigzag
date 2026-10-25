@@ -371,7 +371,15 @@ export function renderReceiptPdf(
             : ['Saldo pendiente'],
     },
     payload.recibo
-      ? { label: 'Estado', primary: null, pill: payload.recibo.statusLabel, secondary: [countLabel] }
+      ? {
+          label: 'Estado',
+          primary: null,
+          pill: payload.recibo.statusLabel,
+          // A converted ticket names the presupuesto it came from (ZIG-I26-2).
+          secondary: payload.sourcePresupuestoFolio
+            ? [countLabel, `Presupuesto ${payload.sourcePresupuestoFolio}`]
+            : [countLabel],
+        }
       : {
           label: 'Conceptos',
           primary: String(payload.itemCount),

@@ -1,4 +1,4 @@
-import { formatDisplayFolio } from '@/lib/folio';
+import { formatDocumentFolio } from '@/lib/folio';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
@@ -51,7 +51,7 @@ export default async function TicketReciboPage({
   if (!ticket.finished) redirect(`/tickets/${String(ticket.id)}`);
 
   const ticketId = String(ticket.id);
-  const folio = formatDisplayFolio(ticket);
+  const folio = formatDocumentFolio(ticket);
   const total = Number(ticket.total) || 0;
   const paid = Number(ticket.paid) || 0;
   const lines = ticket.services_tickets.map(buildReviewLine);

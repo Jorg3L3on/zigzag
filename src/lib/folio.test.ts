@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import {
-  formatDisplayFolio,
   formatDocumentFolio,
   formatFolio,
+  formatSourcePresupuestoFolio,
   normalizeFolioPrefix,
   normalizeFolioSearch,
   parseFolioSearch,
@@ -40,19 +40,11 @@ describe('folio helpers', () => {
     expect(formatDocumentFolio({ id: 9n, document_kind: 'ticket' })).toBe('#9');
   });
 
-  it('shows the presupuesto folio on a converted recibo (ZIG-I17 Q1)', () => {
-    expect(
-      formatDisplayFolio({
-        id: 50n,
-        folio_number: 12,
-        folio_prefix: 'R',
-        document_kind: 'ticket',
-        source_presupuesto_folio: { folio_number: 3, folio_prefix: 'P' },
-      }),
-    ).toBe('P-0003');
-    expect(
-      formatDisplayFolio({ id: 51n, folio_number: 13, folio_prefix: 'R', document_kind: 'ticket' }),
-    ).toBe('R-0013');
+  it('formats the source presupuesto folio of a converted ticket (ZIG-I26-2)', () => {
+    expect(formatSourcePresupuestoFolio({ folio_number: 3, folio_prefix: 'P' })).toBe('P-0003');
+    expect(formatSourcePresupuestoFolio({ folio_number: 3, folio_prefix: null })).toBe('P-0003');
+    expect(formatSourcePresupuestoFolio({ folio_number: null, folio_prefix: 'P' })).toBeNull();
+    expect(formatSourcePresupuestoFolio(null)).toBeNull();
   });
 
   it('strips LIKE wildcards from folio searches', () => {
