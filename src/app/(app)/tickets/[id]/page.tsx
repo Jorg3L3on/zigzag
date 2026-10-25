@@ -31,6 +31,7 @@ import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -170,21 +171,34 @@ export default async function TicketDetailsPage({
               className="md:max-w-md lg:hidden"
             />
 
-            {!ticket.finished ? (
-              <TicketDetailFinishPanel
-                ticketId={ticket.id}
-                clientId={ticket.client_id}
-                clientName={ticket.client_name}
-                total={total}
-                ticketDate={ticket.ticket_date}
-                serviceLines={serviceLines}
-                lineCount={ticket.services_tickets.length}
-                downloadFileName={downloadFileName}
-              />
-            ) : null}
+            {/* The right column is the money side (ZIG-I27-5): finish and collect while
+                En proceso, Pagos once finished. It comes first so phones keep the finish
+                panel above Servicios; from lg it sits in column 2 and stays sticky. */}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:items-start lg:gap-8">
+              <aside
+                aria-label="Cobro del ticket"
+                className={cn(
+                  'min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:flex lg:gap-6',
+                  ticket.finished ? 'hidden' : 'flex',
+                )}
+              >
+                {ticket.finished ? (
+                  <TicketDetailPaymentsSection payments={payments} />
+                ) : (
+                  <TicketDetailFinishPanel
+                    ticketId={ticket.id}
+                    clientId={ticket.client_id}
+                    clientName={ticket.client_name}
+                    total={total}
+                    ticketDate={ticket.ticket_date}
+                    serviceLines={serviceLines}
+                    lineCount={ticket.services_tickets.length}
+                    downloadFileName={downloadFileName}
+                  />
+                )}
+              </aside>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] lg:items-start lg:gap-8">
-              <div className="flex min-w-0 flex-col gap-4 md:gap-6">
+              <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-start-1 lg:row-start-1">
                 <TicketDetailServicesSection
                   ticketId={ticket.id}
                   total={total}
@@ -192,25 +206,18 @@ export default async function TicketDetailsPage({
                   services={ticket.services_tickets}
                 />
 
-                {ticket.finished ? <TicketDetailPaymentsSection payments={payments} /> : null}
+                {ticket.finished ? (
+                  <div className="lg:hidden">
+                    <TicketDetailPaymentsSection payments={payments} />
+                  </div>
+                ) : null}
 
-                <div className="lg:hidden">
-                  <TicketDetailTimeline
-                    entries={auditEntries}
-                    createdAt={ticket.created_at}
-                    updatedAt={ticket.updated_at}
-                  />
-                </div>
-              </div>
-
-              <aside className="hidden min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:flex">
                 <TicketDetailTimeline
                   entries={auditEntries}
-                  defaultOpen
                   createdAt={ticket.created_at}
                   updatedAt={ticket.updated_at}
                 />
-              </aside>
+              </div>
             </div>
           </div>
         </TripledDashboardShell>
