@@ -527,6 +527,43 @@ describe('getPresupuestoById (ZIG-I5-4)', () => {
     expect(query.params).toEqual(expect.arrayContaining([300n, 10, 'presupuesto']));
   });
 
+  it('adds the client counts and the converted ticket, both tenant-scoped (ZIG-I29-1)', async () => {
+    const where = jest.fn(async () => [{ tickets: 2, presupuestos: 3 }]);
+    mockDb.select.mockReturnValue({ from: jest.fn(() => ({ where })) });
+    mockDb.query.ticket.findFirst
+      .mockResolvedValueOnce({ ...quote, converted_to_ticket_id: 401n, services_tickets: [] })
+      .mockResolvedValueOnce({
+        id: 401n,
+        folio_number: 61,
+        folio_prefix: 'R',
+        document_kind: 'ticket',
+        finished: true,
+        total: 5050,
+        paid: 1000,
+        services_tickets: [{ id: 1, materials: [{ id: 9 }, { id: 10 }] }, { id: 2, materials: [] }],
+      });
+
+    const result = await getPresupuestoById(300);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.client_document_counts).toEqual({ tickets: 2, presupuestos: 3 });
+    expect(result.data.converted_ticket).toEqual({
+      id: '401',
+      folio: 'R-0061',
+      finished: true,
+      total: 5050,
+      paid: 1000,
+      serviceCount: 2,
+      materialCount: 2,
+    });
+    const countsQuery = new PgDialect().sqlToQuery(where.mock.calls[0][0] as unknown as SQL);
+    expect(countsQuery.params).toEqual(expect.arrayContaining([10, 5]));
+    const ticketWhere = mockDb.query.ticket.findFirst.mock.calls[1][0].where as SQL;
+    const ticketQuery = new PgDialect().sqlToQuery(ticketWhere);
+    expect(ticketQuery.params).toEqual(expect.arrayContaining([401n, 10, 'ticket']));
+  });
+
   it('returns not found for another tenant or a work ticket id', async () => {
     mockDb.query.ticket.findFirst.mockResolvedValue(undefined);
 

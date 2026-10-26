@@ -115,13 +115,34 @@ const renderLayout = (
   return { onShare, onDownload, onConvert, onCancel, onDuplicate };
 };
 
-describe('Presupuesto desktop (ZIG-I28-5)', () => {
+describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
   beforeEach(() => {
     window.localStorage.clear();
     Element.prototype.scrollIntoView = jest.fn();
+    // Only Date is fake: the chip and the bar count days from "today".
+    jest.useFakeTimers({
+      now: new Date('2026-10-22T17:00:00.000Z'),
+      doNotFake: [
+        'nextTick',
+        'setImmediate',
+        'clearImmediate',
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'performance',
+        'hrtime',
+      ],
+    });
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -175,14 +196,19 @@ describe('Presupuesto desktop (ZIG-I28-5)', () => {
     expect(screen.getByTestId('presupuesto-notes')).toHaveTextContent('Incluye material');
   });
 
-  it('puts Convertir, Compartir, PDF and Editar in the header, and Cancelar in the menu', async () => {
+  it('puts Convertir a ticket, WhatsApp, PDF and Editar in the header, and Cancelar in the menu', async () => {
     mockDesktopWidth(true);
     const user = userEvent.setup();
     const { onShare, onDownload, onConvert, onCancel, onDuplicate } = renderLayout();
 
     const actions = screen.getByTestId('presupuesto-desktop-actions');
-    await user.click(within(actions).getByRole('button', { name: 'Convertir' }));
-    await user.click(within(actions).getByRole('button', { name: 'Compartir presupuesto' }));
+    await user.click(within(actions).getByRole('button', { name: 'Convertir a ticket' }));
+    // Desktop shares by WhatsApp with the quote text, never the system sheet.
+    const whatsApp = within(actions).getByRole('link', { name: 'WhatsApp' });
+    expect(decodeURIComponent(whatsApp.getAttribute('href') ?? '')).toMatch(
+      /^https:\/\/wa\.me\/\d+\?text=.*presupuesto P-0003/,
+    );
+    expect(within(actions).queryByRole('button', { name: 'Compartir presupuesto' })).toBeNull();
     const pdf = within(actions).getByRole('button', { name: 'Descargar PDF' });
     expect(pdf).toHaveTextContent('PDF');
     await user.click(pdf);
@@ -191,13 +217,12 @@ describe('Presupuesto desktop (ZIG-I28-5)', () => {
       '/presupuestos/400/edit',
     );
 
-    const estado = screen.getByTestId('presupuesto-estado-card');
-    expect(within(estado).queryByRole('button', { name: /Cancelar/ })).toBeNull();
-    expect(within(estado).getByTestId('presupuesto-desktop-expires')).toHaveTextContent(/Vence el/);
-    await user.click(within(estado).getByRole('button', { name: 'Convertir en ticket' }));
+    const card = screen.getByTestId('presupuesto-vigencia-card');
+    expect(within(card).queryByRole('button', { name: /Cancelar/ })).toBeNull();
+    await user.click(within(card).getByRole('button', { name: 'Convertir a ticket' }));
 
     expect(onConvert).toHaveBeenCalledTimes(2);
-    expect(onShare).toHaveBeenCalledTimes(1);
+    expect(onShare).not.toHaveBeenCalled();
     expect(onDownload).toHaveBeenCalledTimes(1);
 
     expect(screen.queryByRole('button', { name: 'Cancelar presupuesto' })).toBeNull();
@@ -214,6 +239,89 @@ describe('Presupuesto desktop (ZIG-I28-5)', () => {
 
     const hrefs = screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '');
     expect(hrefs.some((href) => href.startsWith('tel:'))).toBe(false);
+  });
+
+  it('shows the validity chip, the meta line, the bar and Recordar por WhatsApp while open', () => {
+    mockDesktopWidth(true);
+    renderLayout({
+      ticketDate: '2026-10-10T12:00:00.000Z',
+      expiresAt: '2026-10-25T12:00:00.000Z',
+      authorName: 'Jorge Climas',
+    });
+
+    expect(screen.getByTestId('presupuesto-vigencia-chip')).toHaveTextContent('Vence en 3 días');
+    expect(screen.getByTestId('presupuesto-vigencia-chip')).toHaveAttribute('data-tone', 'soon');
+    expect(screen.getByTestId('presupuesto-meta')).toHaveTextContent(
+      /^Emitido el .+ · Jorge Climas · 2 conceptos · 2 materiales$/,
+    );
+
+    const card = screen.getByTestId('presupuesto-vigencia-card');
+    expect(within(card).getByTestId('presupuesto-desktop-expires')).toHaveTextContent(
+      'Vence el 25 de octubre · quedan 3 días',
+    );
+    expect(within(card).getByTestId('presupuesto-vigencia-bar')).toHaveAttribute(
+      'aria-label',
+      '80% de la vigencia transcurrida',
+    );
+    expect(within(card).getByText('Vigencia de 15 días')).toBeTruthy();
+    expect(within(card).getByText('¿Lo aceptó el cliente?')).toBeTruthy();
+    const remind = within(card).getByRole('link', { name: 'Recordar por WhatsApp' });
+    const text = decodeURIComponent(remind.getAttribute('href') ?? '');
+    expect(text).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    expect(text).toContain('Te recordamos el presupuesto P-0003');
+    expect(text).toContain('Es válido hasta el 25 de octubre de 2026');
+  });
+
+  it('keeps Convertir and Editar on an expired presupuesto and says how long ago it expired', () => {
+    mockDesktopWidth(true);
+    renderLayout({
+      status: 'vencido',
+      ticketDate: '2026-10-01T12:00:00.000Z',
+      expiresAt: '2026-10-19T12:00:00.000Z',
+    });
+
+    const chip = screen.getByTestId('presupuesto-vigencia-chip');
+    expect(chip).toHaveTextContent('Venció hace 3 días');
+    expect(chip).toHaveClass('text-red-700');
+    expect(screen.getByTestId('presupuesto-status')).toHaveTextContent('Vencido');
+    const card = screen.getByTestId('presupuesto-vigencia-card');
+    expect(within(card).getByTestId('presupuesto-desktop-expires')).toHaveTextContent(
+      'Venció el 19 de octubre · hace 3 días',
+    );
+    expect(within(card).getByTestId('presupuesto-desktop-expires')).toHaveClass('text-red-700');
+    const text = decodeURIComponent(
+      within(card).getByRole('link', { name: 'Recordar por WhatsApp' }).getAttribute('href') ?? '',
+    );
+    expect(text).toContain('Venció el 19 de octubre de 2026; si te sigue interesando, lo actualizamos.');
+    const actions = screen.getByTestId('presupuesto-desktop-actions');
+    expect(within(actions).getByRole('button', { name: 'Convertir a ticket' })).toBeTruthy();
+    expect(within(actions).getByRole('link', { name: 'Editar' })).toBeTruthy();
+  });
+
+  it('asks for a date when the presupuesto has no expiry', () => {
+    mockDesktopWidth(true);
+    renderLayout({ expiresAt: null });
+
+    expect(screen.getByTestId('presupuesto-vigencia-chip')).toHaveTextContent('Sin vencimiento');
+    const card = screen.getByTestId('presupuesto-vigencia-card');
+    expect(within(card).queryByTestId('presupuesto-vigencia-bar')).toBeNull();
+    expect(within(card).getByRole('link', { name: 'ponle fecha' })).toHaveAttribute(
+      'href',
+      '/presupuestos/400/edit',
+    );
+  });
+
+  it('prints the whole conditions with Editar on desktop', () => {
+    mockDesktopWidth(true);
+    const long = Array.from({ length: 6 }, (_, i) => `Condición ${i + 1} con bastante texto para doblar.`).join('\n');
+    renderLayout({ workNotes: long });
+
+    expect(screen.getByTestId('presupuesto-notes')).not.toHaveClass('line-clamp-3');
+    expect(screen.queryByRole('button', { name: 'Ver todas' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Editar condiciones' })).toHaveAttribute(
+      'href',
+      '/presupuestos/400/edit',
+    );
   });
 
   it('shows the client as text plus a WhatsApp quote link, never a tel link', () => {
@@ -249,33 +357,100 @@ describe('Presupuesto desktop (ZIG-I28-5)', () => {
     );
   });
 
-  it('links a converted presupuesto to its ticket from the Estado card', async () => {
+  it('shows an accepted presupuesto in green with the card of its R ticket', async () => {
     mockDesktopWidth(true);
     const user = userEvent.setup();
-    renderLayout({ status: 'convertido', convertedToTicketId: '401', isMutable: false, editHref: null });
+    renderLayout({
+      status: 'convertido',
+      convertedToTicketId: '401',
+      isMutable: false,
+      editHref: null,
+      convertedTicket: {
+        id: '401',
+        folio: 'R-0061',
+        finished: false,
+        total: 3770,
+        paid: 0,
+        serviceCount: 2,
+        materialCount: 2,
+      },
+      activity: [
+        {
+          id: 9,
+          eventType: 'presupuesto_converted',
+          actorName: 'Jorge Climas',
+          createdAt: new Date('2026-10-10T18:00:00.000Z'),
+          payload: null,
+        },
+      ],
+    });
 
-    const estado = screen.getByTestId('presupuesto-estado-card');
-    expect(within(estado).getByTestId('presupuesto-converted-ticket')).toHaveAttribute(
+    expect(screen.getByTestId('presupuesto-status')).toHaveTextContent('Aceptado');
+    expect(screen.getByTestId('presupuesto-status')).toHaveClass('text-emerald-700');
+    expect(screen.queryByTestId('presupuesto-vigencia-chip')).toBeNull();
+    expect(screen.queryByTestId('presupuesto-vigencia-card')).toBeNull();
+
+    const actions = screen.getByTestId('presupuesto-desktop-actions');
+    expect(within(actions).getByRole('link', { name: 'Ver ticket R-0061' })).toHaveAttribute(
       'href',
       '/tickets/401',
     );
-    expect(within(estado).queryByRole('button', { name: 'Convertir en ticket' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Convertir' })).toBeNull();
+    expect(within(actions).getByRole('link', { name: 'WhatsApp' })).toBeTruthy();
+    expect(within(actions).queryByRole('button', { name: 'Convertir a ticket' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Editar' })).toBeNull();
+
+    const card = screen.getByTestId('presupuesto-accepted-card');
+    expect(within(card).getByText(/^Aceptado el 10 de octubre$/)).toBeTruthy();
+    expect(within(card).getByText('Jorge Climas · vencía el 8 nov')).toBeTruthy();
+    const ticket = within(card).getByTestId('presupuesto-converted-ticket');
+    expect(ticket).toHaveAttribute('href', '/tickets/401');
+    expect(ticket).toHaveTextContent('R-0061');
+    expect(within(ticket).getByTestId('ticket-status-pill')).toHaveTextContent('En proceso');
+    expect(ticket).toHaveTextContent('2 servicios · 2 materiales');
+    expect(within(ticket).getByTestId('presupuesto-converted-total')).toHaveTextContent('$3,770.00');
 
     await user.click(screen.getByRole('button', { name: 'Más acciones del presupuesto' }));
     expect(screen.queryByRole('menuitem', { name: 'Cancelar presupuesto' })).toBeNull();
     expect(screen.getByRole('menuitem', { name: 'Duplicar' })).toBeTruthy();
   });
 
-  it('keeps a canceled presupuesto read-only and without Compartir', () => {
+  it('keeps a canceled presupuesto read-only with Duplicar as the primary action', async () => {
     mockDesktopWidth(true);
-    renderLayout({ status: 'cancelado', isMutable: false, editHref: null, activity: [] });
+    const user = userEvent.setup();
+    const { onDuplicate } = renderLayout({
+      status: 'cancelado',
+      isMutable: false,
+      editHref: null,
+      canceledAt: '2026-10-11T17:00:00.000Z',
+      activity: [],
+    });
 
-    const estado = screen.getByTestId('presupuesto-estado-card');
-    expect(within(estado).getByText(/Presupuesto cancelado/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Compartir presupuesto' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Convertir en ticket' })).toBeNull();
+    const actions = screen.getByTestId('presupuesto-desktop-actions');
+    const primary = within(actions).getByRole('button', { name: 'Duplicar' });
+    expect(primary).not.toHaveClass('border');
+    await user.click(primary);
+    expect(within(actions).queryByRole('link', { name: 'WhatsApp' })).toBeNull();
+    expect(within(actions).queryByRole('button', { name: 'Convertir a ticket' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Editar' })).toBeNull();
+
+    const card = screen.getByTestId('presupuesto-canceled-card');
+    expect(within(card).getByText(/^Cancelado el 11 de octubre$/)).toBeTruthy();
+    expect(within(card).getByText(/Solo lectura/)).toBeTruthy();
+    await user.click(within(card).getByRole('button', { name: 'Duplicar presupuesto' }));
+    expect(onDuplicate).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole('button', { name: 'Más acciones del presupuesto' }));
+    expect(screen.queryByRole('menuitem', { name: 'Cancelar presupuesto' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Duplicar' })).toBeNull();
+  });
+
+  it('counts the client tickets and presupuestos on the Cliente card', () => {
+    mockDesktopWidth(true);
+    renderLayout({ clientTicketCount: 2, clientPresupuestoCount: 1 });
+    expect(screen.getByTestId('presupuesto-client-documents')).toHaveTextContent(
+      '2 tickets · 1 presupuesto',
+    );
+    expect(screen.getByTestId('presupuesto-client-address')).toHaveTextContent('Sin dirección · Agregar');
   });
 
   it('opens the rest of the activity from Ver todo', async () => {
@@ -285,13 +460,14 @@ describe('Presupuesto desktop (ZIG-I28-5)', () => {
 
     const card = screen.getByTestId('presupuesto-activity-card');
     const timeline = document.getElementById('presupuesto-timeline-body');
-    expect(within(card).getByText(/Ana creó el ticket/)).toBeTruthy();
-    expect(within(card).getByText(/Paz: Presupuesto duplicado/)).toBeTruthy();
-    expect(within(card).queryByText(/Zoe: Presupuesto convertido/)).toBeNull();
+    expect(within(card).getByText('Ana creó el presupuesto')).toBeTruthy();
+    expect(within(card).getByText('Mara canceló el presupuesto')).toBeTruthy();
+    expect(within(card).getByText('Paz lo duplicó')).toBeTruthy();
+    expect(within(card).queryByText('Zoe lo convirtió en ticket')).toBeNull();
     expect(timeline).toHaveAttribute('hidden');
 
     await user.click(within(card).getByRole('button', { name: 'Ver todo' }));
     expect(timeline).not.toHaveAttribute('hidden');
-    expect(screen.getByText(/Zoe: Presupuesto convertido/)).toBeTruthy();
+    expect(within(timeline as HTMLElement).getByText('Zoe lo convirtió en ticket')).toBeTruthy();
   });
 });

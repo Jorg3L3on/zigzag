@@ -4,6 +4,7 @@ import {
   buildWhatsAppDayVisitShare,
   buildWhatsAppHref,
   buildWhatsAppOfflineReceiptShare,
+  buildWhatsAppQuoteReminderMessage,
   buildWhatsAppQuoteShare,
   buildWhatsAppReceiptShare,
   buildWhatsAppVisitShare,
@@ -202,5 +203,34 @@ describe('whatsapp-share', () => {
         'transferencia',
       );
     });
+  });
+});
+
+describe('buildWhatsAppQuoteReminderMessage (ZIG-I29-1)', () => {
+  const base = {
+    clientName: 'Residencial Las Palmas',
+    ticketId: 4,
+    folio: 'P-0004',
+    total: 5120,
+    servicesSummary: 'Instalación mini-split',
+    companyName: 'ClimaTotal Demo',
+    now: new Date('2026-10-25T15:00:00'),
+  };
+
+  it('reminds an open quote with its date', () => {
+    expect(
+      buildWhatsAppQuoteReminderMessage({ ...base, validUntil: '2026-10-25T12:00:00' }),
+    ).toBe(
+      'Hola, te escribe ClimaTotal Demo. Te recordamos el presupuesto P-0004 por $5,120 para Instalación mini-split. Es válido hasta el 25 de octubre de 2026. ¿Te confirmamos?',
+    );
+  });
+
+  it('offers to update an expired one, and asks plainly without a date', () => {
+    expect(
+      buildWhatsAppQuoteReminderMessage({ ...base, validUntil: '2026-10-20T12:00:00' }),
+    ).toContain('Venció el 20 de octubre de 2026; si te sigue interesando, lo actualizamos.');
+    expect(buildWhatsAppQuoteReminderMessage({ ...base, validUntil: null })).toMatch(
+      /Instalación mini-split\. ¿Te confirmamos\?$/,
+    );
   });
 });

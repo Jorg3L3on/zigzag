@@ -1,7 +1,7 @@
 'use server';
 
 import { formatDocumentFolio } from '@/lib/folio';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -274,14 +274,94 @@ export async function createPresupuestoWithLines(
   }
 }
 
+/** The work ticket an accepted presupuesto became (ZIG-I29-1). */
+export type PresupuestoConvertedTicket = {
+  id: string;
+  folio: string;
+  finished: boolean;
+  total: number | null;
+  paid: number | null;
+  serviceCount: number;
+  materialCount: number;
+};
+
 export type PresupuestoDetailData = TicketRow & {
   client?: Client | null;
+  /** Who wrote it, for the desktop meta line. */
+  User?: { name: string | null } | null;
   services_tickets: Array<
     ServicesTicketsRow & {
       service: Service | null;
       materials?: TicketLineMaterialRow[];
     }
   >;
+  /** Work tickets and presupuestos of the same client (desktop Cliente card). */
+  client_document_counts?: { tickets: number; presupuestos: number } | null;
+  converted_ticket?: PresupuestoConvertedTicket | null;
+};
+
+const loadClientDocumentCounts = async (
+  companyId: number,
+  clientId: number,
+): Promise<{ tickets: number; presupuestos: number }> => {
+  const [row] = await db
+    .select({
+      tickets: sql<number>`count(*) FILTER (WHERE ${eq(ticket.document_kind, 'ticket')})`,
+      presupuestos: sql<number>`count(*) FILTER (WHERE ${eq(ticket.document_kind, 'presupuesto')})`,
+    })
+    .from(ticket)
+    .where(
+      and(
+        eq(ticket.company_id, companyId),
+        eq(ticket.client_id, clientId),
+        isNull(ticket.deleted_at),
+      ),
+    );
+  return {
+    tickets: Number(row?.tickets ?? 0),
+    presupuestos: Number(row?.presupuestos ?? 0),
+  };
+};
+
+const loadConvertedTicket = async (
+  companyId: number,
+  ticketId: bigint,
+): Promise<PresupuestoConvertedTicket | null> => {
+  const row = await db.query.ticket.findFirst({
+    where: and(
+      eq(ticket.id, ticketId),
+      eq(ticket.company_id, companyId),
+      eq(ticket.document_kind, 'ticket'),
+      isNull(ticket.deleted_at),
+    ),
+    columns: {
+      id: true,
+      folio_number: true,
+      folio_prefix: true,
+      document_kind: true,
+      finished: true,
+      total: true,
+      paid: true,
+    },
+    with: {
+      services_tickets: {
+        where: isNull(servicesTickets.deleted_at),
+        columns: { id: true },
+        with: activeLineMaterialsWith,
+      },
+    },
+  });
+  if (!row) return null;
+  const lines = (row.services_tickets ?? []) as Array<{ materials?: unknown[] }>;
+  return {
+    id: String(row.id),
+    folio: formatDocumentFolio(row),
+    finished: row.finished,
+    total: row.total,
+    paid: row.paid,
+    serviceCount: lines.length,
+    materialCount: lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0),
+  };
 };
 
 /**
@@ -303,6 +383,7 @@ export async function getPresupuestoById(
       ),
       with: {
         client: true,
+        User: { columns: { name: true } },
         services_tickets: {
           where: isNull(servicesTickets.deleted_at),
           with: { service: true, ...activeLineMaterialsWith },
@@ -312,7 +393,20 @@ export async function getPresupuestoById(
     if (!row) {
       return buildActionError('TC008');
     }
-    return { success: true, data: row as PresupuestoDetailData };
+    const [clientCounts, convertedTicket] = await Promise.all([
+      row.client_id != null ? loadClientDocumentCounts(companyId, row.client_id) : null,
+      row.converted_to_ticket_id != null
+        ? loadConvertedTicket(companyId, row.converted_to_ticket_id)
+        : null,
+    ]);
+    return {
+      success: true,
+      data: {
+        ...row,
+        client_document_counts: clientCounts,
+        converted_ticket: convertedTicket,
+      } as PresupuestoDetailData,
+    };
   } catch (e) {
     return handleCodedServerActionError('presupuestos.get', 'TC003', e);
   }

@@ -8,6 +8,7 @@ import {
   cancelPresupuesto,
   convertPresupuestoToTicket,
   duplicatePresupuesto,
+  type PresupuestoConvertedTicket,
 } from '@/actions/presupuestos';
 import { ConfirmSheet } from '@/components/documents/confirm-sheet';
 import { PresupuestoDetailLayout } from '@/components/presupuestos/presupuesto-detail-layout';
@@ -54,6 +55,12 @@ export type PresupuestoViewProps = {
   editHref?: string | null;
   /** Newest first. The desktop activity card shows the latest four. */
   activity?: PresupuestoActivityEntry[];
+  /** Desktop only (ZIG-I29-1): meta line, Cliente counts and the Aceptado / Cancelado cards. */
+  authorName?: string | null;
+  canceledAt?: string | null;
+  clientTicketCount?: number | null;
+  clientPresupuestoCount?: number | null;
+  convertedTicket?: PresupuestoConvertedTicket | null;
 };
 
 /**
@@ -83,6 +90,11 @@ export const PresupuestoView = ({
   downloadFileName,
   editHref = null,
   activity = [],
+  authorName = null,
+  canceledAt = null,
+  clientTicketCount = null,
+  clientPresupuestoCount = null,
+  convertedTicket = null,
 }: PresupuestoViewProps) => {
   const router = useRouter();
   const docLabel = folio || `#${presupuestoId}`;
@@ -300,6 +312,11 @@ export const PresupuestoView = ({
         onCancel={() => setConfirm('cancel')}
         onDuplicate={() => void handleDuplicate()}
         activity={activity}
+        authorName={authorName}
+        canceledAt={canceledAt}
+        clientTicketCount={clientTicketCount}
+        clientPresupuestoCount={clientPresupuestoCount}
+        convertedTicket={convertedTicket}
       />
       {confirmSheet}
     </>

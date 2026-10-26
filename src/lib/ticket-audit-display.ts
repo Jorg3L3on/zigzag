@@ -14,6 +14,7 @@ export const TICKET_AUDIT_EVENT_LABELS: Record<string, string> = {
   presupuesto_canceled: 'Presupuesto cancelado',
   receipt_shared: 'Recibo compartido',
   presupuesto_duplicated: 'Presupuesto duplicado',
+  presupuesto_extended: 'Vigencia extendida',
 };
 
 /** Icon keys aligned with the dashboard activity feed vocabulary. */
@@ -327,8 +328,47 @@ export const formatTicketTimelineTitle = (
   }
 };
 
+const presupuestoExpiresDate = (value: unknown): string | null => {
+  if (typeof value !== 'string' && !(value instanceof Date)) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : format(date, "d 'de' MMMM", { locale: es });
+};
+
+/** The extension's new date, from `after.expires_at` (ZIG-I29-2). */
+const presupuestoExtendedTo = (payload: Record<string, unknown> | null): string | null =>
+  presupuestoExpiresDate(asRecord(payload?.after)?.expires_at);
+
+/**
+ * The same events read as a presupuesto (ZIG-I29-1): «creó el presupuesto»,
+ * «lo convirtió en ticket», «extendió la vigencia al 1 de noviembre».
+ */
+export const formatPresupuestoTimelineTitle = (
+  input: TicketTimelineEntryInput,
+): string => {
+  const who = actorLabel(input.actorName);
+  switch (input.eventType) {
+    case 'created':
+      return `${who} creó el presupuesto`;
+    case 'updated':
+      return `${who} actualizó el presupuesto`;
+    case 'presupuesto_converted':
+      return `${who} lo convirtió en ticket`;
+    case 'presupuesto_canceled':
+      return `${who} canceló el presupuesto`;
+    case 'presupuesto_duplicated':
+      return `${who} lo duplicó`;
+    case 'presupuesto_extended': {
+      const to = presupuestoExtendedTo(input.payload);
+      return to ? `${who} extendió la vigencia al ${to}` : `${who} extendió la vigencia`;
+    }
+    default:
+      return formatTicketTimelineTitle(input);
+  }
+};
+
 export const formatTicketTimelineEntry = (
   input: TicketTimelineEntryInput,
+  { documentKind = 'ticket' }: { documentKind?: 'ticket' | 'presupuesto' } = {},
 ): TicketTimelineFormatted => {
   const amount = extractTicketAuditAmount(input.eventType, input.payload);
   const agentDetail = formatMcpAgentDetail(input.payload);
@@ -338,7 +378,10 @@ export const formatTicketTimelineEntry = (
   ];
 
   return {
-    title: formatTicketTimelineTitle(input),
+    title:
+      documentKind === 'presupuesto'
+        ? formatPresupuestoTimelineTitle(input)
+        : formatTicketTimelineTitle(input),
     details,
     icon: getTicketTimelineIcon(input.eventType),
     amount,

@@ -41,6 +41,11 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   convertedToTicketId:
     row.converted_to_ticket_id != null ? String(row.converted_to_ticket_id) : null,
   downloadFileName: buildTicketPdfFileName(row),
+  authorName: trimmed(row.User?.name),
+  canceledAt: toIso(row.canceled_at),
+  clientTicketCount: row.client_document_counts?.tickets ?? null,
+  clientPresupuestoCount: row.client_document_counts?.presupuestos ?? null,
+  convertedTicket: row.converted_ticket ?? null,
 });
 
 /** Server row → composer edit state (ZIG-I5-5); inline lines stay inline. */
