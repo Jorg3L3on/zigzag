@@ -12,6 +12,7 @@ import {
 } from '@/actions/presupuestos';
 import { ConfirmSheet } from '@/components/documents/confirm-sheet';
 import { PresupuestoDetailLayout } from '@/components/presupuestos/presupuesto-detail-layout';
+import { PresupuestoExtendDialog } from '@/components/presupuestos/presupuesto-extend-dialog';
 import type { PresupuestoActivityEntry } from '@/components/presupuestos/presupuesto-desktop';
 import type { ReviewLine } from '@/components/tickets/review/document-review-parts';
 import { useCompany } from '@/contexts/company-context';
@@ -109,6 +110,7 @@ export const PresupuestoView = ({
   const [confirm, setConfirm] = React.useState<'convert' | 'cancel' | null>(null);
   const [mutating, setMutating] = React.useState(false);
   const [duplicating, setDuplicating] = React.useState(false);
+  const [extendOpen, setExtendOpen] = React.useState(false);
 
   const isMutable = status === 'abierto' || status === 'vencido';
   const servicesSummary = lines
@@ -311,6 +313,7 @@ export const PresupuestoView = ({
         onConvert={() => setConfirm('convert')}
         onCancel={() => setConfirm('cancel')}
         onDuplicate={() => void handleDuplicate()}
+        onExtend={canWrite && isMutable ? () => setExtendOpen(true) : undefined}
         activity={activity}
         authorName={authorName}
         canceledAt={canceledAt}
@@ -319,6 +322,18 @@ export const PresupuestoView = ({
         convertedTicket={convertedTicket}
       />
       {confirmSheet}
+      {canWrite && isMutable ? (
+        <PresupuestoExtendDialog
+          open={extendOpen}
+          onOpenChange={setExtendOpen}
+          presupuestoId={presupuestoId}
+          folio={folio}
+          ticketDate={ticketDate}
+          expiresAt={expiresAt}
+          companyId={companyId}
+          onExtended={() => router.refresh()}
+        />
+      ) : null}
     </>
   );
 };

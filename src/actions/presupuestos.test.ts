@@ -4,6 +4,7 @@ import {
   convertPresupuestoToTicket,
   createPresupuestoWithLines,
   duplicatePresupuesto,
+  extendPresupuestoVigencia,
   getPresupuestoById,
   updatePresupuesto,
 } from '@/actions/presupuestos';
@@ -754,5 +755,96 @@ describe('duplicatePresupuesto (ZIG-I13-5)', () => {
       expect.objectContaining({ lines: 2 }),
     );
     expect(requireTicketWrite).toHaveBeenCalledWith(10);
+  });
+});
+
+describe('extendPresupuestoVigencia (ZIG-I29-2)', () => {
+  const issued = {
+    ...quote,
+    ticket_date: new Date('2026-10-01T12:00:00Z'),
+    expires_at: new Date('2026-10-16T12:00:00Z'),
+  };
+  let updates: unknown[];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (requireTicketWrite as jest.Mock).mockResolvedValue({
+      context: authContext,
+      companyId: 10,
+    });
+    updates = [];
+    mockDb.transaction.mockImplementation(async (callback) =>
+      callback({
+        update: jest.fn(() => ({
+          set: jest.fn((values: unknown) => {
+            updates.push(values);
+            return {
+              where: jest.fn(() => ({
+                returning: jest.fn(async () => [{ ...issued, ...(values as object) }]),
+              })),
+            };
+          }),
+        })),
+      }),
+    );
+  });
+
+  it('moves expires_at and records the dates before and after', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(issued);
+    const next = new Date('2026-10-30T06:00:00Z');
+
+    const result = await extendPresupuestoVigencia(300, next, 10);
+
+    expect(result.success).toBe(true);
+    expect(updates[0]).toMatchObject({ expires_at: next });
+    expect(recordTicketAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      authContext,
+      300n,
+      10,
+      'presupuesto_extended',
+      {
+        before: { expires_at: issued.expires_at },
+        after: { expires_at: next },
+      },
+    );
+    const { where } = mockDb.query.ticket.findFirst.mock.calls[0][0] as { where: SQL };
+    const query = new PgDialect().sqlToQuery(where);
+    expect(query.params).toEqual(expect.arrayContaining([300n, 10, 'presupuesto']));
+  });
+
+  it('rejects a date before the issue date', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(issued);
+
+    const result = await extendPresupuestoVigencia(300, new Date('2026-09-20T12:00:00Z'), 10);
+
+    expect(result.success).toBe(false);
+    expect(result.errorType).toBe('validation');
+    expect(result.issues?.[0]?.path).toEqual(['expires_at']);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['accepted', { converted_to_ticket_id: 401n }],
+    ['canceled', { canceled_at: new Date('2026-10-05T12:00:00Z') }],
+  ])('rejects an %s presupuesto with TC012', async (_label, patch) => {
+    mockDb.query.ticket.findFirst.mockResolvedValue({ ...issued, ...patch });
+
+    const result = await extendPresupuestoVigencia(300, new Date('2026-10-30T12:00:00Z'), 10);
+
+    expect(result.success).toBe(false);
+    expect((result as { errorCode?: string }).errorCode).toBe('TC012');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+    expect(recordTicketAudit).not.toHaveBeenCalled();
+  });
+
+  it('answers not found for a presupuesto of another company', async () => {
+    mockDb.query.ticket.findFirst.mockResolvedValue(undefined);
+
+    const result = await extendPresupuestoVigencia(300, new Date('2026-10-30T12:00:00Z'), 99);
+
+    expect(result.success).toBe(false);
+    expect((result as { errorCode?: string }).errorCode).toBe('TC008');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 });

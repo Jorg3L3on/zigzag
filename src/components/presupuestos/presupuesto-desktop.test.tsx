@@ -298,6 +298,19 @@ describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
     expect(within(actions).getByRole('link', { name: 'Editar' })).toBeTruthy();
   });
 
+  it('opens Extender vigencia from the Vigencia card and from the header menu', async () => {
+    mockDesktopWidth(true);
+    const user = userEvent.setup();
+    const onExtend = jest.fn();
+    renderLayout({ status: 'vencido', expiresAt: '2026-10-19T12:00:00.000Z', onExtend });
+
+    const card = screen.getByTestId('presupuesto-vigencia-card');
+    await user.click(within(card).getByRole('button', { name: 'Extender vigencia' }));
+    await user.click(screen.getByRole('button', { name: 'Más acciones del presupuesto' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Extender vigencia' }));
+    expect(onExtend).toHaveBeenCalledTimes(2);
+  });
+
   it('asks for a date when the presupuesto has no expiry', () => {
     mockDesktopWidth(true);
     renderLayout({ expiresAt: null });

@@ -644,6 +644,116 @@ export async function convertPresupuestoToTicket(
   }
 }
 
+const extendVigenciaSchema = z.object({
+  id: z.number().int().positive(),
+  expires_at: z.coerce.date(),
+});
+
+/**
+ * Extender vigencia (ZIG-I29-2): moves `expires_at` of an open or expired
+ * presupuesto and records `presupuesto_extended` with the dates before and
+ * after. An expired one reads as Abierto again through getPresupuestoStatus;
+ * nothing else changes. Accepted or canceled ones answer TC012.
+ */
+export async function extendPresupuestoVigencia(
+  id: number,
+  expiresAt: Date | string,
+  companyId?: number | null,
+): Promise<{
+  success: boolean;
+  data?: PresupuestoListItem;
+  error?: string;
+  errorType?: ActionErrorType;
+  issues?: ValidationIssue[];
+}> {
+  try {
+    const validated = extendVigenciaSchema.parse({ id, expires_at: expiresAt });
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      companyId ?? undefined,
+    );
+    const ticketId = BigInt(validated.id);
+
+    const prior = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        eq(ticket.document_kind, 'presupuesto'),
+        isNull(ticket.deleted_at),
+      ),
+    });
+    if (!prior) {
+      return buildActionError('TC008');
+    }
+    if (prior.canceled_at != null || prior.converted_to_ticket_id != null) {
+      return buildActionError('TC012', undefined, 'validation');
+    }
+    if (
+      prior.ticket_date &&
+      startOfDay(validated.expires_at) < startOfDay(prior.ticket_date)
+    ) {
+      return {
+        ...buildActionError('TC009', undefined, 'validation'),
+        issues: [
+          {
+            path: ['expires_at'],
+            code: 'custom',
+            message: 'La vigencia no puede ser anterior a la fecha',
+          },
+        ],
+      };
+    }
+
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(ticket)
+        .set({ expires_at: validated.expires_at, updated_at: new Date() })
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+            isNull(ticket.canceled_at),
+            isNull(ticket.converted_to_ticket_id),
+          ),
+        )
+        .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'presupuesto_extended',
+          {
+            before: { expires_at: prior.expires_at },
+            after: { expires_at: row.expires_at },
+          },
+        );
+      }
+
+      return row;
+    });
+
+    if (!updated) {
+      return buildActionError('TC012', undefined, 'validation');
+    }
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+    revalidatePath('/presupuestos');
+    revalidatePath(`/presupuestos/${validated.id}`);
+    return { success: true, data: toListItem(updated) };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return buildValidationActionError(e);
+    }
+    if (e instanceof AuthorizationError || e instanceof AuthenticationError) {
+      return handleServerActionError(e);
+    }
+    return handleCodedServerActionError('presupuestos.extend', 'TC004', e);
+  }
+}
+
 /**
  * Duplicar (ZIG-I13-5): reads any presupuesto of the caller's company, whatever
  * its status, and returns a draft for the composer: same client, lines and
