@@ -198,6 +198,26 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
     }
   });
 
+  // Canvas ListaA: at 1280 with the sidebar the whole bar is one row, the order reading «Más recientes».
+  test('at 1280 the tickets and presupuestos bars keep one row with a short order label', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const { path, order } of [
+      { path: '/tickets', order: 'Ordenar lista de tickets' },
+      { path: '/presupuestos', order: 'Ordenar presupuestos' },
+    ]) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      const search = page.getByPlaceholder('Buscar por cliente, folio o teléfono').filter({ visible: true }).first();
+      const sort = page.getByRole('combobox', { name: order }).filter({ visible: true }).first();
+      const columns = page.getByRole('button', { name: 'Elegir columnas' }).filter({ visible: true }).first();
+      await expect(sort).toBeVisible({ timeout: 15_000 });
+      if (path === '/tickets') await expect(sort).toHaveText('Más recientes');
+      const [s, o, c] = [(await search.boundingBox())!, (await sort.boundingBox())!, (await columns.boundingBox())!];
+      expect(Math.abs(s.y - o.y), `${path}: search and order on one row`).toBeLessThanOrEqual(8);
+      expect(Math.abs(s.y - c.y), `${path}: search and Columnas on one row`).toBeLessThanOrEqual(8);
+    }
+  });
+
   for (const width of WIDTHS) {
     test(`at ${width} every list keeps ⋮ reachable`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });

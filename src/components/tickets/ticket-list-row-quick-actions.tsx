@@ -65,6 +65,8 @@ export const TicketListRowQuickActions = ({
   const showEditar = canWrite && !ticket.finished && !hasServices;
   const showPdf = canDownload && ticket.finished;
   const ticketId = ticket.id.toString();
+  // People know the folio (R-0060), not the internal id; #id only without a folio.
+  const folio = formatDocumentFolio(ticket);
   const hasQuickActions = showCollect || showTerminar || showEditar || showPdf;
 
   const handleDownloadPdf = async () => {
@@ -105,7 +107,7 @@ export const TicketListRowQuickActions = ({
               size="sm"
               className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
               onClick={() => setCollectOpen(true)}
-              aria-label={`Cobrar el ticket ${ticketId}`}
+              aria-label={`Cobrar ${folio}`}
             >
               Cobrar
             </Button>
@@ -114,7 +116,7 @@ export const TicketListRowQuickActions = ({
             <Button asChild variant="outline" size="sm">
               <Link
                 href={hrefForTicketListRow(ticket, canWrite)}
-                aria-label={`Terminar ticket ${ticketId}`}
+                aria-label={`Terminar ${folio}`}
               >
                 Terminar
               </Link>
@@ -122,7 +124,7 @@ export const TicketListRowQuickActions = ({
           ) : null}
           {showEditar ? (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/tickets/${ticketId}/edit`} aria-label={`Editar ticket ${ticketId}`}>
+              <Link href={`/tickets/${ticketId}/edit`} aria-label={`Editar ${folio}`}>
                 Editar
               </Link>
             </Button>
@@ -136,7 +138,7 @@ export const TicketListRowQuickActions = ({
               onClick={() => {
                 void handleDownloadPdf();
               }}
-              aria-label={`PDF del ticket ${ticketId}`}
+              aria-label={`PDF de ${folio}`}
               className="w-9 px-0"
             >
               {isDownloading ? (
@@ -165,7 +167,7 @@ export const TicketListRowQuickActions = ({
           total={ticket.total}
           paid={ticket.paid}
           companyId={companyId}
-          folio={formatDocumentFolio(ticket)}
+          folio={folio}
           clientName={ticket.client_name}
           clientTel={ticket.client_tel}
           onPaymentApplied={(result) => {

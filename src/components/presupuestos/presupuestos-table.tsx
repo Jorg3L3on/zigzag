@@ -473,7 +473,7 @@ export const PresupuestosTable = ({
         {/* The order sits at the right end of the bar, as on the canvas. */}
         <div className="ml-auto flex items-center gap-2">
           <Select value={sort} onValueChange={(value) => setSort(value as PresupuestoListSort)}>
-            <SelectTrigger className="h-11 w-48 rounded-full px-4" aria-label="Ordenar presupuestos">
+            <SelectTrigger className="h-11 w-auto gap-2 rounded-full px-4" aria-label="Ordenar presupuestos">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

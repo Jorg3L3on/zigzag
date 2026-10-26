@@ -148,13 +148,13 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     const user = userEvent.setup();
     render(<TableHarness ticket={makeTicket()} />);
 
-    const quick = screen.getByRole('button', { name: /cobrar el ticket 12/i }).parentElement;
+    const quick = screen.getByRole('button', { name: /^cobrar R-0012$/i }).parentElement;
     expect(quick).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
-    expect(screen.getByRole('button', { name: /más acciones del ticket 12/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /pdf del ticket 12/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^más acciones de R-0012$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^pdf de R-0012$/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /cobrar el ticket 12/i }));
+    await user.click(screen.getByRole('button', { name: /^cobrar R-0012$/i }));
     expect(screen.getByRole('heading', { name: /^cobrar ticket R-0012$/i })).toBeInTheDocument();
   });
 
@@ -165,7 +165,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: /terminar ticket 12/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^terminar R-0012$/i })).toHaveAttribute(
       'href',
       '/tickets/12',
     );
@@ -180,7 +180,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: /editar ticket 12/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^editar R-0012$/i })).toHaveAttribute(
       'href',
       '/tickets/12/edit',
     );
@@ -190,7 +190,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     render(<TableHarness ticket={makeTicket()} canWrite={false} />);
 
     expect(screen.queryByRole('button', { name: /cobrar/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /más acciones del ticket 12/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /pdf del ticket 12/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^más acciones de R-0012$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^pdf de R-0012$/i })).toBeInTheDocument();
   });
 });
