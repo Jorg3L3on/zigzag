@@ -287,7 +287,7 @@ export const PresupuestosTable = ({
       {
         id: 'trabajo',
         header: 'Trabajo',
-        meta: { className: 'hidden @min-[52rem]:table-cell' },
+        meta: { className: 'hidden @min-[64rem]:table-cell' },
         cell: ({ row }) => {
           const { servicesSummary, servicesHead, servicesCount } = row.original;
           if (!servicesSummary) {

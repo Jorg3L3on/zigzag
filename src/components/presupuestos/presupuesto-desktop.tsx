@@ -1088,7 +1088,7 @@ export const PresupuestoDesktop = ({
           <aside
             aria-label="Vigencia, cliente y actividad"
             data-testid="presupuesto-desktop-rail"
-            className="order-2 grid min-w-0 items-start gap-4 @min-[40rem]:grid-cols-2 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:order-none @min-[60rem]:col-start-2 @min-[60rem]:row-start-1 @min-[60rem]:flex @min-[60rem]:flex-col @min-[60rem]:gap-6"
+            className="order-2 grid min-w-0 items-start gap-4 @min-[40rem]:grid-cols-2 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:order-none @min-[60rem]:col-start-2 @min-[60rem]:row-start-1 @min-[60rem]:flex @min-[60rem]:flex-col @min-[60rem]:items-stretch @min-[60rem]:gap-6"
           >
             {stateCard}
             <PresupuestoClienteCard
