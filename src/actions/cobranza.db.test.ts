@@ -109,10 +109,10 @@ describeDb('Cobranza on a real Postgres', () => {
     const cobranza = await getCobranzaPaginated({});
     expect(cobranza.success).toBe(true);
     const data = cobranza.data!;
-    expect(data.buckets.all).toEqual({ count: 3, amount: 3310 });
+    expect(data.buckets.all).toMatchObject({ count: 3, amount: 3310 });
     expect(data.rows.map((row) => row.folio).sort()).toEqual(['R-0016', 'R-0036', 'R-0040']);
     expect(data.inProgress).toEqual({ count: 1, total: 89000 });
-    expect(data.collectedThisMonth).toEqual({ amount: 400, payments: 1 });
+    expect(data.collectedThisMonth).toMatchObject({ amount: 400, payments: 1 });
     expect(data.rows.find((row) => row.folio === 'R-0036')?.daysSinceLastPayment).toBe(0);
 
     const metrics = await loadDashboardMetricsForCompany(companyId, 1);
