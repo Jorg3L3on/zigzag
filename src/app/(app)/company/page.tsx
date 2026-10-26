@@ -5,8 +5,11 @@ import { CompanyForm } from '@/components/companies/company-form';
 import { CompanyReadinessBanner } from '@/components/companies/company-readiness-banner';
 import { assessCompanyReadiness } from '@/lib/company-readiness';
 import { getOwnCompany } from '@/actions/companies';
+import { db } from '@/lib/db';
+import { readNextFolioNumbers } from '@/lib/folio-allocator';
 import { requirePagePermission } from '@/lib/page-authz';
 import { TripledResourceCard } from '@/components/tripled';
+import { COMPANY_HUB_CARD_DESKTOP_RESET } from '@/lib/company-hub';
 
 export const metadata: Metadata = {
   title: 'Mi empresa',
@@ -23,19 +26,25 @@ export default async function CompanySettingsPage() {
 
   const companyRow = result.data;
   const readiness = assessCompanyReadiness(companyRow);
+  const nextFolioNumbers = await readNextFolioNumbers(db, companyRow.id);
 
+  // Phones keep the card; md+ drops it for the hub header and Datos cards (ZIG-I32-1).
   return (
-    <div className="w-full max-w-3xl">
+    <div className="w-full max-w-3xl md:max-w-none">
       <TripledResourceCard
         title="Datos de la empresa"
         description="Actualiza datos generales, dirección, logo y configuración."
         icon={<Building2 className="size-5" aria-hidden />}
+        {...COMPANY_HUB_CARD_DESKTOP_RESET}
       >
         <div className="space-y-6">
-          <CompanyReadinessBanner assessment={readiness} />
+          <div className="md:hidden">
+            <CompanyReadinessBanner assessment={readiness} />
+          </div>
           <CompanyForm
             company={companyRow}
             mode="self"
+            nextFolioNumbers={nextFolioNumbers}
             key={companyRow.logo ?? 'no-logo'}
           />
         </div>

@@ -71,3 +71,15 @@ export const getCompanyHubSubpage = (
   }
   return null;
 };
+
+/**
+ * Props for `TripledResourceCard` on the hub pages: phones keep the card, md+
+ * drops its frame, header and padding (ZIG-I32), so the hub header is the
+ * only one. overflow-visible keeps the sticky asides working.
+ */
+export const COMPANY_HUB_CARD_DESKTOP_RESET = {
+  className:
+    'md:overflow-visible md:rounded-none md:border-0 md:bg-none md:bg-transparent md:shadow-none md:ring-0 md:hover:transform-none md:hover:shadow-none',
+  headerClassName: 'md:hidden',
+  contentClassName: 'md:p-0 md:pt-0',
+} as const;

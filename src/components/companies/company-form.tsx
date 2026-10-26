@@ -59,11 +59,15 @@ import {
 } from '@/lib/company-payment-info';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 import { CompanyFormSection } from '@/components/companies/company-form-section';
+import { CompanyReceiptPreview } from '@/components/companies/company-receipt-preview';
+import { FormChangesBar } from '@/components/companies/form-changes-bar';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
+import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DEFAULT_COMPANY_FORM_SECTIONS,
   firstInvalidCompanyField,
+  listChangedCompanyFields,
   readCompanyFormSections,
   summarizeCompanyAddress,
   summarizeCompanyGeneral,
@@ -75,6 +79,44 @@ import {
 } from '@/lib/company-form-sections';
 
 const COMPANY_FORM_ID = 'company-form';
+
+const PAYMENT_KIND_OPTIONS = [
+  { value: 'clabe', label: 'CLABE' },
+  { value: 'card', label: 'Tarjeta' },
+  { value: 'account', label: 'Cuenta' },
+] as const;
+
+const EXPERIENCE_OPTIONS = [
+  { value: 'auto', label: 'Automático', hint: '1 usuario = Campo' },
+  { value: 'campo', label: 'Campo', hint: 'Sin gráficos; el trabajo del día primero' },
+  { value: 'office', label: 'Oficina', hint: 'Métricas y gráficos en Hoy' },
+] as const;
+
+/** One Datos card on md+ (ZIG-I32-1); `id` is the side-nav anchor. */
+const DatosCard = ({
+  id,
+  title,
+  hint,
+  children,
+}: {
+  id: string;
+  title: string;
+  hint: string;
+  children: React.ReactNode;
+}) => (
+  <section
+    id={id}
+    aria-labelledby={`${id}-title`}
+    className="scroll-mt-24 rounded-xl border bg-card p-5 lg:p-6"
+    data-testid={`company-datos-${id}`}
+  >
+    <h2 id={`${id}-title`} className="text-base font-semibold">
+      {title}
+    </h2>
+    <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
+    <div className="mt-4">{children}</div>
+  </section>
+);
 
 const defaultSettings = {
   tagline: '',
@@ -127,12 +169,18 @@ interface CompanyFormProps {
    * at /companies/[id] keeps the flat layout.
    */
   sectioned?: boolean;
+  /**
+   * Next folio numbers of the company's series (DocumentFolioCounter + 1),
+   * for "El siguiente será P-0007" on md+ (ZIG-I32-1).
+   */
+  nextFolioNumbers?: { presupuesto: number; ticket: number };
 }
 
 export const CompanyForm = ({
   company,
   mode = 'system',
   sectioned,
+  nextFolioNumbers = { presupuesto: 1, ticket: 1 },
 }: CompanyFormProps) => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -141,6 +189,9 @@ export const CompanyForm = ({
   const isSectioned = sectioned ?? isSelfService;
   const isMobile = useIsMobile();
   const collapsible = isSectioned && isMobile;
+  // md+ self-service: Datos cards, receipt preview and the changes bar
+  // (ZIG-I32-1). Phones and the operator form keep their own tree.
+  const desktopCards = isSectioned && isSelfService && !isMobile && Boolean(company);
   // Read synchronously on the client: the saved state only shows once the
   // form switches to mobile after hydration, so it cannot mismatch the server
   // markup, and no later effect flips a section the user already toggled.
@@ -227,6 +278,7 @@ export const CompanyForm = ({
           return;
         }
         toast.success('Empresa actualizada correctamente');
+        form.reset(data);
       } else {
         const result = await createCompany(data);
         if (!result.success) {
@@ -260,14 +312,16 @@ export const CompanyForm = ({
 
   // A field hidden in a closed section: open it, then focus and scroll to it.
   const handleInvalid = (errors: FieldErrors<CompanyBootstrapFormValues>) => {
-    if (!collapsible) {
+    if (!collapsible && !desktopCards) {
       return;
     }
     const hit = firstInvalidCompanyField(errors as Record<string, unknown>);
     if (!hit) {
       return;
     }
-    setSectionOpen(hit.section, true);
+    if (collapsible) {
+      setSectionOpen(hit.section, true);
+    }
     window.requestAnimationFrame(() => {
       form.setFocus(hit.field as keyof CompanyBootstrapFormValues);
       document
@@ -289,6 +343,763 @@ export const CompanyForm = ({
     <CompanyLogoUpload companyId={company.id} logoUrl={company.logo} />
   ) : null;
 
+  const nameField = (
+    <FormField
+      control={form.control}
+      name="name"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Nombre</FormLabel>
+          <FormControl>
+            <Input {...field} autoComplete="organization" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const statusField = (
+    <FormField
+      control={form.control}
+      name="status"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Estado de la empresa</FormLabel>
+          <Select
+            onValueChange={field.onChange}
+            value={field.value}
+          >
+            <FormControl>
+              <SelectTrigger aria-label="Estado de la empresa">
+                <SelectValue placeholder="Selecciona" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value="SETUP">En configuración</SelectItem>
+              <SelectItem value="ACTIVE">Activa</SelectItem>
+              <SelectItem value="SUSPENDED">Suspendida</SelectItem>
+              <SelectItem value="ARCHIVED">Archivada</SelectItem>
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const emailField = (
+    <FormField
+      control={form.control}
+      name="email"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Correo electrónico</FormLabel>
+          <FormControl>
+            <Input {...field} type="email" autoComplete="email" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const phoneField = (
+    <FormField
+      control={form.control}
+      name="phone"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Teléfono</FormLabel>
+          <FormControl>
+            <Input {...field} type="tel" autoComplete="tel" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const streetField = (
+    <FormField
+      control={form.control}
+      name="street"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Calle</FormLabel>
+          <FormControl>
+            <Input {...field} autoComplete="street-address" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const interiorField = (
+    <FormField
+      control={form.control}
+      name="interior_number"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Número interior</FormLabel>
+          <FormControl>
+            <Input {...field} placeholder="Opcional" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const exteriorField = (
+    <FormField
+      control={form.control}
+      name="exterior_number"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Número exterior</FormLabel>
+          <FormControl>
+            <Input {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const neighborhoodField = (
+    <FormField
+      control={form.control}
+      name="neighborhood"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Colonia</FormLabel>
+          <FormControl>
+            <Input {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const cityField = (
+    <FormField
+      control={form.control}
+      name="city"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Ciudad</FormLabel>
+          <FormControl>
+            <Input {...field} autoComplete="address-level2" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const stateField = (
+    <FormField
+      control={form.control}
+      name="state"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Estado</FormLabel>
+          <FormControl>
+            <Input {...field} autoComplete="address-level1" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const countryField = (
+    <FormField
+      control={form.control}
+      name="country"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>País</FormLabel>
+          <FormControl>
+            <Input {...field} autoComplete="country-name" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const postalCodeField = (
+    <FormField
+      control={form.control}
+      name="postal_code"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Código postal</FormLabel>
+          <FormControl>
+            <Input {...field} autoComplete="postal-code" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const taglineField = (
+    <FormField
+      control={form.control}
+      name="settings.tagline"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Lema o giro</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              placeholder="Climatización · Servicio técnico"
+            />
+          </FormControl>
+          <FormDescription className="flex justify-between gap-3">
+            <span>Aparece bajo el nombre en tus presupuestos y recibos</span>
+            <span
+              className="shrink-0 tabular-nums"
+              data-testid="company-tagline-counter"
+            >
+              {(field.value ?? '').length}/{COMPANY_TAGLINE_MAX}
+            </span>
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const rfcField = (
+    <FormField
+      control={form.control}
+      name="settings.rfc"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>RFC</FormLabel>
+          <FormControl>
+            <Input {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const currencyField = (
+    <FormField
+      control={form.control}
+      name="settings.default_currency"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Moneda por defecto</FormLabel>
+          <FormControl>
+            <Input {...field} placeholder="MXN" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const prefixPresupuestoField = (
+    <FormField
+      control={form.control}
+      name="settings.folio_prefix_presupuesto"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Prefijo de presupuestos</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              maxLength={FOLIO_PREFIX_MAX_LENGTH}
+              placeholder="P"
+              autoCapitalize="characters"
+              data-testid="company-folio-prefix-presupuesto"
+            />
+          </FormControl>
+          <FormDescription>
+            Se usa en los presupuestos nuevos: {formatFolio(normalizeFolioPrefix(field.value) || DEFAULT_FOLIO_PREFIX.presupuesto, 1)}. Los anteriores no cambian.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const prefixTicketField = (
+    <FormField
+      control={form.control}
+      name="settings.folio_prefix_ticket"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Prefijo de recibos</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              maxLength={FOLIO_PREFIX_MAX_LENGTH}
+              placeholder="R"
+              autoCapitalize="characters"
+              data-testid="company-folio-prefix-ticket"
+            />
+          </FormControl>
+          <FormDescription>
+            Se usa en los tickets nuevos: {formatFolio(normalizeFolioPrefix(field.value) || DEFAULT_FOLIO_PREFIX.ticket, 1)}. Los anteriores no cambian.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const experienceSelectField = (
+    <FormField
+      control={form.control}
+      name="settings.experience_mode"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Experiencia de inicio</FormLabel>
+          <Select
+            onValueChange={field.onChange}
+            value={field.value || 'auto'}
+          >
+            <FormControl>
+              <SelectTrigger aria-label="Experiencia de inicio">
+                <SelectValue placeholder="Automático (1 usuario = Campo)" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value="auto">
+                Automático (1 usuario = Campo)
+              </SelectItem>
+              <SelectItem value="campo">Campo</SelectItem>
+              <SelectItem value="office">Oficina</SelectItem>
+            </SelectContent>
+          </Select>
+          <FormDescription>
+            Campo oculta gráficos y prioriza el trabajo del día en el
+            inicio. Déjalo en automático para que empresas de un solo
+            usuario usen Campo.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentBankField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_bank"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Banco</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              maxLength={PAYMENT_BANK_MAX}
+              placeholder="BBVA"
+              data-testid="company-payment-bank"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentHolderField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_holder"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>A nombre de</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              maxLength={PAYMENT_HOLDER_MAX}
+              placeholder="Nombre del titular de la cuenta"
+              data-testid="company-payment-holder"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentKindSelectField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_kind"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Tipo</FormLabel>
+          <Select
+            value={field.value || 'clabe'}
+            onValueChange={field.onChange}
+          >
+            <FormControl>
+              <SelectTrigger className="h-11" data-testid="company-payment-kind">
+                <SelectValue />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value="clabe">CLABE</SelectItem>
+              <SelectItem value="card">Tarjeta</SelectItem>
+              <SelectItem value="account">Cuenta</SelectItem>
+            </SelectContent>
+          </Select>
+          <FormDescription>
+            Un solo método por empresa. El recibo del ticket imprime el
+            que elijas.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentClabeField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_clabe"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>CLABE</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={CLABE_LENGTH + 5}
+              placeholder="18 dígitos"
+              className="font-mono tracking-wide"
+              data-testid="company-payment-clabe"
+            />
+          </FormControl>
+          <FormDescription>
+            Los 18 dígitos de tu cuenta. Revisamos que el último dígito
+            coincida para evitar errores al copiarla.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentCardField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_card"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Número de tarjeta</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={CARD_MAX_LENGTH + 5}
+              placeholder="15 a 19 dígitos"
+              className="font-mono tracking-wide"
+              data-testid="company-payment-card"
+            />
+          </FormControl>
+          <FormDescription>
+            Sólo el número para el depósito. No pedimos vencimiento ni CVV.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentAccountField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_account"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Número de cuenta</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={ACCOUNT_MAX_LENGTH + 5}
+              placeholder="10 u 11 dígitos"
+              className="font-mono tracking-wide"
+              data-testid="company-payment-account"
+            />
+          </FormControl>
+          <FormDescription>De 10 a 11 dígitos.</FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const paymentNoteField = (
+    <FormField
+      control={form.control}
+      name="settings.payment_note"
+      render={({ field }) => (
+        <FormItem className="md:col-span-2">
+          <FormLabel>Indicación para tu cliente</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={field.value ?? ''}
+              maxLength={PAYMENT_NOTE_MAX}
+              placeholder="Manda tu comprobante por WhatsApp"
+              data-testid="company-payment-note"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+  const cardWarning = paymentKind === 'card' ? (
+    <p
+      role="note"
+      data-testid="card-payment-warning"
+      className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 md:col-span-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+    >
+      {CARD_PAYMENT_WARNING}
+    </p>
+  ) : null;
+
+  const nextFolio = (
+    value: string | undefined,
+    kind: 'presupuesto' | 'ticket',
+  ) =>
+    formatFolio(
+      normalizeFolioPrefix(value) || DEFAULT_FOLIO_PREFIX[kind],
+      nextFolioNumbers[kind],
+    );
+  const changedFields = desktopCards
+    ? listChangedCompanyFields(form.formState.dirtyFields as Record<string, unknown>)
+    : [];
+
+  const desktopLayout = desktopCards && company ? (
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="min-w-0">
+        <form
+          id={COMPANY_FORM_ID}
+          onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
+          className="flex flex-col gap-4"
+          noValidate
+        >
+          <DatosCard
+            id="perfil"
+            title="Perfil"
+            hint="Lo que tus clientes ven en recibos, presupuestos y WhatsApp."
+          >
+            <CompanyLogoUpload
+              companyId={company.id}
+              logoUrl={company.logo}
+              companyName={values.name || company.name}
+              variant="inline"
+            />
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="col-span-2">{nameField}</div>
+              {taglineField}
+              {emailField}
+              {phoneField}
+            </div>
+          </DatosCard>
+
+          <DatosCard id="direccion" title="Dirección" hint="Se imprime al pie del recibo.">
+            <div className="grid grid-cols-2 gap-4">
+              {streetField}
+              {exteriorField}
+              {interiorField}
+              {neighborhoodField}
+              {postalCodeField}
+              {cityField}
+              {stateField}
+              {countryField}
+            </div>
+          </DatosCard>
+
+          <DatosCard
+            id="documentos"
+            title="Documentos y folios"
+            hint="Cómo se numeran y se identifican tus documentos."
+          >
+            <div className="grid grid-cols-2 gap-4">
+              {rfcField}
+              {currencyField}
+              <FormField
+                control={form.control}
+                name="settings.folio_prefix_presupuesto"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prefijo de presupuestos</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        maxLength={FOLIO_PREFIX_MAX_LENGTH}
+                        placeholder="P"
+                        autoCapitalize="characters"
+                        className="font-mono"
+                        data-testid="company-folio-prefix-presupuesto"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      El siguiente será{' '}
+                      <span className="font-mono" data-testid="company-next-folio-presupuesto">
+                        {nextFolio(field.value, 'presupuesto')}
+                      </span>
+                      ; los anteriores no cambian.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="settings.folio_prefix_ticket"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prefijo de recibos</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        maxLength={FOLIO_PREFIX_MAX_LENGTH}
+                        placeholder="R"
+                        autoCapitalize="characters"
+                        className="font-mono"
+                        data-testid="company-folio-prefix-ticket"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      El siguiente será{' '}
+                      <span className="font-mono" data-testid="company-next-folio-ticket">
+                        {nextFolio(field.value, 'ticket')}
+                      </span>
+                      ; los anteriores no cambian.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </DatosCard>
+
+          <DatosCard
+            id="pagos"
+            title="Pagos por transferencia"
+            hint="Opcional. Se imprime en el recibo y se agrega a los WhatsApp de cobro. Aquí no se cobra nada."
+          >
+            <div className="grid grid-cols-2 gap-4">
+              {paymentBankField}
+              {paymentHolderField}
+              <FormField
+                control={form.control}
+                name="settings.payment_kind"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <fieldset>
+                      <legend className="text-sm font-medium">Método</legend>
+                      <div className="mt-2 flex flex-wrap gap-2" data-testid="company-payment-kind">
+                        {PAYMENT_KIND_OPTIONS.map((option) => (
+                          <label
+                            key={option.value}
+                            className={cn(
+                              'inline-flex h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
+                              'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                              paymentKind === option.value
+                                ? 'border-primary/40 bg-primary/10 text-primary'
+                                : 'border-border text-foreground/80 hover:bg-muted',
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={field.name}
+                              value={option.value}
+                              checked={paymentKind === option.value}
+                              onChange={() => field.onChange(option.value)}
+                              className="sr-only"
+                            />
+                            {option.label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <FormDescription>Un solo método por empresa.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {cardWarning}
+              {paymentKind === 'clabe' ? paymentClabeField : null}
+              {paymentKind === 'card' ? paymentCardField : null}
+              {paymentKind === 'account' ? paymentAccountField : null}
+              {paymentNoteField}
+            </div>
+          </DatosCard>
+
+          <DatosCard id="inicio" title="Inicio" hint="Qué ve tu equipo al entrar.">
+            <FormField
+              control={form.control}
+              name="settings.experience_mode"
+              render={({ field }) => (
+                <FormItem>
+                  <fieldset>
+                    <legend className="sr-only">Experiencia de inicio</legend>
+                    <div className="grid gap-2.5 lg:grid-cols-3">
+                      {EXPERIENCE_OPTIONS.map((option) => {
+                        const checked = (field.value || 'auto') === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={cn(
+                              'flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors',
+                              'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                              checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={field.name}
+                              value={option.value}
+                              checked={checked}
+                              onChange={() => field.onChange(option.value)}
+                              className="mt-0.5 size-4 accent-primary"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium">{option.label}</span>
+                              <span className="block text-caption text-muted-foreground">
+                                {option.hint}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </DatosCard>
+        </form>
+        <FormChangesBar
+          changedFields={changedFields}
+          formId={COMPANY_FORM_ID}
+          onDiscard={() => form.reset()}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+      <CompanyReceiptPreview
+        company={company}
+        values={values}
+        nextReceiptFolio={nextFolio(values.settings?.folio_prefix_ticket, 'ticket')}
+        className="xl:sticky xl:top-20"
+      />
+    </div>
+  ) : null;
+
+  if (desktopLayout) {
+    return <Form {...form}>{desktopLayout}</Form>;
+  }
+
   return (
     <Form {...form}>
       <form
@@ -307,71 +1118,10 @@ export const CompanyForm = ({
           testId="company-form-section-general"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoComplete="organization" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado de la empresa</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger aria-label="Estado de la empresa">
-                        <SelectValue placeholder="Selecciona" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="SETUP">En configuración</SelectItem>
-                      <SelectItem value="ACTIVE">Activa</SelectItem>
-                      <SelectItem value="SUSPENDED">Suspendida</SelectItem>
-                      <SelectItem value="ARCHIVED">Archivada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Correo electrónico</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" autoComplete="email" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Teléfono</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="tel" autoComplete="tel" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {nameField}
+            {statusField}
+            {emailField}
+            {phoneField}
           </div>
           {/* Sectioned forms keep the logo inside General. */}
           {isSectioned && logoUpload ? <div className="pt-6">{logoUpload}</div> : null}
@@ -396,110 +1146,14 @@ export const CompanyForm = ({
           testId="company-form-section-direccion"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="street"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Calle</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoComplete="street-address" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="interior_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número interior</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Opcional" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="exterior_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número exterior</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="neighborhood"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Colonia</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ciudad</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoComplete="address-level2" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoComplete="address-level1" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="country"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>País</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoComplete="country-name" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="postal_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código postal</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoComplete="postal-code" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {streetField}
+            {interiorField}
+            {exteriorField}
+            {neighborhoodField}
+            {cityField}
+            {stateField}
+            {countryField}
+            {postalCodeField}
           </div>
         </CompanyFormSection>
 
@@ -579,136 +1233,12 @@ export const CompanyForm = ({
           testId="company-form-section-configuracion"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="settings.tagline"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Lema o giro</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      placeholder="Climatización · Servicio técnico"
-                    />
-                  </FormControl>
-                  <FormDescription className="flex justify-between gap-3">
-                    <span>Aparece bajo el nombre en tus presupuestos y recibos</span>
-                    <span
-                      className="shrink-0 tabular-nums"
-                      data-testid="company-tagline-counter"
-                    >
-                      {(field.value ?? '').length}/{COMPANY_TAGLINE_MAX}
-                    </span>
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.rfc"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>RFC</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.default_currency"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Moneda por defecto</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="MXN" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.folio_prefix_presupuesto"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Prefijo de presupuestos</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      maxLength={FOLIO_PREFIX_MAX_LENGTH}
-                      placeholder="P"
-                      autoCapitalize="characters"
-                      data-testid="company-folio-prefix-presupuesto"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Se usa en los presupuestos nuevos: {formatFolio(normalizeFolioPrefix(field.value) || DEFAULT_FOLIO_PREFIX.presupuesto, 1)}. Los anteriores no cambian.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.folio_prefix_ticket"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Prefijo de recibos</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      maxLength={FOLIO_PREFIX_MAX_LENGTH}
-                      placeholder="R"
-                      autoCapitalize="characters"
-                      data-testid="company-folio-prefix-ticket"
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Se usa en los tickets nuevos: {formatFolio(normalizeFolioPrefix(field.value) || DEFAULT_FOLIO_PREFIX.ticket, 1)}. Los anteriores no cambian.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.experience_mode"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Experiencia de inicio</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || 'auto'}
-                  >
-                    <FormControl>
-                      <SelectTrigger aria-label="Experiencia de inicio">
-                        <SelectValue placeholder="Automático (1 usuario = Campo)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="auto">
-                        Automático (1 usuario = Campo)
-                      </SelectItem>
-                      <SelectItem value="campo">Campo</SelectItem>
-                      <SelectItem value="office">Oficina</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Campo oculta gráficos y prioriza el trabajo del día en el
-                    inicio. Déjalo en automático para que empresas de un solo
-                    usuario usen Campo.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {taglineField}
+            {rfcField}
+            {currencyField}
+            {prefixPresupuestoField}
+            {prefixTicketField}
+            {experienceSelectField}
           </div>
         </CompanyFormSection>
 
@@ -729,181 +1259,14 @@ export const CompanyForm = ({
             cobra nada.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="settings.payment_bank"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Banco</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      maxLength={PAYMENT_BANK_MAX}
-                      placeholder="BBVA"
-                      data-testid="company-payment-bank"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.payment_holder"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>A nombre de</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      maxLength={PAYMENT_HOLDER_MAX}
-                      placeholder="Nombre del titular de la cuenta"
-                      data-testid="company-payment-holder"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="settings.payment_kind"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Tipo</FormLabel>
-                  <Select
-                    value={field.value || 'clabe'}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-11" data-testid="company-payment-kind">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="clabe">CLABE</SelectItem>
-                      <SelectItem value="card">Tarjeta</SelectItem>
-                      <SelectItem value="account">Cuenta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Un solo método por empresa. El recibo del ticket imprime el
-                    que elijas.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {paymentKind === 'card' ? (
-              <p
-                role="note"
-                data-testid="card-payment-warning"
-                className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 md:col-span-2 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
-              >
-                {CARD_PAYMENT_WARNING}
-              </p>
-            ) : null}
-            {paymentKind === 'clabe' ? (
-              <FormField
-                control={form.control}
-                name="settings.payment_clabe"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>CLABE</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        inputMode="numeric"
-                        autoComplete="off"
-                        maxLength={CLABE_LENGTH + 5}
-                        placeholder="18 dígitos"
-                        className="font-mono tracking-wide"
-                        data-testid="company-payment-clabe"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Los 18 dígitos de tu cuenta. Revisamos que el último dígito
-                      coincida para evitar errores al copiarla.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ) : null}
-            {paymentKind === 'card' ? (
-              <FormField
-                control={form.control}
-                name="settings.payment_card"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Número de tarjeta</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        inputMode="numeric"
-                        autoComplete="off"
-                        maxLength={CARD_MAX_LENGTH + 5}
-                        placeholder="15 a 19 dígitos"
-                        className="font-mono tracking-wide"
-                        data-testid="company-payment-card"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Sólo el número para el depósito. No pedimos vencimiento ni CVV.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ) : null}
-            {paymentKind === 'account' ? (
-              <FormField
-                control={form.control}
-                name="settings.payment_account"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Número de cuenta</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        inputMode="numeric"
-                        autoComplete="off"
-                        maxLength={ACCOUNT_MAX_LENGTH + 5}
-                        placeholder="10 u 11 dígitos"
-                        className="font-mono tracking-wide"
-                        data-testid="company-payment-account"
-                      />
-                    </FormControl>
-                    <FormDescription>De 10 a 11 dígitos.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ) : null}
-            <FormField
-              control={form.control}
-              name="settings.payment_note"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Indicación para tu cliente</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      maxLength={PAYMENT_NOTE_MAX}
-                      placeholder="Manda tu comprobante por WhatsApp"
-                      data-testid="company-payment-note"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {paymentBankField}
+            {paymentHolderField}
+            {paymentKindSelectField}
+            {cardWarning}
+            {paymentKind === 'clabe' ? paymentClabeField : null}
+            {paymentKind === 'card' ? paymentCardField : null}
+            {paymentKind === 'account' ? paymentAccountField : null}
+            {paymentNoteField}
           </div>
         </CompanyFormSection>
 

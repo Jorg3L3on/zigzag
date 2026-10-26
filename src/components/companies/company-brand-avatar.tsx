@@ -14,6 +14,8 @@ type CompanyBrandAvatarProps = {
   logoUrl: string | null | undefined;
   className?: string;
   imageClassName?: string;
+  /** `sizes` for the logo image; defaults to the 24 px sidebar avatar. */
+  imageSizes?: string;
 };
 
 export const CompanyBrandAvatar = ({
@@ -21,6 +23,7 @@ export const CompanyBrandAvatar = ({
   logoUrl,
   className,
   imageClassName,
+  imageSizes = '24px',
 }: CompanyBrandAvatarProps) => {
   const trustedUrl = resolveCompanyLogoUrl(logoUrl);
   const [imageFailed, setImageFailed] = React.useState(false);
@@ -44,7 +47,7 @@ export const CompanyBrandAvatar = ({
           src={trustedUrl}
           alt={`Logo de ${name}`}
           fill
-          sizes="24px"
+          sizes={imageSizes}
           className={cn('object-contain', imageClassName)}
           unoptimized={trustedUrl.startsWith('/')}
           onError={() => setImageFailed(true)}

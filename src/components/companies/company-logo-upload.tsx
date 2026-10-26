@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Loader2, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { CompanyBrandAvatar } from '@/components/companies/company-brand-avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { removeCompanyLogo, uploadCompanyLogo } from '@/actions/companies';
@@ -24,6 +25,14 @@ type LogoPreviewState = { url: string; status: 'loaded' | 'error' };
 type CompanyLogoUploadProps = {
   companyId: number;
   logoUrl: string | null;
+  /**
+   * 'card' (default): bordered block with its own heading (phones, operator).
+   * 'inline': 72 px logo or initial beside Subir / Quitar, inside the Perfil
+   * card on md+ (ZIG-I32-1).
+   */
+  variant?: 'card' | 'inline';
+  /** Initial shown by the inline variant when there is no logo. */
+  companyName?: string;
 };
 
 const acceptTypes = COMPANY_LOGO_ALLOWED_CONTENT_TYPES.join(',');
@@ -31,6 +40,8 @@ const acceptTypes = COMPANY_LOGO_ALLOWED_CONTENT_TYPES.join(',');
 export const CompanyLogoUpload = ({
   companyId,
   logoUrl: initialLogoUrl,
+  variant = 'card',
+  companyName = '',
 }: CompanyLogoUploadProps) => {
   const router = useRouter();
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -124,6 +135,84 @@ export const CompanyLogoUpload = ({
     }
   };
 
+  const fileInput = (
+    // Plain input, not <Input>: its w-full beats sr-only and overflows at 375px.
+    // The buttons are the keyboard and screen-reader entry point.
+    <input
+      ref={inputRef}
+      type="file"
+      accept={acceptTypes}
+      className="hidden"
+      onChange={handleUpload}
+      aria-label="Seleccionar archivo de logo"
+    />
+  );
+
+  if (variant === 'inline') {
+    return (
+      <div className="flex items-center gap-4" data-testid="company-logo-inline">
+        {displayUrl && previewStatus !== 'error' ? (
+          <div className="relative size-[72px] shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
+            <Image
+              src={displayUrl}
+              alt="Logo actual de la empresa"
+              fill
+              sizes="72px"
+              className="object-contain p-1"
+              unoptimized={displayUrl.startsWith('/')}
+              onLoad={() => setPreview({ url: displayUrl, status: 'loaded' })}
+              onError={() => setPreview({ url: displayUrl, status: 'error' })}
+            />
+          </div>
+        ) : (
+          <CompanyBrandAvatar
+            name={companyName}
+            logoUrl={null}
+            className="size-[72px] shrink-0 rounded-2xl text-xl"
+          />
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Logo</p>
+          <p className="text-caption text-muted-foreground">
+            PNG, JPEG o WebP · máximo 2 MB y 1024×1024 px. Sin logo se usa la inicial.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {fileInput}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isUploading || isRemoving}
+              onClick={() => inputRef.current?.click()}
+            >
+              {isUploading ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden data-icon="inline-start" />
+              ) : (
+                <Upload className="size-4" aria-hidden data-icon="inline-start" />
+              )}
+              {displayUrl ? 'Reemplazar logo' : 'Subir logo'}
+            </Button>
+            {displayUrl ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                disabled={isUploading || isRemoving}
+                onClick={handleRemove}
+              >
+                {isRemoving ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden data-icon="inline-start" />
+                ) : null}
+                Quitar logo
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section
       className="rounded-lg border border-border p-4"
@@ -180,16 +269,7 @@ export const CompanyLogoUpload = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* Plain input, not <Input>: its w-full beats sr-only and overflows at 375px.
-              The button below is the keyboard and screen-reader entry point. */}
-          <input
-            ref={inputRef}
-            type="file"
-            accept={acceptTypes}
-            className="hidden"
-            onChange={handleUpload}
-            aria-label="Seleccionar archivo de logo"
-          />
+          {fileInput}
           <Button
             type="button"
             variant="secondary"
