@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
@@ -45,6 +45,8 @@ interface TicketRowActionsProps {
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
+  /** The desktop table uses the canvas ⋯; phone cards and Cobranza keep ⋮. */
+  triggerIcon?: 'vertical' | 'horizontal';
 }
 
 const buildListTicketPdfFileName = (ticket: Ticket): string => {
@@ -64,6 +66,7 @@ export function TicketRowActions({
   onPaymentApplied,
   canWrite = true,
   companyId,
+  triggerIcon = 'vertical',
 }: TicketRowActionsProps) {
   const { can } = usePermissions();
   const canDownload = canDownloadTicketInvoice(can);
@@ -114,7 +117,11 @@ export function TicketRowActions({
             size="icon"
             aria-label={`Más acciones del ticket ${ticket.id.toString()}`}
           >
-            <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start"/>
+            {triggerIcon === 'horizontal' ? (
+              <MoreHorizontal className="h-4 w-4" aria-hidden data-icon="inline-start" />
+            ) : (
+              <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

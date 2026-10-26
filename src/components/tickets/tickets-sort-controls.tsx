@@ -21,6 +21,8 @@ type TicketsSortControlsProps = {
   triggerClassName?: string;
   /** Three plain options for phones; the sheet and desktop keep the full list (ZIG-I18-9). */
   variant?: 'full' | 'phone';
+  /** Desktop bar (canvas): the order shows only its value; the label stays for screen readers. */
+  labelHidden?: boolean;
 };
 
 export const TicketsSortControls = ({
@@ -30,6 +32,7 @@ export const TicketsSortControls = ({
   className,
   triggerClassName = 'h-11 w-full',
   variant = 'full',
+  labelHidden = false,
 }: TicketsSortControlsProps) => {
   const options =
     variant === 'phone' ? TICKETS_PHONE_SORT_OPTIONS : TICKETS_MOBILE_SORT_OPTIONS;
@@ -41,7 +44,7 @@ export const TicketsSortControls = ({
     <div className={className}>
       <label
         htmlFor={id}
-        className="text-caption font-medium text-muted-foreground"
+        className={labelHidden ? 'sr-only' : 'text-caption font-medium text-muted-foreground'}
       >
         Ordenar por
       </label>

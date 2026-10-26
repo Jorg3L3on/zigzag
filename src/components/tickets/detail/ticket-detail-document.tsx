@@ -104,22 +104,19 @@ export const TicketDetailDocument = ({
 
       <div className="mt-4 flex justify-end" data-testid="ticket-document-totals">
         <dl className="w-full max-w-[360px] space-y-1.5 rounded-xl bg-muted/40 px-4 py-3 text-sm">
-          {hasMaterials ? (
-            <>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Servicios</dt>
-                <dd>
-                  <MoneyFigure amount={servicesTotal} size="sm" />
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Materiales</dt>
-                <dd>
-                  <MoneyFigure amount={materialsTotal} size="sm" />
-                </dd>
-              </div>
-            </>
-          ) : null}
+          {/* Always on screen, as on the presupuesto (the PDF keeps its own rule). */}
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Servicios</dt>
+            <dd>
+              <MoneyFigure amount={servicesTotal} size="sm" />
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Materiales</dt>
+            <dd>
+              <MoneyFigure amount={materialsTotal} size="sm" />
+            </dd>
+          </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-muted-foreground">Total</dt>
             <dd>

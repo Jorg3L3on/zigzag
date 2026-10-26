@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Activity, Receipt, Ticket } from 'lucide-react';
@@ -8,11 +9,8 @@ import {
   TicketDetailSectionCard,
 } from '@/components/tickets/detail/ticket-detail-section-card';
 import type { TicketAuditHistoryEntry } from '@/actions/tickets';
-import {
-  formatTicketActivityCardTitle,
-  getTicketTimelineIcon,
-  type TicketTimelineIconKey,
-} from '@/lib/ticket-audit-display';
+import { formatTicketActivityCardTitle } from '@/lib/ticket-activity-card';
+import { getTicketTimelineIcon, type TicketTimelineIconKey } from '@/lib/ticket-audit-display';
 
 const ACTIVITY_ICONS: Record<TicketTimelineIconKey, typeof Activity> = {
   ticket: Ticket,
@@ -24,20 +22,16 @@ type TicketDetailActivityCardProps = {
   entries: TicketAuditHistoryEntry[];
 };
 
-const openFullTimeline = () => {
-  const heading = document.getElementById('ticket-timeline-heading');
-  const toggle = heading?.querySelector('button');
-  if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
-  document.getElementById('ticket-timeline')?.scrollIntoView({ block: 'start' });
-};
 
 /**
  * Four latest events in the column, as the canvas draws them: what happened
  * with the full amount, then «24 oct · 18:28 · Actor». Ver todo opens the full
- * timeline (ZIG-I28-2).
+ * list in the card (ZIG-I28-2).
  */
 export const TicketDetailActivityCard = ({ entries }: TicketDetailActivityCardProps) => {
-  const recent = entries.slice(0, 4);
+  // Ver todo opens the rest in place; there is no second Actividad card on desktop.
+  const [expanded, setExpanded] = useState(false);
+  const recent = expanded ? entries : entries.slice(0, 4);
 
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-activity-card-heading" data-testid="ticket-activity-card">
@@ -45,13 +39,16 @@ export const TicketDetailActivityCard = ({ entries }: TicketDetailActivityCardPr
         <TicketDetailRailLabel id="ticket-activity-card-heading">
           Actividad · {entries.length}
         </TicketDetailRailLabel>
+        {entries.length > 4 ? (
         <button
           type="button"
-          onClick={openFullTimeline}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
           className="inline-flex min-h-11 items-center text-caption font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Ver todo
+          {expanded ? 'Ver menos' : 'Ver todo'}
         </button>
+        ) : null}
       </div>
       {recent.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aún no hay eventos.</p>

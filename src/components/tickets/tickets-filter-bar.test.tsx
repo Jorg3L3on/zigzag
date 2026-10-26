@@ -106,12 +106,16 @@ describe('TicketsFilterBar', () => {
     ).toHaveTextContent('Más recientes');
   });
 
-  it('keeps Trabajo in the phone sheet and Fechas on the desktop bar (ZIG-I28-4)', async () => {
+  it('keeps Trabajo in the phone sheet and the dates on the desktop bar (ZIG-I28-4)', async () => {
     const user = userEvent.setup();
     render(<TicketsFilterBar {...baseProps} />);
 
     expect(screen.queryByRole('combobox', { name: 'Trabajo' })).not.toBeInTheDocument();
-    expect(screen.getByText('Fechas')).toBeInTheDocument();
+    // Canvas ListaA: «Todas las fechas» with no label above it on desktop.
+    expect(screen.getByRole('button', { name: 'Filtrar por rango de fechas del ticket' })).toHaveTextContent(
+      'Todas las fechas',
+    );
+    expect(screen.queryByText('Fechas', { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText('Cobro')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Buscar por cliente, folio o teléfono').parentElement).toHaveClass(
       'max-w-[360px]',
@@ -186,16 +190,16 @@ describe('TicketsFilterBar', () => {
     expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
   });
 
-  it('opens the desktop sort from Más filtros and has no CSV export', async () => {
+  it('shows the order at the right of the desktop bar, Trabajo (terminado o en proceso) under Más filtros, and no CSV export', async () => {
     const user = userEvent.setup();
-    render(<TicketsFilterBar {...baseProps} />);
+    render(<TicketsFilterBar {...baseProps} columnsMenu={<button type="button">Columnas</button>} />);
 
     expect(screen.queryByRole('button', { name: /csv|exportar/i })).not.toBeInTheDocument();
-    expect(screen.queryByText('Fecha del ticket (recientes primero)')).not.toBeInTheDocument();
-
     const desktop = screen.getByRole('navigation', { name: 'Vistas de tickets' }).parentElement;
     if (!desktop) throw new Error('desktop bar missing');
+    expect(within(desktop).getByRole('combobox', { name: 'Ordenar lista de tickets' })).toBeInTheDocument();
+    expect(within(desktop).getByRole('button', { name: 'Columnas' })).toBeInTheDocument();
     await user.click(within(desktop).getByRole('button', { name: 'Más filtros' }));
-    expect(screen.getByText('Fecha del ticket (recientes primero)')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Trabajo' })).toBeInTheDocument();
   });
 });

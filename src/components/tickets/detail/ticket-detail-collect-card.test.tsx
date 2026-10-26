@@ -5,6 +5,10 @@ import { render, screen } from '@testing-library/react';
 
 import { TicketDetailCollectCard } from '@/components/tickets/detail/ticket-detail-collect-card';
 
+jest.mock('@/components/tickets/detail/ticket-detail-collect-context', () => ({
+  useTicketCollect: () => ({ openCollect: jest.fn() }),
+}));
+
 describe('TicketDetailCollectCard (canvas Cobro)', () => {
   it('lists payments newest first with the long date, and amounts never break', () => {
     render(

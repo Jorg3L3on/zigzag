@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
 
 import {
   LineMaterialsBreakdown,
@@ -106,6 +106,10 @@ const ReceiptDocumentLine = ({
   });
   const showMaterials = listed.length > 0 && (density === 'detailed' || materialsOpen);
   const descriptionText = description?.trim() ?? '';
+  // Compacto shows two lines of a long description with «más» (canvas); Detallado all of it.
+  const [descriptionOpen, setDescriptionOpen] = React.useState(false);
+  const longDescription = descriptionText.length > 110;
+  const clampDescription = density === 'compact' && longDescription && !descriptionOpen;
 
   return (
     <div
@@ -116,42 +120,51 @@ const ReceiptDocumentLine = ({
       data-invalid={error ? 'true' : undefined}
     >
       <div className="min-w-0">
-        <p className="text-[15px] font-semibold leading-snug text-foreground">
+        {/* Canvas Linea: the index in a 26px column, the description under the name. */}
+        <p className="flex items-baseline text-[15px] font-semibold leading-snug text-foreground">
           {index != null ? (
-            <span className="mr-2 font-mono text-caption font-normal tabular-nums text-muted-foreground">
+            <span className="w-[26px] shrink-0 font-mono text-[11px] font-normal tabular-nums text-muted-foreground">
               {formatLineIndex(index)}
             </span>
           ) : null}
-          <span className="[overflow-wrap:anywhere]">{name}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">
+            {name}
+            {serviceId === null ? (
+              <span
+                className="ml-2 inline-flex h-5 items-center rounded-md bg-indigo-50 px-1.5 align-middle text-[11px] font-semibold text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200"
+                data-testid="document-line-uncatalogued"
+              >
+                Fuera de catálogo
+              </span>
+            ) : null}
+          </span>
         </p>
         {descriptionText ? (
-          <p
-            className="mt-0.5 text-caption leading-snug text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400"
-            data-testid="document-line-description"
-          >
-            {descriptionText}
-          </p>
-        ) : null}
-        {serviceId === null ? (
-          <p className="mt-0.5 text-caption text-muted-foreground" data-testid="document-line-uncatalogued">
-            Fuera de catálogo
-          </p>
-        ) : null}
-        {density === 'compact' && listed.length > 0 ? (
-          <button
-            type="button"
-            aria-expanded={materialsOpen}
-            aria-controls={breakdownId}
-            onClick={() => setMaterialsOpen((open) => !open)}
-            data-testid="document-line-materials-chip"
-            className="mt-1 inline-flex items-center rounded-md px-1.5 py-0.5 text-caption font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {materialsChipLabel(listed.length, lineMaterialsListedTotal(listed))}
-          </button>
+          <div className={cn(index != null && 'pl-[26px]')}>
+            <p
+              className={cn(
+                'mt-0.5 text-[13px] leading-snug text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400',
+                clampDescription && 'line-clamp-2',
+              )}
+              data-testid="document-line-description"
+            >
+              {descriptionText}
+            </p>
+            {density === 'compact' && longDescription ? (
+              <button
+                type="button"
+                aria-expanded={descriptionOpen}
+                onClick={() => setDescriptionOpen((open) => !open)}
+                className="text-[13px] font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {descriptionOpen ? 'menos' : 'más'}
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {changed ? (
           <span
-            className="mt-1 block text-caption font-medium text-amber-600 dark:text-amber-400"
+            className={cn('mt-1 block text-caption font-medium text-amber-600 dark:text-amber-400', index != null && 'pl-[26px]')}
             data-testid="document-line-changed"
           >
             Cambió
@@ -170,6 +183,26 @@ const ReceiptDocumentLine = ({
       <span className="text-right">
         <MoneyFigure amount={serviceAmount} size="sm" data-testid="document-line-amount" />
       </span>
+      {density === 'compact' && listed.length > 0 ? (
+        // Canvas Compacto: the materials chip on the left, the subtotal on the right.
+        <div className={cn('col-span-4 mt-2.5 flex items-center justify-between gap-3', index != null && 'pl-[26px]')}>
+          <button
+            type="button"
+            aria-expanded={materialsOpen}
+            aria-controls={breakdownId}
+            onClick={() => setMaterialsOpen((open) => !open)}
+            data-testid="document-line-materials-chip"
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 text-[13px] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-slate-200"
+          >
+            {materialsChipLabel(listed.length, lineMaterialsListedTotal(listed))}
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', materialsOpen && 'rotate-180')} aria-hidden />
+          </button>
+          <span className="text-[13px] text-muted-foreground" data-testid="document-line-subtotal">
+            Subtotal{' '}
+            <MoneyFigure amount={groupTotal} size="sm" className="text-foreground" />
+          </span>
+        </div>
+      ) : null}
       {showMaterials ? (
         <LineMaterialsBreakdown
           id={breakdownId}
@@ -179,7 +212,7 @@ const ReceiptDocumentLine = ({
           service={{ quantity, price, amount: serviceAmount }}
         />
       ) : null}
-      {listed.length > 0 ? (
+      {density === 'detailed' && listed.length > 0 ? (
         <div className="col-span-4 mt-1 grid grid-cols-subgrid items-baseline border-t border-dashed border-border pt-1.5">
           <span
             className="min-w-0 text-caption text-muted-foreground [overflow-wrap:anywhere]"

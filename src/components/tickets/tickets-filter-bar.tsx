@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { SortingState } from '@tanstack/react-table';
 import { ListFilter, Search } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -15,6 +16,7 @@ import {
   filtersForTicketCollectionView,
   ticketCollectionView,
 } from '@/components/tickets/tickets-list-types';
+import { ListViewTabs } from '@/components/list-views/list-view-tabs';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +47,8 @@ type TicketsFilterBarProps = {
   hasActiveFilters: boolean;
   onClearFilters: () => void;
   filterChips: ListFilterChip[];
+  /** Desktop «Columnas» menu, built by the list from its table. */
+  columnsMenu?: ReactNode;
 };
 
 const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
@@ -129,37 +133,22 @@ const TicketCollectionTabs = ({
     onFinishedFilterChange(next.finished);
   };
 
-  // Canvas ListaA: two lines per view (dot + name, then «N tickets»), the chosen one
-  // bold with a blue underline. Counts only, never money (f18a2f7d).
   return (
-    <nav aria-label="Vistas de tickets" className="flex gap-1 border-b border-border/60">
-      {COLLECTION_VIEWS.map((view) => {
-        const selected = active === view.id;
+    <ListViewTabs
+      label="Vistas de tickets"
+      tabs={COLLECTION_VIEWS.map((view) => {
         const count = counts ? counts[view.countKey] : null;
-        return (
-          <button
-            key={view.id}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => handleSelect(view.id)}
-            className={cn(
-              '-mb-px flex min-w-[8.75rem] flex-col items-start gap-0.5 border-b-2 px-3.5 pb-3 pt-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-              selected
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <span className={cn('flex items-center gap-2 text-sm', selected ? 'font-semibold' : 'font-medium')}>
-              {view.dot ? <span aria-hidden className={cn('h-2 w-2 rounded-full', view.dot)} /> : null}
-              {view.label}
-            </span>
-            <span className="text-caption tabular-nums text-muted-foreground">
-              {count == null ? '\u00a0' : `${count} ${count === 1 ? 'ticket' : 'tickets'}`}
-            </span>
-          </button>
-        );
+        return {
+          id: view.id,
+          label: view.label,
+          count,
+          dot: view.dot,
+          caption: count == null ? null : `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
+        };
       })}
-    </nav>
+      isSelected={(id) => active === id}
+      onSelect={handleSelect}
+    />
   );
 };
 
@@ -201,6 +190,7 @@ export const TicketsFilterBar = ({
   hasActiveFilters,
   onClearFilters,
   filterChips,
+  columnsMenu = null,
 }: TicketsFilterBarProps) => (
   <div className="flex flex-col gap-3">
     <div className="hidden flex-col gap-3 md:flex">
@@ -211,8 +201,9 @@ export const TicketsFilterBar = ({
         onStatusFilterChange={onStatusFilterChange}
         onFinishedFilterChange={onFinishedFilterChange}
       />
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="relative w-full max-w-[360px] shrink-0">
+      {/* Canvas ListaA: search, dates, Más filtros, then the order and Columnas at the right end. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] max-w-[360px] flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -238,12 +229,10 @@ export const TicketsFilterBar = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80">
-            <TicketsSortControls
-              variant="full"
-              sorting={sorting}
-              onSortingChange={onSortingChange}
-              id="ticket-sort-desktop"
-              className="space-y-2"
+            <TicketFinishedFilter
+              layout="desktop"
+              value={finishedFilter}
+              onChange={onFinishedFilterChange}
             />
           </PopoverContent>
         </Popover>
@@ -258,6 +247,17 @@ export const TicketsFilterBar = ({
             Limpiar filtros
           </Button>
         ) : null}
+        <div className="ml-auto flex items-center gap-2">
+          <TicketsSortControls
+            variant="full"
+            sorting={sorting}
+            onSortingChange={onSortingChange}
+            id="ticket-sort-desktop"
+            labelHidden
+            triggerClassName="h-11 w-48 rounded-full px-4"
+          />
+          {columnsMenu}
+        </div>
       </div>
     </div>
 

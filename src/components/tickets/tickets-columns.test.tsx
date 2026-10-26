@@ -115,8 +115,8 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
 
     const trabajo = headers().find((header) => header.textContent === 'Trabajo');
     expect(trabajo?.className).toContain('hidden');
-    // Trabajo shows when the list's container has room, whatever the viewport (PR #610 review).
-    expect(trabajo?.className).toContain('@min-[52rem]:table-cell');
+    // Trabajo shows when the list's container has room, after Cliente gets its full name.
+    expect(trabajo?.className).toContain('@min-[64rem]:table-cell');
 
     expect(screen.getByText((_, element) => {
       const text = element?.textContent?.replace(/\s/g, '') ?? '';
