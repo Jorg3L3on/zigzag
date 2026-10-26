@@ -1,11 +1,15 @@
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { MessageCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
+  TicketDetailRailLabel,
   TicketDetailSectionCard,
-  TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
+import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 import { buildWhatsAppHref, buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
 const clientInitials = (name: string | null | undefined): string => {
@@ -32,6 +36,7 @@ const formatTicketClientAddress = (
 
 type TicketClientCardSource = {
   id: number;
+  created_at?: Date | string | null;
   name: string;
   email?: string | null;
   phone?: string | null;
@@ -56,6 +61,37 @@ type TicketDetailClientCardProps = {
   finished?: boolean;
   /** Signs the WhatsApp text like the header does (PR #610 review). */
   companyName?: string | null;
+  /** The client's other finished tickets that still owe something. */
+  openBalances?: Array<{ id: string; folio: string; balance: number }>;
+};
+
+/**
+ * «2 tickets · R-0060 con saldo $421,582.39», or «· cliente desde octubre de
+ * 2026» when nothing else is owed (canvas).
+ */
+export const describeClientDocuments = ({
+  ticketCount,
+  openBalances = [],
+  clientSince = null,
+}: {
+  ticketCount: number | null;
+  openBalances?: Array<{ folio: string; balance: number }>;
+  clientSince?: Date | string | null;
+}): string | null => {
+  const parts: string[] = [];
+  if (ticketCount != null) parts.push(`${ticketCount} ${ticketCount === 1 ? 'ticket' : 'tickets'}`);
+  if (openBalances.length === 1) {
+    parts.push(`${openBalances[0].folio} con saldo ${formatServiceCurrency(openBalances[0].balance)}`);
+  } else if (openBalances.length > 1) {
+    const sum = openBalances.reduce((total, row) => total + row.balance, 0);
+    parts.push(`${openBalances.length} con saldo ${formatServiceCurrency(sum)}`);
+  } else if (clientSince) {
+    const since = new Date(clientSince);
+    if (!Number.isNaN(since.getTime())) {
+      parts.push(`cliente desde ${format(since, "MMMM 'de' yyyy", { locale: es })}`);
+    }
+  }
+  return parts.length ? parts.join(' · ') : null;
 };
 
 /** Cliente column from 1024px. The phone is text; WhatsApp stays (ZIG-I28-2). */
@@ -71,6 +107,7 @@ export const TicketDetailClientCard = ({
   paid,
   finished = true,
   companyName = null,
+  openBalances = [],
 }: TicketDetailClientCardProps) => {
   const name = client?.name?.trim() || clientName?.trim() || 'Cliente sin nombre';
   const phone = client?.phone?.trim() || clientTel?.trim() || '';
@@ -94,13 +131,20 @@ export const TicketDetailClientCard = ({
           message: company ? `Hola, te escribe ${company}.` : 'Hola, te escribimos de ZigZag.',
         });
 
+  const documents = describeClientDocuments({
+    ticketCount,
+    openBalances,
+    clientSince: client?.created_at ?? null,
+  });
+  const phoneText = formatPhoneDisplay(phone) ?? phone;
+
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-client-heading" data-testid="ticket-client-card">
-      <TicketDetailSectionHeading id="ticket-client-heading" title="Cliente" />
-      <div className="flex items-center gap-3">
+      <TicketDetailRailLabel id="ticket-client-heading">Cliente</TicketDetailRailLabel>
+      <div className="mt-3 flex items-start gap-3">
         <span
           aria-hidden
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-blue-100 text-[13px] font-bold text-blue-800 dark:bg-blue-500/20 dark:text-blue-200"
         >
           {clientInitials(name)}
         </span>
@@ -108,66 +152,78 @@ export const TicketDetailClientCard = ({
           {client ? (
             <Link
               href={`/clients/${client.id}`}
-              className="block font-medium text-foreground underline-offset-4 [overflow-wrap:anywhere] hover:underline"
+              className="block font-semibold leading-snug text-foreground underline-offset-4 [overflow-wrap:anywhere] hover:underline"
             >
               {name}
             </Link>
           ) : (
-            <p className="font-medium [overflow-wrap:anywhere]">{name}</p>
+            <p className="font-semibold leading-snug [overflow-wrap:anywhere]">{name}</p>
           )}
-          {ticketCount != null ? (
-            <p className="text-caption text-muted-foreground">
-              {ticketCount} {ticketCount === 1 ? 'ticket' : 'tickets'}
+          {documents ? (
+            <p className="mt-0.5 text-caption text-muted-foreground" data-testid="ticket-client-documents">
+              {documents}
             </p>
           ) : null}
         </div>
       </div>
 
-      {phone ? (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-caption text-muted-foreground">Teléfono</p>
-            <p className="text-sm tabular-nums" data-testid="ticket-client-phone">
-              {phone}
-            </p>
+      <dl className="mt-4 flex flex-col gap-2.5 text-sm">
+        {phone ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Teléfono</dt>
+            <dd className="flex items-center gap-2">
+              <span className="font-medium tabular-nums" data-testid="ticket-client-phone">
+                {phoneText}
+              </span>
+              {whatsApp ? (
+                <Button asChild variant="outline" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+                  <a
+                    href={whatsApp.href}
+                    aria-label="Escribir por WhatsApp"
+                    data-testid="ticket-client-whatsapp"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                  </a>
+                </Button>
+              ) : null}
+            </dd>
           </div>
-          {whatsApp ? (
-            <Button asChild variant="outline" size="icon" className="shrink-0">
-              <a href={whatsApp.href} aria-label="WhatsApp" data-testid="ticket-client-whatsapp">
-                <MessageCircle className="h-4 w-4" aria-hidden />
-              </a>
-            </Button>
-          ) : null}
+        ) : null}
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">Dirección</dt>
+          <dd className="min-w-0 text-right [overflow-wrap:anywhere]">
+            {address ? (
+              address
+            ) : (
+              <>
+                <span className="text-muted-foreground">Sin dirección</span>
+                {client ? (
+                  <>
+                    {' · '}
+                    <Link
+                      href={`/clients/${client.id}`}
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Agregar
+                    </Link>
+                  </>
+                ) : null}
+              </>
+            )}
+          </dd>
         </div>
-      ) : null}
-
-      {client ? (
-        <div className="mt-3">
-          <p className="text-caption text-muted-foreground">Dirección</p>
-          {address ? (
-            <p className="text-sm [overflow-wrap:anywhere]">{address}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Sin dirección ·{' '}
-              <Link href={`/clients/${client.id}`} className="font-medium text-primary underline-offset-4 hover:underline">
-                Agregar
-              </Link>
-            </p>
-          )}
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">Correo</dt>
+          <dd className={email ? 'min-w-0 text-right [overflow-wrap:anywhere]' : 'text-muted-foreground'}>
+            {email || '—'}
+          </dd>
         </div>
-      ) : null}
-
-      {email ? (
-        <div className="mt-3">
-          <p className="text-caption text-muted-foreground">Correo</p>
-          <p className="text-sm [overflow-wrap:anywhere]">{email}</p>
-        </div>
-      ) : null}
+      </dl>
 
       {client ? (
         <Link
           href={`/clients/${client.id}`}
-          className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
+          className="mt-4 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           Ver cliente
         </Link>

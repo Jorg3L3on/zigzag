@@ -19,7 +19,7 @@ import {
   canCollectTicketPayment,
   canDownloadTicketInvoice,
 } from '@/lib/tickets-rbac';
-import { Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 
 type TicketListRowQuickActionsProps = {
   ticket: Ticket;
@@ -101,6 +101,7 @@ export const TicketListRowQuickActions = ({
               type="button"
               variant="outline"
               size="sm"
+              className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
               onClick={() => setCollectOpen(true)}
               aria-label={`Cobrar el ticket ${ticketId}`}
             >
@@ -134,8 +135,13 @@ export const TicketListRowQuickActions = ({
                 void handleDownloadPdf();
               }}
               aria-label={`PDF del ticket ${ticketId}`}
+              className="w-9 px-0"
             >
-              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'PDF'}
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
             </Button>
           ) : null}
         </div>

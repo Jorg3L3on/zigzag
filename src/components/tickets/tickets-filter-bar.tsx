@@ -57,11 +57,13 @@ const COLLECTION_VIEWS: Array<{
   id: TicketCollectionView;
   label: string;
   countKey: keyof TicketListCounts;
+  /** The canvas dot; the estado pill colours of the rows in that view. */
+  dot: string | null;
 }> = [
-  { id: 'all', label: 'Todos', countKey: 'all' },
-  { id: 'due', label: 'Por cobrar', countKey: 'due' },
-  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress' },
-  { id: 'paid', label: 'Pagados', countKey: 'paid' },
+  { id: 'all', label: 'Todos', countKey: 'all', dot: null },
+  { id: 'due', label: 'Por cobrar', countKey: 'due', dot: 'bg-amber-500' },
+  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress', dot: 'bg-sky-500' },
+  { id: 'paid', label: 'Pagados', countKey: 'paid', dot: 'bg-emerald-500' },
 ];
 
 /**
@@ -127,6 +129,8 @@ const TicketCollectionTabs = ({
     onFinishedFilterChange(next.finished);
   };
 
+  // Canvas ListaA: two lines per view (dot + name, then «N tickets»), the chosen one
+  // bold with a blue underline. Counts only, never money (f18a2f7d).
   return (
     <nav aria-label="Vistas de tickets" className="flex gap-1 border-b border-border/60">
       {COLLECTION_VIEWS.map((view) => {
@@ -139,14 +143,19 @@ const TicketCollectionTabs = ({
             aria-pressed={selected}
             onClick={() => handleSelect(view.id)}
             className={cn(
-              '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+              '-mb-px flex min-w-[8.75rem] flex-col items-start gap-0.5 border-b-2 px-3.5 pb-3 pt-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
               selected
-                ? 'border-primary bg-primary/10 font-semibold text-primary'
-                : 'border-transparent text-muted-foreground hover:bg-muted/50',
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
-            {view.label}
-            {count != null ? <span className="tabular-nums">{count}</span> : null}
+            <span className={cn('flex items-center gap-2 text-sm', selected ? 'font-semibold' : 'font-medium')}>
+              {view.dot ? <span aria-hidden className={cn('h-2 w-2 rounded-full', view.dot)} /> : null}
+              {view.label}
+            </span>
+            <span className="text-caption tabular-nums text-muted-foreground">
+              {count == null ? '\u00a0' : `${count} ${count === 1 ? 'ticket' : 'tickets'}`}
+            </span>
           </button>
         );
       })}

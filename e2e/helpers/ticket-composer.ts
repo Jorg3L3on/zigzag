@@ -94,6 +94,14 @@ export type ComposerPayment =
 const paymentLabel = (payment: ComposerPayment) =>
   payment.mode === 'full' ? 'Todo' : payment.mode === 'partial' ? 'Una parte' : 'Nada aún';
 
+/** The desktop Terminar ticket card words the same choice as the canvas (PR #610). */
+const paymentOptionLabel = (payment: ComposerPayment) =>
+  payment.mode === 'full'
+    ? /^(Todo|Pagó todo)$/
+    : payment.mode === 'partial'
+      ? /^(Una parte|Pagó una parte)$/
+      : /^(Nada aún|Aún no paga)$/;
+
 /** Guardar ticket without a payment: saved En proceso, lands on the detail (ZIG-I24-4). */
 export const saveComposer = async (page: Page) => {
   const save = page.getByRole('button', { name: /^Guardar( ticket)?$/ }).first();
@@ -169,7 +177,7 @@ export const finishOnDetail = async (page: Page, ticketId: string, payment: Comp
   }
   const panel = page.locator('#finalizar').filter({ visible: true }).first();
   await expect(panel).toBeVisible({ timeout: 15_000 });
-  await panel.getByRole('radio', { name: paymentLabel(payment), exact: true }).click();
+  await panel.getByRole('radio', { name: paymentOptionLabel(payment) }).click();
   if (payment.mode === 'partial') {
     await panel.getByLabel('Cuánto pagó').fill(String(payment.amount));
   }

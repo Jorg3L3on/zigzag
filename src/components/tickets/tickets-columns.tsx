@@ -15,7 +15,7 @@ import {
   getTicketPaymentStatusSortRank,
 } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
-import { formatListDate } from '@/lib/format-list-date';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -53,11 +53,17 @@ function TicketSortableHeader<TData>({
 }
 
 /** Short date on one line, `mié 22 oct`, with the full date on hover (ZIG-I27-2). */
+/** «10 oct», with the year only when it is not this one (canvas ListaA). */
 const TicketListDate = ({ date }: { date: Date | null }) => {
-  if (!date) return <span>Sin fecha</span>;
+  if (!date) return <span className="text-muted-foreground">Sin fecha</span>;
+  const value = new Date(date);
+  const pattern = value.getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy';
   return (
-    <span className="whitespace-nowrap" title={format(new Date(date), 'PPP', { locale: es })}>
-      {formatListDate(date)}
+    <span
+      className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
+      title={format(value, 'PPP', { locale: es })}
+    >
+      {format(value, pattern, { locale: es })}
     </span>
   );
 };
@@ -167,7 +173,9 @@ export const createTicketsColumns = ({
             {name}
           </p>
           {phone ? (
-            <p className="truncate text-caption leading-4 text-muted-foreground">{phone}</p>
+            <p className="truncate text-caption leading-4 tabular-nums text-muted-foreground">
+              {formatPhoneDisplay(phone) ?? phone}
+            </p>
           ) : null}
         </div>
       );
@@ -203,9 +211,13 @@ export const createTicketsColumns = ({
       if (!summary) {
         return <span className="text-muted-foreground">Sin servicios todavía</span>;
       }
+      // «A, B… +5»: the first two names, then how many more (canvas ListaA).
+      const head = row.original.services_head?.length ? row.original.services_head.join(', ') : summary;
+      const more = Math.max((row.original.services_count ?? 0) - 2, 0);
       return (
-        <span className="block truncate" title={summary}>
-          {summary}
+        <span className="flex min-w-0 items-baseline gap-1 text-[13px] text-slate-600 dark:text-slate-300" title={summary}>
+          <span className="truncate">{head}</span>
+          {more > 0 ? <span className="shrink-0 text-muted-foreground/70">+{more}</span> : null}
         </span>
       );
     },

@@ -18,9 +18,9 @@ import {
   TicketAlreadyPaidError,
   TotalBelowPaidError,
 } from '@/lib/documents/update-document';
-import { normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
+import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, count, ilike, or, inArray } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, count, ilike, or, inArray, ne } from 'drizzle-orm';
 import {
   client,
   service,
@@ -127,6 +127,9 @@ export type Ticket = {
   converted_from_ticket_id?: bigint | null;
   /** "Compresor, Mano de obra": the work, for list cards (ZIG-I18-8). */
   services_summary?: string | null;
+  /** First two service names (desktop list). */
+  services_head?: string[];
+  services_count?: number;
 };
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
@@ -148,6 +151,8 @@ export type TicketDetailData = TicketRow & {
   source_presupuesto_folio?: FolioParts | null;
   /** Active tickets for this client in the company (ZIG-I28-2). Null without a client. */
   client_ticket_count?: number | null;
+  /** Other finished tickets of the client that still owe something (Cliente card subline). */
+  client_open_balances?: Array<{ id: string; folio: string; balance: number }>;
 };
 
 export type GetTicketByIdResult =
@@ -611,7 +616,14 @@ export type TicketListCounts = {
 };
 
 export interface PaginatedTicketsData {
-  items: Array<TicketRow & { services_summary: string | null }>;
+  items: Array<
+    TicketRow & {
+      services_summary: string | null;
+      /** First two service names, in order (canvas «A, B… +N»). */
+      services_head: string[];
+      services_count: number;
+    }
+  >;
   total: number;
   page: number;
   pageSize: number;
@@ -789,6 +801,9 @@ export async function getTicketsPaginated(params: {
           .select({
             ticket_id: servicesTickets.ticket_id,
             summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+            // The first two names and how many there are: «A, B… +5» (canvas ListaA).
+            head: sql<string[] | null>`(array_agg(coalesce(${servicesTickets.name}, ${service.name}) order by ${servicesTickets.id}))[1:2]`,
+            lines: sql<number>`count(*)`,
           })
           .from(servicesTickets)
           .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
@@ -805,16 +820,21 @@ export async function getTicketsPaginated(params: {
           .groupBy(servicesTickets.ticket_id)
       : [];
     const summaryByTicket = new Map(
-      serviceLines.map((r) => [String(r.ticket_id), r.summary]),
+      serviceLines.map((r) => [String(r.ticket_id), r]),
     );
 
     return {
       success: true,
       data: {
-        items: items.map((row) => ({
-          ...row,
-          services_summary: summaryByTicket.get(String(row.id)) ?? null,
-        })),
+        items: items.map((row) => {
+          const work = summaryByTicket.get(String(row.id));
+          return {
+            ...row,
+            services_summary: work?.summary ?? null,
+            services_head: work?.head ?? [],
+            services_count: Number(work?.lines ?? 0),
+          };
+        }),
         total: totalCount,
         page,
         pageSize,
@@ -871,6 +891,7 @@ export async function getTicketById(
     }
 
     let clientTicketCount: number | null = null;
+    let clientOpenBalances: Array<{ id: string; folio: string; balance: number }> = [];
     if (ticketRow.client_id != null && ticketRow.company_id != null) {
       const [countRow] = await db
         .select({ value: count() })
@@ -884,6 +905,34 @@ export async function getTicketById(
           ),
         );
       clientTicketCount = Number(countRow?.value ?? 0);
+      const owing = await db
+        .select({
+          id: ticket.id,
+          folio_number: ticket.folio_number,
+          folio_prefix: ticket.folio_prefix,
+          document_kind: ticket.document_kind,
+          total: ticket.total,
+          paid: ticket.paid,
+        })
+        .from(ticket)
+        .where(
+          and(
+            eq(ticket.company_id, ticketRow.company_id),
+            eq(ticket.client_id, ticketRow.client_id),
+            eq(ticket.document_kind, 'ticket'),
+            eq(ticket.finished, true),
+            isNull(ticket.deleted_at),
+            ne(ticket.id, ticketRow.id),
+            TICKET_DUE_CONDITION,
+          ),
+        )
+        .orderBy(desc(ticket.ticket_date))
+        .limit(20);
+      clientOpenBalances = owing.map((row) => ({
+        id: String(row.id),
+        folio: formatDocumentFolio(row),
+        balance: getTicketBalanceDue(row.total, row.paid),
+      }));
     }
 
     let sourceFolio: FolioParts | null = null;
@@ -901,6 +950,7 @@ export async function getTicketById(
         ...ticketRow,
         source_presupuesto_folio: sourceFolio,
         client_ticket_count: clientTicketCount,
+        client_open_balances: clientOpenBalances,
       } as TicketDetailData,
     };
   } catch (e) {

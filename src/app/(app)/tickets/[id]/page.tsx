@@ -107,6 +107,7 @@ export default async function TicketDetailsPage({
         ticket.client
           ? {
               id: ticket.client.id,
+              created_at: ticket.client.created_at,
               name: ticket.client.name,
               email: ticket.client.email,
               phone: ticket.client.phone,
@@ -128,6 +129,7 @@ export default async function TicketDetailsPage({
       paid={paid}
       finished={ticket.finished}
       companyName={ticket.company?.name ?? null}
+      openBalances={ticket.client_open_balances ?? []}
     />
   );
   const moneyColumn = (

@@ -108,7 +108,8 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
 
     expect(screen.getByText('R-0012')).toHaveClass('font-mono', 'text-caption');
     expect(screen.getByText('Cliente Alfa')).toHaveClass('text-sm', 'font-medium');
-    expect(screen.getByText('5551234567')).toHaveClass('text-caption');
+    // Phone as the canvas prints it: 555 123 4567.
+    expect(screen.getByText('555 123 4567')).toHaveClass('text-caption');
     expect(screen.queryByRole('columnheader', { name: 'Teléfono' })).not.toBeInTheDocument();
     expect(screen.getByText('Compresor, Mano de obra')).toBeInTheDocument();
 

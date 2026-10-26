@@ -16,6 +16,7 @@ import {
   type TicketFinishScheduleLine,
 } from '@/components/service-schedules/ticket-finish-schedules-dialog';
 import {
+  TicketDetailRailLabel,
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
@@ -60,7 +61,7 @@ type TicketDetailFinishPanelProps = {
 const finishReceiptNote = (folio: string | null | undefined) => {
   const label = folio?.trim();
   const receipt = label ? `el recibo ${label}` : 'el recibo';
-  return `Se registra el pago, se crea ${receipt} y te preguntamos si quieres recordatorios de servicio.`;
+  return `Se registra el pago, se crea ${receipt} y te preguntamos si quieres recordatorios de servicio para este cliente.`;
 };
 
 const FINISH_RETRY_GUIDANCE =
@@ -273,21 +274,25 @@ export const TicketDetailFinishPanel = ({
             id="terminar-ticket"
             tabIndex={-1}
             aria-labelledby="ticket-finish-heading"
-            className="scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="scroll-mt-24 border-primary/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <TicketDetailSectionHeading id="ticket-finish-heading" title="Terminar ticket" />
+            <TicketDetailRailLabel id="ticket-finish-heading">Terminar ticket</TicketDetailRailLabel>
 
-            <p className="text-caption text-muted-foreground">Total del ticket</p>
-            <MoneyFigure
-              amount={ticketTotal}
-              size="hero"
-              className="mt-1 block text-[30px] font-bold leading-none"
-            />
+            <div className="mt-2 flex items-baseline justify-between gap-3">
+              <span className="text-sm text-muted-foreground">Total del ticket</span>
+              <MoneyFigure
+                amount={ticketTotal}
+                size="lg"
+                className="shrink-0 whitespace-nowrap text-[22px] font-bold tracking-tight [overflow-wrap:normal]"
+              />
+            </div>
 
             <PaymentChoice
               choice={paymentChoice}
               idPrefix="detail"
-              className="mt-4 border-border bg-background shadow-none"
+              variant="options"
+              total={ticketTotal}
+              className="mt-4"
             />
 
             <Button
@@ -295,12 +300,14 @@ export const TicketDetailFinishPanel = ({
               id="terminar-ticket-button"
               onClick={() => void handleFinishClick()}
               disabled={finishBlocked}
-              className="mt-4 h-11 w-full gap-2 md:h-11"
+              className="mt-4 h-11 w-full gap-2 text-[15px] md:h-11"
             >
               {finishButtonLabel}
             </Button>
 
-            <p className="mt-3 text-sm text-muted-foreground">{finishReceiptNote(folio)}</p>
+            <p className="mt-3 text-caption leading-relaxed text-muted-foreground">
+              {finishReceiptNote(folio)}
+            </p>
 
             {!hasServices ? (
               <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">

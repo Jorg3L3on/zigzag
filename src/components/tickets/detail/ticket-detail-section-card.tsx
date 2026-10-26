@@ -78,3 +78,21 @@ export const TicketDetailSectionHeading = ({
     </div>
   );
 };
+
+/** The small uppercase label that heads each card of the desktop column (canvas). */
+export const TICKET_RAIL_LABEL_CLASS =
+  'text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground';
+
+export const TicketDetailRailLabel = ({
+  id,
+  children,
+  className,
+}: {
+  id?: string;
+  children: ReactNode;
+  className?: string;
+}) => (
+  <h2 id={id} className={cn(TICKET_RAIL_LABEL_CLASS, className)}>
+    {children}
+  </h2>
+);
