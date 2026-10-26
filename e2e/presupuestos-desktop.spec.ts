@@ -143,7 +143,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await extendBy(page, 7);
     await expect(desktopStatus(page)).toHaveText('Abierto', { timeout: 15_000 });
     await expect(chip).toHaveText('Vence en 7 días');
-    await expect(page.getByTestId('presupuesto-activity-card')).toContainText('extendió la vigencia');
+    await expect(page.getByTestId('presupuesto-activity-card')).toContainText('Vigencia extendida al');
 
     // The table: default Abiertos + Vencidos, counts, the row with «en 7 días», Convertir on hover.
     await page.goto('/presupuestos');
@@ -195,8 +195,8 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(page.getByRole('menu')).toBeHidden();
     // Actividad: real events with actor and time.
     const activity = page.getByTestId('presupuesto-activity-card');
-    await expect(activity).toContainText('lo convirtió en ticket');
-    await expect(activity).toContainText('creó el presupuesto');
+    await expect(activity).toContainText('Convertido en ticket');
+    await expect(activity).toContainText('Presupuesto creado');
     await expectNoSeriousViolations(page, 'presupuesto-aceptado');
 
     // Cancelado from the header menu, behind the destructive ConfirmSheet.
@@ -215,7 +215,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(actions.getByRole('button', { name: 'Duplicar' })).toBeVisible();
     await expect(actions.getByRole('link', { name: 'Editar' })).toHaveCount(0);
     await expect(actions.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);
-    await expect(page.getByTestId('presupuesto-activity-card')).toContainText('canceló el presupuesto');
+    await expect(page.getByTestId('presupuesto-activity-card')).toContainText('Presupuesto cancelado');
     await expectNoSeriousViolations(page, 'presupuesto-cancelado');
   });
 

@@ -53,6 +53,8 @@ const item = (patch: Partial<PresupuestoTableItem>): PresupuestoTableItem => ({
   convertedToTicketId: null,
   canceledAt: null,
   servicesSummary: 'Diagnóstico técnico',
+  servicesHead: ['Diagnóstico técnico'],
+  servicesCount: 1,
   convertedTicketFolio: null,
   ...patch,
 });
@@ -64,13 +66,17 @@ const rows = [
     clientName: 'Residencial Las Palmas',
     expiresAt: '2026-10-25T06:00:00.000Z',
     total: 5120,
-    servicesSummary: 'Instalación mini-split, Diagnóstico técnico',
+    servicesSummary: 'Instalación mini-split, Diagnóstico técnico, Limpieza de ductos',
+    servicesHead: ['Instalación mini-split', 'Diagnóstico técnico'],
+    servicesCount: 3,
   }),
   item({
     id: '1112',
     folio: 'P-0003',
     clientName: 'Ahorita',
     servicesSummary: null,
+    servicesHead: [],
+    servicesCount: 0,
     total: 0,
   }),
   item({
@@ -136,8 +142,8 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
       .getAllByRole('button')
       .filter((button) => button.getAttribute('aria-pressed') === 'true')
       .map((button) => button.textContent);
-    expect(pressed).toEqual(['Abiertos4· 1 vence hoy', 'Vencidos0']);
-    expect(within(tabs).getByRole('button', { name: /Todos/ })).toHaveTextContent('Todos6');
+    expect(pressed).toEqual(['Abiertos4 · 1 vence hoy', 'Vencidos0']);
+    expect(within(tabs).getByRole('button', { name: /Todos/ })).toHaveTextContent('Todos6 presupuestos');
     expect(tabs.textContent).not.toContain('$');
     expect(screen.getByText('1–3 de 3 presupuestos')).toBeTruthy();
   });
@@ -157,11 +163,13 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
 
     const [today, none, expired] = screen.getAllByTestId('presupuesto-vence');
     expect(today).toHaveAttribute('data-tone', 'soon');
-    expect(today).toHaveTextContent('25 octhoy');
+    // Canvas: how far on top, the date and the validity length under it.
+    expect(today).toHaveTextContent('Vence hoy25 oct · vigencia de 15 días');
     expect(none).toHaveTextContent('Sin vencimiento');
     expect(expired).toHaveAttribute('data-tone', 'expired');
-    expect(expired).toHaveTextContent('hace 5 días');
+    expect(expired).toHaveTextContent('Venció hace 5 días');
     expect(screen.getByText('Instalación mini-split, Diagnóstico técnico')).toBeTruthy();
+    expect(screen.getByText('+1')).toBeTruthy();
     expect(screen.getByText('Sin conceptos todavía')).toBeTruthy();
   });
 

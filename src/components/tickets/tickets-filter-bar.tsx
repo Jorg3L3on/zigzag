@@ -58,11 +58,13 @@ const COLLECTION_VIEWS: Array<{
   id: TicketCollectionView;
   label: string;
   countKey: keyof TicketListCounts;
+  /** The canvas dot; the estado pill colours of the rows in that view. */
+  dot: string | null;
 }> = [
-  { id: 'all', label: 'Todos', countKey: 'all' },
-  { id: 'due', label: 'Por cobrar', countKey: 'due' },
-  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress' },
-  { id: 'paid', label: 'Pagados', countKey: 'paid' },
+  { id: 'all', label: 'Todos', countKey: 'all', dot: null },
+  { id: 'due', label: 'Por cobrar', countKey: 'due', dot: 'bg-amber-500' },
+  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress', dot: 'bg-sky-500' },
+  { id: 'paid', label: 'Pagados', countKey: 'paid', dot: 'bg-emerald-500' },
 ];
 
 /**
@@ -131,11 +133,16 @@ const TicketCollectionTabs = ({
   return (
     <ListViewTabs
       label="Vistas de tickets"
-      tabs={COLLECTION_VIEWS.map((view) => ({
-        id: view.id,
-        label: view.label,
-        count: counts ? counts[view.countKey] : null,
-      }))}
+      tabs={COLLECTION_VIEWS.map((view) => {
+        const count = counts ? counts[view.countKey] : null;
+        return {
+          id: view.id,
+          label: view.label,
+          count,
+          dot: view.dot,
+          caption: count == null ? null : `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
+        };
+      })}
       isSelected={(id) => active === id}
       onSelect={handleSelect}
     />

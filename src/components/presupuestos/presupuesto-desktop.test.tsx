@@ -353,13 +353,13 @@ describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
       '/clients/5',
     );
     const phone = within(client).getByTestId('presupuesto-client-phone');
-    expect(phone.tagName).toBe('P');
-    expect(phone).toHaveTextContent('9981000001');
+    expect(phone.tagName).toBe('SPAN');
+    expect(phone).toHaveTextContent('998 100 0001');
     expect(within(client).getByTestId('presupuesto-client-address')).toHaveTextContent('Sin dirección');
     expect(within(client).getByTestId('presupuesto-client-email')).toHaveTextContent('aurora@plaza.test');
     expect(within(client).getByRole('link', { name: 'Ver cliente' })).toHaveAttribute('href', '/clients/5');
 
-    const whatsApp = within(client).getByRole('link', { name: 'WhatsApp' });
+    const whatsApp = within(client).getByRole('link', { name: 'Escribir por WhatsApp' });
     const href = decodeURIComponent(whatsApp.getAttribute('href') ?? '');
     expect(href).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     expect(href).toContain('ClimaTotal');
@@ -478,10 +478,11 @@ describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
 
     const card = screen.getByTestId('presupuesto-activity-card');
     const timeline = document.getElementById('presupuesto-timeline-body');
-    expect(within(card).getByText('Ana creó el presupuesto')).toBeTruthy();
-    expect(within(card).getByText('Mara canceló el presupuesto')).toBeTruthy();
-    expect(within(card).getByText('Paz lo duplicó')).toBeTruthy();
-    expect(within(card).queryByText('Zoe lo convirtió en ticket')).toBeNull();
+    // Canvas PresuA: what happened, then «9 oct · 09:00 · Ana».
+    expect(within(card).getByText('Presupuesto creado')).toBeTruthy();
+    expect(within(card).getByText('Presupuesto cancelado')).toBeTruthy();
+    expect(within(card).getByText('Presupuesto duplicado')).toBeTruthy();
+    expect(within(card).queryByText('Convertido en ticket')).toBeNull();
     expect(timeline).toHaveAttribute('hidden');
 
     await user.click(within(card).getByRole('button', { name: 'Ver todo' }));

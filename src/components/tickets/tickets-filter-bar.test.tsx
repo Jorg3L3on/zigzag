@@ -163,24 +163,25 @@ describe('TicketsFilterBar', () => {
 
     const views = screen.getByRole('navigation', { name: 'Vistas de tickets' });
     expect(views).not.toHaveTextContent('$');
-    const due = within(views).getByRole('button', { name: 'Por cobrar 3' });
+    // Canvas ListaA: «Por cobrar» over «3 tickets», chosen = underline, not solid blue.
+    const due = within(views).getByRole('button', { name: 'Por cobrar 3 tickets' });
     expect(due).toHaveAttribute('aria-pressed', 'true');
-    expect(due.className).toContain('bg-primary/10');
+    expect(due.className).toContain('border-primary');
     expect(due.className).not.toMatch(/(?:^|\s)bg-primary(?:\s|$)/);
-    expect(within(views).getByRole('button', { name: 'En proceso 2' })).toHaveAttribute(
+    expect(within(views).getByRole('button', { name: 'En proceso 2 tickets' })).toHaveAttribute(
       'aria-pressed',
       'false',
     );
 
-    await user.click(within(views).getByRole('button', { name: 'En proceso 2' }));
+    await user.click(within(views).getByRole('button', { name: 'En proceso 2 tickets' }));
     expect(onStatusFilterChange).toHaveBeenCalledWith('all');
     expect(onFinishedFilterChange).toHaveBeenCalledWith('no');
 
-    await user.click(within(views).getByRole('button', { name: 'Pagados 1' }));
+    await user.click(within(views).getByRole('button', { name: 'Pagados 1 ticket' }));
     expect(onStatusFilterChange).toHaveBeenCalledWith('paid');
     expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
 
-    await user.click(within(views).getByRole('button', { name: 'Todos 8' }));
+    await user.click(within(views).getByRole('button', { name: 'Todos 8 tickets' }));
     expect(onStatusFilterChange).toHaveBeenCalledWith('all');
     expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
   });

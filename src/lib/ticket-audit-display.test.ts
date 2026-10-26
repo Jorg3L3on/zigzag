@@ -3,6 +3,7 @@ import {
   buildTicketAuditUpdateDetails,
   describeTicketAuditEvent,
   extractTicketAuditAmount,
+  formatPresupuestoActivityCardTitle,
   formatPresupuestoTimelineTitle,
   formatTicketTimelineEntry,
   formatTicketTimelineTitle,
@@ -211,5 +212,20 @@ describe('presupuesto timeline (ZIG-I29-1)', () => {
     expect(formatTicketTimelineEntry(entry, { documentKind: 'presupuesto' }).title).toBe(
       'Ana creó el presupuesto',
     );
+  });
+});
+
+describe('formatPresupuestoActivityCardTitle (canvas PresuA)', () => {
+  it('says what happened to the presupuesto', () => {
+    expect(formatPresupuestoActivityCardTitle({ eventType: 'created', payload: null })).toBe('Presupuesto creado');
+    expect(formatPresupuestoActivityCardTitle({ eventType: 'presupuesto_converted', payload: null })).toBe(
+      'Convertido en ticket',
+    );
+    expect(
+      formatPresupuestoActivityCardTitle({
+        eventType: 'presupuesto_extended',
+        payload: { after: { expires_at: '2026-11-01T12:00:00.000Z' } },
+      }),
+    ).toBe('Vigencia extendida al 1 de noviembre');
   });
 });

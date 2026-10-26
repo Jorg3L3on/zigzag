@@ -387,3 +387,30 @@ export const formatTicketTimelineEntry = (
     amount,
   };
 };
+
+/**
+ * The desktop Actividad card of a presupuesto (canvas PresuA): what happened,
+ * not who did it («Presupuesto creado», «Vigencia extendida al 1 de noviembre»).
+ */
+export const formatPresupuestoActivityCardTitle = (
+  input: Pick<TicketTimelineEntryInput, 'eventType' | 'payload'>,
+): string => {
+  switch (input.eventType) {
+    case 'created':
+      return 'Presupuesto creado';
+    case 'updated':
+      return 'Presupuesto editado';
+    case 'presupuesto_converted':
+      return 'Convertido en ticket';
+    case 'presupuesto_canceled':
+      return 'Presupuesto cancelado';
+    case 'presupuesto_duplicated':
+      return 'Presupuesto duplicado';
+    case 'presupuesto_extended': {
+      const to = presupuestoExtendedTo(input.payload);
+      return to ? `Vigencia extendida al ${to}` : 'Vigencia extendida';
+    }
+    default:
+      return describeTicketAuditEvent(input.eventType);
+  }
+};

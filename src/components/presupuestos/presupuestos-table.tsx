@@ -46,6 +46,7 @@ import {
 } from '@/components/ui/select';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 import { describePresupuestoVenceCell } from '@/lib/presupuesto-vigencia';
 import {
   parsePresupuestoView,
@@ -61,18 +62,23 @@ const DEFAULT_PAGE_SIZE = 25;
 const VENCE_TONE_CLASS = {
   expired: 'text-red-700 dark:text-red-300',
   soon: 'text-amber-700 dark:text-amber-300',
-  ok: 'text-muted-foreground',
+  ok: 'text-foreground',
   none: 'text-muted-foreground',
 } as const;
 
 type TabId = Exclude<PresupuestoListView, 'pendientes'>;
 
-const TABS: Array<{ id: TabId; label: string; countKey: keyof PresupuestoListCounts }> = [
-  { id: 'todos', label: 'Todos', countKey: 'all' },
-  { id: 'abiertos', label: 'Abiertos', countKey: 'abierto' },
-  { id: 'vencidos', label: 'Vencidos', countKey: 'vencido' },
-  { id: 'aceptados', label: 'Aceptados', countKey: 'convertido' },
-  { id: 'cancelados', label: 'Cancelados', countKey: 'cancelado' },
+const TABS: Array<{
+  id: TabId;
+  label: string;
+  countKey: keyof PresupuestoListCounts;
+  dot: string | null;
+}> = [
+  { id: 'todos', label: 'Todos', countKey: 'all', dot: null },
+  { id: 'abiertos', label: 'Abiertos', countKey: 'abierto', dot: 'bg-blue-500' },
+  { id: 'vencidos', label: 'Vencidos', countKey: 'vencido', dot: 'bg-red-500' },
+  { id: 'aceptados', label: 'Aceptados', countKey: 'convertido', dot: 'bg-emerald-500' },
+  { id: 'cancelados', label: 'Cancelados', countKey: 'cancelado', dot: 'bg-slate-500' },
 ];
 
 const shortDate = (value: string | null): string => {
@@ -253,7 +259,7 @@ export const PresupuestosTable = ({
             </span>
             {row.original.clientTel ? (
               <span className="truncate text-caption tabular-nums text-muted-foreground">
-                {row.original.clientTel}
+                {formatPhoneDisplay(row.original.clientTel) ?? row.original.clientTel}
               </span>
             ) : null}
           </span>
@@ -263,14 +269,23 @@ export const PresupuestosTable = ({
         id: 'trabajo',
         header: 'Trabajo',
         meta: { className: 'hidden @min-[52rem]:table-cell' },
-        cell: ({ row }) =>
-          row.original.servicesSummary ? (
-            <span className="line-clamp-2 text-sm" title={row.original.servicesSummary}>
-              {row.original.servicesSummary}
+        cell: ({ row }) => {
+          const { servicesSummary, servicesHead, servicesCount } = row.original;
+          if (!servicesSummary) {
+            return <span className="text-sm text-muted-foreground">Sin conceptos todavía</span>;
+          }
+          // «A, B… +2»: the first two conceptos, then how many more (canvas).
+          const more = Math.max((servicesCount ?? 0) - 2, 0);
+          return (
+            <span
+              className="flex min-w-0 items-baseline gap-1 text-[13px] text-slate-600 dark:text-slate-300"
+              title={servicesSummary}
+            >
+              <span className="truncate">{servicesHead?.length ? servicesHead.join(', ') : servicesSummary}</span>
+              {more > 0 ? <span className="shrink-0 text-muted-foreground/70">+{more}</span> : null}
             </span>
-          ) : (
-            <span className="text-sm text-muted-foreground">Sin conceptos todavía</span>
-          ),
+          );
+        },
       },
       {
         id: 'emitido',
@@ -283,27 +298,25 @@ export const PresupuestosTable = ({
       {
         id: 'vence',
         header: 'Vence',
-        meta: { className: 'w-[8rem]' },
+        // «25 oct · vigencia de 15 días» needs the room (canvas column 150px).
+        meta: { className: 'w-[10rem]' },
         cell: ({ row }) => {
           const cell = describePresupuestoVenceCell({
             expiresAt: row.original.expiresAt,
             status: row.original.status,
+            ticketDate: row.original.ticketDate,
           });
           return (
-            <span className="flex flex-col" data-testid="presupuesto-vence" data-tone={cell.tone}>
+            <span className="flex flex-col text-[13px] leading-snug" data-testid="presupuesto-vence" data-tone={cell.tone}>
               <span
                 className={cn(
-                  'text-sm tabular-nums',
-                  cell.hint ? 'text-foreground' : 'text-muted-foreground',
+                  'tabular-nums',
+                  cell.sub ? cn('font-medium', VENCE_TONE_CLASS[cell.tone]) : 'text-muted-foreground',
                 )}
               >
                 {cell.text}
               </span>
-              {cell.hint ? (
-                <span className={cn('text-caption font-medium', VENCE_TONE_CLASS[cell.tone])}>
-                  {cell.hint}
-                </span>
-              ) : null}
+              {cell.sub ? <span className="text-caption text-muted-foreground">{cell.sub}</span> : null}
             </span>
           );
         },
@@ -365,15 +378,17 @@ export const PresupuestosTable = ({
     pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
   });
 
-  const tabs: ListViewTab<TabId>[] = TABS.map((tab) => ({
-    id: tab.id,
-    label: tab.label,
-    count: counts ? counts[tab.countKey] : null,
-    hint:
-      tab.id === 'abiertos' && counts && counts.venceHoy > 0
-        ? `· ${counts.venceHoy} ${counts.venceHoy === 1 ? 'vence' : 'vencen'} hoy`
-        : null,
-  }));
+  // Canvas ListaPresuA: «6 presupuestos» under Todos, «4 · 1 vence hoy» under Abiertos.
+  const tabs: ListViewTab<TabId>[] = TABS.map((tab) => {
+    const count = counts ? counts[tab.countKey] : null;
+    let caption: string | null = count == null ? null : String(count);
+    if (count != null && tab.id === 'todos') {
+      caption = `${count} ${count === 1 ? 'presupuesto' : 'presupuestos'}`;
+    } else if (count != null && tab.id === 'abiertos' && counts && counts.venceHoy > 0) {
+      caption = `${count} · ${counts.venceHoy} ${counts.venceHoy === 1 ? 'vence' : 'vencen'} hoy`;
+    }
+    return { id: tab.id, label: tab.label, count, dot: tab.dot, caption };
+  });
   const isSelected = (id: TabId) =>
     view === id || (view === 'pendientes' && (id === 'abiertos' || id === 'vencidos'));
   const hasFilters = debouncedSearch.length > 0 || Boolean(dateRange?.from);
@@ -432,10 +447,8 @@ export const PresupuestosTable = ({
           onChange={setDateRange}
           ariaLabel="Filtrar por fecha de emisión"
         />
-        <div className="flex flex-col gap-1.5">
-          <span className="text-caption font-medium text-muted-foreground" aria-hidden>
-            Orden
-          </span>
+        {/* The order sits at the right end of the bar, as on the canvas. */}
+        <div className="ml-auto">
           <Select value={sort} onValueChange={(value) => setSort(value as PresupuestoListSort)}>
             <SelectTrigger className="h-11 w-48 rounded-full px-4" aria-label="Ordenar presupuestos">
               <SelectValue />

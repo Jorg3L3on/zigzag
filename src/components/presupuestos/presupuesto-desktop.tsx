@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import {
   Activity,
   Ban,
@@ -25,7 +27,6 @@ import type { PresupuestoConvertedTicket } from '@/actions/presupuestos';
 import { DocumentLineRow } from '@/components/documents/document-line-row';
 import { DocumentLinesDensitySwitch } from '@/components/documents/document-lines-density-switch';
 import { MoneyFigure } from '@/components/documents/money-figure';
-import { PresupuestoConditions } from '@/components/presupuestos/presupuesto-conditions';
 import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-status-pill';
 import type { ReviewLine } from '@/components/tickets/review/document-review-parts';
 import { FormattedCurrency } from '@/components/formatted-currency';
@@ -44,7 +45,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatLongDate } from '@/lib/format-long-date';
+import { collapseBlankLines } from '@/lib/collapse-blank-lines';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 import { formatRelativeActivityTime } from '@/lib/format-relative-time';
 import { materialDraftAmount } from '@/lib/material-drafts';
 import { sumLineTotals, sumMaterialTotals } from '@/lib/money';
@@ -58,7 +60,9 @@ import {
 import { reviewLineAmount } from '@/lib/review-lines';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import {
+  formatPresupuestoActivityCardTitle,
   formatTicketTimelineEntry,
+  getTicketTimelineIcon,
   type TicketTimelineIconKey,
 } from '@/lib/ticket-audit-display';
 import { cn } from '@/lib/utils';
@@ -274,7 +278,9 @@ const PresupuestoDesktopHeader = (props: HeaderProps) => {
     onDuplicate,
     onExtend,
   } = props;
-  const issued = formatLongDate(ticketDate);
+  const issuedDate = asDate(ticketDate);
+  // «10 de octubre de 2026», as the canvas meta line reads.
+  const issued = issuedDate ? format(issuedDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : null;
   const label = folio || `#${presupuestoId}`;
   const chip = describePresupuestoVigenciaChip({ expiresAt, status });
   const accepted = status === 'convertido';
@@ -480,7 +486,7 @@ const PresupuestoDesktopDocument = ({
     <TicketDetailSectionCard aria-labelledby="presupuesto-document-heading">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 id="presupuesto-document-heading" className="text-[15px] font-semibold">
-          Conceptos
+          Conceptos y materiales
           <span className="font-normal text-muted-foreground">
             {' · '}
             {countLabel(lines.length, 'concepto', 'conceptos')}
@@ -547,29 +553,40 @@ const PresupuestoDesktopDocument = ({
         </dl>
       </div>
 
-      <div className="mt-5">
+      {/* Condiciones as the canvas draws them: a label, the whole text, where it prints. */}
+      <section
+        aria-labelledby="presupuesto-conditions-heading"
+        data-testid="presupuesto-conditions"
+        className="mt-7 border-t border-border pt-5"
+      >
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="presupuesto-conditions-heading" className={RAIL_LABEL_CLASS}>
+            Condiciones
+          </h2>
+          {conditionsEditHref ? (
+            <Link
+              href={conditionsEditHref}
+              className="inline-flex min-h-11 items-center text-caption font-medium text-primary underline-offset-4 hover:underline"
+              aria-label={notes ? 'Editar condiciones' : 'Agregar condiciones'}
+            >
+              {notes ? 'Editar' : 'Agregar'}
+            </Link>
+          ) : null}
+        </div>
         {notes ? (
-          <PresupuestoConditions notes={notes} fold={false} editHref={conditionsEditHref} />
+          <p
+            className="mt-1 max-w-[62ch] whitespace-pre-line text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere] dark:text-slate-300"
+            data-testid="presupuesto-notes"
+          >
+            {collapseBlankLines(notes)}
+          </p>
         ) : (
-          <section aria-labelledby="presupuesto-conditions-heading" data-testid="presupuesto-conditions">
-            <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <h2 id="presupuesto-conditions-heading" className="text-[15px] font-semibold">
-                Condiciones
-              </h2>
-              {conditionsEditHref ? (
-                <Link
-                  href={conditionsEditHref}
-                  className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
-                  aria-label="Agregar condiciones"
-                >
-                  Agregar
-                </Link>
-              ) : null}
-            </div>
-            <p className="text-caption text-muted-foreground">Sin condiciones</p>
-          </section>
+          <p className="mt-1 text-sm text-muted-foreground">Sin condiciones</p>
         )}
-      </div>
+        <p className="mt-2.5 text-caption text-muted-foreground">
+          Se imprimen en el PDF bajo «Condiciones y notas».
+        </p>
+      </section>
     </TicketDetailSectionCard>
   );
 };
@@ -868,11 +885,13 @@ const PresupuestoClienteCard = (
 
   return (
     <TicketDetailSectionCard aria-labelledby="presupuesto-client-heading" data-testid="presupuesto-client-card">
-      <TicketDetailSectionHeading id="presupuesto-client-heading" title="Cliente" />
-      <div className="flex items-center gap-3">
+      <h2 id="presupuesto-client-heading" className={RAIL_LABEL_CLASS}>
+        Cliente
+      </h2>
+      <div className="mt-3 flex items-start gap-3">
         <span
           aria-hidden
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-blue-100 text-[13px] font-bold text-blue-800 dark:bg-blue-500/20 dark:text-blue-200"
         >
           {clientInitials(name)}
         </span>
@@ -880,82 +899,82 @@ const PresupuestoClienteCard = (
           {clientId ? (
             <Link
               href={`/clients/${clientId}`}
-              className="block font-medium text-foreground underline-offset-4 [overflow-wrap:anywhere] hover:underline"
+              className="block font-semibold leading-snug text-foreground underline-offset-4 [overflow-wrap:anywhere] hover:underline"
             >
               {name}
             </Link>
           ) : (
-            <p className="font-medium [overflow-wrap:anywhere]">{name}</p>
+            <p className="font-semibold leading-snug [overflow-wrap:anywhere]">{name}</p>
           )}
           {documents ? (
-            <p className="text-caption text-muted-foreground" data-testid="presupuesto-client-documents">
+            <p className="mt-0.5 text-caption text-muted-foreground" data-testid="presupuesto-client-documents">
               {documents}
             </p>
           ) : null}
         </div>
       </div>
 
-      {phone ? (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-caption text-muted-foreground">Teléfono</p>
-            <p className="text-sm tabular-nums" data-testid="presupuesto-client-phone">
-              {phone}
-            </p>
+      <dl className="mt-4 flex flex-col gap-2.5 text-sm">
+        {phone ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Teléfono</dt>
+            <dd className="flex items-center gap-2">
+              <span className="font-medium tabular-nums" data-testid="presupuesto-client-phone">
+                {formatPhoneDisplay(phone) ?? phone}
+              </span>
+              {whatsApp ? (
+                <Button asChild variant="outline" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+                  <a
+                    href={whatsApp.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Escribir por WhatsApp"
+                    data-testid="presupuesto-client-whatsapp"
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                  </a>
+                </Button>
+              ) : null}
+            </dd>
           </div>
-          {whatsApp ? (
-            <Button asChild variant="outline" size="icon" className="shrink-0">
-              <a
-                href={whatsApp.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="WhatsApp"
-                data-testid="presupuesto-client-whatsapp"
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden />
-              </a>
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="mt-3">
-        <p className="text-caption text-muted-foreground">Dirección</p>
-        {address ? (
-          <p className="text-sm [overflow-wrap:anywhere]" data-testid="presupuesto-client-address">
-            {address}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground" data-testid="presupuesto-client-address">
-            Sin dirección
-            {clientId ? (
+        ) : null}
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-muted-foreground">Dirección</dt>
+          <dd className="min-w-0 text-right [overflow-wrap:anywhere]" data-testid="presupuesto-client-address">
+            {address ? (
+              address
+            ) : (
               <>
-                {' · '}
-                <Link
-                  href={`/clients/${clientId}`}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Agregar
-                </Link>
+                <span className="text-muted-foreground">Sin dirección</span>
+                {clientId ? (
+                  <>
+                    {' · '}
+                    <Link
+                      href={`/clients/${clientId}`}
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Agregar
+                    </Link>
+                  </>
+                ) : null}
               </>
-            ) : null}
-          </p>
-        )}
-      </div>
-
-      {email ? (
-        <div className="mt-3">
-          <p className="text-caption text-muted-foreground">Correo</p>
-          <p className="text-sm [overflow-wrap:anywhere]" data-testid="presupuesto-client-email">
-            {email}
-          </p>
+            )}
+          </dd>
         </div>
-      ) : null}
+        {email ? (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Correo</dt>
+            <dd className="min-w-0 text-right [overflow-wrap:anywhere]" data-testid="presupuesto-client-email">
+              {email}
+            </dd>
+          </div>
+        ) : null}
+      </dl>
 
       {clientId ? (
         <Link
           href={`/clients/${clientId}`}
-          className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
+          className="mt-4 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           Ver cliente
         </Link>
@@ -964,6 +983,7 @@ const PresupuestoClienteCard = (
   );
 };
 
+/** Canvas PresuA: «Presupuesto creado» over «10 oct · 08:23 · Jorge Climas». */
 const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntry[] }) => {
   const recent = entries.slice(0, ACTIVITY_PREVIEW);
 
@@ -972,37 +992,47 @@ const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntr
       aria-labelledby="presupuesto-activity-card-heading"
       data-testid="presupuesto-activity-card"
     >
-      <TicketDetailSectionHeading
-        id="presupuesto-activity-card-heading"
-        title="Actividad"
-        count={entries.length}
-      />
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="presupuesto-activity-card-heading" className={RAIL_LABEL_CLASS}>
+          Actividad · {entries.length}
+        </h2>
+        <button
+          type="button"
+          onClick={handleOpenActivity}
+          className="inline-flex min-h-11 items-center text-caption font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Ver todo
+        </button>
+      </div>
       {recent.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aún no hay eventos.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="mt-1 space-y-3.5">
           {recent.map((entry) => {
-            const formatted = formatTicketTimelineEntry(entry, { documentKind: 'presupuesto' });
+            const Icon = TIMELINE_ICONS[getTicketTimelineIcon(entry.eventType)] ?? Activity;
             const occurredAt = asDate(entry.createdAt);
             return (
-              <li key={entry.id} className="text-sm">
-                <p className="font-medium [overflow-wrap:anywhere]">{formatted.title}</p>
-                <p className="text-caption text-muted-foreground">
-                  {occurredAt ? <FormattedDate withTime date={occurredAt} /> : null}
-                  {entry.actorName ? ` · ${entry.actorName}` : null}
-                </p>
+              <li key={entry.id} className="flex items-start gap-2.5 text-sm">
+                <span
+                  aria-hidden
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-medium [overflow-wrap:anywhere]">
+                    {formatPresupuestoActivityCardTitle(entry)}
+                  </span>
+                  <span className="block text-caption text-muted-foreground">
+                    {occurredAt ? format(occurredAt, 'd MMM · HH:mm', { locale: es }) : null}
+                    {entry.actorName ? ` · ${entry.actorName}` : null}
+                  </span>
+                </span>
               </li>
             );
           })}
         </ul>
       )}
-      <button
-        type="button"
-        onClick={handleOpenActivity}
-        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        Ver todo
-      </button>
     </TicketDetailSectionCard>
   );
 };

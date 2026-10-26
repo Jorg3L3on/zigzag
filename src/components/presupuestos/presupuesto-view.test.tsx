@@ -386,7 +386,7 @@ describe('PresupuestoView on desktop (ZIG-I28-5)', () => {
 
     expect(screen.queryByTestId('presupuesto-accept')).toBeNull();
     const phone = screen.getByTestId('presupuesto-client-phone');
-    expect(phone.tagName).toBe('P');
+    expect(phone.tagName).toBe('SPAN');
     const href = decodeURIComponent(
       screen.getByTestId('presupuesto-client-whatsapp').getAttribute('href') ?? '',
     );

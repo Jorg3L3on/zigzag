@@ -169,38 +169,36 @@ export const describePresupuestoPastVigencia = (
 };
 
 export type PresupuestoVenceCell = {
-  /** «25 oct», «Vencía 9 nov» or «Sin vencimiento». */
+  /** «Vence hoy», «Vence en 3 días», «Venció hace 2 días», «Vencía 9 nov», «Sin vencimiento». */
   text: string;
-  /** «hoy», «en 3 días», «hace 2 días»; only while open or expired. */
-  hint: string | null;
+  /** «25 oct · vigencia de 15 días»; only while open or expired. */
+  sub: string | null;
   tone: PresupuestoVigencia['tone'];
 };
 
 /**
- * The Vence column of the desktop list (ZIG-I29-3): the date and how far it
- * is, amber within three days, red once past, grey once accepted or canceled.
+ * The Vence column of the desktop list (canvas ListaPresuA): how far it is on
+ * top, amber within three days and red once past, and the date with the length
+ * of the validity under it; grey once accepted or canceled.
  */
 export const describePresupuestoVenceCell = ({
   expiresAt,
   status,
+  ticketDate = null,
   now = new Date(),
 }: {
   expiresAt: string | Date | null;
   status: PresupuestoStatus;
+  ticketDate?: string | Date | null;
   now?: Date;
 }): PresupuestoVenceCell => {
   const expires = toDate(expiresAt);
-  if (!expires) return { text: 'Sin vencimiento', hint: null, tone: 'none' };
+  if (!expires) return { text: 'Sin vencimiento', sub: null, tone: 'none' };
   const date = shortDate(expires, now);
-  if (!isOpen(status)) return { text: `Vencía ${date}`, hint: null, tone: 'none' };
-  const daysLeft = differenceInCalendarDays(expires, now);
-  if (daysLeft < 0) {
-    return { text: date, hint: `hace ${plural(-daysLeft, 'día', 'días')}`, tone: 'expired' };
-  }
-  if (daysLeft === 0) return { text: date, hint: 'hoy', tone: 'soon' };
-  return {
-    text: date,
-    hint: `en ${plural(daysLeft, 'día', 'días')}`,
-    tone: daysLeft <= 3 ? 'soon' : 'ok',
-  };
+  if (!isOpen(status)) return { text: `Vencía ${date}`, sub: null, tone: 'none' };
+  const issued = toDate(ticketDate);
+  const length = issued ? Math.max(differenceInCalendarDays(expires, issued), 0) : null;
+  const sub = length == null ? date : `${date} · vigencia de ${plural(length, 'día', 'días')}`;
+  const chip = describePresupuestoVigenciaChip({ expiresAt: expires, status, now });
+  return { text: chip?.text ?? date, sub, tone: chip?.tone ?? 'none' };
 };

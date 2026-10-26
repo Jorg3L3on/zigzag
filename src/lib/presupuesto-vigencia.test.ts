@@ -2,6 +2,7 @@ import {
   describePresupuestoVigencia,
   describePresupuestoVigenciaCard,
   describePresupuestoVigenciaChip,
+  describePresupuestoVenceCell,
 } from '@/lib/presupuesto-vigencia';
 
 const now = new Date('2026-10-10T15:00:00');
@@ -112,6 +113,35 @@ describe('describePresupuestoVigenciaCard (ZIG-I29-1)', () => {
       progress: null,
       issuedText: 'Emitido el 1 oct',
       lengthText: null,
+    });
+  });
+});
+
+describe('describePresupuestoVenceCell (canvas ListaPresuA)', () => {
+  it('puts how far on top and the date with the validity length under it', () => {
+    expect(
+      describePresupuestoVenceCell({
+        expiresAt: '2026-10-10T08:00:00',
+        ticketDate: '2026-09-25T12:00:00',
+        status: 'abierto',
+        now,
+      }),
+    ).toEqual({ text: 'Vence hoy', sub: '10 oct · vigencia de 15 días', tone: 'soon' });
+    expect(
+      describePresupuestoVenceCell({ expiresAt: '2026-10-07T12:00:00', status: 'vencido', now }),
+    ).toEqual({ text: 'Venció hace 3 días', sub: '7 oct', tone: 'expired' });
+  });
+
+  it('is grey once closed or without a date', () => {
+    expect(describePresupuestoVenceCell({ expiresAt: '2026-11-09T12:00:00', status: 'convertido', now })).toEqual({
+      text: 'Vencía 9 nov',
+      sub: null,
+      tone: 'none',
+    });
+    expect(describePresupuestoVenceCell({ expiresAt: null, status: 'abierto', now })).toEqual({
+      text: 'Sin vencimiento',
+      sub: null,
+      tone: 'none',
     });
   });
 });

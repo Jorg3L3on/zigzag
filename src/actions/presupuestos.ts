@@ -203,6 +203,9 @@ export async function getPresupuestosList(
 /** A row of the desktop table (ZIG-I29-3): the phone item plus the work and the R folio. */
 export type PresupuestoTableItem = PresupuestoListItem & {
   servicesSummary: string | null;
+  /** The first two conceptos and how many there are («A, B… +2»). */
+  servicesHead: string[];
+  servicesCount: number;
   convertedTicketFolio: string | null;
 };
 
@@ -330,6 +333,8 @@ export async function getPresupuestosPaginated(params: {
           .select({
             ticket_id: servicesTickets.ticket_id,
             summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+            head: sql<string[] | null>`(array_agg(coalesce(${servicesTickets.name}, ${service.name}) order by ${servicesTickets.id}))[1:2]`,
+            lines: sql<number>`count(*)`,
           })
           .from(servicesTickets)
           .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
@@ -344,7 +349,7 @@ export async function getPresupuestosPaginated(params: {
           )
           .groupBy(servicesTickets.ticket_id)
       : [];
-    const summaryById = new Map(summaries.map((row) => [String(row.ticket_id), row.summary]));
+    const summaryById = new Map(summaries.map((row) => [String(row.ticket_id), row]));
 
     const convertedIds = rows
       .map((row) => row.converted_to_ticket_id)
@@ -367,7 +372,9 @@ export async function getPresupuestosPaginated(params: {
       data: {
         items: rows.map((row) => ({
           ...toListItem(row),
-          servicesSummary: summaryById.get(String(row.id)) ?? null,
+          servicesSummary: summaryById.get(String(row.id))?.summary ?? null,
+          servicesHead: summaryById.get(String(row.id))?.head ?? [],
+          servicesCount: Number(summaryById.get(String(row.id))?.lines ?? 0),
           convertedTicketFolio:
             row.converted_to_ticket_id != null
               ? (folioById.get(String(row.converted_to_ticket_id)) ?? null)
