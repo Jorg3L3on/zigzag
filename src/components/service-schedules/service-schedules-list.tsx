@@ -1,40 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type SortingState,
-} from '@tanstack/react-table';
 import { CalendarClock, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  deleteClientServiceSchedule,
   listClientServiceSchedules,
-  pauseClientServiceSchedule,
-  resumeClientServiceSchedule,
   snoozeClientServiceSchedule,
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
@@ -46,7 +18,6 @@ import {
 } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { ServiceSchedulesFilterBar } from '@/components/service-schedules/service-schedules-filter-bar';
-import { createServiceSchedulesColumns } from '@/components/service-schedules/service-schedules-columns';
 import { ScheduleFormDialog } from '@/components/service-schedules/schedule-form-dialog';
 import {
   classifyClientError,
@@ -62,8 +33,10 @@ import Link from 'next/link';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { canCreateTicketFromSchedule, canReadServiceSchedules, canWriteServiceSchedules, needsSelectedCompanyForSchedules } from '@/lib/service-schedules-rbac';
 
-const DEFAULT_SORTING: SortingState = [{ id: 'nextDueAt', desc: false }];
-
+/**
+ * Phone list of service schedules: cards with their buttons (from md the page
+ * is ServiceSchedulesAgenda, ZIG-I30). Rows come ordered by next_due_at.
+ */
 export const ServiceSchedulesList = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
@@ -87,13 +60,9 @@ export const ServiceSchedulesList = () => {
   });
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [sorting, setSorting] = React.useState<SortingState>(DEFAULT_SORTING);
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] =
     React.useState<ClientServiceScheduleListItem | null>(null);
-  const [deleteTarget, setDeleteTarget] =
-    React.useState<ClientServiceScheduleListItem | null>(null);
-  const [actionLoading, setActionLoading] = React.useState(false);
 
   React.useEffect(() => {
     const raw = searchParams.get('filter');
@@ -184,52 +153,13 @@ export const ServiceSchedulesList = () => {
     setFormOpen(true);
   };
 
-  const handlePause = React.useCallback(
-    async (schedule: ClientServiceScheduleListItem) => {
-      setActionLoading(true);
-      const result = await pauseClientServiceSchedule(
-        schedule.id,
-        null,
-        selectedCompany?.id ?? null,
-      );
-      setActionLoading(false);
-      if (result.success) {
-        toast.success('Recordatorio pausado');
-        void loadSchedules();
-      } else {
-        toast.error(result.error || 'No se pudo pausar');
-      }
-    },
-    [loadSchedules, selectedCompany?.id],
-  );
-
-  const handleResume = React.useCallback(
-    async (schedule: ClientServiceScheduleListItem) => {
-      setActionLoading(true);
-      const result = await resumeClientServiceSchedule(
-        schedule.id,
-        selectedCompany?.id ?? null,
-      );
-      setActionLoading(false);
-      if (result.success) {
-        toast.success('Recordatorio reanudado');
-        void loadSchedules();
-      } else {
-        toast.error(result.error || 'No se pudo reanudar');
-      }
-    },
-    [loadSchedules, selectedCompany?.id],
-  );
-
   const handleSnooze = React.useCallback(
     async (schedule: ClientServiceScheduleListItem) => {
-      setActionLoading(true);
       const result = await snoozeClientServiceSchedule(
         schedule.id,
         { days: 7 },
         selectedCompany?.id ?? null,
       );
-      setActionLoading(false);
       if (result.success && result.data?.nextDueAt) {
         const label = new Date(result.data.nextDueAt).toLocaleDateString(
           'es-MX',
@@ -244,56 +174,6 @@ export const ServiceSchedulesList = () => {
     [loadSchedules, selectedCompany?.id],
   );
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) {
-      return;
-    }
-    setActionLoading(true);
-    const result = await deleteClientServiceSchedule(
-      deleteTarget.id,
-      selectedCompany?.id ?? null,
-    );
-    setActionLoading(false);
-    setDeleteTarget(null);
-    if (result.success) {
-      toast.success('Recordatorio eliminado');
-      void loadSchedules();
-    } else {
-      toast.error(result.error || 'No se pudo eliminar');
-    }
-  };
-
-  const columns = React.useMemo(
-    () =>
-      createServiceSchedulesColumns({
-        canWrite,
-        canCreateTicket,
-        companyName: selectedCompany?.name ?? null,
-        onEdit: handleEdit,
-        onPause: (schedule) => void handlePause(schedule),
-        onResume: (schedule) => void handleResume(schedule),
-        onSnooze: (schedule) => void handleSnooze(schedule),
-        onDelete: setDeleteTarget,
-      }),
-    [
-      canCreateTicket,
-      canWrite,
-      handleEdit,
-      handlePause,
-      handleResume,
-      handleSnooze,
-      selectedCompany?.name,
-    ],
-  );
-
-  const table = useReactTable({
-    data: filteredItems,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
   const hasActiveFilters = debouncedSearch !== '' || filter !== 'todos';
   const sheetFilterCount = filter !== 'todos' ? 1 : 0;
   const listState = resolveResourceListState({
@@ -308,7 +188,6 @@ export const ServiceSchedulesList = () => {
     setSearchValue('');
     setDebouncedSearch('');
     setFilter('todos');
-    setSorting(DEFAULT_SORTING);
   };
 
   const filterChips = [
@@ -424,8 +303,7 @@ export const ServiceSchedulesList = () => {
       ) : (
         <>
           <div className="space-y-3 md:hidden">
-            {table.getRowModel().rows.map((row) => {
-              const schedule = row.original;
+            {filteredItems.map((schedule) => {
               return (
                 <TripledMobileRecordCard key={schedule.id}>
                   <div className="space-y-2">
@@ -517,37 +395,6 @@ export const ServiceSchedulesList = () => {
             })}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-xl border md:block">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
         </>
       )}
 
@@ -558,29 +405,6 @@ export const ServiceSchedulesList = () => {
         onSaved={() => void loadSchedules()}
       />
 
-      <AlertDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar recordatorio?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. El recordatorio dejará de mostrarse en
-              las listas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={actionLoading}
-              onClick={() => void handleConfirmDelete()}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

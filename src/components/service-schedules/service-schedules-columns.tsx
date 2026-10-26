@@ -2,223 +2,235 @@
 
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
+import type { ClientServiceScheduleAgendaItem } from '@/actions/client-service-schedules';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
-import { FormattedDate } from '@/components/formatted-date';
-import { formatScheduleInterval } from '@/lib/schedule-interval-presets';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  createTicketHref,
+  ScheduleActionsMenu,
+  type ScheduleActionHandlers,
+} from '@/components/service-schedules/schedule-actions-menu';
+import {
+  formatDaysSince,
+  formatRelativeDays,
+  formatScheduleEvery,
+  formatScheduleShortDate,
+  SCHEDULE_BUCKET_LABELS,
+  SCHEDULE_BUCKET_PILL_CLASS,
+  SCHEDULE_DUE_TONE_CLASS,
+  scheduleDueTone,
+} from '@/lib/schedule-agenda-format';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
 
-type ScheduleRowBucket = Exclude<
-  ClientServiceScheduleListItem['bucket'],
-  'todos'
->;
+export const scheduleWhatsAppHref = (
+  schedule: ClientServiceScheduleAgendaItem,
+  companyName: string | null,
+): string | null =>
+  buildWhatsAppVisitShare({
+    phone: schedule.clientPhone,
+    clientName: schedule.clientName,
+    serviceName: schedule.serviceName,
+    nextDueAt: schedule.nextDueAt,
+    companyName,
+  })?.href ?? null;
 
-const BUCKET_LABELS: Record<ScheduleRowBucket, string> = {
-  proximos: 'Próximo',
-  atrasados: 'Atrasado',
-  programados: 'Programado',
-  pausados: 'Pausado',
-};
+export const ScheduleStatusPill = ({
+  bucket,
+  className,
+}: {
+  bucket: ClientServiceScheduleAgendaItem['bucket'];
+  className?: string;
+}) => (
+  <span
+    className={cn(
+      'inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-caption font-medium',
+      SCHEDULE_BUCKET_PILL_CLASS[bucket],
+      className,
+    )}
+  >
+    {SCHEDULE_BUCKET_LABELS[bucket]}
+  </span>
+);
 
-const BUCKET_VARIANT: Record<
-  ScheduleRowBucket,
-  'default' | 'secondary' | 'destructive' | 'outline'
-> = {
-  proximos: 'default',
-  atrasados: 'destructive',
-  programados: 'outline',
-  pausados: 'outline',
-};
+/** Próximo: the short date and «hace N días» red / «en N días» amber or grey / «pausado desde …». */
+export const ScheduleNextDue = ({ schedule }: { schedule: ClientServiceScheduleAgendaItem }) => (
+  <div className="min-w-0 leading-tight">
+    <div className="truncate text-sm tabular-nums">{formatScheduleShortDate(schedule.nextDueAt)}</div>
+    {schedule.pausedAt ? (
+      <div className="truncate text-caption text-muted-foreground">
+        pausado desde {formatScheduleShortDate(schedule.pausedAt)}
+      </div>
+    ) : (
+      <div
+        className={cn(
+          'truncate text-caption font-medium',
+          SCHEDULE_DUE_TONE_CLASS[scheduleDueTone(schedule.bucket)],
+        )}
+      >
+        {formatRelativeDays(schedule.daysUntilDue)}
+      </div>
+    )}
+  </div>
+);
 
-/** Active (on-track) schedules — green, aligned with ticket payment / service badges */
-const BUCKET_BADGE_CLASS: Partial<Record<ScheduleRowBucket, string>> = {
-  proximos:
-    'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100',
-  programados:
-    'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100',
-};
-
-export type ServiceSchedulesColumnsOptions = {
+export type ServiceSchedulesColumnsOptions = ScheduleActionHandlers & {
   canWrite: boolean;
   canCreateTicket: boolean;
   companyName?: string | null;
-  onEdit: (schedule: ClientServiceScheduleListItem) => void;
-  onPause: (schedule: ClientServiceScheduleListItem) => void;
-  onResume: (schedule: ClientServiceScheduleListItem) => void;
-  onSnooze: (schedule: ClientServiceScheduleListItem) => void;
-  onDelete: (schedule: ClientServiceScheduleListItem) => void;
+  onOpen: (schedule: ClientServiceScheduleAgendaItem) => void;
 };
 
+/** Agenda columns (ZIG-I30, canvas RecA). Último servicio hides under xl so ⋮ fits at 1024. */
 export const createServiceSchedulesColumns = ({
   canWrite,
   canCreateTicket,
   companyName = null,
-  onEdit,
-  onPause,
-  onResume,
-  onSnooze,
-  onDelete,
-}: ServiceSchedulesColumnsOptions): ColumnDef<ClientServiceScheduleListItem>[] => [
+  onOpen,
+  ...handlers
+}: ServiceSchedulesColumnsOptions): ColumnDef<ClientServiceScheduleAgendaItem>[] => [
+  ...(canWrite
+    ? [
+        {
+          id: 'select',
+          meta: { className: 'w-11' },
+          header: ({ table }) => (
+            <Checkbox
+              checked={
+                table.getIsAllPageRowsSelected()
+                  ? true
+                  : table.getIsSomePageRowsSelected()
+                    ? 'indeterminate'
+                    : false
+              }
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(Boolean(value))}
+              aria-label="Seleccionar los recordatorios de esta página"
+            />
+          ),
+          cell: ({ row }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`Seleccionar el recordatorio de ${row.original.clientName}`}
+            />
+          ),
+        } satisfies ColumnDef<ClientServiceScheduleAgendaItem>,
+      ]
+    : []),
   {
-    accessorKey: 'clientName',
+    id: 'client',
     header: 'Cliente',
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.clientName}</span>
-    ),
-  },
-  {
-    accessorKey: 'serviceName',
-    header: 'Servicio',
-    cell: ({ row }) => row.original.serviceName,
-  },
-  {
-    id: 'interval',
-    header: 'Intervalo',
-    cell: ({ row }) =>
-      formatScheduleInterval(
-        row.original.intervalValue,
-        row.original.intervalUnit,
-      ),
-  },
-  {
-    accessorKey: 'lastServiceAt',
-    header: 'Último servicio',
-    cell: ({ row }) =>
-      row.original.lastServiceAt ? (
-        <FormattedDate date={new Date(row.original.lastServiceAt)} />
-      ) : (
-        '—'
-      ),
-  },
-  {
-    accessorKey: 'nextDueAt',
-    header: 'Próximo vencimiento',
-    cell: ({ row }) => (
-      <FormattedDate date={new Date(row.original.nextDueAt)} />
-    ),
-  },
-  {
-    id: 'status',
-    header: 'Estado',
+    meta: { className: 'w-[24%]' },
     cell: ({ row }) => {
-      const bucket = row.original.bucket as ScheduleRowBucket;
+      const schedule = row.original;
       return (
-        <Badge
-          variant={BUCKET_VARIANT[bucket] ?? 'outline'}
-          className={cn(BUCKET_BADGE_CLASS[bucket])}
-        >
-          {BUCKET_LABELS[bucket] ?? row.original.bucket}
-        </Badge>
+        <div className="min-w-0 leading-tight">
+          <button
+            type="button"
+            className="block max-w-full truncate rounded-sm text-left text-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            title={schedule.clientName}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen(schedule);
+            }}
+          >
+            {schedule.clientName}
+          </button>
+          <div className="truncate text-caption tabular-nums text-muted-foreground">
+            {schedule.clientPhone || 'Sin teléfono'}
+          </div>
+        </div>
       );
     },
   },
   {
+    id: 'service',
+    header: 'Servicio',
+    meta: { className: 'w-[22%]' },
+    cell: ({ row }) => (
+      <div className="min-w-0 leading-tight">
+        <div className="truncate text-sm" title={row.original.serviceName}>
+          {row.original.serviceName}
+        </div>
+        <div className="truncate text-caption text-muted-foreground">
+          {formatScheduleEvery(row.original.intervalValue, row.original.intervalUnit)}
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'lastServiceAt',
+    header: 'Último servicio',
+    meta: { className: 'hidden w-[14%] xl:table-cell' },
+    cell: ({ row }) =>
+      row.original.lastServiceAt ? (
+        <div className="min-w-0 leading-tight">
+          <div className="truncate text-sm tabular-nums">
+            {formatScheduleShortDate(row.original.lastServiceAt)}
+          </div>
+          <div className="truncate text-caption text-muted-foreground">
+            {formatDaysSince(row.original.daysSinceLast)}
+          </div>
+        </div>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+  {
+    id: 'nextDueAt',
+    header: 'Próximo',
+    meta: { className: 'w-[14%]' },
+    cell: ({ row }) => <ScheduleNextDue schedule={row.original} />,
+  },
+  {
+    id: 'status',
+    header: 'Estado',
+    meta: { className: 'w-[12%]' },
+    cell: ({ row }) => <ScheduleStatusPill bucket={row.original.bucket} />,
+  },
+  {
     id: 'actions',
     header: () => <span className="sr-only">Acciones</span>,
+    meta: { className: 'w-[248px] text-right' },
     cell: ({ row }) => {
       const schedule = row.original;
-      const isPaused = Boolean(schedule.pausedAt);
-      const whatsapp = buildWhatsAppVisitShare({
-        phone: schedule.clientPhone,
-        clientName: schedule.clientName,
-        serviceName: schedule.serviceName,
-        nextDueAt: schedule.nextDueAt,
-        companyName,
-      });
-
+      const whatsappHref = scheduleWhatsAppHref(schedule, companyName);
       return (
-        <div
-          className="flex flex-wrap justify-end gap-1"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {whatsapp ? (
-            <Button variant="outline" size="sm" className="rounded-lg" asChild>
-              <a
-                href={whatsapp.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`WhatsApp a ${schedule.clientName}`}
-              >
-                WhatsApp
-              </a>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-lg"
-              disabled
-              aria-label="Sin teléfono para WhatsApp"
-            >
-              WhatsApp
-            </Button>
-          )}
-          {canCreateTicket ? (
-            <Button variant="outline" size="sm" className="rounded-lg" asChild>
-              <Link
-                href={`/tickets/create?clientId=${schedule.clientId}&serviceId=${schedule.serviceId}`}
-              >
-                Crear ticket
-              </Link>
-            </Button>
-          ) : null}
-          {canWrite ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-lg"
-                onClick={() => onEdit(schedule)}
-              >
-                Editar
-              </Button>
-              {!isPaused ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => onSnooze(schedule)}
-                >
-                  Posponer
+        <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
+          <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-within:grid-cols-[1fr]">
+            <div className="flex min-w-0 items-center gap-1 overflow-hidden opacity-0 group-hover:overflow-visible group-hover:opacity-100 group-focus-within:overflow-visible group-focus-within:opacity-100">
+              {canCreateTicket ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link
+                    href={createTicketHref(schedule)}
+                    aria-label={`Crear ticket para ${schedule.clientName}`}
+                  >
+                    Crear ticket
+                  </Link>
                 </Button>
               ) : null}
-              {isPaused ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => onResume(schedule)}
-                >
-                  Reanudar
+              {whatsappHref ? (
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Recordar por WhatsApp a ${schedule.clientName}`}
+                  >
+                    WhatsApp
+                  </a>
                 </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => onPause(schedule)}
-                >
-                  Pausar
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                className="rounded-lg"
-                onClick={() => onDelete(schedule)}
-              >
-                Eliminar
-              </Button>
-            </>
-          ) : null}
+              ) : null}
+            </div>
+          </div>
+          <ScheduleActionsMenu
+            schedule={schedule}
+            canWrite={canWrite}
+            canCreateTicket={canCreateTicket}
+            whatsappHref={whatsappHref}
+            {...handlers}
+          />
         </div>
       );
     },

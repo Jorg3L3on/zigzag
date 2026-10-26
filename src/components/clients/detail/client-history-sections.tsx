@@ -202,7 +202,8 @@ export const ClientHistorySections = ({
       {schedules.map((s) => (
         <Row
           key={s.id}
-          href="/service-schedules"
+          // Opens this schedule's panel in the agenda (ZIG-I30); phones show the full list.
+          href={`/service-schedules?vista=todos&ver=${s.id}`}
           title={s.serviceName}
           meta={
             <>
