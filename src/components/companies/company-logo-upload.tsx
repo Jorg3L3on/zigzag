@@ -169,6 +169,7 @@ export const CompanyLogoUpload = ({
             name={companyName}
             logoUrl={null}
             className="size-[72px] shrink-0 rounded-2xl text-xl"
+            fallbackTone="primary"
           />
         )}
         <div className="min-w-0">

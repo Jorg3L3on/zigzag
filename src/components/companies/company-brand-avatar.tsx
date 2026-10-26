@@ -16,6 +16,12 @@ type CompanyBrandAvatarProps = {
   imageClassName?: string;
   /** `sizes` for the logo image; defaults to the 24 px sidebar avatar. */
   imageSizes?: string;
+  /**
+   * Initial without a logo: 'brand' (default) is the per-company hue;
+   * 'primary' is the canvas's blue for the Mi empresa header and logo card,
+   * where the initial is large page text and needs 4.5:1 (ZIG-I32).
+   */
+  fallbackTone?: 'brand' | 'primary';
 };
 
 export const CompanyBrandAvatar = ({
@@ -24,6 +30,7 @@ export const CompanyBrandAvatar = ({
   className,
   imageClassName,
   imageSizes = '24px',
+  fallbackTone = 'brand',
 }: CompanyBrandAvatarProps) => {
   const trustedUrl = resolveCompanyLogoUrl(logoUrl);
   const [imageFailed, setImageFailed] = React.useState(false);
@@ -60,9 +67,10 @@ export const CompanyBrandAvatar = ({
     <span
       className={cn(
         'inline-flex size-6 items-center justify-center rounded-sm text-caption font-semibold text-white',
+        fallbackTone === 'primary' && 'bg-primary text-primary-foreground',
         className,
       )}
-      style={{ backgroundColor: `hsl(${hue} 65% 42%)` }}
+      style={fallbackTone === 'primary' ? undefined : { backgroundColor: `hsl(${hue} 65% 42%)` }}
       aria-hidden
     >
       {initials}
