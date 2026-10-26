@@ -1,7 +1,7 @@
 'use server';
 
-import { and, asc, eq, isNull, or } from 'drizzle-orm';
-import { role, user } from '@/db/schema';
+import { and, asc, eq, isNotNull, isNull, or } from 'drizzle-orm';
+import { company, role, user } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
   buildActionError,
@@ -12,6 +12,7 @@ import { checkPermission, requireActionPermission } from '@/lib/security';
 import { PERMISSIONS } from '@/lib/permissions';
 import type { TeamMember, TeamRoleOption } from '@/lib/team-members';
 import { hideShadowedSharedRoles } from '@/lib/role-visibility';
+import { generateTemporaryPassword } from '@/lib/temporary-password';
 import {
   createUser,
   deleteUser,
@@ -39,9 +40,14 @@ const withoutData = (result: ActionResult<unknown>): ActionResult =>
       };
 
 export type TeamData = {
+  /** Active members (phones list only these). */
   members: TeamMember[];
+  /** Deactivated members, for the desktop Todos view (ZIG-I32-2). */
+  deactivated: TeamMember[];
   roles: TeamRoleOption[];
   canWrite: boolean;
+  /** For the WhatsApp text of a new person (ZIG-I32-2). */
+  companyName: string;
 };
 
 const parseUserId = (id: string): bigint | null => {
@@ -63,9 +69,14 @@ export async function getTeam(): Promise<ActionResult<TeamData>> {
       PERMISSIONS.users.read,
     );
 
-    const [rows, roleRows, canWrite] = await Promise.all([
+    const [rows, deactivatedRows, roleRows, canWrite, companyRow] = await Promise.all([
       db.query.user.findMany({
         where: and(eq(user.company_id, companyId), isNull(user.deleted_at)),
+        with: { role: true },
+        orderBy: [asc(user.name)],
+      }),
+      db.query.user.findMany({
+        where: and(eq(user.company_id, companyId), isNotNull(user.deleted_at)),
         with: { role: true },
         orderBy: [asc(user.name)],
       }),
@@ -77,27 +88,37 @@ export async function getTeam(): Promise<ActionResult<TeamData>> {
         orderBy: [asc(role.name)],
       }),
       checkPermission(context.userId, companyId, PERMISSIONS.users.write),
+      db.query.company.findFirst({
+        where: eq(company.id, companyId),
+        columns: { name: true },
+      }),
     ]);
+
+    const toMember = (row: (typeof rows)[number]): TeamMember => ({
+      id: row.id.toString(),
+      name: row.name,
+      email: row.email,
+      roleId: row.role_id,
+      roleName: row.role && !row.role.deleted_at ? row.role.name : null,
+      emailVerified: Boolean(row.email_verified_at),
+      mustChangePassword: row.must_change_password,
+      deactivated: row.deleted_at !== null,
+      createdAt: row.created_at.toISOString(),
+      isSelf: row.id.toString() === context.userId,
+    });
 
     return {
       success: true,
       data: {
-        members: rows.map((row) => ({
-          id: row.id.toString(),
-          name: row.name,
-          email: row.email,
-          roleId: row.role_id,
-          roleName: row.role && !row.role.deleted_at ? row.role.name : null,
-          emailVerified: Boolean(row.email_verified_at),
-          createdAt: row.created_at.toISOString(),
-          isSelf: row.id.toString() === context.userId,
-        })),
+        members: rows.map(toMember),
+        deactivated: deactivatedRows.map(toMember),
         roles: hideShadowedSharedRoles(roleRows).map((row) => ({
           id: row.id,
           name: row.name,
           description: row.description,
         })),
         canWrite,
+        companyName: companyRow?.name ?? '',
       },
     };
   } catch (e) {
@@ -120,16 +141,30 @@ async function findOwnCompanyMember(id: string, companyId: number) {
   });
 }
 
+/**
+ * Adds a member. Without `password` (desktop Agregar persona, ZIG-I32-2) the
+ * server makes a temporary one, returns it once and the person must replace
+ * it at their first login, like Dar contraseña temporal (ZIG-I18-11).
+ */
 export async function addTeamMember(data: {
   name: string;
   email: string;
   role_id: number;
-  password: string;
-}): Promise<ActionResult> {
+  password?: string;
+}): Promise<ActionResult<{ temporaryPassword: string } | undefined>> {
   try {
     const { companyId } = await requireActionPermission(PERMISSIONS.users.write);
-    const result = await createUser({ ...data, company_id: companyId });
-    return withoutData(result);
+    const temporaryPassword = data.password ? null : generateTemporaryPassword();
+    const result = await createUser({
+      ...data,
+      password: data.password ?? temporaryPassword ?? '',
+      company_id: companyId,
+      must_change_password: temporaryPassword !== null,
+    });
+    if (!result.success || !temporaryPassword) {
+      return withoutData(result);
+    }
+    return { success: true, data: { temporaryPassword } };
   } catch (e) {
     return handleCodedServerActionError('team.add', 'US002', e);
   }

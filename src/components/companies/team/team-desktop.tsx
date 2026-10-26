@@ -1,0 +1,289 @@
+'use client';
+
+import * as React from 'react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Plus, Search, Users } from 'lucide-react';
+
+import { TripledEmptyState } from '@/components/tripled';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  filterTeamMembersDesktop,
+  summarizeTeamRoles,
+  TEAM_ACCESS_FILTERS,
+  TEAM_ACCESS_LABELS,
+  teamMemberAccess,
+  teamRoleLabel,
+  teamRoleTone,
+  type TeamAccessFilter,
+  type TeamMember,
+  type TeamRoleOption,
+  type TeamRoleTone,
+} from '@/lib/team-members';
+import { cn } from '@/lib/utils';
+import { TeamAvatar } from './team-columns';
+import { TeamMemberMenu, type TeamMemberMenuHandlers } from './team-member-menu';
+
+const ALL_ROLES = 'all';
+
+const ROLE_TONE_CLASS: Record<TeamRoleTone, string> = {
+  admin: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  operator: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
+  viewer: 'bg-slate-500/10 text-slate-700 dark:text-slate-300',
+  other: 'bg-muted text-foreground',
+};
+
+const ACCESS_TONE_CLASS = {
+  active: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  must_change_password: 'bg-amber-500/15 text-amber-800 dark:text-amber-200',
+  deactivated: 'bg-muted text-muted-foreground',
+} as const;
+
+const chipClass = 'inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-caption font-semibold';
+
+export const TeamRolePill = ({ name }: { name: string | null }) => (
+  <span className={cn(chipClass, ROLE_TONE_CLASS[teamRoleTone(name)])}>{teamRoleLabel(name)}</span>
+);
+
+export const TeamAccessPill = ({ member }: { member: TeamMember }) => {
+  const access = teamMemberAccess(member);
+  return (
+    <span className={cn(chipClass, ACCESS_TONE_CLASS[access])} data-testid="team-member-access">
+      {TEAM_ACCESS_LABELS[access]}
+    </span>
+  );
+};
+
+type TeamDesktopProps = {
+  members: TeamMember[];
+  deactivated: TeamMember[];
+  roles: TeamRoleOption[];
+  /** Null for readers: no add button, no row actions. */
+  handlers: TeamMemberMenuHandlers | null;
+  onAdd: () => void;
+  className?: string;
+};
+
+/**
+ * Equipo on md+ (ZIG-I32-2, canvas EmpEquipo): header with the role
+ * breakdown, search, role and access filters, and a Persona · Rol · Acceso ·
+ * Alta table whose Cambiar rol / Restablecer contraseña appear on hover or
+ * focus (the ZIG-I28-4 pattern); ⋮ stays visible.
+ */
+export const TeamDesktop = ({
+  members,
+  deactivated,
+  roles,
+  handlers,
+  onAdd,
+  className,
+}: TeamDesktopProps) => {
+  const [search, setSearch] = React.useState('');
+  const [roleFilter, setRoleFilter] = React.useState<string>(ALL_ROLES);
+  const [access, setAccess] = React.useState<TeamAccessFilter>('active');
+
+  const everyone = React.useMemo(() => [...members, ...deactivated], [members, deactivated]);
+  const rows = React.useMemo(
+    () =>
+      filterTeamMembersDesktop(everyone, {
+        search,
+        roleId: roleFilter === ALL_ROLES ? null : Number(roleFilter),
+        access,
+      }),
+    [everyone, search, roleFilter, access],
+  );
+  const breakdown = summarizeTeamRoles(members);
+
+  return (
+    <div className={cn('space-y-4', className)} data-testid="team-desktop">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">
+            Equipo <span className="font-normal text-muted-foreground">· {members.length}</span>
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {breakdown ? `${breakdown}. ` : ''}Cada persona entra con su correo y una contraseña
+            que tú le das.
+          </p>
+        </div>
+        {handlers ? (
+          <Button type="button" onClick={onAdd}>
+            <Plus className="size-4" aria-hidden data-icon="inline-start" />
+            Agregar persona
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative w-full max-w-xs">
+          <span className="sr-only">Buscar en el equipo</span>
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nombre o correo"
+            className="h-10 pl-9"
+            type="search"
+          />
+        </label>
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger
+            className={cn('h-10 w-auto min-w-40', roleFilter !== ALL_ROLES && 'border-primary/40 bg-primary/10 text-primary')}
+            aria-label="Filtrar por rol"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ROLES}>Todos los roles</SelectItem>
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={String(role.id)}>
+                {teamRoleLabel(role.name)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div role="group" aria-label="Filtrar por acceso" className="flex gap-1.5">
+          {TEAM_ACCESS_FILTERS.map((option) => {
+            const active = access === option.value;
+            return (
+              <Button
+                key={option.value}
+                type="button"
+                variant="outline"
+                aria-pressed={active}
+                className={cn(
+                  'h-10 rounded-full px-4',
+                  active && 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
+                )}
+                onClick={() => setAccess(option.value)}
+              >
+                {option.label}
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <TripledEmptyState
+          icon={<Users className="size-4" aria-hidden />}
+          title={everyone.length === 0 ? 'Aún no hay nadie en tu equipo' : 'Sin resultados'}
+          description={
+            everyone.length === 0
+              ? 'Agrega a las personas que atienden tickets o administran la empresa.'
+              : 'Ajusta la búsqueda o los filtros.'
+          }
+        />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Persona</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Acceso</TableHead>
+                <TableHead>Alta</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">Acciones</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((member) => (
+                <TableRow key={member.id} className="group" data-testid="team-member-row">
+                  <TableCell className="max-w-xs">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <TeamAvatar name={member.name} />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium">
+                          {member.name}
+                          {member.isSelf ? (
+                            <span className="ml-1.5 font-normal text-muted-foreground">(tú)</span>
+                          ) : null}
+                        </span>
+                        <span className="truncate text-caption text-muted-foreground">
+                          {member.email}
+                        </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <TeamRolePill name={member.roleName} />
+                  </TableCell>
+                  <TableCell>
+                    <TeamAccessPill member={member} />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">
+                    {format(new Date(member.createdAt), 'd MMM yy', { locale: es })}
+                  </TableCell>
+                  <TableCell className="w-px">
+                    {handlers && !member.deactivated ? (
+                      <TeamRowActions member={member} handlers={handlers} />
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TeamRowActions = ({
+  member,
+  handlers,
+}: {
+  member: TeamMember;
+  handlers: TeamMemberMenuHandlers;
+}) => (
+  <div className="flex items-center justify-end">
+    <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-within:grid-cols-[1fr]">
+      <div className="flex min-w-0 items-center gap-1 overflow-hidden opacity-0 group-hover:overflow-visible group-hover:opacity-100 group-focus-within:overflow-visible group-focus-within:opacity-100">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="whitespace-nowrap"
+          onClick={() => handlers.onChangeRole(member)}
+          aria-label={`Cambiar rol de ${member.name}`}
+        >
+          Cambiar rol
+        </Button>
+        {member.isSelf ? null : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mr-1 whitespace-nowrap"
+            onClick={() => handlers.onResetPassword(member)}
+            aria-label={`Restablecer contraseña de ${member.name}`}
+          >
+            Restablecer contraseña
+          </Button>
+        )}
+      </div>
+    </div>
+    <TeamMemberMenu member={member} {...handlers} resetPasswordLabel="Restablecer contraseña" />
+  </div>
+);

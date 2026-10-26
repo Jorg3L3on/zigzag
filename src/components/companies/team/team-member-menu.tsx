@@ -21,6 +21,8 @@ export type TeamMemberMenuHandlers = {
 
 type TeamMemberMenuProps = TeamMemberMenuHandlers & {
   member: TeamMember;
+  /** md+ says «Restablecer contraseña», like the hover action (ZIG-I32-2). */
+  resetPasswordLabel?: string;
 };
 
 export const TeamMemberMenu = ({
@@ -29,6 +31,7 @@ export const TeamMemberMenu = ({
   onChangeRole,
   onResetPassword,
   onDeactivate,
+  resetPasswordLabel = 'Dar contraseña temporal',
 }: TeamMemberMenuProps) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
@@ -56,7 +59,7 @@ export const TeamMemberMenu = ({
         onSelect={() => onResetPassword(member)}
       >
         <KeyRound className="mr-2 size-4" aria-hidden />
-        Dar contraseña temporal
+        {resetPasswordLabel}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem

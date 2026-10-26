@@ -49,6 +49,8 @@ const userSchema = z.object({
 
 const createUserSchema = userSchema.extend({
   password: passwordSchema,
+  /** A temporary password the person must replace at first login (ZIG-I32-2). */
+  must_change_password: z.boolean().optional(),
 });
 
 const accountSchema = z
@@ -293,6 +295,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
         password: hashedPassword,
         company_id: effectiveCompanyId,
         role_id: validatedData.role_id,
+        must_change_password: validatedData.must_change_password ?? false,
         updated_at: new Date(),
       })
       .returning();

@@ -3,34 +3,25 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { Loader2, Plus, Search, UserPlus, Users } from 'lucide-react';
+import { Loader2, Search, UserPlus, Users } from 'lucide-react';
 
 import { getTeam, resetTeamMemberPassword, type TeamData } from '@/actions/team';
 import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import { TripledEmptyState, TripledMobileStickyActionBar } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   filterTeamMembers,
   TEAM_STATUS_FILTERS,
   type TeamMember,
   type TeamStatusFilter,
 } from '@/lib/team-members';
-import { cn } from '@/lib/utils';
 import {
   createTeamColumns,
   TeamAvatar,
@@ -39,6 +30,8 @@ import {
 } from './team-columns';
 import { TeamDeactivateDialog } from './team-deactivate-dialog';
 import { TeamMemberMenu, type TeamMemberMenuHandlers } from './team-member-menu';
+import { TeamDesktop } from './team-desktop';
+import { TeamMemberPanel } from './team-member-panel';
 import { TeamMemberSheet } from './team-member-sheet';
 import { TeamRoleSheet } from './team-role-sheet';
 
@@ -52,6 +45,7 @@ type LoadState =
 /** Equipo tab (ZIG-I3-4): the caller's company team, no company columns. */
 export const TeamList = () => {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [state, setState] = React.useState<LoadState>({ status: 'loading' });
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
@@ -165,6 +159,18 @@ export const TeamList = () => {
 
   return (
     <div className="space-y-4">
+      {isMobile ? null : (
+        <TeamDesktop
+          members={state.data.members}
+          deactivated={state.data.deactivated}
+          roles={state.data.roles}
+          handlers={handlers}
+          onAdd={() => setAddOpen(true)}
+          className="hidden md:block"
+        />
+      )}
+      {/* Phones (ZIG-I3-4); md+ uses TeamDesktop (ZIG-I32-2). */}
+      <div className="space-y-4 md:hidden">
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative min-w-0 flex-1 basis-64">
           <span className="sr-only">Buscar en el equipo</span>
@@ -202,16 +208,6 @@ export const TeamList = () => {
             );
           })}
         </div>
-        {canWrite ? (
-          <Button
-            type="button"
-            className="ml-auto hidden h-11 md:inline-flex"
-            onClick={() => setAddOpen(true)}
-          >
-            <Plus className="mr-2 size-4" aria-hidden />
-            {addButtonLabel}
-          </Button>
-        ) : null}
       </div>
 
       {rows.length === 0 ? (
@@ -226,45 +222,6 @@ export const TeamList = () => {
         />
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-xl border md:block">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        className={cn(header.column.id === 'acciones' && 'w-14')}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id} data-testid="team-member-row">
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(cell.column.id === 'usuario' && 'max-w-xs')}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
           {/* Mobile cards, same sorted order */}
           <ul className="space-y-2.5 md:hidden">
             {rows.map((row) => {
@@ -300,6 +257,7 @@ export const TeamList = () => {
           </ul>
         </>
       )}
+      </div>
 
       {canWrite ? (
         <TripledMobileStickyActionBar>
@@ -314,21 +272,39 @@ export const TeamList = () => {
         </TripledMobileStickyActionBar>
       ) : null}
 
-      <TeamMemberSheet
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        roles={state.data.roles}
-        onSaved={onSaved}
-      />
-      <TeamMemberSheet
-        open={Boolean(editing)}
-        onOpenChange={(open) => {
-          if (!open) setEditing(null);
-        }}
-        roles={state.data.roles}
-        member={editing}
-        onSaved={onSaved}
-      />
+      {isMobile ? (
+        <>
+          <TeamMemberSheet
+            open={addOpen}
+            onOpenChange={setAddOpen}
+            roles={state.data.roles}
+            onSaved={onSaved}
+          />
+          <TeamMemberSheet
+            open={Boolean(editing)}
+            onOpenChange={(open) => {
+              if (!open) setEditing(null);
+            }}
+            roles={state.data.roles}
+            member={editing}
+            onSaved={onSaved}
+          />
+        </>
+      ) : (
+        <TeamMemberPanel
+          open={addOpen || Boolean(editing)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAddOpen(false);
+              setEditing(null);
+            }
+          }}
+          roles={state.data.roles}
+          member={editing}
+          companyName={state.data.companyName}
+          onSaved={onSaved}
+        />
+      )}
       <TeamRoleSheet
         member={changingRole}
         roles={state.data.roles}
@@ -343,6 +319,7 @@ export const TeamList = () => {
         onOpenChange={(open) => {
           if (!open) setResetting(null);
         }}
+        onDone={onSaved}
       />
       <TeamDeactivateDialog
         member={deactivating}
