@@ -51,21 +51,24 @@ test.describe('Temporary password and forced change', () => {
   test('the admin gives a temporary password to a member of their company', async ({ page }) => {
     await login(page);
     await page.goto('/company/equipo');
-    await page.getByRole('button', { name: 'Agregar usuario' }).first().click();
-    const sheet = page.getByRole('dialog', { name: 'Agregar usuario' });
-    await sheet.getByLabel('Nombre').fill(member.name);
-    await sheet.getByLabel('Correo electrónico').fill(member.email);
-    await sheet.getByRole('radio', { name: /^Operator/ }).check();
-    await sheet.getByLabel('Contraseña inicial').fill(member.password);
-    await sheet.getByLabel('Confirmar contraseña').fill(member.password);
-    await sheet.getByRole('button', { name: 'Agregar usuario' }).click();
-    await expect(sheet).toBeHidden();
+    // Desktop Agregar persona (ZIG-I32-2): the first password is already temporary.
+    await page.getByRole('button', { name: 'Agregar persona' }).click();
+    const panel = page.getByTestId('team-member-panel');
+    await panel.getByLabel('Nombre').fill(member.name);
+    await panel.getByLabel('Correo electrónico').fill(member.email);
+    await panel.getByRole('radio', { name: /^Operador/ }).check();
+    await panel.getByRole('button', { name: 'Agregar', exact: true }).click();
+    const first = panel.getByTestId('temporary-password');
+    await expect(first).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);
+    member.password = (await first.textContent()) ?? '';
+    await panel.getByRole('button', { name: 'Listo' }).click();
+    await expect(panel).toBeHidden();
 
     await page.getByRole('button', { name: `Acciones de ${member.name}` }).first().click();
-    await page.getByRole('menuitem', { name: 'Dar contraseña temporal' }).click();
+    await page.getByRole('menuitem', { name: 'Restablecer contraseña' }).click();
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText(new RegExp(`Dar contraseña temporal a ${member.name}`))).toBeVisible();
-    await dialog.getByRole('button', { name: 'Dar contraseña temporal' }).click();
+    await expect(dialog.getByText(`Restablecer contraseña de ${member.name}`)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Restablecer contraseña' }).click();
 
     const shown = dialog.getByTestId('temporary-password');
     await expect(shown).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);

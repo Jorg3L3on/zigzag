@@ -45,4 +45,26 @@ describe('CompanyReadinessBanner', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Requisitos pendientes')).toBeVisible();
   });
+
+  it('never lists the status as the owner\'s to-do; says who changes it (ZIG-I32)', () => {
+    const setup = assessment({
+      lifecycle: 'SETUP',
+      productionReady: false,
+      missing: ['lifecycle.active'],
+      missingLabels: ['Estado operativo (Activa)'],
+    });
+    expect(readinessHeadline(setup)).toBe('Lista; la activa el equipo de ZigZag');
+    expect(
+      readinessHeadline({
+        ...setup,
+        missing: ['profile.phone', 'lifecycle.active'],
+        missingLabels: ['Teléfono', 'Estado operativo (Activa)'],
+      }),
+    ).toBe('Falta: Teléfono');
+
+    render(<CompanyReadinessBanner assessment={setup} />);
+    fireEvent.click(screen.getByRole('button', { name: /la activa el equipo de ZigZag/ }));
+    expect(screen.queryByText('Estado operativo (Activa)')).toBeNull();
+    expect(screen.getByText(/Lo cambia el equipo de ZigZag\./)).toBeVisible();
+  });
 });

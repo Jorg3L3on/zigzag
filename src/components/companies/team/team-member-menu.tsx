@@ -21,6 +21,10 @@ export type TeamMemberMenuHandlers = {
 
 type TeamMemberMenuProps = TeamMemberMenuHandlers & {
   member: TeamMember;
+  /** md+ says «Restablecer contraseña», like the hover action (ZIG-I32-2). */
+  resetPasswordLabel?: string;
+  /** md+ uses a small ghost ⋮ inside the table row (canvas EmpEquipo). */
+  compact?: boolean;
 };
 
 export const TeamMemberMenu = ({
@@ -29,14 +33,16 @@ export const TeamMemberMenu = ({
   onChangeRole,
   onResetPassword,
   onDeactivate,
+  resetPasswordLabel = 'Dar contraseña temporal',
+  compact = false,
 }: TeamMemberMenuProps) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button
         type="button"
-        variant="outline"
+        variant={compact ? 'ghost' : 'outline'}
         size="icon"
-        className="size-10 shrink-0"
+        className={compact ? 'size-9 shrink-0 md:size-8' : 'size-10 shrink-0'}
         aria-label={`Acciones de ${member.name}`}
       >
         <MoreHorizontal className="size-4" aria-hidden />
@@ -47,7 +53,7 @@ export const TeamMemberMenu = ({
         <Pencil className="mr-2 size-4" aria-hidden />
         Editar
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onChangeRole(member)}>
+      <DropdownMenuItem disabled={member.isSelf} onSelect={() => onChangeRole(member)}>
         <ShieldCheck className="mr-2 size-4" aria-hidden />
         Cambiar rol
       </DropdownMenuItem>
@@ -56,7 +62,7 @@ export const TeamMemberMenu = ({
         onSelect={() => onResetPassword(member)}
       >
         <KeyRound className="mr-2 size-4" aria-hidden />
-        Dar contraseña temporal
+        {resetPasswordLabel}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem

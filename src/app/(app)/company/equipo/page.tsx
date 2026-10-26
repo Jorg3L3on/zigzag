@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { Users } from 'lucide-react';
 import { TripledResourceCard } from '@/components/tripled';
 import { TeamList } from '@/components/companies/team/team-list';
+import { COMPANY_HUB_CARD_DESKTOP_RESET } from '@/lib/company-hub';
 import { requirePagePermission } from '@/lib/page-authz';
 
 export const metadata: Metadata = {
@@ -12,11 +13,13 @@ export const metadata: Metadata = {
 export default async function CompanyTeamPage() {
   await requirePagePermission('users.read');
 
+  // Phones keep the card; md+ shows TeamDesktop's own header (ZIG-I32-2).
   return (
     <TripledResourceCard
       title="Equipo"
       description="Personas con acceso a tu empresa y su rol."
       icon={<Users className="size-5" aria-hidden />}
+      {...COMPANY_HUB_CARD_DESKTOP_RESET}
     >
       <TeamList />
     </TripledResourceCard>

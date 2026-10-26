@@ -41,7 +41,7 @@ export const COMPANY_FORM_FIELD_SECTIONS: Array<[string, CompanyFormSectionKey]>
 
 type ErrorTree = { [key: string]: unknown };
 
-const hasErrorAt = (errors: ErrorTree, path: string): boolean => {
+const isSetAt = (errors: ErrorTree, path: string): boolean => {
   let node: unknown = errors;
   for (const part of path.split('.')) {
     if (!node || typeof node !== 'object' || !(part in node)) {
@@ -56,7 +56,7 @@ const hasErrorAt = (errors: ErrorTree, path: string): boolean => {
 export const firstInvalidCompanyField = (
   errors: ErrorTree,
 ): { field: string; section: CompanyFormSectionKey } | null => {
-  const match = COMPANY_FORM_FIELD_SECTIONS.find(([field]) => hasErrorAt(errors, field));
+  const match = COMPANY_FORM_FIELD_SECTIONS.find(([field]) => isSetAt(errors, field));
   return match ? { field: match[0], section: match[1] } : null;
 };
 
@@ -158,3 +158,46 @@ export const writeCompanyFormSections = (state: CompanyFormSectionState) => {
     // Per-viewer convenience only; ignore blocked storage.
   }
 };
+
+/** Datos cards on md+ (ZIG-I32-1), in page order; the ids are the side-nav anchors. */
+export const COMPANY_DESKTOP_SECTIONS = [
+  { id: 'perfil', label: 'Perfil' },
+  { id: 'direccion', label: 'Dirección' },
+  { id: 'documentos', label: 'Documentos y folios' },
+  { id: 'pagos', label: 'Pagos por transferencia' },
+  { id: 'inicio', label: 'Inicio' },
+] as const;
+
+/** Labels for the "Cambios sin guardar" bar, in form order. */
+export const COMPANY_FIELD_LABELS: Array<[string, string]> = [
+  ['name', 'Nombre'],
+  ['settings.tagline', 'Lema o giro'],
+  ['email', 'Correo electrónico'],
+  ['phone', 'Teléfono'],
+  ['street', 'Calle'],
+  ['exterior_number', 'Número exterior'],
+  ['interior_number', 'Número interior'],
+  ['neighborhood', 'Colonia'],
+  ['postal_code', 'Código postal'],
+  ['city', 'Ciudad'],
+  ['state', 'Estado'],
+  ['country', 'País'],
+  ['settings.rfc', 'RFC'],
+  ['settings.default_currency', 'Moneda'],
+  ['settings.folio_prefix_presupuesto', 'Prefijo de presupuestos'],
+  ['settings.folio_prefix_ticket', 'Prefijo de recibos'],
+  ['settings.payment_bank', 'Banco'],
+  ['settings.payment_holder', 'A nombre de'],
+  ['settings.payment_kind', 'Método de pago'],
+  ['settings.payment_clabe', 'CLABE'],
+  ['settings.payment_card', 'Número de tarjeta'],
+  ['settings.payment_account', 'Número de cuenta'],
+  ['settings.payment_note', 'Indicación para tu cliente'],
+  ['settings.experience_mode', 'Inicio'],
+];
+
+/** Labels of the fields react-hook-form marks dirty, in form order. */
+export const listChangedCompanyFields = (dirtyFields: ErrorTree): string[] =>
+  COMPANY_FIELD_LABELS.filter(([field]) => isSetAt(dirtyFields, field)).map(
+    ([, label]) => label,
+  );

@@ -77,7 +77,7 @@ test.describe('Mi empresa hub', () => {
       }
     });
 
-    test('shows underline tabs with counts and breadcrumb on desktop', async ({
+    test('shows the side nav with counts and breadcrumb on desktop (ZIG-I32)', async ({
       page,
     }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
@@ -88,13 +88,17 @@ test.describe('Mi empresa hub', () => {
         test.skip(true, 'Current E2E user cannot read the team');
       }
 
-      const equipo = visibleHubTab(page, 'Equipo');
+      await expect(hubTabs(page)).toBeHidden();
+      const equipo = page
+        .getByTestId('company-hub-side-nav')
+        .getByRole('link', { name: /^Equipo/ });
       await expect(equipo).toBeVisible();
       await expect(equipo).toHaveText(/Equipo\s*\d+/);
+      await expect(equipo).toHaveAttribute('aria-current', 'page');
       await expect(visiblePageHeader(page).getByText('Equipo')).toBeVisible();
     });
 
-    test('Equipo lists the team as cards and opens Agregar usuario @375px', async ({
+    test('Equipo lists the team as cards and opens Agregar persona @375px', async ({
       page,
     }) => {
       await page.setViewportSize({ width: 375, height: 812 });
@@ -110,19 +114,29 @@ test.describe('Mi empresa hub', () => {
       await expect(
         page.getByTestId('team-member-card').getByText(/Empresa/),
       ).toHaveCount(0);
+      // ZIG-I32: Acceso instead of «Sin verificar», Activos / Todos.
+      await expect(page.getByText('Sin verificar')).toHaveCount(0);
+      await expect(
+        page.getByTestId('team-member-card').first().getByTestId('team-member-access'),
+      ).toHaveText(/Activo|Debe cambiar contraseña|Desactivado/);
+      await expect(
+        page.getByRole('group', { name: 'Filtrar por acceso' }).getByRole('button', { name: 'Activos' }),
+      ).toHaveAttribute('aria-pressed', 'true');
 
       const stickyAdd = page
         .getByTestId('mobile-sticky-action-bar')
-        .getByRole('button', { name: 'Agregar usuario' });
+        .getByRole('button', { name: 'Agregar persona' });
       if (!(await stickyAdd.isVisible().catch(() => false))) {
         test.skip(true, 'Current E2E user cannot add users');
       }
 
       await stickyAdd.click();
-      const sheet = page.getByRole('dialog', { name: 'Agregar usuario' });
+      const sheet = page.getByRole('dialog', { name: 'Agregar persona' });
       await expect(sheet).toBeVisible();
       await expect(sheet.getByRole('radio').first()).toBeVisible();
-      await expect(sheet.getByLabel('Contraseña inicial')).toBeVisible();
+      // ZIG-I32: no password field; the server makes a temporary one.
+      await expect(sheet.getByLabel('Contraseña inicial')).toHaveCount(0);
+      await expect(sheet.getByText('Contraseña temporal', { exact: true })).toBeVisible();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
       await expect(sheet).toBeHidden();
     });
@@ -174,10 +188,11 @@ test.describe('Mi empresa hub', () => {
       await expect(firstRole).toBeVisible();
       await firstRole.click();
       await expect(firstRole).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.getByRole('checkbox', { name: 'Ver Tickets' })).toBeVisible();
-      await expect(page.getByRole('checkbox', { name: 'Editar Tickets' })).toBeVisible();
+      // ZIG-I32-3: switches on desktop; phones keep checkboxes.
+      await expect(page.getByRole('switch', { name: 'Ver Tickets' })).toBeVisible();
+      await expect(page.getByRole('switch', { name: 'Editar Tickets' })).toBeVisible();
       await expect(
-        page.getByRole('checkbox', { name: 'Administrar Mi empresa' }),
+        page.getByRole('switch', { name: 'Administrar Mi empresa' }),
       ).toBeVisible();
     });
 
@@ -228,6 +243,8 @@ test.describe('Mi empresa hub', () => {
       await expect(
         visibleByTestId('company-form-section-general').getByLabel('Nombre'),
       ).toBeVisible();
+      // ZIG-I32: only the operator console changes the status.
+      await expect(page.getByLabel('Estado de la empresa')).toHaveCount(0);
       // ZIG-09: the logo file input used to stretch the page to 433px.
       await expectNoHorizontalOverflow(page);
 

@@ -10,6 +10,7 @@ import {
   type RolePermissionRow,
 } from '@/db/schema';
 import { db } from '@/lib/db';
+import { guardRoleGrant } from '@/lib/role-rank';
 import {
   handleCodedServerActionError,
   type ActionErrorType,
@@ -241,6 +242,13 @@ export async function createRole(data: {
       data.permissions,
       effectiveCompanyId,
     );
+    const grantBlocked = await guardRoleGrant({
+      actor: authContext,
+      permissionIds: data.permissions,
+    });
+    if (grantBlocked) {
+      return buildActionError(grantBlocked);
+    }
 
     let newRoleId = 0;
     await db.transaction(async (tx) => {
@@ -315,6 +323,14 @@ export async function updateRole(
       data.permissions,
       effectiveCompanyId,
     );
+    const grantBlocked = await guardRoleGrant({
+      actor: authContext,
+      permissionIds: data.permissions,
+      currentRoleId: id,
+    });
+    if (grantBlocked) {
+      return buildActionError(grantBlocked);
+    }
 
     const existingRole = await db.query.role.findFirst({
       where: and(eq(role.id, id), isNull(role.deleted_at)),

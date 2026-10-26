@@ -9,6 +9,8 @@ import {
 /**
  * ZIG-I3-7 — full Mi empresa flow: add a user as Operator, take Servicios /
  * Editar away from Operator, and check that user can no longer edit services.
+ * ZIG-I32: at 1280 the person is added from the Agregar persona panel with a
+ * temporary password, replaced at the first login.
  *
  * Writes data, so it only runs in CI (its own Postgres). Locally DATABASE_URL
  * is production; never run this there (pinned Plania decision).
@@ -28,26 +30,60 @@ test.describe('Mi empresa: team and role flow', () => {
   const member = {
     name: `QA Técnico ${stamp}`,
     email: `qa-tecnico-${stamp}@zigzag.test`,
-    password: 'QaTecnico-123!',
+    password: `QaTecnico-${stamp}!`,
   };
+  let temporary = '';
 
-  test('adds a team member with the Operator role', async ({ page }) => {
+  test('adds a team member with the Operator role and a temporary password', async ({ page }) => {
     await login(page);
     await page.goto('/company/equipo');
-    await page.getByRole('button', { name: 'Agregar usuario' }).first().click();
+    await page.getByRole('button', { name: 'Agregar persona' }).click();
 
-    const sheet = page.getByRole('dialog', { name: 'Agregar usuario' });
-    await sheet.getByLabel('Nombre').fill(member.name);
-    await sheet.getByLabel('Correo electrónico').fill(member.email);
-    await sheet.getByRole('radio', { name: /^Operator/ }).check();
-    await sheet.getByLabel('Contraseña inicial').fill(member.password);
-    await sheet.getByLabel('Confirmar contraseña').fill(member.password);
-    await sheet.getByRole('button', { name: 'Agregar usuario' }).click();
+    const panel = page.getByTestId('team-member-panel');
+    await panel.getByLabel('Nombre').fill(member.name);
+    await panel.getByLabel('Correo electrónico').fill(member.email);
+    await panel.getByRole('radio', { name: /^Operador/ }).check();
+    await expect(panel.getByLabel('Contraseña inicial')).toHaveCount(0);
+    await panel.getByRole('button', { name: 'Agregar', exact: true }).click();
 
-    await expect(sheet).toBeHidden();
+    const shown = panel.getByTestId('temporary-password');
+    await expect(shown).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);
+    temporary = (await shown.textContent()) ?? '';
+    await expect(panel.getByRole('button', { name: 'Copiar' })).toBeVisible();
+    await expect(panel.getByRole('link', { name: /WhatsApp/ })).toBeVisible();
+    await panel.getByRole('button', { name: 'Listo' }).click();
+    await expect(panel).toBeHidden();
+
     const row = page.getByTestId('team-member-row').filter({ hasText: member.email });
     await expect(row).toBeVisible();
-    await expect(row.getByText('Operator')).toBeVisible();
+    await expect(row.getByText('Operador').filter({ visible: true })).toBeVisible();
+    await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
+  });
+
+  test('Restablecer contraseña on hover shows the password once; self and last admin stay blocked', async ({
+    page,
+  }) => {
+    await login(page);
+    await page.goto('/company/equipo');
+    const row = page.getByTestId('team-member-row').filter({ hasText: member.email });
+    await row.hover();
+    await row.getByRole('button', { name: `Restablecer contraseña de ${member.name}` }).click();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText(`Restablecer contraseña de ${member.name}`)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Restablecer contraseña' }).click();
+    const shown = dialog.getByTestId('temporary-password');
+    await expect(shown).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);
+    temporary = (await shown.textContent()) ?? '';
+    await dialog.getByRole('button', { name: 'Listo' }).click();
+    await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
+
+    // Your own row: no reset on hover and Desactivar disabled (team-guards unchanged).
+    const self = page.getByTestId('team-member-row').filter({ hasText: '(tú)' });
+    await self.hover();
+    await expect(self.getByRole('button', { name: /^Restablecer contraseña/ })).toHaveCount(0);
+    await self.getByRole('button', { name: /^Acciones de/ }).click();
+    await expect(page.getByRole('menuitem', { name: 'Desactivar (eres tú)' })).toBeDisabled();
+    await page.keyboard.press('Escape');
   });
 
   test('takes Servicios / Editar away from Operator', async ({ page }) => {
@@ -55,14 +91,15 @@ test.describe('Mi empresa: team and role flow', () => {
     await page.goto('/company/roles');
     await page
       .getByTestId('role-list-item')
-      .filter({ hasText: /^Operator/ })
+      .filter({ hasText: /^(Operador|Operator)/ })
       .first()
       .click();
 
-    const editServices = page.getByRole('checkbox', { name: 'Editar Servicios' });
+    const editServices = page.getByRole('switch', { name: 'Editar Servicios' });
     await expect(editServices).toBeChecked();
-    await editServices.uncheck();
-    await expect(page.getByRole('checkbox', { name: 'Ver Servicios' })).toBeChecked();
+    await editServices.click();
+    await expect(editServices).not.toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Ver Servicios' })).toBeChecked();
     await page.getByRole('button', { name: 'Guardar rol' }).click();
 
     // Saved (as the company's own copy when Operator was a shared role).
@@ -70,14 +107,18 @@ test.describe('Mi empresa: team and role flow', () => {
     await page.reload();
     await page
       .getByTestId('role-list-item')
-      .filter({ hasText: /^Operator/ })
+      .filter({ hasText: /^(Operador|Operator)/ })
       .first()
       .click();
-    await expect(page.getByRole('checkbox', { name: 'Editar Servicios' })).not.toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Editar Servicios' })).not.toBeChecked();
   });
 
   test('the member sees services read-only', async ({ page }) => {
-    await loginAs(page, member.email, member.password);
+    await loginAs(page, member.email, temporary, /\/cambiar-contrasena/);
+    await page.getByLabel('Contraseña nueva', { exact: true }).fill(member.password);
+    await page.getByLabel('Repite la contraseña nueva').fill(member.password);
+    await page.getByRole('button', { name: 'Guardar y entrar' }).click();
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
     await page.goto('/services');
     await expect(page).toHaveURL(/\/services/);
     await expect(page.getByText('Administra el catálogo de servicios disponibles').first()).toBeVisible();
@@ -85,4 +126,21 @@ test.describe('Mi empresa: team and role flow', () => {
     await expect(page.getByRole('link', { name: /Nuevo servicio/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Nuevo servicio/i })).toHaveCount(0);
   });
+
+  test('Activos hides a deactivated member and Todos shows it as Desactivado', async ({ page }) => {
+    await login(page);
+    await page.goto('/company/equipo');
+    const desktop = page.getByTestId('team-desktop');
+    const row = desktop.getByTestId('team-member-row').filter({ hasText: member.email });
+    await row.getByRole('button', { name: `Acciones de ${member.name}` }).click();
+    await page.getByRole('menuitem', { name: 'Desactivar' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: /Desactivar/ }).click();
+    await expect(row).toHaveCount(0);
+
+    await desktop.getByRole('combobox', { name: 'Filtrar por acceso' }).click();
+    await page.getByRole('option', { name: 'Todos' }).click();
+    await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Desactivado');
+    await expect(row.getByRole('button', { name: /Acciones de/ })).toHaveCount(0);
+  });
 });
+

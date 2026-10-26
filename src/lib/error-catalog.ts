@@ -331,6 +331,13 @@ export const ERROR_CATALOG = {
     message: 'Nadie más podría gestionar el equipo o los roles. Deja Equipo y Roles en Editar, o da ese permiso a otro rol con personas asignadas.',
     type: 'validation',
   },
+  RL007: {
+    code: 'RL007',
+    module: 'roles',
+    title: 'No puedes dar permisos que tú no tienes',
+    message: 'Un rol solo puede tener permisos que también tiene el tuyo. Pide a alguien con esos permisos que lo cambie.',
+    type: 'validation',
+  },
   SS001: {
     code: 'SS001',
     module: 'service-schedules',
@@ -575,6 +582,20 @@ export const ERROR_CATALOG = {
     module: 'users',
     title: 'No puedes darte una contraseña temporal',
     message: 'Para cambiar tu contraseña usa Mi cuenta. Si la olvidaste, pide a otra persona administradora que lo haga.',
+    type: 'validation',
+  },
+  US009: {
+    code: 'US009',
+    module: 'users',
+    title: 'No puedes cambiar tu propio rol',
+    message: 'Pide a otra persona administradora que lo cambie.',
+    type: 'validation',
+  },
+  US010: {
+    code: 'US010',
+    module: 'users',
+    title: 'Esta persona tiene más permisos que tú',
+    message: 'Solo alguien con al menos sus mismos permisos puede darle una contraseña temporal.',
     type: 'validation',
   },
 } as const satisfies Record<string, ErrorCatalogEntry>;

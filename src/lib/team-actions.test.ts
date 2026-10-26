@@ -26,8 +26,13 @@ jest.mock('@/lib/db', () => ({
     query: {
       user: { findMany: jest.fn(), findFirst: jest.fn() },
       role: { findMany: jest.fn() },
+      company: { findFirst: jest.fn() },
     },
   },
+}));
+
+jest.mock('@/lib/temporary-password', () => ({
+  generateTemporaryPassword: () => 'kemo-7pdx',
 }));
 
 jest.mock('@/lib/security', () => ({
@@ -46,6 +51,7 @@ const mockDb = db as unknown as {
   query: {
     user: { findMany: jest.Mock; findFirst: jest.Mock };
     role: { findMany: jest.Mock };
+    company: { findFirst: jest.Mock };
   };
 };
 const mockRequireActionPermission = requireActionPermission as jest.MockedFunction<
@@ -84,16 +90,33 @@ describe('team actions (ZIG-I3-4)', () => {
   });
 
   it('getTeam returns only the caller company members, without company data', async () => {
-    mockDb.query.user.findMany.mockResolvedValue([
-      {
-        ...ownMember,
-        id: 201n,
-        email_verified_at: null,
-        created_at: new Date('2026-10-01T00:00:00Z'),
-        role: { name: 'Admin', deleted_at: null },
-        password: 'hash',
-      },
-    ]);
+    mockDb.query.user.findMany
+      .mockResolvedValueOnce([
+        {
+          ...ownMember,
+          id: 201n,
+          email_verified_at: null,
+          must_change_password: true,
+          created_at: new Date('2026-10-01T00:00:00Z'),
+          role: { name: 'Admin', deleted_at: null },
+          password: 'hash',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          ...ownMember,
+          id: 202n,
+          name: 'Beto',
+          email: 'beto@b.mx',
+          email_verified_at: null,
+          must_change_password: false,
+          deleted_at: new Date('2026-10-05T00:00:00Z'),
+          created_at: new Date('2026-09-01T00:00:00Z'),
+          role: { name: 'Viewer', deleted_at: null },
+          password: 'hash',
+        },
+      ]);
+    mockDb.query.company.findFirst.mockResolvedValue({ name: 'Clima B' });
     mockDb.query.role.findMany.mockResolvedValue([
       { id: 5, name: 'Admin', description: 'Todo' },
     ]);
@@ -110,10 +133,17 @@ describe('team actions (ZIG-I3-4)', () => {
         roleId: 5,
         roleName: 'Admin',
         emailVerified: false,
+        mustChangePassword: true,
+        deactivated: false,
         createdAt: '2026-10-01T00:00:00.000Z',
         isSelf: true,
       },
     ]);
+    // Deactivated members come apart, for the desktop Todos view (ZIG-I32-2).
+    expect(result.data?.deactivated).toEqual([
+      expect.objectContaining({ id: '202', deactivated: true, isSelf: false }),
+    ]);
+    expect(result.data?.companyName).toBe('Clima B');
     expect(result.data?.roles).toEqual([
       { id: 5, name: 'Admin', description: 'Todo' },
     ]);
@@ -128,16 +158,40 @@ describe('team actions (ZIG-I3-4)', () => {
   it('addTeamMember always targets the caller company', async () => {
     mockCreateUser.mockResolvedValue({ success: true });
 
-    await addTeamMember({
-      name: 'Nueva',
-      email: 'nueva@b.mx',
-      role_id: 5,
-      password: 'password123',
-    });
+    await addTeamMember({ name: 'Nueva', email: 'nueva@b.mx', role_id: 5 });
 
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({ company_id: IDOR_COMPANY_B.id }),
     );
+  });
+
+  it('addTeamMember always makes the temporary password itself, even if a client sends one (ZIG-I32)', async () => {
+    mockCreateUser.mockResolvedValue({ success: true });
+
+    const result = await addTeamMember({
+      name: 'Nueva',
+      email: 'nueva@b.mx',
+      role_id: 5,
+      // A forged client field is ignored.
+      password: 'chosen-by-client',
+    } as Parameters<typeof addTeamMember>[0]);
+
+    expect(mockCreateUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company_id: IDOR_COMPANY_B.id,
+        password: 'kemo-7pdx',
+        must_change_password: true,
+      }),
+    );
+    expect(result).toEqual({ success: true, data: { temporaryPassword: 'kemo-7pdx' } });
+  });
+
+  it('addTeamMember never returns the temporary password when creation fails', async () => {
+    mockCreateUser.mockResolvedValue({ success: false, error: 'Correo en uso' });
+
+    const result = await addTeamMember({ name: 'Nueva', email: 'nueva@b.mx', role_id: 5 });
+
+    expect(result).toEqual({ success: false, error: 'Correo en uso' });
   });
 
   it.each([
@@ -153,6 +207,14 @@ describe('team actions (ZIG-I3-4)', () => {
     expect(result.success).toBe(false);
     expect(mockUpdateUser).not.toHaveBeenCalled();
     expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  it('changeTeamMemberRole refuses your own role (US009) without touching the user', async () => {
+    // mockActionAuthorized signs the caller in as user 201.
+    const result = await changeTeamMemberRole('201', 5);
+
+    expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US009' }));
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   it('changeTeamMemberRole keeps name and email and sends the new role', async () => {

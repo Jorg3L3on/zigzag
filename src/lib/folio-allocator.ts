@@ -50,3 +50,24 @@ export const allocateDocumentFolio = async (
     folio_prefix: resolveFolioPrefix(kind, row?.settings),
   };
 };
+
+/**
+ * The numbers the next presupuesto and recibo of a company will get, for the
+ * "El siguiente será…" hint in Mi empresa (ZIG-I32-1). Read-only: the counter
+ * only moves inside `allocateDocumentFolio`.
+ */
+export const readNextFolioNumbers = async (
+  executor: Pick<FolioExecutor, 'select'>,
+  companyId: number,
+): Promise<{ presupuesto: number; ticket: number }> => {
+  const rows = await executor
+    .select({
+      document_kind: documentFolioCounter.document_kind,
+      last_number: documentFolioCounter.last_number,
+    })
+    .from(documentFolioCounter)
+    .where(eq(documentFolioCounter.company_id, companyId));
+  const last = (kind: string) =>
+    rows.find((row) => row.document_kind === kind)?.last_number ?? 0;
+  return { presupuesto: last('presupuesto') + 1, ticket: last('ticket') + 1 };
+};

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Copy, Lock, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -23,6 +24,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useIsDesktop } from '@/hooks/use-desktop';
+import { COMPANY_HUB_TEAM_PATH } from '@/lib/company-hub';
 import type { ActionErrorType } from '@/lib/errors';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import {
@@ -67,6 +70,9 @@ const showError = (
 const usersLabel = (count: number) =>
   count === 1 ? '1 usuario con este rol' : `${count} usuarios con este rol`;
 
+const peopleLabel = (count: number) =>
+  count === 1 ? '1 persona con este rol' : `${count} personas con este rol`;
+
 export const RoleEditor = ({
   role,
   seed,
@@ -77,6 +83,10 @@ export const RoleEditor = ({
   onCancel,
   onDuplicate,
 }: RoleEditorProps) => {
+  const isDesktop = useIsDesktop();
+  // lg+ look (ZIG-I32-3): amber shared notice, tinted template chips, switch
+  // matrix and a footer with Ver en Equipo. Phones and tablets keep the ZIG-I3-5 editor.
+  const desktop = variant === 'panel' || isDesktop;
   const initialKeys = role?.permissionKeys ?? seed?.permissionKeys ?? [];
   // Fixed per mount; the parent remounts the editor (key) when the role changes.
   const [baseline] = React.useState(() => toMatrix(initialKeys));
@@ -103,6 +113,14 @@ export const RoleEditor = ({
     : userCount > 0
       ? 'Se habilita cuando nadie tiene este rol.'
       : null;
+
+  const sharedCopyNote = readOnly
+    ? null
+    : `Al guardar se crea una copia solo para tu empresa${
+        userCount > 0
+          ? ` y ${userCount === 1 ? 'la persona que lo tiene pasa' : `las ${userCount} personas que lo tienen pasan`} a ella`
+          : ''
+      }; las demás empresas no cambian.`;
 
   const applyTemplate = (key: RoleTemplateKey) => {
     setMatrix(templateMatrix(key));
@@ -168,20 +186,32 @@ export const RoleEditor = ({
     >
       {role && isShared ? (
         <div
-          className="flex flex-col gap-3 rounded-xl border bg-muted/40 p-4 sm:flex-row sm:items-center"
+          className={cn(
+            'flex flex-col gap-3 rounded-xl border sm:flex-row sm:items-center',
+            desktop
+              ? 'border-amber-300 bg-amber-50 p-3.5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100'
+              : 'bg-muted/40 p-4',
+          )}
           data-testid="shared-role-notice"
         >
-          <Lock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <p className="flex-1 text-sm text-muted-foreground">
-            {readOnly
-              ? 'Rol compartido de la plataforma.'
-              : `Rol compartido de la plataforma. Al guardar se crea una copia solo para tu empresa${
-                  userCount > 0
-                    ? ` y ${userCount === 1 ? 'la persona que lo tiene pasa' : `las ${userCount} personas que lo tienen pasan`} a ella`
-                    : ''
-                }; las demás empresas no cambian.`}
-          </p>
-          {canWrite && onDuplicate ? (
+          {desktop ? null : (
+            <Lock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          )}
+          {desktop ? (
+            <p className="flex-1 text-sm">
+              <span className="font-semibold">Rol compartido de la plataforma.</span>
+              {sharedCopyNote ? ` ${sharedCopyNote}` : null}
+            </p>
+          ) : (
+            // One text node on phones, as before ZIG-I32 (kerning stays identical).
+            <p className="flex-1 text-sm text-muted-foreground">
+              {sharedCopyNote
+                ? `Rol compartido de la plataforma. ${sharedCopyNote}`
+                : 'Rol compartido de la plataforma.'}
+            </p>
+          )}
+          {/* md+ keeps the notice text-only (canvas EmpRoles); Duplicar moves to the footer. */}
+          {canWrite && onDuplicate && !desktop ? (
             <Button
               type="button"
               variant="outline"
@@ -233,7 +263,33 @@ export const RoleEditor = ({
         </div>
       </div>
 
-      {readOnly ? null : (
+      {readOnly ? null : desktop ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Empezar desde una plantilla</span>
+          <div role="group" aria-label="Plantillas" className="flex flex-wrap gap-2">
+            {ROLE_TEMPLATES.map((template) => {
+              const active = matrixEquals(matrix, templateMatrix(template.key));
+              return (
+                <Button
+                  key={template.key}
+                  type="button"
+                  variant="outline"
+                  aria-pressed={active}
+                  title={template.description}
+                  className={cn(
+                    'h-8 rounded-full px-3.5 text-sm',
+                    active &&
+                      'border-primary/40 bg-primary/10 text-blue-700 hover:bg-primary/15 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-300',
+                  )}
+                  onClick={() => requestTemplate(template.key)}
+                >
+                  {template.label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <span className="text-sm font-medium">Empezar desde una plantilla:</span>
           <div role="group" aria-label="Plantillas" className="-mx-1 flex gap-2 overflow-x-auto px-1">
@@ -257,8 +313,76 @@ export const RoleEditor = ({
         </div>
       )}
 
-      <RolePermissionMatrix value={matrix} onChange={setMatrix} disabled={readOnly} />
+      <RolePermissionMatrix
+        value={matrix}
+        onChange={setMatrix}
+        disabled={readOnly}
+        control={desktop ? 'switch' : 'checkbox'}
+      />
 
+      {desktop ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {isNew ? null : (
+            <p className="text-sm text-muted-foreground">
+              {peopleLabel(userCount)} ·{' '}
+              <Link
+                href={role ? `${COMPANY_HUB_TEAM_PATH}?rol=${role.id}` : COMPANY_HUB_TEAM_PATH}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Ver en Equipo
+              </Link>
+            </p>
+          )}
+          {role && isShared && canWrite && onDuplicate ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                onDuplicate({
+                  name: `${role.name} (copia)`,
+                  description: role.description ?? '',
+                  permissionKeys: role.permissionKeys,
+                })
+              }
+            >
+              <Copy className="size-4" aria-hidden data-icon="inline-start" />
+              Duplicar
+            </Button>
+          ) : null}
+          {isNew || readOnly || isShared ? null : (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={Boolean(deleteBlockedReason) || deleting}
+                aria-describedby={deleteBlockedReason ? 'role-delete-reason' : undefined}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="size-4" aria-hidden data-icon="inline-start" />
+                Eliminar rol
+              </Button>
+              {deleteBlockedReason ? (
+                <span id="role-delete-reason" className="text-caption text-muted-foreground">
+                  {deleteBlockedReason}
+                </span>
+              ) : null}
+            </div>
+          )}
+          {readOnly ? null : (
+            <div className="ml-auto flex gap-2">
+              <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={() => void save()} disabled={saving}>
+                {saveLabel}
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:flex-wrap sm:items-center">
         {readOnly ? null : (
           <div className={cn('flex gap-2', variant === 'page' && 'hidden md:flex')}>
@@ -294,6 +418,7 @@ export const RoleEditor = ({
           </div>
         )}
       </div>
+      )}
 
       {variant === 'page' && !readOnly ? (
         <TripledMobileStickyActionBar>

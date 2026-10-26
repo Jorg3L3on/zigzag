@@ -29,6 +29,7 @@ import { recordAuthAuditEvent } from '@/lib/audit-security';
 import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { generateTemporaryPassword } from '@/lib/temporary-password';
+import { guardUserWrite } from '@/lib/role-rank';
 import { keepsATeamManager } from '@/lib/team-guards';
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -49,6 +50,8 @@ const userSchema = z.object({
 
 const createUserSchema = userSchema.extend({
   password: passwordSchema,
+  /** A temporary password the person must replace at first login (ZIG-I32-2). */
+  must_change_password: z.boolean().optional(),
 });
 
 const accountSchema = z
@@ -282,6 +285,15 @@ export async function createUser(data: CreateUserFormData): Promise<{
       validatedData.role_id,
       effectiveCompanyId,
     );
+    // No creating someone with more permissions than you (ZIG-I32 review).
+    const blocked = await guardUserWrite({
+      actor: authContext,
+      target: null,
+      nextRoleId: validatedData.role_id,
+    });
+    if (blocked) {
+      return buildActionError(blocked);
+    }
 
     const hashedPassword = await hash(validatedData.password, 10);
 
@@ -293,6 +305,7 @@ export async function createUser(data: CreateUserFormData): Promise<{
         password: hashedPassword,
         company_id: effectiveCompanyId,
         role_id: validatedData.role_id,
+        must_change_password: validatedData.must_change_password ?? false,
         updated_at: new Date(),
       })
       .returning();
@@ -353,6 +366,17 @@ export async function updateUser(
     // Tenant admins may only edit users that already belong to their company.
     if (!authContext.companyIsSystem && existing.company_id !== effectiveCompanyId) {
       return buildActionError('AU002');
+    }
+    // Own role and anyone with more permissions are off limits (ZIG-I32
+    // review); updateTeamMember and the /users dialog both come through here.
+    const blocked = await guardUserWrite({
+      actor: authContext,
+      target: existing,
+      nextRoleId: validatedData.role_id,
+      setsPassword: Boolean(validatedData.password),
+    });
+    if (blocked) {
+      return buildActionError(blocked);
     }
 
     const nextRoleId = validatedData.role_id ?? null;
@@ -420,6 +444,7 @@ export async function updateUser(
   }
 }
 
+
 /**
  * Forgotten password without email (ZIG-I18-11): an admin with `users.write`
  * (own company only) or a system operator (any company) gives a temporary
@@ -459,6 +484,12 @@ export async function resetUserTemporaryPassword(id: bigint): Promise<{
     );
     if (!context.companyIsSystem && target.company?.is_system) {
       return buildActionError('AU002');
+    }
+    // A tenant admin cannot take over someone with more permissions (ZIG-I32
+    // review): the temporary password would hand them that account.
+    const blocked = await guardUserWrite({ actor: context, target, setsPassword: true });
+    if (blocked) {
+      return buildActionError(blocked);
     }
 
     const temporaryPassword = generateTemporaryPassword();
@@ -703,6 +734,12 @@ export async function deleteUser(
     // Never allow deleting your own account here.
     if (existing.id === BigInt(authContext.userId)) {
       return buildActionError('US006');
+    }
+    // Nor anyone with more permissions than you (ZIG-I32 review): otherwise a
+    // second users.write holder could deactivate every Admin.
+    const blocked = await guardUserWrite({ actor: authContext, target: existing, deactivates: true });
+    if (blocked) {
+      return buildActionError(blocked);
     }
 
     if (

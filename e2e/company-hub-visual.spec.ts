@@ -4,6 +4,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import { DEMO_COMPANY_NAME } from '../src/lib/demo-company';
 
 /**
  * ZIG-I3-7 — visual baselines for the Mi empresa hub (Datos · Equipo · Roles)
@@ -25,13 +26,16 @@ const VIEWPORTS = [
     name: 'desktop',
     width: 1280,
     height: 900,
-    // Desktop lists use table rows / list buttons instead of cards.
+    // Desktop lists use table rows / list buttons instead of cards, and Datos
+    // shows cards instead of the readiness banner (ZIG-I32).
     ready: (id: string) =>
       id === 'team-member-card'
         ? 'team-member-row'
         : id === 'role-card'
           ? 'role-list-item'
-          : id,
+          : id === 'company-readiness-banner'
+            ? 'company-datos-perfil'
+            : id,
   },
 ] as const;
 
@@ -44,6 +48,12 @@ test.describe('Mi empresa hub visual baselines', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
+    // Baselines are ClimaTotal Demo's hub (ZIG-I32): another tenant's logo,
+    // readiness or folios change the unmasked parts.
+    test.skip(
+      (process.env.E2E_COMPANY_NAME ?? DEMO_COMPANY_NAME) !== DEMO_COMPANY_NAME,
+      'Needs the ClimaTotal Demo tenant (E2E_COMPANY_NAME)',
+    );
     await login(page);
     // Same open sections for every run.
     await page.evaluate(() =>
@@ -76,7 +86,14 @@ test.describe('Mi empresa hub visual baselines', () => {
                 page.getByTestId('role-list-item'),
                 page.getByTestId('role-card'),
                 page.getByTestId('company-hub-tabs').locator('span.tabular-nums'),
-                page.getByRole('group', { name: 'Filtrar por estado' }),
+                page.getByTestId('company-hub-side-nav').locator('span.tabular-nums'),
+                page.getByTestId('company-hub-header').locator('p'),
+                page.getByTestId('company-receipt-preview'),
+                page.getByTestId('company-next-folio-presupuesto'),
+                page.getByTestId('company-next-folio-ticket'),
+                page.getByTestId('team-desktop').locator('h2 + p'),
+                page.getByTestId('team-desktop').locator('h2 span'),
+                page.getByRole('group', { name: 'Filtrar por acceso' }),
                 main.locator('h1'),
                 page.getByTestId('mobile-app-bar').locator('p').nth(1),
                 page.locator('input'),
