@@ -6,6 +6,7 @@ export type TeamMember = {
   email: string;
   roleId: number | null;
   roleName: string | null;
+  /** Kept for the record; there is no email verification step, so nothing shows it (ZIG-I32). */
   emailVerified: boolean;
   /** Set by an admin's temporary password until the person picks their own (ZIG-I18-11). */
   mustChangePassword: boolean;
@@ -21,46 +22,12 @@ export type TeamRoleOption = {
   description: string | null;
 };
 
-export type TeamStatusFilter = 'all' | 'active' | 'unverified';
-
-export const TEAM_STATUS_FILTERS: Array<{ value: TeamStatusFilter; label: string }> = [
-  { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Activos' },
-  { value: 'unverified', label: 'Sin verificar' },
-];
-
-export const teamMemberStatusLabel = (member: Pick<TeamMember, 'emailVerified'>) =>
-  member.emailVerified ? 'Activo' : 'Sin verificar';
-
 const normalize = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
-
-/** Search by name, email or role; status chips split verified from unverified. */
-export const filterTeamMembers = (
-  members: TeamMember[],
-  search: string,
-  status: TeamStatusFilter,
-): TeamMember[] => {
-  const query = normalize(search);
-  return members.filter((member) => {
-    if (status === 'active' && !member.emailVerified) {
-      return false;
-    }
-    if (status === 'unverified' && member.emailVerified) {
-      return false;
-    }
-    if (!query) {
-      return true;
-    }
-    return [member.name, member.email, member.roleName ?? ''].some((field) =>
-      normalize(field).includes(query),
-    );
-  });
-};
 
 export const teamMemberInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -72,7 +39,7 @@ export const teamMemberInitials = (name: string): string => {
   return `${first}${last}`.toUpperCase();
 };
 
-/** Acceso column on md+ (ZIG-I32-2). There is no email verification, so no «Sin verificar». */
+/** Acceso on every layout (ZIG-I32). There is no email verification, so no «Sin verificar». */
 export type TeamMemberAccess = 'active' | 'must_change_password' | 'deactivated';
 
 export const teamMemberAccess = (
@@ -132,8 +99,11 @@ export const summarizeTeamRoles = (members: TeamMember[]): string => {
     .join(' · ');
 };
 
-/** Desktop filters: name or email, a role id, and Activos / Todos. */
-export const filterTeamMembersDesktop = (
+/**
+ * Name, email or role search, an optional role id, and Activos / Todos
+ * (Todos adds deactivated members). Accents and case are ignored.
+ */
+export const filterTeamMembers = (
   members: TeamMember[],
   options: { search: string; roleId: number | null; access: TeamAccessFilter },
 ): TeamMember[] => {
@@ -148,6 +118,8 @@ export const filterTeamMembersDesktop = (
     if (!query) {
       return true;
     }
-    return [member.name, member.email].some((field) => normalize(field).includes(query));
+    return [member.name, member.email, teamRoleLabel(member.roleName), member.roleName ?? ''].some(
+      (field) => normalize(field).includes(query),
+    );
   });
 };

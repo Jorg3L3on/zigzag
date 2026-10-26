@@ -1119,7 +1119,8 @@ export const CompanyForm = ({
         >
           <div className="grid gap-4 md:grid-cols-2">
             {nameField}
-            {statusField}
+            {/* Only the operator console changes the status (ZIG-I32). */}
+            {isSelfService ? null : statusField}
             {emailField}
             {phoneField}
           </div>

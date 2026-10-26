@@ -24,51 +24,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  filterTeamMembersDesktop,
+  filterTeamMembers,
   summarizeTeamRoles,
   TEAM_ACCESS_FILTERS,
-  TEAM_ACCESS_LABELS,
-  teamMemberAccess,
   teamRoleLabel,
-  teamRoleTone,
   type TeamAccessFilter,
   type TeamMember,
   type TeamRoleOption,
-  type TeamRoleTone,
 } from '@/lib/team-members';
 import { cn } from '@/lib/utils';
-import { TeamAvatar } from './team-columns';
+import { TeamAccessPill, TeamAvatar, TeamRolePill } from './team-columns';
 import { TeamMemberMenu, type TeamMemberMenuHandlers } from './team-member-menu';
 
 const ALL_ROLES = 'all';
-
-const ROLE_TONE_CLASS: Record<TeamRoleTone, string> = {
-  admin: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
-  operator: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
-  viewer: 'bg-slate-500/10 text-slate-700 dark:text-slate-300',
-  other: 'bg-muted text-foreground',
-};
-
-const ACCESS_TONE_CLASS = {
-  active: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  must_change_password: 'bg-amber-500/15 text-amber-800 dark:text-amber-200',
-  deactivated: 'bg-muted text-muted-foreground',
-} as const;
-
-const chipClass = 'inline-flex h-6 items-center whitespace-nowrap rounded-full px-2.5 text-caption font-semibold';
-
-export const TeamRolePill = ({ name }: { name: string | null }) => (
-  <span className={cn(chipClass, ROLE_TONE_CLASS[teamRoleTone(name)])}>{teamRoleLabel(name)}</span>
-);
-
-export const TeamAccessPill = ({ member }: { member: TeamMember }) => {
-  const access = teamMemberAccess(member);
-  return (
-    <span className={cn(chipClass, ACCESS_TONE_CLASS[access])} data-testid="team-member-access">
-      {TEAM_ACCESS_LABELS[access]}
-    </span>
-  );
-};
 
 type TeamDesktopProps = {
   members: TeamMember[];
@@ -101,7 +69,7 @@ export const TeamDesktop = ({
   const everyone = React.useMemo(() => [...members, ...deactivated], [members, deactivated]);
   const rows = React.useMemo(
     () =>
-      filterTeamMembersDesktop(everyone, {
+      filterTeamMembers(everyone, {
         search,
         roleId: roleFilter === ALL_ROLES ? null : Number(roleFilter),
         access,

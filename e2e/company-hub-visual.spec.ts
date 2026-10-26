@@ -86,7 +86,7 @@ test.describe('Mi empresa hub visual baselines', () => {
                 page.getByTestId('company-next-folio-ticket'),
                 page.getByTestId('team-desktop').locator('h2 + p'),
                 page.getByTestId('team-desktop').locator('h2 span'),
-                page.getByRole('group', { name: 'Filtrar por estado' }),
+                page.getByRole('group', { name: 'Filtrar por acceso' }),
                 main.locator('h1'),
                 page.getByTestId('mobile-app-bar').locator('p').nth(1),
                 page.locator('input'),

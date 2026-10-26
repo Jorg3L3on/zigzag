@@ -1,11 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   filterTeamMembers,
-  filterTeamMembersDesktop,
   summarizeTeamRoles,
   teamMemberAccess,
   teamMemberInitials,
-  teamMemberStatusLabel,
   teamRoleLabel,
   type TeamMember,
 } from '@/lib/team-members';
@@ -37,40 +35,21 @@ const team = [
 ];
 
 describe('team-members', () => {
-  it('filters by status chip', () => {
-    expect(filterTeamMembers(team, '', 'all').map((m) => m.id)).toEqual([
-      '1',
-      '2',
-      '3',
-    ]);
-    expect(filterTeamMembers(team, '', 'active').map((m) => m.id)).toEqual([
-      '1',
-      '3',
-    ]);
-    expect(filterTeamMembers(team, '', 'unverified').map((m) => m.id)).toEqual([
-      '2',
-    ]);
+  it('searches name, email and role (raw or in Spanish), ignoring case and accents', () => {
+    const ids = (search: string) =>
+      filterTeamMembers(team, { search, roleId: null, access: 'active' }).map((m) => m.id);
+    expect(ids('tecnico')).toEqual(['2']);
+    expect(ids('LUCIA@')).toEqual(['3']);
+    expect(ids('admin')).toEqual(['1']);
   });
 
-  it('searches name, email and role, ignoring case and accents', () => {
-    expect(filterTeamMembers(team, 'tecnico', 'all').map((m) => m.id)).toEqual([
-      '2',
-    ]);
-    expect(filterTeamMembers(team, 'LUCIA@', 'all').map((m) => m.id)).toEqual([
-      '3',
-    ]);
-    expect(filterTeamMembers(team, 'admin', 'unverified')).toEqual([]);
-  });
-
-  it('labels status and initials', () => {
-    expect(teamMemberStatusLabel({ emailVerified: true })).toBe('Activo');
-    expect(teamMemberStatusLabel({ emailVerified: false })).toBe('Sin verificar');
+  it('makes initials', () => {
     expect(teamMemberInitials('Carlos  Operador ')).toBe('CO');
     expect(teamMemberInitials('viewer')).toBe('V');
     expect(teamMemberInitials('  ')).toBe('?');
   });
 
-  describe('desktop Equipo (ZIG-I32-2)', () => {
+  describe('access states and filters (ZIG-I32)', () => {
     const desktopTeam = [
       member({ id: '1', roleId: 1, roleName: 'Admin' }),
       member({ id: '2', name: 'Carlos', email: 'c@demo.mx', roleId: 2, roleName: 'Operator', mustChangePassword: true }),
@@ -103,8 +82,8 @@ describe('team-members', () => {
     });
 
     it('Activos hides deactivated members, Todos shows them; role and search narrow', () => {
-      const ids = (options: Parameters<typeof filterTeamMembersDesktop>[1]) =>
-        filterTeamMembersDesktop(desktopTeam, options).map((m) => m.id);
+      const ids = (options: Parameters<typeof filterTeamMembers>[1]) =>
+        filterTeamMembers(desktopTeam, options).map((m) => m.id);
       expect(ids({ search: '', roleId: null, access: 'active' })).toEqual(['1', '2', '3']);
       expect(ids({ search: '', roleId: null, access: 'all' })).toEqual(['1', '2', '3', '4']);
       expect(ids({ search: '', roleId: 3, access: 'all' })).toEqual(['3', '4']);

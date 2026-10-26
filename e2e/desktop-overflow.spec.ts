@@ -13,7 +13,7 @@ const ROUTES: { path: string; create?: RegExp }[] = [
   { path: '/clients', create: /^Nuevo cliente$/ },
   { path: '/services', create: /^Nuevo servicio$/ },
   { path: '/cobranza' },
-  { path: '/company/equipo', create: /^Agregar usuario$/ },
+  { path: '/company/equipo', create: /^Agregar persona$/ },
   { path: '/dashboard' },
 ];
 

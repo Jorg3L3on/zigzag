@@ -18,15 +18,15 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from '@/components/ui/input';
 import {
   filterTeamMembers,
-  TEAM_STATUS_FILTERS,
+  TEAM_ACCESS_FILTERS,
+  type TeamAccessFilter,
   type TeamMember,
-  type TeamStatusFilter,
 } from '@/lib/team-members';
 import {
   createTeamColumns,
+  TeamAccessPill,
   TeamAvatar,
-  TeamRoleChip,
-  TeamStatus,
+  TeamRolePill,
 } from './team-columns';
 import { TeamDeactivateDialog } from './team-deactivate-dialog';
 import { TeamMemberMenu, type TeamMemberMenuHandlers } from './team-member-menu';
@@ -49,7 +49,7 @@ export const TeamList = () => {
   const [state, setState] = React.useState<LoadState>({ status: 'loading' });
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<TeamStatusFilter>('all');
+  const [accessFilter, setAccessFilter] = React.useState<TeamAccessFilter>('active');
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'usuario', desc: false },
   ]);
@@ -107,8 +107,14 @@ export const TeamList = () => {
 
   const members = React.useMemo(
     () =>
-      data ? filterTeamMembers(data.members, debouncedSearch, statusFilter) : [],
-    [data, debouncedSearch, statusFilter],
+      data
+        ? filterTeamMembers([...data.members, ...data.deactivated], {
+            search: debouncedSearch,
+            roleId: null,
+            access: accessFilter,
+          })
+        : [],
+    [data, debouncedSearch, accessFilter],
   );
   const columns = React.useMemo(() => createTeamColumns(handlers), [handlers]);
 
@@ -154,8 +160,8 @@ export const TeamList = () => {
     );
   }
 
-  const totalMembers = state.data.members.length;
-  const addButtonLabel = 'Agregar usuario';
+  const totalMembers = state.data.members.length + state.data.deactivated.length;
+  const addButtonLabel = 'Agregar persona';
 
   return (
     <div className="space-y-4">
@@ -188,11 +194,11 @@ export const TeamList = () => {
         </label>
         <div
           role="group"
-          aria-label="Filtrar por estado"
+          aria-label="Filtrar por acceso"
           className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
         >
-          {TEAM_STATUS_FILTERS.map((option) => {
-            const active = statusFilter === option.value;
+          {TEAM_ACCESS_FILTERS.map((option) => {
+            const active = accessFilter === option.value;
             return (
               <Button
                 key={option.value}
@@ -200,7 +206,7 @@ export const TeamList = () => {
                 variant={active ? 'default' : 'outline'}
                 aria-pressed={active}
                 className="h-10 shrink-0 rounded-full px-4"
-                onClick={() => setStatusFilter(option.value)}
+                onClick={() => setAccessFilter(option.value)}
               >
                 {option.label}
                 {option.value === 'all' ? ` · ${totalMembers}` : null}
@@ -217,7 +223,7 @@ export const TeamList = () => {
           description={
             totalMembers === 0
               ? 'Agrega a las personas que atienden tickets o administran la empresa.'
-              : 'Ajusta la búsqueda o el filtro de estado.'
+              : 'Ajusta la búsqueda o el filtro de acceso.'
           }
         />
       ) : (
@@ -246,11 +252,13 @@ export const TeamList = () => {
                       {member.email}
                     </span>
                     <span className="flex flex-wrap items-center gap-2">
-                      <TeamRoleChip name={member.roleName} />
-                      <TeamStatus member={member} />
+                      <TeamRolePill name={member.roleName} />
+                      <TeamAccessPill member={member} />
                     </span>
                   </div>
-                  {handlers ? <TeamMemberMenu member={member} {...handlers} /> : null}
+                  {handlers && !member.deactivated ? (
+                    <TeamMemberMenu member={member} {...handlers} />
+                  ) : null}
                 </li>
               );
             })}
@@ -278,6 +286,7 @@ export const TeamList = () => {
             open={addOpen}
             onOpenChange={setAddOpen}
             roles={state.data.roles}
+            companyName={state.data.companyName}
             onSaved={onSaved}
           />
           <TeamMemberSheet
@@ -287,6 +296,7 @@ export const TeamList = () => {
             }}
             roles={state.data.roles}
             member={editing}
+            companyName={state.data.companyName}
             onSaved={onSaved}
           />
         </>

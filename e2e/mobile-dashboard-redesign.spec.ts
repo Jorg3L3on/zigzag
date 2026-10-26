@@ -88,7 +88,7 @@ test.describe('Mobile dashboard redesign', () => {
       page.getByRole('searchbox', { name: 'Buscar en el equipo' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('group', { name: 'Filtrar por estado' }).getByRole('button', {
+      page.getByRole('group', { name: 'Filtrar por acceso' }).getByRole('button', {
         name: /Todos/,
       }),
     ).toBeVisible();

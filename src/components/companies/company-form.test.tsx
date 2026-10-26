@@ -106,6 +106,15 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
   });
 
+  it('does not offer Estado de la empresa to the owner on phones; the operator keeps it', () => {
+    const { unmount } = render(<CompanyForm company={company} mode="self" />);
+    expect(screen.queryByLabelText('Estado de la empresa')).toBeNull();
+    unmount();
+
+    render(<CompanyForm company={company} />);
+    expect(screen.getByLabelText('Estado de la empresa')).toBeInTheDocument();
+  });
+
   it('remembers which sections were open', () => {
     const { unmount } = render(<CompanyForm company={company} mode="self" />);
     fireEvent.click(within(section('configuracion')).getByRole('button', { name: /Configuración/ }));

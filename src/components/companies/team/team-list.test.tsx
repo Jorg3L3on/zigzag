@@ -80,17 +80,22 @@ describe('TeamList', () => {
     mockUseIsMobile.mockReturnValue(true);
   });
 
-  it('filters by the Sin verificar chip', async () => {
+  it('shows access states on phone cards; Todos adds deactivated people without actions', async () => {
     mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
     render(<TeamList />);
     await screen.findAllByText('Ana Admin');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sin verificar' }));
+    expect(screen.queryByText('Sin verificar')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sin verificar' })).toBeNull();
+    const access = screen.getAllByTestId('team-member-access').map((el) => el.textContent);
+    expect(access).toEqual(['Activo', 'Debe cambiar contraseña']);
+    expect(screen.queryByText('Beto Baja')).toBeNull();
 
-    await waitFor(() => {
-      expect(screen.queryAllByText('Ana Admin')).toHaveLength(0);
-    });
-    expect(screen.getAllByText('Carlos Técnico').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: /^Todos/ }));
+
+    const card = (await screen.findByText('Beto Baja')).closest('li')!;
+    expect(within(card).getByTestId('team-member-access')).toHaveTextContent('Desactivado');
+    expect(within(card).queryByRole('button', { name: /Acciones de/ })).toBeNull();
   });
 
   it('hides write actions for read-only viewers', async () => {
@@ -101,17 +106,20 @@ describe('TeamList', () => {
     render(<TeamList />);
     await screen.findAllByText('Ana Admin');
 
-    expect(screen.queryByRole('button', { name: /Agregar usuario/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Agregar persona/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Acciones de/ })).toBeNull();
   });
 
-  it('adds a member with the chosen role', async () => {
+  it('adds a person with the chosen role and shows the temporary password once', async () => {
     mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
-    mockAddTeamMember.mockResolvedValue({ success: true });
+    mockAddTeamMember.mockResolvedValue({
+      success: true,
+      data: { temporaryPassword: 'kemo-7pdx' },
+    });
     render(<TeamList />);
     await screen.findAllByText('Ana Admin');
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Agregar usuario/ })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Agregar persona/ })[0]);
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Nombre'), {
       target: { value: 'Lucía' },
@@ -119,23 +127,19 @@ describe('TeamList', () => {
     fireEvent.change(within(dialog).getByLabelText('Correo electrónico'), {
       target: { value: 'lucia@demo.mx' },
     });
-    fireEvent.click(within(dialog).getByRole('radio', { name: /Operator/ }));
-    fireEvent.change(within(dialog).getByLabelText('Contraseña inicial'), {
-      target: { value: 'secreta123' },
-    });
-    fireEvent.change(within(dialog).getByLabelText('Confirmar contraseña'), {
-      target: { value: 'secreta123' },
-    });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Agregar usuario' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Operador/ }));
+    expect(within(dialog).queryByLabelText('Contraseña inicial')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agregar' }));
 
     await waitFor(() => {
       expect(mockAddTeamMember).toHaveBeenCalledWith({
         name: 'Lucía',
         email: 'lucia@demo.mx',
         role_id: 2,
-        password: 'secreta123',
       });
     });
+    expect(await within(dialog).findByTestId('temporary-password')).toHaveTextContent('kemo-7pdx');
+    expect(within(dialog).getByRole('link', { name: /WhatsApp/ })).toBeInTheDocument();
   });
 
   it('requires a role before adding', async () => {
@@ -143,7 +147,7 @@ describe('TeamList', () => {
     render(<TeamList />);
     await screen.findAllByText('Ana Admin');
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Agregar usuario/ })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Agregar persona/ })[0]);
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Nombre'), {
       target: { value: 'Lucía' },
@@ -151,7 +155,7 @@ describe('TeamList', () => {
     fireEvent.change(within(dialog).getByLabelText('Correo electrónico'), {
       target: { value: 'lucia@demo.mx' },
     });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Agregar usuario' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Agregar' }));
 
     expect(await within(dialog).findByText('Elige un rol')).toBeInTheDocument();
     expect(mockAddTeamMember).not.toHaveBeenCalled();
@@ -218,9 +222,9 @@ describe('TeamList', () => {
         data: { temporaryPassword: 'kemo-7pdx' },
       });
       render(<TeamList />);
-      await screen.findByTestId('team-desktop');
+      const desktop = await screen.findByTestId('team-desktop');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Agregar persona' }));
+      fireEvent.click(within(desktop).getByRole('button', { name: 'Agregar persona' }));
       const panel = await screen.findByTestId('team-member-panel');
       fireEvent.change(within(panel).getByLabelText('Nombre'), { target: { value: 'María' } });
       fireEvent.change(within(panel).getByLabelText('Correo electrónico'), {

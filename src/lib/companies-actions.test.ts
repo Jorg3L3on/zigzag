@@ -19,6 +19,7 @@ import {
 import { setCompanyLifecycleStatus } from '@/actions/company-lifecycle';
 import { getCompanyOperatorSummary } from '@/actions/company-operator';
 import { requestCompanyExport } from '@/actions/exports';
+import { db } from '@/lib/db';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
 import {
   IDOR_COMPANY_A,
@@ -247,3 +248,49 @@ describe('cross-tenant IDOR - company and operator actions', () => {
     },
   );
 });
+
+describe('updateOwnCompany keeps the company status (ZIG-I32)', () => {
+  const mockDb = db as unknown as {
+    update: jest.Mock;
+    query: { company: { findFirst: jest.Mock } };
+  };
+
+  it('ignores a submitted status: only the operator console changes it', async () => {
+    mockRequireActionPermission.mockResolvedValue({
+      context: tenantBContext,
+      companyId: 4,
+    } as unknown as Awaited<ReturnType<typeof requireActionPermission>>);
+    mockDb.query.company.findFirst.mockResolvedValue({
+      id: 4,
+      name: 'ClimaTotal Demo',
+      status: 'SETUP',
+      settings: null,
+      logo: null,
+      deleted_at: null,
+    });
+    const set = jest.fn(() => ({
+      where: () => ({ returning: async () => [{ id: 4, status: 'SETUP' }] }),
+    }));
+    mockDb.update.mockReturnValue({ set });
+
+    const result = await updateOwnCompany({
+      name: 'ClimaTotal Demo',
+      phone: '5551234567',
+      email: 'hola@clima.mx',
+      status: 'SUSPENDED',
+      street: 'Street',
+      exterior_number: '1',
+      interior_number: '',
+      neighborhood: 'Center',
+      city: 'CDMX',
+      state: 'CDMX',
+      country: 'MX',
+      postal_code: '01000',
+      settings: {},
+    });
+
+    expect(result).toEqual({ success: true, data: { id: 4, status: 'SETUP' } });
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ status: 'SETUP' }));
+  });
+});
+

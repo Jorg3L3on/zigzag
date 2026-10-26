@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Copy, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { addTeamMember, updateTeamMember } from '@/actions/team';
@@ -25,9 +24,13 @@ import {
   type TeamMember,
   type TeamRoleOption,
 } from '@/lib/team-members';
-import { buildNewMemberWhatsAppHref } from '@/lib/temporary-password-share';
 import { showTeamActionError } from './team-member-sheet';
 import { TeamRolePicker } from './team-role-picker';
+import {
+  TeamTemporaryPasswordBox,
+  TeamTemporaryPasswordNotice,
+  type CreatedTeamMember,
+} from './team-temporary-password-box';
 
 const panelSchema = z
   .object({
@@ -72,11 +75,7 @@ export const TeamMemberPanel = ({
   onSaved,
 }: TeamMemberPanelProps) => {
   const isEdit = Boolean(member);
-  const [created, setCreated] = useState<{
-    name: string;
-    email: string;
-    password: string;
-  } | null>(null);
+  const [created, setCreated] = useState<CreatedTeamMember | null>(null);
   const form = useForm<PanelValues>({
     resolver: zodResolver(panelSchema),
     defaultValues: { mode: 'add', name: '', email: '', role_id: undefined },
@@ -128,16 +127,6 @@ export const TeamMemberPanel = ({
     onSaved();
   };
 
-  const handleCopy = async () => {
-    if (!created) return;
-    try {
-      await navigator.clipboard.writeText(created.password);
-      toast.success('Contraseña copiada');
-    } catch {
-      toast.error('No se pudo copiar. Escríbela tal como aparece.');
-    }
-  };
-
   const isSubmitting = form.formState.isSubmitting;
   const roleOptions = roles.map((role) => ({ ...role, name: teamRoleLabel(role.name) }));
 
@@ -178,39 +167,7 @@ export const TeamMemberPanel = ({
       data-testid="team-member-panel"
     >
       {created ? (
-        <div className="space-y-3" data-testid="team-temporary-password-box">
-          <p className="text-sm">
-            <span className="font-semibold">{created.name}</span> ya está en tu equipo.
-          </p>
-          <div className="rounded-xl border bg-muted/40 p-3.5">
-            <p className="text-sm font-medium">Contraseña temporal</p>
-            <p
-              className="mt-1 font-mono text-xl font-semibold tracking-wider"
-              data-testid="temporary-password"
-            >
-              {created.password}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => void handleCopy()}>
-                <Copy className="size-4" aria-hidden data-icon="inline-start" />
-                Copiar
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <a
-                  href={buildNewMemberWhatsAppHref({ ...created, companyName })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <MessageCircle className="size-4" aria-hidden data-icon="inline-start" />
-                  WhatsApp
-                </a>
-              </Button>
-            </div>
-            <p className="mt-2 text-caption text-muted-foreground">
-              Se muestra una sola vez. Deberá cambiarla al entrar. No hay correo de invitación.
-            </p>
-          </div>
-        </div>
+        <TeamTemporaryPasswordBox created={created} companyName={companyName} />
       ) : (
         <Form {...form}>
           <form
@@ -267,13 +224,7 @@ export const TeamMemberPanel = ({
                     />
                   )}
                 />
-                <div className="rounded-xl border bg-muted/40 p-3.5">
-                  <p className="text-sm font-medium">Contraseña temporal</p>
-                  <p className="mt-1 text-caption text-muted-foreground">
-                    Se genera al agregar y se muestra una sola vez, con Copiar y WhatsApp.
-                    Deberá cambiarla al entrar.
-                  </p>
-                </div>
+                <TeamTemporaryPasswordNotice />
               </>
             )}
           </form>

@@ -94,7 +94,7 @@ test.describe('Mi empresa hub', () => {
       await expect(visiblePageHeader(page).getByText('Equipo')).toBeVisible();
     });
 
-    test('Equipo lists the team as cards and opens Agregar usuario @375px', async ({
+    test('Equipo lists the team as cards and opens Agregar persona @375px', async ({
       page,
     }) => {
       await page.setViewportSize({ width: 375, height: 812 });
@@ -113,16 +113,18 @@ test.describe('Mi empresa hub', () => {
 
       const stickyAdd = page
         .getByTestId('mobile-sticky-action-bar')
-        .getByRole('button', { name: 'Agregar usuario' });
+        .getByRole('button', { name: 'Agregar persona' });
       if (!(await stickyAdd.isVisible().catch(() => false))) {
         test.skip(true, 'Current E2E user cannot add users');
       }
 
       await stickyAdd.click();
-      const sheet = page.getByRole('dialog', { name: 'Agregar usuario' });
+      const sheet = page.getByRole('dialog', { name: 'Agregar persona' });
       await expect(sheet).toBeVisible();
       await expect(sheet.getByRole('radio').first()).toBeVisible();
-      await expect(sheet.getByLabel('Contraseña inicial')).toBeVisible();
+      // ZIG-I32: no password field; the server makes a temporary one.
+      await expect(sheet.getByLabel('Contraseña inicial')).toHaveCount(0);
+      await expect(sheet.getByText('Contraseña temporal')).toBeVisible();
       await sheet.getByRole('button', { name: 'Cancelar' }).click();
       await expect(sheet).toBeHidden();
     });
