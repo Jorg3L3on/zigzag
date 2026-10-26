@@ -33,6 +33,9 @@ const BUDGETS_MS = {
   'cobranza.queue': 80,
   'cobranza.in-progress': 40,
   'cobranza.month-payments': 40,
+  'schedules.agenda-counts': 60,
+  'schedules.agenda-page': 60,
+  'schedules.history': 40,
 };
 
 const asJson = process.argv.includes('--json');
@@ -117,6 +120,22 @@ async function main() {
     [companyId],
   );
   const sampleTicketId = ticketSample.rows[0]?.id;
+
+  const scheduleSample = await pool.query(
+    `SELECT client_id, service_id FROM "ClientServiceSchedule"
+     WHERE company_id = $1 AND deleted_at IS NULL ORDER BY id LIMIT 1`,
+    [companyId],
+  );
+  const sampleSchedule = scheduleSample.rows[0];
+  // Agenda bucket bounds (ZIG-I30): start of today and of today + 15 in Mexico City.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const todayStart = new Date(Math.floor((Date.now() - 6 * 60 * 60 * 1000) / DAY_MS) * DAY_MS + 6 * 60 * 60 * 1000);
+  const soonEnd = new Date(todayStart.getTime() + 15 * DAY_MS);
+  const agendaFrom = `FROM "ClientServiceSchedule" s
+       INNER JOIN "Client" c ON c.id = s.client_id
+       INNER JOIN "Service" sv ON sv.id = s.service_id
+       WHERE s.company_id = $1 AND s.deleted_at IS NULL
+         AND c.deleted_at IS NULL AND sv.deleted_at IS NULL`;
 
   // Warm caches once before measuring.
   await pool.query(
@@ -213,6 +232,46 @@ async function main() {
          AND p.created_at >= now() - interval '32 days'`,
       [companyId],
     ],
+    [
+      'schedules.agenda-counts',
+      `SELECT
+         count(*) FILTER (WHERE s.paused_at IS NULL AND s.next_due_at < $3) AS por_atender,
+         count(*) FILTER (WHERE s.paused_at IS NULL AND s.next_due_at < $2) AS atrasados,
+         count(*) FILTER (WHERE s.paused_at IS NULL AND s.next_due_at >= $2 AND s.next_due_at < $3) AS proximos,
+         count(*) FILTER (WHERE s.paused_at IS NULL AND s.next_due_at >= $3) AS programados,
+         count(*) FILTER (WHERE s.paused_at IS NOT NULL) AS pausados,
+         count(*) AS todos
+       ${agendaFrom}`,
+      [companyId, todayStart.toISOString(), soonEnd.toISOString()],
+    ],
+    [
+      'schedules.agenda-page',
+      `SELECT s.id, s.client_id, c.name, c.phone, s.service_id, sv.name,
+              s.interval_value, s.interval_unit, s.last_service_at, s.next_due_at,
+              s.paused_at, s.pause_reason
+       ${agendaFrom}
+         AND s.paused_at IS NULL AND s.next_due_at < $2
+       ORDER BY s.next_due_at ASC, s.id ASC
+       LIMIT 25 OFFSET 0`,
+      [companyId, soonEnd.toISOString()],
+    ],
+    sampleSchedule
+      ? [
+          'schedules.history',
+          `SELECT t.id, t.folio_number, t.folio_prefix, t.ticket_date, t.created_at,
+                  t.updated_at, t.total, t.paid, t.finished, count(*) OVER () AS match_count
+           FROM "Ticket" t
+           WHERE t.company_id = $1 AND t.client_id = $2 AND t.deleted_at IS NULL
+             AND t.document_kind = 'ticket'
+             AND EXISTS (
+               SELECT 1 FROM "ServicesTickets" st
+               WHERE st.ticket_id = t.id AND st.service_id = $3 AND st.deleted_at IS NULL
+             )
+           ORDER BY coalesce(t.ticket_date, t.created_at) DESC, t.id DESC
+           LIMIT 10`,
+          [companyId, sampleSchedule.client_id, sampleSchedule.service_id],
+        ]
+      : null,
     sampleTicketId
       ? [
           'ticket.audit-history',
@@ -237,6 +296,7 @@ async function main() {
     'User',
     'AuditEvent',
     'TicketAuditEvent',
+    'ClientServiceSchedule',
   ]);
 
   // Tiny catalogs (services / users per tenant) often fit in one heap page;

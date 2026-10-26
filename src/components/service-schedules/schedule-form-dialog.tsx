@@ -36,7 +36,9 @@ import {
 } from '@/actions/client-service-schedules';
 import type { Service } from '@/db/schema';
 import { useCompany } from '@/contexts/company-context';
-import { ScheduleIntervalPicker } from '@/components/service-schedules/schedule-interval-picker';
+import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { FILTER_SELECTED_CLASS } from '@/components/list-filter';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -45,8 +47,23 @@ import {
   CUSTOM_INTERVAL_PRESET_ID,
   findMatchingPresetId,
 } from '@/lib/schedule-interval-presets';
-import type { ScheduleIntervalUnit } from '@/lib/schedule-date';
+import { computeNextDueAt, type ScheduleIntervalUnit } from '@/lib/schedule-date';
+import { formatScheduleLongDate, localDateToIsoDay } from '@/lib/schedule-agenda-format';
 import { cn } from '@/lib/utils';
+
+/** Cada: chips for the usual intervals (ZIG-I30), Otro… opens amount and unit. */
+const INTERVAL_CHIPS: Array<{ id: string; label: string; months: number }> = [
+  { id: '1m', label: '1', months: 1 },
+  { id: '2m', label: '2', months: 2 },
+  { id: '3m', label: '3', months: 3 },
+  { id: '6m', label: '6', months: 6 },
+  { id: '12m', label: '12 meses', months: 12 },
+];
+
+const chipIdFor = (intervalValue: number, intervalUnit: ScheduleIntervalUnit): string => {
+  const match = findMatchingPresetId(intervalValue, intervalUnit);
+  return INTERVAL_CHIPS.some((chip) => chip.id === match) ? match : CUSTOM_INTERVAL_PRESET_ID;
+};
 
 type ScheduleFormDialogProps = {
   open: boolean;
@@ -114,9 +131,7 @@ export const ScheduleFormDialog = ({
       );
       setIntervalValue(schedule.intervalValue);
       setIntervalUnit(schedule.intervalUnit);
-      setPresetId(
-        findMatchingPresetId(schedule.intervalValue, schedule.intervalUnit),
-      );
+      setPresetId(chipIdFor(schedule.intervalValue, schedule.intervalUnit));
       return;
     }
 
@@ -166,6 +181,22 @@ export const ScheduleFormDialog = ({
     }
   };
 
+  const nextDuePreview =
+    intervalValue >= 1
+      ? formatScheduleLongDate(
+          localDateToIsoDay(computeNextDueAt(lastServiceAt, intervalValue, intervalUnit)),
+        )
+      : null;
+
+  const handleChip = (chipId: string) => {
+    setPresetId(chipId);
+    const chip = INTERVAL_CHIPS.find((item) => item.id === chipId);
+    if (chip) {
+      setIntervalValue(chip.months);
+      setIntervalUnit('month');
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
@@ -180,23 +211,19 @@ export const ScheduleFormDialog = ({
 
         <div className="flex flex-col gap-4 py-2">
           <div className="space-y-2">
-            <Label>Cliente</Label>
-            <Select
-              value={clientId ? String(clientId) : undefined}
-              onValueChange={(value) => setClientId(Number(value))}
+            <Label htmlFor="schedule-form-client">Cliente</Label>
+            <SearchableSelect
+              id="schedule-form-client"
+              aria-label="Cliente"
+              options={clients.map((item) => ({ value: String(item.id), label: item.name }))}
+              value={clientId ? String(clientId) : ''}
+              onValueChange={(value) => setClientId(value ? Number(value) : null)}
+              placeholder="Buscar cliente"
+              searchPlaceholder="Nombre del cliente"
+              emptyText="Ningún cliente con ese nombre"
               disabled={isEdit || saving}
-            >
-              <SelectTrigger className="min-h-11 rounded-xl" aria-label="Cliente">
-                <SelectValue placeholder="Seleccionar cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={String(client.id)}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="min-h-11 rounded-xl"
+            />
           </div>
 
           <div className="space-y-2">
@@ -250,15 +277,76 @@ export const ScheduleFormDialog = ({
             </Popover>
           </div>
 
-          <ScheduleIntervalPicker
-            presetId={presetId}
-            intervalValue={intervalValue}
-            intervalUnit={intervalUnit}
-            onPresetIdChange={setPresetId}
-            onIntervalValueChange={setIntervalValue}
-            onIntervalUnitChange={setIntervalUnit}
-            disabled={saving}
-          />
+          <div className="space-y-2">
+            <Label id="schedule-form-every">Cada</Label>
+            <div role="group" aria-labelledby="schedule-form-every" className="flex flex-wrap gap-2">
+              {[...INTERVAL_CHIPS, { id: CUSTOM_INTERVAL_PRESET_ID, label: 'Otro…', months: 0 }].map(
+                (chip) => {
+                  const pressed = presetId === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      aria-pressed={pressed}
+                      aria-label={
+                        chip.months
+                          ? `${chip.months} ${chip.months === 1 ? 'mes' : 'meses'}`
+                          : 'Otro intervalo'
+                      }
+                      disabled={saving}
+                      onClick={() => handleChip(chip.id)}
+                      className={cn(
+                        'min-h-11 min-w-11 rounded-full border px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                        pressed
+                          ? FILTER_SELECTED_CLASS
+                          : 'border-border text-muted-foreground hover:bg-muted/50',
+                      )}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                },
+              )}
+            </div>
+            {presetId === CUSTOM_INTERVAL_PRESET_ID ? (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <Input
+                  type="number"
+                  min={1}
+                  aria-label="Cantidad"
+                  className="min-h-11 rounded-xl"
+                  value={intervalValue}
+                  disabled={saving}
+                  onChange={(event) => {
+                    const parsed = Number.parseInt(event.target.value, 10);
+                    setIntervalValue(Number.isFinite(parsed) ? Math.max(1, parsed) : 1);
+                  }}
+                />
+                <Select
+                  value={intervalUnit}
+                  onValueChange={(value) => setIntervalUnit(value as ScheduleIntervalUnit)}
+                  disabled={saving}
+                >
+                  <SelectTrigger className="min-h-11 rounded-xl" aria-label="Unidad">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Meses</SelectItem>
+                    <SelectItem value="day">Días</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+          </div>
+
+          {nextDuePreview ? (
+            <p
+              className="rounded-xl bg-muted/50 px-3 py-2 text-sm"
+              data-testid="schedule-form-preview"
+            >
+              Próximo recordatorio: {nextDuePreview}
+            </p>
+          ) : null}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
