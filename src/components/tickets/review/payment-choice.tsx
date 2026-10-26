@@ -57,6 +57,106 @@ type PaymentChoiceProps = {
    */
   optional?: boolean;
   className?: string;
+  /**
+   * `chips` (phone, composer): Todo / Una parte / Nada aún in one row.
+   * `options` (desktop Terminar ticket card, canvas): bordered radio rows with
+   * a hint each and the amount inside «Pagó una parte».
+   */
+  variant?: 'chips' | 'options';
+  /** Shown under «Pagó todo» in the options variant. */
+  total?: number;
+};
+
+const OPTION_ROWS: Array<{ mode: PayMode; title: string; hint: string | null }> = [
+  { mode: 'full', title: 'Pagó todo', hint: null },
+  { mode: 'partial', title: 'Pagó una parte', hint: 'Anticipo o primer abono' },
+  { mode: 'pending', title: 'Aún no paga', hint: 'Queda pendiente de cobro' },
+];
+
+const formatTotal = (amount: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+const PaymentOptions = ({
+  choice,
+  idPrefix,
+  className,
+  total = 0,
+}: {
+  choice: PaymentChoiceState;
+  idPrefix: string;
+  className?: string;
+  total?: number;
+}) => {
+  const { payMode, setPayMode, partialInput, setPartialInput, partialTooHigh } = choice;
+  const inputId = `${idPrefix}-paid-amount`;
+  return (
+    <fieldset className={cn('m-0 flex flex-col gap-2 border-0 p-0', className)}>
+      <legend className="mb-2 p-0 text-sm font-semibold">¿Cómo pagó el cliente?</legend>
+      {OPTION_ROWS.map((option) => {
+        const selected = payMode === option.mode;
+        const titleId = `${idPrefix}-pay-${option.mode}`;
+        const hint = option.mode === 'full' ? formatTotal(total) : option.hint;
+        return (
+          <label
+            key={option.mode}
+            className={cn(
+              'flex cursor-pointer items-start gap-2.5 rounded-[10px] border px-3 py-2.5 text-sm transition-colors',
+              selected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40',
+            )}
+          >
+            <input
+              type="radio"
+              name={`${idPrefix}-pay`}
+              value={option.mode}
+              checked={selected}
+              onChange={() => setPayMode(option.mode)}
+              aria-labelledby={titleId}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+            />
+            <span className="min-w-0 flex-1">
+              <span id={titleId} className="block font-medium">
+                {option.title}
+              </span>
+              {hint ? (
+                <span className="block text-caption tabular-nums text-muted-foreground">{hint}</span>
+              ) : null}
+              {option.mode === 'partial' && selected ? (
+                <span className="mt-2 block">
+                  <span className="relative block">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      $
+                    </span>
+                    <input
+                      id={inputId}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      aria-label="Cuánto pagó"
+                      value={partialInput}
+                      onChange={(event) => setPartialInput(event.target.value)}
+                      className="h-10 w-full rounded-lg border border-input bg-background pl-7 pr-3 text-[15px] font-medium tabular-nums"
+                      placeholder="0.00"
+                    />
+                  </span>
+                  {partialTooHigh ? (
+                    <span className="mt-1 block text-caption text-destructive" role="alert">
+                      No puede ser mayor que el total.
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        );
+      })}
+    </fieldset>
+  );
 };
 
 /**
@@ -69,7 +169,12 @@ export const PaymentChoice = ({
   idPrefix = 'review',
   optional = false,
   className,
+  variant = 'chips',
+  total,
 }: PaymentChoiceProps) => {
+  if (variant === 'options') {
+    return <PaymentOptions choice={choice} idPrefix={idPrefix} className={className} total={total} />;
+  }
   const { payMode, setPayMode, partialInput, setPartialInput, partialTooHigh } = choice;
   const headingId = `${idPrefix}-pay-heading`;
   const inputId = `${idPrefix}-paid-amount`;

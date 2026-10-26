@@ -34,9 +34,13 @@ export const DocumentLinesDensitySwitch = () => {
             size="sm"
             aria-pressed={pressed}
             onClick={() => setDensity(option.value)}
+            // Canvas segmented control: the chosen one is a white chip with dark text
+            // (primary on primary/10 read 4.12:1, below AA).
             className={cn(
-              'h-8 rounded-md px-3 shadow-none hover:shadow-none',
-              pressed && 'bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary',
+              'h-8 rounded-md px-3',
+              pressed
+                ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(15,23,42,0.10)] hover:bg-background hover:text-foreground'
+                : 'text-slate-600 shadow-none hover:shadow-none dark:text-slate-300',
             )}
           >
             {option.label}

@@ -3,7 +3,10 @@
  */
 import { render, screen } from '@testing-library/react';
 
-import { TicketDetailClientCard } from '@/components/tickets/detail/ticket-detail-client-card';
+import {
+  describeClientDocuments,
+  TicketDetailClientCard,
+} from '@/components/tickets/detail/ticket-detail-client-card';
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -44,5 +47,37 @@ describe('TicketDetailClientCard WhatsApp (PR #610 review)', () => {
     const text = whatsAppText();
     expect(text).toContain('Hola, te escribe ClimaTotal Demo.');
     expect(text).not.toMatch(/recibo/i);
+  });
+});
+
+describe('TicketDetailClientCard layout (canvas)', () => {
+  it('prints the phone in groups, an em dash without email and the other ticket that owes', () => {
+    render(
+      <TicketDetailClientCard
+        {...base}
+        finished={false}
+        openBalances={[{ id: '60', folio: 'R-0060', balance: 421582.39 }]}
+      />,
+    );
+    expect(screen.getByTestId('ticket-client-phone')).toHaveTextContent('998 100 0002');
+    expect(screen.getByText('Correo').nextElementSibling).toHaveTextContent('—');
+    expect(screen.getByTestId('ticket-client-documents')).toHaveTextContent(
+      '3 tickets · R-0060 con saldo $421,582.39',
+    );
+  });
+
+  it('says since when the client is, when nothing else is owed', () => {
+    expect(
+      describeClientDocuments({ ticketCount: 2, clientSince: new Date('2026-10-10T12:00:00Z') }),
+    ).toBe('2 tickets · cliente desde octubre de 2026');
+    expect(
+      describeClientDocuments({
+        ticketCount: 5,
+        openBalances: [
+          { folio: 'R-0058', balance: 1000 },
+          { folio: 'R-0050', balance: 552.5 },
+        ],
+      }),
+    ).toBe('5 tickets · 2 con saldo $1,552.50');
   });
 });

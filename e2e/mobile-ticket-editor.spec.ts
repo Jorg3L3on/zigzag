@@ -162,8 +162,9 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByText('1 de 1 tickets', { exact: true }).filter({ visible: true })).toBeVisible({ timeout: 20_000 });
       const card = visible(page.getByRole('button', { name: new RegExp(`^(Ver|Editar) ticket ${firstId}$`) }));
       await expect(card).toBeVisible({ timeout: 15_000 });
-      await card.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
-      await page.getByRole('menuitem', { name: `Eliminar ticket ${firstId}` }).click();
+      // Row labels name the folio (R-0060), not the id; the card scopes the right one.
+      await card.getByRole('button', { name: /^Más acciones de / }).click();
+      await page.getByRole('menuitem', { name: /^Eliminar / }).click();
       const listSheet = page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ });
       await expect(listSheet).toBeVisible();
       await expect(listSheet).toContainText(clientName);
@@ -205,8 +206,8 @@ for (const width of MOBILE_WIDTHS) {
       await expect(page.getByText('1 de 1 tickets', { exact: true }).filter({ visible: true })).toBeVisible({ timeout: 20_000 });
       const firstCard = visible(page.getByRole('button', { name: new RegExp(`^(Ver|Editar) ticket ${firstId}$`) }));
       await expect(firstCard).toBeVisible({ timeout: 15_000 });
-      await firstCard.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
-      await page.getByRole('menuitem', { name: `Eliminar ticket ${firstId}` }).click();
+      await firstCard.getByRole('button', { name: /^Más acciones de / }).click();
+      await page.getByRole('menuitem', { name: /^Eliminar / }).click();
       await page.getByRole('dialog', { name: /¿Eliminar el ticket (?:#\d+|[A-Z0-9]+-\d+)\?/ }).getByRole('button', { name: 'Eliminar ticket' }).click();
       await expect(firstCard).toHaveCount(0, { timeout: 15_000 });
     });

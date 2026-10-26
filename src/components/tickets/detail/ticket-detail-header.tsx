@@ -91,9 +91,6 @@ export const TicketDetailHeader = ({
               </Link>
             </>
           ) : null}
-          {!finished ? (
-            <span className="hidden lg:inline"> · el recibo se genera al terminar</span>
-          ) : null}
           {serviceCount != null ? (
             <span className="hidden lg:inline">
               {' · '}
@@ -102,6 +99,10 @@ export const TicketDetailHeader = ({
                 ? ` · ${materialCount} ${materialCount === 1 ? 'material' : 'materiales'}`
                 : ''}
             </span>
+          ) : null}
+          {/* After the counts, as on the canvas. */}
+          {!finished ? (
+            <span className="hidden lg:inline"> · el recibo se genera al terminar</span>
           ) : null}
         </p>
       </div>

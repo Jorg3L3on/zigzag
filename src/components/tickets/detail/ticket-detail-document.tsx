@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 import { DocumentLineRow } from '@/components/documents/document-line-row';
 import { DocumentLinesDensitySwitch } from '@/components/documents/document-lines-density-switch';
@@ -65,14 +66,11 @@ export const TicketDetailDocument = ({
         </h2>
         <div className="flex items-center gap-3">
           <DocumentLinesDensitySwitch />
-          {canManage ? (
-            <Link
-              href={`/tickets/${ticketId}/edit`}
-              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
-              aria-label={finished ? 'Editar servicios' : 'Agregar servicio'}
-            >
-              {finished ? 'Editar' : 'Agregar servicio'}
-            </Link>
+          {/* A finished ticket edits from the header (Editar); En proceso adds work here (canvas). */}
+          {canManage && !finished ? (
+            <Button asChild variant="outline" size="sm" className="h-9">
+              <Link href={`/tickets/${ticketId}/edit`}>Agregar servicio</Link>
+            </Button>
           ) : null}
         </div>
       </div>
@@ -106,22 +104,19 @@ export const TicketDetailDocument = ({
 
       <div className="mt-4 flex justify-end" data-testid="ticket-document-totals">
         <dl className="w-full max-w-[360px] space-y-1.5 rounded-xl bg-muted/40 px-4 py-3 text-sm">
-          {hasMaterials ? (
-            <>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Servicios</dt>
-                <dd>
-                  <MoneyFigure amount={servicesTotal} size="sm" />
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Materiales</dt>
-                <dd>
-                  <MoneyFigure amount={materialsTotal} size="sm" />
-                </dd>
-              </div>
-            </>
-          ) : null}
+          {/* Always on screen, as on the presupuesto (the PDF keeps its own rule). */}
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Servicios</dt>
+            <dd>
+              <MoneyFigure amount={servicesTotal} size="sm" />
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Materiales</dt>
+            <dd>
+              <MoneyFigure amount={materialsTotal} size="sm" />
+            </dd>
+          </div>
           <div className="flex items-baseline justify-between gap-3">
             <dt className="text-muted-foreground">Total</dt>
             <dd>

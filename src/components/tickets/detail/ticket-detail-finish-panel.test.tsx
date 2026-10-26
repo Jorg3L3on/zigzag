@@ -182,14 +182,20 @@ describe('TicketDetailFinishPanel desktop (ZIG-I28-3)', () => {
 
     expect(screen.getByRole('heading', { name: 'Terminar ticket' })).toBeInTheDocument();
     expect(screen.getByText('Total del ticket')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getAllByText('$100.00').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Registra el pago inicial y genera el recibo')).toBeNull();
 
-    for (const name of ['Todo', 'Una parte', 'Nada aún']) {
+    // Canvas EnProceso: bordered radio rows with a hint each, none chosen.
+    expect(screen.getByRole('group', { name: '¿Cómo pagó el cliente?' })).toBeInTheDocument();
+    for (const name of ['Pagó todo', 'Pagó una parte', 'Aún no paga']) {
       const option = screen.getByRole('radio', { name });
-      expect(option).toHaveClass('border');
-      expect(option).toHaveAttribute('aria-checked', 'false');
+      expect(option).not.toBeChecked();
+      expect(option.closest('label')).toHaveClass('border');
     }
+    expect(screen.getByText('Anticipo o primer abono')).toBeInTheDocument();
+    expect(screen.getByText('Queda pendiente de cobro')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'Pagó una parte' }));
+    expect(screen.getByRole('spinbutton', { name: 'Cuánto pagó' })).toBeInTheDocument();
 
     const finish = screen.getByRole('button', { name: /terminar y generar recibo/i });
     expect(finish).toBeDisabled();
@@ -198,11 +204,11 @@ describe('TicketDetailFinishPanel desktop (ZIG-I28-3)', () => {
     expect(finish).toHaveAttribute('id', 'terminar-ticket-button');
     expect(
       screen.getByText(
-        'Se registra el pago, se crea el recibo R-0012 y te preguntamos si quieres recordatorios de servicio.',
+        'Se registra el pago, se crea el recibo R-0012 y te preguntamos si quieres recordatorios de servicio para este cliente.',
       ),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
+    await user.click(screen.getByRole('radio', { name: 'Aún no paga' }));
     expect(finish).toBeEnabled();
     finish.focus();
     expect(finish).toHaveFocus();
@@ -231,7 +237,7 @@ describe('TicketDetailFinishPanel desktop (ZIG-I28-3)', () => {
     expect(screen.getByText(/agrega al menos un servicio/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Se registra el pago, se crea el recibo y te preguntamos si quieres recordatorios de servicio.',
+        'Se registra el pago, se crea el recibo y te preguntamos si quieres recordatorios de servicio para este cliente.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/R-\d|R-nnnn/)).toBeNull();

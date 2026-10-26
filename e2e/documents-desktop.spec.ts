@@ -80,7 +80,8 @@ test.describe('Documents desktop @1280px', () => {
 
     await page.goto('/tickets');
     await page.getByPlaceholder('Buscar por cliente, folio o teléfono').fill(suffix);
-    await expect(page.getByText('1\u20131 de 1 tickets').filter({ visible: true })).toBeVisible({
+    // A single page reads «1 de 1 tickets» (canvas footer).
+    await expect(page.getByText(/^1 de 1 tickets$/).filter({ visible: true })).toBeVisible({
       timeout: 20_000,
     });
     await check('list');

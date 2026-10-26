@@ -10,6 +10,11 @@ import {
 } from '@tanstack/react-table';
 import type { Ticket, TicketListCounts } from '@/actions/tickets';
 import { getTicketsPaginated } from '@/actions/tickets';
+import {
+  ListColumnsMenu,
+  useListHiddenColumns,
+  type ListColumnOption,
+} from '@/components/list-views/list-columns-menu';
 import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
 import {
   buildTicketFilterChips,
@@ -55,6 +60,14 @@ import { parseFinishedFilter, parseStatusFilter } from '@/components/tickets/tic
 type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
 
 const DEFAULT_PAGE_SIZE = 25;
+
+/** Columnas (canvas ListaA): what a person can hide on the desktop table. */
+const TICKET_OPTIONAL_COLUMNS: ListColumnOption[] = [
+  { id: 'services', label: 'Trabajo' },
+  { id: 'ticket_date', label: 'Fecha' },
+  { id: 'total', label: 'Total' },
+  { id: 'balance', label: 'Saldo' },
+];
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
@@ -333,10 +346,15 @@ export default function TicketsList() {
 
   const filteredTickets = tickets;
 
+  const hiddenColumns = useListHiddenColumns('zigzag:tickets-columns:v1');
   const table = useReactTable({
     data: filteredTickets,
     columns,
-    state: { sorting, pagination, columnVisibility: { client_tel: false } },
+    state: {
+      sorting,
+      pagination,
+      columnVisibility: { client_tel: false, ...hiddenColumns.visibility },
+    },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
@@ -392,8 +410,9 @@ export default function TicketsList() {
     <div className="mb-4 hidden items-center justify-between gap-4 md:flex">
       <h1 className="text-2xl font-semibold tracking-tight">
         Tickets
+        {/* The whole list, whatever the view (canvas «Tickets · 60»). */}
         {hasLoadedOnce ? (
-          <span className="font-normal text-muted-foreground"> · {totalCount}</span>
+          <span className="font-normal text-muted-foreground"> · {counts?.all ?? totalCount}</span>
         ) : null}
       </h1>
       {canWrite ? (
@@ -441,6 +460,9 @@ export default function TicketsList() {
         hasActiveFilters={hasActiveFilters}
         onClearFilters={handleClearFilters}
         filterChips={filterChips}
+        columnsMenu={
+          <ListColumnsMenu table={table} options={TICKET_OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
+        }
       />
 
       {snapshotUpdatedAt ? (

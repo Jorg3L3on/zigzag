@@ -24,6 +24,12 @@ describe('formatPhoneDisplay (ZIG-I13-7)', () => {
     expect(formatPhoneDisplay('+529983457712')).toBe('+52 998 345 7712');
   });
 
+  it('reads a Mexican number saved with 52 or 521 and no + like the ten digits', () => {
+    expect(formatPhoneDisplay('529981000000')).toBe('998 100 0000');
+    expect(formatPhoneDisplay('52 998 100 0000')).toBe('998 100 0000');
+    expect(formatPhoneDisplay('5219981000000')).toBe('998 100 0000');
+  });
+
   it('returns anything else as typed, and null when empty', () => {
     expect(formatPhoneDisplay('5551234')).toBe('5551234');
     expect(formatPhoneDisplay('  ')).toBeNull();

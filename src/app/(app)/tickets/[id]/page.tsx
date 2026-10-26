@@ -107,6 +107,7 @@ export default async function TicketDetailsPage({
         ticket.client
           ? {
               id: ticket.client.id,
+              created_at: ticket.client.created_at,
               name: ticket.client.name,
               email: ticket.client.email,
               phone: ticket.client.phone,
@@ -128,19 +129,22 @@ export default async function TicketDetailsPage({
       paid={paid}
       finished={ticket.finished}
       companyName={ticket.company?.name ?? null}
+      openBalances={ticket.client_open_balances ?? []}
     />
   );
   const moneyColumn = (
     <aside
-      aria-label="Cobro del ticket"
-      className="flex min-w-0 flex-col gap-4 lg:gap-6 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1"
+      aria-label={ticket.finished ? 'Cobro, cliente y actividad' : 'Terminar, cliente y actividad'}
+      // Narrow desktop (1024 with the sidebar): the money side comes first, not under the
+      // whole document; from 60rem it is the sticky right column (canvas).
+      className="flex min-w-0 flex-col gap-4 lg:order-first lg:gap-6 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1"
     >
       {ticket.finished ? (
         <>
           <div className="lg:hidden">
             <TicketDetailPaymentsSection payments={payments} />
           </div>
-          <div className="hidden flex-col gap-4 lg:flex lg:gap-6">
+          <div className="hidden flex-col gap-4 lg:flex lg:gap-6 lg:@max-[60rem]:grid lg:@max-[60rem]:grid-cols-2 lg:@max-[60rem]:items-start lg:@max-[60rem]:gap-4">
             <TicketDetailCollectCard
               total={total}
               paid={paid}
@@ -169,7 +173,7 @@ export default async function TicketDetailsPage({
             downloadFileName={downloadFileName}
             folio={folioLabel}
           />
-          <div className="hidden flex-col gap-4 lg:flex lg:gap-6">
+          <div className="hidden flex-col gap-4 lg:flex lg:gap-6 lg:@max-[60rem]:grid lg:@max-[60rem]:grid-cols-2 lg:@max-[60rem]:items-start lg:@max-[60rem]:gap-4">
             {clientCard}
             <TicketDetailActivityCard entries={auditEntries} />
           </div>
@@ -271,7 +275,7 @@ export default async function TicketDetailsPage({
                 order is the phone order (finish panel above Servicios, Pagos between
                 Servicios and Actividad); from lg the aside is placed in column 2 across
                 both rows and stays sticky, and Actividad sits right under Servicios. */}
-            <div className="grid gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:items-start @min-[60rem]:gap-x-8 @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:items-start @min-[60rem]:gap-x-8 @min-[66rem]:grid-cols-[minmax(0,1fr)_320px] @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]">
               {ticket.finished ? null : moneyColumn}
 
               <div className="min-w-0 @min-[60rem]:col-start-1 @min-[60rem]:row-start-1">
@@ -287,7 +291,8 @@ export default async function TicketDetailsPage({
 
               {ticket.finished ? moneyColumn : null}
 
-              <div className="min-w-0 @min-[60rem]:col-start-1 @min-[60rem]:row-start-2">
+              {/* Phones keep the full timeline; desktop opens it inside the Actividad card. */}
+              <div className="min-w-0 lg:hidden">
                 <TicketDetailTimeline
                   entries={auditEntries}
                   createdAt={ticket.created_at}

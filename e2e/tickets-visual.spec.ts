@@ -36,7 +36,13 @@ test.describe('Tickets visual baselines', () => {
     });
     await expect(page).toHaveScreenshot('tickets-list-desktop.png', {
       fullPage: false,
-      mask: [page.locator('tbody'), page.getByText(/de \d+ tickets/)],
+      // The heading and view tab counts move with every ticket the other specs create, like the rows.
+      mask: [
+        page.locator('tbody'),
+        page.getByText(/de \d+ tickets/),
+        page.locator('main h1 > span'),
+        page.locator('main nav button > span.tabular-nums'),
+      ],
     });
   });
 

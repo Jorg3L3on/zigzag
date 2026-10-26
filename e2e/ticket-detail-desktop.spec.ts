@@ -10,28 +10,28 @@ import {
 
 /**
  * ZIG-I27-5: on desktop the right column is the money side. En proceso it holds the
- * finish panel, finished it holds Pagos; Actividad is one folded copy at the end of the
- * main column. Saves data: scratch DB or CI.
+ * finish panel, finished it holds Pagos; Actividad is one card in that column (ZIG-I28-7).
+ * Saves data: scratch DB or CI.
  */
 const visible = (locator: Locator) => locator.filter({ visible: true }).first();
 
 const columnOf = async (page: Page, locator: Locator) => {
-  const asideBox = await page.locator('main aside[aria-label="Cobro del ticket"]').boundingBox();
+  const asideBox = await page.locator('main aside[aria-label$="cliente y actividad"]').boundingBox();
   const box = await locator.boundingBox();
   expect(box, 'element is rendered').not.toBeNull();
   if (!asideBox || asideBox.width === 0) return 'main';
   return box!.x >= asideBox.x - 1 ? 'aside' : 'main';
 };
 
-const expectActivityFoldedLast = async (page: Page) => {
-  const activity = page.getByRole('button', { name: /^Actividad/ });
-  await expect(activity).toHaveCount(1);
-  await expect(activity).toHaveAttribute('aria-expanded', 'false');
-  expect(await columnOf(page, activity)).toBe('main');
-  const services = visible(page.getByRole('heading', { name: /^Servicios/ }));
-  expect((await activity.boundingBox())!.y).toBeGreaterThan((await services.boundingBox())!.y);
-  await activity.click();
-  await expect(activity).toHaveAttribute('aria-expanded', 'true');
+/**
+ * One Actividad on desktop (canvas): the card in the right column, whose Ver todo
+ * opens the rest in place. The folded timeline at the end stays for phones only.
+ */
+const expectOneActivityCard = async (page: Page) => {
+  const card = visible(page.getByTestId('ticket-activity-card'));
+  await expect(card).toBeVisible();
+  expect(await columnOf(page, card)).toBe('aside');
+  await expect(page.getByRole('button', { name: /^Actividad/ }).filter({ visible: true })).toHaveCount(0);
 };
 
 test.describe('Ticket detail desktop columns @1280px (ZIG-I27-5)', () => {
@@ -54,12 +54,12 @@ test.describe('Ticket detail desktop columns @1280px (ZIG-I27-5)', () => {
     await saveComposer(page);
     const ticketId = page.url().match(/\/tickets\/(\d+)/)![1];
 
-    // En proceso: Terminar ticket on the right, no Pagos anywhere, Actividad folded at the end.
+    // En proceso: Terminar ticket on the right, no Pagos anywhere, one Actividad card on the right.
     const finish = visible(page.locator('#finalizar'));
     await expect(finish).toBeVisible({ timeout: 15_000 });
     expect(await columnOf(page, finish)).toBe('aside');
     await expect(page.getByRole('heading', { name: /^Pagos/ }).filter({ visible: true })).toHaveCount(0);
-    await expectActivityFoldedLast(page);
+    await expectOneActivityCard(page);
 
     // Finishing from the right column lands on Pagos in the same place.
     await page.reload();
@@ -71,6 +71,6 @@ test.describe('Ticket detail desktop columns @1280px (ZIG-I27-5)', () => {
     expect(await columnOf(page, pagos)).toBe('aside');
     await expect(page.getByRole('heading', { name: /^Pagos/ }).filter({ visible: true })).toHaveCount(1);
     await expect(page.locator('#finalizar').filter({ visible: true })).toHaveCount(0);
-    await expectActivityFoldedLast(page);
+    await expectOneActivityCard(page);
   });
 });

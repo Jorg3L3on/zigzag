@@ -346,7 +346,8 @@ describe('TicketsList', () => {
     expect(within(views).getByRole('button', { name: /Todos/ })).toHaveTextContent('8');
     expect(within(views).getByRole('button', { name: /Por cobrar/ })).toHaveTextContent('3');
     expect(views).not.toHaveTextContent('$');
-    expect(await screen.findByRole('heading', { name: /Tickets · 1/ })).toHaveClass(
+    // The heading counts the whole list, not the page or the view (canvas «Tickets · 60»).
+    expect(await screen.findByRole('heading', { name: /Tickets · 8/ })).toHaveClass(
       'text-2xl',
       'font-semibold',
     );

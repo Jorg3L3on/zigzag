@@ -106,7 +106,8 @@ export const TicketDateRangeFilter = ({
       variant="outline"
       className={cn(
         layout === 'desktop'
-          ? cn(DESKTOP_CONTROL_CLASS, 'w-64 justify-start text-left font-normal')
+          ? // As wide as its label (canvas «Todas las fechas»), up to 16rem for a range.
+            cn(DESKTOP_CONTROL_CLASS, 'w-auto max-w-64 justify-start text-left font-normal')
           : 'h-11 w-full justify-start text-left font-normal',
         !value?.from && 'text-muted-foreground',
       )}

@@ -20,7 +20,7 @@ import {
   canCollectTicketPayment,
   canDownloadTicketInvoice,
 } from '@/lib/tickets-rbac';
-import { Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 
 type TicketListRowQuickActionsProps = {
   ticket: Ticket;
@@ -65,6 +65,8 @@ export const TicketListRowQuickActions = ({
   const showEditar = canWrite && !ticket.finished && !hasServices;
   const showPdf = canDownload && ticket.finished;
   const ticketId = ticket.id.toString();
+  // People know the folio (R-0060), not the internal id; #id only without a folio.
+  const folio = formatDocumentFolio(ticket);
   const hasQuickActions = showCollect || showTerminar || showEditar || showPdf;
 
   const handleDownloadPdf = async () => {
@@ -92,7 +94,8 @@ export const TicketListRowQuickActions = ({
   return (
     <div className="relative flex items-center justify-end">
       {hasQuickActions ? (
-        // Floats over Saldo and Estado so the table reserves room only for ⋮ (PR #610 review).
+        // Floats over Saldo and Estado at every width, so the table reserves room only for ⋮
+        // and Cliente keeps it (PR #610 review; as on the presupuestos table).
         <div
           className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
           data-testid="ticket-row-quick-actions"
@@ -102,8 +105,9 @@ export const TicketListRowQuickActions = ({
               type="button"
               variant="outline"
               size="sm"
+              className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
               onClick={() => setCollectOpen(true)}
-              aria-label={`Cobrar el ticket ${ticketId}`}
+              aria-label={`Cobrar ${folio}`}
             >
               Cobrar
             </Button>
@@ -112,7 +116,7 @@ export const TicketListRowQuickActions = ({
             <Button asChild variant="outline" size="sm">
               <Link
                 href={hrefForTicketListRow(ticket, canWrite)}
-                aria-label={`Terminar ticket ${ticketId}`}
+                aria-label={`Terminar ${folio}`}
               >
                 Terminar
               </Link>
@@ -120,7 +124,7 @@ export const TicketListRowQuickActions = ({
           ) : null}
           {showEditar ? (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/tickets/${ticketId}/edit`} aria-label={`Editar ticket ${ticketId}`}>
+              <Link href={`/tickets/${ticketId}/edit`} aria-label={`Editar ${folio}`}>
                 Editar
               </Link>
             </Button>
@@ -134,9 +138,14 @@ export const TicketListRowQuickActions = ({
               onClick={() => {
                 void handleDownloadPdf();
               }}
-              aria-label={`PDF del ticket ${ticketId}`}
+              aria-label={`PDF de ${folio}`}
+              className="w-9 px-0"
             >
-              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : 'PDF'}
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
             </Button>
           ) : null}
         </div>
@@ -148,6 +157,7 @@ export const TicketListRowQuickActions = ({
         onPaymentApplied={onPaymentApplied}
         canWrite={canWrite}
         companyId={companyId}
+        triggerIcon="horizontal"
       />
       {showCollect ? (
         <TicketListCollectPaymentDialog
@@ -157,7 +167,7 @@ export const TicketListRowQuickActions = ({
           total={ticket.total}
           paid={ticket.paid}
           companyId={companyId}
-          folio={formatDocumentFolio(ticket)}
+          folio={folio}
           clientName={ticket.client_name}
           clientTel={ticket.client_tel}
           onPaymentApplied={(result) => {

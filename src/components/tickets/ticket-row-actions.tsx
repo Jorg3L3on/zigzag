@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
@@ -47,6 +47,8 @@ interface TicketRowActionsProps {
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
+  /** The desktop table uses the canvas ⋯; phone cards and Cobranza keep ⋮. */
+  triggerIcon?: 'vertical' | 'horizontal';
 }
 
 const buildListTicketPdfFileName = (ticket: Ticket): string => {
@@ -66,6 +68,7 @@ export function TicketRowActions({
   onPaymentApplied,
   canWrite = true,
   companyId,
+  triggerIcon = 'vertical',
 }: TicketRowActionsProps) {
   const { can } = usePermissions();
   const canDownload = canDownloadTicketInvoice(can);
@@ -80,7 +83,8 @@ export function TicketRowActions({
     canCollect &&
     ticket.finished &&
     paymentStatus !== 'paid';
-
+  // Labels name the folio people see (R-0060); #id only for a row without one.
+  const folio = formatDocumentFolio(ticket);
 
   const handleDownloadTicket = async (event: Event) => {
     event.preventDefault();
@@ -114,9 +118,13 @@ export function TicketRowActions({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={`Más acciones del ticket ${ticket.id.toString()}`}
+            aria-label={`Más acciones de ${folio}`}
           >
-            <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start"/>
+            {triggerIcon === 'horizontal' ? (
+              <MoreHorizontal className="h-4 w-4" aria-hidden data-icon="inline-start" />
+            ) : (
+              <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -129,7 +137,7 @@ export function TicketRowActions({
           {showCollectAction ? (
             <DropdownMenuItem
               onSelect={() => setCollectOpen(true)}
-              aria-label={`Cobrar el ticket ${ticket.id.toString()}`}
+              aria-label={`Cobrar ${folio}`}
             >
               <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
               Cobrar
@@ -147,7 +155,7 @@ export function TicketRowActions({
             <DropdownMenuItem
               disabled={isDownloading}
               onSelect={handleDownloadTicket}
-              aria-label={`Descargar ticket ${ticket.id.toString()}`}
+              aria-label={`Descargar ${folio}`}
             >
               {isDownloading ? (
                 <Loader2
@@ -165,7 +173,7 @@ export function TicketRowActions({
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onSelect={() => setDeleteOpen(true)}
-              aria-label={`Eliminar ticket ${ticket.id.toString()}`}
+              aria-label={`Eliminar ${folio}`}
             >
               <Trash2 className="mr-2 h-4 w-4" data-icon="inline-start" />
               Eliminar
@@ -180,7 +188,7 @@ export function TicketRowActions({
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           ticketId={Number(ticket.id)}
-          folio={formatDocumentFolio(ticket)}
+          folio={folio}
           clientName={ticket.client_name ?? null}
           total={ticket.total}
           paymentsTotal={ticket.paid ?? 0}
@@ -200,7 +208,7 @@ export function TicketRowActions({
           paid={ticket.paid}
           companyId={companyId}
           // The folio only when the ticket has one; the title never shows the internal id.
-          folio={ticket.folio_number != null ? formatDocumentFolio(ticket) : null}
+          folio={ticket.folio_number != null ? folio : null}
           clientName={ticket.client_name}
           clientTel={ticket.client_tel}
           onPaymentApplied={(result) => {

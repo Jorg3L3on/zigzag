@@ -15,7 +15,7 @@ import {
   getTicketPaymentStatusSortRank,
 } from '@/lib/ticket-payment-status';
 import { cn } from '@/lib/utils';
-import { formatListDate } from '@/lib/format-list-date';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -53,11 +53,17 @@ function TicketSortableHeader<TData>({
 }
 
 /** Short date on one line, `mié 22 oct`, with the full date on hover (ZIG-I27-2). */
+/** «10 oct», with the year only when it is not this one (canvas ListaA). */
 const TicketListDate = ({ date }: { date: Date | null }) => {
-  if (!date) return <span>Sin fecha</span>;
+  if (!date) return <span className="text-muted-foreground">Sin fecha</span>;
+  const value = new Date(date);
+  const pattern = value.getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy';
   return (
-    <span className="whitespace-nowrap" title={format(new Date(date), 'PPP', { locale: es })}>
-      {formatListDate(date)}
+    <span
+      className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
+      title={format(value, 'PPP', { locale: es })}
+    >
+      {format(value, pattern, { locale: es })}
     </span>
   );
 };
@@ -155,6 +161,9 @@ export const createTicketsColumns = ({
   {
     id: 'client_name',
     accessorKey: 'client_name',
+    // Takes what is left (about 330px at 1280 with the sidebar) until Trabajo shows; then
+    // 21rem, as wide as at 1280: client names win over Trabajo, as on the presupuestos table.
+    meta: { className: '@min-[75rem]:w-[21rem]' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Cliente" />
     ),
@@ -167,7 +176,9 @@ export const createTicketsColumns = ({
             {name}
           </p>
           {phone ? (
-            <p className="truncate text-caption leading-4 text-muted-foreground">{phone}</p>
+            <p className="truncate text-caption leading-4 tabular-nums text-muted-foreground">
+              {formatPhoneDisplay(phone) ?? phone}
+            </p>
           ) : null}
         </div>
       );
@@ -195,17 +206,21 @@ export const createTicketsColumns = ({
   {
     id: 'services',
     accessorFn: (row) => row.services_summary ?? '',
-    // At 1024 with the sidebar open, Trabajo yields so Cliente, Total, Saldo, Estado and ⋮ fit.
-    meta: { className: 'hidden @min-[52rem]:table-cell' },
+    // Only once Cliente keeps 21rem and Trabajo gets the canvas's 220px (75rem list, ~1504 with the sidebar).
+    meta: { className: 'hidden @min-[75rem]:table-cell' },
     header: () => <span>Trabajo</span>,
     cell: ({ row }) => {
       const summary = row.original.services_summary?.trim();
       if (!summary) {
         return <span className="text-muted-foreground">Sin servicios todavía</span>;
       }
+      // «A, B… +5»: the first two names, then how many more (canvas ListaA).
+      const head = row.original.services_head?.length ? row.original.services_head.join(', ') : summary;
+      const more = Math.max((row.original.services_count ?? 0) - 2, 0);
       return (
-        <span className="block truncate" title={summary}>
-          {summary}
+        <span className="flex min-w-0 items-baseline gap-1 text-[13px] text-slate-600 dark:text-slate-300" title={summary}>
+          <span className="truncate">{head}</span>
+          {more > 0 ? <span className="shrink-0 text-muted-foreground/70">+{more}</span> : null}
         </span>
       );
     },
@@ -278,7 +293,7 @@ export const createTicketsColumns = ({
   {
     id: 'actions',
     enableSorting: false,
-    // Only ⋮ takes room; Cobrar, Terminar, Editar and PDF float over the row on hover.
+    // Only ⋮ takes room; Cobrar, Terminar and PDF float with the row (canvas hover actions).
     meta: { className: 'w-[3.25rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (

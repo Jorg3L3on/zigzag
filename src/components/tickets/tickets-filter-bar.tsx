@@ -249,12 +249,12 @@ export const TicketsFilterBar = ({
         ) : null}
         <div className="ml-auto flex items-center gap-2">
           <TicketsSortControls
-            variant="full"
+            variant="desktop"
             sorting={sorting}
             onSortingChange={onSortingChange}
             id="ticket-sort-desktop"
             labelHidden
-            triggerClassName="h-11 w-auto min-w-48 gap-2 rounded-full px-4"
+            triggerClassName="h-11 w-auto gap-2 rounded-full px-4"
           />
           {columnsMenu}
         </div>

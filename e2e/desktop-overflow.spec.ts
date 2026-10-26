@@ -119,13 +119,14 @@ test.describe('Desktop shell without overflow (ZIG-I27-1)', () => {
     await firstRow.locator('td').first().click();
     await page.waitForURL(/\/tickets\/\d+$/);
     await page.waitForLoadState('networkidle');
-    const aside = page.locator('main aside[aria-label="Cobro del ticket"]');
+    const aside = page.locator('main aside[aria-label$="cliente y actividad"]');
     await expect(aside).toBeVisible();
     // A short ticket barely scrolls: make the main column tall so sticky has room to act.
     const before = await aside.evaluate((el) => {
       const spacer = document.createElement('div');
       spacer.style.height = '1600px';
-      el.nextElementSibling?.appendChild(spacer);
+      // The document card is the main column (the folded timeline is phone-only now).
+      document.querySelector('[aria-labelledby="ticket-document-heading"]')?.appendChild(spacer);
       return el.getBoundingClientRect().top;
     });
     await page.evaluate((by) => window.scrollBy(0, by), Math.round(before) + 200);
@@ -153,15 +154,17 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
     await ensureTenantCompany(page);
   });
 
-  const SECONDARY: { path: string; header: string }[] = [
-    { path: '/tickets', header: 'Trabajo' },
-    { path: '/clients', header: 'Dirección' },
-    { path: '/services', header: 'Descripción' },
+  // Tickets: Trabajo yields to the client's full name until the list itself is 75rem
+  // wide (~1504 with the sidebar open, as presupuestos); the others come back at 1280.
+  const SECONDARY: { path: string; header: string; wide: number }[] = [
+    { path: '/tickets', header: 'Trabajo', wide: 1536 },
+    { path: '/clients', header: 'Dirección', wide: 1280 },
+    { path: '/services', header: 'Descripción', wide: 1280 },
   ];
 
-  test('secondary columns hide below 1280 and come back at 1280', async ({ page }) => {
-    for (const { path, header } of SECONDARY) {
-      for (const [width, shown] of [[1120, false], [1280, true]] as const) {
+  test('secondary columns hide on narrow windows and come back when there is room', async ({ page }) => {
+    for (const { path, header, wide } of SECONDARY) {
+      for (const [width, shown] of [[1120, false], [wide, true]] as const) {
         await page.setViewportSize({ width, height: 800 });
         await page.goto(path);
         await page.waitForLoadState('networkidle');
@@ -192,6 +195,26 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
       const [a, b] = [(await search.boundingBox())!, (await fechas.boundingBox())!];
       expect(Math.abs(a.y - b.y), `@${width}: search and Fechas on one row`).toBeLessThanOrEqual(8);
       await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
+    }
+  });
+
+  // Canvas ListaA: at 1280 with the sidebar the whole bar is one row, the order reading «Más recientes».
+  test('at 1280 the tickets and presupuestos bars keep one row with a short order label', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const { path, order } of [
+      { path: '/tickets', order: 'Ordenar lista de tickets' },
+      { path: '/presupuestos', order: 'Ordenar presupuestos' },
+    ]) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      const search = page.getByPlaceholder('Buscar por cliente, folio o teléfono').filter({ visible: true }).first();
+      const sort = page.getByRole('combobox', { name: order }).filter({ visible: true }).first();
+      const columns = page.getByRole('button', { name: 'Elegir columnas' }).filter({ visible: true }).first();
+      await expect(sort).toBeVisible({ timeout: 15_000 });
+      if (path === '/tickets') await expect(sort).toHaveText('Más recientes');
+      const [s, o, c] = [(await search.boundingBox())!, (await sort.boundingBox())!, (await columns.boundingBox())!];
+      expect(Math.abs(s.y - o.y), `${path}: search and order on one row`).toBeLessThanOrEqual(8);
+      expect(Math.abs(s.y - c.y), `${path}: search and Columnas on one row`).toBeLessThanOrEqual(8);
     }
   });
 

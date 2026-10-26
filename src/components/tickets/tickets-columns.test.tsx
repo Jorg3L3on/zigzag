@@ -108,14 +108,17 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
 
     expect(screen.getByText('R-0012')).toHaveClass('font-mono', 'text-caption');
     expect(screen.getByText('Cliente Alfa')).toHaveClass('text-sm', 'font-medium');
-    expect(screen.getByText('5551234567')).toHaveClass('text-caption');
+    // Phone as the canvas prints it: 555 123 4567.
+    expect(screen.getByText('555 123 4567')).toHaveClass('text-caption');
     expect(screen.queryByRole('columnheader', { name: 'Teléfono' })).not.toBeInTheDocument();
     expect(screen.getByText('Compresor, Mano de obra')).toBeInTheDocument();
 
     const trabajo = headers().find((header) => header.textContent === 'Trabajo');
     expect(trabajo?.className).toContain('hidden');
-    // Trabajo shows when the list's container has room, whatever the viewport (PR #610 review).
-    expect(trabajo?.className).toContain('@min-[52rem]:table-cell');
+    // Client names win: Trabajo only once Cliente keeps 21rem (its width at 1280).
+    expect(trabajo?.className).toContain('@min-[75rem]:table-cell');
+    const cliente = headers().find((header) => header.textContent === 'Cliente');
+    expect(cliente?.className).toContain('@min-[75rem]:w-[21rem]');
 
     expect(screen.getByText((_, element) => {
       const text = element?.textContent?.replace(/\s/g, '') ?? '';
@@ -145,13 +148,13 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     const user = userEvent.setup();
     render(<TableHarness ticket={makeTicket()} />);
 
-    const quick = screen.getByRole('button', { name: /cobrar el ticket 12/i }).parentElement;
+    const quick = screen.getByRole('button', { name: /^cobrar R-0012$/i }).parentElement;
     expect(quick).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
-    expect(screen.getByRole('button', { name: /más acciones del ticket 12/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /pdf del ticket 12/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^más acciones de R-0012$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^pdf de R-0012$/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /cobrar el ticket 12/i }));
+    await user.click(screen.getByRole('button', { name: /^cobrar R-0012$/i }));
     expect(screen.getByRole('heading', { name: /^cobrar ticket R-0012$/i })).toBeInTheDocument();
   });
 
@@ -162,7 +165,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: /terminar ticket 12/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^terminar R-0012$/i })).toHaveAttribute(
       'href',
       '/tickets/12',
     );
@@ -177,7 +180,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: /editar ticket 12/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^editar R-0012$/i })).toHaveAttribute(
       'href',
       '/tickets/12/edit',
     );
@@ -187,7 +190,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     render(<TableHarness ticket={makeTicket()} canWrite={false} />);
 
     expect(screen.queryByRole('button', { name: /cobrar/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /más acciones del ticket 12/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /pdf del ticket 12/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^más acciones de R-0012$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^pdf de R-0012$/i })).toBeInTheDocument();
   });
 });
