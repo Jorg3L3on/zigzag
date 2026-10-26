@@ -75,10 +75,24 @@ export const TeamRolePill = ({ name }: { name: string | null }) => (
   <span className={cn(chipClass, ROLE_TONE_CLASS[teamRoleTone(name)])}>{teamRoleLabel(name)}</span>
 );
 
-export const TeamAccessPill = ({ member }: { member: TeamMember }) => {
+export const TeamAccessPill = ({
+  member,
+  wrap = false,
+}: {
+  member: TeamMember;
+  /** Table column: «Debe cambiar contraseña» may take two lines to save width. */
+  wrap?: boolean;
+}) => {
   const access = teamMemberAccess(member);
   return (
-    <span className={cn(chipClass, ACCESS_TONE_CLASS[access])} data-testid="team-member-access">
+    <span
+      className={cn(
+        chipClass,
+        wrap && 'h-auto min-h-6 max-w-[9.5rem] whitespace-normal py-0.5 leading-tight',
+        ACCESS_TONE_CLASS[access],
+      )}
+      data-testid="team-member-access"
+    >
       {TEAM_ACCESS_LABELS[access]}
     </span>
   );

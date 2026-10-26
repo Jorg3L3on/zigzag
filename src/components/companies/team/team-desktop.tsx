@@ -169,16 +169,16 @@ export const TeamDesktop = ({
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border">
-          <Table>
+          {/* px-3 cells: Persona · Rol · Acceso · Alta fit at 1280 with the sidebar open. */}
+          <Table className="[&_td]:px-3 [&_th]:px-3">
             <TableHeader>
               <TableRow>
                 <TableHead className={headClass}>Persona</TableHead>
                 {/* Narrow column (1024 with the sidebar open): Rol and Acceso move under
-                    the name as pills, like the phone card; Alta only shows with room
-                    for a «Debe cambiar contraseña» pill beside it. */}
+                    the name as pills, like the phone card; Alta needs a bit more room. */}
                 <TableHead className={cn(headClass, 'hidden @min-[36rem]:table-cell')}>Rol</TableHead>
                 <TableHead className={cn(headClass, 'hidden @min-[36rem]:table-cell')}>Acceso</TableHead>
-                <TableHead className={cn(headClass, 'hidden @min-[52rem]:table-cell')}>Alta</TableHead>
+                <TableHead className={cn(headClass, 'hidden @min-[46rem]:table-cell')}>Alta</TableHead>
                 <TableHead className="w-px text-right">
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -218,9 +218,9 @@ export const TeamDesktop = ({
                     <TeamRolePill name={member.roleName} />
                   </TableCell>
                   <TableCell className="hidden @min-[36rem]:table-cell">
-                    <TeamAccessPill member={member} />
+                    <TeamAccessPill member={member} wrap />
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground group-hover:text-slate-600 group-focus-within:text-slate-600 dark:group-hover:text-slate-300 dark:group-focus-within:text-slate-300 @min-[52rem]:table-cell">
+                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground group-hover:text-slate-600 group-focus-within:text-slate-600 dark:group-hover:text-slate-300 dark:group-focus-within:text-slate-300 @min-[46rem]:table-cell">
                     {format(new Date(member.createdAt), 'd MMM yy', { locale: es })}
                   </TableCell>
                   <TableCell className="relative w-px">

@@ -201,6 +201,9 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
 
   test('the hub content meets 4.5:1 contrast (color-contrast is off in the shared helper)', async ({ page }) => {
     const contrast = async (label: string) => {
+      // Hover actions fade in; measure the resting page, not a half-faded row.
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(400);
       const results = await new AxeBuilder({ page })
         .withRules(['color-contrast'])
         .include('main')
