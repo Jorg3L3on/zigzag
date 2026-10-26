@@ -21,11 +21,11 @@ import {
   TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
 import { PaymentChoice, usePaymentChoice } from '@/components/tickets/review/payment-choice';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { useCompany } from '@/contexts/company-context';
-import { useIsDesktop } from '@/hooks/use-desktop';
 import { usePermissions } from '@/hooks/use-permissions';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import {
@@ -81,7 +81,6 @@ export const TicketDetailFinishPanel = ({
   const router = useRouter();
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
-  const isDesktop = useIsDesktop();
   const canFinish = canFinishTicket(can);
 
   // No default: nothing is recorded as paid unless the user picks it (ZIG-I12 Q2).
@@ -265,119 +264,119 @@ export const TicketDetailFinishPanel = ({
     </>
   );
 
-  if (isDesktop) {
-    return (
-      <>
-        {/* #finalizar stays so deep links and the desktop e2e still find the panel. */}
-        <div id="finalizar" className="min-w-0">
-          <TicketDetailSectionCard
-            id="terminar-ticket"
-            tabIndex={-1}
-            aria-labelledby="ticket-finish-heading"
-            className="scroll-mt-24 border-primary/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <TicketDetailRailLabel id="ticket-finish-heading">Terminar ticket</TicketDetailRailLabel>
+  // Phone card below lg, rail card from lg; no phone card first on a desktop reload (ZIG-28).
+  // #finalizar stays on both so deep links and the desktop e2e still find the panel.
+  const desktopPanel = (
+    <div id="finalizar" className="min-w-0">
+      <TicketDetailSectionCard
+        id="terminar-ticket"
+        tabIndex={-1}
+        aria-labelledby="ticket-finish-heading"
+        className="scroll-mt-24 border-primary/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <TicketDetailRailLabel id="ticket-finish-heading">Terminar ticket</TicketDetailRailLabel>
 
-            <div className="mt-2 flex items-baseline justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Total del ticket</span>
-              <MoneyFigure
-                amount={ticketTotal}
-                size="lg"
-                className="shrink-0 whitespace-nowrap text-[22px] font-bold tracking-tight [overflow-wrap:normal]"
-              />
-            </div>
-
-            <PaymentChoice
-              choice={paymentChoice}
-              idPrefix="detail"
-              variant="options"
-              total={ticketTotal}
-              className="mt-4"
-            />
-
-            <Button
-              type="button"
-              id="terminar-ticket-button"
-              onClick={() => void handleFinishClick()}
-              disabled={finishBlocked}
-              className="mt-4 h-11 w-full gap-2 text-[15px] md:h-11"
-            >
-              {finishButtonLabel}
-            </Button>
-
-            <p className="mt-3 text-caption leading-relaxed text-muted-foreground">
-              {finishReceiptNote(folio)}
-            </p>
-
-            {!hasServices ? (
-              <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
-                Agrega al menos un servicio para poder finalizar.{' '}
-                <Link
-                  href={`/tickets/${Number(ticketId)}/edit`}
-                  className="font-medium underline underline-offset-4"
-                >
-                  Ir a servicios
-                </Link>
-              </p>
-            ) : null}
-          </TicketDetailSectionCard>
+        <div className="mt-2 flex items-baseline justify-between gap-3">
+          <span className="text-sm text-muted-foreground">Total del ticket</span>
+          <MoneyFigure
+            amount={ticketTotal}
+            size="lg"
+            className="shrink-0 whitespace-nowrap text-[22px] font-bold tracking-tight [overflow-wrap:normal]"
+          />
         </div>
-        {schedulesDialog}
-      </>
-    );
-  }
+
+        <PaymentChoice
+          choice={paymentChoice}
+          idPrefix="detail"
+          variant="options"
+          total={ticketTotal}
+          className="mt-4"
+        />
+
+        <Button
+          type="button"
+          id="terminar-ticket-button"
+          onClick={() => void handleFinishClick()}
+          disabled={finishBlocked}
+          className="mt-4 h-11 w-full gap-2 text-[15px] md:h-11"
+        >
+          {finishButtonLabel}
+        </Button>
+
+        <p className="mt-3 text-caption leading-relaxed text-muted-foreground">
+          {finishReceiptNote(folio)}
+        </p>
+
+        {!hasServices ? (
+          <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+            Agrega al menos un servicio para poder finalizar.{' '}
+            <Link
+              href={`/tickets/${Number(ticketId)}/edit`}
+              className="font-medium underline underline-offset-4"
+            >
+              Ir a servicios
+            </Link>
+          </p>
+        ) : null}
+      </TicketDetailSectionCard>
+    </div>
+  );
+
+  const phonePanel = (
+    <TicketDetailSectionCard
+      id="finalizar"
+      aria-labelledby="ticket-finish-heading"
+    >
+      <TicketDetailSectionHeading
+        id="ticket-finish-heading"
+        title="Terminar ticket"
+        description="Registra el pago inicial y genera el recibo"
+      />
+
+      <div className="space-y-4">
+        <p className="text-sm font-medium tabular-nums text-foreground">
+          Total: <FormattedCurrency amount={total} />
+        </p>
+
+        <PaymentChoice choice={paymentChoice} idPrefix="detail" />
+
+        <Button
+          type="button"
+          onClick={() => void handleFinishClick()}
+          disabled={isSubmitting || !hasServices || paidExceedsTotal || !hasPayChoice}
+          className="h-11 w-full gap-2 sm:w-auto"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Finalizando...
+            </>
+          ) : (
+            <>
+              <FileText className="h-4 w-4" aria-hidden />
+              Terminar y generar recibo
+            </>
+          )}
+        </Button>
+
+        {!hasServices ? (
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Agrega al menos un servicio para poder finalizar.{' '}
+            <Link
+              href={`/tickets/${Number(ticketId)}/edit`}
+              className="font-medium underline underline-offset-4"
+            >
+              Ir a servicios
+            </Link>
+          </p>
+        ) : null}
+      </div>
+    </TicketDetailSectionCard>
+  );
 
   return (
     <>
-      <TicketDetailSectionCard
-        id="finalizar"
-        aria-labelledby="ticket-finish-heading"
-      >
-        <TicketDetailSectionHeading
-          id="ticket-finish-heading"
-          title="Terminar ticket"
-          description="Registra el pago inicial y genera el recibo"
-        />
-
-        <div className="space-y-4">
-          <p className="text-sm font-medium tabular-nums text-foreground">
-            Total: <FormattedCurrency amount={total} />
-          </p>
-
-          <PaymentChoice choice={paymentChoice} idPrefix="detail" />
-
-          <Button
-            type="button"
-            onClick={() => void handleFinishClick()}
-            disabled={isSubmitting || !hasServices || paidExceedsTotal || !hasPayChoice}
-            className="h-11 w-full gap-2 sm:w-auto"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Finalizando...
-              </>
-            ) : (
-              <>
-                <FileText className="h-4 w-4" aria-hidden />
-                Terminar y generar recibo
-              </>
-            )}
-          </Button>
-
-          {!hasServices ? (
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              Agrega al menos un servicio para poder finalizar.{' '}
-              <Link
-                href={`/tickets/${Number(ticketId)}/edit`}
-                className="font-medium underline underline-offset-4"
-              >
-                Ir a servicios
-              </Link>
-            </p>
-          ) : null}
-        </div>
-      </TicketDetailSectionCard>
+      <DesktopSwitch phone={phonePanel} desktop={desktopPanel} />
       {schedulesDialog}
     </>
   );

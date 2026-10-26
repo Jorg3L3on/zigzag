@@ -29,10 +29,9 @@ test.describe('Receipt desktop axe @1280px', () => {
       await page.goto(path);
       const row = page.getByRole('row').filter({ hasText: rowText }).first();
       await expect(row).toBeVisible({ timeout: 15_000 });
-      const label = await row.locator('[aria-label*="ticket"]').first().getAttribute('aria-label');
-      const id = label?.match(/(\d+)/)?.[1];
-      expect(id).toBeTruthy();
-      await page.goto(`/tickets/${id}`);
+      // Row actions name the folio since #615, so open the ticket by clicking its row.
+      await row.locator('td').first().click();
+      await page.waitForURL(/\/tickets\/\d+$/, { timeout: 15_000 });
     };
 
     await openTicket('/tickets?finished=no', /En proceso/);

@@ -6,7 +6,15 @@ import { useIsDesktop } from '@/hooks/use-desktop';
 import type { Company } from '@/db/schema';
 
 jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => true) }));
-jest.mock('@/hooks/use-desktop', () => ({ useIsDesktop: jest.fn(() => false) }));
+jest.mock('@/hooks/use-desktop', () => {
+  const useIsDesktop = jest.fn(() => false);
+  // DesktopSwitch follows the same mocked width (ZIG-28).
+  return {
+    ...jest.requireActual('@/hooks/use-desktop'),
+    useIsDesktop,
+    useDesktopViewport: () => useIsDesktop(),
+  };
+});
 
 jest.mock('@/actions/companies', () => ({
   createCompany: jest.fn(),

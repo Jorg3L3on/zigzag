@@ -6,6 +6,7 @@ import {
   TripledResourceCard,
 } from '@/components/tripled';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 type ResourceRouteLoadingProps = {
   title: string;
@@ -144,4 +145,177 @@ export const DashboardRouteLoading = ({
       </div>
     </TripledDashboardShell>
   </>
+);
+
+type DocumentListRouteLoadingProps = {
+  title: string;
+  description: string;
+  icon: ReactNode;
+  breadcrumbs: { label: string; href?: string }[];
+  /** The list's own loading state, so the route and the list look the same. */
+  children: ReactNode;
+};
+
+/**
+ * Tickets and Presupuestos while the route loads (ZIG-28): the same shell as the
+ * page, so from md there is no card around the list, only its heading, tabs, filters
+ * and table; phones keep the card header.
+ */
+export const DocumentListRouteLoading = ({
+  title,
+  description,
+  icon,
+  breadcrumbs,
+  children,
+}: DocumentListRouteLoadingProps) => (
+  <>
+    <TripledPageHeader items={breadcrumbs} />
+    <TripledDashboardShell>
+      <TripledResourceCard
+        compactOnMobile
+        className="md:contents"
+        headerClassName="md:hidden"
+        contentClassName="md:bg-transparent md:p-0 md:pt-0"
+        title={title}
+        description={description}
+        icon={icon}
+      >
+        <div className="mb-4 hidden items-center justify-between gap-4 md:flex">
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <Skeleton className="h-9 w-32 rounded-md" />
+        </div>
+        {children}
+      </TripledResourceCard>
+    </TripledDashboardShell>
+  </>
+);
+
+const RailCardPlaceholder = ({ className }: { className?: string }) => (
+  <div className={cn('space-y-3 rounded-2xl border border-border/70 bg-card p-4', className)}>
+    <Skeleton className="h-3 w-20" />
+    <Skeleton className="h-7 w-32" />
+    <Skeleton className="h-4 w-full" />
+    <Skeleton className="h-4 w-4/5" />
+    <Skeleton className="h-11 w-full rounded-md" />
+  </div>
+);
+
+/**
+ * A ticket or presupuesto while the route loads (ZIG-28), in the receipt's shape:
+ * header, then the document with its line grid and totals beside the rail (from a
+ * 60rem page; narrower, the rail first, as the page does). Phones get the app bar
+ * and stacked cards.
+ */
+export const DocumentDetailRouteLoading = ({
+  breadcrumbs,
+  label,
+}: {
+  breadcrumbs: { label: string; href?: string }[];
+  label: string;
+}) => (
+  <>
+    <TripledPageHeader items={breadcrumbs} className="hidden md:flex" />
+    <TripledDashboardShell maxWidthClassName="max-w-[1200px]">
+      <div
+        className="@container flex flex-col gap-4 md:gap-6"
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        aria-label={label}
+      >
+        <span className="sr-only">{label}</span>
+
+        <div className="flex items-center justify-between gap-3 md:hidden">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-7 w-20 rounded-full" />
+        </div>
+
+        <div className="hidden flex-col gap-3 md:flex lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-8 w-72 max-w-full" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-28 rounded-md" />
+            <Skeleton className="h-10 w-28 rounded-md" />
+            <Skeleton className="h-10 w-10 rounded-md" />
+          </div>
+        </div>
+
+        <Skeleton className="h-28 w-full rounded-2xl lg:hidden" />
+
+        <div className="grid gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:items-start @min-[60rem]:gap-x-8 @min-[66rem]:grid-cols-[minmax(0,1fr)_320px] @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0 rounded-2xl border border-border/70 bg-card p-4 md:p-6 @min-[60rem]:col-start-1 @min-[60rem]:row-start-1">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="hidden h-8 w-44 rounded-full lg:block" />
+            </div>
+            <div className="hidden grid-cols-[minmax(0,1fr)_72px_120px_130px] gap-4 border-b border-border/60 pb-2 lg:grid">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-10 justify-self-end" />
+              <Skeleton className="h-3 w-16 justify-self-end" />
+              <Skeleton className="h-3 w-16 justify-self-end" />
+            </div>
+            <div className="divide-y divide-border/60">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="flex items-start justify-between gap-4 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_72px_120px_130px]"
+                >
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48 max-w-full" />
+                    <Skeleton className="hidden h-3 w-64 max-w-full lg:block" />
+                  </div>
+                  <Skeleton className="hidden h-4 w-8 justify-self-end lg:block" />
+                  <Skeleton className="hidden h-4 w-20 justify-self-end lg:block" />
+                  <Skeleton className="h-4 w-20 justify-self-end" />
+                </div>
+              ))}
+            </div>
+            <div className="ml-auto mt-4 w-full max-w-64 space-y-2 border-t border-border/60 pt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-6 w-full" />
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-4 lg:order-first lg:gap-6 lg:@max-[60rem]:grid lg:@max-[60rem]:grid-cols-2 lg:@max-[60rem]:items-start lg:@max-[60rem]:gap-4 @min-[60rem]:col-start-2 @min-[60rem]:row-start-1">
+            <RailCardPlaceholder />
+            <RailCardPlaceholder className="hidden lg:block" />
+            <RailCardPlaceholder className="hidden lg:block" />
+          </div>
+        </div>
+      </div>
+    </TripledDashboardShell>
+  </>
+);
+
+/**
+ * Creating or editing a ticket or presupuesto while the route loads (ZIG-28): a
+ * neutral composer shape, so neither the list nor the receipt skeleton shows there.
+ */
+export const DocumentComposerRouteLoading = ({ label }: { label: string }) => (
+  <TripledDashboardShell maxWidthClassName="max-w-[1200px]">
+    <div
+      className="flex flex-col gap-4 md:gap-6"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label={label}
+    >
+      <span className="sr-only">{label}</span>
+      <Skeleton className="h-8 w-56" />
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-4 md:p-6">
+          <Skeleton className="h-11 w-full rounded-md" />
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-16 w-full rounded-xl" />
+          ))}
+        </div>
+        <RailCardPlaceholder className="hidden lg:block" />
+      </div>
+    </div>
+  </TripledDashboardShell>
 );

@@ -38,7 +38,7 @@ import { materialDraftAmount } from '@/lib/material-drafts';
 import { describePresupuestoVigencia } from '@/lib/presupuesto-vigencia';
 import { reviewLineAmount } from '@/lib/review-lines';
 import { cn } from '@/lib/utils';
-import { useIsDesktop } from '@/hooks/use-desktop';
+import { DesktopSwitch } from '@/components/desktop-switch';
 
 export { PresupuestoStatusPill };
 
@@ -93,7 +93,6 @@ export const PresupuestoDetailLayout = (props: PresupuestoDetailLayoutProps) => 
     onCancel,
     onDuplicate,
   } = props;
-  const isDesktop = useIsDesktop();
   const issued = formatLongDate(ticketDate);
   const vigencia = describePresupuestoVigencia({ expiresAt, status });
   const materialsCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
@@ -189,11 +188,7 @@ export const PresupuestoDetailLayout = (props: PresupuestoDetailLayoutProps) => 
   ) : null;
   const actionCount = Number(showEdit) + Number(canWrite) + Number(showCancel);
 
-  if (isDesktop) {
-    return <PresupuestoDesktop {...props} />;
-  }
-
-  return (
+  const phone = (
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-3 md:space-y-4">
         <TripledMobileAppBar
@@ -380,4 +375,7 @@ export const PresupuestoDetailLayout = (props: PresupuestoDetailLayoutProps) => 
       ) : null}
     </>
   );
+
+  // The desktop document from lg; never the phone page first on a desktop reload (ZIG-28).
+  return <DesktopSwitch phone={phone} desktop={<PresupuestoDesktop {...props} />} />;
 };
