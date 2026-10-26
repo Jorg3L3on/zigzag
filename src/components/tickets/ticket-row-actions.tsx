@@ -36,6 +36,8 @@ interface Ticket {
   client_name?: string | null;
   client_tel?: string | null;
   ticket_date?: Date | null;
+  folio_number?: number | null;
+  folio_prefix?: string | null;
 }
 
 interface TicketRowActionsProps {
@@ -197,6 +199,10 @@ export function TicketRowActions({
           total={ticket.total}
           paid={ticket.paid}
           companyId={companyId}
+          // The folio only when the ticket has one; the title never shows the internal id.
+          folio={ticket.folio_number != null ? formatDocumentFolio(ticket) : null}
+          clientName={ticket.client_name}
+          clientTel={ticket.client_tel}
           onPaymentApplied={(result) => {
             onPaymentApplied?.(result);
           }}

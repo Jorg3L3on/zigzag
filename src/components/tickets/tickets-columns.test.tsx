@@ -152,7 +152,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /cobrar el ticket 12/i }));
-    expect(screen.getByRole('heading', { name: /^cobrar$/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^cobrar ticket R-0012$/i })).toBeInTheDocument();
   });
 
   it('links Terminar to the detail when the work is still in progress', () => {

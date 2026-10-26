@@ -17,6 +17,8 @@ import type { TechnicianDayTicket } from '@/lib/technician-day-queue';
 export type FieldJobSnapshot = {
   /** Server ticket id when synced; null while pending upload. */
   ticketId: string | null;
+  /** Company folio (R-0016) when the job came from a synced ticket. */
+  folio?: string | null;
   localJobId?: string | null;
   clientName: string | null;
   clientTel: string | null;
@@ -89,6 +91,7 @@ export const toFieldJobSnapshotFromCobranzaRow = (
   options?: { companyName?: string | null },
 ): FieldJobSnapshot => ({
   ticketId: row.id,
+  folio: row.folio,
   clientName: row.client_name,
   clientTel: row.client_tel,
   servicesSummary: null,
