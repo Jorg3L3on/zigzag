@@ -18,12 +18,15 @@ import {
   TripledListLoadingState,
 } from '@/components/tripled';
 import { ListFilterBarShell } from '@/components/list-filter';
+import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table';
 import { useCompany } from '@/contexts/company-context';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { usePermissions } from '@/hooks/use-permissions';
+import { MOBILE_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { filterPresupuestosBySearch } from '@/lib/presupuestos-search';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
-import { canWriteTickets } from '@/lib/tickets-rbac';
+import { canDownloadTicketInvoice, canWriteTickets } from '@/lib/tickets-rbac';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
 
@@ -44,12 +47,56 @@ const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
 /** Open pipeline by default: Abiertos + Vencidos (ZIG-I5-5). */
 export const DEFAULT_PRESUPUESTO_FILTER: PresupuestoStatus[] = ['abierto', 'vencido'];
 
+/** Read at load time, so a phone never fetches the desktop page while it hydrates. */
+const isPhoneWidthNow = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`).matches;
+
 /**
- * Presupuestos list (ZIG-I5-5): status chips (multi-select) over tappable rows
+ * Presupuestos list. Below md the cards of ZIG-I5-5 (unchanged); from md the
+ * table with views and server counts (ZIG-I29-3). Only the visible one loads.
+ */
+export const PresupuestosList = () => {
+  const { selectedCompany } = useCompany();
+  const { can, isSystem, loading: permissionsLoading } = usePermissions();
+  const isPhone = useIsMobile();
+  const missingCompany = needsSelectedCompanyContext(isSystem, selectedCompany?.id);
+
+  return (
+    <>
+      <div className="md:hidden">
+        <PresupuestosPhoneList enabled={isPhone} />
+      </div>
+      <div className="hidden md:block">
+        {isPhone ? null : permissionsLoading ? (
+          <TripledListLoadingState label="Cargando presupuestos…" />
+        ) : missingCompany ? (
+          <TripledEmptyState
+            icon={<FileText className="h-4 w-4" />}
+            title="Selecciona una empresa"
+            description="Selecciona una empresa para ver presupuestos."
+          />
+        ) : (
+          <PresupuestosTable
+            companyId={selectedCompany?.id ?? null}
+            companyName={selectedCompany?.name ?? null}
+            canWrite={canWriteTickets(can)}
+            canInvoice={canDownloadTicketInvoice(can)}
+            enabled={!isPhone && !isPhoneWidthNow()}
+          />
+        )}
+      </div>
+    </>
+  );
+};
+
+/**
+ * Phone presupuestos (ZIG-I5-5): status chips (multi-select) over tappable rows
  * that open /presupuestos/[id]; PDF stays as a row action. Convertir and
  * Cancelar live on the detail page behind confirmations.
  */
-export const PresupuestosList = () => {
+const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
   const canWrite = canWriteTickets(can);
@@ -75,7 +122,7 @@ export const PresupuestosList = () => {
   }, [searchValue]);
 
   const load = React.useCallback(async () => {
-    if (permissionsLoading) return;
+    if (permissionsLoading || !enabled || !isPhoneWidthNow()) return;
     if (missingCompany) {
       setLoading(false);
       setItems([]);
@@ -100,7 +147,7 @@ export const PresupuestosList = () => {
     } finally {
       setLoading(false);
     }
-  }, [missingCompany, permissionsLoading, selectedCompany?.id]);
+  }, [enabled, missingCompany, permissionsLoading, selectedCompany?.id]);
 
   React.useEffect(() => {
     void load();

@@ -90,12 +90,15 @@ type TicketDateRangeFilterProps = {
   layout: FilterFieldLayout;
   value: DateRange | undefined;
   onChange: (value: DateRange | undefined) => void;
+  /** Presupuestos filter by issue date (ZIG-I29-3). */
+  ariaLabel?: string;
 };
 
 export const TicketDateRangeFilter = ({
   layout,
   value,
   onChange,
+  ariaLabel = 'Filtrar por rango de fechas del ticket',
 }: TicketDateRangeFilterProps) => {
   const trigger = (
     <Button
@@ -107,7 +110,7 @@ export const TicketDateRangeFilter = ({
           : 'h-11 w-full justify-start text-left font-normal',
         !value?.from && 'text-muted-foreground',
       )}
-      aria-label="Filtrar por rango de fechas del ticket"
+      aria-label={ariaLabel}
     >
       <CalendarDays className="mr-2 h-4 w-4 shrink-0 opacity-70" data-icon="inline-start"/>
       <span className="truncate">{formatDateRangeLabel(value)}</span>
@@ -144,6 +147,8 @@ export const TicketDateRangeFilter = ({
     </Popover>
   );
 
+  // Desktop bar (canvas ListaA): «Todas las fechas» says what it is; the sheet keeps its label.
+  if (layout === 'desktop') return calendar;
   return (
     <FilterField label="Fechas" layout={layout}>
       {calendar}

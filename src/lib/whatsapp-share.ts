@@ -349,6 +349,54 @@ export const buildWhatsAppQuoteShare = (
     message: buildWhatsAppQuoteMessage(input),
   });
 
+/**
+ * Recordar por WhatsApp (ZIG-I29-1): the same quote, as a reminder that says
+ * when it expires, or that it already did and can be updated.
+ */
+export const buildWhatsAppQuoteReminderMessage = (
+  input: Omit<WhatsAppQuoteShareInput, 'phone'> & { now?: Date },
+): string => {
+  const total = formatTicketListAmount(input.total);
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+  const services = input.servicesSummary?.trim();
+  const servicesPart = services ? ` para ${services}` : '';
+  const validUntil = input.validUntil ? new Date(input.validUntil) : null;
+  const now = input.now ?? new Date();
+  let validityPart = '¿Te confirmamos?';
+  if (validUntil && !Number.isNaN(validUntil.getTime())) {
+    const date = validUntil.toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const expired =
+      new Date(validUntil).setHours(0, 0, 0, 0) < new Date(now).setHours(0, 0, 0, 0);
+    validityPart = expired
+      ? `Venció el ${date}; si te sigue interesando, lo actualizamos.`
+      : `Es válido hasta el ${date}. ¿Te confirmamos?`;
+  }
+
+  return [
+    intro,
+    `Te recordamos el presupuesto ${documentLabel(input)} por ${total}${servicesPart}.`,
+    validityPart,
+  ]
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const buildWhatsAppQuoteReminder = (
+  input: WhatsAppQuoteShareInput & { now?: Date },
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone: input.phone,
+    message: buildWhatsAppQuoteReminderMessage(input),
+  });
+
 export type OfflineReceiptInput = {
   clientName: string | null | undefined;
   ticketId: string | number | null | undefined;

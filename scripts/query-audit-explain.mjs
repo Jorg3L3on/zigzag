@@ -30,6 +30,8 @@ const BUDGETS_MS = {
   'users.list': 40,
   'audit.events': 60,
   'ticket.audit-history': 40,
+  'presupuestos.paginated': 80,
+  'presupuestos.counts': 80,
   'cobranza.queue': 80,
   'cobranza.in-progress': 40,
   'cobranza.month-payments': 40,
@@ -200,6 +202,28 @@ async function main() {
        WHERE target_company_id = $1
        ORDER BY occurred_at DESC, id DESC
        LIMIT 51`,
+      [companyId],
+    ],
+    // Desktop presupuestos list (ZIG-I29-3): the default view (Abiertos + Vencidos)
+    // ordered Vencen primero, and the tab counts with the state computed in SQL.
+    [
+      'presupuestos.paginated',
+      `SELECT * FROM "Ticket"
+       WHERE company_id = $1 AND deleted_at IS NULL AND document_kind = 'presupuesto'
+         AND canceled_at IS NULL AND converted_to_ticket_id IS NULL
+       ORDER BY expires_at ASC NULLS LAST, ticket_date DESC NULLS LAST, id DESC
+       LIMIT 25 OFFSET 0`,
+      [companyId],
+    ],
+    [
+      'presupuestos.counts',
+      `SELECT count(*),
+         count(*) FILTER (WHERE canceled_at IS NULL AND converted_to_ticket_id IS NULL
+           AND expires_at IS NOT NULL
+           AND ((expires_at AT TIME ZONE 'UTC') AT TIME ZONE 'America/Mexico_City')::date < CURRENT_DATE),
+         count(*) FILTER (WHERE canceled_at IS NOT NULL)
+       FROM "Ticket"
+       WHERE company_id = $1 AND deleted_at IS NULL AND document_kind = 'presupuesto'`,
       [companyId],
     ],
     // Cobranza (ZIG-I31-1): finished work with a saldo, the En proceso footnote

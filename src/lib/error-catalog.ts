@@ -472,6 +472,13 @@ export const ERROR_CATALOG = {
     message: 'El total no puede pasar de $9,999,999,999.99.',
     type: 'validation',
   },
+  TC012: {
+    code: 'TC012',
+    module: 'tickets',
+    title: 'Presupuesto cerrado',
+    message: 'Este presupuesto ya fue aceptado o cancelado; su vigencia ya no cambia.',
+    type: 'validation',
+  },
   TS001: {
     code: 'TS001',
     module: 'ticket-services',

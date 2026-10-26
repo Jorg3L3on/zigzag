@@ -386,15 +386,16 @@ describe('PresupuestoView on desktop (ZIG-I28-5)', () => {
 
     expect(screen.queryByTestId('presupuesto-accept')).toBeNull();
     const phone = screen.getByTestId('presupuesto-client-phone');
-    expect(phone.tagName).toBe('P');
+    expect(phone.tagName).toBe('SPAN');
     const href = decodeURIComponent(
-      screen.getByRole('link', { name: 'WhatsApp' }).getAttribute('href') ?? '',
+      screen.getByTestId('presupuesto-client-whatsapp').getAttribute('href') ?? '',
     );
     expect(href).toContain('wa.me/');
     expect(href).toContain('ClimaTotal');
     expect(href).not.toMatch(/^tel:/);
 
-    await user.click(screen.getByRole('button', { name: 'Convertir en ticket' }));
+    const card = screen.getByTestId('presupuesto-vigencia-card');
+    await user.click(within(card).getByRole('button', { name: 'Convertir a ticket' }));
     expect(await screen.findByRole('dialog')).toBeTruthy();
   });
 });
