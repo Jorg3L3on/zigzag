@@ -1,5 +1,4 @@
 import type { Table as ReactTable } from '@tanstack/react-table';
-import type { Ticket } from '@/actions/tickets';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -10,14 +9,16 @@ import {
 } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-type TicketsListPaginationProps = {
-  table: ReactTable<Ticket>;
+type TicketsListPaginationProps<TData> = {
+  table: ReactTable<TData>;
   /** Desktop footer: `1–25 de N tickets`, page size and the pager. Phone keeps the default. */
   variant?: 'phone' | 'desktop';
   totalCount?: number;
+  /** What the desktop footer counts; presupuestos reuse it (ZIG-I29-3). */
+  noun?: string;
 };
 
-const PageSizeSelect = ({ table }: { table: ReactTable<Ticket> }) => (
+const PageSizeSelect = <TData,>({ table }: { table: ReactTable<TData> }) => (
   <Select
     value={String(table.getState().pagination.pageSize)}
     onValueChange={(value) => {
@@ -35,7 +36,7 @@ const PageSizeSelect = ({ table }: { table: ReactTable<Ticket> }) => (
   </Select>
 );
 
-const PageButtons = ({ table }: { table: ReactTable<Ticket> }) => (
+const PageButtons = <TData,>({ table }: { table: ReactTable<TData> }) => (
   <>
     <Button
       type="button"
@@ -62,11 +63,12 @@ const PageButtons = ({ table }: { table: ReactTable<Ticket> }) => (
   </>
 );
 
-export const TicketsListPagination = ({
+export const TicketsListPagination = <TData,>({
   table,
   variant = 'phone',
   totalCount = 0,
-}: TicketsListPaginationProps) => {
+  noun = 'tickets',
+}: TicketsListPaginationProps<TData>) => {
   if (variant === 'desktop') {
     const { pageIndex, pageSize } = table.getState().pagination;
     const start = totalCount === 0 ? 0 : pageIndex * pageSize + 1;
@@ -74,7 +76,7 @@ export const TicketsListPagination = ({
     return (
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 py-3">
         <p className="text-sm tabular-nums text-muted-foreground">
-          {`${start}\u2013${end} de ${totalCount} tickets`}
+          {`${start}\u2013${end} de ${totalCount} ${noun}`}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <PageSizeSelect table={table} />

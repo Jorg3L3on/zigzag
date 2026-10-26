@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 import {
   cancelPresupuesto,
   convertPresupuestoToTicket,
-  duplicatePresupuesto,
   type PresupuestoConvertedTicket,
 } from '@/actions/presupuestos';
-import { ConfirmSheet } from '@/components/documents/confirm-sheet';
+import { PresupuestoConfirmSheet } from '@/components/presupuestos/presupuesto-confirm-sheet';
 import { PresupuestoDetailLayout } from '@/components/presupuestos/presupuesto-detail-layout';
 import { PresupuestoExtendDialog } from '@/components/presupuestos/presupuesto-extend-dialog';
+import { usePresupuestoDuplicate } from '@/components/presupuestos/use-presupuesto-duplicate';
 import type { PresupuestoActivityEntry } from '@/components/presupuestos/presupuesto-desktop';
 import type { ReviewLine } from '@/components/tickets/review/document-review-parts';
 import { useCompany } from '@/contexts/company-context';
@@ -25,10 +25,6 @@ import {
   shareTicketInvoiceFile,
 } from '@/lib/ticket-invoice-download';
 import { canDownloadTicketInvoice, canWriteTickets } from '@/lib/tickets-rbac';
-import {
-  buildPresupuestoComposerDraftKey,
-  writeTicketComposerDraft,
-} from '@/lib/ticket-composer-draft';
 import { buildWhatsAppQuoteShare } from '@/lib/whatsapp-share';
 
 export type PresupuestoViewProps = {
@@ -109,7 +105,7 @@ export const PresupuestoView = ({
   const [pdfFile, setPdfFile] = React.useState<File | null>(null);
   const [confirm, setConfirm] = React.useState<'convert' | 'cancel' | null>(null);
   const [mutating, setMutating] = React.useState(false);
-  const [duplicating, setDuplicating] = React.useState(false);
+  const { duplicating, duplicate } = usePresupuestoDuplicate(companyId);
   const [extendOpen, setExtendOpen] = React.useState(false);
 
   const isMutable = status === 'abierto' || status === 'vencido';
@@ -225,57 +221,13 @@ export const PresupuestoView = ({
     }
   };
 
-  /** Duplicar: a draft in the presupuesto composer, saved only on Guardar (ZIG-I13-5). */
-  const handleDuplicate = async () => {
-    if (duplicating) return;
-    setDuplicating(true);
-    try {
-      const result = await duplicatePresupuesto(Number(presupuestoId), companyId);
-      if (!result.success) {
-        toast.error(getErrorDisplayMessage(result, 'No se pudo duplicar el presupuesto'));
-        return;
-      }
-      const draft = result.data;
-      if (companyId) {
-        writeTicketComposerDraft(buildPresupuestoComposerDraftKey(companyId), {
-          client_id: draft.client.id > 0 ? draft.client.id : undefined,
-          client_label: draft.client.label,
-          ticket_date: draft.ticketDate,
-          ...(draft.expiresAt ? { expires_at: draft.expiresAt } : {}),
-          work_notes: draft.notes,
-          lines: draft.lines,
-        });
-      }
-      toast.success('Borrador listo: revísalo y guarda');
-      router.push('/presupuestos/create');
-    } catch {
-      toast.error('No se pudo duplicar el presupuesto');
-    } finally {
-      setDuplicating(false);
-    }
-  };
-
   const confirmSheet = (
-    <ConfirmSheet
-      open={confirm !== null}
-      onOpenChange={(open) => {
-        if (!open && !mutating) setConfirm(null);
-      }}
-      title={
-        confirm === 'convert'
-          ? `¿Convertir el presupuesto ${docLabel} en ticket?`
-          : `¿Cancelar el presupuesto ${docLabel}?`
-      }
-      description={
-        confirm === 'convert'
-          ? 'Se crea un ticket de trabajo con los mismos servicios y precios. El presupuesto queda como Aceptado.'
-          : 'Sale de los presupuestos abiertos y queda sólo para consulta. No se puede deshacer.'
-      }
-      confirmLabel={confirm === 'convert' ? 'Convertir a ticket' : 'Cancelar presupuesto'}
-      cancelLabel="Volver"
-      destructive={confirm === 'cancel'}
+    <PresupuestoConfirmSheet
+      kind={confirm}
+      docLabel={docLabel}
       pending={mutating}
-      onConfirm={() => (confirm === 'convert' ? handleConvert() : handleCancel())}
+      onClose={() => setConfirm(null)}
+      onConfirm={(kind) => void (kind === 'convert' ? handleConvert() : handleCancel())}
     />
   );
 
@@ -312,7 +264,7 @@ export const PresupuestoView = ({
         onDownload={() => void handleDownload()}
         onConvert={() => setConfirm('convert')}
         onCancel={() => setConfirm('cancel')}
-        onDuplicate={() => void handleDuplicate()}
+        onDuplicate={() => void duplicate(presupuestoId)}
         onExtend={canWrite && isMutable ? () => setExtendOpen(true) : undefined}
         activity={activity}
         authorName={authorName}

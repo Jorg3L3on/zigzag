@@ -167,3 +167,40 @@ export const describePresupuestoPastVigencia = (
   const expires = toDate(expiresAt);
   return expires ? `vencía el ${shortDate(expires, now)}` : null;
 };
+
+export type PresupuestoVenceCell = {
+  /** «25 oct», «Vencía 9 nov» or «Sin vencimiento». */
+  text: string;
+  /** «hoy», «en 3 días», «hace 2 días»; only while open or expired. */
+  hint: string | null;
+  tone: PresupuestoVigencia['tone'];
+};
+
+/**
+ * The Vence column of the desktop list (ZIG-I29-3): the date and how far it
+ * is, amber within three days, red once past, grey once accepted or canceled.
+ */
+export const describePresupuestoVenceCell = ({
+  expiresAt,
+  status,
+  now = new Date(),
+}: {
+  expiresAt: string | Date | null;
+  status: PresupuestoStatus;
+  now?: Date;
+}): PresupuestoVenceCell => {
+  const expires = toDate(expiresAt);
+  if (!expires) return { text: 'Sin vencimiento', hint: null, tone: 'none' };
+  const date = shortDate(expires, now);
+  if (!isOpen(status)) return { text: `Vencía ${date}`, hint: null, tone: 'none' };
+  const daysLeft = differenceInCalendarDays(expires, now);
+  if (daysLeft < 0) {
+    return { text: date, hint: `hace ${plural(-daysLeft, 'día', 'días')}`, tone: 'expired' };
+  }
+  if (daysLeft === 0) return { text: date, hint: 'hoy', tone: 'soon' };
+  return {
+    text: date,
+    hint: `en ${plural(daysLeft, 'día', 'días')}`,
+    tone: daysLeft <= 3 ? 'soon' : 'ok',
+  };
+};

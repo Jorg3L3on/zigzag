@@ -15,6 +15,7 @@ import {
   filtersForTicketCollectionView,
   ticketCollectionView,
 } from '@/components/tickets/tickets-list-types';
+import { ListViewTabs } from '@/components/list-views/list-view-tabs';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -128,29 +129,16 @@ const TicketCollectionTabs = ({
   };
 
   return (
-    <nav aria-label="Vistas de tickets" className="flex gap-1 border-b border-border/60">
-      {COLLECTION_VIEWS.map((view) => {
-        const selected = active === view.id;
-        const count = counts ? counts[view.countKey] : null;
-        return (
-          <button
-            key={view.id}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => handleSelect(view.id)}
-            className={cn(
-              '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-              selected
-                ? 'border-primary bg-primary/10 font-semibold text-primary'
-                : 'border-transparent text-muted-foreground hover:bg-muted/50',
-            )}
-          >
-            {view.label}
-            {count != null ? <span className="tabular-nums">{count}</span> : null}
-          </button>
-        );
-      })}
-    </nav>
+    <ListViewTabs
+      label="Vistas de tickets"
+      tabs={COLLECTION_VIEWS.map((view) => ({
+        id: view.id,
+        label: view.label,
+        count: counts ? counts[view.countKey] : null,
+      }))}
+      isSelected={(id) => active === id}
+      onSelect={handleSelect}
+    />
   );
 };
 

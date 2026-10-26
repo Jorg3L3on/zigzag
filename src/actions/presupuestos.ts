@@ -1,7 +1,7 @@
 'use server';
 
-import { formatDocumentFolio } from '@/lib/folio';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch } from '@/lib/folio';
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -59,6 +59,17 @@ import {
   insertServiceLines,
 } from '@/lib/service-lines-server';
 import { activeLineMaterialsWith } from '@/lib/line-materials-query';
+import { companyDay } from '@/lib/company-day';
+import {
+  presupuestoExpiresTodayCondition,
+  presupuestoStatusCondition,
+} from '@/lib/presupuestos-list-query';
+import {
+  statusesForPresupuestoView,
+  type PresupuestoListCounts,
+  type PresupuestoListSort,
+  type PresupuestoListView,
+} from '@/lib/presupuestos-list-views';
 import {
   buildPresupuestoDuplicateDraft,
   type PresupuestoDuplicateDraft,
@@ -186,6 +197,191 @@ export async function getPresupuestosList(
     return { success: true, data: rows.map(toListItem) };
   } catch (e) {
     return handleCodedServerActionError('presupuestos.list', 'TC002', e);
+  }
+}
+
+/** A row of the desktop table (ZIG-I29-3): the phone item plus the work and the R folio. */
+export type PresupuestoTableItem = PresupuestoListItem & {
+  servicesSummary: string | null;
+  convertedTicketFolio: string | null;
+};
+
+export interface PaginatedPresupuestosData {
+  items: PresupuestoTableItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  counts: PresupuestoListCounts;
+}
+
+const PRESUPUESTO_SORTS: Record<PresupuestoListSort, SQL[]> = {
+  // Vencen primero: soonest expiry, no date last, then the newest issued.
+  vence: [
+    sql`${ticket.expires_at} ASC NULLS LAST`,
+    sql`${ticket.ticket_date} DESC NULLS LAST`,
+    desc(ticket.id),
+  ],
+  recientes: [sql`${ticket.ticket_date} DESC NULLS LAST`, desc(ticket.id)],
+  total: [sql`${ticket.total} DESC NULLS LAST`, desc(ticket.id)],
+};
+
+/**
+ * Desktop presupuestos list (ZIG-I29-3): one page of a view with counts per
+ * state under the search and the issue dates. The state is computed in SQL
+ * with the rule of getPresupuestoStatus on the company day; the work is one
+ * aggregate over the page ids, like the tickets list.
+ */
+export async function getPresupuestosPaginated(params: {
+  companyId?: number | null;
+  view?: PresupuestoListView;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sort?: PresupuestoListSort;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  success: boolean;
+  data?: PaginatedPresupuestosData;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireTicketRead(
+      params.companyId ?? undefined,
+    );
+
+    const page = Math.max(1, Math.floor(params.page ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 25)));
+    const search = params.search?.trim();
+    const todayIso = companyDay(new Date()).iso;
+
+    const folioSearch = search ? parseFolioSearch(search) : null;
+    const searchCondition = search
+      ? or(
+          ilike(ticket.client_name, `%${search}%`),
+          ilike(ticket.client_tel, `%${search}%`),
+          sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search.replace(/^#/, '')}%`}`,
+          // P-0004, p4 or 0004: the stored prefix plus the padded number, like tickets.
+          sql`(coalesce(${ticket.folio_prefix}, 'P') || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
+          ...(folioSearch
+            ? [
+                and(
+                  eq(ticket.folio_number, folioSearch.number),
+                  folioSearch.prefix
+                    ? ilike(ticket.folio_prefix, `${folioSearch.prefix.replace(/[%_\\]/g, '')}%`)
+                    : undefined,
+                ),
+              ]
+            : []),
+        )
+      : undefined;
+
+    const scope = and(
+      eq(ticket.company_id, effectiveCompanyId),
+      isNull(ticket.deleted_at),
+      eq(ticket.document_kind, 'presupuesto'),
+      ...(searchCondition ? [searchCondition] : []),
+      ...(params.dateFrom ? [sql`${ticket.ticket_date} >= ${params.dateFrom}::timestamptz`] : []),
+      ...(params.dateTo ? [sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`] : []),
+    );
+    const statuses = statusesForPresupuestoView(params.view ?? 'pendientes');
+    const viewCondition = statuses
+      ? or(...statuses.map((status) => presupuestoStatusCondition(status, todayIso)))
+      : undefined;
+    const where = viewCondition ? and(scope, viewCondition) : scope;
+
+    // Counts ignore the view so the tabs keep their numbers.
+    const [countRow] = await db
+      .select({
+        all: count(),
+        abierto: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('abierto', todayIso)})`,
+        vencido: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('vencido', todayIso)})`,
+        convertido: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('convertido', todayIso)})`,
+        cancelado: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('cancelado', todayIso)})`,
+        venceHoy: sql<number>`count(*) FILTER (WHERE ${presupuestoExpiresTodayCondition(todayIso)})`,
+      })
+      .from(ticket)
+      .where(scope);
+    const counts: PresupuestoListCounts = {
+      all: Number(countRow?.all ?? 0),
+      abierto: Number(countRow?.abierto ?? 0),
+      vencido: Number(countRow?.vencido ?? 0),
+      convertido: Number(countRow?.convertido ?? 0),
+      cancelado: Number(countRow?.cancelado ?? 0),
+      venceHoy: Number(countRow?.venceHoy ?? 0),
+    };
+    const total = statuses
+      ? statuses.reduce((sum, status) => sum + counts[status], 0)
+      : counts.all;
+
+    const rows = await db
+      .select()
+      .from(ticket)
+      .where(where)
+      .orderBy(...PRESUPUESTO_SORTS[params.sort ?? 'vence'])
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+
+    const pageIds = rows.map((row) => row.id);
+    const summaries = pageIds.length
+      ? await db
+          .select({
+            ticket_id: servicesTickets.ticket_id,
+            summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+          })
+          .from(servicesTickets)
+          .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+          .leftJoin(service, eq(service.id, servicesTickets.service_id))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              isNull(ticket.deleted_at),
+              inArray(servicesTickets.ticket_id, pageIds),
+              isNull(servicesTickets.deleted_at),
+            ),
+          )
+          .groupBy(servicesTickets.ticket_id)
+      : [];
+    const summaryById = new Map(summaries.map((row) => [String(row.ticket_id), row.summary]));
+
+    const convertedIds = rows
+      .map((row) => row.converted_to_ticket_id)
+      .filter((value): value is bigint => value != null);
+    const converted = convertedIds.length
+      ? await db
+          .select({
+            id: ticket.id,
+            folio_number: ticket.folio_number,
+            folio_prefix: ticket.folio_prefix,
+            document_kind: ticket.document_kind,
+          })
+          .from(ticket)
+          .where(and(eq(ticket.company_id, effectiveCompanyId), inArray(ticket.id, convertedIds)))
+      : [];
+    const folioById = new Map(converted.map((row) => [String(row.id), formatDocumentFolio(row)]));
+
+    return {
+      success: true,
+      data: {
+        items: rows.map((row) => ({
+          ...toListItem(row),
+          servicesSummary: summaryById.get(String(row.id)) ?? null,
+          convertedTicketFolio:
+            row.converted_to_ticket_id != null
+              ? (folioById.get(String(row.converted_to_ticket_id)) ?? null)
+              : null,
+        })),
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        counts,
+      },
+    };
+  } catch (e) {
+    return handleCodedServerActionError('presupuestos.paginated-list', 'TC002', e);
   }
 }
 
