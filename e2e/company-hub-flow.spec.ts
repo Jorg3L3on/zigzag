@@ -56,7 +56,7 @@ test.describe('Mi empresa: team and role flow', () => {
 
     const row = page.getByTestId('team-member-row').filter({ hasText: member.email });
     await expect(row).toBeVisible();
-    await expect(row.getByText('Operador')).toBeVisible();
+    await expect(row.getByText('Operador').filter({ visible: true })).toBeVisible();
     await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
   });
 
