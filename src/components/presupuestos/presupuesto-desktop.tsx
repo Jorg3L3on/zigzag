@@ -779,16 +779,17 @@ export const PresupuestoDesktop = ({
 }: PresupuestoDesktopProps) => {
   return (
     <TripledDashboardShell maxWidthClassName="max-w-[1200px]" contentClassName="space-y-4 md:space-y-6">
-      <div data-testid="presupuesto-desktop" className="flex flex-col gap-4 md:gap-6">
+      {/* A container, not lg: the sidebar takes 256px, so at 1024 the page has ~720px (ZIG-I29). */}
+      <div data-testid="presupuesto-desktop" className="@container flex flex-col gap-4 md:gap-6">
         <PresupuestoDesktopHeader {...props} />
         <div
           data-testid="presupuesto-desktop-grid"
-          className="grid items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] lg:grid-rows-[auto_1fr] lg:gap-x-8"
+          className="grid items-start gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:gap-x-8 @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]"
         >
           <aside
             aria-label="Estado del presupuesto"
             data-testid="presupuesto-desktop-rail"
-            className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:gap-6"
+            className="order-2 grid min-w-0 items-start gap-4 @min-[40rem]:grid-cols-2 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:order-none @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1 @min-[60rem]:flex @min-[60rem]:flex-col @min-[60rem]:gap-6"
           >
             <PresupuestoEstadoCard
               status={props.status}
@@ -815,10 +816,10 @@ export const PresupuestoDesktop = ({
             />
             <PresupuestoActivityCard entries={activity} />
           </aside>
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <div className="order-1 min-w-0 @min-[60rem]:order-none @min-[60rem]:col-start-1 @min-[60rem]:row-start-1">
             <PresupuestoDesktopDocument lines={props.lines} total={props.total} workNotes={props.workNotes} />
           </div>
-          <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <div className="order-3 min-w-0 @min-[60rem]:order-none @min-[60rem]:col-start-1 @min-[60rem]:row-start-2">
             <PresupuestoActivityTimeline entries={activity} createdAt={createdAt} updatedAt={updatedAt} />
           </div>
         </div>

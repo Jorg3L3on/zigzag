@@ -14,7 +14,7 @@ type TicketsListTableProps = {
 };
 
 export const TicketsListTable = ({ table, canWrite }: TicketsListTableProps) => (
-  <div className="hidden md:block">
+  <div className="hidden @container md:block">
     <table
       className={
         // 56px rows, fixed to the card so ⋮ stays on screen at 1024 with the sidebar open.

@@ -30,7 +30,8 @@ describe('tickets list URL params (ZIG-I18-9)', () => {
 describe('collection views (ZIG-I28-4)', () => {
   it('maps each tab onto one existing URL filter and clears the other', () => {
     expect(filtersForTicketCollectionView('all')).toEqual({ status: 'all', finished: 'all' });
-    expect(filtersForTicketCollectionView('due')).toEqual({ status: 'due', finished: 'all' });
+    // Por cobrar is finished work with a saldo (PR #610 review).
+    expect(filtersForTicketCollectionView('due')).toEqual({ status: 'due', finished: 'yes' });
     expect(filtersForTicketCollectionView('paid')).toEqual({ status: 'paid', finished: 'all' });
     expect(filtersForTicketCollectionView('inProgress')).toEqual({
       status: 'all',
@@ -40,7 +41,8 @@ describe('collection views (ZIG-I28-4)', () => {
 
   it('selects a tab only when the URL is exactly that view', () => {
     expect(ticketCollectionView('all', 'all')).toBe('all');
-    expect(ticketCollectionView('due', 'all')).toBe('due');
+    expect(ticketCollectionView('due', 'yes')).toBe('due');
+    expect(ticketCollectionView('due', 'all')).toBeNull();
     expect(ticketCollectionView('paid', 'all')).toBe('paid');
     expect(ticketCollectionView('all', 'no')).toBe('inProgress');
     expect(ticketCollectionView('due', 'no')).toBeNull();

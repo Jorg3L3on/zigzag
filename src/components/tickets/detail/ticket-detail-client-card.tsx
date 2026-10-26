@@ -6,7 +6,7 @@ import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
 } from '@/components/tickets/detail/ticket-detail-section-card';
-import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
+import { buildWhatsAppHref, buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
 const clientInitials = (name: string | null | undefined): string => {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -52,6 +52,10 @@ type TicketDetailClientCardProps = {
   folio: string | null;
   total: number | null;
   paid: number | null;
+  /** En proceso has no recibo yet: WhatsApp opens a plain greeting instead. */
+  finished?: boolean;
+  /** Signs the WhatsApp text like the header does (PR #610 review). */
+  companyName?: string | null;
 };
 
 /** Cliente column from 1024px. The phone is text; WhatsApp stays (ZIG-I28-2). */
@@ -65,13 +69,17 @@ export const TicketDetailClientCard = ({
   folio,
   total,
   paid,
+  finished = true,
+  companyName = null,
 }: TicketDetailClientCardProps) => {
   const name = client?.name?.trim() || clientName?.trim() || 'Cliente sin nombre';
   const phone = client?.phone?.trim() || clientTel?.trim() || '';
   const email = client?.email?.trim() || clientEmail?.trim() || '';
   const address = formatTicketClientAddress(client);
-  const whatsApp =
-    phone && total != null
+  const company = companyName?.trim() || null;
+  const whatsApp = !phone
+    ? null
+    : finished && total != null
       ? buildWhatsAppReceiptShare({
           phone,
           clientName: name,
@@ -79,8 +87,12 @@ export const TicketDetailClientCard = ({
           folio,
           total,
           paid: paid ?? 0,
+          companyName: company,
         })
-      : null;
+      : buildWhatsAppHref({
+          phone,
+          message: company ? `Hola, te escribe ${company}.` : 'Hola, te escribimos de ZigZag.',
+        });
 
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-client-heading" data-testid="ticket-client-card">

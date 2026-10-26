@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { companyDay, COMPANY_TIME_ZONE } from '@/lib/company-day';
+import {
+  companyDay,
+  companyDayStart,
+  COMPANY_TIME_ZONE,
+  parseCompanyDayIso,
+} from '@/lib/company-day';
 
 /** 23:00 in Mexico City, which is 05:00 UTC the next calendar day. */
 const ELEVEN_PM_CDMX = new Date('2026-10-23T23:00:00-06:00');
@@ -31,6 +36,21 @@ describe('companyDay', () => {
   it('is idempotent: noon UTC of a company day stays on that day', () => {
     const first = companyDay(ELEVEN_PM_CDMX);
     expect(companyDay(first.date).iso).toBe(first.iso);
+  });
+});
+
+describe('companyDayStart and parseCompanyDayIso (ZIG-I30)', () => {
+  it('starts the Mexico City day at 06:00 UTC', () => {
+    const day = companyDay(ELEVEN_PM_CDMX).date;
+    expect(companyDayStart(day).toISOString()).toBe('2026-10-23T06:00:00.000Z');
+    expect(companyDayStart(day, 'UTC').toISOString()).toBe('2026-10-23T00:00:00.000Z');
+  });
+
+  it('parses a civil day to noon UTC and rejects anything else', () => {
+    expect(parseCompanyDayIso('2026-02-28')?.toISOString()).toBe('2026-02-28T12:00:00.000Z');
+    expect(parseCompanyDayIso('2026-02-30')).toBeNull();
+    expect(parseCompanyDayIso('2026-2-3')).toBeNull();
+    expect(parseCompanyDayIso('ayer')).toBeNull();
   });
 });
 

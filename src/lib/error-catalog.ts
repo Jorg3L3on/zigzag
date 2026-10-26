@@ -10,6 +10,7 @@ export type ErrorModule =
   | 'permissions'
   | 'roles'
   | 'services'
+  | 'service-schedules'
   | 'ticket-services'
   | 'tickets'
   | 'users';
@@ -329,6 +330,41 @@ export const ERROR_CATALOG = {
     title: 'Tu empresa se quedaría sin administrador',
     message: 'Nadie más podría gestionar el equipo o los roles. Deja Equipo y Roles en Editar, o da ese permiso a otro rol con personas asignadas.',
     type: 'validation',
+  },
+  SS001: {
+    code: 'SS001',
+    module: 'service-schedules',
+    title: 'Recordatorio no encontrado',
+    message: 'El recordatorio no existe o ya no está disponible.',
+    type: 'validation',
+  },
+  SS002: {
+    code: 'SS002',
+    module: 'service-schedules',
+    title: 'Fecha no válida',
+    message: 'Elige una fecha dentro del rango permitido e intenta de nuevo.',
+    type: 'validation',
+  },
+  SS003: {
+    code: 'SS003',
+    module: 'service-schedules',
+    title: 'El recordatorio está pausado',
+    message: 'Reanuda el recordatorio antes de posponerlo o marcarlo como hecho.',
+    type: 'validation',
+  },
+  SS004: {
+    code: 'SS004',
+    module: 'service-schedules',
+    title: 'Selección no válida',
+    message: 'Elige entre 1 y 50 recordatorios e intenta de nuevo.',
+    type: 'validation',
+  },
+  SS005: {
+    code: 'SS005',
+    module: 'service-schedules',
+    title: 'No se pudo actualizar el recordatorio',
+    message: 'Intenta de nuevo en unos momentos.',
+    type: 'server',
   },
   SV001: {
     code: 'SV001',

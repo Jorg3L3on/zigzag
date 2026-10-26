@@ -40,18 +40,21 @@ export const ticketCollectionView = (
   status: StatusFilterValue,
   finished: FinishedFilterValue,
 ): TicketCollectionView | null => {
-  if (status === 'due' && finished === 'all') return 'due';
+  if (status === 'due' && finished === 'yes') return 'due';
   if (status === 'paid' && finished === 'all') return 'paid';
   if (finished === 'no' && status === 'all') return 'inProgress';
   if (status === 'all' && finished === 'all') return 'all';
   return null;
 };
 
-/** Por cobrar = status=due, Pagados = status=paid, En proceso = finished=no, Todos clears both. */
+/**
+ * Por cobrar = finished work with a saldo (status=due&finished=yes; En proceso has no saldo
+ * yet, PR #610 review), Pagados = status=paid, En proceso = finished=no, Todos clears both.
+ */
 export const filtersForTicketCollectionView = (
   view: TicketCollectionView,
 ): { status: StatusFilterValue; finished: FinishedFilterValue } => {
-  if (view === 'due') return { status: 'due', finished: 'all' };
+  if (view === 'due') return { status: 'due', finished: 'yes' };
   if (view === 'paid') return { status: 'paid', finished: 'all' };
   if (view === 'inProgress') return { status: 'all', finished: 'no' };
   return { status: 'all', finished: 'all' };
