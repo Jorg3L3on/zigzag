@@ -57,7 +57,7 @@ test.describe('Mi empresa: team and role flow', () => {
     const row = page.getByTestId('team-member-row').filter({ hasText: member.email });
     await expect(row).toBeVisible();
     await expect(row.getByText('Operador')).toBeVisible();
-    await expect(row.getByTestId('team-member-access')).toHaveText('Debe cambiar contraseña');
+    await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
   });
 
   test('Restablecer contraseña on hover shows the password once; self and last admin stay blocked', async ({
@@ -75,7 +75,7 @@ test.describe('Mi empresa: team and role flow', () => {
     await expect(shown).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);
     temporary = (await shown.textContent()) ?? '';
     await dialog.getByRole('button', { name: 'Listo' }).click();
-    await expect(row.getByTestId('team-member-access')).toHaveText('Debe cambiar contraseña');
+    await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
 
     // Your own row: no reset on hover and Desactivar disabled (team-guards unchanged).
     const self = page.getByTestId('team-member-row').filter({ hasText: '(tú)' });
@@ -139,7 +139,7 @@ test.describe('Mi empresa: team and role flow', () => {
 
     await desktop.getByRole('combobox', { name: 'Filtrar por acceso' }).click();
     await page.getByRole('option', { name: 'Todos' }).click();
-    await expect(row.getByTestId('team-member-access')).toHaveText('Desactivado');
+    await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Desactivado');
     await expect(row.getByRole('button', { name: /Acciones de/ })).toHaveCount(0);
   });
 });

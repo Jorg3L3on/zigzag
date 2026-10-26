@@ -193,7 +193,10 @@ describe('TeamList', () => {
       expect(headers.join(' ')).toMatch(/Persona.*Rol.*Acceso.*Alta/);
       expect(headers.join(' ')).not.toMatch(/Empresa|ID/);
       expect(within(desktop).getByText('1 Admin · 1 Operador', { exact: false })).toBeInTheDocument();
-      const access = within(desktop).getAllByTestId('team-member-access').map((el) => el.textContent);
+      // Each row renders the pill twice (column and narrow-width copy); CSS shows one.
+      const access = within(desktop)
+        .getAllByTestId('team-member-row')
+        .map((row) => within(row).getAllByTestId('team-member-access')[0].textContent);
       expect(access).toEqual(['Activo', 'Debe cambiar contraseña']);
       expect(within(desktop).queryByText('Sin verificar')).toBeNull();
       expect(within(desktop).getAllByText('Operador').length).toBeGreaterThan(0);
@@ -214,7 +217,7 @@ describe('TeamList', () => {
       fireEvent.click(await screen.findByRole('option', { name: 'Todos' }));
 
       const row = within(desktop).getByText('Beto Baja').closest('tr')!;
-      expect(within(row).getByTestId('team-member-access')).toHaveTextContent('Desactivado');
+      expect(within(row).getAllByTestId('team-member-access')[0]).toHaveTextContent('Desactivado');
       expect(within(row).queryByRole('button', { name: /Acciones de/ })).toBeNull();
     });
 

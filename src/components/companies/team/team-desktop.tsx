@@ -173,10 +173,11 @@ export const TeamDesktop = ({
             <TableHeader>
               <TableRow>
                 <TableHead className={headClass}>Persona</TableHead>
-                <TableHead className={headClass}>Rol</TableHead>
-                <TableHead className={headClass}>Acceso</TableHead>
-                {/* Alta hides when the column is narrow (1024 with the sidebar open). */}
-                <TableHead className={cn(headClass, 'hidden @min-[42rem]:table-cell')}>Alta</TableHead>
+                {/* Narrow column (1024 with the sidebar open): Rol and Acceso move under
+                    the name as pills, like the phone card; Alta needs a bit more room. */}
+                <TableHead className={cn(headClass, 'hidden @min-[36rem]:table-cell')}>Rol</TableHead>
+                <TableHead className={cn(headClass, 'hidden @min-[36rem]:table-cell')}>Acceso</TableHead>
+                <TableHead className={cn(headClass, 'hidden @min-[46rem]:table-cell')}>Alta</TableHead>
                 <TableHead className="w-px text-right">
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -202,16 +203,20 @@ export const TeamDesktop = ({
                         <span className="truncate text-caption text-muted-foreground">
                           {member.email}
                         </span>
+                        <span className="mt-1 flex flex-wrap gap-1.5 @min-[36rem]:hidden">
+                          <TeamRolePill name={member.roleName} />
+                          <TeamAccessPill member={member} />
+                        </span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden @min-[36rem]:table-cell">
                     <TeamRolePill name={member.roleName} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden @min-[36rem]:table-cell">
                     <TeamAccessPill member={member} />
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground @min-[42rem]:table-cell">
+                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground @min-[46rem]:table-cell">
                     {format(new Date(member.createdAt), 'd MMM yy', { locale: es })}
                   </TableCell>
                   <TableCell className="relative w-px">

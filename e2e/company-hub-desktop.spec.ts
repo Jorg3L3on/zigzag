@@ -125,7 +125,7 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
     const headers = await desktop.getByRole('columnheader').allTextContents();
     expect(headers.join(' ')).toMatch(/Persona.*Rol.*Acceso.*Alta/);
     await expect(desktop.getByText('Sin verificar')).toHaveCount(0);
-    await expect(desktop.getByTestId('team-member-access').first()).toHaveText(
+    await expect(desktop.getByTestId('team-member-access').filter({ visible: true }).first()).toHaveText(
       /Activo|Debe cambiar contraseña/,
     );
     await expect(desktop.getByRole('button', { name: 'Agregar persona' })).toBeVisible();
@@ -136,6 +136,26 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
     await expect(row.getByRole('button', { name: /^Cambiar rol de / })).toBeVisible();
     const table = desktop.locator('table').locator('..');
     expect(await table.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  });
+
+  test('at 1024 with the sidebar open Equipo and Roles fit without sideways scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto('/company/equipo');
+    const desktop = page.getByTestId('team-desktop');
+    await expect(desktop.getByTestId('team-member-row').first()).toBeVisible({ timeout: 15_000 });
+    const scroller = desktop.locator('table').locator('..');
+    expect(await scroller.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    // Rol and Acceso sit under the name as pills at this width.
+    await expect(desktop.getByTestId('team-member-access').filter({ visible: true }).first()).toBeVisible();
+
+    await page.goto('/company/roles');
+    await expect(page.getByTestId('role-list-item').first()).toBeVisible({ timeout: 15_000 });
+    const matrix = page.getByRole('switch', { name: 'Editar Tickets' });
+    const box = await matrix.boundingBox();
+    const editor = await page.getByRole('region', { name: /Editar rol|Nuevo rol/ }).boundingBox();
+    // The editor spans the hub column (cards above it), not a 216 px sliver.
+    expect(editor?.width ?? 0).toBeGreaterThan(400);
+    expect(box).toBeTruthy();
   });
 
   test('Roles marks the chosen role, uses switches and keeps Editar incluye Ver', async ({ page }) => {
