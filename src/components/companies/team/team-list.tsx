@@ -8,13 +8,13 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { Loader2, Search, UserPlus, Users } from 'lucide-react';
+import { Loader2, Plus, Search, UserPlus, Users } from 'lucide-react';
 
 import { getTeam, resetTeamMemberPassword, type TeamData } from '@/actions/team';
 import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import { TripledEmptyState, TripledMobileStickyActionBar } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import { Input } from '@/components/ui/input';
 import {
   filterTeamMembers,
@@ -45,7 +45,7 @@ type LoadState =
 /** Equipo tab (ZIG-I3-4): the caller's company team, no company columns. */
 export const TeamList = () => {
   const router = useRouter();
-  const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
   const [state, setState] = React.useState<LoadState>({ status: 'loading' });
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
@@ -165,18 +165,18 @@ export const TeamList = () => {
 
   return (
     <div className="space-y-4">
-      {isMobile ? null : (
+      {isDesktop ? (
         <TeamDesktop
           members={state.data.members}
           deactivated={state.data.deactivated}
           roles={state.data.roles}
           handlers={handlers}
           onAdd={() => setAddOpen(true)}
-          className="hidden md:block"
+          className="hidden lg:block"
         />
-      )}
-      {/* Phones (ZIG-I3-4); md+ uses TeamDesktop (ZIG-I32-2). */}
-      <div className="space-y-4 md:hidden">
+      ) : null}
+      {/* Phones and tablets (ZIG-I3-4); lg+ uses TeamDesktop (ZIG-I32-2). */}
+      <div className="space-y-4 lg:hidden">
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative min-w-0 flex-1 basis-64">
           <span className="sr-only">Buscar en el equipo</span>
@@ -214,6 +214,17 @@ export const TeamList = () => {
             );
           })}
         </div>
+        {canWrite ? (
+          // Tablets: the phone sticky bar hides from md.
+          <Button
+            type="button"
+            className="ml-auto hidden h-11 md:inline-flex lg:hidden"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="mr-2 size-4" aria-hidden />
+            {addButtonLabel}
+          </Button>
+        ) : null}
       </div>
 
       {rows.length === 0 ? (
@@ -280,7 +291,7 @@ export const TeamList = () => {
         </TripledMobileStickyActionBar>
       ) : null}
 
-      {isMobile ? (
+      {!isDesktop ? (
         <>
           <TeamMemberSheet
             open={addOpen}
@@ -330,6 +341,7 @@ export const TeamList = () => {
           if (!open) setResetting(null);
         }}
         onDone={onSaved}
+        actionLabel={isDesktop ? 'Restablecer contraseña' : undefined}
       />
       <TeamDeactivateDialog
         member={deactivating}

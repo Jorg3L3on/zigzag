@@ -73,14 +73,14 @@ export const getCompanyHubSubpage = (
 };
 
 /**
- * Props for `TripledResourceCard` on the hub pages: phones keep the card, md+
+ * Props for `TripledResourceCard` on the hub pages: below lg the card stays, lg+
  * drops its frame, header and padding (ZIG-I32), so the hub header is the
  * only one. overflow-visible keeps the sticky asides working.
  */
 export const COMPANY_HUB_CARD_DESKTOP_RESET = {
   className:
     // `!`: Card's hand-written shadow-soft and hover-lift win the cascade otherwise.
-    'md:overflow-visible md:rounded-none md:border-0 md:bg-none md:bg-transparent md:shadow-none! md:ring-0 md:hover:transform-none! md:hover:shadow-none!',
-  headerClassName: 'md:hidden',
-  contentClassName: 'md:p-0 md:pt-0',
+    'lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-none lg:bg-transparent lg:shadow-none! lg:ring-0 lg:hover:transform-none! lg:hover:shadow-none!',
+  headerClassName: 'lg:hidden',
+  contentClassName: 'lg:p-0 lg:pt-0',
 } as const;

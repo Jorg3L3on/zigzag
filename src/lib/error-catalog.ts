@@ -570,6 +570,20 @@ export const ERROR_CATALOG = {
     message: 'Para cambiar tu contraseña usa Mi cuenta. Si la olvidaste, pide a otra persona administradora que lo haga.',
     type: 'validation',
   },
+  US009: {
+    code: 'US009',
+    module: 'users',
+    title: 'No puedes cambiar tu propio rol',
+    message: 'Pide a otra persona administradora que lo cambie.',
+    type: 'validation',
+  },
+  US010: {
+    code: 'US010',
+    module: 'users',
+    title: 'Esta persona tiene más permisos que tú',
+    message: 'Solo alguien con al menos sus mismos permisos puede darle una contraseña temporal.',
+    type: 'validation',
+  },
 } as const satisfies Record<string, ErrorCatalogEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CATALOG;

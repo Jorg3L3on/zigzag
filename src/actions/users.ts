@@ -29,6 +29,7 @@ import { recordAuthAuditEvent } from '@/lib/audit-security';
 import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { generateTemporaryPassword } from '@/lib/temporary-password';
+import { loadRolePermissionNames, outranks } from '@/lib/role-rank';
 import { keepsATeamManager } from '@/lib/team-guards';
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -423,6 +424,31 @@ export async function updateUser(
   }
 }
 
+
+/** The target's role holds a permission the caller's role lacks (see `outranks`). */
+const targetOutranksCaller = async (
+  targetRoleId: number | null | undefined,
+  callerUserId: string,
+): Promise<boolean> => {
+  if (targetRoleId == null) {
+    return false;
+  }
+  const callerRow = await db.query.user.findFirst({
+    where: eq(user.id, BigInt(callerUserId)),
+    columns: { role_id: true },
+  });
+  const callerRoleId = callerRow?.role_id ?? null;
+  if (callerRoleId === targetRoleId) {
+    return false;
+  }
+  const roleIds = callerRoleId === null ? [targetRoleId] : [targetRoleId, callerRoleId];
+  const permissions = await loadRolePermissionNames(roleIds);
+  return outranks(
+    permissions.get(targetRoleId) ?? new Set(),
+    callerRoleId === null ? new Set() : (permissions.get(callerRoleId) ?? new Set()),
+  );
+};
+
 /**
  * Forgotten password without email (ZIG-I18-11): an admin with `users.write`
  * (own company only) or a system operator (any company) gives a temporary
@@ -462,6 +488,11 @@ export async function resetUserTemporaryPassword(id: bigint): Promise<{
     );
     if (!context.companyIsSystem && target.company?.is_system) {
       return buildActionError('AU002');
+    }
+    // A tenant admin cannot take over someone with more permissions (ZIG-I32
+    // review): the temporary password would hand them that account.
+    if (!context.companyIsSystem && (await targetOutranksCaller(target.role_id, caller.userId))) {
+      return buildActionError('US010');
     }
 
     const temporaryPassword = generateTemporaryPassword();

@@ -3,11 +3,15 @@ import { TeamList } from '@/components/companies/team/team-list';
 import { addTeamMember, getTeam } from '@/actions/team';
 import type { TeamData } from '@/actions/team';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
 
 jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => true) }));
+jest.mock('@/hooks/use-desktop', () => ({ useIsDesktop: jest.fn(() => false) }));
 
+const mockSearchParams = { current: new URLSearchParams() };
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: jest.fn() }),
+  useSearchParams: () => mockSearchParams.current,
 }));
 
 jest.mock('@/actions/team', () => ({
@@ -23,6 +27,7 @@ jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 const mockGetTeam = getTeam as jest.MockedFunction<typeof getTeam>;
 const mockAddTeamMember = addTeamMember as jest.MockedFunction<typeof addTeamMember>;
 const mockUseIsMobile = useIsMobile as jest.MockedFunction<typeof useIsMobile>;
+const mockUseIsDesktop = useIsDesktop as jest.MockedFunction<typeof useIsDesktop>;
 
 const teamData = (overrides: Partial<TeamData> = {}): TeamData => ({
   members: [
@@ -78,6 +83,7 @@ describe('TeamList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseIsMobile.mockReturnValue(true);
+    mockUseIsDesktop.mockReturnValue(false);
   });
 
   it('shows access states on phone cards; Todos adds deactivated people without actions', async () => {
@@ -175,6 +181,7 @@ describe('TeamList', () => {
   describe('desktop (ZIG-I32-2)', () => {
     beforeEach(() => {
       mockUseIsMobile.mockReturnValue(false);
+      mockUseIsDesktop.mockReturnValue(true);
     });
 
     it('shows Persona · Rol · Acceso · Alta with real access states and no «Sin verificar»', async () => {
@@ -217,8 +224,10 @@ describe('TeamList', () => {
       await screen.findByTestId('team-desktop');
 
       expect(screen.getByRole('button', { name: 'Restablecer contraseña de Carlos Técnico' })).toBeInTheDocument();
+      // Your own row: neither reset nor role change (ZIG-I32 review).
       expect(screen.queryByRole('button', { name: 'Restablecer contraseña de Ana Admin' })).toBeNull();
-      expect(screen.getByRole('button', { name: 'Cambiar rol de Ana Admin' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Cambiar rol de Ana Admin' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Cambiar rol de Carlos Técnico' })).toBeInTheDocument();
     });
 
     it('adds a person from the panel and shows the temporary password once', async () => {
@@ -253,6 +262,18 @@ describe('TeamList', () => {
         'Contraseña temporal: kemo-7pdx',
       );
       expect(decodeURIComponent(whatsapp.getAttribute('href') ?? '')).toContain('ClimaTotal Demo');
+    });
+
+    it('opens filtered by ?rol from Roles › Ver en Equipo', async () => {
+      mockSearchParams.current = new URLSearchParams('rol=2');
+      mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
+      render(<TeamList />);
+      const desktop = await screen.findByTestId('team-desktop');
+
+      expect(within(desktop).getByRole('combobox', { name: 'Filtrar por rol' })).toHaveTextContent('Operador');
+      expect(within(desktop).queryByText('Ana Admin')).toBeNull();
+      expect(within(desktop).getByText('Carlos Técnico')).toBeInTheDocument();
+      mockSearchParams.current = new URLSearchParams();
     });
 
     it('hides Agregar persona and row actions for readers', async () => {

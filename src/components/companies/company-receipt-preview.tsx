@@ -9,7 +9,7 @@ import {
   buildPaymentInfoLines,
   getCompanyPaymentInfo,
 } from '@/lib/company-payment-info';
-import { assessCompanyReadiness } from '@/lib/company-readiness';
+import { assessCompanyReadiness, OWNER_STATUS_NOTE } from '@/lib/company-readiness';
 import type { CompanyBootstrapFormValues } from '@/lib/company-schema';
 import {
   buildReceiptPdfPayload,
@@ -228,7 +228,7 @@ export const CompanyReceiptPreview = ({
         ) : null}
         {readiness.lifecycle !== 'ACTIVE' ? (
           <p className="mt-1.5 text-caption text-muted-foreground">
-            Estado: {companyLifecycleLabel(merged.status)}. Lo cambia el equipo de ZigZag.
+            Estado: {companyLifecycleLabel(merged.status)}. {OWNER_STATUS_NOTE}
           </p>
         ) : null}
       </div>

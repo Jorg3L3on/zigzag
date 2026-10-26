@@ -53,7 +53,7 @@ export const TeamMemberMenu = ({
         <Pencil className="mr-2 size-4" aria-hidden />
         Editar
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onChangeRole(member)}>
+      <DropdownMenuItem disabled={member.isSelf} onSelect={() => onChangeRole(member)}>
         <ShieldCheck className="mr-2 size-4" aria-hidden />
         Cambiar rol
       </DropdownMenuItem>

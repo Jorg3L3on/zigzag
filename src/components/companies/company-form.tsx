@@ -69,6 +69,8 @@ import { FormChangesBar } from '@/components/companies/form-changes-bar';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import {
   DEFAULT_COMPANY_FORM_SECTIONS,
   firstInvalidCompanyField,
@@ -199,9 +201,11 @@ export const CompanyForm = ({
   const isSectioned = sectioned ?? isSelfService;
   const isMobile = useIsMobile();
   const collapsible = isSectioned && isMobile;
-  // md+ self-service: Datos cards, receipt preview and the changes bar
-  // (ZIG-I32-1). Phones and the operator form keep their own tree.
-  const desktopCards = isSectioned && isSelfService && !isMobile && Boolean(company);
+  // lg+ self-service: Datos cards, receipt preview and the changes bar
+  // (ZIG-I32-1). Phones, tablets and the operator form keep their own tree.
+  // useIsDesktop is false on the server, so phones never paint the cards.
+  const isDesktop = useIsDesktop();
+  const desktopCards = isSectioned && isSelfService && isDesktop && Boolean(company);
   // Read synchronously on the client: the saved state only shows once the
   // form switches to mobile after hydration, so it cannot mismatch the server
   // markup, and no later effect flips a section the user already toggled.
@@ -341,6 +345,9 @@ export const CompanyForm = ({
   };
 
   const values = form.watch();
+  // Mi empresa asks before leaving with unsaved edits (canvas "Cambios sin
+  // guardar"); a logo upload refreshes the page but keeps the form mounted.
+  useUnsavedChangesGuard(isSelfService && isEdit && form.formState.isDirty && !isSubmitting);
   // Separators only on md+ for sectioned forms (cards replace them on mobile);
   // CSS rather than isMobile so hydration does not change the DOM.
   const sectionSeparatorClass = isSectioned ? 'hidden md:block' : undefined;
@@ -997,262 +1004,266 @@ export const CompanyForm = ({
     : [];
 
   const desktopLayout = desktopCards && company ? (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
-      <div className="min-w-0">
-        <form
-          id={COMPANY_FORM_ID}
-          onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
-          className="flex flex-col gap-4"
-          noValidate
-        >
-          <DatosCard
-            id="perfil"
-            title="Perfil"
-            hint="Lo que tus clientes ven en recibos, presupuestos y WhatsApp."
+    // @container: the preview sits beside the form when the hub column has room
+    // (1280 with the sidebar open), below it at 1024.
+    <div className="@container">
+      <div className="grid items-start gap-6 @min-[46rem]:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0">
+          <form
+            id={COMPANY_FORM_ID}
+            onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
+            className="flex flex-col gap-4"
+            noValidate
           >
-            <CompanyLogoUpload
-              companyId={company.id}
-              logoUrl={company.logo}
-              companyName={values.name || company.name}
-              variant="inline"
-            />
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div className="col-span-2">{nameField}</div>
-              {desktopTaglineField}
-              {emailField}
-              {phoneField}
-            </div>
-          </DatosCard>
+            <DatosCard
+              id="perfil"
+              title="Perfil"
+              hint="Lo que tus clientes ven en recibos, presupuestos y WhatsApp."
+            >
+              <CompanyLogoUpload
+                companyId={company.id}
+                logoUrl={company.logo}
+                companyName={values.name || company.name}
+                variant="inline"
+              />
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div className="col-span-2">{nameField}</div>
+                {desktopTaglineField}
+                {emailField}
+                {phoneField}
+              </div>
+            </DatosCard>
 
-          <DatosCard id="direccion" title="Dirección" hint="Se imprime al pie del recibo.">
-            <div className="grid grid-cols-2 gap-4">
-              {streetField}
-              {exteriorField}
-              {interiorField}
-              {neighborhoodField}
-              {postalCodeField}
-              {cityField}
-              {stateField}
-              {countryField}
-            </div>
-          </DatosCard>
+            <DatosCard id="direccion" title="Dirección" hint="Se imprime al pie del recibo.">
+              <div className="grid grid-cols-2 gap-4">
+                {streetField}
+                {exteriorField}
+                {interiorField}
+                {neighborhoodField}
+                {postalCodeField}
+                {cityField}
+                {stateField}
+                {countryField}
+              </div>
+            </DatosCard>
 
-          <DatosCard
-            id="documentos"
-            title="Documentos y folios"
-            hint="Cómo se numeran y se identifican tus documentos."
-          >
-            <div className="grid grid-cols-2 gap-4">
-              {desktopTextField({
-                name: 'settings.rfc',
-                label: 'RFC',
-                inputClassName: 'font-mono',
-              })}
-              {desktopCurrencyField}
+            <DatosCard
+              id="documentos"
+              title="Documentos y folios"
+              hint="Cómo se numeran y se identifican tus documentos."
+            >
+              <div className="grid grid-cols-2 gap-4">
+                {desktopTextField({
+                  name: 'settings.rfc',
+                  label: 'RFC',
+                  inputClassName: 'font-mono',
+                })}
+                {desktopCurrencyField}
+                <FormField
+                  control={form.control}
+                  name="settings.folio_prefix_presupuesto"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Prefijo de presupuestos</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ''}
+                          maxLength={FOLIO_PREFIX_MAX_LENGTH}
+                          placeholder="P"
+                          autoCapitalize="characters"
+                          className="font-mono"
+                          data-testid="company-folio-prefix-presupuesto"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        El siguiente será{' '}
+                        <span className="font-mono" data-testid="company-next-folio-presupuesto">
+                          {nextFolio(field.value, 'presupuesto')}
+                        </span>
+                        ; los anteriores no cambian.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="settings.folio_prefix_ticket"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Prefijo de recibos</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ''}
+                          maxLength={FOLIO_PREFIX_MAX_LENGTH}
+                          placeholder="R"
+                          autoCapitalize="characters"
+                          className="font-mono"
+                          data-testid="company-folio-prefix-ticket"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        El siguiente será{' '}
+                        <span className="font-mono" data-testid="company-next-folio-ticket">
+                          {nextFolio(field.value, 'ticket')}
+                        </span>
+                        ; los anteriores no cambian.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </DatosCard>
+
+            <DatosCard
+              id="pagos"
+              title="Pagos por transferencia"
+              hint="Opcional. Se imprime en el recibo y se agrega a los WhatsApp de cobro. Aquí no se cobra nada."
+            >
+              <div className="grid grid-cols-2 gap-4">
+                {desktopTextField({
+                  name: 'settings.payment_bank',
+                  label: 'Banco',
+                  placeholder: 'Ej. BBVA',
+                  maxLength: PAYMENT_BANK_MAX,
+                  testId: 'company-payment-bank',
+                })}
+                {desktopTextField({
+                  name: 'settings.payment_holder',
+                  label: 'A nombre de',
+                  placeholder: 'Titular de la cuenta',
+                  maxLength: PAYMENT_HOLDER_MAX,
+                  testId: 'company-payment-holder',
+                })}
+                <FormField
+                  control={form.control}
+                  name="settings.payment_kind"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <fieldset>
+                        <legend className="text-sm font-medium">Método</legend>
+                        <div className="mt-2 flex flex-wrap gap-2" data-testid="company-payment-kind">
+                          {PAYMENT_KIND_OPTIONS.map((option) => (
+                            <label
+                              key={option.value}
+                              className={cn(
+                                'inline-flex h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
+                                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                                paymentKind === option.value
+                                  ? 'border-primary/40 bg-primary/10 text-primary'
+                                  : 'border-border text-foreground/80 hover:bg-muted',
+                              )}
+                            >
+                              <input
+                                type="radio"
+                                name={field.name}
+                                value={option.value}
+                                checked={paymentKind === option.value}
+                                onChange={() => field.onChange(option.value)}
+                                className="sr-only"
+                              />
+                              {option.label}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                      <FormDescription>Un solo método por empresa.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {cardWarning}
+                {paymentKind === 'clabe'
+                  ? desktopTextField({
+                      name: 'settings.payment_clabe',
+                      label: 'CLABE',
+                      placeholder: '18 dígitos',
+                      maxLength: CLABE_LENGTH + 5,
+                      testId: 'company-payment-clabe',
+                      description:
+                        'Revisamos que el último dígito coincida para evitar errores al copiarla.',
+                      className: 'col-span-2',
+                      inputClassName: 'font-mono tracking-wide',
+                      inputMode: 'numeric',
+                    })
+                  : null}
+                {paymentKind === 'card' ? paymentCardField : null}
+                {paymentKind === 'account' ? paymentAccountField : null}
+                {desktopTextField({
+                  name: 'settings.payment_note',
+                  label: 'Indicación para tu cliente',
+                  placeholder: 'Ej. Manda tu comprobante por WhatsApp',
+                  maxLength: PAYMENT_NOTE_MAX,
+                  testId: 'company-payment-note',
+                  className: 'col-span-2',
+                })}
+              </div>
+            </DatosCard>
+
+            <DatosCard id="inicio" title="Inicio" hint="Qué ve tu equipo al entrar.">
               <FormField
                 control={form.control}
-                name="settings.folio_prefix_presupuesto"
+                name="settings.experience_mode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prefijo de presupuestos</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        maxLength={FOLIO_PREFIX_MAX_LENGTH}
-                        placeholder="P"
-                        autoCapitalize="characters"
-                        className="font-mono"
-                        data-testid="company-folio-prefix-presupuesto"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      El siguiente será{' '}
-                      <span className="font-mono" data-testid="company-next-folio-presupuesto">
-                        {nextFolio(field.value, 'presupuesto')}
-                      </span>
-                      ; los anteriores no cambian.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="settings.folio_prefix_ticket"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prefijo de recibos</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        maxLength={FOLIO_PREFIX_MAX_LENGTH}
-                        placeholder="R"
-                        autoCapitalize="characters"
-                        className="font-mono"
-                        data-testid="company-folio-prefix-ticket"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      El siguiente será{' '}
-                      <span className="font-mono" data-testid="company-next-folio-ticket">
-                        {nextFolio(field.value, 'ticket')}
-                      </span>
-                      ; los anteriores no cambian.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </DatosCard>
-
-          <DatosCard
-            id="pagos"
-            title="Pagos por transferencia"
-            hint="Opcional. Se imprime en el recibo y se agrega a los WhatsApp de cobro. Aquí no se cobra nada."
-          >
-            <div className="grid grid-cols-2 gap-4">
-              {desktopTextField({
-                name: 'settings.payment_bank',
-                label: 'Banco',
-                placeholder: 'Ej. BBVA',
-                maxLength: PAYMENT_BANK_MAX,
-                testId: 'company-payment-bank',
-              })}
-              {desktopTextField({
-                name: 'settings.payment_holder',
-                label: 'A nombre de',
-                placeholder: 'Titular de la cuenta',
-                maxLength: PAYMENT_HOLDER_MAX,
-                testId: 'company-payment-holder',
-              })}
-              <FormField
-                control={form.control}
-                name="settings.payment_kind"
-                render={({ field }) => (
-                  <FormItem className="col-span-2">
                     <fieldset>
-                      <legend className="text-sm font-medium">Método</legend>
-                      <div className="mt-2 flex flex-wrap gap-2" data-testid="company-payment-kind">
-                        {PAYMENT_KIND_OPTIONS.map((option) => (
-                          <label
-                            key={option.value}
-                            className={cn(
-                              'inline-flex h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
-                              'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-                              paymentKind === option.value
-                                ? 'border-primary/40 bg-primary/10 text-primary'
-                                : 'border-border text-foreground/80 hover:bg-muted',
-                            )}
-                          >
-                            <input
-                              type="radio"
-                              name={field.name}
-                              value={option.value}
-                              checked={paymentKind === option.value}
-                              onChange={() => field.onChange(option.value)}
-                              className="sr-only"
-                            />
-                            {option.label}
-                          </label>
-                        ))}
+                      <legend className="sr-only">Experiencia de inicio</legend>
+                      <div className="grid gap-2.5 lg:grid-cols-3">
+                        {EXPERIENCE_OPTIONS.map((option) => {
+                          const checked = (field.value || 'auto') === option.value;
+                          return (
+                            <label
+                              key={option.value}
+                              className={cn(
+                                'flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors',
+                                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                                checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
+                              )}
+                            >
+                              <input
+                                type="radio"
+                                name={field.name}
+                                value={option.value}
+                                checked={checked}
+                                onChange={() => field.onChange(option.value)}
+                                className="mt-0.5 size-4 accent-primary"
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium">{option.label}</span>
+                                <span className="block text-caption text-muted-foreground">
+                                  {option.hint}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </fieldset>
-                    <FormDescription>Un solo método por empresa.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              {cardWarning}
-              {paymentKind === 'clabe'
-                ? desktopTextField({
-                    name: 'settings.payment_clabe',
-                    label: 'CLABE',
-                    placeholder: '18 dígitos',
-                    maxLength: CLABE_LENGTH + 5,
-                    testId: 'company-payment-clabe',
-                    description:
-                      'Revisamos que el último dígito coincida para evitar errores al copiarla.',
-                    className: 'col-span-2',
-                    inputClassName: 'font-mono tracking-wide',
-                    inputMode: 'numeric',
-                  })
-                : null}
-              {paymentKind === 'card' ? paymentCardField : null}
-              {paymentKind === 'account' ? paymentAccountField : null}
-              {desktopTextField({
-                name: 'settings.payment_note',
-                label: 'Indicación para tu cliente',
-                placeholder: 'Ej. Manda tu comprobante por WhatsApp',
-                maxLength: PAYMENT_NOTE_MAX,
-                testId: 'company-payment-note',
-                className: 'col-span-2',
-              })}
-            </div>
-          </DatosCard>
-
-          <DatosCard id="inicio" title="Inicio" hint="Qué ve tu equipo al entrar.">
-            <FormField
-              control={form.control}
-              name="settings.experience_mode"
-              render={({ field }) => (
-                <FormItem>
-                  <fieldset>
-                    <legend className="sr-only">Experiencia de inicio</legend>
-                    <div className="grid gap-2.5 lg:grid-cols-3">
-                      {EXPERIENCE_OPTIONS.map((option) => {
-                        const checked = (field.value || 'auto') === option.value;
-                        return (
-                          <label
-                            key={option.value}
-                            className={cn(
-                              'flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors',
-                              'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-                              checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
-                            )}
-                          >
-                            <input
-                              type="radio"
-                              name={field.name}
-                              value={option.value}
-                              checked={checked}
-                              onChange={() => field.onChange(option.value)}
-                              className="mt-0.5 size-4 accent-primary"
-                            />
-                            <span className="min-w-0">
-                              <span className="block text-sm font-medium">{option.label}</span>
-                              <span className="block text-caption text-muted-foreground">
-                                {option.hint}
-                              </span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </DatosCard>
-        </form>
+            </DatosCard>
+          </form>
+        </div>
+        <CompanyReceiptPreview
+          company={company}
+          values={values}
+          nextReceiptFolio={nextFolio(values.settings?.folio_prefix_ticket, 'ticket')}
+          className="@min-[46rem]:sticky @min-[46rem]:top-20"
+        />
+        {/* Across the form and the aside, flush with the page edge (canvas EmpDatos). */}
+        <FormChangesBar
+          changedFields={changedFields}
+          formId={COMPANY_FORM_ID}
+          onDiscard={() => form.reset()}
+          isSubmitting={isSubmitting}
+          className="-mr-6 @min-[46rem]:col-span-2"
+        />
       </div>
-      <CompanyReceiptPreview
-        company={company}
-        values={values}
-        nextReceiptFolio={nextFolio(values.settings?.folio_prefix_ticket, 'ticket')}
-        className="xl:sticky xl:top-20"
-      />
-      {/* Across the form and the aside, flush with the page edge (canvas EmpDatos). */}
-      <FormChangesBar
-        changedFields={changedFields}
-        formId={COMPANY_FORM_ID}
-        onDiscard={() => form.reset()}
-        isSubmitting={isSubmitting}
-        className="-mr-6 xl:col-span-2"
-      />
     </div>
   ) : null;
 

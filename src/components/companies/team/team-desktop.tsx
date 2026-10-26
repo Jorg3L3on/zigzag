@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Plus, Search, Users } from 'lucide-react';
@@ -65,8 +66,15 @@ export const TeamDesktop = ({
   onAdd,
   className,
 }: TeamDesktopProps) => {
+  const searchParams = useSearchParams();
   const [search, setSearch] = React.useState('');
-  const [roleFilter, setRoleFilter] = React.useState<string>(ALL_ROLES);
+  // Roles › «Ver en Equipo» opens Equipo filtered by that role (?rol=<id>).
+  const [roleFilter, setRoleFilter] = React.useState<string>(() => {
+    const requested = searchParams?.get('rol');
+    return requested && roles.some((role) => String(role.id) === requested)
+      ? requested
+      : ALL_ROLES;
+  });
   const [access, setAccess] = React.useState<TeamAccessFilter>('active');
 
   const everyone = React.useMemo(() => [...members, ...deactivated], [members, deactivated]);
@@ -82,7 +90,7 @@ export const TeamDesktop = ({
   const breakdown = summarizeTeamRoles(members);
 
   return (
-    <div className={cn('space-y-4', className)} data-testid="team-desktop">
+    <div className={cn('@container space-y-4', className)} data-testid="team-desktop">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold">
@@ -167,7 +175,8 @@ export const TeamDesktop = ({
                 <TableHead className={headClass}>Persona</TableHead>
                 <TableHead className={headClass}>Rol</TableHead>
                 <TableHead className={headClass}>Acceso</TableHead>
-                <TableHead className={headClass}>Alta</TableHead>
+                {/* Alta hides when the column is narrow (1024 with the sidebar open). */}
+                <TableHead className={cn(headClass, 'hidden @min-[42rem]:table-cell')}>Alta</TableHead>
                 <TableHead className="w-px text-right">
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -202,7 +211,7 @@ export const TeamDesktop = ({
                   <TableCell>
                     <TeamAccessPill member={member} />
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">
+                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground @min-[42rem]:table-cell">
                     {format(new Date(member.createdAt), 'd MMM yy', { locale: es })}
                   </TableCell>
                   <TableCell className="relative w-px">
@@ -233,16 +242,19 @@ const TeamRowActions = ({
 }) => (
   <div className="flex items-center justify-end">
     <div className="pointer-events-none absolute inset-y-0 right-full flex items-center gap-1 bg-gradient-to-r from-transparent via-muted to-muted pl-8 pr-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="whitespace-nowrap bg-background"
-        onClick={() => handlers.onChangeRole(member)}
-        aria-label={`Cambiar rol de ${member.name}`}
-      >
-        Cambiar rol
-      </Button>
+      {member.isSelf ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="whitespace-nowrap bg-background"
+          onClick={() => handlers.onChangeRole(member)}
+          aria-label={`Cambiar rol de ${member.name}`}
+        >
+          Cambiar rol
+        </Button>
+      )}
+      {/* Your own row has neither: no self role change, no self reset. */}
       {member.isSelf ? null : (
         <Button
           type="button"

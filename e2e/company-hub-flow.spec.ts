@@ -69,7 +69,8 @@ test.describe('Mi empresa: team and role flow', () => {
     await row.hover();
     await row.getByRole('button', { name: `Restablecer contraseña de ${member.name}` }).click();
     const dialog = page.getByRole('alertdialog');
-    await dialog.getByRole('button', { name: 'Dar contraseña temporal' }).click();
+    await expect(dialog.getByText(`Restablecer contraseña de ${member.name}`)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Restablecer contraseña' }).click();
     const shown = dialog.getByTestId('temporary-password');
     await expect(shown).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);
     temporary = (await shown.textContent()) ?? '';

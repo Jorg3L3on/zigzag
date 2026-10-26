@@ -110,6 +110,17 @@ export const assessCompanyReadiness = (
   };
 };
 
+/**
+ * What the owner can fix in Mi empresa (ZIG-I32): the profile gaps only. The
+ * lifecycle status is the operator console's, so it is never the owner's to-do.
+ */
+export const ownerReadinessGaps = (assessment: CompanyReadinessAssessment): string[] =>
+  assessment.missingLabels.filter(
+    (_, index) => assessment.missing[index] !== 'lifecycle.active',
+  );
+
+export const OWNER_STATUS_NOTE = 'Lo cambia el equipo de ZigZag.';
+
 export const companyProductionBlockedMessage = (
   assessment: CompanyReadinessAssessment,
 ): string => {

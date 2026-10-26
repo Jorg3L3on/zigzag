@@ -17,9 +17,9 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Mi empresa hub (ZIG-I3): Datos · Equipo · Roles. The layout only decides
- * which tabs to show; each page enforces its own permission. On md+ one
- * header and a side nav replace the tabs (ZIG-I32-1); phones keep the app
- * bar and the segmented tabs.
+ * which tabs to show; each page enforces its own permission. From lg
+ * (1024) a side nav replaces the tabs (ZIG-I32-1); below it phones and
+ * tablets keep the segmented tabs (and phones the app bar).
  */
 export default async function CompanyHubLayout({
   children,
@@ -54,11 +54,11 @@ export default async function CompanyHubLayout({
             productionReady={summary.productionReady}
           />
           <CompanyHubTabs visibleTabs={summary.tabs} />
-          <div className="md:grid md:grid-cols-[11rem_minmax(0,1fr)] md:items-start md:gap-6 lg:grid-cols-[12.5rem_minmax(0,1fr)]">
+          <div className="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:items-start lg:gap-6">
             <CompanyHubSideNav
               visibleTabs={summary.tabs}
               counts={summary.counts}
-              className="hidden md:flex"
+              className="hidden lg:flex"
             />
             <div className="min-w-0">{children}</div>
           </div>

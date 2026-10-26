@@ -142,27 +142,33 @@ async function findOwnCompanyMember(id: string, companyId: number) {
 }
 
 /**
- * Adds a member. Without `password` (desktop Agregar persona, ZIG-I32-2) the
- * server makes a temporary one, returns it once and the person must replace
- * it at their first login, like Dar contraseña temporal (ZIG-I18-11).
+ * Adds a member (ZIG-I32-2). The server always makes a temporary password,
+ * returns it once, and the person must replace it at their first login, like
+ * Dar contraseña temporal (ZIG-I18-11). The client never sends a password.
  */
 export async function addTeamMember(data: {
   name: string;
   email: string;
   role_id: number;
-  password?: string;
-}): Promise<ActionResult<{ temporaryPassword: string } | undefined>> {
+}): Promise<ActionResult<{ temporaryPassword: string }>> {
   try {
     const { companyId } = await requireActionPermission(PERMISSIONS.users.write);
-    const temporaryPassword = data.password ? null : generateTemporaryPassword();
+    const temporaryPassword = generateTemporaryPassword();
     const result = await createUser({
-      ...data,
-      password: data.password ?? temporaryPassword ?? '',
+      name: data.name,
+      email: data.email,
+      role_id: data.role_id,
+      password: temporaryPassword,
       company_id: companyId,
-      must_change_password: temporaryPassword !== null,
+      must_change_password: true,
     });
-    if (!result.success || !temporaryPassword) {
-      return withoutData(result);
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+        errorCode: (result as ActionResult).errorCode,
+        errorType: result.errorType,
+      };
     }
     return { success: true, data: { temporaryPassword } };
   } catch (e) {
@@ -197,7 +203,11 @@ export async function changeTeamMemberRole(
   roleId: number,
 ): Promise<ActionResult> {
   try {
-    const { companyId } = await requireActionPermission(PERMISSIONS.users.write);
+    const { context, companyId } = await requireActionPermission(PERMISSIONS.users.write);
+    // Nobody changes their own role (ZIG-I32 review); another admin does.
+    if (id === context.userId) {
+      return buildActionError('US009');
+    }
     const existing = await findOwnCompanyMember(id, companyId);
     if (!existing) {
       return buildActionError('US003');

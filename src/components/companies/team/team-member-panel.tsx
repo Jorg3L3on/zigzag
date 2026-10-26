@@ -28,7 +28,6 @@ import { showTeamActionError } from './team-member-sheet';
 import { TeamRolePicker } from './team-role-picker';
 import {
   TeamTemporaryPasswordBox,
-  TeamTemporaryPasswordNotice,
   type CreatedTeamMember,
 } from './team-temporary-password-box';
 
@@ -162,16 +161,14 @@ export const TeamMemberPanel = ({
       className="max-w-[380px]"
       data-testid="team-member-panel"
     >
-      {created ? (
-        <TeamTemporaryPasswordBox created={created} companyName={companyName} />
-      ) : (
-        <Form {...form}>
-          <form
-            id={PANEL_FORM_ID}
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-            noValidate
-          >
+      <Form {...form}>
+        <form
+          id={PANEL_FORM_ID}
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4"
+          noValidate
+        >
+          <fieldset disabled={Boolean(created)} className="space-y-4">
             <FormField
               control={form.control}
               name="name"
@@ -220,12 +217,14 @@ export const TeamMemberPanel = ({
                     />
                   )}
                 />
-                <TeamTemporaryPasswordNotice />
               </>
             )}
-          </form>
-        </Form>
-      )}
+          </fieldset>
+          {isEdit ? null : (
+            <TeamTemporaryPasswordBox created={created} companyName={companyName} />
+          )}
+        </form>
+      </Form>
     </SidePanel>
   );
 };

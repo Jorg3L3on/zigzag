@@ -18,8 +18,8 @@ type CompanyHubTabsProps = {
 };
 
 /**
- * Mi empresa hub navigation on phones: a segmented pill. md+ uses
- * `CompanyHubSideNav` (ZIG-I32-1). Route tabs are plain links with
+ * Mi empresa hub navigation below lg (phones and tablets): a segmented pill.
+ * From lg, `CompanyHubSideNav` (ZIG-I32-1). Route tabs are plain links with
  * `aria-current` (each tab is its own page).
  */
 export const CompanyHubTabs = ({
@@ -39,12 +39,12 @@ export const CompanyHubTabs = ({
   return (
     <nav
       aria-label="Secciones de Mi empresa"
-      className={cn('md:hidden', className)}
+      className={cn('lg:hidden', className)}
       data-testid="company-hub-tabs"
     >
       <ul
         className={cn(
-          'grid gap-0 rounded-full bg-muted p-1 md:hidden',
+          'grid gap-0 rounded-full bg-muted p-1 lg:hidden',
           isSubpage && 'hidden',
         )}
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}

@@ -28,9 +28,9 @@ export default async function CompanySettingsPage() {
   const readiness = assessCompanyReadiness(companyRow);
   const nextFolioNumbers = await readNextFolioNumbers(db, companyRow.id);
 
-  // Phones keep the card; md+ drops it for the hub header and Datos cards (ZIG-I32-1).
+  // Phones and tablets keep the card; lg+ drops it for the hub header and Datos cards (ZIG-I32-1).
   return (
-    <div className="w-full max-w-3xl md:max-w-none">
+    <div className="w-full max-w-3xl lg:max-w-none">
       <TripledResourceCard
         title="Datos de la empresa"
         description="Actualiza datos generales, dirección, logo y configuración."
@@ -38,14 +38,13 @@ export default async function CompanySettingsPage() {
         {...COMPANY_HUB_CARD_DESKTOP_RESET}
       >
         <div className="space-y-6">
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <CompanyReadinessBanner assessment={readiness} />
           </div>
           <CompanyForm
             company={companyRow}
             mode="self"
             nextFolioNumbers={nextFolioNumbers}
-            key={companyRow.logo ?? 'no-logo'}
           />
         </div>
       </TripledResourceCard>

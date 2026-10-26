@@ -80,7 +80,7 @@ const RoleListItem = ({ role }: { role: CompanyRoleSummary }) => {
     <>
       <span className="flex w-full items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 font-semibold">
-          <span className="truncate">{role.name}</span>
+          <span className="truncate">{role.isGlobal ? teamRoleLabel(role.name) : role.name}</span>
           {role.isGlobal ? (
             <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Rol compartido" />
           ) : null}
@@ -209,7 +209,7 @@ export const RolesWorkspace = () => {
   return (
     <>
       {/* Mobile: list; each role opens its own full-screen editor route */}
-      <div className="space-y-2.5 md:hidden">
+      <div className="space-y-2.5 lg:hidden">
         {canWrite ? (
           <Button asChild variant="outline" className="h-11 w-full border-dashed border-primary text-primary">
             <Link href={`${COMPANY_HUB_ROLES_PATH}/nuevo`}>
@@ -228,7 +228,9 @@ export const RolesWorkspace = () => {
       </div>
 
       {/* Desktop: header, role cards and the editor card (ZIG-I32-3) */}
-      <div className="hidden flex-col gap-4 md:flex">
+      {/* @container: at 1024 with the sidebar open the hub column is ~500 px, so
+          the cards go above the editor; side by side from 44rem (1280). */}
+      <div className="@container hidden flex-col gap-4 lg:flex">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold">
@@ -251,10 +253,10 @@ export const RolesWorkspace = () => {
             </Button>
           ) : null}
         </div>
-        <div className="flex flex-col items-start gap-6 lg:flex-row">
+        <div className="flex flex-col items-start gap-6 @min-[44rem]:flex-row">
           <aside
             aria-label="Lista de roles"
-            className="flex w-full min-w-0 flex-col gap-2 lg:w-64 lg:shrink-0"
+            className="grid w-full min-w-0 gap-2 @min-[28rem]:grid-cols-2 @min-[44rem]:flex @min-[44rem]:w-64 @min-[44rem]:shrink-0 @min-[44rem]:flex-col"
           >
             {roles.map((role) => (
               <RoleCard
@@ -265,7 +267,7 @@ export const RolesWorkspace = () => {
               />
             ))}
           </aside>
-          <div className="w-full min-w-0 flex-1 rounded-xl border bg-card p-5 lg:p-6">
+          <div className="w-full min-w-0 flex-1 rounded-xl border bg-card p-4 @min-[44rem]:p-6">
             {selection === null ? null : (
               <RoleEditor
                 key={`${selection.kind === 'role' ? `role-${selection.id}` : `new-${selection.seed?.name ?? ''}`}-${editorVersion}`}

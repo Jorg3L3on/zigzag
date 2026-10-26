@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import { COMPANY_HUB_TEAM_PATH } from '@/lib/company-hub';
 import type { ActionErrorType } from '@/lib/errors';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
@@ -83,10 +83,10 @@ export const RoleEditor = ({
   onCancel,
   onDuplicate,
 }: RoleEditorProps) => {
-  const isMobile = useIsMobile();
-  // md+ look (ZIG-I32-3): amber shared notice, tinted template chips, switch
-  // matrix and a footer with Ver en Equipo. Phones keep the ZIG-I3-5 editor.
-  const desktop = variant === 'panel' || !isMobile;
+  const isDesktop = useIsDesktop();
+  // lg+ look (ZIG-I32-3): amber shared notice, tinted template chips, switch
+  // matrix and a footer with Ver en Equipo. Phones and tablets keep the ZIG-I3-5 editor.
+  const desktop = variant === 'panel' || isDesktop;
   const initialKeys = role?.permissionKeys ?? seed?.permissionKeys ?? [];
   // Fixed per mount; the parent remounts the editor (key) when the role changes.
   const [baseline] = React.useState(() => toMatrix(initialKeys));
@@ -326,7 +326,7 @@ export const RoleEditor = ({
             <p className="text-sm text-muted-foreground">
               {peopleLabel(userCount)} ·{' '}
               <Link
-                href={COMPANY_HUB_TEAM_PATH}
+                href={role ? `${COMPANY_HUB_TEAM_PATH}?rol=${role.id}` : COMPANY_HUB_TEAM_PATH}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
                 Ver en Equipo

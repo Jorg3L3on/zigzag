@@ -8,6 +8,7 @@ import { recordGovernanceAudit } from '@/lib/governance-audit';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
 import { bumpUserTokenVersion, revokeAgentAccessForUser } from '@/lib/session-revocation';
 import { compare, hash } from 'bcryptjs';
+import { loadRolePermissionNames } from '@/lib/role-rank';
 
 jest.mock('@/lib/db', () => ({
   db: {
@@ -25,6 +26,10 @@ jest.mock('@/lib/session-revocation', () => ({
   revokeAgentAccessForUser: jest.fn(),
 }));
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
+jest.mock('@/lib/role-rank', () => ({
+  ...jest.requireActual('@/lib/role-rank'),
+  loadRolePermissionNames: jest.fn(),
+}));
 jest.mock('@/lib/governance-audit', () => ({
   actionAuthToGovernanceActor: jest.fn(() => ({ userId: '1' })),
   recordGovernanceAudit: jest.fn(),
@@ -42,6 +47,7 @@ const mockCompare = compare as jest.Mock;
 const mockAudit = recordGovernanceAudit as jest.Mock;
 const mockBump = bumpUserTokenVersion as jest.Mock;
 const mockRevokeAgents = revokeAgentAccessForUser as jest.Mock;
+const mockRolePermissions = loadRolePermissionNames as jest.Mock;
 
 const member = {
   id: 20n,
@@ -126,6 +132,40 @@ describe('resetUserTemporaryPassword (ZIG-I18-11)', () => {
 
     expect(result.success).toBe(false);
     expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a member whose role has permissions the caller lacks (ZIG-I32 review)', async () => {
+    mockDb.query.user.findFirst
+      .mockResolvedValueOnce({ ...member, role_id: 1 }) // target: Admin
+      .mockResolvedValueOnce({ role_id: 2 }); // caller: Operator with users.write
+    mockRolePermissions.mockResolvedValue(
+      new Map([
+        [1, new Set(['users.read', 'users.write', 'roles.write', 'company.manage'])],
+        [2, new Set(['users.read', 'users.write'])],
+      ]),
+    );
+    mockUpdate();
+
+    const result = await resetUserTemporaryPassword(20n);
+
+    expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US010' }));
+    expect(mockDb.update).not.toHaveBeenCalled();
+    expect(mockBump).not.toHaveBeenCalled();
+  });
+
+  it('lets a caller reset someone with the same or fewer permissions', async () => {
+    mockDb.query.user.findFirst
+      .mockResolvedValueOnce({ ...member, role_id: 3 }) // target: Viewer
+      .mockResolvedValueOnce({ role_id: 1 }); // caller: Admin
+    mockRolePermissions.mockResolvedValue(
+      new Map([
+        [3, new Set(['users.read'])],
+        [1, new Set(['users.read', 'users.write', 'roles.write'])],
+      ]),
+    );
+    mockUpdate();
+
+    expect((await resetUserTemporaryPassword(20n)).success).toBe(true);
   });
 
   it('refuses to reset yourself and an unknown user', async () => {

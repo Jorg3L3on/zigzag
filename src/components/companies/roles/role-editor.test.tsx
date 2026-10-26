@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RoleEditor } from '@/components/companies/roles/role-editor';
 import { saveCompanyRole, type CompanyRoleSummary } from '@/actions/company-roles';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
 
 jest.mock('@/actions/company-roles', () => ({
   saveCompanyRole: jest.fn(),
@@ -10,9 +10,9 @@ jest.mock('@/actions/company-roles', () => ({
 
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
-jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => false) }));
+jest.mock('@/hooks/use-desktop', () => ({ useIsDesktop: jest.fn(() => true) }));
 
-const mockUseIsMobile = useIsMobile as jest.MockedFunction<typeof useIsMobile>;
+const mockUseIsDesktop = useIsDesktop as jest.MockedFunction<typeof useIsDesktop>;
 const mockSave = saveCompanyRole as jest.MockedFunction<typeof saveCompanyRole>;
 
 const operator: CompanyRoleSummary = {
@@ -49,7 +49,7 @@ const renderEditor = (role: CompanyRoleSummary | null = operator, canWrite = tru
 describe('RoleEditor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseIsMobile.mockReturnValue(false);
+    mockUseIsDesktop.mockReturnValue(true);
     mockSave.mockResolvedValue({ success: true, data: { id: 7 } });
   });
 
@@ -179,7 +179,7 @@ describe('RoleEditor', () => {
   });
 
   it('keeps checkboxes on the phone editor page', () => {
-    mockUseIsMobile.mockReturnValue(true);
+    mockUseIsDesktop.mockReturnValue(false);
     render(
       <RoleEditor
         role={operator}
@@ -196,13 +196,13 @@ describe('RoleEditor', () => {
     expect(screen.queryByRole('link', { name: 'Ver en Equipo' })).toBeNull();
   });
 
-  it('links the people count to Equipo on md+', () => {
+  it('links the people count to Equipo filtered by the role on lg+', () => {
     renderEditor();
 
     expect(screen.getByText(/1 persona con este rol/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver en Equipo' })).toHaveAttribute(
       'href',
-      '/company/equipo',
+      '/company/equipo?rol=7',
     );
   });
 });

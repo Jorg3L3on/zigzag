@@ -28,7 +28,6 @@ import { TeamRolePicker } from './team-role-picker';
 import { TeamSheet } from './team-sheet';
 import {
   TeamTemporaryPasswordBox,
-  TeamTemporaryPasswordNotice,
   type CreatedTeamMember,
 } from './team-temporary-password-box';
 
@@ -152,20 +151,13 @@ export const TeamMemberSheet = ({
           : 'Entra con su correo y una contraseña temporal que tú le pasas.'
       }
     >
-      {created ? (
-        <div className="space-y-4">
-          <TeamTemporaryPasswordBox created={created} companyName={companyName} />
-          <Button type="button" className="min-h-11 w-full" onClick={() => onOpenChange(false)}>
-            Listo
-          </Button>
-        </div>
-      ) : (
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-            noValidate
-          >
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4"
+          noValidate
+        >
+          <fieldset disabled={Boolean(created)} className="space-y-4">
             <FormField
               control={form.control}
               name="name"
@@ -213,9 +205,17 @@ export const TeamMemberSheet = ({
                     />
                   )}
                 />
-                <TeamTemporaryPasswordNotice />
               </>
             )}
+          </fieldset>
+          {isEdit ? null : (
+            <TeamTemporaryPasswordBox created={created} companyName={companyName} />
+          )}
+          {created ? (
+            <Button type="button" className="min-h-11 w-full" onClick={() => onOpenChange(false)}>
+              Listo
+            </Button>
+          ) : (
             <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
@@ -233,9 +233,9 @@ export const TeamMemberSheet = ({
                     : 'Agregar'}
               </Button>
             </div>
-          </form>
-        </Form>
-      )}
+          )}
+        </form>
+      </Form>
     </TeamSheet>
   );
 };

@@ -158,26 +158,23 @@ describe('team actions (ZIG-I3-4)', () => {
   it('addTeamMember always targets the caller company', async () => {
     mockCreateUser.mockResolvedValue({ success: true });
 
-    await addTeamMember({
-      name: 'Nueva',
-      email: 'nueva@b.mx',
-      role_id: 5,
-      password: 'password123',
-    });
+    await addTeamMember({ name: 'Nueva', email: 'nueva@b.mx', role_id: 5 });
 
     expect(mockCreateUser).toHaveBeenCalledWith(
-      expect.objectContaining({
-        company_id: IDOR_COMPANY_B.id,
-        password: 'password123',
-        must_change_password: false,
-      }),
+      expect.objectContaining({ company_id: IDOR_COMPANY_B.id }),
     );
   });
 
-  it('addTeamMember without a password makes a temporary one and returns it once (ZIG-I32-2)', async () => {
+  it('addTeamMember always makes the temporary password itself, even if a client sends one (ZIG-I32)', async () => {
     mockCreateUser.mockResolvedValue({ success: true });
 
-    const result = await addTeamMember({ name: 'Nueva', email: 'nueva@b.mx', role_id: 5 });
+    const result = await addTeamMember({
+      name: 'Nueva',
+      email: 'nueva@b.mx',
+      role_id: 5,
+      // A forged client field is ignored.
+      password: 'chosen-by-client',
+    } as Parameters<typeof addTeamMember>[0]);
 
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -210,6 +207,14 @@ describe('team actions (ZIG-I3-4)', () => {
     expect(result.success).toBe(false);
     expect(mockUpdateUser).not.toHaveBeenCalled();
     expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  it('changeTeamMemberRole refuses your own role (US009) without touching the user', async () => {
+    // mockActionAuthorized signs the caller in as user 201.
+    const result = await changeTeamMemberRole('201', 5);
+
+    expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US009' }));
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   it('changeTeamMemberRole keeps name and email and sends the new role', async () => {

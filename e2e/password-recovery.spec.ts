@@ -67,8 +67,8 @@ test.describe('Temporary password and forced change', () => {
     await page.getByRole('button', { name: `Acciones de ${member.name}` }).first().click();
     await page.getByRole('menuitem', { name: 'Restablecer contraseña' }).click();
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText(new RegExp(`Dar contraseña temporal a ${member.name}`))).toBeVisible();
-    await dialog.getByRole('button', { name: 'Dar contraseña temporal' }).click();
+    await expect(dialog.getByText(`Restablecer contraseña de ${member.name}`)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Restablecer contraseña' }).click();
 
     const shown = dialog.getByTestId('temporary-password');
     await expect(shown).toHaveText(/^[a-z2-9]{4}-[a-z2-9]{4}$/);

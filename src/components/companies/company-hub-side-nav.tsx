@@ -67,9 +67,9 @@ const useSectionInView = (enabled: boolean): string => {
 };
 
 /**
- * Mi empresa navigation on md+ (ZIG-I32-1, canvas EmpDatos): a "Datos" group
+ * Mi empresa navigation from lg (ZIG-I32-1, canvas EmpDatos): a "Datos" group
  * with its sections as anchors (the one in view highlighted), then "Hub" with
- * Equipo · N and Roles · N. Phones keep `CompanyHubTabs`.
+ * Equipo · N and Roles · N. Below lg, `CompanyHubTabs`.
  */
 export const CompanyHubSideNav = ({
   visibleTabs,
@@ -88,7 +88,7 @@ export const CompanyHubSideNav = ({
   return (
     <nav
       aria-label="Secciones de Mi empresa"
-      className={cn('flex flex-col gap-4 md:sticky md:top-20', className)}
+      className={cn('flex flex-col gap-4 lg:sticky lg:top-20', className)}
       data-testid="company-hub-side-nav"
     >
       {showDatos ? (

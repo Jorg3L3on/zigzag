@@ -2,9 +2,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { CompanyForm } from '@/components/companies/company-form';
 import { updateCompany, updateOwnCompany } from '@/actions/companies';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import type { Company } from '@/db/schema';
 
 jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => true) }));
+jest.mock('@/hooks/use-desktop', () => ({ useIsDesktop: jest.fn(() => false) }));
 
 jest.mock('@/actions/companies', () => ({
   createCompany: jest.fn(),
@@ -23,6 +25,7 @@ jest.mock('next/navigation', () => ({
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
 const mockUseIsMobile = useIsMobile as jest.MockedFunction<typeof useIsMobile>;
+const mockUseIsDesktop = useIsDesktop as jest.MockedFunction<typeof useIsDesktop>;
 const mockUpdateOwnCompany = updateOwnCompany as jest.MockedFunction<
   typeof updateOwnCompany
 >;
@@ -65,6 +68,7 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     jest.clearAllMocks();
     window.localStorage.clear();
     mockUseIsMobile.mockReturnValue(true);
+    mockUseIsDesktop.mockReturnValue(false);
     mockUpdateOwnCompany.mockResolvedValue({ success: true });
   });
 
@@ -137,12 +141,14 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
 
   it('keeps typed values when the viewport switches between phone and desktop', () => {
     mockUseIsMobile.mockReturnValue(false);
+    mockUseIsDesktop.mockReturnValue(true);
     const { rerender } = render(<CompanyForm company={company} mode="self" />);
     fireEvent.change(within(desktopCard('documentos')).getByLabelText('RFC'), {
       target: { value: 'XAXX010101000' },
     });
 
     mockUseIsMobile.mockReturnValue(true);
+    mockUseIsDesktop.mockReturnValue(false);
     rerender(<CompanyForm company={company} mode="self" />);
 
     expect(within(section('configuracion')).getByLabelText('RFC')).toHaveValue('XAXX010101000');
@@ -246,9 +252,18 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     expect(screen.queryByLabelText(/cvv/i)).not.toBeInTheDocument();
   });
 
-  describe('md+ Datos cards (ZIG-I32-1)', () => {
+  describe('lg+ Datos cards (ZIG-I32-1)', () => {
     beforeEach(() => {
       mockUseIsMobile.mockReturnValue(false);
+      mockUseIsDesktop.mockReturnValue(true);
+    });
+
+    it('keeps the tablet layout from 768 to 1023 (flat sections, inline Guardar)', () => {
+      mockUseIsDesktop.mockReturnValue(false);
+      render(<CompanyForm company={company} mode="self" />);
+
+      expect(screen.queryByTestId('company-datos-perfil')).toBeNull();
+      expect(within(section('direccion')).getByLabelText('Calle')).toBeVisible();
     });
 
     it('shows the five sections as anchored cards, without Estado de la empresa', () => {
