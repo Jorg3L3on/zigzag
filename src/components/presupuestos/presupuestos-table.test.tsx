@@ -233,7 +233,9 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
 
     const table = screen.getByRole('table', { name: 'Presupuestos' });
     expect(table.parentElement).toHaveClass('@container');
-    expect(screen.getByRole('columnheader', { name: 'Trabajo' })).toHaveClass('hidden', '@min-[64rem]:table-cell');
+    // Client names win: Trabajo only once Cliente keeps 21rem.
+    expect(screen.getByRole('columnheader', { name: 'Trabajo' })).toHaveClass('hidden', '@min-[75rem]:table-cell');
+    expect(screen.getByRole('columnheader', { name: 'Cliente' })).toHaveClass('@min-[75rem]:w-[21rem]');
     expect(screen.getByRole('columnheader', { name: 'Emitido' })).toHaveClass('hidden', '@min-[48rem]:table-cell');
     // Only ⋮ takes room; the hover actions float.
     expect(screen.getByRole('columnheader', { name: 'Acciones' })).toHaveClass('w-[3.25rem]');

@@ -270,7 +270,9 @@ export const PresupuestosTable = ({
       {
         id: 'cliente',
         header: 'Cliente',
-        // Takes what is left: about 200px at 1024 with the sidebar open.
+        // Takes what is left (about 200px at 1024 with the sidebar open) until Trabajo shows; then
+        // 21rem, as wide as at 1280: client names win over Trabajo, as on the tickets list.
+        meta: { className: '@min-[75rem]:w-[21rem]' },
         cell: ({ row }) => (
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium" title={row.original.clientName ?? undefined}>
@@ -287,7 +289,8 @@ export const PresupuestosTable = ({
       {
         id: 'trabajo',
         header: 'Trabajo',
-        meta: { className: 'hidden @min-[64rem]:table-cell' },
+        // Only once Cliente keeps 21rem and Trabajo gets the canvas's 220px (75rem list, ~1504 with the sidebar).
+        meta: { className: 'hidden @min-[75rem]:table-cell' },
         cell: ({ row }) => {
           const { servicesSummary, servicesHead, servicesCount } = row.original;
           if (!servicesSummary) {
