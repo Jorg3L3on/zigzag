@@ -4,6 +4,7 @@ import {
   hasE2eCredentials,
   login,
 } from './helpers/auth';
+import { DEMO_COMPANY_NAME } from '../src/lib/demo-company';
 
 /**
  * ZIG-I3-7 — visual baselines for the Mi empresa hub (Datos · Equipo · Roles)
@@ -47,6 +48,12 @@ test.describe('Mi empresa hub visual baselines', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
+    // Baselines are ClimaTotal Demo's hub (ZIG-I32): another tenant's logo,
+    // readiness or folios change the unmasked parts.
+    test.skip(
+      (process.env.E2E_COMPANY_NAME ?? DEMO_COMPANY_NAME) !== DEMO_COMPANY_NAME,
+      'Needs the ClimaTotal Demo tenant (E2E_COMPANY_NAME)',
+    );
     await login(page);
     // Same open sections for every run.
     await page.evaluate(() =>

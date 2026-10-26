@@ -49,8 +49,8 @@ const actorRoleId = async (actorUserId: string): Promise<number | null> => {
  * The one guard for writes to another person's role or password (ZIG-I32
  * review). Tenants only; system operators are exempt as before.
  * - US009: nobody changes their own role.
- * - US010: no role or password change on someone whose role holds a
- *   permission the actor lacks, and no assigning a role that does.
+ * - US010: no role or password change and no deactivation on someone whose
+ *   role holds a permission the actor lacks, and no assigning a role that does.
  * `target` is null when creating; `nextRoleId` undefined means the role is
  * not being set.
  */
@@ -59,8 +59,10 @@ export async function guardUserWrite(input: {
   target: { id: bigint; role_id: number | null } | null;
   nextRoleId?: number | null;
   setsPassword?: boolean;
+  /** deleteUser / deactivateTeamMember: taking someone's access away. */
+  deactivates?: boolean;
 }): Promise<'US009' | 'US010' | null> {
-  const { actor, target, nextRoleId, setsPassword = false } = input;
+  const { actor, target, nextRoleId, setsPassword = false, deactivates = false } = input;
   if (actor.companyIsSystem) {
     return null;
   }
@@ -69,7 +71,7 @@ export async function guardUserWrite(input: {
   if (target && String(target.id) === actor.userId && roleChanges) {
     return 'US009';
   }
-  if (!roleChanges && !setsPassword) {
+  if (!roleChanges && !setsPassword && !deactivates) {
     return null;
   }
   const actorRole = await actorRoleId(actor.userId);

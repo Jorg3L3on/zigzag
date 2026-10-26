@@ -4,7 +4,8 @@
  * call the actions directly with forged inputs; the guard runs for real over
  * a mocked database.
  */
-import { createUser, resetUserTemporaryPassword, updateUser } from '@/actions/users';
+import { deactivateTeamMember } from '@/actions/team';
+import { createUser, deleteUser, resetUserTemporaryPassword, updateUser } from '@/actions/users';
 import { db } from '@/lib/db';
 import { guardRoleGrant, guardUserWrite } from '@/lib/role-rank';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
@@ -181,6 +182,38 @@ describe('createUser and resetUserTemporaryPassword go through it too', () => {
     const result = await resetUserTemporaryPassword(5n);
     expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US010' }));
     expect(mockDb.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteUser / deactivateTeamMember go through it (ZIG-I32 review)', () => {
+  it('deleteUser refuses deactivating someone with more permissions (US010)', async () => {
+    targetId = '5';
+    const result = await deleteUser(5n, 10);
+    expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US010' }));
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('deactivateTeamMember refuses an Admin for a non-Admin with users.write (US010)', async () => {
+    targetId = '5';
+    const result = await deactivateTeamMember('5');
+    expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US010' }));
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('allows deactivating someone with fewer permissions', async () => {
+    targetId = '6';
+    const result = await deactivateTeamMember('6');
+    expect(result.success).toBe(true);
+    expect(mockDb.update).toHaveBeenCalled();
+  });
+
+  it('allows deactivating someone with the same permissions (Admin deactivates an Admin)', async () => {
+    USERS['8'] = { id: 8n, role_id: 1, company_id: 10, name: 'Admin 2', email: 'admin2@a.mx' };
+    USERS['7'] = { id: 7n, role_id: 1, company_id: 10, name: 'Admin 1', email: 'admin1@a.mx' };
+    setActor({ ...tenant, userId: '7' });
+    targetId = '8';
+    const result = await deleteUser(8n, 10);
+    expect(result.success).toBe(true);
   });
 });
 

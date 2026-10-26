@@ -735,6 +735,12 @@ export async function deleteUser(
     if (existing.id === BigInt(authContext.userId)) {
       return buildActionError('US006');
     }
+    // Nor anyone with more permissions than you (ZIG-I32 review): otherwise a
+    // second users.write holder could deactivate every Admin.
+    const blocked = await guardUserWrite({ actor: authContext, target: existing, deactivates: true });
+    if (blocked) {
+      return buildActionError(blocked);
+    }
 
     if (
       !(await keepsATeamManager({
