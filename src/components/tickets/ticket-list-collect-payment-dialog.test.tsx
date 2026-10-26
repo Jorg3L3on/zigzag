@@ -21,12 +21,17 @@ jest.mock('sonner', () => ({
   },
 }));
 
-describe('TicketListCollectPaymentDialog', () => {
+const mockUseIsMobile = jest.fn(() => true);
+jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mockUseIsMobile() }));
+
+
+describe('TicketListCollectPaymentDialog (phone sheet)', () => {
   const onOpenChange = jest.fn();
   const onPaymentApplied = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseIsMobile.mockReturnValue(true);
   });
 
   const renderDialog = (props: Partial<React.ComponentProps<typeof TicketListCollectPaymentDialog>> = {}) =>
@@ -100,6 +105,115 @@ describe('TicketListCollectPaymentDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Pagó una parte' }));
     await user.click(screen.getByRole('button', { name: 'La mitad' }));
     expect(screen.getByLabelText('¿Cuánto pagó?')).toHaveValue('1500');
+  });
+});
+
+describe('TicketListCollectPaymentDialog (desktop shortcuts, ZIG-I31-3)', () => {
+  const onOpenChange = jest.fn();
+  const onPaymentApplied = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseIsMobile.mockReturnValue(false);
+  });
+
+  const renderDialog = (props: Partial<React.ComponentProps<typeof TicketListCollectPaymentDialog>> = {}) =>
+    render(
+      <TicketListCollectPaymentDialog
+        open
+        onOpenChange={onOpenChange}
+        ticketId={16}
+        total={1210}
+        paid={10}
+        folio="R-0016"
+        clientName="Museo de Arte Contemporáneo"
+        clientTel="9613151559"
+        companyName="ClimaTotal Demo"
+        onPaymentApplied={onPaymentApplied}
+        {...props}
+      />,
+    );
+
+  it('names the ticket and the client, and starts with the whole saldo', () => {
+    renderDialog();
+    expect(screen.getByRole('dialog', { name: 'Cobrar ticket R-0016' })).toBeInTheDocument();
+    expect(screen.getByText('Museo de Arte Contemporáneo')).toBeInTheDocument();
+    expect(screen.getByText('Saldo pendiente')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Todo el saldo' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByLabelText('Monto que te pagó')).toHaveValue('1200');
+    expect(screen.getByRole('button', { name: 'Anotar cobro de $1,200.00' })).toBeInTheDocument();
+    expect(screen.queryByText(/abon|saldar|registrar/i)).not.toBeInTheDocument();
+  });
+
+  it('La mitad fills half and Otro monto clears the field', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByRole('radio', { name: 'La mitad' }));
+    expect(screen.getByLabelText('Monto que te pagó')).toHaveValue('600');
+    await user.click(screen.getByRole('radio', { name: 'Otro monto' }));
+    expect(screen.getByLabelText('Monto que te pagó')).toHaveValue('');
+    expect(screen.getByRole('radio', { name: 'Otro monto' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('settling the ticket offers Enviar recibo by WhatsApp', async () => {
+    const user = userEvent.setup();
+    mockApplyTicketPayment.mockResolvedValue({ success: true, data: { paid: 1210 } });
+    renderDialog({ companyId: 4 });
+
+    await user.click(screen.getByRole('button', { name: /anotar cobro de/i }));
+
+    await waitFor(() => {
+      expect(mockApplyTicketPayment).toHaveBeenCalledWith(16, 1200, 4);
+      expect(onPaymentApplied).toHaveBeenCalledWith({ ticketId: 16, paid: 1210, total: 1210 });
+    });
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      'Listo, quedó pagado',
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Enviar recibo' }) }),
+    );
+    const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+    const [, options] = mockToastSuccess.mock.calls[0] as [string, { action: { onClick: () => void } }];
+    options.action.onClick();
+    expect(open).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/wa\.me\/9613151559\?text=.*R-0016/),
+      '_blank',
+      'noopener,noreferrer',
+    );
+    open.mockRestore();
+  });
+
+  it('a smaller amount is a partial payment without the receipt offer', async () => {
+    const user = userEvent.setup();
+    mockApplyTicketPayment.mockResolvedValue({ success: true, data: { paid: 610 } });
+    renderDialog();
+
+    await user.click(screen.getByRole('radio', { name: 'La mitad' }));
+    await user.click(screen.getByRole('button', { name: /anotar cobro de/i }));
+
+    await waitFor(() => expect(mockApplyTicketPayment).toHaveBeenCalledWith(16, 600, null));
+    expect(mockToastSuccess).toHaveBeenCalledWith('Cobro anotado');
+  });
+
+  it('keeps the same validations', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    const input = screen.getByLabelText('Monto que te pagó');
+    await user.clear(input);
+    await user.type(input, '5000');
+    await user.click(screen.getByRole('button', { name: /anotar cobro/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/más de lo que debe/i);
+    await user.clear(input);
+    await user.click(screen.getByRole('button', { name: 'Anotar cobro' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe cuánto te pagó.');
+    expect(mockApplyTicketPayment).not.toHaveBeenCalled();
+  });
+
+  it('without a phone the full payment toast has no receipt action', async () => {
+    const user = userEvent.setup();
+    mockApplyTicketPayment.mockResolvedValue({ success: true, data: { paid: 1210 } });
+    renderDialog({ clientTel: null, folio: null });
+    expect(screen.getByRole('dialog', { name: 'Cobrar' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /anotar cobro de/i }));
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledWith('Listo, quedó pagado'));
   });
 });
 

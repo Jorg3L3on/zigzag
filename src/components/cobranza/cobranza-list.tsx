@@ -1,22 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type SortingState,
-} from '@tanstack/react-table';
 import { Banknote } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { getCobranzaList } from '@/actions/cobranza';
-import {
-  cobranzaRowToTicketActions,
-  createCobranzaColumns,
-} from '@/components/cobranza/cobranza-columns';
+import { cobranzaRowToTicketActions } from '@/components/cobranza/cobranza-columns';
 import { CobranzaFilterBar } from '@/components/cobranza/cobranza-filter-bar';
 import { CobranzaWhatsAppButton } from '@/components/cobranza/cobranza-whatsapp-button';
 import { Button } from '@/components/ui/button';
@@ -29,14 +19,6 @@ import {
 } from '@/components/ui/select';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { FormattedDate } from '@/components/formatted-date';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   TicketListCollectPaymentDialog,
   type TicketListCollectPaymentResult,
@@ -75,6 +57,8 @@ import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { PERMISSIONS } from '@/lib/permissions';
+
+/** Cobranza on the phone (< md): the cards of ZIG-I18-2, fed by the ZIG-I31 rules. */
 export const CobranzaList = () => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
@@ -109,7 +93,6 @@ export const CobranzaList = () => {
     clientIdParam && /^\d+$/.test(clientIdParam) ? Number(clientIdParam) : null;
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [sortOrder, setSortOrder] = React.useState<CobranzaSort>('days');
   const [collectRow, setCollectRow] = React.useState<CobranzaRow | null>(null);
 
@@ -250,26 +233,6 @@ export const CobranzaList = () => {
     [],
   );
 
-  const columns = React.useMemo(
-    () =>
-      createCobranzaColumns({
-        onPaymentApplied: handlePaymentApplied,
-        canWrite,
-        companyId: selectedCompany?.id ?? null,
-        companyName: selectedCompany?.name ?? null,
-      }),
-    [canWrite, handlePaymentApplied, selectedCompany?.id, selectedCompany?.name],
-  );
-
-  const table = useReactTable({
-    data: filteredRows,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
-
   const listState = resolveResourceListState({
     isLoading: loading,
     loadError,
@@ -399,44 +362,8 @@ export const CobranzaList = () => {
 
       {listState.kind === 'ready' ? (
         <>
-          <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
           <div className="flex flex-col gap-3 md:hidden">
-            {table.getRowModel().rows.map((row) => {
-              const item = row.original;
+            {filteredRows.map((item) => {
               return (
                 <TripledMobileRecordCard key={item.id}>
                   <div className="flex flex-col gap-3">

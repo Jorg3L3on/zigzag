@@ -25,6 +25,9 @@ import { formatServiceCurrency } from '@/components/tickets/ticket-services-util
 import { getErrorMessageByType } from '@/lib/network-awareness';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
+import { FILTER_SELECTED_CLASS } from '@/components/list-filter';
+import { cn } from '@/lib/utils';
+import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 import { Loader2 } from 'lucide-react';
 
 export type TicketListCollectPaymentResult = {
@@ -41,7 +44,22 @@ type TicketListCollectPaymentDialogProps = {
   paid: number | null;
   companyId?: number | null;
   onPaymentApplied: (result: TicketListCollectPaymentResult) => void;
+  /** Desktop title «Cobrar ticket R-0016»; plain «Cobrar» without it (folio, never the id). */
+  folio?: string | null;
+  clientName?: string | null;
+  /** With a phone, settling the ticket offers «Enviar recibo» by WhatsApp. */
+  clientTel?: string | null;
+  companyName?: string | null;
 };
+
+/** Desktop shortcuts (ZIG-I31-3): the whole saldo by default, half, or another amount. */
+export type CollectShortcut = 'all' | 'half' | 'other';
+
+const halfOf = (amount: number): number => Math.round((amount / 2) * 100) / 100;
+
+/** Amount text for the field: no thousands separator, cents only when there are any. */
+const amountInputValue = (amount: number): string =>
+  Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 
 /** Round amounts below the balance, plus half of it: "mitad", $500, $1,000... */
 export const getCollectQuickAmounts = (
@@ -66,12 +84,18 @@ export const TicketListCollectPaymentDialog = ({
   paid,
   companyId = null,
   onPaymentApplied,
+  folio = null,
+  clientName = null,
+  clientTel = null,
+  companyName = null,
 }: TicketListCollectPaymentDialogProps) => {
   const isMobile = useIsMobile();
   const [partial, setPartial] = React.useState(false);
   const [amountInput, setAmountInput] = React.useState('');
   const [amountError, setAmountError] = React.useState<string | null>(null);
+  const [shortcut, setShortcut] = React.useState<CollectShortcut>('all');
   const [isPending, startTransition] = React.useTransition();
+  const desktopAmountRef = React.useRef<HTMLInputElement>(null);
 
   const balanceDue = getTicketBalanceDue(total, paid);
 
@@ -80,8 +104,12 @@ export const TicketListCollectPaymentDialog = ({
       setPartial(false);
       setAmountInput('');
       setAmountError(null);
+      setShortcut('all');
+    } else if (!isMobile) {
+      // Desktop starts with the whole saldo in the field.
+      setAmountInput(amountInputValue(balanceDue));
     }
-  }, [open]);
+  }, [open, isMobile, balanceDue]);
 
   const parseAmount = (value: string): number => {
     const parsed = Number.parseFloat(value.replace(/[,\s$]/g, ''));
@@ -106,7 +134,30 @@ export const TicketListCollectPaymentDialog = ({
               ? (total ?? paid ?? 0)
               : (paid ?? 0) + amount;
         vibrateSuccess();
-        toast.success(fullyPaid ? 'Listo, quedó pagado' : 'Cobro anotado');
+        const receipt =
+          fullyPaid && !isMobile && total != null
+            ? buildWhatsAppReceiptShare({
+                phone: clientTel,
+                clientName,
+                ticketId,
+                folio,
+                total,
+                paid: nextPaid,
+                companyName,
+              })
+            : null;
+        if (receipt) {
+          toast.success('Listo, quedó pagado', {
+            action: {
+              label: 'Enviar recibo',
+              onClick: () => {
+                window.open(receipt.href, '_blank', 'noopener,noreferrer');
+              },
+            },
+          });
+        } else {
+          toast.success(fullyPaid ? 'Listo, quedó pagado' : 'Cobro anotado');
+        }
         handleSuccess(nextPaid);
         return;
       }
@@ -141,6 +192,128 @@ export const TicketListCollectPaymentDialog = ({
   };
 
   const chips = getCollectQuickAmounts(balanceDue);
+
+  const pickShortcut = (next: CollectShortcut) => {
+    setShortcut(next);
+    setAmountError(null);
+    if (next === 'all') setAmountInput(amountInputValue(balanceDue));
+    if (next === 'half') setAmountInput(amountInputValue(halfOf(balanceDue)));
+    if (next === 'other') {
+      setAmountInput('');
+      window.requestAnimationFrame(() => desktopAmountRef.current?.focus());
+    }
+  };
+
+  const desktopAmount = parseAmount(amountInput);
+
+  const desktopContent = (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        handlePayPart();
+      }}
+    >
+      <div className="rounded-xl bg-muted/40 p-4">
+        <p className="text-sm text-muted-foreground">Saldo pendiente</p>
+        <p className="text-2xl font-semibold tabular-nums text-amber-800 dark:text-amber-300">
+          <FormattedCurrency amount={balanceDue} />
+        </p>
+        <p className="text-caption tabular-nums text-muted-foreground">
+          Total <FormattedCurrency amount={total} /> · Pagado{' '}
+          <FormattedCurrency amount={paid ?? 0} />
+        </p>
+      </div>
+
+      <div role="radiogroup" aria-label="Cuánto te pagó" className="flex flex-wrap gap-2">
+        {(
+          [
+            { value: 'all', label: 'Todo el saldo' },
+            { value: 'half', label: 'La mitad' },
+            { value: 'other', label: 'Otro monto' },
+          ] as const
+        ).map((option) => {
+          const checked = shortcut === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              disabled={isPending || (option.value === 'half' && balanceDue <= 1)}
+              onClick={() => pickShortcut(option.value)}
+              className={cn(
+                'min-h-10 rounded-full border px-4 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                checked
+                  ? FILTER_SELECTED_CLASS
+                  : 'border-border text-muted-foreground hover:bg-muted/50',
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="space-y-2">
+        <label
+          htmlFor={`list-ticket-payment-desktop-${ticketId}`}
+          className="block text-sm font-medium"
+        >
+          Monto que te pagó
+        </label>
+        <div className="relative">
+          <span
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground"
+            aria-hidden
+          >
+            $
+          </span>
+          <Input
+            ref={desktopAmountRef}
+            id={`list-ticket-payment-desktop-${ticketId}`}
+            type="text"
+            inputMode="decimal"
+            disabled={isPending}
+            value={amountInput}
+            onChange={(event) => {
+              setAmountInput(event.target.value);
+              setAmountError(null);
+              setShortcut('other');
+            }}
+            placeholder="0.00"
+            aria-invalid={amountError ? true : undefined}
+            aria-describedby={`list-ticket-payment-note-${ticketId}${amountError ? ` list-ticket-payment-err-${ticketId}` : ''}`}
+            className="h-11 pl-7 text-base tabular-nums"
+          />
+        </div>
+        {amountError ? (
+          <p id={`list-ticket-payment-err-${ticketId}`} role="alert" className="text-sm text-destructive">
+            {amountError}
+          </p>
+        ) : null}
+        <p id={`list-ticket-payment-note-${ticketId}`} className="text-caption text-muted-foreground">
+          Con todo el saldo el ticket queda Pagado y se ofrece enviar el recibo; un monto menor lo
+          deja en Pago parcial.
+        </p>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" disabled={isPending} onClick={() => onOpenChange(false)}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending || balanceDue <= 0}>
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : desktopAmount > 0 ? (
+            <>Anotar cobro de {formatServiceCurrency(desktopAmount)}</>
+          ) : (
+            'Anotar cobro'
+          )}
+        </Button>
+      </div>
+    </form>
+  );
 
   const content = (
     <div className="space-y-4">
@@ -297,10 +470,10 @@ export const TicketListCollectPaymentDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" data-testid="collect-payment-sheet">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{folio?.trim() ? `Cobrar ticket ${folio.trim()}` : title}</DialogTitle>
+          <DialogDescription>{clientName?.trim() || description}</DialogDescription>
         </DialogHeader>
-        {content}
+        {desktopContent}
       </DialogContent>
     </Dialog>
   );

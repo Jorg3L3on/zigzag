@@ -1,17 +1,37 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
+import { ClientStatementButton } from '@/components/clients/detail/client-statement-button';
 import { MoneyFigure } from '@/components/documents/money-figure';
+import type { ClientDetailTicket } from '@/actions/client-detail';
 import type { ClientBalanceSummary } from '@/lib/client-detail';
 
 type ClientBalanceCardProps = {
   clientId: number;
   balance: ClientBalanceSummary;
+  /** For the estado de cuenta: the finished tickets that still owe (ZIG-I31-3). */
+  clientName?: string;
+  phone?: string | null;
+  tickets?: ClientDetailTicket[];
 };
 
 /** Saldo del cliente: unpaid amounts on finished tickets, with a way into cobranza (ZIG-I17-2). */
-export const ClientBalanceCard = ({ clientId, balance }: ClientBalanceCardProps) => {
+export const ClientBalanceCard = ({
+  clientId,
+  balance,
+  clientName = '',
+  phone = null,
+  tickets = [],
+}: ClientBalanceCardProps) => {
   const owes = balance.balanceDue > 0;
+  const statementTickets = tickets
+    .filter((row) => row.finished && row.balanceDue > 0)
+    .map((row) => ({
+      ticketId: row.id,
+      folio: row.folio,
+      date: row.ticketDate ?? row.createdAt,
+      balanceDue: row.balanceDue,
+    }));
   return (
     <section
       aria-label="Saldo del cliente"
@@ -43,6 +63,13 @@ export const ClientBalanceCard = ({ clientId, balance }: ClientBalanceCardProps)
             Ver en cobranza
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
+          {/* A sibling, hidden below md, so the phone card keeps its layout. */}
+          <ClientStatementButton
+            clientName={clientName}
+            phone={phone}
+            tickets={statementTickets}
+            total={balance.balanceDue}
+          />
         </>
       ) : null}
     </section>
