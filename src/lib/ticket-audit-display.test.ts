@@ -3,6 +3,8 @@ import {
   buildTicketAuditUpdateDetails,
   describeTicketAuditEvent,
   extractTicketAuditAmount,
+  formatPresupuestoActivityCardTitle,
+  formatPresupuestoTimelineTitle,
   formatTicketTimelineEntry,
   formatTicketTimelineTitle,
   getTicketTimelineIcon,
@@ -179,5 +181,51 @@ describe('ticket audit display', () => {
       'Ticket restaurado desde la papelera',
       'Servicios del ticket actualizados',
     ]);
+  });
+});
+
+describe('presupuesto timeline (ZIG-I29-1)', () => {
+  const title = (eventType: string, payload: Record<string, unknown> | null = null) =>
+    formatPresupuestoTimelineTitle({ eventType, actorName: 'Ana', payload });
+
+  it('reads the events as a presupuesto', () => {
+    expect(title('created')).toBe('Ana creó el presupuesto');
+    expect(title('updated')).toBe('Ana actualizó el presupuesto');
+    expect(title('presupuesto_converted')).toBe('Ana lo convirtió en ticket');
+    expect(title('presupuesto_canceled')).toBe('Ana canceló el presupuesto');
+    expect(title('presupuesto_duplicated')).toBe('Ana lo duplicó');
+  });
+
+  it('names the new date of an extension', () => {
+    expect(
+      title('presupuesto_extended', {
+        before: { expires_at: '2026-10-20T12:00:00.000Z' },
+        after: { expires_at: '2026-11-01T12:00:00.000Z' },
+      }),
+    ).toBe('Ana extendió la vigencia al 1 de noviembre');
+    expect(title('presupuesto_extended')).toBe('Ana extendió la vigencia');
+  });
+
+  it('keeps the ticket wording unless asked for a presupuesto', () => {
+    const entry = { eventType: 'created', actorName: 'Ana', payload: null };
+    expect(formatTicketTimelineEntry(entry).title).toBe('Ana creó el ticket');
+    expect(formatTicketTimelineEntry(entry, { documentKind: 'presupuesto' }).title).toBe(
+      'Ana creó el presupuesto',
+    );
+  });
+});
+
+describe('formatPresupuestoActivityCardTitle (canvas PresuA)', () => {
+  it('says what happened to the presupuesto', () => {
+    expect(formatPresupuestoActivityCardTitle({ eventType: 'created', payload: null })).toBe('Presupuesto creado');
+    expect(formatPresupuestoActivityCardTitle({ eventType: 'presupuesto_converted', payload: null })).toBe(
+      'Convertido en ticket',
+    );
+    expect(
+      formatPresupuestoActivityCardTitle({
+        eventType: 'presupuesto_extended',
+        payload: { after: { expires_at: '2026-11-01T12:00:00.000Z' } },
+      }),
+    ).toBe('Vigencia extendida al 1 de noviembre');
   });
 });

@@ -2,6 +2,8 @@
  * Ticket document kind helpers — work Tickets vs Presupuestos (quotes).
  */
 
+import { companyDay } from '@/lib/company-day';
+
 export const TICKET_DOCUMENT_KINDS = ['ticket', 'presupuesto'] as const;
 export type TicketDocumentKind = (typeof TICKET_DOCUMENT_KINDS)[number];
 
@@ -58,11 +60,6 @@ const toDateOrNull = (value: Date | string | null | undefined): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const startOfLocalDay = (date: Date): Date => {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-};
 
 export const getPresupuestoStatus = (
   input: PresupuestoStatusInput,
@@ -74,11 +71,10 @@ export const getPresupuestoStatus = (
   if (input.converted_to_ticket_id != null) {
     return 'convertido';
   }
+  // Calendar days in the company zone (ZIG-I29-3), so a UTC server and the
+  // presupuestos list (presupuestoStatusCondition) agree with the phone.
   const expiresAt = toDateOrNull(input.expires_at);
-  if (
-    expiresAt &&
-    startOfLocalDay(expiresAt).getTime() < startOfLocalDay(today).getTime()
-  ) {
+  if (expiresAt && companyDay(expiresAt).iso < companyDay(today).iso) {
     return 'vencido';
   }
   return 'abierto';

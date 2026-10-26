@@ -29,7 +29,10 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   clientTel: row.client_tel,
   clientPhone: trimmed(row.client?.phone),
   clientEmail: trimmed(row.client?.email) ?? trimmed(row.email),
-  clientAddress: row.client ? trimmed(formatClientAddressOneLine(row.client)) : null,
+  // Without the country, as the ticket card: a client with only «México» has no address.
+  clientAddress: row.client
+    ? trimmed(formatClientAddressOneLine(row.client, { includeCountry: false }))
+    : null,
   ticketDate: toIso(row.ticket_date),
   expiresAt: toIso(row.expires_at),
   createdAt: toIso(row.created_at),
@@ -41,6 +44,11 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   convertedToTicketId:
     row.converted_to_ticket_id != null ? String(row.converted_to_ticket_id) : null,
   downloadFileName: buildTicketPdfFileName(row),
+  authorName: trimmed(row.User?.name),
+  canceledAt: toIso(row.canceled_at),
+  clientTicketCount: row.client_document_counts?.tickets ?? null,
+  clientPresupuestoCount: row.client_document_counts?.presupuestos ?? null,
+  convertedTicket: row.converted_ticket ?? null,
 });
 
 /** Server row → composer edit state (ZIG-I5-5); inline lines stay inline. */

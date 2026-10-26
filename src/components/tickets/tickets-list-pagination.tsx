@@ -1,5 +1,4 @@
 import type { Table as ReactTable } from '@tanstack/react-table';
-import type { Ticket } from '@/actions/tickets';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -10,14 +9,31 @@ import {
 } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-type TicketsListPaginationProps = {
-  table: ReactTable<Ticket>;
+type TicketsListPaginationProps<TData> = {
+  table: ReactTable<TData>;
   /** Desktop footer: `1–25 de N tickets`, page size and the pager. Phone keeps the default. */
   variant?: 'phone' | 'desktop';
   totalCount?: number;
+  /** What the desktop footer counts; presupuestos reuse it (ZIG-I29-3). */
+  noun?: string;
+  /** Desktop, one page only: a line on the right instead of the pager («Orden: …»). */
+  note?: string;
 };
 
-const PageSizeSelect = ({ table }: { table: ReactTable<Ticket> }) => (
+/** Page numbers around the current one, with gaps: 1 … 4 5 6 … 12. */
+export const pagerPages = (current: number, count: number): Array<number | 'gap'> => {
+  if (count <= 7) return Array.from({ length: count }, (_, index) => index + 1);
+  const pages = new Set([1, count, current - 1, current, current + 1]);
+  const sorted = [...pages].filter((page) => page >= 1 && page <= count).sort((a, b) => a - b);
+  const out: Array<number | 'gap'> = [];
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) out.push('gap');
+    out.push(page);
+  });
+  return out;
+};
+
+const PageSizeSelect = <TData,>({ table }: { table: ReactTable<TData> }) => (
   <Select
     value={String(table.getState().pagination.pageSize)}
     onValueChange={(value) => {
@@ -35,53 +51,76 @@ const PageSizeSelect = ({ table }: { table: ReactTable<Ticket> }) => (
   </Select>
 );
 
-const PageButtons = ({ table }: { table: ReactTable<Ticket> }) => (
-  <>
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      className="h-11 w-11"
-      onClick={() => table.previousPage()}
-      disabled={!table.getCanPreviousPage()}
-      aria-label="Página anterior"
-    >
-      <ChevronLeft className="h-4 w-4" data-icon="inline-start"/>
-    </Button>
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      className="h-11 w-11"
-      onClick={() => table.nextPage()}
-      disabled={!table.getCanNextPage()}
-      aria-label="Página siguiente"
-    >
-      <ChevronRight className="h-4 w-4" data-icon="inline-start"/>
-    </Button>
-  </>
-);
-
-export const TicketsListPagination = ({
+export const TicketsListPagination = <TData,>({
   table,
   variant = 'phone',
   totalCount = 0,
-}: TicketsListPaginationProps) => {
+  noun = 'tickets',
+  note,
+}: TicketsListPaginationProps<TData>) => {
   if (variant === 'desktop') {
+    // Canvas ListaA / ListaPresuA: «1–25 de 60 tickets» and Por página with ‹ 1 2 3 ›;
+    // a single page reads «6 de 6 presupuestos» and can carry a note instead.
     const { pageIndex, pageSize } = table.getState().pagination;
+    const pageCount = table.getPageCount();
     const start = totalCount === 0 ? 0 : pageIndex * pageSize + 1;
     const end = Math.min(totalCount, (pageIndex + 1) * pageSize);
+    const single = pageCount <= 1;
     return (
-      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 py-3">
-        <p className="text-sm tabular-nums text-muted-foreground">
-          {`${start}\u2013${end} de ${totalCount} tickets`}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 py-3 text-caption text-muted-foreground">
+        <p className="tabular-nums">
+          {single ? `${totalCount} de ${totalCount} ${noun}` : `${start}\u2013${end} de ${totalCount} ${noun}`}
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <PageSizeSelect table={table} />
-          <div className="flex items-center gap-2">
-            <PageButtons table={table} />
+        {single && note ? (
+          <p>{note}</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1.5">Por página</span>
+            <PageSizeSelect table={table} />
+            <span className="w-2" aria-hidden />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+            </Button>
+            {pagerPages(pageIndex + 1, Math.max(pageCount, 1)).map((page, index) =>
+              page === 'gap' ? (
+                <span key={`gap-${index}`} className="px-1" aria-hidden>
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={page}
+                  type="button"
+                  variant={page === pageIndex + 1 ? 'secondary' : 'ghost'}
+                  className="h-9 min-w-9 px-2 tabular-nums"
+                  aria-current={page === pageIndex + 1 ? 'page' : undefined}
+                  aria-label={`Página ${page}`}
+                  onClick={() => table.setPageIndex(page - 1)}
+                >
+                  {page}
+                </Button>
+              ),
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              aria-label="Página siguiente"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </Button>
           </div>
-        </div>
+        )}
       </div>
     );
   }

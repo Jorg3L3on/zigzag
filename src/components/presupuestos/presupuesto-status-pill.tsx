@@ -8,18 +8,26 @@ const STATUS_PILL_CLASS: Record<PresupuestoStatus, string> = {
   cancelado: 'bg-slate-500/10 text-muted-foreground',
 };
 
+/** Desktop shows Aceptado in green, the good outcome (ZIG-I29-1); the phone keeps grey. */
+const DESKTOP_PILL_CLASS: Record<PresupuestoStatus, string> = {
+  ...STATUS_PILL_CLASS,
+  convertido: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+};
+
 export const PresupuestoStatusPill = ({
   status,
   className,
+  surface = 'phone',
 }: {
   status: PresupuestoStatus;
   className?: string;
+  surface?: 'phone' | 'desktop';
 }) => (
   <span
     data-testid="presupuesto-status"
     className={cn(
       'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-caption font-semibold',
-      STATUS_PILL_CLASS[status],
+      (surface === 'desktop' ? DESKTOP_PILL_CLASS : STATUS_PILL_CLASS)[status],
       className,
     )}
   >

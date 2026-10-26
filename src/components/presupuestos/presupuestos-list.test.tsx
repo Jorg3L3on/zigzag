@@ -6,6 +6,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 
 jest.mock('@/actions/presupuestos', () => ({
   getPresupuestosList: jest.fn(),
+  getPresupuestosPaginated: jest.fn(),
 }));
 
 jest.mock('next/link', () => ({
@@ -22,8 +23,28 @@ jest.mock('@/components/pdf-download-button', () => ({
 }));
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  usePathname: () => '/presupuestos',
+  useSearchParams: () => new URLSearchParams(),
 }));
+
+/** Phone width: the cards load, the desktop table stays idle (ZIG-I29-3). */
+const mockPhoneWidth = () => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query.startsWith('(max-width'),
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+};
 
 jest.mock('@/contexts/company-context', () => ({
   useCompany: jest.fn(),
@@ -53,6 +74,7 @@ const selectedCompany = {
 describe('PresupuestosList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPhoneWidth();
     mockUseCompany.mockReturnValue({
       selectedCompany,
       setSelectedCompany: jest.fn(),

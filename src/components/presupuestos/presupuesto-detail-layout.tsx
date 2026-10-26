@@ -58,40 +58,41 @@ export type PresupuestoDetailLayoutProps = PresupuestoDesktopProps;
  * Sharing is the icon in the app bar. From 1024px the desktop document
  * replaces this tree (ZIG-I28-5); phones keep it.
  */
-export const PresupuestoDetailLayout = ({
-  presupuestoId,
-  folio = null,
-  clientId,
-  clientName,
-  clientTel = null,
-  clientPhone = null,
-  clientEmail = null,
-  clientAddress = null,
-  companyName = null,
-  ticketDate,
-  expiresAt,
-  workNotes,
-  total,
-  lines,
-  status,
-  convertedToTicketId,
-  editHref,
-  canWrite,
-  canInvoice,
-  isMutable,
-  mutating,
-  sharing,
-  downloading,
-  duplicating,
-  activity = [],
-  createdAt = null,
-  updatedAt = null,
-  onShare,
-  onDownload,
-  onConvert,
-  onCancel,
-  onDuplicate,
-}: PresupuestoDetailLayoutProps) => {
+export const PresupuestoDetailLayout = (props: PresupuestoDetailLayoutProps) => {
+  const {
+    presupuestoId,
+    folio = null,
+    clientId,
+    clientName,
+    clientTel = null,
+    clientPhone = null,
+    clientEmail = null,
+    clientAddress = null,
+    companyName = null,
+    ticketDate,
+    expiresAt,
+    workNotes,
+    total,
+    lines,
+    status,
+    convertedToTicketId,
+    editHref,
+    canWrite,
+    canInvoice,
+    isMutable,
+    mutating,
+    sharing,
+    downloading,
+    duplicating,
+    activity = [],
+    createdAt = null,
+    updatedAt = null,
+    onShare,
+    onDownload,
+    onConvert,
+    onCancel,
+    onDuplicate,
+  } = props;
   const isDesktop = useIsDesktop();
   const issued = formatLongDate(ticketDate);
   const vigencia = describePresupuestoVigencia({ expiresAt, status });
@@ -189,42 +190,7 @@ export const PresupuestoDetailLayout = ({
   const actionCount = Number(showEdit) + Number(canWrite) + Number(showCancel);
 
   if (isDesktop) {
-    return (
-      <PresupuestoDesktop
-        presupuestoId={presupuestoId}
-        folio={folio}
-        clientId={clientId}
-        clientName={clientName}
-        clientTel={clientTel}
-        clientPhone={clientPhone}
-        clientEmail={clientEmail}
-        clientAddress={clientAddress}
-        companyName={companyName}
-        ticketDate={ticketDate}
-        expiresAt={expiresAt}
-        workNotes={workNotes}
-        total={total}
-        lines={lines}
-        status={status}
-        convertedToTicketId={convertedToTicketId}
-        editHref={editHref}
-        canWrite={canWrite}
-        canInvoice={canInvoice}
-        isMutable={isMutable}
-        mutating={mutating}
-        sharing={sharing}
-        downloading={downloading}
-        duplicating={duplicating}
-        activity={activity}
-        createdAt={createdAt}
-        updatedAt={updatedAt}
-        onShare={onShare}
-        onDownload={onDownload}
-        onConvert={onConvert}
-        onCancel={onCancel}
-        onDuplicate={onDuplicate}
-      />
-    );
+    return <PresupuestoDesktop {...props} />;
   }
 
   return (
