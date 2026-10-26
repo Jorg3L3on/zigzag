@@ -3,8 +3,15 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, MessageCircle, MoreVertical, UserRound } from 'lucide-react';
-import { CobranzaDaysCell, cobranzaDaysClassName } from '@/components/cobranza/cobranza-columns';
-import { CobranzaRowActions } from '@/components/cobranza/cobranza-row-actions';
+import {
+  cobranzaDaysClassName,
+  formatCobranzaDate,
+  formatPaymentWhen,
+} from '@/components/cobranza/cobranza-columns';
+import {
+  COLLECT_BUTTON_CLASS,
+  ICON_BUTTON_CLASS,
+} from '@/components/cobranza/cobranza-row-actions';
 import { COBRANZA_TABLE_CLASS } from '@/components/cobranza/cobranza-ticket-table';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { Button } from '@/components/ui/button';
@@ -19,17 +26,19 @@ import {
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { usePermissions } from '@/hooks/use-permissions';
-import type { CobranzaClientGroup, CobranzaRow } from '@/lib/cobranza';
-import { formatListDate } from '@/lib/format-list-date';
-import { TICKET_PAYMENT_STATUS_LABEL } from '@/lib/ticket-payment-status';
+import { getDaysOutstanding, type CobranzaClientGroup, type CobranzaRow } from '@/lib/cobranza';
+import { formatPhoneDisplay } from '@/lib/phone-links';
+import {
+  formatTicketListAmount,
+  TICKET_PAYMENT_STATUS_LABEL,
+} from '@/lib/ticket-payment-status';
 import { canCollectTicketPayment } from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
-import { buildWhatsAppStatementShare } from '@/lib/whatsapp-share';
+import { buildWhatsAppBalanceShare, buildWhatsAppStatementShare } from '@/lib/whatsapp-share';
 
 type CobranzaClientTableProps = {
   groups: CobranzaClientGroup[];
   canWrite: boolean;
-  companyId: number | null;
   companyName: string | null;
   onCollect: (row: CobranzaRow) => void;
 };
@@ -37,8 +46,11 @@ type CobranzaClientTableProps = {
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
-const lastPaymentLabel = (value: Date | null): string =>
-  value ? formatListDate(new Date(value)) : 'Ningún pago';
+/** «hace 1 día», «3 ene 26», «sin pagos» (canvas CobB). */
+const lastPaymentLabel = (value: Date | null): string => {
+  if (!value) return 'sin pagos';
+  return formatPaymentWhen(value, getDaysOutstanding(new Date(value))) ?? 'sin pagos';
+};
 
 /** «Estado de cuenta»: one WhatsApp with every ticket of the client (ZIG-I31-3). */
 const StatementButton = ({
@@ -64,7 +76,7 @@ const StatementButton = ({
   });
   if (!share) return null;
   return (
-    <Button asChild variant="outline" size="sm">
+    <Button asChild variant="outline" size="sm" className="h-[30px] rounded-lg px-2.5 text-[13px]">
       <a
         href={share.href}
         target="_blank"
@@ -72,7 +84,6 @@ const StatementButton = ({
         aria-label={`Enviar estado de cuenta por WhatsApp a ${group.client_name ?? 'el cliente'}`}
         data-testid="cobranza-statement"
       >
-        <MessageCircle className="h-4 w-4" aria-hidden data-icon="inline-start" />
         Estado de cuenta
       </a>
     </Button>
@@ -100,6 +111,7 @@ const GroupActions = ({
               type="button"
               variant="outline"
               size="sm"
+              className={COLLECT_BUTTON_CLASS}
               onClick={() => onCollect(group.tickets[0])}
               aria-label={`Cobrar el ticket ${group.tickets[0].folio}`}
             >
@@ -112,6 +124,7 @@ const GroupActions = ({
                   type="button"
                   variant="outline"
                   size="sm"
+                  className={COLLECT_BUTTON_CLASS}
                   aria-label={`Cobrar un ticket de ${name}`}
                 >
                   Cobrar
@@ -158,16 +171,68 @@ const GroupActions = ({
   );
 };
 
+/** Cobrar and Recordar on one ticket of an opened client, always visible (canvas CobB). */
+const TicketActions = ({
+  row,
+  canCollect,
+  companyName,
+  onCollect,
+}: {
+  row: CobranzaRow;
+  canCollect: boolean;
+  companyName: string | null;
+  onCollect: (row: CobranzaRow) => void;
+}) => {
+  const payment = useCompanyPaymentInfo();
+  const share = buildWhatsAppBalanceShare({
+    phone: row.client_tel,
+    clientName: row.client_name,
+    ticketId: row.id,
+    folio: row.folio,
+    balanceDue: row.balanceDue,
+    companyName,
+    payment,
+  });
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      {canCollect ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-[30px] rounded-lg px-2.5 text-[13px]"
+          onClick={() => onCollect(row)}
+          aria-label={`Cobrar el ticket ${row.folio}`}
+        >
+          Cobrar
+        </Button>
+      ) : null}
+      {share ? (
+        <Button asChild variant="outline" size="icon" className={ICON_BUTTON_CLASS}>
+          <a
+            href={share.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Recordar por WhatsApp el ticket ${row.folio}`}
+            title="Recordar por WhatsApp"
+          >
+            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+          </a>
+        </Button>
+      ) : null}
+    </div>
+  );
+};
+
 const stop = (event: React.SyntheticEvent) => event.stopPropagation();
 
 /**
- * Por cliente (ZIG-I31-3): one row per client, larger saldo first, that opens
- * to its tickets with Cobrar and Recordar each.
+ * Por cliente (ZIG-I31-3, canvas CobB): one row per client in the chosen order
+ * (Mayor saldo by default) that opens to its tickets, aligned to the same columns.
  */
 export const CobranzaClientTable = ({
   groups,
   canWrite,
-  companyId,
   companyName,
   onCollect,
 }: CobranzaClientTableProps) => {
@@ -187,12 +252,16 @@ export const CobranzaClientTable = ({
     <table className={COBRANZA_TABLE_CLASS} aria-label="Clientes con saldo">
       <TableHeader className="sticky top-16 z-20 bg-background">
         <TableRow>
+          <TableHead className="w-12">
+            <span className="sr-only">Abrir</span>
+          </TableHead>
           <TableHead>Cliente</TableHead>
-          <TableHead className="w-24 text-right">Tickets</TableHead>
+          <TableHead className="w-[6.5rem]">Tickets</TableHead>
           <TableHead className="w-32">Más antiguo</TableHead>
-          <TableHead className="hidden w-32 lg:table-cell">Último pago</TableHead>
+          {/* At 1024 with the sidebar open, Último pago yields so the client name keeps room. */}
+          <TableHead className="hidden w-36 xl:table-cell">Último pago</TableHead>
           <TableHead className="w-32 text-right">Saldo total</TableHead>
-          <TableHead className="w-14">
+          <TableHead className="w-32 xl:w-44">
             <span className="sr-only">Acciones</span>
           </TableHead>
         </TableRow>
@@ -201,6 +270,7 @@ export const CobranzaClientTable = ({
         {groups.map((group) => {
           const open = expanded.has(group.key);
           const name = group.client_name?.trim() || 'Sin cliente';
+          const phone = formatPhoneDisplay(group.client_tel);
           const detailId = `cobranza-client-${group.key.replace(/[^\w-]/g, '_')}`;
           return (
             <React.Fragment key={group.key}>
@@ -210,56 +280,64 @@ export const CobranzaClientTable = ({
                 onClick={() => toggle(group.key)}
               >
                 <TableCell>
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      aria-expanded={open}
-                      aria-controls={detailId}
-                      aria-label={`${open ? 'Ocultar' : 'Ver'} los tickets de ${name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggle(group.key);
-                      }}
-                    >
-                      {open ? (
-                        <ChevronDown className="h-4 w-4" aria-hidden />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" aria-hidden />
-                      )}
-                    </Button>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium leading-5" title={name}>
-                        {name}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground"
+                    aria-expanded={open}
+                    aria-controls={detailId}
+                    aria-label={`${open ? 'Ocultar' : 'Ver'} los tickets de ${name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggle(group.key);
+                    }}
+                  >
+                    {open ? (
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                  </Button>
+                </TableCell>
+                <TableCell>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium leading-[1.3]" title={name}>
+                      {name}
+                    </p>
+                    {phone ? (
+                      <p className="truncate text-xs tabular-nums leading-4 text-muted-foreground">
+                        {phone}
                       </p>
-                      {group.client_tel ? (
-                        <p className="truncate text-caption leading-4 text-muted-foreground">
-                          {group.client_tel}
-                        </p>
-                      ) : null}
-                    </div>
+                    ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="text-right tabular-nums" data-testid="cobranza-client-count">
-                  {group.tickets.length}
+                <TableCell className="tabular-nums" data-testid="cobranza-client-count">
+                  {plural(group.tickets.length, 'ticket', 'tickets')}
                 </TableCell>
                 <TableCell>
                   <span
                     className={cn(
-                      'text-sm font-semibold tabular-nums',
+                      'tabular-nums',
+                      group.oldestDays > 90 && 'font-semibold',
                       cobranzaDaysClassName(group.oldestDays),
                     )}
                   >
                     {plural(group.oldestDays, 'día', 'días')}
                   </span>
                 </TableCell>
-                <TableCell className="hidden lg:table-cell">
+                <TableCell
+                  className={cn(
+                    'hidden tabular-nums xl:table-cell',
+                    group.last_payment_at
+                      ? 'text-slate-600 dark:text-slate-300'
+                      : 'text-muted-foreground',
+                  )}
+                >
                   {lastPaymentLabel(group.last_payment_at)}
                 </TableCell>
                 <TableCell
-                  className="text-right font-semibold tabular-nums text-amber-800 dark:text-amber-300"
+                  className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-300"
                   data-testid="cobranza-client-balance"
                 >
                   <FormattedCurrency amount={group.balanceDue} />
@@ -273,55 +351,57 @@ export const CobranzaClientTable = ({
                   />
                 </TableCell>
               </TableRow>
-              {open ? (
-                <TableRow id={detailId} className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="!h-auto bg-muted/30 !px-0 !py-0">
-                    <ul className="divide-y divide-border/60" aria-label={`Tickets de ${name}`}>
-                      {group.tickets.map((row) => (
-                        <li
-                          key={row.id}
-                          className="group grid grid-cols-[5rem_minmax(0,1fr)_7rem_8rem_9rem_7rem_3.5rem] items-center gap-3 py-2 pl-14 pr-3"
-                          data-testid="cobranza-client-ticket"
-                        >
+              {open
+                ? group.tickets.map((row, index) => (
+                    <TableRow
+                      key={row.id}
+                      id={index === 0 ? detailId : undefined}
+                      className={cn(
+                        'bg-slate-50 text-[13px] hover:bg-slate-50 dark:bg-muted/40 dark:hover:bg-muted/40 [&>td]:!h-auto [&>td]:!py-2',
+                        index === group.tickets.length - 1 && 'border-b-border/70',
+                      )}
+                      data-testid="cobranza-client-ticket"
+                    >
+                      <TableCell />
+                      <TableCell>
+                        <p className="truncate pl-2">
                           <Link
                             href={`/tickets/${row.id}`}
-                            className="font-mono text-caption tabular-nums underline-offset-4 hover:underline"
+                            className="font-mono font-medium tabular-nums text-primary underline-offset-4 hover:underline"
                           >
                             {row.folio}
-                          </Link>
-                          <div className="min-w-0">
-                            <p className="truncate">{row.services_summary ?? 'Sin servicios'}</p>
-                            <p className="text-caption text-muted-foreground">
-                              {formatListDate(new Date(row.ticket_date ?? row.created_at))}
-                            </p>
-                          </div>
-                          <span className="text-caption text-muted-foreground">
-                            {TICKET_PAYMENT_STATUS_LABEL[row.paymentStatus]}
+                          </Link>{' '}
+                          <span className="text-muted-foreground">
+                            · {formatCobranzaDate(row.ticket_date ?? row.created_at)}
+                            {row.services_summary ? ` · ${row.services_summary}` : ''}
                           </span>
-                          <CobranzaDaysCell
-                            days={row.daysOutstanding}
-                            daysSinceLastPayment={row.daysSinceLastPayment}
-                          />
-                          <span className="text-right text-caption tabular-nums text-muted-foreground">
-                            <FormattedCurrency amount={row.paid ?? 0} /> de{' '}
-                            <FormattedCurrency amount={row.total} />
-                          </span>
-                          <span className="text-right font-semibold tabular-nums text-amber-800 dark:text-amber-300">
-                            <FormattedCurrency amount={row.balanceDue} />
-                          </span>
-                          <CobranzaRowActions
-                            row={row}
-                            canWrite={canWrite}
-                            companyId={companyId}
-                            companyName={companyName}
-                            onCollect={onCollect}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </TableCell>
-                </TableRow>
-              ) : null}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {TICKET_PAYMENT_STATUS_LABEL[row.paymentStatus]}
+                      </TableCell>
+                      <TableCell className={cn('tabular-nums', cobranzaDaysClassName(row.daysOutstanding))}>
+                        {plural(row.daysOutstanding, 'día', 'días')}
+                      </TableCell>
+                      <TableCell className="hidden tabular-nums text-muted-foreground xl:table-cell">
+                        {(row.paid ?? 0) > 0.01
+                          ? `${formatTicketListAmount(row.paid)} de ${formatTicketListAmount(row.total)}`
+                          : 'sin pagos'}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        <FormattedCurrency amount={row.balanceDue} />
+                      </TableCell>
+                      <TableCell>
+                        <TicketActions
+                          row={row}
+                          canCollect={canCollect}
+                          companyName={companyName}
+                          onCollect={onCollect}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : null}
             </React.Fragment>
           );
         })}

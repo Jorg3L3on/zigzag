@@ -154,10 +154,11 @@ describe('getCobranzaPaginated', () => {
     expect(mockRequireTicketRead).toHaveBeenCalledWith(99);
     const data = result.data!;
 
-    expect(data.buckets['0-30']).toEqual({ count: 2, amount: 2810 });
-    expect(data.buckets['31-90']).toEqual({ count: 0, amount: 0 });
-    expect(data.buckets['90+']).toEqual({ count: 1, amount: 5000 });
-    expect(data.buckets.all).toEqual({ count: 3, amount: 7810 });
+    expect(data.buckets['0-30']).toEqual({ count: 2, amount: 2810, oldestDays: 29 });
+    expect(data.buckets['31-90']).toEqual({ count: 0, amount: 0, oldestDays: 0 });
+    expect(data.buckets['90+']).toEqual({ count: 1, amount: 5000, oldestDays: 152 });
+    expect(data.buckets.all).toEqual({ count: 3, amount: 7810, oldestDays: 152 });
+    expect(data.ticketCount).toBe(3);
     expect(
       data.buckets['0-30'].amount + data.buckets['31-90'].amount + data.buckets['90+'].amount,
     ).toBe(data.buckets.all.amount);
@@ -173,7 +174,7 @@ describe('getCobranzaPaginated', () => {
   it('reports En proceso and the payments of the company month', async () => {
     const { data } = await getCobranzaPaginated({});
     expect(data!.inProgress).toEqual({ count: 2, total: 2958780 });
-    expect(data!.collectedThisMonth).toEqual({ amount: 650.5, payments: 2 });
+    expect(data!.collectedThisMonth).toEqual({ amount: 650.5, payments: 2, month: '2026-01' });
   });
 
   it('filters by bucket without changing the strip', async () => {
@@ -187,7 +188,16 @@ describe('getCobranzaPaginated', () => {
   it('applies search and status to the strip too', async () => {
     const { data } = await getCobranzaPaginated({ search: 'museo', status: 'partial' });
     expect(data!.rows.map((r) => r.folio)).toEqual(['R-0036']);
-    expect(data!.buckets.all).toEqual({ count: 1, amount: 1600 });
+    expect(data!.buckets.all).toEqual({ count: 1, amount: 1600, oldestDays: 11 });
+  });
+
+  it('sorts the client groups by the oldest work with days', async () => {
+    const { data } = await getCobranzaPaginated({ groupBy: 'client', sort: 'days' });
+    expect(data!.groups.map((g) => g.client_name)).toEqual([
+      'Ana',
+      'Museo de Arte Contemporáneo',
+    ]);
+    expect(data!.ticketCount).toBe(3);
   });
 
   it('groups Museo de Arte Contemporáneo into one row with $2,810.00', async () => {

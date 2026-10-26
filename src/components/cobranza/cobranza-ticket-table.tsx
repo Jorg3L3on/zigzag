@@ -6,9 +6,15 @@ import { flexRender, type Row, type Table as ReactTable } from '@tanstack/react-
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { CobranzaRow } from '@/lib/cobranza';
 
-/** 56 px rows and a fixed layout, like the tickets table (ZIG-I28-4). */
+/**
+ * 56 px rows and a fixed layout, like the tickets table (ZIG-I28-4), with the
+ * canvas header: 11 px uppercase labels on a light band (CobA).
+ */
 export const COBRANZA_TABLE_CLASS =
-  'w-full table-fixed caption-bottom border-collapse text-sm [&_td]:h-14 [&_td]:px-3 [&_td]:py-0 [&_td]:align-middle [&_th]:h-10 [&_th]:bg-background [&_th]:px-3 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60';
+  'w-full table-fixed caption-bottom border-collapse text-sm [&_td]:h-14 [&_td]:px-3 [&_td]:py-0 [&_td]:align-middle [&_th]:h-10 [&_th]:border-b [&_th]:border-border/70 [&_th]:bg-slate-50 dark:[&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:align-middle [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-muted-foreground [&_tr]:border-border/60 [&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4';
+
+/** The bordered card around a Cobranza table and its footer. */
+export const COBRANZA_TABLE_CARD_CLASS = 'overflow-clip rounded-xl border border-border/70 bg-card';
 
 const CobranzaTicketRow = ({ row }: { row: Row<CobranzaRow> }) => {
   const router = useRouter();

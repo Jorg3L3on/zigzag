@@ -140,27 +140,28 @@ describe('TicketListCollectPaymentDialog (desktop shortcuts, ZIG-I31-3)', () => 
     expect(screen.getByText('Museo de Arte Contemporáneo')).toBeInTheDocument();
     expect(screen.getByText('Saldo pendiente')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Todo el saldo' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByLabelText('Monto que te pagó')).toHaveValue('1200');
-    expect(screen.getByRole('button', { name: 'Anotar cobro de $1,200.00' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'La mitad · $600.00' })).toBeInTheDocument();
+    expect(screen.getByLabelText('¿Cuánto pagó?')).toHaveValue('1,200');
+    expect(screen.getByRole('button', { name: 'Anotar cobro' })).toBeInTheDocument();
     expect(screen.queryByText(/abon|saldar|registrar/i)).not.toBeInTheDocument();
   });
 
   it('La mitad fills half and Otro monto clears the field', async () => {
     const user = userEvent.setup();
     renderDialog();
-    await user.click(screen.getByRole('radio', { name: 'La mitad' }));
-    expect(screen.getByLabelText('Monto que te pagó')).toHaveValue('600');
+    await user.click(screen.getByRole('radio', { name: /^La mitad/ }));
+    expect(screen.getByLabelText('¿Cuánto pagó?')).toHaveValue('600');
     await user.click(screen.getByRole('radio', { name: 'Otro monto' }));
-    expect(screen.getByLabelText('Monto que te pagó')).toHaveValue('');
+    expect(screen.getByLabelText('¿Cuánto pagó?')).toHaveValue('');
     expect(screen.getByRole('radio', { name: 'Otro monto' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('settling the ticket offers Enviar recibo by WhatsApp', async () => {
     const user = userEvent.setup();
     mockApplyTicketPayment.mockResolvedValue({ success: true, data: { paid: 1210 } });
-    renderDialog({ companyId: 4 });
+    renderDialog({ companyId: 4, settledDescription: 'La fila sale de Cobranza y la franja se actualiza.' });
 
-    await user.click(screen.getByRole('button', { name: /anotar cobro de/i }));
+    await user.click(screen.getByRole('button', { name: 'Anotar cobro' }));
 
     await waitFor(() => {
       expect(mockApplyTicketPayment).toHaveBeenCalledWith(16, 1200, 4);
@@ -168,7 +169,10 @@ describe('TicketListCollectPaymentDialog (desktop shortcuts, ZIG-I31-3)', () => 
     });
     expect(mockToastSuccess).toHaveBeenCalledWith(
       'Listo, quedó pagado',
-      expect.objectContaining({ action: expect.objectContaining({ label: 'Enviar recibo' }) }),
+      expect.objectContaining({
+        description: 'La fila sale de Cobranza y la franja se actualiza.',
+        action: expect.objectContaining({ label: 'Enviar recibo' }),
+      }),
     );
     const open = jest.spyOn(window, 'open').mockImplementation(() => null);
     const [, options] = mockToastSuccess.mock.calls[0] as [string, { action: { onClick: () => void } }];
@@ -186,8 +190,8 @@ describe('TicketListCollectPaymentDialog (desktop shortcuts, ZIG-I31-3)', () => 
     mockApplyTicketPayment.mockResolvedValue({ success: true, data: { paid: 610 } });
     renderDialog();
 
-    await user.click(screen.getByRole('radio', { name: 'La mitad' }));
-    await user.click(screen.getByRole('button', { name: /anotar cobro de/i }));
+    await user.click(screen.getByRole('radio', { name: /^La mitad/ }));
+    await user.click(screen.getByRole('button', { name: 'Anotar cobro' }));
 
     await waitFor(() => expect(mockApplyTicketPayment).toHaveBeenCalledWith(16, 600, null));
     expect(mockToastSuccess).toHaveBeenCalledWith('Cobro anotado');
@@ -196,10 +200,10 @@ describe('TicketListCollectPaymentDialog (desktop shortcuts, ZIG-I31-3)', () => 
   it('keeps the same validations', async () => {
     const user = userEvent.setup();
     renderDialog();
-    const input = screen.getByLabelText('Monto que te pagó');
+    const input = screen.getByLabelText('¿Cuánto pagó?');
     await user.clear(input);
     await user.type(input, '5000');
-    await user.click(screen.getByRole('button', { name: /anotar cobro/i }));
+    await user.click(screen.getByRole('button', { name: 'Anotar cobro' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/más de lo que debe/i);
     await user.clear(input);
     await user.click(screen.getByRole('button', { name: 'Anotar cobro' }));
@@ -212,7 +216,7 @@ describe('TicketListCollectPaymentDialog (desktop shortcuts, ZIG-I31-3)', () => 
     mockApplyTicketPayment.mockResolvedValue({ success: true, data: { paid: 1210 } });
     renderDialog({ clientTel: null, folio: null });
     expect(screen.getByRole('dialog', { name: 'Cobrar' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /anotar cobro de/i }));
+    await user.click(screen.getByRole('button', { name: 'Anotar cobro' }));
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledWith('Listo, quedó pagado'));
   });
 });

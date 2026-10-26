@@ -128,7 +128,7 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
       .getByTestId('cobranza-client-row')
       .filter({ hasText: 'Museo de Arte Contemporáneo' });
     await expect(museo).toHaveCount(1);
-    await expect(museo.getByTestId('cobranza-client-count')).toHaveText('2');
+    await expect(museo.getByTestId('cobranza-client-count')).toHaveText('2 tickets');
     await expect(museo.getByTestId('cobranza-client-balance')).toHaveText('$2,810.00');
 
     await museo.hover();
@@ -177,15 +177,16 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
       'true',
     );
 
-    await dialog.getByRole('radio', { name: 'La mitad' }).click();
-    expect(Number(await dialog.getByLabel('Monto que te pagó').inputValue())).toBeCloseTo(
+    await dialog.getByRole('radio', { name: /^La mitad/ }).click();
+    const half = (await dialog.getByLabel('¿Cuánto pagó?').inputValue()).replace(/,/g, '');
+    expect(Number(half)).toBeCloseTo(
       Math.round((saldo / 2) * 100) / 100,
       2,
     );
     await dialog.getByRole('radio', { name: 'Todo el saldo' }).click();
     await expectNoSeriousViolations(page, 'cobrar dialog');
 
-    await dialog.getByRole('button', { name: /^Anotar cobro de/ }).click();
+    await dialog.getByRole('button', { name: 'Anotar cobro' }).click();
     await expect(page.getByText('Listo, quedó pagado')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Enviar recibo' })).toBeVisible();
 

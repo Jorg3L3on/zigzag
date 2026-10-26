@@ -88,6 +88,7 @@ const loadCobranzaRows = async (
       .select({
         ticket_id: servicesTickets.ticket_id,
         summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+        count: sql<number>`count(*)`,
       })
       .from(servicesTickets)
       .leftJoin(service, eq(service.id, servicesTickets.service_id))
@@ -102,15 +103,14 @@ const loadCobranzaRows = async (
   const lastPaymentByTicket = new Map(
     lastPayments.map((r) => [String(r.ticket_id), r.last_payment_at]),
   );
-  const summaryByTicket = new Map(
-    serviceLines.map((r) => [String(r.ticket_id), r.summary]),
-  );
+  const summaryByTicket = new Map(serviceLines.map((r) => [String(r.ticket_id), r]));
 
   return buildCobranzaRows(
     tickets.map((row) => ({
       ...row,
       last_payment_at: lastPaymentByTicket.get(String(row.id)) ?? null,
-      services_summary: summaryByTicket.get(String(row.id)) ?? null,
+      services_summary: summaryByTicket.get(String(row.id))?.summary ?? null,
+      services_count: Number(summaryByTicket.get(String(row.id))?.count ?? 0),
     })),
     now,
   );
@@ -154,6 +154,8 @@ export type CobranzaPaginatedData = {
   total: number;
   /** Saldo of `total`. */
   totalBalance: number;
+  /** Tickets behind `total` (equal to it by ticket; more when grouping by client). */
+  ticketCount: number;
   page: number;
   pageSize: number;
   totalPages: number;
@@ -162,7 +164,7 @@ export type CobranzaPaginatedData = {
   /** Unfinished tickets with a saldo: out of Cobranza, named in the footer. */
   inProgress: { count: number; total: number };
   /** Payments recorded in the company's current month. */
-  collectedThisMonth: { amount: number; payments: number };
+  collectedThisMonth: { amount: number; payments: number; month: string };
 };
 
 export async function getCobranzaPaginated(params: {
@@ -225,7 +227,7 @@ export async function getCobranzaPaginated(params: {
     ]);
 
     const month = companyDay(now).iso.slice(0, 7);
-    const collectedThisMonth = { amount: 0, payments: 0 };
+    const collectedThisMonth = { amount: 0, payments: 0, month };
     for (const payment of recentPayments) {
       if (companyDay(payment.created_at).iso.slice(0, 7) !== month) continue;
       collectedThisMonth.amount += Number(payment.amount ?? 0);
@@ -244,7 +246,11 @@ export async function getCobranzaPaginated(params: {
     );
     const totalBalance = summarizeCobranzaRows(filtered).balanceSum;
 
-    const items = groupBy === 'client' ? groupCobranzaRowsByClient(filtered) : filtered;
+    // Por cliente sorts the groups: Mayor saldo, or the oldest work with `days`.
+    const items =
+      groupBy === 'client'
+        ? groupCobranzaRowsByClient(filtered, params.sort === 'days' ? 'days' : 'balance')
+        : filtered;
     const total = items.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const start = (Math.min(page, totalPages) - 1) * pageSize;
@@ -257,6 +263,7 @@ export async function getCobranzaPaginated(params: {
         groups: groupBy === 'client' ? (pageItems as CobranzaClientGroup[]) : [],
         total,
         totalBalance,
+        ticketCount: filtered.length,
         page: Math.min(page, totalPages),
         pageSize,
         totalPages,

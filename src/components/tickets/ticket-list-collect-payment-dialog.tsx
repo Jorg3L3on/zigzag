@@ -28,7 +28,7 @@ import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
 import { FILTER_SELECTED_CLASS } from '@/components/list-filter';
 import { cn } from '@/lib/utils';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wallet } from 'lucide-react';
 
 export type TicketListCollectPaymentResult = {
   ticketId: number;
@@ -50,6 +50,8 @@ type TicketListCollectPaymentDialogProps = {
   /** With a phone, settling the ticket offers «Enviar recibo» by WhatsApp. */
   clientTel?: string | null;
   companyName?: string | null;
+  /** Desktop: the second line of the «Listo, quedó pagado» toast (Cobranza says what moved). */
+  settledDescription?: string;
 };
 
 /** Desktop shortcuts (ZIG-I31-3): the whole saldo by default, half, or another amount. */
@@ -57,9 +59,12 @@ export type CollectShortcut = 'all' | 'half' | 'other';
 
 const halfOf = (amount: number): number => Math.round((amount / 2) * 100) / 100;
 
-/** Amount text for the field: no thousands separator, cents only when there are any. */
+/** Amount text for the field, grouped like the canvas (`421,582.39`); cents only when there are any. */
 const amountInputValue = (amount: number): string =>
-  Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  amount.toLocaleString('es-MX', {
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 
 /** Round amounts below the balance, plus half of it: "mitad", $500, $1,000... */
 export const getCollectQuickAmounts = (
@@ -88,6 +93,7 @@ export const TicketListCollectPaymentDialog = ({
   clientName = null,
   clientTel = null,
   companyName = null,
+  settledDescription,
 }: TicketListCollectPaymentDialogProps) => {
   const isMobile = useIsMobile();
   const [partial, setPartial] = React.useState(false);
@@ -148,6 +154,7 @@ export const TicketListCollectPaymentDialog = ({
             : null;
         if (receipt) {
           toast.success('Listo, quedó pagado', {
+            description: settledDescription,
             action: {
               label: 'Enviar recibo',
               onClick: () => {
@@ -155,6 +162,8 @@ export const TicketListCollectPaymentDialog = ({
               },
             },
           });
+        } else if (fullyPaid && !isMobile && settledDescription) {
+          toast.success('Listo, quedó pagado', { description: settledDescription });
         } else {
           toast.success(fullyPaid ? 'Listo, quedó pagado' : 'Cobro anotado');
         }
@@ -204,67 +213,32 @@ export const TicketListCollectPaymentDialog = ({
     }
   };
 
-  const desktopAmount = parseAmount(amountInput);
 
   const desktopContent = (
     <form
-      className="space-y-4"
+      className="mt-2"
       onSubmit={(event) => {
         event.preventDefault();
         handlePayPart();
       }}
     >
-      <div className="rounded-xl bg-muted/40 p-4">
-        <p className="text-sm text-muted-foreground">Saldo pendiente</p>
-        <p className="text-2xl font-semibold tabular-nums text-amber-800 dark:text-amber-300">
+      <div className="flex items-baseline justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+        <span className="text-[13px]">Saldo pendiente</span>
+        <span className="text-base font-semibold tabular-nums">
           <FormattedCurrency amount={balanceDue} />
-        </p>
-        <p className="text-caption tabular-nums text-muted-foreground">
-          Total <FormattedCurrency amount={total} /> · Pagado{' '}
-          <FormattedCurrency amount={paid ?? 0} />
-        </p>
+        </span>
       </div>
 
-      <div role="radiogroup" aria-label="Cuánto te pagó" className="flex flex-wrap gap-2">
-        {(
-          [
-            { value: 'all', label: 'Todo el saldo' },
-            { value: 'half', label: 'La mitad' },
-            { value: 'other', label: 'Otro monto' },
-          ] as const
-        ).map((option) => {
-          const checked = shortcut === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={checked}
-              disabled={isPending || (option.value === 'half' && balanceDue <= 1)}
-              onClick={() => pickShortcut(option.value)}
-              className={cn(
-                'min-h-10 rounded-full border px-4 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
-                checked
-                  ? FILTER_SELECTED_CLASS
-                  : 'border-border text-muted-foreground hover:bg-muted/50',
-              )}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="space-y-2">
+      <div className="mt-3.5">
         <label
           htmlFor={`list-ticket-payment-desktop-${ticketId}`}
-          className="block text-sm font-medium"
+          className="mb-1.5 block text-[13px] font-medium text-slate-700 dark:text-slate-300"
         >
-          Monto que te pagó
+          ¿Cuánto pagó?
         </label>
         <div className="relative">
           <span
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xl text-muted-foreground"
             aria-hidden
           >
             $
@@ -284,32 +258,70 @@ export const TicketListCollectPaymentDialog = ({
             placeholder="0.00"
             aria-invalid={amountError ? true : undefined}
             aria-describedby={`list-ticket-payment-note-${ticketId}${amountError ? ` list-ticket-payment-err-${ticketId}` : ''}`}
-            className="h-11 pl-7 text-base tabular-nums"
+            className="h-12 rounded-[10px] pl-8 text-xl font-semibold tabular-nums"
           />
         </div>
-        {amountError ? (
-          <p id={`list-ticket-payment-err-${ticketId}`} role="alert" className="text-sm text-destructive">
-            {amountError}
-          </p>
-        ) : null}
-        <p id={`list-ticket-payment-note-${ticketId}`} className="text-caption text-muted-foreground">
-          Con todo el saldo el ticket queda Pagado y se ofrece enviar el recibo; un monto menor lo
-          deja en Pago parcial.
-        </p>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div role="radiogroup" aria-label="Cuánto te pagó" className="mt-2.5 flex flex-wrap gap-1.5">
+        {(
+          [
+            { value: 'all', label: 'Todo el saldo' },
+            { value: 'half', label: `La mitad · ${formatServiceCurrency(halfOf(balanceDue))}` },
+            { value: 'other', label: 'Otro monto' },
+          ] as const
+        ).map((option) => {
+          const checked = shortcut === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              disabled={isPending || (option.value === 'half' && balanceDue <= 1)}
+              onClick={() => pickShortcut(option.value)}
+              className={cn(
+                'h-[34px] rounded-full border px-3 text-[13px] font-medium tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                checked
+                  ? FILTER_SELECTED_CLASS
+                  : 'border-border text-slate-700 hover:bg-muted/50 dark:text-slate-300',
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {amountError ? (
+        <p
+          id={`list-ticket-payment-err-${ticketId}`}
+          role="alert"
+          className="mt-2 text-sm text-destructive"
+        >
+          {amountError}
+        </p>
+      ) : null}
+      <p
+        id={`list-ticket-payment-note-${ticketId}`}
+        className="mt-3 text-xs leading-[1.45] text-muted-foreground"
+      >
+        Con todo el saldo el ticket queda{' '}
+        <b className="font-semibold text-emerald-700 dark:text-emerald-400">Pagado</b> y se ofrece
+        enviar el recibo por WhatsApp. Un monto menor lo deja en Pago parcial.
+      </p>
+
+      <div className="mt-4 flex justify-end gap-2">
         <Button type="button" variant="outline" disabled={isPending} onClick={() => onOpenChange(false)}>
           Cancelar
         </Button>
         <Button type="submit" disabled={isPending || balanceDue <= 0}>
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : desktopAmount > 0 ? (
-            <>Anotar cobro de {formatServiceCurrency(desktopAmount)}</>
           ) : (
-            'Anotar cobro'
+            <Wallet className="h-4 w-4" aria-hidden data-icon="inline-start" />
           )}
+          Anotar cobro
         </Button>
       </div>
     </form>

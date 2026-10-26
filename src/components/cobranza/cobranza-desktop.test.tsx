@@ -89,12 +89,13 @@ const data = (overrides: Partial<CobranzaPaginatedData> = {}): CobranzaPaginated
   groups: [],
   total: rows.length,
   totalBalance: 7810,
+  ticketCount: rows.length,
   page: 1,
   pageSize: 25,
   totalPages: 1,
   buckets: summarizeCobranzaBuckets(rows),
   inProgress: { count: 9, total: 2958780 },
-  collectedThisMonth: { amount: 950988.97, payments: 7 },
+  collectedThisMonth: { amount: 950988.97, payments: 7, month: '2026-10' },
   ...overrides,
 });
 
@@ -114,6 +115,12 @@ describe('CobranzaDesktop', () => {
     expect(screen.getByTestId('cobranza-bucket-90+-amount')).toHaveTextContent('$5,000.00');
     expect(screen.getByTestId('cobranza-collected-month')).toHaveTextContent('$950,988.97');
     expect(screen.getByTestId('cobranza-collected-month')).toHaveTextContent('7 pagos');
+    expect(screen.getByTestId('cobranza-collected-month')).toHaveTextContent(/cobrado en octubre/i);
+    expect(screen.getByTestId('cobranza-bucket-all')).toHaveTextContent(
+      '3 tickets · 2 clientes · promedio',
+    );
+    expect(screen.getByTestId('cobranza-bucket-90+')).toHaveTextContent('el más viejo');
+    expect(screen.getByTestId('cobranza-footer')).toHaveTextContent('3 de 3 tickets · suman $7,810.00');
     expect(screen.getByRole('tab', { name: /por cobrar/i })).toHaveAttribute('aria-selected', 'true');
 
     expect(screen.getAllByTestId('cobranza-folio').map((el) => el.textContent)).toEqual([
@@ -172,7 +179,7 @@ describe('CobranzaDesktop', () => {
     const museo = (await screen.findAllByTestId('cobranza-client-row')).find((row) =>
       row.textContent?.includes('Museo'),
     )!;
-    expect(within(museo).getByTestId('cobranza-client-count')).toHaveTextContent('2');
+    expect(within(museo).getByTestId('cobranza-client-count')).toHaveTextContent('2 tickets');
     expect(within(museo).getByTestId('cobranza-client-balance')).toHaveTextContent('$2,810.00');
     const statement = within(museo).getByTestId('cobranza-statement');
     const text = decodeURIComponent(statement.getAttribute('href')!.split('?text=')[1]);
@@ -215,10 +222,12 @@ describe('cobranza helpers for the table', () => {
     expect(parseCobranzaTramo(null)).toBe('all');
   });
 
-  it('words the last payment', () => {
-    expect(formatLastPayment(null)).toBe('sin ningún pago');
-    expect(formatLastPayment(0)).toBe('último pago hoy');
-    expect(formatLastPayment(1)).toBe('último pago ayer');
-    expect(formatLastPayment(15)).toBe('último pago hace 15 días');
+  it('words the last payment: relative for a week, then the date', () => {
+    const paid = new Date('2025-08-03T18:00:00Z');
+    expect(formatLastPayment(null, null)).toBe('sin ningún pago');
+    expect(formatLastPayment(paid, 0)).toBe('último pago hoy');
+    expect(formatLastPayment(paid, 1)).toBe('último pago hace 1 día');
+    expect(formatLastPayment(paid, 7)).toBe('último pago hace 7 días');
+    expect(formatLastPayment(paid, 15)).toBe('último pago 3 ago 25');
   });
 });

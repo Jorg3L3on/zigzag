@@ -113,6 +113,10 @@ export type WhatsAppStatementShareInput = {
   payment?: CompanyPaymentInfo | null;
 };
 
+/** `$1,210.00`: the statement always shows cents, like the receipt. */
+const statementAmount = (amount: number): string =>
+  `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const statementDate = (value: Date | string | null | undefined): string | null => {
   if (value == null) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -139,7 +143,6 @@ export const buildWhatsAppStatementMessage = (
     });
   }
 
-  const client = (input.clientName ?? 'cliente').trim() || 'cliente';
   const company = input.companyName?.trim();
   const intro = company
     ? `Hola, te escribe ${company}.`
@@ -149,14 +152,14 @@ export const buildWhatsAppStatementMessage = (
   const lines = input.tickets.map((item) => {
     const date = statementDate(item.date);
     const label = documentLabel(item);
-    return `• ${date ? `${label} (${date})` : label}: ${formatTicketListAmount(item.balanceDue)}`;
+    return `• ${date ? `${label} (${date})` : label}: ${statementAmount(item.balanceDue)}`;
   });
 
+  // Canvas CobAcciones: one list with cents, the total and the usual closing line.
   const message = [
-    `${intro} Te compartimos tu estado de cuenta a nombre de ${client}.`,
-    `Tienes ${input.tickets.length} tickets con saldo pendiente:`,
+    `${intro} Tienes ${input.tickets.length} tickets con saldo pendiente:`,
     ...lines,
-    `Total pendiente: ${formatTicketListAmount(total)}`,
+    `Total pendiente: ${statementAmount(total)}.`,
     'Cuando puedas, por favor confirma el pago. ¡Gracias!',
   ].join('\n');
   return appendPaymentInfo(message, input.payment);

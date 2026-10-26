@@ -30,6 +30,11 @@ import {
 } from '@/lib/tickets-rbac';
 import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
 
+/** Canvas CobA: a 30 px Cobrar outlined in the primary color, and a 30 px icon button. */
+export const COLLECT_BUTTON_CLASS =
+  'h-[30px] rounded-lg border-primary px-2.5 text-[13px] text-primary hover:bg-primary/10 hover:text-primary';
+export const ICON_BUTTON_CLASS = 'h-[30px] w-[30px] rounded-lg';
+
 type CobranzaRowActionsProps = {
   row: CobranzaRow;
   canWrite: boolean;
@@ -102,6 +107,7 @@ export const CobranzaRowActions = ({
             type="button"
             variant="outline"
             size="sm"
+            className={COLLECT_BUTTON_CLASS}
             onClick={() => onCollect(row)}
             aria-label={`Cobrar el ticket ${row.folio}`}
           >
@@ -109,15 +115,15 @@ export const CobranzaRowActions = ({
           </Button>
         ) : null}
         {share ? (
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="icon" className={ICON_BUTTON_CLASS}>
             <a
               href={share.href}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Recordar por WhatsApp el ticket ${row.folio}`}
+              title="Recordar por WhatsApp"
             >
-              <MessageCircle className="h-4 w-4" aria-hidden data-icon="inline-start" />
-              WhatsApp
+              <MessageCircle className="h-3.5 w-3.5" aria-hidden />
             </a>
           </Button>
         ) : null}

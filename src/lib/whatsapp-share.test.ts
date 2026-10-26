@@ -227,11 +227,10 @@ describe('whatsapp-share', () => {
       });
       expect(message).toBe(
         [
-          'Hola, te escribe ClimaTotal Demo. Te compartimos tu estado de cuenta a nombre de Museo de Arte Contemporáneo.',
-          'Tienes 2 tickets con saldo pendiente:',
-          '• R-0016 (2 ene 2026): $1,210',
-          '• R-0036 (15 mar 2026): $1,600',
-          'Total pendiente: $2,810',
+          'Hola, te escribe ClimaTotal Demo. Tienes 2 tickets con saldo pendiente:',
+          '• R-0016 (2 ene 2026): $1,210.00',
+          '• R-0036 (15 mar 2026): $1,600.00',
+          'Total pendiente: $2,810.00.',
           'Cuando puedas, por favor confirma el pago. ¡Gracias!',
           '',
           'Para pagar por transferencia:',
@@ -250,8 +249,8 @@ describe('whatsapp-share', () => {
         ],
       });
       expect(message).toContain('• #7 (2 ene 2026): $100.50');
-      expect(message).toContain('• #8: $50');
-      expect(message).toContain('Total pendiente: $150.50');
+      expect(message).toContain('• #8: $50.00');
+      expect(message).toContain('Total pendiente: $150.50.');
       expect(message.startsWith('Hola, te escribimos de ZigZag.')).toBe(true);
     });
 

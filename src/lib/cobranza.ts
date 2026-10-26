@@ -38,6 +38,8 @@ export type CobranzaTicketInput = {
   last_payment_at?: Date | string | null;
   /** "Compresor, Mano de obra": the work, for the card (ZIG-I18-2). */
   services_summary?: string | null;
+  /** Active lines on the ticket, for the «+N» after two names on desktop. */
+  services_count?: number | null;
 };
 
 export type CobranzaRow = {
@@ -61,6 +63,7 @@ export type CobranzaRow = {
   agingBucket: Exclude<CobranzaAgingBucket, 'all'>;
   last_payment_at: Date | null;
   services_summary: string | null;
+  services_count: number;
 };
 
 export type CobranzaSort = 'days' | 'balance' | 'recent';
@@ -175,6 +178,7 @@ export const toCobranzaRow = (
     agingBucket,
     last_payment_at: lastPaymentAt,
     services_summary: ticket.services_summary?.trim() || null,
+    services_count: Number(ticket.services_count ?? 0),
   };
 };
 
@@ -309,6 +313,7 @@ export const applyCobranzaPaymentToRows = (
         client_id: row.client_id,
         last_payment_at: now,
         services_summary: row.services_summary,
+        services_count: row.services_count,
       },
       now,
     );
@@ -328,7 +333,12 @@ export const COBRANZA_AGING_LABEL: Record<CobranzaAgingBucket, string> = {
   '90+': 'Más de 90 días',
 };
 
-export type CobranzaBucketTotals = { count: number; amount: number };
+export type CobranzaBucketTotals = {
+  count: number;
+  amount: number;
+  /** Days of the oldest work in the bucket; 0 when empty. */
+  oldestDays: number;
+};
 
 export type CobranzaBucketSummary = Record<CobranzaAgingBucket, CobranzaBucketTotals> & {
   /** Distinct clients behind `all` (client_id, else the name on the ticket). */
@@ -349,7 +359,7 @@ export const cobranzaClientKey = (
 export const summarizeCobranzaBuckets = (
   rows: CobranzaRow[],
 ): CobranzaBucketSummary => {
-  const empty = (): CobranzaBucketTotals => ({ count: 0, amount: 0 });
+  const empty = (): CobranzaBucketTotals => ({ count: 0, amount: 0, oldestDays: 0 });
   const summary: CobranzaBucketSummary = {
     all: empty(),
     '0-30': empty(),
@@ -361,10 +371,11 @@ export const summarizeCobranzaBuckets = (
   const clients = new Set<string>();
   let days = 0;
   for (const row of rows) {
-    summary.all.count += 1;
-    summary.all.amount += row.balanceDue;
-    summary[row.agingBucket].count += 1;
-    summary[row.agingBucket].amount += row.balanceDue;
+    for (const totals of [summary.all, summary[row.agingBucket]]) {
+      totals.count += 1;
+      totals.amount += row.balanceDue;
+      totals.oldestDays = Math.max(totals.oldestDays, row.daysOutstanding);
+    }
     clients.add(cobranzaClientKey(row));
     days += row.daysOutstanding;
   }
@@ -387,12 +398,16 @@ export type CobranzaClientGroup = {
   tickets: CobranzaRow[];
 };
 
+export type CobranzaClientSort = 'balance' | 'days';
+
 /**
- * One group per client, larger saldo first. Tickets inside keep the urgency
- * order; the phone is the first one found on the client's tickets.
+ * One group per client, larger saldo first (or the oldest work first with
+ * `days`). Tickets inside keep the urgency order; the phone is the first one
+ * found on the client's tickets.
  */
 export const groupCobranzaRowsByClient = (
   rows: CobranzaRow[],
+  sort: CobranzaClientSort = 'balance',
 ): CobranzaClientGroup[] => {
   const groups = new Map<string, CobranzaClientGroup>();
   for (const row of [...rows].sort(compareCobranzaUrgency)) {
@@ -428,11 +443,10 @@ export const groupCobranzaRowsByClient = (
       group.last_payment_at = row.last_payment_at;
     }
   }
-  return [...groups.values()].sort(
-    (a, b) =>
-      b.balanceDue - a.balanceDue ||
-      b.oldestDays - a.oldestDays ||
-      a.key.localeCompare(b.key),
+  return [...groups.values()].sort((a, b) =>
+    sort === 'days'
+      ? b.oldestDays - a.oldestDays || b.balanceDue - a.balanceDue || a.key.localeCompare(b.key)
+      : b.balanceDue - a.balanceDue || b.oldestDays - a.oldestDays || a.key.localeCompare(b.key),
   );
 };
 

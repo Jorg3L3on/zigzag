@@ -219,10 +219,10 @@ describe('cobranza helpers', () => {
       now,
     );
     const summary = summarizeCobranzaBuckets(rows);
-    expect(summary['0-30']).toEqual({ count: 1, amount: 100 });
-    expect(summary['31-90']).toEqual({ count: 1, amount: 200 });
-    expect(summary['90+']).toEqual({ count: 1, amount: 400 });
-    expect(summary.all).toEqual({ count: 3, amount: 700 });
+    expect(summary['0-30']).toEqual({ count: 1, amount: 100, oldestDays: 7 });
+    expect(summary['31-90']).toEqual({ count: 1, amount: 200, oldestDays: 62 });
+    expect(summary['90+']).toEqual({ count: 1, amount: 400, oldestDays: 153 });
+    expect(summary.all).toEqual({ count: 3, amount: 700, oldestDays: 153 });
     expect(
       summary['0-30'].amount + summary['31-90'].amount + summary['90+'].amount,
     ).toBe(summary.all.amount);
@@ -257,6 +257,12 @@ describe('cobranza helpers', () => {
       ],
       now,
     );
+    // Ana's work (1 Jan, 31 days) is older than the museum's (2 Jan, 30 days).
+    expect(groupCobranzaRowsByClient(rows, 'days').map((g) => g.client_name)).toEqual([
+      'Ana',
+      ' ana ',
+      'Museo de Arte Contemporáneo',
+    ]);
     const groups = groupCobranzaRowsByClient(rows);
     expect(groups.map((g) => g.client_name)).toEqual([
       'Ana',
