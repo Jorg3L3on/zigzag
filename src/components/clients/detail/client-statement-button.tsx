@@ -38,7 +38,7 @@ export const ClientStatementButton = ({
   });
   if (!share) return null;
   return (
-    <Button asChild variant="outline" size="sm" className="hidden md:flex md:w-fit">
+    <Button asChild variant="outline" size="sm" className="hidden md:mt-1 md:flex md:w-fit">
       <a
         href={share.href}
         target="_blank"

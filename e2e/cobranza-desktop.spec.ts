@@ -64,7 +64,8 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     const ages = await days(rows);
     expect(ages).toEqual([...ages].sort((a, b) => b - a));
     for (const line of await rows.getByTestId('cobranza-last-payment').allTextContents()) {
-      expect(line).toMatch(/^(último pago (hoy|ayer|hace \d+ días)|sin ningún pago)$/);
+      // Relative for the last week (canvas «hace 1 día»), then the date («3 ago 25»).
+      expect(line).toMatch(/^(último pago (hoy|hace \d+ días?|\d{1,2} [a-z]{3} \d{2})|sin ningún pago)$/);
     }
 
     // En proceso stays out of the queue and is named in the footer.

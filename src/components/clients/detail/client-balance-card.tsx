@@ -61,21 +61,24 @@ export const ClientBalanceCard = ({
               ? 'En 1 ticket terminado'
               : `En ${balance.dueTicketCount} tickets terminados`}
           </p>
-          <Link
-            href={`/cobranza?clientId=${clientId}`}
-            className="inline-flex min-h-11 items-center gap-1.5 pt-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            data-testid="client-balance-cobranza-link"
-          >
-            Ver en cobranza
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-          {/* A sibling, hidden below md, so the phone card keeps its layout. */}
-          <ClientStatementButton
-            clientName={clientName}
-            phone={phone}
-            tickets={statementTickets}
-            total={balance.balanceDue}
-          />
+          {/* One last child (display: contents): space-y gives every other child a bottom margin,
+              so the phone card keeps its height with the md-only statement button inside. */}
+          <div className="contents">
+            <Link
+              href={`/cobranza?clientId=${clientId}`}
+              className="inline-flex min-h-11 items-center gap-1.5 pt-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+              data-testid="client-balance-cobranza-link"
+            >
+              Ver en cobranza
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+            <ClientStatementButton
+              clientName={clientName}
+              phone={phone}
+              tickets={statementTickets}
+              total={balance.balanceDue}
+            />
+          </div>
         </>
       ) : null}
     </section>
