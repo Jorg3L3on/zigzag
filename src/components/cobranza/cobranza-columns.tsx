@@ -119,7 +119,7 @@ export const createCobranzaColumns = ({
 }: CobranzaColumnsOptions): ColumnDef<CobranzaRow>[] => [
   {
     id: 'folio',
-    meta: { className: 'w-20' },
+    meta: { className: 'w-[5.5rem]' },
     header: () => <span>Folio</span>,
     cell: ({ row }) => (
       <Link
@@ -160,7 +160,7 @@ export const createCobranzaColumns = ({
   {
     id: 'date',
     // Días already says how old the work is; the date yields below xl too.
-    meta: { className: 'hidden w-24 xl:table-cell' },
+    meta: { className: 'hidden w-20 xl:table-cell' },
     header: () => <span>Fecha</span>,
     cell: ({ row }) => {
       const date = workDate(row.original);
@@ -177,7 +177,7 @@ export const createCobranzaColumns = ({
   {
     id: 'total',
     // Total, Pagado and Fecha from 1280; below that Saldo and Días carry the row.
-    meta: { className: 'hidden w-28 text-right xl:table-cell' },
+    meta: { className: 'hidden w-[6.5rem] text-right xl:table-cell' },
     header: () => <span className="block text-right">Total</span>,
     cell: ({ row }) => (
       <div className="text-right tabular-nums">
@@ -187,7 +187,7 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'paid',
-    meta: { className: 'hidden w-28 text-right xl:table-cell' },
+    meta: { className: 'hidden w-[6.5rem] text-right xl:table-cell' },
     header: () => <span className="block text-right">Pagado</span>,
     cell: ({ row }) =>
       (row.original.paid ?? 0) > 0.01 ? (
@@ -200,7 +200,7 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'balance',
-    meta: { className: 'w-[7.5rem] text-right' },
+    meta: { className: 'w-28 text-right' },
     header: () => <span className="block text-right">Saldo</span>,
     cell: ({ row }) => (
       <div
@@ -226,7 +226,7 @@ export const createCobranzaColumns = ({
   {
     id: 'actions',
     // Cobrar · WhatsApp · ⋮, as in the canvas Acciones column.
-    meta: { className: 'w-36' },
+    meta: { className: 'w-[9.5rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div

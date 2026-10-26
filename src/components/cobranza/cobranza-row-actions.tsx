@@ -99,9 +99,9 @@ export const CobranzaRowActions = ({
   };
 
   return (
-    <div className="flex items-center justify-end gap-1.5">
+    <div className="flex items-center justify-end gap-1">
       {/* In the Acciones column, shown with the row (hover or keyboard focus), as in CobA. */}
-      <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {showCollect ? (
           <Button
             type="button"

@@ -34,8 +34,9 @@ const useDesktopViewport = (): boolean | null => {
 
 /**
  * Below lg the phone cards (CobranzaList); from lg, as in the canvas, the table of
- * ZIG-I31. CSS picks what shows, so each layout paints its own loading state on the
- * first frame, and only the one that owns the viewport loads the queue.
+ * ZIG-I31. On the first frame both are in the DOM and CSS picks one, so each layout
+ * paints its own loading state; once the width is known only that layout stays
+ * mounted (no duplicate controls or test ids) and only it loads the queue.
  */
 export const CobranzaView = () => {
   const isDesktop = useDesktopViewport();
@@ -66,10 +67,12 @@ export const CobranzaView = () => {
 
   return (
     <>
-      <div className="lg:hidden">
-        <CobranzaList enabled={isDesktop === false} />
-      </div>
-      <div className="hidden lg:block">{desktop}</div>
+      {isDesktop !== true ? (
+        <div className="lg:hidden">
+          <CobranzaList enabled={isDesktop === false} />
+        </div>
+      ) : null}
+      {isDesktop !== false ? <div className="hidden lg:block">{desktop}</div> : null}
     </>
   );
 };

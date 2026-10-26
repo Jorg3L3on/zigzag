@@ -6,6 +6,7 @@ import {
   login,
 } from './helpers/auth';
 import { expectNoSeriousViolations } from './helpers/a11y';
+import { DEMO_COMPANY_NAME } from '../src/lib/demo-company';
 
 /**
  * Cobranza on desktop (ZIG-I31-2/3) against ClimaTotal Demo. The last test
@@ -122,6 +123,11 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
   });
 
   test('Por cliente groups the museum and sends one estado de cuenta', async ({ page }) => {
+    // The museum, its two tickets and the text are ClimaTotal Demo data.
+    test.skip(
+      (process.env.E2E_COMPANY_NAME ?? DEMO_COMPANY_NAME) !== DEMO_COMPANY_NAME,
+      'Needs the ClimaTotal Demo tenant (E2E_COMPANY_NAME)',
+    );
     await page.goto('/cobranza?ver=clientes');
     await expect(page.getByTestId('cobranza-client-row').first()).toBeVisible({ timeout: 30_000 });
 
