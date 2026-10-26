@@ -30,6 +30,9 @@ const BUDGETS_MS = {
   'users.list': 40,
   'audit.events': 60,
   'ticket.audit-history': 40,
+  'cobranza.queue': 80,
+  'cobranza.in-progress': 40,
+  'cobranza.month-payments': 40,
   'schedules.agenda-counts': 60,
   'schedules.agenda-page': 60,
   'schedules.history': 40,
@@ -197,6 +200,36 @@ async function main() {
        WHERE target_company_id = $1
        ORDER BY occurred_at DESC, id DESC
        LIMIT 51`,
+      [companyId],
+    ],
+    // Cobranza (ZIG-I31-1): finished work with a saldo, the En proceso footnote
+    // and the payments of the month.
+    [
+      'cobranza.queue',
+      `SELECT id, client_name, client_tel, ticket_date, created_at, total, paid,
+              finished, company_id, document_kind, client_id, folio_number, folio_prefix
+       FROM "Ticket"
+       WHERE company_id = $1 AND deleted_at IS NULL AND document_kind = 'ticket'
+         AND finished = true
+         AND COALESCE(total, 0) > 0.01 AND COALESCE(paid, 0) < COALESCE(total, 0) - 0.01`,
+      [companyId],
+    ],
+    [
+      'cobranza.in-progress',
+      `SELECT count(*), COALESCE(SUM(COALESCE(total, 0) - COALESCE(paid, 0)), 0)
+       FROM "Ticket"
+       WHERE company_id = $1 AND deleted_at IS NULL AND document_kind = 'ticket'
+         AND finished = false
+         AND COALESCE(total, 0) > 0.01 AND COALESCE(paid, 0) < COALESCE(total, 0) - 0.01`,
+      [companyId],
+    ],
+    [
+      'cobranza.month-payments',
+      `SELECT p.amount, p.created_at
+       FROM "TicketPayment" p
+       INNER JOIN "Ticket" t ON t.id = p.ticket_id
+       WHERE t.company_id = $1 AND t.deleted_at IS NULL AND t.document_kind = 'ticket'
+         AND p.created_at >= now() - interval '32 days'`,
       [companyId],
     ],
     [

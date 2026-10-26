@@ -67,7 +67,13 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
             canWriteClients={canWriteClients}
             canWriteTickets={canWriteTickets}
           />
-          <ClientBalanceCard clientId={client.id} balance={balance} />
+          <ClientBalanceCard
+            clientId={client.id}
+            balance={balance}
+            clientName={client.name}
+            phone={client.phone}
+            tickets={tickets}
+          />
           <ClientHistorySections
             tickets={tickets}
             presupuestos={presupuestos}

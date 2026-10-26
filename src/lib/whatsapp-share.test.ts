@@ -6,6 +6,8 @@ import {
   buildWhatsAppOfflineReceiptShare,
   buildWhatsAppQuoteShare,
   buildWhatsAppReceiptShare,
+  buildWhatsAppStatementMessage,
+  buildWhatsAppStatementShare,
   buildWhatsAppVisitShare,
   buildOfflineReceiptText,
   normalizePhoneForWhatsApp,
@@ -201,6 +203,86 @@ describe('whatsapp-share', () => {
       expect(buildWhatsAppReceiptShare({ ...base, total: 100, paid: 100 })!.message).not.toContain(
         'transferencia',
       );
+    });
+  });
+
+  describe('estado de cuenta (ZIG-I31-1)', () => {
+    const payment = {
+      bank: 'BBVA',
+      holder: 'Juan Pérez',
+      clabe: '002010077777777771',
+      note: null,
+    };
+    const tickets = [
+      { ticketId: 16, folio: 'R-0016', date: new Date('2026-01-02T18:00:00Z'), balanceDue: 1210 },
+      { ticketId: 36, folio: 'R-0036', date: new Date('2026-03-15T18:00:00Z'), balanceDue: 1600 },
+    ];
+
+    it('lists every ticket with folio, date and saldo, then the total and the transfer data', () => {
+      const message = buildWhatsAppStatementMessage({
+        clientName: 'Museo de Arte Contemporáneo',
+        tickets,
+        companyName: 'ClimaTotal Demo',
+        payment,
+      });
+      expect(message).toBe(
+        [
+          'Hola, te escribe ClimaTotal Demo. Tienes 2 tickets con saldo pendiente:',
+          '• R-0016 (2 ene 2026): $1,210.00',
+          '• R-0036 (15 mar 2026): $1,600.00',
+          'Total pendiente: $2,810.00.',
+          'Cuando puedas, por favor confirma el pago. ¡Gracias!',
+          '',
+          'Para pagar por transferencia:',
+          'Banco BBVA · Titular Juan Pérez · CLABE 002010077777777771',
+        ].join('\n'),
+      );
+    });
+
+    it('uses the company day for the date and #id without a folio', () => {
+      const message = buildWhatsAppStatementMessage({
+        clientName: 'Ana',
+        // 02:00 UTC on the 3rd is still the 2nd in Mexico City.
+        tickets: [
+          { ticketId: 7, date: new Date('2026-01-03T02:00:00Z'), balanceDue: 100.5 },
+          { ticketId: 8, date: null, balanceDue: 50 },
+        ],
+      });
+      expect(message).toContain('• #7 (2 ene 2026): $100.50');
+      expect(message).toContain('• #8: $50.00');
+      expect(message).toContain('Total pendiente: $150.50.');
+      expect(message.startsWith('Hola, te escribimos de ZigZag.')).toBe(true);
+    });
+
+    it('delegates to the per-ticket reminder with one ticket', () => {
+      const input = {
+        clientName: 'Leon',
+        companyName: 'ClimaTotal',
+        payment,
+      };
+      expect(
+        buildWhatsAppStatementMessage({ ...input, tickets: [tickets[0]] }),
+      ).toBe(
+        buildWhatsAppBalanceShare({
+          ...input,
+          phone: '9613151559',
+          ticketId: 16,
+          folio: 'R-0016',
+          balanceDue: 1210,
+        })!.message,
+      );
+    });
+
+    it('needs a phone and at least one ticket for the wa.me link', () => {
+      expect(
+        buildWhatsAppStatementShare({ phone: null, clientName: 'Ana', tickets }),
+      ).toBeNull();
+      expect(
+        buildWhatsAppStatementShare({ phone: '9613151559', clientName: 'Ana', tickets: [] }),
+      ).toBeNull();
+      expect(
+        buildWhatsAppStatementShare({ phone: '9613151559', clientName: 'Ana', tickets })!.href,
+      ).toMatch(/^https:\/\/wa\.me\/9613151559\?text=/);
     });
   });
 });

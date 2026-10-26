@@ -96,7 +96,9 @@ export async function loadDashboardMetricsForCompany(
         ELSE 'pending'
       END
     `;
-    const outstandingExpr = sql`GREATEST(COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0), 0)`;
+    // Saldo por cobrar = finished work only, like ingresos, cobrado and Cobranza (ZIG-I31-1).
+    // Same 0.01 tolerance as getTicketBalanceDue, so both figures match to the cent.
+    const outstandingExpr = sql`CASE WHEN ${ticket.finished} AND COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) > 0.01 THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END`;
 
     const [
       [ticketTotals],
