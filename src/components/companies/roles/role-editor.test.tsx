@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RoleEditor } from '@/components/companies/roles/role-editor';
 import { saveCompanyRole, type CompanyRoleSummary } from '@/actions/company-roles';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 jest.mock('@/actions/company-roles', () => ({
   saveCompanyRole: jest.fn(),
@@ -9,6 +10,9 @@ jest.mock('@/actions/company-roles', () => ({
 
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
+jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => false) }));
+
+const mockUseIsMobile = useIsMobile as jest.MockedFunction<typeof useIsMobile>;
 const mockSave = saveCompanyRole as jest.MockedFunction<typeof saveCompanyRole>;
 
 const operator: CompanyRoleSummary = {
@@ -45,24 +49,25 @@ const renderEditor = (role: CompanyRoleSummary | null = operator, canWrite = tru
 describe('RoleEditor', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseIsMobile.mockReturnValue(false);
     mockSave.mockResolvedValue({ success: true, data: { id: 7 } });
   });
 
-  it('shows the role as uniquely labelled Ver / Editar checkboxes', () => {
+  it('shows the role as uniquely labelled Ver / Editar switches on md+ (ZIG-I32-3)', () => {
     renderEditor();
 
-    expect(screen.getByRole('checkbox', { name: 'Ver Tickets' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Editar Servicios' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Ver Equipo' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Ver Tickets' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Editar Servicios' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Ver Equipo' })).not.toBeChecked();
     expect(
-      screen.getByRole('checkbox', { name: 'Administrar Mi empresa' }),
+      screen.getByRole('switch', { name: 'Administrar Mi empresa' }),
     ).not.toBeChecked();
   });
 
   it('unticking Servicios / Editar saves the keys and keeps the others', async () => {
     renderEditor();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Editar Servicios' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Editar Servicios' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar rol' }));
 
     await waitFor(() => expect(mockSave).toHaveBeenCalled());
@@ -84,16 +89,16 @@ describe('RoleEditor', () => {
   it('ticking Editar ticks Ver', () => {
     renderEditor();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Editar Equipo' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Editar Equipo' }));
 
-    expect(screen.getByRole('checkbox', { name: 'Ver Equipo' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Ver Equipo' })).toBeChecked();
   });
 
   it('disables Eliminar rol while someone holds the role', () => {
     renderEditor();
 
     expect(screen.getByRole('button', { name: /Eliminar rol/ })).toBeDisabled();
-    expect(screen.getByText('1 usuario con este rol')).toBeInTheDocument();
+    expect(screen.getByText(/1 persona con este rol/)).toBeInTheDocument();
     expect(
       screen.getByText('Se habilita cuando nadie tiene este rol.'),
     ).toBeInTheDocument();
@@ -102,16 +107,16 @@ describe('RoleEditor', () => {
   it('asks before a template replaces an edited matrix', async () => {
     renderEditor();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Ver Roles' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Ver Roles' }));
     fireEvent.click(screen.getByRole('button', { name: 'Solo lectura' }));
 
     expect(await screen.findByText('¿Reemplazar los permisos?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Usar plantilla' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('checkbox', { name: 'Editar Tickets' })).not.toBeChecked(),
+      expect(screen.getByRole('switch', { name: 'Editar Tickets' })).not.toBeChecked(),
     );
-    expect(screen.getByRole('checkbox', { name: 'Ver Tickets' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Ver Tickets' })).toBeChecked();
   });
 
   it('creates a new role from a template', async () => {
@@ -157,7 +162,7 @@ describe('RoleEditor', () => {
     expect(screen.getByRole('button', { name: /Duplicar/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Eliminar rol/ })).toBeNull();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Editar Servicios' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Editar Servicios' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar rol' }));
 
     await waitFor(() =>
@@ -168,8 +173,36 @@ describe('RoleEditor', () => {
   it('is fully read-only without roles.write', () => {
     renderEditor(operator, false);
 
-    expect(screen.getByRole('checkbox', { name: 'Ver Tickets' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Ver Tickets' })).toBeDisabled();
     expect(screen.getByLabelText('Nombre del rol')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Guardar rol' })).toBeNull();
+  });
+
+  it('keeps checkboxes on the phone editor page', () => {
+    mockUseIsMobile.mockReturnValue(true);
+    render(
+      <RoleEditor
+        role={operator}
+        canWrite
+        variant="page"
+        onSaved={jest.fn()}
+        onDeleted={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('checkbox', { name: 'Editar Servicios' })).toBeChecked();
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Ver en Equipo' })).toBeNull();
+  });
+
+  it('links the people count to Equipo on md+', () => {
+    renderEditor();
+
+    expect(screen.getByText(/1 persona con este rol/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver en Equipo' })).toHaveAttribute(
+      'href',
+      '/company/equipo',
+    );
   });
 });
