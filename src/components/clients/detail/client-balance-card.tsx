@@ -24,8 +24,14 @@ export const ClientBalanceCard = ({
   tickets = [],
 }: ClientBalanceCardProps) => {
   const owes = balance.balanceDue > 0;
+  // Oldest work first, the same order as Cobranza › Por cliente.
   const statementTickets = tickets
     .filter((row) => row.finished && row.balanceDue > 0)
+    .sort(
+      (a, b) =>
+        new Date(a.ticketDate ?? a.createdAt).getTime() -
+          new Date(b.ticketDate ?? b.createdAt).getTime() || Number(a.id) - Number(b.id),
+    )
     .map((row) => ({
       ticketId: row.id,
       folio: row.folio,

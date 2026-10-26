@@ -38,7 +38,7 @@ const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
 const lastPaymentLabel = (value: Date | null): string =>
-  value ? formatListDate(new Date(value)) : 'Sin pagos';
+  value ? formatListDate(new Date(value)) : 'Ningún pago';
 
 /** «Estado de cuenta»: one WhatsApp with every ticket of the client (ZIG-I31-3). */
 const StatementButton = ({

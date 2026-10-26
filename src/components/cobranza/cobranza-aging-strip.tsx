@@ -46,7 +46,7 @@ export const CobranzaAgingStrip = ({
     className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5"
     data-testid="cobranza-aging-strip"
   >
-    <div role="tablist" aria-label="Antigüedad del saldo" className="contents">
+    <div role="tablist" aria-label="Días sin pagar" className="contents">
       {TABS.map((tab) => {
         const totals = buckets?.[tab.bucket] ?? null;
         const selected = value === tab.bucket;
