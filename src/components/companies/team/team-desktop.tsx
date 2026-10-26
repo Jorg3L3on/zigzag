@@ -174,10 +174,11 @@ export const TeamDesktop = ({
               <TableRow>
                 <TableHead className={headClass}>Persona</TableHead>
                 {/* Narrow column (1024 with the sidebar open): Rol and Acceso move under
-                    the name as pills, like the phone card; Alta needs a bit more room. */}
+                    the name as pills, like the phone card; Alta only shows with room
+                    for a «Debe cambiar contraseña» pill beside it. */}
                 <TableHead className={cn(headClass, 'hidden @min-[36rem]:table-cell')}>Rol</TableHead>
                 <TableHead className={cn(headClass, 'hidden @min-[36rem]:table-cell')}>Acceso</TableHead>
-                <TableHead className={cn(headClass, 'hidden @min-[46rem]:table-cell')}>Alta</TableHead>
+                <TableHead className={cn(headClass, 'hidden @min-[52rem]:table-cell')}>Alta</TableHead>
                 <TableHead className="w-px text-right">
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -190,17 +191,20 @@ export const TeamDesktop = ({
                   className="group hover:bg-muted focus-within:bg-muted"
                   data-testid="team-member-row"
                 >
-                  <TableCell className="max-w-xs">
+                  <TableCell className="max-w-[16rem]">
                     <div className="flex min-w-0 items-center gap-3">
                       <TeamAvatar name={member.name} tint={teamAvatarTint(member)} />
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate font-medium">
                           {member.name}
                           {member.isSelf ? (
-                            <span className="ml-1.5 font-normal text-muted-foreground">(tú)</span>
+                            <span className="ml-1.5 font-normal text-muted-foreground group-hover:text-slate-600 group-focus-within:text-slate-600 dark:group-hover:text-slate-300 dark:group-focus-within:text-slate-300">
+                              (tú)
+                            </span>
                           ) : null}
                         </span>
-                        <span className="truncate text-caption text-muted-foreground">
+                        {/* Hovered rows sit on bg-muted: one step darker keeps 4.5:1. */}
+                        <span className="truncate text-caption text-muted-foreground group-hover:text-slate-600 group-focus-within:text-slate-600 dark:group-hover:text-slate-300 dark:group-focus-within:text-slate-300">
                           {member.email}
                         </span>
                         <span className="mt-1 flex flex-wrap gap-1.5 @min-[36rem]:hidden">
@@ -216,7 +220,7 @@ export const TeamDesktop = ({
                   <TableCell className="hidden @min-[36rem]:table-cell">
                     <TeamAccessPill member={member} />
                   </TableCell>
-                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground @min-[46rem]:table-cell">
+                  <TableCell className="hidden whitespace-nowrap text-sm tabular-nums text-muted-foreground group-hover:text-slate-600 group-focus-within:text-slate-600 dark:group-hover:text-slate-300 dark:group-focus-within:text-slate-300 @min-[52rem]:table-cell">
                     {format(new Date(member.createdAt), 'd MMM yy', { locale: es })}
                   </TableCell>
                   <TableCell className="relative w-px">
