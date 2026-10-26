@@ -504,8 +504,8 @@ describeDb('MCP document readers (real Postgres)', () => {
       );
       expect(summary.queue.counts.por_cobrar).toBe(1);
       expect(summary.por_cobrar_balance).toBe(300);
-      // overdue 1000 + withLines 300 + tie ~50 (paid 0.005 rounds to 0.01 in money).
-      expect(summary.pending_balance_total).toBeCloseTo(1349.99, 2);
+      // Finished work only (ZIG-I31-1): withLines 300; overdue and tie are En proceso.
+      expect(summary.pending_balance_total).toBe(300);
       expect(summary.active_tickets).toBe(3);
       expect(summary.payment_status_counts).toEqual({
         pendiente: { count: 3, amount: 1050 },
@@ -519,7 +519,8 @@ describeDb('MCP document readers (real Postgres)', () => {
       const summary = await getAgentCompanySummary(agentB(), { date: SUMMARY_DATE });
       expect(summary.presupuestos_open).toBe(0);
       expect(summary.queue.atrasados.map((doc) => doc.id)).toEqual(idsOf('otherCompany'));
-      expect(summary.pending_balance_total).toBe(100);
+      // Its only ticket is still En proceso, so nothing is cobrable yet (ZIG-I31-1).
+      expect(summary.pending_balance_total).toBe(0);
     });
   });
 });

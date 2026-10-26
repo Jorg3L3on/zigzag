@@ -98,7 +98,8 @@ const queue = (overrides: Partial<DashboardDayQueue> = {}): DashboardDayQueue =>
       balanceDue: 1600,
       paymentStatus: 'pending',
       daysOutstanding: 120,
-      agingBucket: '30+',
+      daysSinceLastPayment: null,
+      agingBucket: '90+',
     },
   ],
   recordatorios: [
