@@ -10,11 +10,9 @@ import {
   CalendarClock,
   CalendarPlus,
   Check,
-  ChevronDown,
   Copy,
   Download,
   FileText,
-  History,
   Loader2,
   MessageCircle,
   MoreHorizontal,
@@ -30,7 +28,6 @@ import { MoneyFigure } from '@/components/documents/money-figure';
 import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-status-pill';
 import type { ReviewLine } from '@/components/tickets/review/document-review-parts';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { FormattedDate } from '@/components/formatted-date';
 import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
@@ -47,7 +44,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { collapseBlankLines } from '@/lib/collapse-blank-lines';
 import { formatPhoneDisplay } from '@/lib/phone-links';
-import { formatRelativeActivityTime } from '@/lib/format-relative-time';
 import { materialDraftAmount } from '@/lib/material-drafts';
 import { sumLineTotals, sumMaterialTotals } from '@/lib/money';
 import {
@@ -61,7 +57,6 @@ import { reviewLineAmount } from '@/lib/review-lines';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import {
   formatPresupuestoActivityCardTitle,
-  formatTicketTimelineEntry,
   getTicketTimelineIcon,
   type TicketTimelineIconKey,
 } from '@/lib/ticket-audit-display';
@@ -212,14 +207,6 @@ const quoteShareInput = (input: QuoteWhatsAppInput) => ({
   companyName: input.companyName ?? null,
 });
 
-const handleOpenActivity = () => {
-  const heading = document.getElementById('presupuesto-timeline-heading');
-  const toggle = heading?.querySelector('button');
-  if (toggle instanceof HTMLButtonElement && toggle.getAttribute('aria-expanded') === 'false') {
-    toggle.click();
-  }
-  document.getElementById('presupuesto-timeline')?.scrollIntoView?.({ block: 'start' });
-};
 
 type HeaderProps = Omit<PresupuestoDesktopProps, 'activity' | 'createdAt' | 'updatedAt'>;
 
@@ -302,7 +289,8 @@ const PresupuestoDesktopHeader = (props: HeaderProps) => {
     .filter(Boolean)
     .join(' · ');
   const whatsApp = showWhatsApp ? buildWhatsAppQuoteShare(quoteShareInput(props)) : null;
-  const ticketHref = convertedToTicketId ? `/tickets/${convertedToTicketId}` : null;
+  // A deleted R ticket has no page to open (getPresupuestoById returns no convertedTicket).
+  const ticketHref = convertedToTicketId && convertedTicket ? `/tickets/${convertedToTicketId}` : null;
   const ticketLabel = convertedTicket?.folio ? `Ver ticket ${convertedTicket.folio}` : 'Ver ticket';
   // A canceled one only keeps Abrir PDF in the menu.
   const showMenu = canInvoice || (canWrite && !canceled);
@@ -729,7 +717,9 @@ const PresupuestoAceptadoCard = ({
   const subline = [event?.actorName?.trim() || null, describePresupuestoPastVigencia(expiresAt)]
     .filter(Boolean)
     .join(' · ');
-  const ticketHref = convertedToTicketId ? `/tickets/${convertedToTicketId}` : null;
+  // getPresupuestoById leaves convertedTicket null when the R ticket was deleted.
+  const ticketHref = convertedToTicketId && convertedTicket ? `/tickets/${convertedToTicketId}` : null;
+  const ticketGone = Boolean(convertedToTicketId) && !convertedTicket;
 
   return (
     <TicketDetailSectionCard
@@ -745,6 +735,16 @@ const PresupuestoAceptadoCard = ({
         {acceptedAt ? `Aceptado el ${acceptedAt}` : 'Aceptado'}
       </p>
       {subline ? <p className="mt-1.5 text-caption text-muted-foreground">{subline}</p> : null}
+
+      {ticketGone ? (
+        <>
+          <div className="my-4 h-px bg-border" />
+          <p className={RAIL_LABEL_CLASS}>Se convirtió en el ticket</p>
+          <p className="mt-2 text-sm text-muted-foreground" data-testid="presupuesto-converted-ticket-gone">
+            Ticket eliminado
+          </p>
+        </>
+      ) : null}
 
       {ticketHref ? (
         <>
@@ -985,7 +985,9 @@ const PresupuestoClienteCard = (
 
 /** Canvas PresuA: «Presupuesto creado» over «10 oct · 08:23 · Jorge Climas». */
 const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntry[] }) => {
-  const recent = entries.slice(0, ACTIVITY_PREVIEW);
+  // Ver todo opens the rest in place; there is no second Actividad card (canvas).
+  const [expanded, setExpanded] = React.useState(false);
+  const recent = expanded ? entries : entries.slice(0, ACTIVITY_PREVIEW);
 
   return (
     <TicketDetailSectionCard
@@ -996,13 +998,16 @@ const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntr
         <h2 id="presupuesto-activity-card-heading" className={RAIL_LABEL_CLASS}>
           Actividad · {entries.length}
         </h2>
+        {entries.length > ACTIVITY_PREVIEW ? (
         <button
           type="button"
-          onClick={handleOpenActivity}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
           className="inline-flex min-h-11 items-center text-caption font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Ver todo
+          {expanded ? 'Ver menos' : 'Ver todo'}
         </button>
+        ) : null}
       </div>
       {recent.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aún no hay eventos.</p>
@@ -1037,111 +1042,6 @@ const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntr
   );
 };
 
-const PresupuestoActivityTimeline = ({
-  entries,
-  createdAt = null,
-  updatedAt = null,
-}: {
-  entries: PresupuestoActivityEntry[];
-  createdAt?: string | Date | null;
-  updatedAt?: string | Date | null;
-}) => {
-  const [open, setOpen] = React.useState(false);
-  const created = asDate(createdAt);
-  const updated = asDate(updatedAt) ?? created;
-  const handleToggle = () => {
-    setOpen((value) => !value);
-  };
-
-  return (
-    <TicketDetailSectionCard id="presupuesto-timeline" aria-labelledby="presupuesto-timeline-heading">
-      <h2 id="presupuesto-timeline-heading" className="text-base font-semibold tracking-tight">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls="presupuesto-timeline-body"
-          onClick={handleToggle}
-          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span>
-            Actividad
-            <span className="font-normal text-muted-foreground"> · {entries.length}</span>
-          </span>
-          <ChevronDown
-            className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
-            aria-hidden
-          />
-        </button>
-      </h2>
-      <div id="presupuesto-timeline-body" hidden={!open} className="pt-2">
-        {created ? (
-          <dl className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
-            <div className="flex min-w-0 gap-1.5">
-              <dt>Creado</dt>
-              <dd className="font-medium text-foreground">
-                <FormattedDate date={created} withTime />
-              </dd>
-            </div>
-            <div className="flex min-w-0 gap-1.5">
-              <dt>Actualizado</dt>
-              <dd className="font-medium text-foreground">
-                <FormattedDate date={updated} withTime />
-              </dd>
-            </div>
-          </dl>
-        ) : null}
-        {entries.length === 0 ? (
-          <p className="rounded-lg bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
-            Aún no hay eventos.
-          </p>
-        ) : (
-          <ol className="space-y-1">
-            {entries.map((entry) => {
-              const formatted = formatTicketTimelineEntry(entry, { documentKind: 'presupuesto' });
-              const Icon = TIMELINE_ICONS[formatted.icon] ?? Activity;
-              const occurredAt = asDate(entry.createdAt) ?? new Date();
-              return (
-                <li key={entry.id}>
-                  <div className="flex items-start gap-3 rounded-lg px-1 py-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
-                      <Icon className="h-4 w-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="text-sm font-medium leading-snug text-foreground">{formatted.title}</p>
-                      {formatted.details.length > 0 ? (
-                        <ul className="list-disc space-y-0.5 pl-4 text-caption text-muted-foreground">
-                          {formatted.details.map((detail) => (
-                            <li key={detail}>{detail}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      <p className="text-caption text-muted-foreground">
-                        {entry.actorName?.trim() || 'Sistema'}
-                      </p>
-                    </div>
-                    <time
-                      className="shrink-0 text-caption tabular-nums text-muted-foreground"
-                      dateTime={occurredAt.toISOString()}
-                      title={occurredAt.toLocaleString('es-MX')}
-                    >
-                      {formatRelativeActivityTime(occurredAt)}
-                    </time>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-        {entries.length > 0 ? (
-          <p className="mt-2 flex items-center gap-1.5 text-caption text-muted-foreground">
-            <History className="h-3.5 w-3.5" aria-hidden />
-            Eventos inmutables del historial de auditoría
-          </p>
-        ) : null}
-      </div>
-    </TicketDetailSectionCard>
-  );
-};
 
 /**
  * Presupuesto detail from 1024px (ZIG-I28-5, ZIG-I29-1). The phone layout stays
@@ -1183,12 +1083,12 @@ export const PresupuestoDesktop = ({
         <PresupuestoDesktopHeader {...props} />
         <div
           data-testid="presupuesto-desktop-grid"
-          className="grid items-start gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:gap-x-8 @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]"
+          className="grid items-start gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:gap-x-8 @min-[66rem]:grid-cols-[minmax(0,1fr)_320px] @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]"
         >
           <aside
             aria-label="Vigencia, cliente y actividad"
             data-testid="presupuesto-desktop-rail"
-            className="order-2 grid min-w-0 items-start gap-4 @min-[40rem]:grid-cols-2 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:order-none @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1 @min-[60rem]:flex @min-[60rem]:flex-col @min-[60rem]:gap-6"
+            className="order-2 grid min-w-0 items-start gap-4 @min-[40rem]:grid-cols-2 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:order-none @min-[60rem]:col-start-2 @min-[60rem]:row-start-1 @min-[60rem]:flex @min-[60rem]:flex-col @min-[60rem]:gap-6"
           >
             {stateCard}
             <PresupuestoClienteCard
@@ -1216,9 +1116,6 @@ export const PresupuestoDesktop = ({
               workNotes={props.workNotes}
               conditionsEditHref={props.canWrite && props.isMutable ? props.editHref : null}
             />
-          </div>
-          <div className="order-3 min-w-0 @min-[60rem]:order-none @min-[60rem]:col-start-1 @min-[60rem]:row-start-2">
-            <PresupuestoActivityTimeline entries={activity} createdAt={createdAt} updatedAt={updatedAt} />
           </div>
         </div>
       </div>

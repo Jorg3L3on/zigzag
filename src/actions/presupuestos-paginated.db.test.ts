@@ -38,6 +38,12 @@ import { getPresupuestoStatus } from '@/lib/ticket-document-kind';
 
 const enabled = process.env.PRESUPUESTOS_DB_TEST === '1';
 const describeDb = enabled ? describe : describe.skip;
+if (!enabled) {
+  // Say so out loud: a silent skip reads as a pass in a full run.
+  console.warn(
+    '[presupuestos-paginated.db.test] SKIPPED: set PRESUPUESTOS_DB_TEST=1 and DATABASE_URL to a scratch Postgres to run it.',
+  );
+}
 
 /** Mexico City midnight of `iso` plus `days`, as the composer stores it (06:00 UTC). */
 const companyMidnight = (iso: string, days: number) => {
@@ -46,7 +52,7 @@ const companyMidnight = (iso: string, days: number) => {
   return date;
 };
 
-describeDb('getPresupuestosPaginated (real Postgres)', () => {
+describeDb('getPresupuestosPaginated (real Postgres; needs PRESUPUESTOS_DB_TEST=1)', () => {
   let companyId = 0;
   let otherCompanyId = 0;
   const today = companyDay(new Date()).iso;

@@ -157,7 +157,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(row).toHaveCount(1, { timeout: 15_000 });
     await expect(row.getByTestId('presupuesto-vence')).toContainText('en 7 días');
     await expect(row.getByTestId('presupuesto-vence')).toHaveAttribute('data-tone', 'ok');
-    await expect(page.getByText(/^1–1 de 1 presupuestos$/)).toBeVisible();
+    await expect(page.getByText(/^1 de 1 presupuestos$/)).toBeVisible();
     await expect(tabs.getByRole('button', { name: /Todos/ })).toContainText('1');
     await expectNoSeriousViolations(page, 'presupuestos-lista');
 
@@ -195,6 +195,9 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(page.getByRole('menu')).toBeHidden();
     // Actividad: real events with actor and time.
     const activity = page.getByTestId('presupuesto-activity-card');
+    // Older events sit behind Ver todo, in the same card (no second Actividad card).
+    const verTodo = activity.getByRole('button', { name: 'Ver todo' });
+    if (await verTodo.isVisible()) await verTodo.click();
     await expect(activity).toContainText('Convertido en ticket');
     await expect(activity).toContainText('Presupuesto creado');
     await expectNoSeriousViolations(page, 'presupuesto-aceptado');

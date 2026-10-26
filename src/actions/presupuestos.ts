@@ -265,8 +265,8 @@ export async function getPresupuestosPaginated(params: {
       ? or(
           ilike(ticket.client_name, `%${search}%`),
           ilike(ticket.client_tel, `%${search}%`),
-          sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search.replace(/^#/, '')}%`}`,
-          // P-0004, p4 or 0004: the stored prefix plus the padded number, like tickets.
+          // P-0004, p4 or 0004: the stored prefix plus the padded number, like tickets. A bare
+          // number matches the folio number exactly (below), not every id containing it.
           sql`(coalesce(${ticket.folio_prefix}, 'P') || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
           ...(folioSearch
             ? [
@@ -363,7 +363,14 @@ export async function getPresupuestosPaginated(params: {
             document_kind: ticket.document_kind,
           })
           .from(ticket)
-          .where(and(eq(ticket.company_id, effectiveCompanyId), inArray(ticket.id, convertedIds)))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              inArray(ticket.id, convertedIds),
+              // A deleted R ticket leaves no folio: the row offers no «Ver ticket».
+              isNull(ticket.deleted_at),
+            ),
+          )
       : [];
     const folioById = new Map(converted.map((row) => [String(row.id), formatDocumentFolio(row)]));
 
@@ -847,6 +854,9 @@ export async function convertPresupuestoToTicket(
   }
 }
 
+/** Extender vigencia reaches at most this many days from today (company day). */
+const EXTEND_MAX_DAYS = 365;
+
 const extendVigenciaSchema = z.object({
   id: z.number().int().positive(),
   expires_at: z.coerce.date(),
@@ -890,17 +900,25 @@ export async function extendPresupuestoVigencia(
     if (prior.canceled_at != null || prior.converted_to_ticket_id != null) {
       return buildActionError('TC012', undefined, 'validation');
     }
-    if (
-      prior.ticket_date &&
-      startOfDay(validated.expires_at) < startOfDay(prior.ticket_date)
-    ) {
+    // Company days (America/Mexico_City), the day getPresupuestoStatus uses: not
+    // before today nor the issue date, so an open quote is never pushed into the
+    // past and an issue after 18:00 MX still counts as its own day; at most a year.
+    const nextDay = companyDay(validated.expires_at).iso;
+    const todayDay = companyDay(new Date()).iso;
+    const issueDay = prior.ticket_date ? companyDay(prior.ticket_date).iso : null;
+    const minDay = issueDay && issueDay > todayDay ? issueDay : todayDay;
+    const maxDay = companyDay(new Date(Date.now() + EXTEND_MAX_DAYS * 86_400_000)).iso;
+    if (nextDay < minDay || nextDay > maxDay) {
       return {
         ...buildActionError('TC009', undefined, 'validation'),
         issues: [
           {
             path: ['expires_at'],
             code: 'custom',
-            message: 'La vigencia no puede ser anterior a la fecha',
+            message:
+              nextDay < minDay
+                ? 'La vigencia no puede ser anterior a hoy ni a la fecha del presupuesto'
+                : 'La vigencia no puede pasar de un año',
           },
         ],
       };

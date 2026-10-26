@@ -147,6 +147,8 @@ export const TicketDateRangeFilter = ({
     </Popover>
   );
 
+  // Desktop bar (canvas ListaA): «Todas las fechas» says what it is; the sheet keeps its label.
+  if (layout === 'desktop') return calendar;
   return (
     <FilterField label="Fechas" layout={layout}>
       {calendar}

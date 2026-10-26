@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Ban, CalendarPlus, Copy, Download, Loader2, MessageCircle, MoreVertical, Pencil } from 'lucide-react';
+import { Ban, CalendarPlus, Copy, Download, Loader2, MessageCircle, MoreHorizontal, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { PresupuestoTableItem } from '@/actions/presupuestos';
@@ -55,7 +55,9 @@ export const PresupuestoRowActions = ({
   const open = item.status === 'abierto' || item.status === 'vencido';
   const empty = !item.servicesSummary?.trim();
   const editHref = `/presupuestos/${item.id}/edit`;
-  const accepted = item.status === 'convertido' && Boolean(item.convertedToTicketId);
+  // No folio means the R ticket is gone (deleted): nothing to open.
+  const accepted =
+    item.status === 'convertido' && Boolean(item.convertedToTicketId) && Boolean(item.convertedTicketFolio);
   const canceled = item.status === 'cancelado' && canWrite;
   const reminder = open
     ? buildWhatsAppQuoteReminder({
@@ -150,7 +152,7 @@ export const PresupuestoRowActions = ({
           {accepted ? (
             <Button asChild variant="outline" size="sm">
               <Link href={`/tickets/${item.convertedToTicketId}`}>
-                {item.convertedTicketFolio ? `Ver ticket ${item.convertedTicketFolio}` : 'Ver ticket'}
+                {`Ver ticket ${item.convertedTicketFolio}`}
               </Link>
             </Button>
           ) : null}
@@ -177,7 +179,7 @@ export const PresupuestoRowActions = ({
             className="h-9 w-9 shrink-0"
             aria-label={`Más acciones de ${item.folio}`}
           >
-            <MoreVertical className="h-4 w-4" aria-hidden />
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

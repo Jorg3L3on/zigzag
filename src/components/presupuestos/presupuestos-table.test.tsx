@@ -145,7 +145,9 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
     expect(pressed).toEqual(['Abiertos4 · 1 vence hoy', 'Vencidos0']);
     expect(within(tabs).getByRole('button', { name: /Todos/ })).toHaveTextContent('Todos6 presupuestos');
     expect(tabs.textContent).not.toContain('$');
-    expect(screen.getByText('1–3 de 3 presupuestos')).toBeTruthy();
+    // Canvas: one page reads «3 de 3 presupuestos» with the order on the right.
+    expect(screen.getByText('3 de 3 presupuestos')).toBeTruthy();
+    expect(screen.getByText('Orden: vencen primero, luego los más recientes')).toBeTruthy();
   });
 
   it('puts the view in the URL', async () => {

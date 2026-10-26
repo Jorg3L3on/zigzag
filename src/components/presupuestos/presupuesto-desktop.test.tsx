@@ -471,22 +471,21 @@ describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
     expect(screen.getByTestId('presupuesto-client-address')).toHaveTextContent('Sin dirección · Agregar');
   });
 
-  it('opens the rest of the activity from Ver todo', async () => {
+  it('opens the rest of the activity in the same card, with no second Actividad card', async () => {
     mockDesktopWidth(true);
     const user = userEvent.setup();
     renderLayout();
 
     const card = screen.getByTestId('presupuesto-activity-card');
-    const timeline = document.getElementById('presupuesto-timeline-body');
     // Canvas PresuA: what happened, then «9 oct · 09:00 · Ana».
     expect(within(card).getByText('Presupuesto creado')).toBeTruthy();
     expect(within(card).getByText('Presupuesto cancelado')).toBeTruthy();
     expect(within(card).getByText('Presupuesto duplicado')).toBeTruthy();
     expect(within(card).queryByText('Convertido en ticket')).toBeNull();
-    expect(timeline).toHaveAttribute('hidden');
+    expect(document.getElementById('presupuesto-timeline')).toBeNull();
 
     await user.click(within(card).getByRole('button', { name: 'Ver todo' }));
-    expect(timeline).not.toHaveAttribute('hidden');
-    expect(within(timeline as HTMLElement).getByText('Zoe lo convirtió en ticket')).toBeTruthy();
+    expect(within(card).getByText('Convertido en ticket')).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Ver menos' })).toHaveAttribute('aria-expanded', 'true');
   });
 });

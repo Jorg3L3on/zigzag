@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { SortingState } from '@tanstack/react-table';
 import { ListFilter, Search } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -46,6 +47,8 @@ type TicketsFilterBarProps = {
   hasActiveFilters: boolean;
   onClearFilters: () => void;
   filterChips: ListFilterChip[];
+  /** Desktop «Columnas» menu, built by the list from its table. */
+  columnsMenu?: ReactNode;
 };
 
 const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
@@ -187,6 +190,7 @@ export const TicketsFilterBar = ({
   hasActiveFilters,
   onClearFilters,
   filterChips,
+  columnsMenu = null,
 }: TicketsFilterBarProps) => (
   <div className="flex flex-col gap-3">
     <div className="hidden flex-col gap-3 md:flex">
@@ -197,8 +201,9 @@ export const TicketsFilterBar = ({
         onStatusFilterChange={onStatusFilterChange}
         onFinishedFilterChange={onFinishedFilterChange}
       />
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="relative w-full max-w-[360px] shrink-0">
+      {/* Canvas ListaA: search, dates, Más filtros, then the order and Columnas at the right end. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] max-w-[360px] flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -224,12 +229,10 @@ export const TicketsFilterBar = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80">
-            <TicketsSortControls
-              variant="full"
-              sorting={sorting}
-              onSortingChange={onSortingChange}
-              id="ticket-sort-desktop"
-              className="space-y-2"
+            <TicketFinishedFilter
+              layout="desktop"
+              value={finishedFilter}
+              onChange={onFinishedFilterChange}
             />
           </PopoverContent>
         </Popover>
@@ -244,6 +247,17 @@ export const TicketsFilterBar = ({
             Limpiar filtros
           </Button>
         ) : null}
+        <div className="ml-auto flex items-center gap-2">
+          <TicketsSortControls
+            variant="full"
+            sorting={sorting}
+            onSortingChange={onSortingChange}
+            id="ticket-sort-desktop"
+            labelHidden
+            triggerClassName="h-11 w-48 rounded-full px-4"
+          />
+          {columnsMenu}
+        </div>
       </div>
     </div>
 

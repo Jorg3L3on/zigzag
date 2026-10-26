@@ -1,5 +1,7 @@
-import { differenceInCalendarDays, format } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+import { companyDay } from '@/lib/company-day';
 
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 
@@ -9,8 +11,24 @@ export type PresupuestoVigencia = {
   tone: 'ok' | 'soon' | 'expired' | 'none';
 };
 
+const DAY_MS = 86_400_000;
+
+/**
+ * Days and dates on the company's calendar (America/Mexico_City), the same day
+ * getPresupuestoStatus uses, so «Abierto» never sits next to «Venció ayer».
+ * companyDay returns 12:00 UTC of the civil day, which formats as that day
+ * in any browser zone.
+ */
+const civil = (date: Date): Date => companyDay(date).date;
+
+/** Calendar days from `from` to `to` on the company's calendar. */
+export const companyDaysBetween = (from: Date, to: Date): number =>
+  Math.round((civil(to).getTime() - civil(from).getTime()) / DAY_MS);
+
+const sameYear = (a: Date, b: Date) => civil(a).getUTCFullYear() === civil(b).getUTCFullYear();
+
 const shortDate = (date: Date, now: Date): string =>
-  format(date, date.getFullYear() === now.getFullYear() ? 'd MMM' : 'd MMM yyyy', { locale: es });
+  format(civil(date), sameYear(date, now) ? 'd MMM' : 'd MMM yyyy', { locale: es });
 
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
@@ -34,7 +52,7 @@ export const describePresupuestoVigencia = ({
     return { text: 'Sin vencimiento', tone: 'none' };
   }
   const date = shortDate(expires, now);
-  const daysLeft = differenceInCalendarDays(expires, now);
+  const daysLeft = companyDaysBetween(now, expires);
 
   if (status === 'vencido' || (status === 'abierto' && daysLeft < 0)) {
     return { text: `Venció el ${date}`, tone: 'expired' };
@@ -51,11 +69,9 @@ export const describePresupuestoVigencia = ({
 
 /** «10 de octubre», with the year when it is not this one. */
 export const longDate = (date: Date, now: Date = new Date()): string =>
-  format(
-    date,
-    date.getFullYear() === now.getFullYear() ? "d 'de' MMMM" : "d 'de' MMMM 'de' yyyy",
-    { locale: es },
-  );
+  format(civil(date), sameYear(date, now) ? "d 'de' MMMM" : "d 'de' MMMM 'de' yyyy", {
+    locale: es,
+  });
 
 const toDate = (value: string | Date | null | undefined): Date | null => {
   if (value == null || value === '') return null;
@@ -81,7 +97,7 @@ export const describePresupuestoVigenciaChip = ({
   if (!isOpen(status)) return null;
   const expires = toDate(expiresAt);
   if (!expires) return { text: 'Sin vencimiento', tone: 'none' };
-  const daysLeft = differenceInCalendarDays(expires, now);
+  const daysLeft = companyDaysBetween(now, expires);
   if (daysLeft < 0) {
     const ago = -daysLeft;
     return { text: ago === 1 ? 'Venció ayer' : `Venció hace ${ago} días`, tone: 'expired' };
@@ -122,9 +138,9 @@ export const describePresupuestoVigenciaCard = ({
   if (!expires) {
     return { text: 'Sin vencimiento', tone: 'none', progress: null, issuedText, lengthText: null };
   }
-  const length = issued ? Math.max(differenceInCalendarDays(expires, issued), 0) : null;
+  const length = issued ? Math.max(companyDaysBetween(issued, expires), 0) : null;
   const lengthText = length == null ? null : `Vigencia de ${plural(length, 'día', 'días')}`;
-  const elapsed = issued ? differenceInCalendarDays(now, issued) : null;
+  const elapsed = issued ? companyDaysBetween(issued, now) : null;
   const progress =
     length == null || elapsed == null
       ? null
@@ -132,7 +148,7 @@ export const describePresupuestoVigenciaCard = ({
         ? 1
         : Math.min(Math.max(elapsed / length, 0), 1);
   const date = longDate(expires, now);
-  const daysLeft = differenceInCalendarDays(expires, now);
+  const daysLeft = companyDaysBetween(now, expires);
 
   if (!isOpen(status)) {
     return { text: `Vencía el ${date}`, tone: 'none', progress, issuedText, lengthText };
@@ -197,7 +213,7 @@ export const describePresupuestoVenceCell = ({
   const date = shortDate(expires, now);
   if (!isOpen(status)) return { text: `Vencía ${date}`, sub: null, tone: 'none' };
   const issued = toDate(ticketDate);
-  const length = issued ? Math.max(differenceInCalendarDays(expires, issued), 0) : null;
+  const length = issued ? Math.max(companyDaysBetween(issued, expires), 0) : null;
   const sub = length == null ? date : `${date} · vigencia de ${plural(length, 'día', 'días')}`;
   const chip = describePresupuestoVigenciaChip({ expiresAt: expires, status, now });
   return { text: chip?.text ?? date, sub, tone: chip?.tone ?? 'none' };

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, differenceInCalendarDays, format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarClock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,7 +19,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { companyDay } from '@/lib/company-day';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
+import { companyDaysBetween } from '@/lib/presupuesto-vigencia';
 import { cn } from '@/lib/utils';
 
 const toDate = (value: string | Date | null | undefined): Date | null => {
@@ -28,23 +30,40 @@ const toDate = (value: string | Date | null | undefined): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const longDay = (date: Date) => format(date, "d 'de' MMMM", { locale: es });
+const DAY_MS = 86_400_000;
+/** The furthest a quote can be extended, counted from today (server rule). */
+export const EXTEND_MAX_DAYS = 365;
+
+/**
+ * Dates here are company days (America/Mexico_City) held as 12:00 UTC, the
+ * value companyDay returns: they format as the same day in any browser zone
+ * and the server reads them back on the same company day.
+ */
+const civil = (date: Date): Date => companyDay(date).date;
+const plusDays = (date: Date, days: number) => new Date(date.getTime() + days * DAY_MS);
+/** A day picked in the calendar (local midnight) as a company day. */
+const fromPicker = (date: Date) =>
+  new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+/** A company day as the calendar's local date. */
+const toPicker = (date: Date) => new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+
+const longDay = (date: Date) => format(civil(date), "d 'de' MMMM", { locale: es });
 
 /**
  * Where +7 / +15 / +30 count from (ZIG-I29-2): today when the quote already
- * expired or has no date, its current expiry otherwise.
+ * expired or has no date, its current expiry otherwise (company days).
  */
-export const extendBaseDate = (expiresAt: string | Date | null, today: Date = new Date()): Date => {
-  const day = startOfDay(today);
+export const extendBaseDate = (expiresAt: string | Date | null, now: Date = new Date()): Date => {
+  const today = civil(now);
   const expires = toDate(expiresAt);
-  if (!expires) return day;
-  const current = startOfDay(expires);
-  return current < day ? day : current;
+  if (!expires) return today;
+  const current = civil(expires);
+  return current < today ? today : current;
 };
 
 /** «Nueva vigencia: 1 de noviembre · quedan 7 días». */
-export const describeNewVigencia = (value: Date, today: Date = new Date()): string => {
-  const days = differenceInCalendarDays(value, startOfDay(today));
+export const describeNewVigencia = (value: Date, now: Date = new Date()): string => {
+  const days = companyDaysBetween(now, value);
   const left =
     days <= 0 ? 'vence hoy' : `${days === 1 ? 'queda' : 'quedan'} ${days} ${days === 1 ? 'día' : 'días'}`;
   return `Nueva vigencia: ${longDay(value)} · ${left}`;
@@ -79,12 +98,16 @@ export const PresupuestoExtendDialog = ({
   const [value, setValue] = React.useState<Date | null>(null);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
-  const today = startOfDay(new Date());
-  const base = extendBaseDate(expiresAt, today);
+  const now = new Date();
+  const today = civil(now);
+  const base = extendBaseDate(expiresAt, now);
   const issued = toDate(ticketDate);
-  const minDate = issued && startOfDay(issued) > today ? startOfDay(issued) : today;
+  // Same rule as the server: not before today nor the issue date, at most a year out.
+  const minDate = issued && civil(issued) > today ? civil(issued) : today;
+  const maxDate = plusDays(today, EXTEND_MAX_DAYS);
   const label = folio || `#${presupuestoId}`;
   const current = toDate(expiresAt);
+  const expired = current != null && companyDaysBetween(now, current) < 0;
 
   React.useEffect(() => {
     if (open) setValue(null);
@@ -121,16 +144,14 @@ export const PresupuestoExtendDialog = ({
           <DialogTitle>Extender vigencia</DialogTitle>
           <DialogDescription>
             Presupuesto {label} ·{' '}
-            {current
-              ? `${current < today ? 'venció' : 'vence'} el ${longDay(current)}`
-              : 'sin vencimiento'}
+            {current ? `${expired ? 'venció' : 'vence'} el ${longDay(current)}` : 'sin vencimiento'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div role="group" aria-label="Extender por" className="grid grid-cols-3 gap-2">
             {EXPIRES_AT_QUICK_DAYS.map((days) => {
-              const option = addDays(base, days);
+              const option = plusDays(base, days);
               const pressed = value != null && value.getTime() === option.getTime();
               return (
                 <Button
@@ -160,13 +181,13 @@ export const PresupuestoExtendDialog = ({
             <PopoverContent className="w-auto p-0" align="start">
               <CalendarComponent
                 mode="single"
-                selected={value ?? undefined}
-                defaultMonth={value ?? base}
+                selected={value ? toPicker(value) : undefined}
+                defaultMonth={toPicker(value ?? base)}
                 onSelect={(next) => {
-                  if (next) setValue(startOfDay(next));
+                  if (next) setValue(fromPicker(next));
                   setCalendarOpen(false);
                 }}
-                disabled={(date) => startOfDay(date) < minDate}
+                disabled={(date) => fromPicker(date) < minDate || fromPicker(date) > maxDate}
                 initialFocus
               />
             </PopoverContent>
@@ -177,8 +198,8 @@ export const PresupuestoExtendDialog = ({
             aria-live="polite"
           >
             {value
-              ? describeNewVigencia(value, today)
-              : current && current < today
+              ? describeNewVigencia(value, now)
+              : expired
                 ? 'Cuenta desde hoy, porque ya venció.'
                 : 'Elige cuántos días más le das.'}
           </p>

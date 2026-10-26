@@ -23,6 +23,11 @@ import {
   type PresupuestoTableItem,
 } from '@/actions/presupuestos';
 import { FormattedCurrency } from '@/components/formatted-currency';
+import {
+  ListColumnsMenu,
+  useListHiddenColumns,
+  type ListColumnOption,
+} from '@/components/list-views/list-columns-menu';
 import { ListViewTabs, type ListViewTab } from '@/components/list-views/list-view-tabs';
 import {
   PresupuestoConfirmSheet,
@@ -58,6 +63,20 @@ import {
 import { cn } from '@/lib/utils';
 
 const DEFAULT_PAGE_SIZE = 25;
+
+/** The footer line of a single page (canvas ListaPresuA). */
+const SORT_NOTE: Record<PresupuestoListSort, string> = {
+  vence: 'Orden: vencen primero, luego los más recientes',
+  recientes: 'Orden: los más recientes primero',
+  total: 'Orden: el mayor total primero',
+};
+
+const OPTIONAL_COLUMNS: ListColumnOption[] = [
+  { id: 'trabajo', label: 'Trabajo' },
+  { id: 'emitido', label: 'Emitido' },
+  { id: 'vence', label: 'Vence' },
+  { id: 'total', label: 'Total' },
+];
 
 const VENCE_TONE_CLASS = {
   expired: 'text-red-700 dark:text-red-300',
@@ -368,10 +387,11 @@ export const PresupuestosTable = ({
     [busy, canInvoice, canWrite, companyId, companyName, duplicate],
   );
 
+  const hiddenColumns = useListHiddenColumns('zigzag:presupuestos-columns:v1');
   const table = useReactTable({
     data: items,
     columns,
-    state: { pagination },
+    state: { pagination, columnVisibility: hiddenColumns.visibility },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
@@ -437,7 +457,7 @@ export const PresupuestosTable = ({
             className="h-11 rounded-xl bg-background pl-9 shadow-none"
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Cliente, folio o teléfono"
+            placeholder="Buscar por cliente, folio o teléfono"
             aria-label="Buscar presupuestos por cliente, folio o teléfono"
           />
         </div>
@@ -448,7 +468,7 @@ export const PresupuestosTable = ({
           ariaLabel="Filtrar por fecha de emisión"
         />
         {/* The order sits at the right end of the bar, as on the canvas. */}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <Select value={sort} onValueChange={(value) => setSort(value as PresupuestoListSort)}>
             <SelectTrigger className="h-11 w-48 rounded-full px-4" aria-label="Ordenar presupuestos">
               <SelectValue />
@@ -461,6 +481,7 @@ export const PresupuestosTable = ({
               ))}
             </SelectContent>
           </Select>
+          <ListColumnsMenu table={table} options={OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
         </div>
         {hasFilters ? (
           <Button
@@ -574,6 +595,7 @@ export const PresupuestosTable = ({
             variant="desktop"
             totalCount={totalCount}
             noun="presupuestos"
+            note={SORT_NOTE[sort]}
           />
         </div>
       )}

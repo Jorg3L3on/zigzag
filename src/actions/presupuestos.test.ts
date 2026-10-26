@@ -766,7 +766,14 @@ describe('extendPresupuestoVigencia (ZIG-I29-2)', () => {
   };
   let updates: unknown[];
 
+  afterEach(() => jest.useRealTimers());
+
   beforeEach(() => {
+    // A fixed «today» before the dates below, so the year and past rules hold.
+    jest.useFakeTimers({
+      now: new Date('2026-10-20T18:00:00Z'),
+      doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'setTimeout', 'clearTimeout', 'queueMicrotask'],
+    });
     jest.clearAllMocks();
     (requireTicketWrite as jest.Mock).mockResolvedValue({
       context: authContext,
@@ -836,6 +843,48 @@ describe('extendPresupuestoVigencia (ZIG-I29-2)', () => {
     expect((result as { errorCode?: string }).errorCode).toBe('TC012');
     expect(mockDb.transaction).not.toHaveBeenCalled();
     expect(recordTicketAudit).not.toHaveBeenCalled();
+  });
+
+  describe('on the company day (America/Mexico_City)', () => {
+    const fakeNow = (iso: string) =>
+      jest.useFakeTimers({
+        now: new Date(iso),
+        doNotFake: ['nextTick', 'setImmediate', 'clearImmediate', 'setTimeout', 'clearTimeout', 'queueMicrotask'],
+      });
+    afterEach(() => jest.useRealTimers());
+
+    it('accepts today and rejects yesterday, so an open quote is never pushed into the past', async () => {
+      fakeNow('2026-10-20T18:00:00Z'); // 20 Oct 12:00 in Mexico City
+      mockDb.query.ticket.findFirst.mockResolvedValue(issued);
+
+      const today = await extendPresupuestoVigencia(300, new Date('2026-10-20T12:00:00Z'), 10);
+      expect(today.success).toBe(true);
+
+      const yesterday = await extendPresupuestoVigencia(300, new Date('2026-10-19T12:00:00Z'), 10);
+      expect(yesterday.success).toBe(false);
+      expect(yesterday.issues?.[0]?.message).toMatch(/anterior a hoy/);
+    });
+
+    it('counts an issue after 18:00 in Mexico City as its own day, not the UTC one', async () => {
+      fakeNow('2026-10-21T02:00:00Z'); // 20 Oct 20:00 in Mexico City
+      mockDb.query.ticket.findFirst.mockResolvedValue({
+        ...issued,
+        ticket_date: new Date('2026-10-21T01:00:00Z'), // 20 Oct 19:00 in Mexico City
+      });
+
+      const result = await extendPresupuestoVigencia(300, new Date('2026-10-20T12:00:00Z'), 10);
+      expect(result.success).toBe(true);
+    });
+
+    it('reaches at most a year from today', async () => {
+      fakeNow('2026-10-20T18:00:00Z');
+      mockDb.query.ticket.findFirst.mockResolvedValue(issued);
+
+      expect((await extendPresupuestoVigencia(300, new Date('2027-10-20T12:00:00Z'), 10)).success).toBe(true);
+      const tooFar = await extendPresupuestoVigencia(300, new Date('2027-10-21T12:00:00Z'), 10);
+      expect(tooFar.success).toBe(false);
+      expect(tooFar.issues?.[0]?.message).toMatch(/un año/);
+    });
   });
 
   it('answers not found for a presupuesto of another company', async () => {

@@ -29,7 +29,10 @@ export const buildPresupuestoViewProps = (row: PresupuestoDetailData) => ({
   clientTel: row.client_tel,
   clientPhone: trimmed(row.client?.phone),
   clientEmail: trimmed(row.client?.email) ?? trimmed(row.email),
-  clientAddress: row.client ? trimmed(formatClientAddressOneLine(row.client)) : null,
+  // Without the country, as the ticket card: a client with only «México» has no address.
+  clientAddress: row.client
+    ? trimmed(formatClientAddressOneLine(row.client, { includeCountry: false }))
+    : null,
   ticketDate: toIso(row.ticket_date),
   expiresAt: toIso(row.expires_at),
   createdAt: toIso(row.created_at),

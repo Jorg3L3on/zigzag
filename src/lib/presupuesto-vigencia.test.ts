@@ -145,3 +145,17 @@ describe('describePresupuestoVenceCell (canvas ListaPresuA)', () => {
     });
   });
 });
+
+describe('company day (Mexico City), the same day as getPresupuestoStatus', () => {
+  it('still says «Vence hoy» at 19:14 in Mexico City, when UTC is already tomorrow', () => {
+    const evening = new Date('2026-10-26T01:14:00Z');
+    const expiresAt = '2026-10-25T06:00:00Z';
+    expect(describePresupuestoVigenciaChip({ expiresAt, status: 'abierto', now: evening })).toEqual({
+      text: 'Vence hoy',
+      tone: 'soon',
+    });
+    expect(
+      describePresupuestoVigenciaChip({ expiresAt, status: 'vencido', now: new Date('2026-10-26T06:30:00Z') }),
+    ).toEqual({ text: 'Venció ayer', tone: 'expired' });
+  });
+});

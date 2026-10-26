@@ -20,17 +20,17 @@ jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 const today = new Date('2026-10-25T15:00:00');
 
 describe('Extender vigencia helpers (ZIG-I29-2)', () => {
-  it('counts from today once expired or without a date, from the expiry otherwise', () => {
-    expect(extendBaseDate('2026-10-20T12:00:00', today)).toEqual(new Date('2026-10-25T00:00:00'));
-    expect(extendBaseDate(null, today)).toEqual(new Date('2026-10-25T00:00:00'));
-    expect(extendBaseDate('2026-11-02T12:00:00', today)).toEqual(new Date('2026-11-02T00:00:00'));
+  it('counts from today once expired or without a date, from the expiry otherwise (company days)', () => {
+    expect(extendBaseDate('2026-10-20T12:00:00', today)).toEqual(new Date('2026-10-25T12:00:00Z'));
+    expect(extendBaseDate(null, today)).toEqual(new Date('2026-10-25T12:00:00Z'));
+    expect(extendBaseDate('2026-11-02T12:00:00', today)).toEqual(new Date('2026-11-02T12:00:00Z'));
   });
 
   it('describes the new validity', () => {
-    expect(describeNewVigencia(new Date('2026-11-01T00:00:00'), today)).toBe(
+    expect(describeNewVigencia(new Date('2026-11-01T12:00:00Z'), today)).toBe(
       'Nueva vigencia: 1 de noviembre · quedan 7 días',
     );
-    expect(describeNewVigencia(new Date('2026-10-26T00:00:00'), today)).toBe(
+    expect(describeNewVigencia(new Date('2026-10-26T12:00:00Z'), today)).toBe(
       'Nueva vigencia: 26 de octubre · queda 1 día',
     );
   });
@@ -99,7 +99,8 @@ describe('PresupuestoExtendDialog (ZIG-I29-2)', () => {
     );
     await user.click(confirm);
 
-    expect(extendPresupuestoVigencia).toHaveBeenCalledWith(400, new Date('2026-11-01T00:00:00'), 4);
+    // Company day as 12:00 UTC, so the server reads the same day whatever the browser zone.
+    expect(extendPresupuestoVigencia).toHaveBeenCalledWith(400, new Date('2026-11-01T12:00:00Z'), 4);
     expect(onExtended).toHaveBeenCalledWith({ id: '400', status: 'abierto' });
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
@@ -120,6 +121,16 @@ describe('PresupuestoExtendDialog (ZIG-I29-2)', () => {
     await user.click(screen.getByRole('button', { name: '+15 días' }));
     expect(screen.getByTestId('presupuesto-extend-preview')).toHaveTextContent(
       'Nueva vigencia: 12 de noviembre · quedan 18 días',
+    );
+  });
+});
+
+describe('Extender vigencia on the company day', () => {
+  it('counts from the company today after 18:00 in Mexico City, when UTC is tomorrow', () => {
+    const evening = new Date('2026-10-26T01:14:00Z'); // 25 Oct 19:14 in Mexico City
+    expect(extendBaseDate('2026-10-20T12:00:00Z', evening)).toEqual(new Date('2026-10-25T12:00:00Z'));
+    expect(describeNewVigencia(new Date('2026-11-01T12:00:00Z'), evening)).toBe(
+      'Nueva vigencia: 1 de noviembre · quedan 7 días',
     );
   });
 });
