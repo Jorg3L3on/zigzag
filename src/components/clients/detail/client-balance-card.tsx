@@ -5,6 +5,7 @@ import { ClientStatementButton } from '@/components/clients/detail/client-statem
 import { MoneyFigure } from '@/components/documents/money-figure';
 import type { ClientDetailTicket } from '@/actions/client-detail';
 import type { ClientBalanceSummary } from '@/lib/client-detail';
+import { cn } from '@/lib/utils';
 
 type ClientBalanceCardProps = {
   clientId: number;
@@ -13,6 +14,7 @@ type ClientBalanceCardProps = {
   clientName?: string;
   phone?: string | null;
   tickets?: ClientDetailTicket[];
+  className?: string;
 };
 
 /** Saldo del cliente: unpaid amounts on finished tickets, with a way into cobranza (ZIG-I17-2). */
@@ -22,6 +24,7 @@ export const ClientBalanceCard = ({
   clientName = '',
   phone = null,
   tickets = [],
+  className,
 }: ClientBalanceCardProps) => {
   const owes = balance.balanceDue > 0;
   // Oldest work first, the same order as Cobranza › Por cliente.
@@ -42,16 +45,20 @@ export const ClientBalanceCard = ({
     <section
       aria-label="Saldo del cliente"
       data-testid="client-balance"
-      className="space-y-1 rounded-2xl border border-border/60 bg-card p-4"
+      // From lg: the Saldo card of the ticket detail rail (label, 30 px figure).
+      className={cn(
+        'space-y-1 rounded-2xl border border-border/60 bg-card p-4 lg:rounded-xl lg:border-border/50 lg:p-5',
+        className,
+      )}
     >
-      <p className="text-caption text-muted-foreground">
+      <p className="text-caption text-muted-foreground lg:text-[11px] lg:font-semibold lg:uppercase lg:tracking-[0.08em]">
         {owes ? 'Saldo por cobrar' : 'Sin saldo pendiente'}
       </p>
       <MoneyFigure
         amount={balance.balanceDue}
         size="hero"
         tone={owes ? 'default' : 'muted'}
-        className="block font-bold leading-tight"
+        className="block font-bold leading-tight lg:pt-0.5 lg:text-[30px] lg:leading-[1.1] lg:tracking-tight"
         data-testid="client-balance-amount"
       />
       {owes ? (
