@@ -42,6 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { collapseActivity } from '@/lib/collapse-activity';
 import { collapseBlankLines } from '@/lib/collapse-blank-lines';
 import { formatPhoneDisplay } from '@/lib/phone-links';
 import { materialDraftAmount } from '@/lib/material-drafts';
@@ -983,11 +984,15 @@ const PresupuestoClienteCard = (
   );
 };
 
-/** Canvas PresuA: «Presupuesto creado» over «10 oct · 08:23 · Jorge Climas». */
+/**
+ * Canvas PresuA: «Presupuesto creado» over «10 oct · 08:23 · Jorge Climas».
+ * Repeated edits read «Presupuesto editado ×2», as on the ticket.
+ */
 const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntry[] }) => {
   // Ver todo opens the rest in place; there is no second Actividad card (canvas).
   const [expanded, setExpanded] = React.useState(false);
-  const recent = expanded ? entries : entries.slice(0, ACTIVITY_PREVIEW);
+  const items = collapseActivity(entries, formatPresupuestoActivityCardTitle);
+  const recent = expanded ? items : items.slice(0, ACTIVITY_PREVIEW);
 
   return (
     <TicketDetailSectionCard
@@ -996,9 +1001,9 @@ const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntr
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="presupuesto-activity-card-heading" className={RAIL_LABEL_CLASS}>
-          Actividad · {entries.length}
+          Actividad · {items.length}
         </h2>
-        {entries.length > ACTIVITY_PREVIEW ? (
+        {items.length > ACTIVITY_PREVIEW ? (
         <button
           type="button"
           aria-expanded={expanded}
@@ -1013,7 +1018,7 @@ const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntr
         <p className="text-sm text-muted-foreground">Aún no hay eventos.</p>
       ) : (
         <ul className="mt-1 space-y-3.5">
-          {recent.map((entry) => {
+          {recent.map(({ entry, title, count }) => {
             const Icon = TIMELINE_ICONS[getTicketTimelineIcon(entry.eventType)] ?? Activity;
             const occurredAt = asDate(entry.createdAt);
             return (
@@ -1026,7 +1031,8 @@ const PresupuestoActivityCard = ({ entries }: { entries: PresupuestoActivityEntr
                 </span>
                 <span className="min-w-0">
                   <span className="block font-medium [overflow-wrap:anywhere]">
-                    {formatPresupuestoActivityCardTitle(entry)}
+                    {title}
+                    {count > 1 ? <span className="font-normal text-muted-foreground"> ×{count}</span> : null}
                   </span>
                   <span className="block text-caption text-muted-foreground">
                     {occurredAt ? format(occurredAt, 'd MMM · HH:mm', { locale: es }) : null}
