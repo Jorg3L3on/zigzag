@@ -12,6 +12,7 @@ import {
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 import { usePermissions } from '@/hooks/use-permissions';
 import { companyDay } from '@/lib/company-day';
+import { formatDocumentFolio } from '@/lib/folio';
 import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
@@ -165,6 +166,9 @@ export const TicketListRowQuickActions = ({
           total={ticket.total}
           paid={ticket.paid}
           companyId={companyId}
+          folio={formatDocumentFolio(ticket)}
+          clientName={ticket.client_name}
+          clientTel={ticket.client_tel}
           onPaymentApplied={(result) => {
             onPaymentApplied?.(result);
           }}

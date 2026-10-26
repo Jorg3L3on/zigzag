@@ -20,7 +20,7 @@ const STATUS_OPTIONS: Array<{ value: CobranzaStatusFilter; label: string }> = (
 }));
 
 const AGING_OPTIONS: Array<{ value: CobranzaAgingBucket; label: string }> = (
-  ['all', '0-14', '15-30', '30+'] as const
+  ['all', '0-30', '31-90', '90+'] as const
 ).map((value) => ({
   value,
   label: COBRANZA_AGING_LABEL[value],

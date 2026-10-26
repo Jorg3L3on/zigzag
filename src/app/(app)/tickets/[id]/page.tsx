@@ -209,6 +209,10 @@ export default async function TicketDetailsPage({
         total={total}
         paid={paid}
         companyId={ticket.company_id}
+        folio={folioLabel}
+        clientName={ticket.client_name}
+        clientTel={ticket.client_tel}
+        companyName={ticket.company?.name ?? null}
       >
         <TripledDashboardShell maxWidthClassName="max-w-[1200px]">
           <TripledMobileAppBar
