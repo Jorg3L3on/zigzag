@@ -147,10 +147,15 @@ describe('Presupuesto desktop (ZIG-I28-5)', () => {
     expect(screen.queryByTestId('presupuesto-accept')).toBeNull();
     expect(screen.queryByRole('button', { name: '¿Lo aceptó el cliente?' })).toBeNull();
 
+    // Two columns only when the page itself is wide enough, sidebar or not (ZIG-I29).
+    expect(screen.getByTestId('presupuesto-desktop')).toHaveClass('@container');
     expect(screen.getByTestId('presupuesto-desktop-grid')).toHaveClass(
-      'lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)]',
+      '@min-[60rem]:grid-cols-[minmax(0,1fr)_300px]',
     );
-    expect(screen.getByTestId('presupuesto-desktop-rail')).toHaveClass('lg:sticky', 'lg:top-20');
+    expect(screen.getByTestId('presupuesto-desktop-rail')).toHaveClass(
+      '@min-[60rem]:sticky',
+      '@min-[60rem]:top-20',
+    );
 
     expect(screen.getByText('Presupuesto P-0003')).toBeTruthy();
     expect(screen.getByTestId('presupuesto-status')).toHaveTextContent('Abierto');

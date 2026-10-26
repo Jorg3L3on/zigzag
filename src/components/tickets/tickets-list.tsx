@@ -70,7 +70,7 @@ export default function TicketsList() {
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
   const [counts, setCounts] = React.useState<TicketListCounts | null>(null);
-  // Por cobrar count for the phone chip. Alias of counts.due (ZIG-I28-4).
+  // Por cobrar count for the phone chip, under the ?finished filter as in sandbox (ZIG-I13-7).
   const [dueCount, setDueCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   // The full-page skeleton only covers the first load (and SSR). Once the
