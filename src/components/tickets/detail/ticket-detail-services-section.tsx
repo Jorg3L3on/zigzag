@@ -9,8 +9,8 @@ import {
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
 import { TicketDetailDocument } from '@/components/tickets/detail/ticket-detail-document';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import { Button } from '@/components/ui/button';
-import { useIsDesktop } from '@/hooks/use-desktop';
 import {
   TicketDetailSectionCard,
   TicketDetailSectionHeading,
@@ -72,7 +72,6 @@ export const TicketDetailServicesSection = ({
   workNotes = null,
   services,
 }: TicketDetailServicesSectionProps) => {
-  const isDesktop = useIsDesktop();
   const { can } = usePermissions();
   const canManage = canAssignTicketServices(can) && !isTicketFullyPaid(total, paid);
   const id = Number(ticketId);
@@ -102,21 +101,7 @@ export const TicketDetailServicesSection = ({
     [services],
   );
 
-  if (isDesktop && services.length > 0) {
-    return (
-      <TicketDetailDocument
-        ticketId={id}
-        lines={rows}
-        total={total}
-        paid={paid}
-        finished={finished}
-        workNotes={workNotes}
-        canManage={canManage}
-      />
-    );
-  }
-
-  return (
+  const card = (
     <TicketDetailSectionCard aria-labelledby="ticket-services-heading">
       <TicketDetailSectionHeading
         id="ticket-services-heading"
@@ -157,5 +142,25 @@ export const TicketDetailServicesSection = ({
         />
       )}
     </TicketDetailSectionCard>
+  );
+
+  if (services.length === 0) return card;
+
+  // The receipt from lg; never the phone card first on a desktop reload (ZIG-28).
+  return (
+    <DesktopSwitch
+      phone={card}
+      desktop={
+        <TicketDetailDocument
+          ticketId={id}
+          lines={rows}
+          total={total}
+          paid={paid}
+          finished={finished}
+          workNotes={workNotes}
+          canManage={canManage}
+        />
+      }
+    />
   );
 };

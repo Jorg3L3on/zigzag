@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { e2eCredentialsSkipReason, ensureTenantCompany, hasE2eCredentials, login } from './helpers/auth';
 import AxeBuilder from '@axe-core/playwright';
 import { expectNoSeriousViolations } from './helpers/a11y';
+import { waitForSettledLayout } from './helpers/layout';
 
 /**
  * ZIG-I32 — Mi empresa at 1280: one header and a side nav, Datos as cards
@@ -17,7 +18,8 @@ const TAGLINE_LABEL = 'Lema o giro';
 
 const openDatos = async (page: Page) => {
   await page.goto('/company');
-  // Right after goto the route transition can briefly mount a second copy.
+  // Right after goto a streamed copy can sit hidden for a moment (ZIG-28).
+  await waitForSettledLayout(page);
   await expect(page.getByTestId('company-datos-perfil')).toHaveCount(1, { timeout: 15_000 });
   await expect(page.getByTestId('company-datos-perfil')).toBeVisible();
 };

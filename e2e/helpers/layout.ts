@@ -66,3 +66,15 @@ export const expectLayoutIntact = async (page: Page, label: string) => {
  * only for PRs into main and pushes to main (E2E_ALL_WIDTHS=1); feature PRs run 375px.
  */
 export const MOBILE_WIDTHS = process.env.E2E_ALL_WIDTHS === '1' ? [375, 333] : [375];
+
+/**
+ * After a goto or reload, wait until the page has one layout tree (ZIG-28): React
+ * has revealed its streamed segments (a copy can sit in a hidden `S:` div for a
+ * moment) and every DesktopSwitch has dropped the tree the viewport does not use.
+ */
+export const waitForSettledLayout = (page: Page) =>
+  page.waitForFunction(
+    () => !document.querySelector('div[hidden][id^="S:"], [data-layout-pending]'),
+    undefined,
+    { timeout: 15_000 },
+  );

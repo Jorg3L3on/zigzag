@@ -69,7 +69,8 @@ import { FormChangesBar } from '@/components/companies/form-changes-bar';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useIsDesktop } from '@/hooks/use-desktop';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import { useDesktopViewport } from '@/hooks/use-desktop';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import {
   DEFAULT_COMPANY_FORM_SECTIONS,
@@ -203,9 +204,12 @@ export const CompanyForm = ({
   const collapsible = isSectioned && isMobile;
   // lg+ self-service: Datos cards, receipt preview and the changes bar
   // (ZIG-I32-1). Phones, tablets and the operator form keep their own tree.
-  // useIsDesktop is false on the server, so phones never paint the cards.
-  const isDesktop = useIsDesktop();
-  const desktopCards = isSectioned && isSelfService && isDesktop && Boolean(company);
+  // The width is unknown on the server, so the first frame has both trees and CSS
+  // shows the right one; then only that tree stays (ZIG-28). One form instance for
+  // both, so typed values survive crossing 1024.
+  const viewport = useDesktopViewport();
+  const hasDesktopTree = isSectioned && isSelfService && Boolean(company);
+  const desktopCards = hasDesktopTree && viewport === true;
   // Read synchronously on the client: the saved state only shows once the
   // form switches to mobile after hydration, so it cannot mismatch the server
   // markup, and no later effect flips a section the user already toggled.
@@ -1003,7 +1007,7 @@ export const CompanyForm = ({
     ? listChangedCompanyFields(form.formState.dirtyFields as Record<string, unknown>)
     : [];
 
-  const desktopLayout = desktopCards && company ? (
+  const desktopLayout = hasDesktopTree && company ? (
     // @container: the preview sits beside the form when the hub column has room
     // (1280 with the sidebar open), below it at 1024.
     <div className="@container">
@@ -1272,12 +1276,8 @@ export const CompanyForm = ({
     </div>
   ) : null;
 
-  if (desktopLayout) {
-    return <Form {...form}>{desktopLayout}</Form>;
-  }
-
-  return (
-    <Form {...form}>
+  const phoneLayout = (
+    <>
       <form
         id={COMPANY_FORM_ID}
         onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
@@ -1471,6 +1471,20 @@ export const CompanyForm = ({
           </Button>
         </TripledMobileStickyActionBar>
       ) : null}
-    </Form>
+    </>
   );
+
+  if (desktopLayout && viewport === true) {
+    return <Form {...form}>{desktopLayout}</Form>;
+  }
+  if (desktopLayout && viewport === null) {
+    // Leaving this frame remounts the kept tree, so its fields register again after
+    // the other tree's fields unregister.
+    return (
+      <Form {...form}>
+        <DesktopSwitch phone={phoneLayout} desktop={desktopLayout} />
+      </Form>
+    );
+  }
+  return <Form {...form}>{phoneLayout}</Form>;
 };

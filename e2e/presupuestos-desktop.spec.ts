@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { e2eCredentialsSkipReason, ensureTenantCompany, hasE2eCredentials, login } from './helpers/auth';
 import { expectNoSeriousViolations } from './helpers/a11y';
 import { addCustomComposerLine, createClientInComposer } from './helpers/ticket-composer';
+import { waitForSettledLayout } from './helpers/layout';
 
 /**
  * ZIG-I29 at 1280px: the presupuesto detail in its four states (Vigencia y
@@ -130,6 +131,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
       await pool.end();
     }
     await page.reload();
+    await waitForSettledLayout(page);
     await expect(desktopStatus(page)).toHaveText('Vencido', { timeout: 15_000 });
     const chip = page.getByTestId('presupuesto-vigencia-chip');
     await expect(chip).toHaveText('Venció hace 3 días');
@@ -179,6 +181,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
 
     // Aceptado: green pill, the R ticket card with its state and total, no Editar or Cancelar.
     await page.goto(`/presupuestos/${id}`);
+    await waitForSettledLayout(page);
     await expect(desktopStatus(page)).toHaveText('Aceptado', { timeout: 15_000 });
     await expect(desktopStatus(page)).toHaveClass(/emerald/);
     const accepted = page.getByTestId('presupuesto-accepted-card');
