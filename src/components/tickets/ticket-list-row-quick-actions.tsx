@@ -92,11 +92,10 @@ export const TicketListRowQuickActions = ({
   return (
     <div className="relative flex items-center justify-end">
       {hasQuickActions ? (
-        // Floats over Saldo and Estado so the table reserves room only for ⋮ (PR #610 review).
+        // Floats over Saldo and Estado at every width, so the table reserves room only for ⋮
+        // and Cliente keeps it (PR #610 review; as on the presupuestos table).
         <div
-          // Wide lists (canvas ListaA): the buttons sit in the Acciones column. Narrow ones
-          // (1024 with the sidebar): they float over Saldo/Estado so Cliente keeps its room.
-          className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 @min-[64rem]:static @min-[64rem]:mr-1.5 @min-[64rem]:translate-y-0 @min-[64rem]:bg-transparent @min-[64rem]:p-0 @min-[64rem]:shadow-none @min-[64rem]:ring-0"
+          className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
           data-testid="ticket-row-quick-actions"
         >
           {showCollect ? (

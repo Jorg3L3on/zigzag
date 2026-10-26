@@ -161,6 +161,9 @@ export const createTicketsColumns = ({
   {
     id: 'client_name',
     accessorKey: 'client_name',
+    // Takes what is left (about 330px at 1280 with the sidebar) until Trabajo shows; then
+    // 21rem, as wide as at 1280: client names win over Trabajo, as on the presupuestos table.
+    meta: { className: '@min-[75rem]:w-[21rem]' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Cliente" />
     ),
@@ -203,9 +206,8 @@ export const createTicketsColumns = ({
   {
     id: 'services',
     accessorFn: (row) => row.services_summary ?? '',
-    // At 1024 with the sidebar open, Trabajo yields so Cliente, Total, Saldo, Estado and ⋮ fit.
-    // Trabajo yields first: Cliente keeps the full name at 1280 with the sidebar (canvas).
-    meta: { className: 'hidden @min-[64rem]:table-cell' },
+    // Only once Cliente keeps 21rem and Trabajo gets the canvas's 220px (75rem list, ~1504 with the sidebar).
+    meta: { className: 'hidden @min-[75rem]:table-cell' },
     header: () => <span>Trabajo</span>,
     cell: ({ row }) => {
       const summary = row.original.services_summary?.trim();
@@ -291,8 +293,8 @@ export const createTicketsColumns = ({
   {
     id: 'actions',
     enableSorting: false,
-    // Narrow: only ⋯ takes room and the actions float. Wide: an Acciones column (canvas).
-    meta: { className: 'w-[3.25rem] @min-[64rem]:w-[11rem]' },
+    // Only ⋮ takes room; Cobrar, Terminar and PDF float with the row (canvas hover actions).
+    meta: { className: 'w-[3.25rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div

@@ -154,10 +154,10 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
     await ensureTenantCompany(page);
   });
 
-  // Tickets: Trabajo yields to the client's full name until the list itself is 64rem
-  // wide (1440 with the sidebar open, canvas ListaA); the others come back at 1280.
+  // Tickets: Trabajo yields to the client's full name until the list itself is 75rem
+  // wide (~1504 with the sidebar open, as presupuestos); the others come back at 1280.
   const SECONDARY: { path: string; header: string; wide: number }[] = [
-    { path: '/tickets', header: 'Trabajo', wide: 1440 },
+    { path: '/tickets', header: 'Trabajo', wide: 1536 },
     { path: '/clients', header: 'Dirección', wide: 1280 },
     { path: '/services', header: 'Descripción', wide: 1280 },
   ];

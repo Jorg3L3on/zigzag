@@ -18,16 +18,23 @@ test.describe('Tickets list Estado column', () => {
   test('shows a one-line estado chip, Trabajo and Saldo (ZIG-I28-4)', async ({
     page,
   }) => {
-    // Trabajo shows once the list is 64rem wide (1440 with the sidebar open).
+    // Client names win: at 1440 Trabajo stays hidden and Cliente keeps at least its
+    // 1280 width; Trabajo shows once the list is 75rem wide (1536 with the sidebar open).
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/tickets');
     await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
-
     const table = page.locator('table').first();
     await expect(table).toBeVisible({ timeout: 15_000 });
+    await expect(table.getByRole('columnheader', { name: /Trabajo/i })).toBeHidden();
+    const clienteWidth = async () =>
+      (await table.getByRole('columnheader', { name: /Cliente/i }).boundingBox())!.width;
+    expect(await clienteWidth(), 'Cliente @1440').toBeGreaterThanOrEqual(332);
+
+    await page.setViewportSize({ width: 1536, height: 900 });
     await expect(table.getByRole('columnheader', { name: /Trabajo/i })).toBeVisible();
+    expect(await clienteWidth(), 'Cliente @1536').toBeGreaterThanOrEqual(332);
     await expect(table.getByRole('columnheader', { name: /Saldo/i })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: /Estado/i })).toBeVisible();
     await expect(table.getByTestId('ticket-payment-summary')).toHaveCount(0);

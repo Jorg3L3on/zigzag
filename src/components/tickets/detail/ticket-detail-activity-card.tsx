@@ -9,6 +9,7 @@ import {
   TicketDetailSectionCard,
 } from '@/components/tickets/detail/ticket-detail-section-card';
 import type { TicketAuditHistoryEntry } from '@/actions/tickets';
+import { collapseActivity } from '@/lib/collapse-activity';
 import { formatTicketActivityCardTitle } from '@/lib/ticket-activity-card';
 import { getTicketTimelineIcon, type TicketTimelineIconKey } from '@/lib/ticket-audit-display';
 
@@ -25,21 +26,22 @@ type TicketDetailActivityCardProps = {
 
 /**
  * Four latest events in the column, as the canvas draws them: what happened
- * with the full amount, then «24 oct · 18:28 · Actor». Ver todo opens the full
- * list in the card (ZIG-I28-2).
+ * with the full amount, then «24 oct · 18:28 · Actor». Repeated edits read
+ * «Servicios editados ×2». Ver todo opens the full list in the card (ZIG-I28-2).
  */
 export const TicketDetailActivityCard = ({ entries }: TicketDetailActivityCardProps) => {
   // Ver todo opens the rest in place; there is no second Actividad card on desktop.
   const [expanded, setExpanded] = useState(false);
-  const recent = expanded ? entries : entries.slice(0, 4);
+  const items = collapseActivity(entries, formatTicketActivityCardTitle);
+  const recent = expanded ? items : items.slice(0, 4);
 
   return (
     <TicketDetailSectionCard aria-labelledby="ticket-activity-card-heading" data-testid="ticket-activity-card">
       <div className="flex items-baseline justify-between gap-3">
         <TicketDetailRailLabel id="ticket-activity-card-heading">
-          Actividad · {entries.length}
+          Actividad · {items.length}
         </TicketDetailRailLabel>
-        {entries.length > 4 ? (
+        {items.length > 4 ? (
         <button
           type="button"
           aria-expanded={expanded}
@@ -54,7 +56,7 @@ export const TicketDetailActivityCard = ({ entries }: TicketDetailActivityCardPr
         <p className="text-sm text-muted-foreground">Aún no hay eventos.</p>
       ) : (
         <ul className="mt-1 space-y-3.5">
-          {recent.map((entry) => {
+          {recent.map(({ entry, title, count }) => {
             const Icon = ACTIVITY_ICONS[getTicketTimelineIcon(entry.eventType)] ?? Activity;
             const when = new Date(entry.createdAt);
             return (
@@ -67,7 +69,8 @@ export const TicketDetailActivityCard = ({ entries }: TicketDetailActivityCardPr
                 </span>
                 <span className="min-w-0">
                   <span className="block font-medium tabular-nums [overflow-wrap:anywhere]">
-                    {formatTicketActivityCardTitle(entry)}
+                    {title}
+                    {count > 1 ? <span className="font-normal text-muted-foreground"> ×{count}</span> : null}
                   </span>
                   <span className="block text-caption text-muted-foreground">
                     {format(when, "d MMM · HH:mm", { locale: es })}
