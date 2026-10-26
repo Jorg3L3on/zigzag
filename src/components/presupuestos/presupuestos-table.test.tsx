@@ -216,4 +216,17 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
     await user.keyboard('{Enter}');
     expect(push).toHaveBeenCalledWith('/presupuestos/1117');
   });
+
+  it('sizes columns by the page width, so the sidebar cannot squeeze Cliente to nothing', async () => {
+    renderTable();
+    await screen.findByText('Residencial Las Palmas');
+
+    const table = screen.getByRole('table', { name: 'Presupuestos' });
+    expect(table.parentElement).toHaveClass('@container');
+    expect(screen.getByRole('columnheader', { name: 'Trabajo' })).toHaveClass('hidden', '@min-[52rem]:table-cell');
+    expect(screen.getByRole('columnheader', { name: 'Emitido' })).toHaveClass('hidden', '@min-[48rem]:table-cell');
+    // Only ⋮ takes room; the hover actions float.
+    expect(screen.getByRole('columnheader', { name: 'Acciones' })).toHaveClass('w-[3.25rem]');
+    expect(screen.getAllByTestId('presupuesto-row-quick-actions')[0]).toHaveClass('absolute', 'right-full');
+  });
 });

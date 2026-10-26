@@ -55,6 +55,8 @@ export const PresupuestoRowActions = ({
   const open = item.status === 'abierto' || item.status === 'vencido';
   const empty = !item.servicesSummary?.trim();
   const editHref = `/presupuestos/${item.id}/edit`;
+  const accepted = item.status === 'convertido' && Boolean(item.convertedToTicketId);
+  const canceled = item.status === 'cancelado' && canWrite;
   const reminder = open
     ? buildWhatsAppQuoteReminder({
         phone: item.clientTel,
@@ -67,6 +69,9 @@ export const PresupuestoRowActions = ({
         companyName,
       })
     : null;
+
+  const hasQuickActions =
+    (open && canWrite) || Boolean(reminder) || (open && canInvoice && !empty) || accepted || canceled;
 
   const handleDownload = async () => {
     if (downloading) return;
@@ -87,9 +92,13 @@ export const PresupuestoRowActions = ({
   };
 
   return (
-    <div className="relative flex items-center justify-end gap-1">
-      <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-within:grid-cols-[1fr]">
-        <div className="flex min-w-0 items-center gap-1 overflow-hidden opacity-0 group-hover:overflow-visible group-hover:opacity-100 group-focus-within:overflow-visible group-focus-within:opacity-100">
+    <div className="relative flex items-center justify-end">
+      {hasQuickActions ? (
+        // Floats over Estado and Total so the table reserves room only for ⋮.
+        <div
+          className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+          data-testid="presupuesto-row-quick-actions"
+        >
           {open && canWrite && !empty ? (
             <Button
               type="button"
@@ -138,14 +147,14 @@ export const PresupuestoRowActions = ({
               )}
             </Button>
           ) : null}
-          {item.status === 'convertido' && item.convertedToTicketId ? (
+          {accepted ? (
             <Button asChild variant="outline" size="sm">
               <Link href={`/tickets/${item.convertedToTicketId}`}>
                 {item.convertedTicketFolio ? `Ver ticket ${item.convertedTicketFolio}` : 'Ver ticket'}
               </Link>
             </Button>
           ) : null}
-          {item.status === 'cancelado' && canWrite ? (
+          {canceled ? (
             <Button
               type="button"
               variant="outline"
@@ -158,7 +167,7 @@ export const PresupuestoRowActions = ({
             </Button>
           ) : null}
         </div>
-      </div>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

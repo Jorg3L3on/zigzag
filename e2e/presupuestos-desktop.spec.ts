@@ -60,7 +60,7 @@ const extendBy = async (page: Page, days: 7 | 15 | 30) => {
   await expect(dialog).toBeHidden({ timeout: 15_000 });
 };
 
-test.describe('Presupuestos desktop @1280px (ZIG-I29)', () => {
+test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
   // The composer and the vigencia copy count days in the browser's zone; the
   // company works in Mexico City, and so does every expiry stored here.
   test.use({ viewport: { width: 1280, height: 900 }, timezoneId: 'America/Mexico_City' });
@@ -167,6 +167,7 @@ test.describe('Presupuestos desktop @1280px (ZIG-I29)', () => {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('menuitem', { name: 'Extender vigencia' })).toBeVisible();
     await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toBeHidden();
 
     await row.hover();
     await row.getByRole('button', { name: `Convertir ${folio} a ticket` }).click();
@@ -191,6 +192,7 @@ test.describe('Presupuestos desktop @1280px (ZIG-I29)', () => {
     await page.getByRole('button', { name: 'Más acciones del presupuesto' }).click();
     await expect(page.getByRole('menuitem', { name: 'Cancelar presupuesto' })).toHaveCount(0);
     await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toBeHidden();
     // Actividad: real events with actor and time.
     const activity = page.getByTestId('presupuesto-activity-card');
     await expect(activity).toContainText('lo convirtió en ticket');
@@ -215,5 +217,28 @@ test.describe('Presupuestos desktop @1280px (ZIG-I29)', () => {
     await expect(actions.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);
     await expect(page.getByTestId('presupuesto-activity-card')).toContainText('canceló el presupuesto');
     await expectNoSeriousViolations(page, 'presupuesto-cancelado');
+  });
+
+  test('at 1024 with the sidebar open, Concepto and Cliente keep room and ⋮ stays on screen', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto('/presupuestos?estado=todos');
+    const row = page.getByTestId('presupuesto-table-row').first();
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    const cliente = await row.locator('td').nth(1).boundingBox();
+    expect(cliente?.width ?? 0).toBeGreaterThan(150);
+    const more = await row.getByRole('button', { name: /^Más acciones de / }).boundingBox();
+    expect((more?.x ?? 9999) + (more?.width ?? 0)).toBeLessThanOrEqual(1024);
+    await expectNoSeriousViolations(page, 'presupuestos-lista-1024');
+
+    await row.click();
+    await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 15_000 });
+    const line = page.getByTestId('presupuesto-desktop').getByTestId('document-line-row').first();
+    await expect(line).toBeVisible({ timeout: 15_000 });
+    const concepto = await line.locator('> div').first().boundingBox();
+    expect(concepto?.width ?? 0).toBeGreaterThan(200);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 });

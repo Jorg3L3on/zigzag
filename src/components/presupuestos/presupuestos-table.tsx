@@ -237,7 +237,7 @@ export const PresupuestosTable = ({
       {
         id: 'folio',
         header: 'Folio',
-        meta: { className: 'w-[6.5rem]' },
+        meta: { className: 'w-[6rem]' },
         cell: ({ row }) => (
           <span className="font-mono text-sm font-medium tabular-nums">{row.original.folio}</span>
         ),
@@ -245,7 +245,7 @@ export const PresupuestosTable = ({
       {
         id: 'cliente',
         header: 'Cliente',
-        meta: { className: 'w-[22%]' },
+        // Takes what is left: about 200px at 1024 with the sidebar open.
         cell: ({ row }) => (
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium" title={row.original.clientName ?? undefined}>
@@ -262,7 +262,7 @@ export const PresupuestosTable = ({
       {
         id: 'trabajo',
         header: 'Trabajo',
-        meta: { className: 'hidden xl:table-cell' },
+        meta: { className: 'hidden @min-[52rem]:table-cell' },
         cell: ({ row }) =>
           row.original.servicesSummary ? (
             <span className="line-clamp-2 text-sm" title={row.original.servicesSummary}>
@@ -275,7 +275,7 @@ export const PresupuestosTable = ({
       {
         id: 'emitido',
         header: 'Emitido',
-        meta: { className: 'w-[5.5rem]' },
+        meta: { className: 'hidden w-[5.5rem] @min-[48rem]:table-cell' },
         cell: ({ row }) => (
           <span className="text-sm tabular-nums">{shortDate(row.original.ticketDate)}</span>
         ),
@@ -321,13 +321,14 @@ export const PresupuestosTable = ({
       {
         id: 'estado',
         header: 'Estado',
-        meta: { className: 'w-[7rem]' },
+        meta: { className: 'w-[6.75rem]' },
         cell: ({ row }) => <PresupuestoStatusPill status={row.original.status} surface="desktop" />,
       },
       {
         id: 'acciones',
         header: () => <span className="sr-only">Acciones</span>,
-        meta: { className: 'w-[13rem]' },
+        // Only ⋮ takes room; the hover actions float over the row.
+        meta: { className: 'w-[3.25rem]' },
         cell: ({ row }) => (
           <div
             className="flex justify-end"
@@ -412,7 +413,7 @@ export const PresupuestosTable = ({
       />
 
       <div className="flex flex-wrap items-end gap-3">
-        <div className="relative w-full max-w-[360px] shrink-0">
+        <div className="relative min-w-[12rem] max-w-[360px] flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -421,7 +422,7 @@ export const PresupuestosTable = ({
             className="h-11 rounded-xl bg-background pl-9 shadow-none"
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por cliente, folio o teléfono"
+            placeholder="Cliente, folio o teléfono"
             aria-label="Buscar presupuestos por cliente, folio o teléfono"
           />
         </div>
@@ -507,7 +508,8 @@ export const PresupuestosTable = ({
           />
         )
       ) : (
-        <div>
+        // Columns follow the page width, not the viewport: the sidebar takes 256px (ZIG-I29).
+        <div className="@container">
           <table
             aria-label="Presupuestos"
             aria-busy={loading}
