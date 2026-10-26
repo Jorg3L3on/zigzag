@@ -154,7 +154,7 @@ describe('TicketsFilterBar', () => {
       <TicketsFilterBar
         {...baseProps}
         statusFilter="due"
-        finishedFilter="all"
+        finishedFilter="yes"
         counts={{ all: 8, due: 3, inProgress: 2, paid: 1 }}
         onStatusFilterChange={onStatusFilterChange}
         onFinishedFilterChange={onFinishedFilterChange}

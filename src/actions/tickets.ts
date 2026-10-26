@@ -617,7 +617,7 @@ export interface PaginatedTicketsData {
   pageSize: number;
   totalPages: number;
   counts: TicketListCounts;
-  /** Alias of `counts.due`. */
+  /** Phone Por cobrar chip: tickets with a saldo under the search/date/finished filters (ZIG-I13-7). */
   dueCount: number;
 }
 
@@ -743,8 +743,14 @@ export async function getTicketsPaginated(params: {
       ...(paymentStatusCondition ? [paymentStatusCondition] : []),
     );
 
-    const dueCondition = buildTicketPaymentStatusCondition('due') ?? sql`false`;
+    // Por cobrar is finished work with a saldo: En proceso tickets have no saldo yet, and
+    // the tab must match the ?status=due&finished=yes view (PR #610 review: 26 vs 17).
+    const dueCondition = and(eq(ticket.finished, true), TICKET_DUE_CONDITION) ?? sql`false`;
     const paidCondition = buildTicketPaymentStatusCondition('paid') ?? sql`false`;
+    // The phone chip keeps its ZIG-I13-7 meaning: a saldo under the ?finished filter.
+    const phoneDueCondition =
+      (finishedCondition ? and(finishedCondition, TICKET_DUE_CONDITION) : TICKET_DUE_CONDITION) ??
+      sql`false`;
 
     const [{ total }] = await db
       .select({ total: count() })
@@ -754,6 +760,7 @@ export async function getTicketsPaginated(params: {
       .select({
         allCount: count(),
         dueCount: sql<number>`count(*) FILTER (WHERE ${dueCondition})`,
+        phoneDueCount: sql<number>`count(*) FILTER (WHERE ${phoneDueCondition})`,
         inProgressCount: sql<number>`count(*) FILTER (WHERE ${eq(ticket.finished, false)})`,
         paidCount: sql<number>`count(*) FILTER (WHERE ${paidCondition})`,
       })
@@ -813,7 +820,7 @@ export async function getTicketsPaginated(params: {
         pageSize,
         totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
         counts,
-        dueCount: counts.due,
+        dueCount: Number(countRow?.phoneDueCount ?? 0),
       },
     };
   } catch (e) {

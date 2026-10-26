@@ -1,7 +1,9 @@
 'use client';
 
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 import { MoneyFigure } from '@/components/documents/money-figure';
-import { FormattedDate } from '@/components/formatted-date';
 import { Button } from '@/components/ui/button';
 import { useTicketCollect } from '@/components/tickets/detail/ticket-detail-collect-context';
 import {
@@ -91,11 +93,16 @@ export const TicketDetailCollectCard = ({
               typeof payment.created_at === 'string' ? new Date(payment.created_at) : payment.created_at;
             return (
               <li key={payment.id} className="py-2.5 text-sm" data-testid="ticket-collect-payment">
+                {/* The amount never breaks (the date wraps instead): PR #610 review. */}
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-muted-foreground">
-                    <FormattedDate withTime date={when} />
+                  <span className="min-w-0 text-muted-foreground">
+                    {format(when, "d MMM yyyy · HH:mm", { locale: es })}
                   </span>
-                  <MoneyFigure amount={payment.amount} size="sm" />
+                  <MoneyFigure
+                    amount={payment.amount}
+                    size="sm"
+                    className="shrink-0 whitespace-nowrap [overflow-wrap:normal]"
+                  />
                 </div>
                 {actor ? (
                   <p className="text-caption text-muted-foreground">
@@ -111,7 +118,7 @@ export const TicketDetailCollectCard = ({
       {paidFully ? null : (
         <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-border pt-2 text-sm">
           <span className="font-medium">Saldo</span>
-          <MoneyFigure amount={balance} size="sm" />
+          <MoneyFigure amount={balance} size="sm" className="shrink-0 whitespace-nowrap [overflow-wrap:normal]" />
         </div>
       )}
     </TicketDetailSectionCard>

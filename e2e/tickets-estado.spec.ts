@@ -73,7 +73,8 @@ test.describe('Tickets list Estado column', () => {
         await expect(summary.getByText(/^Pagado /)).toBeVisible();
         await expect(summary.getByText(/^Saldo /)).toBeVisible();
       } else {
-        await expect(summary.getByText('Total')).toBeVisible();
+        // exact: «Sin total» (a ticket without services) also contains the word.
+        await expect(summary.getByText('Total', { exact: true })).toBeVisible();
         await expect(summary.getByText(/^Saldo /)).toHaveCount(0);
       }
     }
