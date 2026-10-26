@@ -298,7 +298,8 @@ const PresupuestoDesktopHeader = (props: HeaderProps) => {
   const whatsApp = showWhatsApp ? buildWhatsAppQuoteShare(quoteShareInput(props)) : null;
   const ticketHref = convertedToTicketId ? `/tickets/${convertedToTicketId}` : null;
   const ticketLabel = convertedTicket?.folio ? `Ver ticket ${convertedTicket.folio}` : 'Ver ticket';
-  const showMenu = canInvoice || canWrite;
+  // A canceled one only keeps Abrir PDF in the menu.
+  const showMenu = canInvoice || (canWrite && !canceled);
 
   return (
     <header className="flex min-w-0 flex-col gap-3" data-testid="presupuesto-header">

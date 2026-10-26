@@ -47,8 +47,9 @@ test.describe('Receipt desktop axe @1280px', () => {
     });
     await expectNoSeriousViolations(page, 'ticket-terminado');
 
-    await page.goto('/presupuestos');
-    const quote = page.getByRole('link', { name: /^Presupuesto / }).first();
+    // From md the list is a table (ZIG-I29-3); its rows open the detail.
+    await page.goto('/presupuestos?estado=todos');
+    const quote = page.getByTestId('presupuesto-table-row').first();
     await expect(quote).toBeVisible({ timeout: 15_000 });
     await quote.click();
     await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 15_000 });
