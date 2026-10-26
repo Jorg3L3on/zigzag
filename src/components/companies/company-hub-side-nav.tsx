@@ -25,10 +25,12 @@ const itemClass = (active: boolean) =>
     'flex min-h-9 items-center justify-between gap-2 rounded-lg px-2.5 text-sm transition-colors',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     active
-      ? 'bg-primary/10 font-medium text-primary'
+      ? 'bg-primary/10 font-medium text-blue-700 dark:text-blue-300'
       : 'text-foreground/80 hover:bg-muted hover:text-foreground',
   );
 
+// Selected = primary tint with blue-700 text: primary (#2563eb) on the tint is
+// 4.48:1, under AA (ZIG-I32 review).
 const groupLabelClass =
   'px-2.5 pb-1.5 text-caption font-semibold uppercase tracking-wider text-muted-foreground';
 
@@ -128,7 +130,12 @@ export const CompanyHubSideNav = ({
                   >
                     <span className="truncate">{tab.label}</span>
                     {typeof tabCount === 'number' ? (
-                      <span className="text-caption tabular-nums text-muted-foreground">
+                      <span
+                        className={cn(
+                          'text-caption tabular-nums',
+                          isActive ? 'text-current' : 'text-muted-foreground',
+                        )}
+                      >
                         {tabCount}
                       </span>
                     ) : null}

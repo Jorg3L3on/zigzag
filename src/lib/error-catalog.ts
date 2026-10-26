@@ -331,6 +331,13 @@ export const ERROR_CATALOG = {
     message: 'Nadie más podría gestionar el equipo o los roles. Deja Equipo y Roles en Editar, o da ese permiso a otro rol con personas asignadas.',
     type: 'validation',
   },
+  RL007: {
+    code: 'RL007',
+    module: 'roles',
+    title: 'No puedes dar permisos que tú no tienes',
+    message: 'Un rol solo puede tener permisos que también tiene el tuyo. Pide a alguien con esos permisos que lo cambie.',
+    type: 'validation',
+  },
   SS001: {
     code: 'SS001',
     module: 'service-schedules',

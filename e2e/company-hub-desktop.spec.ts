@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { e2eCredentialsSkipReason, ensureTenantCompany, hasE2eCredentials, login } from './helpers/auth';
+import AxeBuilder from '@axe-core/playwright';
 import { expectNoSeriousViolations } from './helpers/a11y';
 
 /**
@@ -196,5 +197,32 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
     await page.goto('/company/roles');
     await expect(page.getByTestId('role-list-item').first()).toBeVisible({ timeout: 15_000 });
     await expectNoSeriousViolations(page, 'company-roles-desktop');
+  });
+
+  test('the hub content meets 4.5:1 contrast (color-contrast is off in the shared helper)', async ({ page }) => {
+    const contrast = async (label: string) => {
+      const results = await new AxeBuilder({ page })
+        .withRules(['color-contrast'])
+        .include('main')
+        .analyze();
+      const nodes = results.violations.flatMap((violation) =>
+        violation.nodes.map((node) => `${node.target.join(' ')}: ${node.failureSummary ?? ''}`),
+      );
+      expect(nodes, `${label}: contrast`).toEqual([]);
+    };
+
+    await openDatos(page);
+    // Show the changes bar too.
+    await page.getByTestId('company-datos-perfil').getByLabel(TAGLINE_LABEL).fill('Contraste QA');
+    await contrast('datos');
+    await page.getByTestId('form-changes-bar').getByRole('button', { name: 'Descartar' }).click();
+
+    await page.goto('/company/equipo');
+    await expect(page.getByTestId('team-member-row').first()).toBeVisible({ timeout: 15_000 });
+    await contrast('equipo');
+
+    await page.goto('/company/roles');
+    await expect(page.getByTestId('role-list-item').first()).toBeVisible({ timeout: 15_000 });
+    await contrast('roles');
   });
 });

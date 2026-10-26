@@ -279,7 +279,7 @@ export const RoleEditor = ({
                   className={cn(
                     'h-8 rounded-full px-3.5 text-sm',
                     active &&
-                      'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
+                      'border-primary/40 bg-primary/10 text-blue-700 hover:bg-primary/15 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-300',
                   )}
                   onClick={() => requestTemplate(template.key)}
                 >

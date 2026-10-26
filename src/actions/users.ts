@@ -29,7 +29,7 @@ import { recordAuthAuditEvent } from '@/lib/audit-security';
 import { buildAuditRequestMetaFromHeaders } from '@/lib/audit-request-meta';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { generateTemporaryPassword } from '@/lib/temporary-password';
-import { loadRolePermissionNames, outranks } from '@/lib/role-rank';
+import { guardUserWrite } from '@/lib/role-rank';
 import { keepsATeamManager } from '@/lib/team-guards';
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -285,6 +285,15 @@ export async function createUser(data: CreateUserFormData): Promise<{
       validatedData.role_id,
       effectiveCompanyId,
     );
+    // No creating someone with more permissions than you (ZIG-I32 review).
+    const blocked = await guardUserWrite({
+      actor: authContext,
+      target: null,
+      nextRoleId: validatedData.role_id,
+    });
+    if (blocked) {
+      return buildActionError(blocked);
+    }
 
     const hashedPassword = await hash(validatedData.password, 10);
 
@@ -358,6 +367,17 @@ export async function updateUser(
     if (!authContext.companyIsSystem && existing.company_id !== effectiveCompanyId) {
       return buildActionError('AU002');
     }
+    // Own role and anyone with more permissions are off limits (ZIG-I32
+    // review); updateTeamMember and the /users dialog both come through here.
+    const blocked = await guardUserWrite({
+      actor: authContext,
+      target: existing,
+      nextRoleId: validatedData.role_id,
+      setsPassword: Boolean(validatedData.password),
+    });
+    if (blocked) {
+      return buildActionError(blocked);
+    }
 
     const nextRoleId = validatedData.role_id ?? null;
     if (
@@ -425,30 +445,6 @@ export async function updateUser(
 }
 
 
-/** The target's role holds a permission the caller's role lacks (see `outranks`). */
-const targetOutranksCaller = async (
-  targetRoleId: number | null | undefined,
-  callerUserId: string,
-): Promise<boolean> => {
-  if (targetRoleId == null) {
-    return false;
-  }
-  const callerRow = await db.query.user.findFirst({
-    where: eq(user.id, BigInt(callerUserId)),
-    columns: { role_id: true },
-  });
-  const callerRoleId = callerRow?.role_id ?? null;
-  if (callerRoleId === targetRoleId) {
-    return false;
-  }
-  const roleIds = callerRoleId === null ? [targetRoleId] : [targetRoleId, callerRoleId];
-  const permissions = await loadRolePermissionNames(roleIds);
-  return outranks(
-    permissions.get(targetRoleId) ?? new Set(),
-    callerRoleId === null ? new Set() : (permissions.get(callerRoleId) ?? new Set()),
-  );
-};
-
 /**
  * Forgotten password without email (ZIG-I18-11): an admin with `users.write`
  * (own company only) or a system operator (any company) gives a temporary
@@ -491,8 +487,9 @@ export async function resetUserTemporaryPassword(id: bigint): Promise<{
     }
     // A tenant admin cannot take over someone with more permissions (ZIG-I32
     // review): the temporary password would hand them that account.
-    if (!context.companyIsSystem && (await targetOutranksCaller(target.role_id, caller.userId))) {
-      return buildActionError('US010');
+    const blocked = await guardUserWrite({ actor: context, target, setsPassword: true });
+    if (blocked) {
+      return buildActionError(blocked);
     }
 
     const temporaryPassword = generateTemporaryPassword();

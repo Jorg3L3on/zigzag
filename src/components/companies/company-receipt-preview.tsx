@@ -185,7 +185,7 @@ export const CompanyReceiptPreview = ({
           </div>
         ) : (
           // The slots the message fills once the company adds them (canvas EmpDatos).
-          <p className="mt-1.5 text-zinc-500">
+          <p className="mt-1.5 text-zinc-600">
             Para pagar por transferencia: [Banco] · [Titular] · [CLABE]
           </p>
         )}

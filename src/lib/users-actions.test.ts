@@ -20,6 +20,8 @@ import { compare, hash } from 'bcryptjs';
 import { revokeAgentAccessForUser } from '@/lib/session-revocation';
 import { keepsATeamManager } from '@/lib/team-guards';
 
+// The rank rules have their own tests (src/actions/user-write-guard.test.ts).
+jest.mock('@/lib/role-rank', () => ({ guardUserWrite: jest.fn(async () => null) }));
 jest.mock('@/lib/db', () => ({
   db: {
     select: jest.fn(),

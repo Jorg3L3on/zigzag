@@ -126,7 +126,7 @@ export const TeamDesktop = ({
         </label>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger
-            className={cn('h-10 w-auto min-w-40', roleFilter !== ALL_ROLES && 'border-primary/40 bg-primary/10 text-primary')}
+            className={cn('h-10 w-auto min-w-40', roleFilter !== ALL_ROLES && 'border-primary/40 bg-primary/10 text-blue-700 dark:text-blue-300')}
             aria-label="Filtrar por rol"
           >
             <SelectValue />
@@ -142,7 +142,7 @@ export const TeamDesktop = ({
         </Select>
         <Select value={access} onValueChange={(value) => setAccess(value as TeamAccessFilter)}>
           <SelectTrigger
-            className={cn('h-10 w-auto min-w-32', access !== 'active' && 'border-primary/40 bg-primary/10 text-primary')}
+            className={cn('h-10 w-auto min-w-32', access !== 'active' && 'border-primary/40 bg-primary/10 text-blue-700 dark:text-blue-300')}
             aria-label="Filtrar por acceso"
           >
             <SelectValue />

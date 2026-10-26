@@ -146,11 +146,21 @@ const RoleCard = ({
       <span className="truncate font-semibold">
         {teamRoleLabel(role.name)}
       </span>
-      <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
+      <span
+        className={cn(
+          'shrink-0 text-caption tabular-nums',
+          selected ? 'text-slate-600 dark:text-slate-300' : 'text-muted-foreground',
+        )}
+      >
         {peopleBadge(role.userCount)}
       </span>
     </span>
-    <span className="line-clamp-2 text-sm text-muted-foreground">
+    <span
+      className={cn(
+        'line-clamp-2 text-sm',
+        selected ? 'text-slate-600 dark:text-slate-300' : 'text-muted-foreground',
+      )}
+    >
       {(role.isGlobal ? SHARED_ROLE_CARD_HINTS[role.name] : null) ||
         role.description ||
         summarizeMatrix(toMatrix(role.permissionKeys))}

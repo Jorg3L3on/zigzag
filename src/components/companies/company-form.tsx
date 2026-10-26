@@ -1153,7 +1153,7 @@ export const CompanyForm = ({
                                 'inline-flex h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
                                 'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
                                 paymentKind === option.value
-                                  ? 'border-primary/40 bg-primary/10 text-primary'
+                                  ? 'border-primary/40 bg-primary/10 text-blue-700 dark:text-blue-300'
                                   : 'border-border text-foreground/80 hover:bg-muted',
                               )}
                             >
@@ -1233,7 +1233,12 @@ export const CompanyForm = ({
                               />
                               <span className="min-w-0">
                                 <span className="block text-sm font-medium">{option.label}</span>
-                                <span className="block text-caption text-muted-foreground">
+                                <span
+                                  className={cn(
+                                    'block text-caption',
+                                    checked ? 'text-slate-600 dark:text-slate-300' : 'text-muted-foreground',
+                                  )}
+                                >
                                   {option.hint}
                                 </span>
                               </span>
