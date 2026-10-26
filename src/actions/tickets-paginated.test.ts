@@ -58,7 +58,7 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     const responses = [
       chain([{ total: 3 }], wheres), // filtered page count
       chain(
-        [{ allCount: 4, dueCount: 2, inProgressCount: 1, paidCount: 1 }],
+        [{ allCount: 4, dueCount: 2, phoneDueCount: 3, inProgressCount: 1, paidCount: 1 }],
         wheres,
       ), // one aggregate for the four tabs
       chain([{ id: 1n }], wheres), // page
@@ -76,13 +76,13 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     return { result, wheres, selects };
   };
 
-  it('returns the count and the four tab counts, with dueCount as an alias (ZIG-I28-4)', async () => {
+  it('returns the count, the four tab counts and the phone chip count apart (ZIG-I28-4)', async () => {
     const { result } = await run({ companyId: 10, statusFilter: 'due' });
 
     expect(result.success).toBe(true);
     expect(result.data).toMatchObject({
       total: 3,
-      dueCount: 2,
+      dueCount: 3,
       counts: { all: 4, due: 2, inProgress: 1, paid: 1 },
     });
     expect(result.data).not.toHaveProperty('balanceDue');
@@ -152,5 +152,28 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     const list = sqlOf(wheres[0]);
     expect(list.sql).toMatch(/"finished"/);
     expect(list.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+  });
+
+  it('counts Por cobrar on finished work only, and the phone chip under ?finished (PR #610 review)', async () => {
+    const { selects } = await run({ companyId: 10, finishedFilter: 'no' });
+    const fields = selects[1] as { dueCount: SQL; phoneDueCount: SQL };
+
+    // Desktop tab: finished = true and a saldo, never En proceso (26 vs 17 before).
+    const due = sqlOf(fields.dueCount);
+    expect(due.sql).toMatch(/"finished" = \$\d+/);
+    expect(due.params).toContain(true);
+    expect(due.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+
+    // Phone chip: a saldo under the ?finished=no filter, as in sandbox (9, not 26).
+    const phone = sqlOf(fields.phoneDueCount);
+    expect(phone.sql).toMatch(/"finished" = \$\d+/);
+    expect(phone.params).toContain(false);
+    expect(phone.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+  });
+
+  it('leaves the phone chip unfiltered by finished when the filter is all', async () => {
+    const { selects } = await run({ companyId: 10 });
+    const phone = sqlOf((selects[1] as { phoneDueCount: SQL }).phoneDueCount);
+    expect(phone.sql).not.toMatch(/"finished"/);
   });
 });

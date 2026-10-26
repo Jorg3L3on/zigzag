@@ -65,6 +65,7 @@ export const TicketListRowQuickActions = ({
   const showEditar = canWrite && !ticket.finished && !hasServices;
   const showPdf = canDownload && ticket.finished;
   const ticketId = ticket.id.toString();
+  const hasQuickActions = showCollect || showTerminar || showEditar || showPdf;
 
   const handleDownloadPdf = async () => {
     if (isDownloading) return;
@@ -90,8 +91,12 @@ export const TicketListRowQuickActions = ({
 
   return (
     <div className="relative flex items-center justify-end">
-      <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-within:grid-cols-[1fr]">
-        <div className="flex min-w-0 items-center gap-1 overflow-hidden opacity-0 group-hover:overflow-visible group-hover:opacity-100 group-focus-within:overflow-visible group-focus-within:opacity-100">
+      {hasQuickActions ? (
+        // Floats over Saldo and Estado so the table reserves room only for ⋮ (PR #610 review).
+        <div
+          className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+          data-testid="ticket-row-quick-actions"
+        >
           {showCollect ? (
             <Button
               type="button"
@@ -135,7 +140,7 @@ export const TicketListRowQuickActions = ({
             </Button>
           ) : null}
         </div>
-      </div>
+      ) : null}
       <TicketRowActions
         ticket={ticket}
         onDelete={onDelete}

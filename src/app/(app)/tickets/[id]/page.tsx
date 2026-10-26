@@ -126,12 +126,14 @@ export default async function TicketDetailsPage({
       folio={folioLabel}
       total={total}
       paid={paid}
+      finished={ticket.finished}
+      companyName={ticket.company?.name ?? null}
     />
   );
   const moneyColumn = (
     <aside
       aria-label="Cobro del ticket"
-      className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:gap-6"
+      className="flex min-w-0 flex-col gap-4 lg:gap-6 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1"
     >
       {ticket.finished ? (
         <>
@@ -225,7 +227,10 @@ export default async function TicketDetailsPage({
             }
           />
 
-          <div className="flex flex-col gap-4 md:gap-6">
+          {/* A container, not lg: the sidebar takes 256px, so at 1024 the page has ~720px.
+              Two columns only from 60rem of page; narrower, the money side stacks under
+              Servicios like on the phone (PR #610 review). */}
+          <div className="@container flex flex-col gap-4 md:gap-6">
             <TicketDetailHeader
               ticketId={ticket.id}
               folio={folioLabel}
@@ -262,10 +267,10 @@ export default async function TicketDetailsPage({
                 order is the phone order (finish panel above Servicios, Pagos between
                 Servicios and Actividad); from lg the aside is placed in column 2 across
                 both rows and stays sticky, and Actividad sits right under Servicios. */}
-            <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,340px)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-8">
+            <div className="grid gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:items-start @min-[60rem]:gap-x-8 @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]">
               {ticket.finished ? null : moneyColumn}
 
-              <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+              <div className="min-w-0 @min-[60rem]:col-start-1 @min-[60rem]:row-start-1">
                 <TicketDetailServicesSection
                   ticketId={ticket.id}
                   total={total}
@@ -278,7 +283,7 @@ export default async function TicketDetailsPage({
 
               {ticket.finished ? moneyColumn : null}
 
-              <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+              <div className="min-w-0 @min-[60rem]:col-start-1 @min-[60rem]:row-start-2">
                 <TicketDetailTimeline
                   entries={auditEntries}
                   createdAt={ticket.created_at}

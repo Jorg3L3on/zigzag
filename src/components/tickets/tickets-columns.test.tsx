@@ -94,7 +94,8 @@ describe('ticket list estado (ZIG-I28-4)', () => {
   it('lets En proceso win only over Pendiente', () => {
     expect(ticketListEstadoLabel({ finished: false, total: 100, paid: 0 })).toBe('En proceso');
     expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 0 })).toBe('Pendiente');
-    expect(ticketListEstadoLabel({ finished: false, total: 100, paid: 40 })).toBe('Pago parcial');
+    expect(ticketListEstadoLabel({ finished: false, total: 100, paid: 40 })).toBe('En proceso');
+    expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 40 })).toBe('Pago parcial');
     expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 100 })).toBe('Pagado');
   });
 });
@@ -113,7 +114,8 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
 
     const trabajo = headers().find((header) => header.textContent === 'Trabajo');
     expect(trabajo?.className).toContain('hidden');
-    expect(trabajo?.className).toContain('xl:table-cell');
+    // Trabajo shows when the list's container has room, whatever the viewport (PR #610 review).
+    expect(trabajo?.className).toContain('@min-[52rem]:table-cell');
 
     expect(screen.getByText((_, element) => {
       const text = element?.textContent?.replace(/\s/g, '') ?? '';

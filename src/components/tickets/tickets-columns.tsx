@@ -80,11 +80,11 @@ const PAYMENT_ESTADO_LABEL: Record<
 export const ticketListEstadoLabel = (
   ticket: Pick<Ticket, 'finished' | 'total' | 'paid'>,
 ): TicketListEstadoLabel => {
-  const payment = getTicketPaymentStatus(ticket.total, ticket.paid);
-  if (!ticket.finished && payment === 'pending') {
+  // Unfinished work reads En proceso whatever was paid in advance, like the detail pill.
+  if (!ticket.finished) {
     return 'En proceso';
   }
-  return PAYMENT_ESTADO_LABEL[payment];
+  return PAYMENT_ESTADO_LABEL[getTicketPaymentStatus(ticket.total, ticket.paid)];
 };
 
 const ESTADO_CLASS: Record<TicketListEstadoLabel, string> = {
@@ -140,6 +140,9 @@ export const createTicketsColumns = ({
   {
     id: 'id',
     accessorFn: (row) => Number(row.id),
+    // Widths follow the list's container, not the viewport: the sidebar takes 256px, and
+    // unsized columns split the row evenly (Cliente was ~110px at 1280, PR #610 review).
+    meta: { className: 'w-[6rem]' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Folio" />
     ),
@@ -159,7 +162,7 @@ export const createTicketsColumns = ({
       const name = row.original.client_name?.trim() || '—';
       const phone = row.original.client_tel?.trim();
       return (
-        <div className="min-w-0 max-w-[14rem] xl:max-w-[18rem]">
+        <div className="min-w-0">
           <p className="truncate text-sm font-medium leading-5" title={name}>
             {name}
           </p>
@@ -192,8 +195,8 @@ export const createTicketsColumns = ({
   {
     id: 'services',
     accessorFn: (row) => row.services_summary ?? '',
-    // At 1024 with the sidebar open, Trabajo yields so Total, Saldo, Estado and ⋮ fit.
-    meta: { className: 'hidden w-48 xl:table-cell' },
+    // At 1024 with the sidebar open, Trabajo yields so Cliente, Total, Saldo, Estado and ⋮ fit.
+    meta: { className: 'hidden @min-[52rem]:table-cell' },
     header: () => <span>Trabajo</span>,
     cell: ({ row }) => {
       const summary = row.original.services_summary?.trim();
@@ -201,7 +204,7 @@ export const createTicketsColumns = ({
         return <span className="text-muted-foreground">Sin servicios todavía</span>;
       }
       return (
-        <span className="block max-w-[16rem] truncate" title={summary}>
+        <span className="block truncate" title={summary}>
           {summary}
         </span>
       );
@@ -210,7 +213,7 @@ export const createTicketsColumns = ({
   {
     id: 'ticket_date',
     accessorFn: (row) => row.ticket_date,
-    meta: { className: 'hidden w-28 xl:table-cell' },
+    meta: { className: 'hidden w-[6.5rem] @min-[48rem]:table-cell' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Fecha" />
     ),
@@ -228,6 +231,7 @@ export const createTicketsColumns = ({
     id: 'total',
     accessorFn: (row) => row.total ?? NaN,
     size: 110,
+    meta: { className: 'w-[8.5rem]' },
     header: ({ column }) => (
       <TicketSortableHeader
         column={column}
@@ -249,6 +253,7 @@ export const createTicketsColumns = ({
   {
     id: 'balance',
     accessorFn: (row) => getTicketBalanceDue(row.total, row.paid),
+    meta: { className: 'w-[8.5rem]' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Saldo" className="justify-end" />
     ),
@@ -264,6 +269,7 @@ export const createTicketsColumns = ({
   {
     id: 'paymentRank',
     accessorFn: (row) => getTicketPaymentStatusSortRank(row.total, row.paid),
+    meta: { className: 'w-[7.5rem]' },
     header: ({ column }) => (
       <TicketSortableHeader column={column} label="Estado" />
     ),
@@ -272,6 +278,8 @@ export const createTicketsColumns = ({
   {
     id: 'actions',
     enableSorting: false,
+    // Only ⋮ takes room; Cobrar, Terminar, Editar and PDF float over the row on hover.
+    meta: { className: 'w-[3.25rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div
