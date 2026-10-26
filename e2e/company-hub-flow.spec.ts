@@ -136,7 +136,8 @@ test.describe('Mi empresa: team and role flow', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: /Desactivar/ }).click();
     await expect(row).toHaveCount(0);
 
-    await desktop.getByRole('button', { name: 'Todos' }).click();
+    await desktop.getByRole('combobox', { name: 'Filtrar por acceso' }).click();
+    await page.getByRole('option', { name: 'Todos' }).click();
     await expect(row.getByTestId('team-member-access')).toHaveText('Desactivado');
     await expect(row.getByRole('button', { name: /Acciones de/ })).toHaveCount(0);
   });

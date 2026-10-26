@@ -86,8 +86,18 @@ export const CompanyReceiptPreview = ({
   const { company: issuer } = buildCompanyReceiptPreview(merged);
   const paymentLines = buildPaymentInfoLines(getCompanyPaymentInfo(merged.settings));
   const readiness = assessCompanyReadiness(merged);
-  const profileGaps = readiness.missingLabels.filter(
-    (_, index) => readiness.missing[index] !== 'lifecycle.active',
+  // The four the canvas lists first, then any other profile gap by its label.
+  const keyChecks = [
+    { key: 'profile.name', label: 'Nombre' },
+    { key: 'profile.email', label: 'Correo' },
+    { key: 'profile.phone', label: 'Teléfono' },
+    { key: 'profile.street', label: 'Calle' },
+  ] as const;
+  const keyCheckSet = new Set<string>(keyChecks.map((check) => check.key));
+  const otherGaps = readiness.missingLabels.filter(
+    (_, index) =>
+      readiness.missing[index] !== 'lifecycle.active' &&
+      !keyCheckSet.has(readiness.missing[index]),
   );
 
   return (
@@ -123,12 +133,12 @@ export const CompanyReceiptPreview = ({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold" data-testid="receipt-preview-name">
+            <p className="break-words text-sm font-semibold" data-testid="receipt-preview-name">
               {issuer.name}
             </p>
             {issuer.tagline ? (
               <p
-                className="truncate text-caption text-zinc-500"
+                className="line-clamp-2 text-caption text-zinc-500"
                 data-testid="receipt-preview-tagline"
               >
                 {issuer.tagline}
@@ -137,7 +147,7 @@ export const CompanyReceiptPreview = ({
           </div>
           <div className="shrink-0 text-right">
             <p className="text-sm font-medium tracking-tight">RECIBO</p>
-            <p className="font-mono text-caption">{nextReceiptFolio}</p>
+            <p className="font-mono text-caption">Folio {nextReceiptFolio}</p>
           </div>
         </div>
         <div className="mt-2.5 h-0.5 bg-zinc-900" />
@@ -174,8 +184,9 @@ export const CompanyReceiptPreview = ({
             ))}
           </div>
         ) : (
-          <p className="mt-1.5 text-zinc-600">
-            Sin datos de pago, el recibo y el WhatsApp no dicen a dónde transferir.
+          // The slots the message fills once the company adds them (canvas EmpDatos).
+          <p className="mt-1.5 text-zinc-500">
+            Para pagar por transferencia: [Banco] · [Titular] · [CLABE]
           </p>
         )}
       </div>
@@ -184,21 +195,37 @@ export const CompanyReceiptPreview = ({
         <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">
           Lista para operar
         </p>
-        {profileGaps.length === 0 ? (
-          <p className="mt-1.5 flex items-center gap-1.5 text-sm text-foreground">
-            <Check className="size-4 text-emerald-600" aria-hidden />
-            Datos completos
-          </p>
-        ) : (
-          <ul className="mt-1.5 flex flex-col gap-1 text-sm">
-            {profileGaps.map((label) => (
-              <li key={label} className="flex items-center gap-1.5 text-muted-foreground">
-                <Circle className="size-3.5 text-amber-500" aria-hidden />
-                {label}
+        <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm" data-testid="receipt-preview-checks">
+          {keyChecks.map((check) => {
+            const ok = !readiness.missing.includes(check.key);
+            return (
+              <li
+                key={check.key}
+                className={cn('flex items-center gap-1', ok ? 'text-foreground/80' : 'text-muted-foreground')}
+              >
+                {ok ? (
+                  <Check className="size-4 text-emerald-600" aria-hidden />
+                ) : (
+                  <Circle className="size-3.5 text-amber-500" aria-hidden />
+                )}
+                <span>
+                  {check.label}
+                  <span className="sr-only">{ok ? ': listo' : ': falta'}</span>
+                </span>
               </li>
-            ))}
-          </ul>
-        )}
+            );
+          })}
+        </ul>
+        {otherGaps.length > 0 ? (
+          <p className="mt-1.5 text-caption text-muted-foreground">
+            También falta: {otherGaps.join(', ')}.
+          </p>
+        ) : null}
+        {paymentLines.length === 0 ? (
+          <p className="mt-1.5 text-caption text-muted-foreground">
+            Sin datos de pago el recibo no imprime la sección de transferencia.
+          </p>
+        ) : null}
         {readiness.lifecycle !== 'ACTIVE' ? (
           <p className="mt-1.5 text-caption text-muted-foreground">
             Estado: {companyLifecycleLabel(merged.status)}. Lo cambia el equipo de ZigZag.

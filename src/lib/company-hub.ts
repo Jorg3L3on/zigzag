@@ -79,7 +79,8 @@ export const getCompanyHubSubpage = (
  */
 export const COMPANY_HUB_CARD_DESKTOP_RESET = {
   className:
-    'md:overflow-visible md:rounded-none md:border-0 md:bg-none md:bg-transparent md:shadow-none md:ring-0 md:hover:transform-none md:hover:shadow-none',
+    // `!`: Card's hand-written shadow-soft and hover-lift win the cascade otherwise.
+    'md:overflow-visible md:rounded-none md:border-0 md:bg-none md:bg-transparent md:shadow-none! md:ring-0 md:hover:transform-none! md:hover:shadow-none!',
   headerClassName: 'md:hidden',
   contentClassName: 'md:p-0 md:pt-0',
 } as const;

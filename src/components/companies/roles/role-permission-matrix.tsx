@@ -135,7 +135,13 @@ export const RolePermissionMatrix = ({
                     </span>
                   </>
                 ) : (
-                  <span className="col-span-2 flex items-center justify-center gap-1">
+                  // Switch matrix: one "Administrar" switch centred with its label below (canvas EmpRoles).
+                  <span
+                    className={cn(
+                      'col-span-2 flex items-center justify-center',
+                      control === 'switch' ? 'flex-col gap-0.5' : 'gap-1',
+                    )}
+                  >
                     <Cell
                       label={`${matrixModule.writeLabel} ${matrixModule.label}`}
                       checked={cell.write}

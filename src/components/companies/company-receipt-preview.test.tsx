@@ -113,11 +113,13 @@ describe('CompanyReceiptPreview (ZIG-I32-1)', () => {
     expect(within(footer).getByText('+52 55 4123 8900')).toBeInTheDocument();
     expect(within(footer).getByText('contacto@climatotal.demo')).toBeInTheDocument();
     expect(footer).toHaveTextContent(buildReceiptPdfPayload(realTicket).company.address);
-    expect(screen.getByText('R-0062')).toBeInTheDocument();
+    expect(screen.getByText('Folio R-0062')).toBeInTheDocument();
     expect(screen.getByTestId('receipt-preview-whatsapp')).toHaveTextContent(
       'Para pagar por transferencia:',
     );
-    expect(screen.getByTestId('receipt-preview-readiness')).toHaveTextContent('Datos completos');
+    expect(screen.getByTestId('receipt-preview-checks')).toHaveTextContent(
+      'Nombre: listoCorreo: listoTeléfono: listoCalle: listo',
+    );
   });
 
   it('lists what is missing to operate and who changes the status', () => {
@@ -130,10 +132,11 @@ describe('CompanyReceiptPreview (ZIG-I32-1)', () => {
     );
 
     const readiness = screen.getByTestId('receipt-preview-readiness');
-    expect(readiness).toHaveTextContent('Teléfono');
+    expect(screen.getByTestId('receipt-preview-checks')).toHaveTextContent('Teléfono: falta');
+    expect(readiness).toHaveTextContent('Sin datos de pago el recibo no imprime la sección de transferencia.');
     expect(readiness).toHaveTextContent('Estado: En configuración. Lo cambia el equipo de ZigZag.');
     expect(screen.getByTestId('receipt-preview-whatsapp')).toHaveTextContent(
-      'Sin datos de pago',
+      'Para pagar por transferencia: [Banco] · [Titular] · [CLABE]',
     );
   });
 });

@@ -210,7 +210,8 @@ export const RoleEditor = ({
                 : 'Rol compartido de la plataforma.'}
             </p>
           )}
-          {canWrite && onDuplicate ? (
+          {/* md+ keeps the notice text-only (canvas EmpRoles); Duplicar moves to the footer. */}
+          {canWrite && onDuplicate && !desktop ? (
             <Button
               type="button"
               variant="outline"
@@ -320,7 +321,7 @@ export const RoleEditor = ({
       />
 
       {desktop ? (
-        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+        <div className="flex flex-wrap items-center gap-3">
           {isNew ? null : (
             <p className="text-sm text-muted-foreground">
               {peopleLabel(userCount)} ·{' '}
@@ -332,6 +333,23 @@ export const RoleEditor = ({
               </Link>
             </p>
           )}
+          {role && isShared && canWrite && onDuplicate ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                onDuplicate({
+                  name: `${role.name} (copia)`,
+                  description: role.description ?? '',
+                  permissionKeys: role.permissionKeys,
+                })
+              }
+            >
+              <Copy className="size-4" aria-hidden data-icon="inline-start" />
+              Duplicar
+            </Button>
+          ) : null}
           {isNew || readOnly || isShared ? null : (
             <div className="flex items-center gap-2">
               <Button

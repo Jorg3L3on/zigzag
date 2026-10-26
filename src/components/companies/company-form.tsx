@@ -9,7 +9,12 @@ import {
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
+import {
+  useForm,
+  type FieldErrors,
+  type FieldPath,
+  type Resolver,
+} from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -79,6 +84,11 @@ import {
 } from '@/lib/company-form-sections';
 
 const COMPANY_FORM_ID = 'company-form';
+
+const CURRENCY_OPTIONS = [
+  { value: 'MXN', label: 'MXN · Peso mexicano' },
+  { value: 'USD', label: 'USD · Dólar estadounidense' },
+];
 
 const PAYMENT_KIND_OPTIONS = [
   { value: 'clabe', label: 'CLABE' },
@@ -862,6 +872,118 @@ export const CompanyForm = ({
     </p>
   ) : null;
 
+
+  // md+ copies of a few fields whose copy or control differs from the phone
+  // form (canvas EmpDatos); the phone tree keeps the shared elements above.
+  const desktopTextField = ({
+    name,
+    label,
+    placeholder,
+    maxLength,
+    testId,
+    description,
+    className,
+    inputClassName,
+    inputMode,
+  }: {
+    name: FieldPath<CompanyBootstrapFormValues>;
+    label: string;
+    placeholder?: string;
+    maxLength?: number;
+    testId?: string;
+    description?: string;
+    className?: string;
+    inputClassName?: string;
+    inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  }) => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={className}>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              value={typeof field.value === 'string' ? field.value : ''}
+              maxLength={maxLength}
+              placeholder={placeholder}
+              inputMode={inputMode}
+              autoComplete={inputMode ? 'off' : undefined}
+              className={inputClassName}
+              data-testid={testId}
+            />
+          </FormControl>
+          {description ? <FormDescription>{description}</FormDescription> : null}
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+
+  const desktopTaglineField = (
+    <FormField
+      control={form.control}
+      name="settings.tagline"
+      render={({ field }) => (
+        <FormItem className="col-span-2">
+          <FormLabel>Lema o giro</FormLabel>
+          <div className="relative">
+            <FormControl>
+              <Input
+                {...field}
+                value={field.value ?? ''}
+                placeholder="Climatización · Servicio técnico"
+                className="pr-16"
+              />
+            </FormControl>
+            <span
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption tabular-nums text-muted-foreground"
+              data-testid="company-tagline-counter"
+            >
+              {(field.value ?? '').length}/{COMPANY_TAGLINE_MAX}
+            </span>
+          </div>
+          <FormDescription>Aparece bajo el nombre en el recibo y en el presupuesto.</FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+
+  const desktopCurrencyField = (
+    <FormField
+      control={form.control}
+      name="settings.default_currency"
+      render={({ field }) => {
+        const current = field.value || 'MXN';
+        const options = CURRENCY_OPTIONS.some((option) => option.value === current)
+          ? CURRENCY_OPTIONS
+          : [...CURRENCY_OPTIONS, { value: current, label: current }];
+        return (
+          <FormItem>
+            <FormLabel>Moneda</FormLabel>
+            <Select value={current} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger aria-label="Moneda" data-testid="company-currency">
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {options.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
+    />
+  );
+
   const nextFolio = (
     value: string | undefined,
     kind: 'presupuesto' | 'ticket',
@@ -896,7 +1018,7 @@ export const CompanyForm = ({
             />
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div className="col-span-2">{nameField}</div>
-              {taglineField}
+              {desktopTaglineField}
               {emailField}
               {phoneField}
             </div>
@@ -921,8 +1043,12 @@ export const CompanyForm = ({
             hint="Cómo se numeran y se identifican tus documentos."
           >
             <div className="grid grid-cols-2 gap-4">
-              {rfcField}
-              {currencyField}
+              {desktopTextField({
+                name: 'settings.rfc',
+                label: 'RFC',
+                inputClassName: 'font-mono',
+              })}
+              {desktopCurrencyField}
               <FormField
                 control={form.control}
                 name="settings.folio_prefix_presupuesto"
@@ -988,8 +1114,20 @@ export const CompanyForm = ({
             hint="Opcional. Se imprime en el recibo y se agrega a los WhatsApp de cobro. Aquí no se cobra nada."
           >
             <div className="grid grid-cols-2 gap-4">
-              {paymentBankField}
-              {paymentHolderField}
+              {desktopTextField({
+                name: 'settings.payment_bank',
+                label: 'Banco',
+                placeholder: 'Ej. BBVA',
+                maxLength: PAYMENT_BANK_MAX,
+                testId: 'company-payment-bank',
+              })}
+              {desktopTextField({
+                name: 'settings.payment_holder',
+                label: 'A nombre de',
+                placeholder: 'Titular de la cuenta',
+                maxLength: PAYMENT_HOLDER_MAX,
+                testId: 'company-payment-holder',
+              })}
               <FormField
                 control={form.control}
                 name="settings.payment_kind"
@@ -1028,10 +1166,30 @@ export const CompanyForm = ({
                 )}
               />
               {cardWarning}
-              {paymentKind === 'clabe' ? paymentClabeField : null}
+              {paymentKind === 'clabe'
+                ? desktopTextField({
+                    name: 'settings.payment_clabe',
+                    label: 'CLABE',
+                    placeholder: '18 dígitos',
+                    maxLength: CLABE_LENGTH + 5,
+                    testId: 'company-payment-clabe',
+                    description:
+                      'Revisamos que el último dígito coincida para evitar errores al copiarla.',
+                    className: 'col-span-2',
+                    inputClassName: 'font-mono tracking-wide',
+                    inputMode: 'numeric',
+                  })
+                : null}
               {paymentKind === 'card' ? paymentCardField : null}
               {paymentKind === 'account' ? paymentAccountField : null}
-              {paymentNoteField}
+              {desktopTextField({
+                name: 'settings.payment_note',
+                label: 'Indicación para tu cliente',
+                placeholder: 'Ej. Manda tu comprobante por WhatsApp',
+                maxLength: PAYMENT_NOTE_MAX,
+                testId: 'company-payment-note',
+                className: 'col-span-2',
+              })}
             </div>
           </DatosCard>
 
@@ -1080,18 +1238,20 @@ export const CompanyForm = ({
             />
           </DatosCard>
         </form>
-        <FormChangesBar
-          changedFields={changedFields}
-          formId={COMPANY_FORM_ID}
-          onDiscard={() => form.reset()}
-          isSubmitting={isSubmitting}
-        />
       </div>
       <CompanyReceiptPreview
         company={company}
         values={values}
         nextReceiptFolio={nextFolio(values.settings?.folio_prefix_ticket, 'ticket')}
         className="xl:sticky xl:top-20"
+      />
+      {/* Across the form and the aside, flush with the page edge (canvas EmpDatos). */}
+      <FormChangesBar
+        changedFields={changedFields}
+        formId={COMPANY_FORM_ID}
+        onDiscard={() => form.reset()}
+        isSubmitting={isSubmitting}
+        className="-mr-6 xl:col-span-2"
       />
     </div>
   ) : null;

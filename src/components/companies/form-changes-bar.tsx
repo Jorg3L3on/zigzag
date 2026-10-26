@@ -13,9 +13,9 @@ type FormChangesBarProps = {
 };
 
 /**
- * "Cambios sin guardar · <campos>" with Descartar and Guardar cambios, stuck
- * to the bottom of the page on md+ (ZIG-I32-1). One save for the whole form;
- * phones keep their sticky Guardar.
+ * "Cambios sin guardar · <campos>" with Descartar and Guardar cambios, a bar
+ * stuck to the bottom of the page on md+ (ZIG-I32-1, canvas EmpDatos). One
+ * save for the whole form; phones keep their sticky Guardar.
  */
 export const FormChangesBar = ({
   changedFields,
@@ -33,7 +33,7 @@ export const FormChangesBar = ({
       role="region"
       aria-label="Cambios sin guardar"
       className={cn(
-        'sticky bottom-4 z-20 mt-6 flex items-center justify-between gap-4 rounded-xl border bg-background/95 px-4 py-3 shadow-panel backdrop-blur',
+        'sticky bottom-0 z-20 flex items-center justify-between gap-4 border-t bg-background/90 py-3 pr-6 backdrop-blur',
         className,
       )}
       data-testid="form-changes-bar"

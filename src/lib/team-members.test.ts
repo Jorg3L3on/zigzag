@@ -3,8 +3,10 @@ import {
   filterTeamMembers,
   summarizeTeamRoles,
   teamMemberAccess,
+  teamAvatarTint,
   teamMemberInitials,
   teamRoleLabel,
+  teamRolePickerOptions,
   type TeamMember,
 } from '@/lib/team-members';
 
@@ -74,10 +76,33 @@ describe('team-members', () => {
       expect(teamRoleLabel(null)).toBe('Sin rol');
     });
 
-    it('summarizes active members per role, most first', () => {
+    it('summarizes active members per role, templates in order (canvas EmpEquipo)', () => {
       expect(summarizeTeamRoles(desktopTeam)).toBe('1 Admin · 1 Operador · 1 Solo lectura');
-      expect(summarizeTeamRoles([...desktopTeam, member({ id: '5', roleName: 'Viewer' })])).toBe(
-        '2 Solo lectura · 1 Admin · 1 Operador',
+      expect(
+        summarizeTeamRoles([
+          ...desktopTeam,
+          member({ id: '5', roleName: 'Viewer' }),
+          member({ id: '6', roleName: 'Técnico' }),
+        ]),
+      ).toBe('1 Admin · 1 Operador · 2 Solo lectura · 1 Técnico');
+    });
+
+    it('gives the pickers Spanish names and one line per shared template', () => {
+      expect(
+        teamRolePickerOptions([
+          { id: 2, name: 'Operator', description: 'Puede gestionar tickets…' },
+          { id: 9, name: 'Técnico', description: 'Solo campo' },
+        ]),
+      ).toEqual([
+        { id: 2, name: 'Operador', description: 'Tickets, cobranza, presupuestos, clientes y servicios' },
+        { id: 9, name: 'Técnico', description: 'Solo campo' },
+      ]);
+    });
+
+    it('tints avatars per name and solid for yourself', () => {
+      expect(teamAvatarTint({ name: 'Ana', isSelf: true })).toBe('bg-primary text-primary-foreground');
+      expect(teamAvatarTint({ name: 'Ana', isSelf: false })).toBe(
+        teamAvatarTint({ name: 'Ana', isSelf: false }),
       );
     });
 

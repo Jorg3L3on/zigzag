@@ -129,7 +129,13 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
       /Activo|Debe cambiar contraseña/,
     );
     await expect(desktop.getByRole('button', { name: 'Agregar persona' })).toBeVisible();
-    await expect(desktop.getByRole('button', { name: 'Activos' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(desktop.getByRole('combobox', { name: 'Filtrar por acceso' })).toHaveText('Activos');
+    // Hover actions stay inside the table (no sideways scroll).
+    const row = desktop.getByTestId('team-member-row').first();
+    await row.hover();
+    await expect(row.getByRole('button', { name: /^Cambiar rol de / })).toBeVisible();
+    const table = desktop.locator('table').locator('..');
+    expect(await table.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   });
 
   test('Roles marks the chosen role, uses switches and keeps Editar incluye Ver', async ({ page }) => {

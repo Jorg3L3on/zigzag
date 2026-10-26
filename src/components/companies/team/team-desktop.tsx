@@ -27,6 +27,7 @@ import {
   filterTeamMembers,
   summarizeTeamRoles,
   TEAM_ACCESS_FILTERS,
+  teamAvatarTint,
   teamRoleLabel,
   type TeamAccessFilter,
   type TeamMember,
@@ -37,6 +38,8 @@ import { TeamAccessPill, TeamAvatar, TeamRolePill } from './team-columns';
 import { TeamMemberMenu, type TeamMemberMenuHandlers } from './team-member-menu';
 
 const ALL_ROLES = 'all';
+
+const headClass = 'text-caption font-semibold uppercase tracking-wider text-muted-foreground';
 
 type TeamDesktopProps = {
   members: TeamMember[];
@@ -129,26 +132,21 @@ export const TeamDesktop = ({
             ))}
           </SelectContent>
         </Select>
-        <div role="group" aria-label="Filtrar por acceso" className="flex gap-1.5">
-          {TEAM_ACCESS_FILTERS.map((option) => {
-            const active = access === option.value;
-            return (
-              <Button
-                key={option.value}
-                type="button"
-                variant="outline"
-                aria-pressed={active}
-                className={cn(
-                  'h-10 rounded-full px-4',
-                  active && 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
-                )}
-                onClick={() => setAccess(option.value)}
-              >
+        <Select value={access} onValueChange={(value) => setAccess(value as TeamAccessFilter)}>
+          <SelectTrigger
+            className={cn('h-10 w-auto min-w-32', access !== 'active' && 'border-primary/40 bg-primary/10 text-primary')}
+            aria-label="Filtrar por acceso"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TEAM_ACCESS_FILTERS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
                 {option.label}
-              </Button>
-            );
-          })}
-        </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {rows.length === 0 ? (
@@ -166,21 +164,25 @@ export const TeamDesktop = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Persona</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Acceso</TableHead>
-                <TableHead>Alta</TableHead>
-                <TableHead className="text-right">
+                <TableHead className={headClass}>Persona</TableHead>
+                <TableHead className={headClass}>Rol</TableHead>
+                <TableHead className={headClass}>Acceso</TableHead>
+                <TableHead className={headClass}>Alta</TableHead>
+                <TableHead className="w-px text-right">
                   <span className="sr-only">Acciones</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((member) => (
-                <TableRow key={member.id} className="group" data-testid="team-member-row">
+                <TableRow
+                  key={member.id}
+                  className="group hover:bg-muted focus-within:bg-muted"
+                  data-testid="team-member-row"
+                >
                   <TableCell className="max-w-xs">
                     <div className="flex min-w-0 items-center gap-3">
-                      <TeamAvatar name={member.name} />
+                      <TeamAvatar name={member.name} tint={teamAvatarTint(member)} />
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate font-medium">
                           {member.name}
@@ -203,7 +205,7 @@ export const TeamDesktop = ({
                   <TableCell className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">
                     {format(new Date(member.createdAt), 'd MMM yy', { locale: es })}
                   </TableCell>
-                  <TableCell className="w-px">
+                  <TableCell className="relative w-px">
                     {handlers && !member.deactivated ? (
                       <TeamRowActions member={member} handlers={handlers} />
                     ) : null}
@@ -218,6 +220,10 @@ export const TeamDesktop = ({
   );
 };
 
+/**
+ * ⋮ always; Cambiar rol and Restablecer contraseña slide in over the row's
+ * right side on hover or focus, so the table never grows sideways.
+ */
 const TeamRowActions = ({
   member,
   handlers,
@@ -226,32 +232,35 @@ const TeamRowActions = ({
   handlers: TeamMemberMenuHandlers;
 }) => (
   <div className="flex items-center justify-end">
-    <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-within:grid-cols-[1fr]">
-      <div className="flex min-w-0 items-center gap-1 overflow-hidden opacity-0 group-hover:overflow-visible group-hover:opacity-100 group-focus-within:overflow-visible group-focus-within:opacity-100">
+    <div className="pointer-events-none absolute inset-y-0 right-full flex items-center gap-1 bg-gradient-to-r from-transparent via-muted to-muted pl-8 pr-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="whitespace-nowrap bg-background"
+        onClick={() => handlers.onChangeRole(member)}
+        aria-label={`Cambiar rol de ${member.name}`}
+      >
+        Cambiar rol
+      </Button>
+      {member.isSelf ? null : (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="whitespace-nowrap"
-          onClick={() => handlers.onChangeRole(member)}
-          aria-label={`Cambiar rol de ${member.name}`}
+          className="whitespace-nowrap bg-background"
+          onClick={() => handlers.onResetPassword(member)}
+          aria-label={`Restablecer contraseña de ${member.name}`}
         >
-          Cambiar rol
+          Restablecer contraseña
         </Button>
-        {member.isSelf ? null : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mr-1 whitespace-nowrap"
-            onClick={() => handlers.onResetPassword(member)}
-            aria-label={`Restablecer contraseña de ${member.name}`}
-          >
-            Restablecer contraseña
-          </Button>
-        )}
-      </div>
+      )}
     </div>
-    <TeamMemberMenu member={member} {...handlers} resetPasswordLabel="Restablecer contraseña" />
+    <TeamMemberMenu
+      member={member}
+      {...handlers}
+      resetPasswordLabel="Restablecer contraseña"
+      compact
+    />
   </div>
 );

@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
-  teamRoleLabel,
+  teamRolePickerOptions,
   type TeamMember,
   type TeamRoleOption,
 } from '@/lib/team-members';
@@ -128,7 +128,7 @@ export const TeamMemberPanel = ({
   };
 
   const isSubmitting = form.formState.isSubmitting;
-  const roleOptions = roles.map((role) => ({ ...role, name: teamRoleLabel(role.name) }));
+  const roleOptions = teamRolePickerOptions(roles);
 
   const footer = created ? (
     <div className="flex justify-end">
@@ -157,11 +157,7 @@ export const TeamMemberPanel = ({
       open={open}
       onOpenChange={onOpenChange}
       title={isEdit ? 'Editar persona' : 'Agregar persona'}
-      description={
-        isEdit
-          ? 'Cambia el nombre o el correo con el que entra.'
-          : 'Entra con su correo y una contraseña temporal que tú le pasas.'
-      }
+      description={isEdit ? 'Cambia el nombre o el correo con el que entra.' : undefined}
       footer={footer}
       className="max-w-[380px]"
       data-testid="team-member-panel"

@@ -19,7 +19,11 @@ import {
 import { Input } from '@/components/ui/input';
 import type { ActionErrorType } from '@/lib/errors';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import { teamRoleLabel, type TeamMember, type TeamRoleOption } from '@/lib/team-members';
+import {
+  teamRolePickerOptions,
+  type TeamMember,
+  type TeamRoleOption,
+} from '@/lib/team-members';
 import { TeamRolePicker } from './team-role-picker';
 import { TeamSheet } from './team-sheet';
 import {
@@ -202,7 +206,7 @@ export const TeamMemberSheet = ({
                   render={({ field, fieldState }) => (
                     <TeamRolePicker
                       name="team-member-role"
-                      roles={roles.map((role) => ({ ...role, name: teamRoleLabel(role.name) }))}
+                      roles={teamRolePickerOptions(roles)}
                       value={field.value ?? null}
                       onChange={field.onChange}
                       error={fieldState.error?.message}

@@ -44,10 +44,13 @@ const SortableHeader = ({
   );
 };
 
-export const TeamAvatar = ({ name }: { name: string }) => (
+export const TeamAvatar = ({ name, tint }: { name: string; tint?: string }) => (
   <span
     aria-hidden
-    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-caption font-bold text-muted-foreground"
+    className={cn(
+      'flex size-9 shrink-0 items-center justify-center rounded-full text-caption font-bold',
+      tint ?? 'bg-muted text-muted-foreground',
+    )}
   >
     {teamMemberInitials(name)}
   </span>

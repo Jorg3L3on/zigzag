@@ -65,13 +65,27 @@ export const TeamTemporaryPasswordBox = ({
   );
 };
 
-/** Shown in the add form before saving: there is no password field to fill. */
+/**
+ * The same box in the add form before saving (canvas EmpEquipo): nothing to
+ * type, the password appears here once the person is added.
+ */
 export const TeamTemporaryPasswordNotice = () => (
-  <div className="rounded-xl border bg-muted/40 p-3.5">
+  <div className="rounded-xl border bg-muted/40 p-3.5" data-testid="team-temporary-password-notice">
     <p className="text-sm font-medium">Contraseña temporal</p>
-    <p className="mt-1 text-caption text-muted-foreground">
-      Se genera al agregar y se muestra una sola vez, con Copiar y WhatsApp. Deberá
-      cambiarla al entrar.
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <span className="font-mono text-base text-muted-foreground">[se genera al guardar]</span>
+      <span className="ml-auto flex gap-2">
+        <Button type="button" variant="outline" size="sm" disabled>
+          Copiar
+        </Button>
+        <Button type="button" variant="outline" size="sm" disabled>
+          <MessageCircle className="size-4" aria-hidden data-icon="inline-start" />
+          WhatsApp
+        </Button>
+      </span>
+    </div>
+    <p className="mt-2 text-caption text-muted-foreground">
+      Se muestra una sola vez. Deberá cambiarla al entrar. No hay correo de invitación.
     </p>
   </div>
 );

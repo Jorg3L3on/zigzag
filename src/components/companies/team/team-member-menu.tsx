@@ -23,6 +23,8 @@ type TeamMemberMenuProps = TeamMemberMenuHandlers & {
   member: TeamMember;
   /** md+ says «Restablecer contraseña», like the hover action (ZIG-I32-2). */
   resetPasswordLabel?: string;
+  /** md+ uses a small ghost ⋮ inside the table row (canvas EmpEquipo). */
+  compact?: boolean;
 };
 
 export const TeamMemberMenu = ({
@@ -32,14 +34,15 @@ export const TeamMemberMenu = ({
   onResetPassword,
   onDeactivate,
   resetPasswordLabel = 'Dar contraseña temporal',
+  compact = false,
 }: TeamMemberMenuProps) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button
         type="button"
-        variant="outline"
+        variant={compact ? 'ghost' : 'outline'}
         size="icon"
-        className="size-10 shrink-0"
+        className={compact ? 'size-9 shrink-0 md:size-8' : 'size-10 shrink-0'}
         aria-label={`Acciones de ${member.name}`}
       >
         <MoreHorizontal className="size-4" aria-hidden />

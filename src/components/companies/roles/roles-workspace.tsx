@@ -112,6 +112,13 @@ const RoleListItem = ({ role }: { role: CompanyRoleSummary }) => {
   );
 };
 
+/** One line per shared template on the md+ role cards (canvas EmpRoles). */
+const SHARED_ROLE_CARD_HINTS: Record<string, string> = {
+  Admin: 'Acceso completo',
+  Operator: 'Tickets, clientes y servicios; sin administración',
+  Viewer: 'Ve tickets, clientes y servicios',
+};
+
 const peopleBadge = (count: number) => (count === 1 ? '1 persona' : `${count} personas`);
 
 /** md+ role card (ZIG-I32-3): name, people, description, «Plantilla de ZigZag» on shared roles. */
@@ -131,7 +138,7 @@ const RoleCard = ({
     className={cn(
       'flex w-full flex-col gap-1 rounded-xl border bg-card px-3.5 py-3 text-left transition-colors',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-      selected ? 'border-primary ring-1 ring-primary' : 'hover:bg-muted/50',
+      selected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted/50',
     )}
     data-testid="role-list-item"
   >
@@ -144,7 +151,9 @@ const RoleCard = ({
       </span>
     </span>
     <span className="line-clamp-2 text-sm text-muted-foreground">
-      {role.description || summarizeMatrix(toMatrix(role.permissionKeys))}
+      {(role.isGlobal ? SHARED_ROLE_CARD_HINTS[role.name] : null) ||
+        role.description ||
+        summarizeMatrix(toMatrix(role.permissionKeys))}
     </span>
     {role.isGlobal ? (
       <span className="mt-1 inline-flex w-fit rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
@@ -220,8 +229,8 @@ export const RolesWorkspace = () => {
 
       {/* Desktop: header, role cards and the editor card (ZIG-I32-3) */}
       <div className="hidden flex-col gap-4 md:flex">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold">
               Roles <span className="font-normal text-muted-foreground">· {roles.length}</span>
             </h2>
@@ -233,6 +242,7 @@ export const RolesWorkspace = () => {
           {canWrite ? (
             <Button
               type="button"
+              className="shrink-0"
               aria-pressed={selection?.kind === 'new'}
               onClick={() => setSelection({ kind: 'new', seed: null })}
             >

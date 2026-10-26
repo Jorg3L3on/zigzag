@@ -58,7 +58,7 @@ export default async function CompanyHubLayout({
             <CompanyHubSideNav
               visibleTabs={summary.tabs}
               counts={summary.counts}
-              className="hidden md:block"
+              className="hidden md:flex"
             />
             <div className="min-w-0">{children}</div>
           </div>

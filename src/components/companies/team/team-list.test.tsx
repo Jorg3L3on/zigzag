@@ -198,7 +198,13 @@ describe('TeamList', () => {
       const desktop = await screen.findByTestId('team-desktop');
       expect(within(desktop).queryByText('Beto Baja')).toBeNull();
 
-      fireEvent.click(within(desktop).getByRole('button', { name: 'Todos' }));
+      // Radix Select in jsdom: open with the keyboard, then pick the option.
+      Element.prototype.hasPointerCapture = jest.fn(() => false);
+      Element.prototype.scrollIntoView = jest.fn();
+      const accessFilter = within(desktop).getByRole('combobox', { name: 'Filtrar por acceso' });
+      expect(accessFilter).toHaveTextContent('Activos');
+      fireEvent.keyDown(accessFilter, { key: 'ArrowDown' });
+      fireEvent.click(await screen.findByRole('option', { name: 'Todos' }));
 
       const row = within(desktop).getByText('Beto Baja').closest('tr')!;
       expect(within(row).getByTestId('team-member-access')).toHaveTextContent('Desactivado');

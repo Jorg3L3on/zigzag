@@ -187,26 +187,23 @@ export const CompanyLogoUpload = ({
             >
               {isUploading ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden data-icon="inline-start" />
-              ) : (
-                <Upload className="size-4" aria-hidden data-icon="inline-start" />
-              )}
+              ) : null}
               {displayUrl ? 'Reemplazar logo' : 'Subir logo'}
             </Button>
-            {displayUrl ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                disabled={isUploading || isRemoving}
-                onClick={handleRemove}
-              >
-                {isRemoving ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden data-icon="inline-start" />
-                ) : null}
-                Quitar logo
-              </Button>
-            ) : null}
+            {/* Always shown, as in the canvas; nothing to remove without a logo. */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground"
+              disabled={!displayUrl || isUploading || isRemoving}
+              onClick={handleRemove}
+            >
+              {isRemoving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden data-icon="inline-start" />
+              ) : null}
+              Quitar
+            </Button>
           </div>
         </div>
       </div>
