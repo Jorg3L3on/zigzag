@@ -199,13 +199,14 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await expect(page.getByRole('menuitem', { name: 'Eliminar' })).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Two rows, Posponer 14 días: they leave Por atender, Deshacer brings them back.
+    // Two rows, Posponer 30 días (14 from today would still be Próximo): they leave
+    // Por atender, Deshacer brings them back.
     await row(page, 'C').getByRole('checkbox').click();
     await row(page, 'D').getByRole('checkbox').click();
     const bar = page.getByTestId('service-schedules-selection-bar');
     await expect(bar).toContainText('2 seleccionados');
     await bar.getByRole('button', { name: 'Posponer' }).click();
-    await page.getByRole('menuitem', { name: '14 días' }).click();
+    await page.getByRole('menuitem', { name: '30 días' }).click();
     await expect(tabCount(page, 'por-atender')).toHaveText('1');
     await expect(tabCount(page, 'programados')).toHaveText('3');
     await page.getByRole('button', { name: 'Deshacer' }).click();
@@ -268,7 +269,7 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await page.getByRole('option', { name: `${prefix} E` }).click();
     await dialog.getByRole('combobox', { name: 'Servicio' }).click();
     await page.getByRole('option', { name: `Mantenimiento ${suffix}` }).click();
-    await dialog.getByRole('button', { name: '2 meses' }).click();
+    await dialog.getByRole('button', { name: '2 meses', exact: true }).click();
     const expected = format(addMonths(new Date(), 2), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
     await expect(dialog.getByTestId('schedule-form-preview')).toHaveText(`Próximo recordatorio: ${expected}`);
     await dialog.getByRole('button', { name: 'Guardar' }).click();
@@ -286,7 +287,7 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await expect(page).toHaveURL(/vista=todos/);
     await expectNoSeriousViolations(page, 'agenda Todos');
 
-    await row(page, 'B').getByRole('button', { name: `${prefix} B` }).click();
+    await row(page, 'B').getByRole('button', { name: `${prefix} B`, exact: true }).click();
     const panel = page.getByTestId('schedule-side-panel');
     await expect(panel).toBeVisible();
     await expect

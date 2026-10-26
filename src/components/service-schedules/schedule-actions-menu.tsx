@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import {
   CalendarCheck,
@@ -79,9 +80,15 @@ export const ScheduleActionsMenu = ({
 }: ScheduleActionsMenuProps) => {
   const paused = Boolean(schedule.pausedAt);
   const nextDueAt = new Date(schedule.nextDueAt);
+  // Controlled: an item of the Posponer submenu leaves the root menu open otherwise.
+  const [open, setOpen] = React.useState(false);
+  const run = (action: (schedule: ClientServiceScheduleListItem) => void) => () => {
+    setOpen(false);
+    action(schedule);
+  };
 
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -124,7 +131,7 @@ export const ScheduleActionsMenu = ({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-56">
                 {SCHEDULE_SNOOZE_DAY_OPTIONS.map((days) => (
-                  <DropdownMenuItem key={days} onSelect={() => onSnoozeDays(schedule, days)}>
+                  <DropdownMenuItem key={days} onSelect={run((item) => onSnoozeDays(item, days))}>
                     <span className="flex-1">{days} días</span>
                     <span className="text-caption text-muted-foreground">
                       {formatScheduleShortDate(computeSnoozedNextDueAt(nextDueAt, days))}
@@ -132,12 +139,12 @@ export const ScheduleActionsMenu = ({
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => onSnoozePickDate(schedule)}>
+                <DropdownMenuItem onSelect={run(onSnoozePickDate)}>
                   Elegir fecha…
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem onSelect={() => onMarkDone(schedule)}>
+            <DropdownMenuItem onSelect={run(onMarkDone)}>
               <CalendarCheck className="h-4 w-4" aria-hidden />
               Marcar como hecho
             </DropdownMenuItem>
@@ -145,17 +152,17 @@ export const ScheduleActionsMenu = ({
         ) : null}
         {canWrite ? (
           <>
-            <DropdownMenuItem onSelect={() => onEdit(schedule)}>
+            <DropdownMenuItem onSelect={run(onEdit)}>
               <Pencil className="h-4 w-4" aria-hidden />
               Editar
             </DropdownMenuItem>
             {paused ? (
-              <DropdownMenuItem onSelect={() => onResume(schedule)}>
+              <DropdownMenuItem onSelect={run(onResume)}>
                 <Play className="h-4 w-4" aria-hidden />
                 Reanudar
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onSelect={() => onPause(schedule)}>
+              <DropdownMenuItem onSelect={run(onPause)}>
                 <Pause className="h-4 w-4" aria-hidden />
                 Pausar
               </DropdownMenuItem>
@@ -173,7 +180,7 @@ export const ScheduleActionsMenu = ({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onSelect={() => onDelete(schedule)}
+              onSelect={run(onDelete)}
             >
               <Trash2 className="h-4 w-4" aria-hidden />
               Eliminar
