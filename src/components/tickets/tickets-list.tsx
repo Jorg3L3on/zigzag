@@ -8,7 +8,7 @@ import {
   type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
-import type { Ticket } from '@/actions/tickets';
+import type { Ticket, TicketListCounts } from '@/actions/tickets';
 import { getTicketsPaginated } from '@/actions/tickets';
 import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
 import {
@@ -44,7 +44,8 @@ import {
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
-import { Ticket as TicketIcon } from 'lucide-react';
+import { Ticket as TicketIcon, Plus } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,8 @@ export default function TicketsList() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
-  // Por cobrar count for the current filters, computed by the server (ZIG-I13-7).
+  const [counts, setCounts] = React.useState<TicketListCounts | null>(null);
+  // Por cobrar count for the phone chip, under the ?finished filter as in sandbox (ZIG-I13-7).
   const [dueCount, setDueCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   // The full-page skeleton only covers the first load (and SSR). Once the
@@ -173,6 +175,7 @@ export default function TicketsList() {
           ticketsRef.current = snapshot.data;
           setTotalCount(snapshot.data.length);
           setDueCount(null);
+          setCounts(null);
           setSnapshotUpdatedAt(snapshot.updatedAt);
           setLoadError(null);
           return true;
@@ -206,6 +209,7 @@ export default function TicketsList() {
           ticketsRef.current = pageItems;
           setTotalCount(result.data.total);
           setDueCount(result.data.dueCount ?? null);
+          setCounts(result.data.counts ?? null);
           setSnapshotUpdatedAt(null);
           setLoadError(null);
           void writeOfflineSnapshot('tickets', selectedCompany.id, pageItems).catch(
@@ -332,7 +336,7 @@ export default function TicketsList() {
   const table = useReactTable({
     data: filteredTickets,
     columns,
-    state: { sorting, pagination, columnVisibility: { balance: false } },
+    state: { sorting, pagination, columnVisibility: { client_tel: false } },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
@@ -384,18 +388,45 @@ export default function TicketsList() {
 
   const visibleRows = table.getRowModel().rows;
 
+  const desktopTitle = (
+    <div className="mb-4 hidden items-center justify-between gap-4 md:flex">
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Tickets
+        {hasLoadedOnce ? (
+          <span className="font-normal text-muted-foreground"> · {totalCount}</span>
+        ) : null}
+      </h1>
+      {canWrite ? (
+        <Button asChild>
+          <Link href="/tickets/create">
+            <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+            Nuevo ticket
+          </Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+
   if (missingCompany) {
     return <SystemCompanyContextEmptyState resourceLabel="tickets" />;
   }
 
   if (loading && !hasLoadedOnce) {
-    return <TicketsListSkeleton />;
+    return (
+      <>
+        {desktopTitle}
+        <TicketsListSkeleton />
+      </>
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <div>
+      {desktopTitle}
+      <div className="space-y-4">
       <TicketsFilterBar
         dueCount={dueCount}
+        counts={counts}
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         statusFilter={statusFilter}
@@ -499,10 +530,20 @@ export default function TicketsList() {
             </div>
 
             <TicketsListTable table={table} canWrite={canWrite} />
-            <TicketsListPagination table={table} />
+            <div className="md:hidden">
+              <TicketsListPagination table={table} />
+            </div>
+            <div className="hidden md:block">
+              <TicketsListPagination
+                table={table}
+                variant="desktop"
+                totalCount={totalCount}
+              />
+            </div>
           </>
         )}
       </MobilePullToRefresh>
+      </div>
     </div>
   );
 }

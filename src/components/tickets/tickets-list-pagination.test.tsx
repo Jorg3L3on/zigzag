@@ -31,7 +31,15 @@ const columns: ColumnDef<Ticket>[] = [
   { accessorKey: 'client_name', header: 'Cliente' },
 ];
 
-const PaginationHarness = ({ pageSize = 10 }: { pageSize?: number }) => {
+const PaginationHarness = ({
+  pageSize = 10,
+  variant = 'phone',
+  totalCount,
+}: {
+  pageSize?: number;
+  variant?: 'phone' | 'desktop';
+  totalCount?: number;
+}) => {
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize,
@@ -49,7 +57,7 @@ const PaginationHarness = ({ pageSize = 10 }: { pageSize?: number }) => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  return <TicketsListPagination table={table} />;
+  return <TicketsListPagination table={table} variant={variant} totalCount={totalCount} />;
 };
 
 describe('TicketsListPagination', () => {
@@ -67,5 +75,15 @@ describe('TicketsListPagination', () => {
         ),
       ),
     ).toBeInTheDocument();
+  });
+
+  it('shows the desktop range, page size and pager (ZIG-I28-4)', () => {
+    render(<PaginationHarness variant="desktop" totalCount={40} pageSize={10} />);
+
+    expect(screen.getByText('1\u201310 de 40 tickets')).toBeInTheDocument();
+    expect(screen.getByLabelText(/filas por página/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /página anterior/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /página siguiente/i })).toBeEnabled();
+    expect(screen.queryByText('1 / 2')).not.toBeInTheDocument();
   });
 });

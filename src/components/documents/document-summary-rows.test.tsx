@@ -92,3 +92,63 @@ describe('DocumentSummaryRows (ZIG-I13-1)', () => {
     expect(amount.className).not.toContain('truncate');
   });
 });
+
+describe('DocumentSummaryRows on desktop (ZIG-I28-1)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it('prints every line with its description and drops the fold toggle', () => {
+    render(
+      <DocumentSummaryRows
+        lines={[
+          {
+            id: 1,
+            name: 'Instalación',
+            description: 'En la recámara principal',
+            serviceId: null,
+            quantity: 2,
+            price: 4200,
+            amount: 8700,
+            materials: [
+              { id: 'm', name: 'Filtro', quantity: 1, unit: 'pza', price: 150, amount: 150 },
+            ],
+          },
+          ...makeLines(4),
+        ]}
+        toggleLabel={() => 'Ver detalle con 1 material'}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Ver detalle con 1 material' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Ver menos/ })).toBeNull();
+    expect(screen.getByTestId('document-line-description')).toHaveTextContent('En la recámara principal');
+    expect(screen.getByText('Servicio 4')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Detallado' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Filtro')).toBeInTheDocument();
+  });
+});

@@ -26,7 +26,7 @@ export const TicketsListRow = ({ row, canWrite }: TicketsListRowProps) => {
 
   return (
     <TableRow
-      className="cursor-pointer"
+      className="group h-14 cursor-pointer"
       tabIndex={0}
       onClick={handleNavigate}
       onKeyDown={handleKeyDown}

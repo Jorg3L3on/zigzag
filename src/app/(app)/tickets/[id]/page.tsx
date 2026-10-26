@@ -28,6 +28,9 @@ import { TicketDetailQuickActions } from '@/components/tickets/detail/ticket-det
 import { TicketDetailStatusPill } from '@/components/tickets/detail/ticket-detail-status-pill';
 import { TicketDetailServicesSection } from '@/components/tickets/detail/ticket-detail-services-section';
 import { TicketDetailPaymentsSection } from '@/components/tickets/detail/ticket-detail-payments-section';
+import { TicketDetailCollectCard } from '@/components/tickets/detail/ticket-detail-collect-card';
+import { TicketDetailClientCard } from '@/components/tickets/detail/ticket-detail-client-card';
+import { TicketDetailActivityCard } from '@/components/tickets/detail/ticket-detail-activity-card';
 import { TicketDetailTimeline } from '@/components/tickets/detail/ticket-detail-timeline';
 import { getServiceLineName } from '@/lib/service-line-display';
 import { isPresupuestoTicket } from '@/lib/ticket-document-kind';
@@ -94,24 +97,83 @@ export default async function TicketDetailsPage({
     paymentsCount: payments.length,
   };
 
+  const materialCount = ticket.services_tickets.reduce(
+    (sum, line) => sum + (line.materials?.length ?? 0),
+    0,
+  );
+  const clientCard = (
+    <TicketDetailClientCard
+      client={
+        ticket.client
+          ? {
+              id: ticket.client.id,
+              name: ticket.client.name,
+              email: ticket.client.email,
+              phone: ticket.client.phone,
+              address: ticket.client.address,
+              street: ticket.client.street,
+              exterior_number: ticket.client.exterior_number,
+              neighborhood: ticket.client.neighborhood,
+              city: ticket.client.city,
+            }
+          : null
+      }
+      clientName={ticket.client_name}
+      clientTel={ticket.client_tel}
+      clientEmail={ticket.email}
+      ticketCount={ticket.client_ticket_count ?? null}
+      ticketId={Number(ticket.id)}
+      folio={folioLabel}
+      total={total}
+      paid={paid}
+      finished={ticket.finished}
+      companyName={ticket.company?.name ?? null}
+    />
+  );
   const moneyColumn = (
     <aside
       aria-label="Cobro del ticket"
-      className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:gap-6"
+      className="flex min-w-0 flex-col gap-4 lg:gap-6 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1"
     >
       {ticket.finished ? (
-        <TicketDetailPaymentsSection payments={payments} />
+        <>
+          <div className="lg:hidden">
+            <TicketDetailPaymentsSection payments={payments} />
+          </div>
+          <div className="hidden flex-col gap-4 lg:flex lg:gap-6">
+            <TicketDetailCollectCard
+              total={total}
+              paid={paid}
+              payments={payments}
+              events={auditEntries.map((entry) => ({
+                eventType: entry.eventType,
+                createdAt: entry.createdAt,
+                actorName: entry.actorName,
+                payload: entry.payload,
+              }))}
+            />
+            {clientCard}
+            <TicketDetailActivityCard entries={auditEntries} />
+          </div>
+        </>
       ) : (
-        <TicketDetailFinishPanel
-          ticketId={ticket.id}
-          clientId={ticket.client_id}
-          clientName={ticket.client_name}
-          total={total}
-          ticketDate={ticket.ticket_date}
-          serviceLines={serviceLines}
-          lineCount={ticket.services_tickets.length}
-          downloadFileName={downloadFileName}
-        />
+        <>
+          <TicketDetailFinishPanel
+            ticketId={ticket.id}
+            clientId={ticket.client_id}
+            clientName={ticket.client_name}
+            total={total}
+            ticketDate={ticket.ticket_date}
+            serviceLines={serviceLines}
+            lineCount={ticket.services_tickets.length}
+            downloadFileName={downloadFileName}
+            folio={folioLabel}
+          />
+          <div className="hidden flex-col gap-4 lg:flex lg:gap-6">
+            {clientCard}
+            <TicketDetailActivityCard entries={auditEntries} />
+          </div>
+        </>
       )}
     </aside>
   );
@@ -144,7 +206,7 @@ export default async function TicketDetailsPage({
         paid={paid}
         companyId={ticket.company_id}
       >
-        <TripledDashboardShell maxWidthClassName="max-w-6xl">
+        <TripledDashboardShell maxWidthClassName="max-w-[1200px]">
           <TripledMobileAppBar
             title={`Ticket ${folioLabel}`}
             backHref="/tickets"
@@ -165,7 +227,10 @@ export default async function TicketDetailsPage({
             }
           />
 
-          <div className="flex flex-col gap-4 md:gap-6">
+          {/* A container, not lg: the sidebar takes 256px, so at 1024 the page has ~720px.
+              Two columns only from 60rem of page; narrower, the money side stacks under
+              Servicios like on the phone (PR #610 review). */}
+          <div className="@container flex flex-col gap-4 md:gap-6">
             <TicketDetailHeader
               ticketId={ticket.id}
               folio={folioLabel}
@@ -178,10 +243,17 @@ export default async function TicketDetailsPage({
               ticketDate={ticket.ticket_date}
               creatorName={creatorName}
               fromPresupuestoId={fromPresupuestoId}
+              serviceCount={ticket.services_tickets.length}
+              materialCount={materialCount}
               actions={<TicketDetailPrimaryActions {...primaryActionProps} placement="desktop" />}
             />
 
-            <TicketDetailHero finished={ticket.finished} total={total} paid={paid} />
+            <TicketDetailHero
+              finished={ticket.finished}
+              total={total}
+              paid={paid}
+              className="lg:hidden"
+            />
 
             <TicketDetailQuickActions
               {...documentProps}
@@ -195,21 +267,23 @@ export default async function TicketDetailsPage({
                 order is the phone order (finish panel above Servicios, Pagos between
                 Servicios and Actividad); from lg the aside is placed in column 2 across
                 both rows and stays sticky, and Actividad sits right under Servicios. */}
-            <div className="grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-8">
+            <div className="grid gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:items-start @min-[60rem]:gap-x-8 @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]">
               {ticket.finished ? null : moneyColumn}
 
-              <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+              <div className="min-w-0 @min-[60rem]:col-start-1 @min-[60rem]:row-start-1">
                 <TicketDetailServicesSection
                   ticketId={ticket.id}
                   total={total}
                   paid={paid}
+                  finished={ticket.finished}
+                  workNotes={ticket.work_notes}
                   services={ticket.services_tickets}
                 />
               </div>
 
               {ticket.finished ? moneyColumn : null}
 
-              <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+              <div className="min-w-0 @min-[60rem]:col-start-1 @min-[60rem]:row-start-2">
                 <TicketDetailTimeline
                   entries={auditEntries}
                   createdAt={ticket.created_at}

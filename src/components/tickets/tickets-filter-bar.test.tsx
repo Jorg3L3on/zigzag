@@ -77,7 +77,9 @@ describe('TicketsFilterBar', () => {
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Con PDF')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /más filtros/i }));
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
   });
 
@@ -88,7 +90,9 @@ describe('TicketsFilterBar', () => {
     expect(screen.queryByLabelText('Filtrar por pagado')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Por cobrar' }).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole('button', { name: /más filtros/i }));
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
     expect(screen.queryByLabelText('Filtrar por pagado')).not.toBeInTheDocument();
   });
 
@@ -102,13 +106,21 @@ describe('TicketsFilterBar', () => {
     ).toHaveTextContent('Más recientes');
   });
 
-  it('labels both desktop controls and reads without context (ZIG-I27-3)', () => {
+  it('keeps Trabajo in the phone sheet and Fechas on the desktop bar (ZIG-I28-4)', async () => {
+    const user = userEvent.setup();
     render(<TicketsFilterBar {...baseProps} />);
 
-    const trabajo = screen.getByRole('combobox', { name: 'Trabajo' });
-    expect(trabajo).toHaveTextContent('Todos los trabajos');
+    expect(screen.queryByRole('combobox', { name: 'Trabajo' })).not.toBeInTheDocument();
     expect(screen.getByText('Fechas')).toBeInTheDocument();
     expect(screen.getByText('Cobro')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Buscar por cliente, folio o teléfono').parentElement).toHaveClass(
+      'max-w-[360px]',
+    );
+
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
+    expect(screen.getByRole('combobox', { name: 'Trabajo' })).toBeInTheDocument();
   });
 
   it('tints the chosen chip instead of the solid page-action style (ZIG-I27-3)', () => {
@@ -132,5 +144,57 @@ describe('TicketsFilterBar', () => {
 
     const clear = screen.getByRole('button', { name: 'Limpiar filtros' });
     expect(clear.className).not.toContain('text-destructive');
+  });
+
+  it('tints the selected collection tab and never shows money (ZIG-I28-4)', async () => {
+    const user = userEvent.setup();
+    const onStatusFilterChange = jest.fn();
+    const onFinishedFilterChange = jest.fn();
+    render(
+      <TicketsFilterBar
+        {...baseProps}
+        statusFilter="due"
+        finishedFilter="yes"
+        counts={{ all: 8, due: 3, inProgress: 2, paid: 1 }}
+        onStatusFilterChange={onStatusFilterChange}
+        onFinishedFilterChange={onFinishedFilterChange}
+      />,
+    );
+
+    const views = screen.getByRole('navigation', { name: 'Vistas de tickets' });
+    expect(views).not.toHaveTextContent('$');
+    const due = within(views).getByRole('button', { name: 'Por cobrar 3' });
+    expect(due).toHaveAttribute('aria-pressed', 'true');
+    expect(due.className).toContain('bg-primary/10');
+    expect(due.className).not.toMatch(/(?:^|\s)bg-primary(?:\s|$)/);
+    expect(within(views).getByRole('button', { name: 'En proceso 2' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+
+    await user.click(within(views).getByRole('button', { name: 'En proceso 2' }));
+    expect(onStatusFilterChange).toHaveBeenCalledWith('all');
+    expect(onFinishedFilterChange).toHaveBeenCalledWith('no');
+
+    await user.click(within(views).getByRole('button', { name: 'Pagados 1' }));
+    expect(onStatusFilterChange).toHaveBeenCalledWith('paid');
+    expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
+
+    await user.click(within(views).getByRole('button', { name: 'Todos 8' }));
+    expect(onStatusFilterChange).toHaveBeenCalledWith('all');
+    expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
+  });
+
+  it('opens the desktop sort from Más filtros and has no CSV export', async () => {
+    const user = userEvent.setup();
+    render(<TicketsFilterBar {...baseProps} />);
+
+    expect(screen.queryByRole('button', { name: /csv|exportar/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Fecha del ticket (recientes primero)')).not.toBeInTheDocument();
+
+    const desktop = screen.getByRole('navigation', { name: 'Vistas de tickets' }).parentElement;
+    if (!desktop) throw new Error('desktop bar missing');
+    await user.click(within(desktop).getByRole('button', { name: 'Más filtros' }));
+    expect(screen.getByText('Fecha del ticket (recientes primero)')).toBeInTheDocument();
   });
 });

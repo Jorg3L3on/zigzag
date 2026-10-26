@@ -11,6 +11,7 @@ import {
 } from '@/actions/presupuestos';
 import { ConfirmSheet } from '@/components/documents/confirm-sheet';
 import { PresupuestoDetailLayout } from '@/components/presupuestos/presupuesto-detail-layout';
+import type { PresupuestoActivityEntry } from '@/components/presupuestos/presupuesto-desktop';
 import type { ReviewLine } from '@/components/tickets/review/document-review-parts';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -35,8 +36,14 @@ export type PresupuestoViewProps = {
   clientId: number | null;
   clientName: string | null;
   clientTel: string | null;
+  /** Phone on the client record. The desktop card falls back to `clientTel`. */
+  clientPhone?: string | null;
+  clientEmail?: string | null;
+  clientAddress?: string | null;
   ticketDate: string | null;
   expiresAt: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   workNotes: string | null;
   total: number;
   lines: ReviewLine[];
@@ -45,13 +52,15 @@ export type PresupuestoViewProps = {
   downloadFileName: string;
   /** Editar shows only when the edit route exists (ZIG-I5-5). */
   editHref?: string | null;
+  /** Newest first. The desktop activity card shows the latest four. */
+  activity?: PresupuestoActivityEntry[];
 };
 
 /**
  * Presupuesto detail (/presupuestos/[id]); since ZIG-I24-4 also where Guardar
  * presupuesto lands (the listo review is gone). One primary CTA: Compartir presupuesto (share sheet with
  * the PDF, WhatsApp text with Válido hasta as the fallback). No Pago, Finalizar,
- * Recordatorios or Actividad: a quote is not a work ticket.
+ * Recordatorios. From 1024px the detail adds Estado, Cliente and Actividad.
  */
 export const PresupuestoView = ({
   presupuestoId,
@@ -59,8 +68,13 @@ export const PresupuestoView = ({
   clientId,
   clientName,
   clientTel,
+  clientPhone = null,
+  clientEmail = null,
+  clientAddress = null,
   ticketDate,
   expiresAt,
+  createdAt = null,
+  updatedAt = null,
   workNotes,
   total,
   lines,
@@ -68,6 +82,7 @@ export const PresupuestoView = ({
   convertedToTicketId,
   downloadFileName,
   editHref = null,
+  activity = [],
 }: PresupuestoViewProps) => {
   const router = useRouter();
   const docLabel = folio || `#${presupuestoId}`;
@@ -257,8 +272,15 @@ export const PresupuestoView = ({
         folio={folio}
         clientId={clientId}
         clientName={clientName}
+        clientTel={clientTel}
+        clientPhone={clientPhone}
+        clientEmail={clientEmail}
+        clientAddress={clientAddress}
+        companyName={selectedCompany?.name ?? null}
         ticketDate={ticketDate}
         expiresAt={expiresAt}
+        createdAt={createdAt}
+        updatedAt={updatedAt}
         workNotes={workNotes}
         total={total}
         lines={lines}
@@ -277,6 +299,7 @@ export const PresupuestoView = ({
         onConvert={() => setConfirm('convert')}
         onCancel={() => setConfirm('cancel')}
         onDuplicate={() => void handleDuplicate()}
+        activity={activity}
       />
       {confirmSheet}
     </>

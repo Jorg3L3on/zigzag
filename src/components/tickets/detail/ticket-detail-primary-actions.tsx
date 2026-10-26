@@ -82,7 +82,21 @@ export const TicketDetailPrimaryActions = ({
         })
       : null;
 
-  const primary = canCollect ? (
+  const focusFinishCard = () => {
+    const card = document.getElementById('terminar-ticket');
+    card?.scrollIntoView({ block: 'center' });
+    card?.focus();
+  };
+
+  const primary = !finished && placement === 'desktop' ? (
+    <Button
+      type="button"
+      className="h-10 gap-2 rounded-xl text-base font-semibold"
+      onClick={focusFinishCard}
+    >
+      Terminar ticket
+    </Button>
+  ) : canCollect ? (
     <Button
       type="button"
       className="h-12 w-full gap-2 rounded-xl text-base font-semibold md:h-10 md:w-auto"
@@ -120,7 +134,7 @@ export const TicketDetailPrimaryActions = ({
             </a>
           </Button>
         ) : null}
-        {canPdf ? (
+        {canPdf && finished ? (
           <Button
             type="button"
             variant="outline"

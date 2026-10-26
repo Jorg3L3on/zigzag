@@ -74,7 +74,7 @@ export const TicketDetailTimeline = ({
   const needsScroll = entries.length > ACTIVITY_VIEWPORT_ROWS;
 
   return (
-    <TicketDetailSectionCard aria-labelledby="ticket-timeline-heading">
+    <TicketDetailSectionCard id="ticket-timeline" aria-labelledby="ticket-timeline-heading">
       <h2 id="ticket-timeline-heading" className="text-base font-semibold tracking-tight">
         <button
           type="button"

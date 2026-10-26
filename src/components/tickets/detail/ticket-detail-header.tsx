@@ -21,6 +21,9 @@ type TicketDetailHeaderProps = {
   fromPresupuestoId?: number | string | null;
   /** Primary / secondary actions (desktop). */
   actions?: ReactNode;
+  /** Shown from lg after the date and author (ZIG-I28-2). */
+  serviceCount?: number;
+  materialCount?: number;
   className?: string;
 };
 
@@ -42,6 +45,8 @@ export const TicketDetailHeader = ({
   creatorName,
   fromPresupuestoId = null,
   actions,
+  serviceCount,
+  materialCount = 0,
   className,
 }: TicketDetailHeaderProps) => {
   const idLabel = folio || `#${String(ticketId)}`;
@@ -85,6 +90,18 @@ export const TicketDetailHeader = ({
                 Desde presupuesto {fromPresupuestoFolio || `#${String(fromPresupuestoId)}`}
               </Link>
             </>
+          ) : null}
+          {!finished ? (
+            <span className="hidden lg:inline"> · el recibo se genera al terminar</span>
+          ) : null}
+          {serviceCount != null ? (
+            <span className="hidden lg:inline">
+              {' · '}
+              {serviceCount} {serviceCount === 1 ? 'servicio' : 'servicios'}
+              {materialCount > 0
+                ? ` · ${materialCount} ${materialCount === 1 ? 'material' : 'materiales'}`
+                : ''}
+            </span>
           ) : null}
         </p>
       </div>

@@ -350,3 +350,51 @@ describe('PresupuestoView (ZIG-I5-4)', () => {
     });
   });
 });
+
+describe('PresupuestoView on desktop (ZIG-I28-5)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query === '(min-width: 1024px)',
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: originalMatchMedia,
+    });
+  });
+
+  it('uses the quote WhatsApp helper on the client card and still confirms Convertir', async () => {
+    const user = userEvent.setup();
+    renderView({ clientAddress: null, clientEmail: 'aurora@plaza.test' });
+
+    expect(screen.queryByTestId('presupuesto-accept')).toBeNull();
+    const phone = screen.getByTestId('presupuesto-client-phone');
+    expect(phone.tagName).toBe('P');
+    const href = decodeURIComponent(
+      screen.getByRole('link', { name: 'WhatsApp' }).getAttribute('href') ?? '',
+    );
+    expect(href).toContain('wa.me/');
+    expect(href).toContain('ClimaTotal');
+    expect(href).not.toMatch(/^tel:/);
+
+    await user.click(screen.getByRole('button', { name: 'Convertir en ticket' }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+  });
+});

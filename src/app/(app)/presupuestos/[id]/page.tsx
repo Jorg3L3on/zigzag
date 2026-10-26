@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { getPresupuestoById } from '@/actions/presupuestos';
+import { getTicketAuditHistory } from '@/actions/tickets';
 import { PresupuestoView } from '@/components/presupuestos/presupuesto-view';
 import { requirePagePermission } from '@/lib/page-authz';
 import { buildPresupuestoViewProps } from '@/lib/presupuesto-view-props';
@@ -25,11 +26,13 @@ export default async function PresupuestoDetailPage({
   if (!result.success) notFound();
 
   const props = buildPresupuestoViewProps(result.data);
+  const audit = await getTicketAuditHistory(numericId);
   const isMutable = props.status === 'abierto' || props.status === 'vencido';
   return (
     <PresupuestoView
       {...props}
       editHref={isMutable ? `/presupuestos/${props.presupuestoId}/edit` : null}
+      activity={audit.success ? (audit.data ?? []) : []}
     />
   );
 }

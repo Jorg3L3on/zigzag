@@ -3,13 +3,15 @@
 import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 
+import { DocumentLineRow } from '@/components/documents/document-line-row';
+import { DocumentLinesDensitySwitch } from '@/components/documents/document-lines-density-switch';
 import {
   LineMaterialsBreakdown,
   LineMaterialsDisclosure,
   type LineServicePart,
 } from '@/components/documents/line-materials-disclosure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
-import { formatMaterialQuantity } from '@/lib/material-drafts';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import { roundMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +28,12 @@ export type DocumentSummaryLine = {
   id: number | string;
   name: string;
   quantity: number;
+  /** Unit price. The desktop grid prints quantity × price in Importe. */
+  price?: number;
+  /** Shown under the name on the desktop grid. */
+  description?: string;
+  /** Null prints Fuera de catálogo on the desktop grid. */
+  serviceId?: number | null;
   /** The line's amount, materials included. */
   amount: number;
   materials?: ReadonlyArray<DocumentSummaryMaterial>;
@@ -82,11 +90,39 @@ export const DocumentSummaryRows = ({
   toggleLabel = summaryToggleLabel,
   className,
 }: DocumentSummaryRowsProps) => {
+  const isDesktop = useIsDesktop();
   const [expanded, setExpanded] = React.useState(false);
   const listId = React.useId();
   const materialsCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
   const collapsible = lines.length > initialVisible || materialsCount > 0;
   const visible = expanded || !collapsible ? lines : lines.slice(0, initialVisible);
+
+  if (isDesktop) {
+    return (
+      <div className={className} data-testid="document-summary-rows" data-layout="receipt">
+        <div className="mb-3 flex justify-end">
+          <DocumentLinesDensitySwitch />
+        </div>
+        <ul id={listId} aria-label={label} className="divide-y divide-border/60">
+          {lines.map((line, index) => (
+            <li key={line.id}>
+              <DocumentLineRow
+                layout="receipt"
+                index={index + 1}
+                name={line.name}
+                description={line.description}
+                serviceId={line.serviceId}
+                quantity={line.quantity}
+                price={line.price ?? 0}
+                amount={line.amount}
+                materials={line.materials}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div className={className} data-testid="document-summary-rows">

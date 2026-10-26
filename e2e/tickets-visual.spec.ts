@@ -27,7 +27,7 @@ test.describe('Tickets visual baselines', () => {
   test('desktop tickets list matches baseline', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
+    await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 

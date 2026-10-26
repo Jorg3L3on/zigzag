@@ -154,7 +154,7 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
   });
 
   const SECONDARY: { path: string; header: string }[] = [
-    { path: '/tickets', header: 'Teléfono' },
+    { path: '/tickets', header: 'Trabajo' },
     { path: '/clients', header: 'Dirección' },
     { path: '/services', header: 'Descripción' },
   ];
@@ -174,21 +174,23 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
     }
   });
 
-  test('the tickets filters are labelled and share a row at 1120 and 1280 (ZIG-I27-3)', async ({ page }) => {
+  test('the tickets filters are labelled and share a row at 1120 and 1280 (ZIG-I28-4)', async ({ page }) => {
     for (const width of [1120, 1280]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto('/tickets');
       await page.waitForLoadState('networkidle');
-      const trabajo = page.getByRole('combobox', { name: 'Trabajo' }).filter({ visible: true }).first();
+      const search = page.getByPlaceholder('Buscar por cliente, folio o teléfono').filter({ visible: true }).first();
       const fechas = page
         .getByRole('button', { name: 'Filtrar por rango de fechas del ticket' })
         .filter({ visible: true })
         .first();
-      await expect(trabajo).toHaveText(/Todos los trabajos/);
+      const more = page.getByRole('button', { name: 'Más filtros' }).filter({ visible: true }).first();
+      await expect(search).toBeVisible();
       await expect(fechas).toBeVisible();
-      const [a, b] = [(await trabajo.boundingBox())!, (await fechas.boundingBox())!];
-      expect(Math.abs(a.y - b.y), `@${width}: Trabajo and Fechas on one row`).toBeLessThanOrEqual(2);
-      expect(Math.abs(a.height - b.height), `@${width}: same height`).toBeLessThanOrEqual(1);
+      await expect(more).toBeVisible();
+      await expect(page.getByRole('combobox', { name: 'Trabajo' }).filter({ visible: true })).toHaveCount(0);
+      const [a, b] = [(await search.boundingBox())!, (await fechas.boundingBox())!];
+      expect(Math.abs(a.y - b.y), `@${width}: search and Fechas on one row`).toBeLessThanOrEqual(8);
       await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
     }
   });

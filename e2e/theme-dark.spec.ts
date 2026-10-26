@@ -92,7 +92,7 @@ const DARK_ROUTES = [
   {
     path: '/tickets',
     ready: async (page: Page) => {
-      await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
+      await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
         timeout: 15_000,
       });
     },
@@ -173,7 +173,7 @@ test.describe('Dark theme surfaces', () => {
 
   test('mode toggle switches between dark and light shell', async ({ page }) => {
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
+    await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 
@@ -239,7 +239,7 @@ test.describe('Dark theme surfaces', () => {
   test('dark tickets list matches baseline', async ({ page }) => {
     await forceTheme(page, 'dark');
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
+    await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
 

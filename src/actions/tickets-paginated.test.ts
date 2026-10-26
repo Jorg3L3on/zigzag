@@ -54,22 +54,37 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
 
   const run = async (params: Parameters<typeof getTicketsPaginated>[0]) => {
     const wheres: SQL[] = [];
-    mockSelect
-      .mockReturnValueOnce(chain([{ total: 3 }], wheres)) // count
-      .mockReturnValueOnce(chain([{ dueCount: 2 }], wheres)) // por cobrar count
-      .mockReturnValueOnce(chain([{ id: 1n }], wheres)) // page
-      .mockReturnValueOnce(
-        summaryChain([{ ticket_id: 1n, summary: 'Compresor, Mano de obra' }], wheres),
-      ); // the work, one aggregate for the page
+    const selects: unknown[] = [];
+    const responses = [
+      chain([{ total: 3 }], wheres), // filtered page count
+      chain(
+        [{ allCount: 4, dueCount: 2, phoneDueCount: 3, inProgressCount: 1, paidCount: 1 }],
+        wheres,
+      ), // one aggregate for the four tabs
+      chain([{ id: 1n }], wheres), // page
+      summaryChain([{ ticket_id: 1n, summary: 'Compresor, Mano de obra' }], wheres),
+    ];
+    mockSelect.mockImplementation((fields?: unknown) => {
+      selects.push(fields ?? null);
+      const next = responses.shift();
+      if (!next) {
+        throw new Error('unexpected select');
+      }
+      return next;
+    });
     const result = await getTicketsPaginated(params);
-    return { result, wheres };
+    return { result, wheres, selects };
   };
 
-  it('returns the count and the Por cobrar count, without a saldo total (ZIG-I27-3)', async () => {
+  it('returns the count, the four tab counts and the phone chip count apart (ZIG-I28-4)', async () => {
     const { result } = await run({ companyId: 10, statusFilter: 'due' });
 
     expect(result.success).toBe(true);
-    expect(result.data).toMatchObject({ total: 3, dueCount: 2 });
+    expect(result.data).toMatchObject({
+      total: 3,
+      dueCount: 3,
+      counts: { all: 4, due: 2, inProgress: 1, paid: 1 },
+    });
     expect(result.data).not.toHaveProperty('balanceDue');
   });
 
@@ -91,8 +106,12 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     expect(list.sql).toContain('COALESCE("Ticket"."paid", 0) < COALESCE("Ticket"."total", 0) - 0.01');
   });
 
-  it('is tenant-scoped on every query and the Por cobrar count ignores the status chip', async () => {
-    const { wheres } = await run({ companyId: 10, statusFilter: 'paid', search: 'torres' });
+  it('is tenant-scoped on every query and the tab counts ignore the status chip', async () => {
+    const { wheres, selects } = await run({
+      companyId: 10,
+      statusFilter: 'paid',
+      search: 'torres',
+    });
 
     for (const where of wheres) {
       const query = sqlOf(where);
@@ -101,10 +120,60 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
       expect(query.sql).toContain('"document_kind" = $');
       expect(query.params).toEqual(expect.arrayContaining([10, 'ticket']));
     }
-    // 0: list count (paid chip on), 1: due count (search kept, status chip replaced by "due").
-    const dueCount = sqlOf(wheres[1]);
-    expect(dueCount.params).toEqual(expect.arrayContaining(['%torres%']));
-    expect(dueCount.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+    // 0: list count (paid chip on). 1: tab counts (search kept, status chip not in the WHERE).
+    const tabScope = sqlOf(wheres[1]);
+    expect(tabScope.params).toEqual(expect.arrayContaining(['%torres%']));
+    expect(tabScope.sql).not.toContain('>= COALESCE("Ticket"."total", 0) - 0.01');
     expect(sqlOf(wheres[0]).sql).toContain('>= COALESCE("Ticket"."total", 0) - 0.01');
+
+    const fields = selects[1] as { dueCount: SQL; paidCount: SQL; inProgressCount: SQL };
+    const due = sqlOf(fields.dueCount);
+    expect(due.sql.toLowerCase()).toContain('filter');
+    expect(due.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+    expect(sqlOf(fields.paidCount).sql).toContain('>= COALESCE("Ticket"."total", 0) - 0.01');
+    expect(sqlOf(fields.inProgressCount).sql.toLowerCase()).toContain('finished');
+  });
+
+  it('counts the four tabs under search and dates only, not the finished view', async () => {
+    const { wheres } = await run({
+      companyId: 10,
+      statusFilter: 'due',
+      finishedFilter: 'no',
+      search: 'torres',
+      dateFrom: '2026-01-01T00:00:00.000Z',
+      dateTo: '2026-01-31T23:59:59.000Z',
+    });
+
+    const tabScope = sqlOf(wheres[1]);
+    expect(tabScope.params).toEqual(
+      expect.arrayContaining(['%torres%', '2026-01-01T00:00:00.000Z', '2026-01-31T23:59:59.000Z']),
+    );
+    expect(tabScope.sql).not.toMatch(/"finished"/);
+    const list = sqlOf(wheres[0]);
+    expect(list.sql).toMatch(/"finished"/);
+    expect(list.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+  });
+
+  it('counts Por cobrar on finished work only, and the phone chip under ?finished (PR #610 review)', async () => {
+    const { selects } = await run({ companyId: 10, finishedFilter: 'no' });
+    const fields = selects[1] as { dueCount: SQL; phoneDueCount: SQL };
+
+    // Desktop tab: finished = true and a saldo, never En proceso (26 vs 17 before).
+    const due = sqlOf(fields.dueCount);
+    expect(due.sql).toMatch(/"finished" = \$\d+/);
+    expect(due.params).toContain(true);
+    expect(due.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+
+    // Phone chip: a saldo under the ?finished=no filter, as in sandbox (9, not 26).
+    const phone = sqlOf(fields.phoneDueCount);
+    expect(phone.sql).toMatch(/"finished" = \$\d+/);
+    expect(phone.params).toContain(false);
+    expect(phone.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
+  });
+
+  it('leaves the phone chip unfiltered by finished when the filter is all', async () => {
+    const { selects } = await run({ companyId: 10 });
+    const phone = sqlOf((selects[1] as { phoneDueCount: SQL }).phoneDueCount);
+    expect(phone.sql).not.toMatch(/"finished"/);
   });
 });

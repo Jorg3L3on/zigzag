@@ -159,7 +159,7 @@ for (const width of MOBILE_WIDTHS) {
       const search = page.getByPlaceholder('Cliente, número de ticket o teléfono');
       await search.fill(suffix);
       // The debounced search reloads the list (cards remount while it loads): wait for the result.
-      await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText('1 de 1 tickets', { exact: true }).filter({ visible: true })).toBeVisible({ timeout: 20_000 });
       const card = visible(page.getByRole('button', { name: new RegExp(`^(Ver|Editar) ticket ${firstId}$`) }));
       await expect(card).toBeVisible({ timeout: 15_000 });
       await card.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();
@@ -202,7 +202,7 @@ for (const width of MOBILE_WIDTHS) {
 
       // Delete the first from the list row too.
       await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
-      await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText('1 de 1 tickets', { exact: true }).filter({ visible: true })).toBeVisible({ timeout: 20_000 });
       const firstCard = visible(page.getByRole('button', { name: new RegExp(`^(Ver|Editar) ticket ${firstId}$`) }));
       await expect(firstCard).toBeVisible({ timeout: 15_000 });
       await firstCard.getByRole('button', { name: `Más acciones del ticket ${firstId}` }).click();

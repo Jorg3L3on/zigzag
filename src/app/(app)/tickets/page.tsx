@@ -29,6 +29,9 @@ export default async function TicketsPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           compactOnMobile
+          className="md:contents"
+          headerClassName="md:hidden"
+          contentClassName="md:bg-transparent md:p-0 md:pt-0"
           title="Tickets"
           description="Lista de todos los tickets registrados"
           icon={<Ticket className="size-5" aria-hidden />}

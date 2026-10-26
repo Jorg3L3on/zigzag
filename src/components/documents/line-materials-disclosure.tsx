@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 
+import { MoneyFigure } from '@/components/documents/money-figure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { formatMaterialQuantity, materialDraftAmount, materialDraftsTotal } from '@/lib/material-drafts';
 import { roundMoney } from '@/lib/money';
@@ -27,6 +28,17 @@ export type LineServicePart = {
 };
 
 const materialAmount = (item: LineMaterialDetail) => item.amount ?? materialDraftAmount(item);
+
+/** Stored amounts when every row has one; otherwise quantity × price per material. */
+export const lineMaterialsListedTotal = (
+  materials: ReadonlyArray<LineMaterialDetail>,
+): number => {
+  const computed = materialDraftsTotal(
+    materials.map((item) => ({ quantity: item.quantity, price: item.price })),
+  );
+  if (!materials.every((item) => item.amount != null)) return computed;
+  return roundMoney(materials.reduce((sum, item) => sum + (item.amount ?? 0), 0));
+};
 
 type LineMaterialsToggleProps = {
   count: number;
@@ -72,6 +84,11 @@ type LineMaterialsBreakdownProps = {
   lineName: string;
   /** The service before materials; omit to list the materials alone. */
   service?: LineServicePart;
+  /**
+   * `card` is the phone breakdown. `receipt` aligns each material to the
+   * desktop document columns (ZIG-I28-1) and expects a parent grid.
+   */
+  layout?: 'card' | 'receipt';
   className?: string;
 };
 
@@ -80,19 +97,56 @@ type LineMaterialsBreakdownProps = {
  * subtotal, then each material with its own amount. Servicio + Materiales is
  * the line's total, shown on the line itself.
  */
+const receiptMaterialRail = 'ml-[26px] border-l-2 border-border py-0.5 pl-3.5';
+
 export const LineMaterialsBreakdown = ({
   id,
   materials,
   lineName,
   service,
+  layout = 'card',
   className,
 }: LineMaterialsBreakdownProps) => {
-  const materialsTotal = materialDraftsTotal(
-    materials.map((item) => ({ quantity: item.quantity, price: item.price })),
-  );
-  const listedTotal = materials.every((item) => item.amount != null)
-    ? roundMoney(materials.reduce((sum, item) => sum + (item.amount ?? 0), 0))
-    : materialsTotal;
+  const listedTotal = lineMaterialsListedTotal(materials);
+  if (layout === 'receipt') {
+    return (
+      <div
+        id={id}
+        role="group"
+        aria-label={`Desglose de ${lineName}`}
+        data-testid="line-materials-breakdown"
+        className={cn('col-span-4 grid grid-cols-subgrid gap-y-0.5', className)}
+      >
+        <p className={cn(receiptMaterialRail, 'text-caption font-medium text-foreground')}>
+          Materiales · {materials.length}
+        </p>
+        <span />
+        <span />
+        <span />
+        <ul
+          aria-label={`Materiales de ${lineName}`}
+          className="col-span-4 grid grid-cols-subgrid gap-y-0.5"
+        >
+          {materials.map((item) => (
+            <li key={item.id} className="col-span-4 grid grid-cols-subgrid items-baseline">
+              <span className={cn(receiptMaterialRail, 'min-w-0 text-caption text-foreground [overflow-wrap:anywhere]')}>
+                {item.name}
+              </span>
+              <span className="text-right text-caption tabular-nums text-muted-foreground">
+                {formatMaterialQuantity(item.quantity, item.unit)}
+              </span>
+              <span className="text-right">
+                <MoneyFigure amount={item.price} size="sm" tone="muted" />
+              </span>
+              <span className="text-right">
+                <MoneyFigure amount={materialAmount(item)} size="sm" />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
   return (
     <div
       id={id}

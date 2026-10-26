@@ -1,4 +1,5 @@
 export { ConfirmSheet } from './confirm-sheet';
+export { DocumentLinesDensitySwitch } from './document-lines-density-switch';
 export { DocumentLineRow, formatMaterialsCount } from './document-line-row';
 export {
   DocumentSummaryRows,
