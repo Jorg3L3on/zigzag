@@ -36,6 +36,7 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
     await openDatos(page);
     const main = page.locator('main');
 
+    await expect(page.getByTestId('company-hub-header')).toHaveCount(1);
     await expect(main.locator('h1')).toHaveCount(1);
     await expect(page.getByTestId('company-hub-header')).toBeVisible();
     await expect(page.getByTestId('company-readiness-pill')).toHaveText(

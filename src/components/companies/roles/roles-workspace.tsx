@@ -166,7 +166,7 @@ const RoleCard = ({
         summarizeMatrix(toMatrix(role.permissionKeys))}
     </span>
     {role.isGlobal ? (
-      <span className="mt-1 inline-flex w-fit rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-muted-foreground">
+      <span className="mt-1 inline-flex w-fit rounded-full bg-muted px-2 py-0.5 text-caption font-semibold text-slate-600 dark:text-slate-300">
         Plantilla de ZigZag
       </span>
     ) : null}
