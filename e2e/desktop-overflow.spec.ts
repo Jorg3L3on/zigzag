@@ -119,13 +119,14 @@ test.describe('Desktop shell without overflow (ZIG-I27-1)', () => {
     await firstRow.locator('td').first().click();
     await page.waitForURL(/\/tickets\/\d+$/);
     await page.waitForLoadState('networkidle');
-    const aside = page.locator('main aside[aria-label="Cobro del ticket"]');
+    const aside = page.locator('main aside[aria-label$="cliente y actividad"]');
     await expect(aside).toBeVisible();
     // A short ticket barely scrolls: make the main column tall so sticky has room to act.
     const before = await aside.evaluate((el) => {
       const spacer = document.createElement('div');
       spacer.style.height = '1600px';
-      el.nextElementSibling?.appendChild(spacer);
+      // The document card is the main column (the folded timeline is phone-only now).
+      document.querySelector('[aria-labelledby="ticket-document-heading"]')?.appendChild(spacer);
       return el.getBoundingClientRect().top;
     });
     await page.evaluate((by) => window.scrollBy(0, by), Math.round(before) + 200);
@@ -153,15 +154,17 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
     await ensureTenantCompany(page);
   });
 
-  const SECONDARY: { path: string; header: string }[] = [
-    { path: '/tickets', header: 'Trabajo' },
-    { path: '/clients', header: 'Dirección' },
-    { path: '/services', header: 'Descripción' },
+  // Tickets: Trabajo yields to the client's full name until the list itself is 64rem
+  // wide (1440 with the sidebar open, canvas ListaA); the others come back at 1280.
+  const SECONDARY: { path: string; header: string; wide: number }[] = [
+    { path: '/tickets', header: 'Trabajo', wide: 1440 },
+    { path: '/clients', header: 'Dirección', wide: 1280 },
+    { path: '/services', header: 'Descripción', wide: 1280 },
   ];
 
-  test('secondary columns hide below 1280 and come back at 1280', async ({ page }) => {
-    for (const { path, header } of SECONDARY) {
-      for (const [width, shown] of [[1120, false], [1280, true]] as const) {
+  test('secondary columns hide on narrow windows and come back when there is room', async ({ page }) => {
+    for (const { path, header, wide } of SECONDARY) {
+      for (const [width, shown] of [[1120, false], [wide, true]] as const) {
         await page.setViewportSize({ width, height: 800 });
         await page.goto(path);
         await page.waitForLoadState('networkidle');

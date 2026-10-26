@@ -254,7 +254,7 @@ export const TicketsFilterBar = ({
             onSortingChange={onSortingChange}
             id="ticket-sort-desktop"
             labelHidden
-            triggerClassName="h-11 w-48 rounded-full px-4"
+            triggerClassName="h-11 w-auto min-w-48 gap-2 rounded-full px-4"
           />
           {columnsMenu}
         </div>

@@ -79,11 +79,11 @@ export const TicketDetailCollectCard = ({
           />
         ))}
       </div>
-      <div className="mt-2 flex justify-between gap-3 text-caption tabular-nums text-muted-foreground">
-        <span>
+      <div className="mt-2 flex flex-wrap justify-between gap-x-3 text-caption tabular-nums text-muted-foreground">
+        <span className="whitespace-nowrap">
           Pagado {formatServiceCurrency(paid ?? 0)} · {percent} %
         </span>
-        <span>de {formatServiceCurrency(totalAmount)}</span>
+        <span className="whitespace-nowrap">de {formatServiceCurrency(totalAmount)}</span>
       </div>
       {paidFully || !collect ? null : (
         <Button type="button" className="mt-4 h-11 w-full text-[15px]" onClick={collect.openCollect}>

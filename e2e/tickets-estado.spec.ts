@@ -18,7 +18,8 @@ test.describe('Tickets list Estado column', () => {
   test('shows a one-line estado chip, Trabajo and Saldo (ZIG-I28-4)', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
+    // Trabajo shows once the list is 64rem wide (1440 with the sidebar open).
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/tickets');
     await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
