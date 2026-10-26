@@ -71,7 +71,7 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     await expect(page.getByTestId('cobranza-in-progress')).toContainText(/en proceso sum/);
     await expect(page.getByRole('link', { name: 'Ver en Tickets' })).toHaveAttribute(
       'href',
-      '/tickets?finished=no',
+      '/tickets?status=due&finished=no',
     );
 
     // Más de 90 filters the table through the URL.
@@ -136,9 +136,16 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     const href = (await statement.getAttribute('href')) ?? '';
     expect(href).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     const text = decodeURIComponent(href.split('?text=')[1]);
-    expect(text).toContain('R-0016');
-    expect(text).toContain('R-0036');
-    expect(text).toContain('Total pendiente: $2,810');
+    // The whole text of the canvas board CobAcciones (ClimaTotal Demo has no transfer data).
+    expect(text).toBe(
+      [
+        'Hola, te escribe ClimaTotal Demo. Tienes 2 tickets con saldo pendiente:',
+        '• R-0016 (2 ene 2026): $1,210.00',
+        '• R-0036 (11 jun 2026): $1,600.00',
+        'Total pendiente: $2,810.00.',
+        'Cuando puedas, por favor confirma el pago. ¡Gracias!',
+      ].join('\n'),
+    );
 
     await museo.getByRole('button', { name: /Ver los tickets de Museo/ }).click();
     const tickets = page.getByTestId('cobranza-client-ticket');

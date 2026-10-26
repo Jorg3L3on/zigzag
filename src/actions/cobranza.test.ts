@@ -27,21 +27,32 @@ type Fixture = {
   tickets: unknown[];
   lastPayments?: unknown[];
   services?: unknown[];
-  inProgress?: { count: number; total: number };
+  /** Unfinished tickets with a saldo (scope fields + total/paid). */
+  inProgress?: unknown[];
   payments?: unknown[];
 };
 
 /** Each query is told apart by the columns it selects, not by call order. */
 const useFixture = (fixture: Fixture) => {
   mockSelect.mockImplementation((fields: Record<string, unknown>) => {
-    if ('folio_number' in fields) return chain(fixture.tickets);
+    if ('amount' in fields) return chain(fixture.payments ?? []);
     if ('last_payment_at' in fields) return chain(fixture.lastPayments ?? []);
     if ('summary' in fields) return chain(fixture.services ?? []);
-    if ('count' in fields) return chain([fixture.inProgress ?? { count: 0, total: 0 }]);
-    if ('amount' in fields) return chain(fixture.payments ?? []);
+    if ('ticket_date' in fields) return chain(fixture.tickets);
+    if ('folio_number' in fields) return chain(fixture.inProgress ?? []);
     throw new Error(`unexpected select ${Object.keys(fields).join(',')}`);
   });
 };
+
+const scopeRow = (id: number, overrides: Record<string, unknown> = {}) => ({
+  id: BigInt(id),
+  client_id: null,
+  client_name: `Cliente ${id}`,
+  client_tel: '5551234567',
+  folio_number: id,
+  folio_prefix: 'R',
+  ...overrides,
+});
 
 const ticketRow = (id: number, overrides: Record<string, unknown> = {}) => ({
   id: BigInt(id),
@@ -91,13 +102,16 @@ const demo: Fixture = {
   ],
   lastPayments: [{ ticket_id: BigInt(36), last_payment_at: new Date('2026-01-25T18:00:00Z') }],
   services: [{ ticket_id: BigInt(16), summary: 'Compresor, Mano de obra' }],
-  inProgress: { count: 2, total: 2958780 },
+  inProgress: [
+    scopeRow(50, { client_id: 12, client_name: 'Museo de Arte Contemporáneo', total: 2958000, paid: 0 }),
+    scopeRow(51, { client_name: 'Obra', total: 1000, paid: 220 }),
+  ],
   payments: [
-    { amount: 400, created_at: new Date('2026-01-25T18:00:00Z') },
+    scopeRow(36, { client_id: 12, client_name: 'Museo de Arte Contemporáneo', amount: 400, created_at: new Date('2026-01-25T18:00:00Z') }),
     // 1 Feb 02:00 UTC is still January in Mexico City.
-    { amount: 250.5, created_at: new Date('2026-02-01T02:00:00Z') },
+    scopeRow(5, { client_id: 13, client_name: 'Ana', amount: 250.5, created_at: new Date('2026-02-01T02:00:00Z') }),
     // December: out of the month.
-    { amount: 999, created_at: new Date('2025-12-31T18:00:00Z') },
+    scopeRow(5, { client_id: 13, client_name: 'Ana', amount: 999, created_at: new Date('2025-12-31T18:00:00Z') }),
   ],
 };
 
@@ -175,6 +189,25 @@ describe('getCobranzaPaginated', () => {
     const { data } = await getCobranzaPaginated({});
     expect(data!.inProgress).toEqual({ count: 2, total: 2958780 });
     expect(data!.collectedThisMonth).toEqual({ amount: 650.5, payments: 2, month: '2026-01' });
+  });
+
+  it('scopes En proceso and the month payments to the search and the client', async () => {
+    const bySearch = await getCobranzaPaginated({ search: 'museo' });
+    expect(bySearch.data!.inProgress).toEqual({ count: 1, total: 2958000 });
+    expect(bySearch.data!.collectedThisMonth).toMatchObject({ amount: 400, payments: 1 });
+    const byClient = await getCobranzaPaginated({ clientId: 13 });
+    expect(byClient.data!.inProgress).toEqual({ count: 0, total: 0 });
+    expect(byClient.data!.collectedThisMonth).toMatchObject({ amount: 250.5, payments: 1 });
+  });
+
+  it('Por cliente lists by the filters but sums everything the client owes', async () => {
+    // Only R-0016 matches the 0–30 bucket under "R-0016", yet the museum row carries R-0036 too.
+    const { data } = await getCobranzaPaginated({ groupBy: 'client', search: 'R-0016' });
+    expect(data!.groups).toHaveLength(1);
+    expect(data!.groups[0].balanceDue).toBe(2810);
+    expect(data!.groups[0].tickets.map((t) => t.folio)).toEqual(['R-0016', 'R-0036']);
+    expect(data!.totalBalance).toBe(2810);
+    expect(data!.ticketCount).toBe(2);
   });
 
   it('filters by bucket without changing the strip', async () => {

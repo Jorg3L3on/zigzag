@@ -138,7 +138,7 @@ describe('CobranzaDesktop', () => {
     );
     expect(screen.getByRole('link', { name: 'Ver en Tickets' })).toHaveAttribute(
       'href',
-      '/tickets?finished=no',
+      '/tickets?status=due&finished=no',
     );
     expect(mockGetCobranzaPaginated).toHaveBeenCalledWith(
       expect.objectContaining({ companyId: 4, bucket: 'all', groupBy: 'ticket', page: 1 }),

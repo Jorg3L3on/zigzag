@@ -99,9 +99,9 @@ export const CobranzaRowActions = ({
   };
 
   return (
-    <div className="relative flex items-center justify-end">
-      {/* Floats over the end of the row so the column only needs ⋮ (1024 with the sidebar open). */}
-      <div className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+    <div className="flex items-center justify-end gap-1.5">
+      {/* In the Acciones column, shown with the row (hover or keyboard focus), as in CobA. */}
+      <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {showCollect ? (
           <Button
             type="button"

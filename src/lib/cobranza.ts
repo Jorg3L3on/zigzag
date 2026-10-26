@@ -237,6 +237,32 @@ export const buildCobranzaRows = (
   return rows;
 };
 
+export type CobranzaScopeTarget = {
+  id: string | number | bigint;
+  client_id: number | null;
+  client_name: string | null;
+  client_tel: string | null;
+  folio: string;
+};
+
+/**
+ * The search and client scope of the page, shared by the queue, the En proceso
+ * footer and the payments of the month (ZIG-I31 review): client name, ticket id,
+ * folio and phone.
+ */
+export const matchesCobranzaScope = (
+  target: CobranzaScopeTarget,
+  options: { search?: string; clientId?: number | null },
+): boolean => {
+  const clientId = options.clientId ?? null;
+  if (clientId != null && target.client_id !== clientId) return false;
+  const search = options.search?.trim().toLowerCase() ?? '';
+  if (!search) return true;
+  const haystack =
+    `${target.client_name ?? ''} ${String(target.id)} ${target.folio} ${target.client_tel ?? ''}`.toLowerCase();
+  return haystack.includes(search);
+};
+
 export const filterCobranzaRows = (
   rows: CobranzaRow[],
   options: {
@@ -249,28 +275,15 @@ export const filterCobranzaRows = (
 ): CobranzaRow[] => {
   const status = options.status ?? 'all';
   const aging = options.aging ?? 'all';
-  const search = options.search?.trim().toLowerCase() ?? '';
-
-  const clientId = options.clientId ?? null;
 
   return rows.filter((row) => {
-    if (clientId != null && row.client_id !== clientId) {
-      return false;
-    }
     if (status !== 'all' && row.paymentStatus !== status) {
       return false;
     }
     if (aging !== 'all' && row.agingBucket !== aging) {
       return false;
     }
-    if (search) {
-      const haystack =
-        `${row.client_name ?? ''} ${row.id} ${row.folio} ${row.client_tel ?? ''}`.toLowerCase();
-      if (!haystack.includes(search)) {
-        return false;
-      }
-    }
-    return true;
+    return matchesCobranzaScope(row, options);
   });
 };
 

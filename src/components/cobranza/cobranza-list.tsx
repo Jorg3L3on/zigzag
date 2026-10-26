@@ -58,8 +58,13 @@ import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { PERMISSIONS } from '@/lib/permissions';
 
-/** Cobranza on the phone (< md): the cards of ZIG-I18-2, fed by the ZIG-I31 rules. */
-export const CobranzaList = () => {
+type CobranzaListProps = {
+  /** False while another layout owns the viewport: nothing loads (CobranzaView). */
+  enabled?: boolean;
+};
+
+/** Cobranza below lg: the cards of ZIG-I18-2, fed by the ZIG-I31 rules. */
+export const CobranzaList = ({ enabled = true }: CobranzaListProps) => {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const canRead = permissions.can(PERMISSIONS.tickets.read);
@@ -138,6 +143,7 @@ export const CobranzaList = () => {
   }, [searchValue]);
 
   const loadCobranza = React.useCallback(async () => {
+    if (!enabled) return;
     if (!canRead || missingCompany) {
       setLoading(false);
       setRows([]);
@@ -166,7 +172,7 @@ export const CobranzaList = () => {
     }
 
     setRows(result.data.rows);
-  }, [canRead, missingCompany, selectedCompany?.id]);
+  }, [canRead, enabled, missingCompany, selectedCompany?.id]);
 
   React.useEffect(() => {
     void loadCobranza();
@@ -311,7 +317,7 @@ export const CobranzaList = () => {
         filterChips={filterChips}
       />
 
-      <div className="flex items-center gap-3 md:hidden">
+      <div className="flex items-center gap-3">
         <label htmlFor="cobranza-sort" className="shrink-0 text-base font-medium">
           Ordenar
         </label>
@@ -362,7 +368,7 @@ export const CobranzaList = () => {
 
       {listState.kind === 'ready' ? (
         <>
-          <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex flex-col gap-3">
             {filteredRows.map((item) => {
               return (
                 <TripledMobileRecordCard key={item.id}>
@@ -462,6 +468,10 @@ export const CobranzaList = () => {
           total={collectRow.total}
           paid={collectRow.paid}
           companyId={selectedCompany?.id ?? null}
+          folio={collectRow.folio}
+          clientName={collectRow.client_name}
+          clientTel={collectRow.client_tel}
+          companyName={selectedCompany?.name ?? null}
           onPaymentApplied={handlePaymentApplied}
         />
       ) : null}

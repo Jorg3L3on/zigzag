@@ -619,6 +619,10 @@ export const DashboardTuDia = ({
           total={collectRow.total}
           paid={collectRow.paid}
           companyId={collectRow.company_id}
+          folio={collectRow.folio}
+          clientName={collectRow.client_name}
+          clientTel={collectRow.client_tel}
+          companyName={companyName}
           onPaymentApplied={() => {
             setCollectRow(null);
             void load();

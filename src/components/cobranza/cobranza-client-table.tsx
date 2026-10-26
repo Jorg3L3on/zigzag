@@ -76,15 +76,23 @@ const StatementButton = ({
   });
   if (!share) return null;
   return (
-    <Button asChild variant="outline" size="sm" className="h-[30px] rounded-lg px-2.5 text-[13px]">
+    <Button
+      asChild
+      variant="outline"
+      size="sm"
+      className="h-[30px] w-[30px] rounded-lg px-0 text-[13px] xl:w-auto xl:px-2.5"
+    >
       <a
         href={share.href}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Enviar estado de cuenta por WhatsApp a ${group.client_name ?? 'el cliente'}`}
+        title="Estado de cuenta"
         data-testid="cobranza-statement"
       >
-        Estado de cuenta
+        {/* Below 1280 the column only fits the icon; the label comes back from xl. */}
+        <MessageCircle className="h-3.5 w-3.5 xl:hidden" aria-hidden />
+        <span className="hidden xl:inline">Estado de cuenta</span>
       </a>
     </Button>
   );
@@ -103,8 +111,9 @@ const GroupActions = ({
 }) => {
   const name = group.client_name ?? 'el cliente';
   return (
-    <div className="relative flex items-center justify-end">
-      <div className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+    <div className="flex items-center justify-end gap-1.5">
+      {/* In the Acciones column, shown with the row (hover or keyboard focus), as in CobB. */}
+      <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {canCollect ? (
           group.tickets.length === 1 ? (
             <Button
@@ -261,7 +270,7 @@ export const CobranzaClientTable = ({
           {/* At 1024 with the sidebar open, Último pago yields so the client name keeps room. */}
           <TableHead className="hidden w-36 xl:table-cell">Último pago</TableHead>
           <TableHead className="w-32 text-right">Saldo total</TableHead>
-          <TableHead className="w-32 xl:w-44">
+          <TableHead className="w-36 xl:w-60">
             <span className="sr-only">Acciones</span>
           </TableHead>
         </TableRow>

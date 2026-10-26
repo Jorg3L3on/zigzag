@@ -6,13 +6,16 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { db } from '@/lib/db';
-import { service, servicesTickets, ticket, ticketPayment } from '@/db/schema';
+import { client, service, servicesTickets, ticket, ticketPayment } from '@/db/schema';
 import { requireTicketRead } from '@/lib/tickets-rbac-server';
 import { companyDay } from '@/lib/company-day';
+import { formatDocumentFolio } from '@/lib/folio';
 import {
   buildCobranzaRows,
+  cobranzaClientKey,
   filterCobranzaRows,
   groupCobranzaRowsByClient,
+  matchesCobranzaScope,
   sortCobranzaRows,
   summarizeCobranzaBuckets,
   summarizeCobranzaRows,
@@ -31,6 +34,16 @@ export type CobranzaListData = {
 
 /** A work ticket with a saldo: total above the tolerance and not covered by paid. */
 const DUE_CONDITION = sql`COALESCE(${ticket.total}, 0) > 0.01 AND COALESCE(${ticket.paid}, 0) < COALESCE(${ticket.total}, 0) - 0.01`;
+
+/**
+ * One phone for the queue, the reminders and the estado de cuenta: the client's
+ * current phone, else the snapshot on the ticket (same source as the client page).
+ */
+const CURRENT_PHONE = sql<string | null>`COALESCE(NULLIF(TRIM(${client.phone}), ''), ${ticket.client_tel})`;
+
+const clientJoin = and(eq(client.id, ticket.client_id), isNull(client.deleted_at));
+
+const roundCents = (value: number): number => Math.round(value * 100) / 100;
 
 const workTicketScope = (companyId: number) =>
   and(
@@ -54,7 +67,7 @@ const loadCobranzaRows = async (
     .select({
       id: ticket.id,
       client_name: ticket.client_name,
-      client_tel: ticket.client_tel,
+      client_tel: CURRENT_PHONE,
       ticket_date: ticket.ticket_date,
       created_at: ticket.created_at,
       total: ticket.total,
@@ -67,6 +80,7 @@ const loadCobranzaRows = async (
       folio_prefix: ticket.folio_prefix,
     })
     .from(ticket)
+    .leftJoin(client, clientJoin)
     .where(cobrableScope);
 
   if (tickets.length === 0) {
@@ -152,18 +166,18 @@ export type CobranzaPaginatedData = {
   groups: CobranzaClientGroup[];
   /** Tickets, or clients when grouping, that match every filter. */
   total: number;
-  /** Saldo of `total`. */
+  /** Saldo of `total` (by client: everything those clients owe). */
   totalBalance: number;
-  /** Tickets behind `total` (equal to it by ticket; more when grouping by client). */
+  /** Tickets behind `total` (equal to it by ticket; every owed ticket of the listed clients). */
   ticketCount: number;
   page: number;
   pageSize: number;
   totalPages: number;
   /** Aging strip: counts and sums under search, status and client, never the bucket. */
   buckets: CobranzaBucketSummary;
-  /** Unfinished tickets with a saldo: out of Cobranza, named in the footer. */
+  /** Unfinished tickets with a saldo under the search and client: out of Cobranza, named in the footer. */
   inProgress: { count: number; total: number };
-  /** Payments recorded in the company's current month. */
+  /** Payments recorded in the company's current month, under the search and client. */
   collectedThisMonth: { amount: number; payments: number; month: string };
 };
 
@@ -196,14 +210,31 @@ export async function getCobranzaPaginated(params: {
     // A month never spans more than 31 days; the company-day check below trims the edges.
     const paymentsSince = new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000);
 
-    const [allRows, [inProgressRow], recentPayments] = await Promise.all([
+    // The ticket fields the search and client scope look at, for the footer and the strip.
+    const scopeFields = {
+      id: ticket.id,
+      client_id: ticket.client_id,
+      client_name: ticket.client_name,
+      client_tel: CURRENT_PHONE,
+      folio_number: ticket.folio_number,
+      folio_prefix: ticket.folio_prefix,
+    };
+    const scope = { search: params.search, clientId: params.clientId ?? null };
+    const inScope = (row: {
+      id: bigint;
+      client_id: number | null;
+      client_name: string | null;
+      client_tel: string | null;
+      folio_number: number | null;
+      folio_prefix: string | null;
+    }) => matchesCobranzaScope({ ...row, folio: formatDocumentFolio(row) }, scope);
+
+    const [allRows, inProgressRows, recentPayments] = await Promise.all([
       loadCobranzaRows(effectiveCompanyId, now),
       db
-        .select({
-          count: sql<number>`count(*)`,
-          total: sql<number>`COALESCE(SUM(COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0)), 0)`,
-        })
+        .select({ ...scopeFields, total: ticket.total, paid: ticket.paid })
         .from(ticket)
+        .leftJoin(client, clientJoin)
         .where(
           and(
             workTicketScope(effectiveCompanyId),
@@ -213,11 +244,13 @@ export async function getCobranzaPaginated(params: {
         ),
       db
         .select({
+          ...scopeFields,
           amount: ticketPayment.amount,
           created_at: ticketPayment.created_at,
         })
         .from(ticketPayment)
         .innerJoin(ticket, eq(ticket.id, ticketPayment.ticket_id))
+        .leftJoin(client, clientJoin)
         .where(
           and(
             workTicketScope(effectiveCompanyId),
@@ -226,10 +259,18 @@ export async function getCobranzaPaginated(params: {
         ),
     ]);
 
+    const inProgress = { count: 0, total: 0 };
+    for (const row of inProgressRows) {
+      if (!inScope(row)) continue;
+      inProgress.count += 1;
+      inProgress.total += Number(row.total ?? 0) - Number(row.paid ?? 0);
+    }
+
     const month = companyDay(now).iso.slice(0, 7);
     const collectedThisMonth = { amount: 0, payments: 0, month };
     for (const payment of recentPayments) {
       if (companyDay(payment.created_at).iso.slice(0, 7) !== month) continue;
+      if (!inScope(payment)) continue;
       collectedThisMonth.amount += Number(payment.amount ?? 0);
       collectedThisMonth.payments += 1;
     }
@@ -244,13 +285,25 @@ export async function getCobranzaPaginated(params: {
       filterCobranzaRows(underStrip, { aging: params.bucket ?? 'all' }),
       params.sort ?? 'days',
     );
-    const totalBalance = summarizeCobranzaRows(filtered).balanceSum;
-
-    // Por cliente sorts the groups: Mayor saldo, or the oldest work with `days`.
-    const items =
+    // Por cliente: the filters pick which clients are listed, but each group (its
+    // Saldo total and the estado de cuenta) carries everything that client owes.
+    const listedClients = new Set(filtered.map((row) => cobranzaClientKey(row)));
+    const groups =
       groupBy === 'client'
-        ? groupCobranzaRowsByClient(filtered, params.sort === 'days' ? 'days' : 'balance')
-        : filtered;
+        ? groupCobranzaRowsByClient(allRows, params.sort === 'days' ? 'days' : 'balance').filter(
+            (group) => listedClients.has(group.key),
+          )
+        : [];
+    const totalBalance =
+      groupBy === 'client'
+        ? groups.reduce((sum, group) => sum + group.balanceDue, 0)
+        : summarizeCobranzaRows(filtered).balanceSum;
+    const ticketCount =
+      groupBy === 'client'
+        ? groups.reduce((sum, group) => sum + group.tickets.length, 0)
+        : filtered.length;
+
+    const items = groupBy === 'client' ? groups : filtered;
     const total = items.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const start = (Math.min(page, totalPages) - 1) * pageSize;
@@ -263,16 +316,16 @@ export async function getCobranzaPaginated(params: {
         groups: groupBy === 'client' ? (pageItems as CobranzaClientGroup[]) : [],
         total,
         totalBalance,
-        ticketCount: filtered.length,
+        ticketCount,
         page: Math.min(page, totalPages),
         pageSize,
         totalPages,
         buckets,
-        inProgress: {
-          count: Number(inProgressRow?.count ?? 0),
-          total: Number(inProgressRow?.total ?? 0),
+        inProgress: { count: inProgress.count, total: roundCents(inProgress.total) },
+        collectedThisMonth: {
+          ...collectedThisMonth,
+          amount: roundCents(collectedThisMonth.amount),
         },
-        collectedThisMonth,
       },
     };
   } catch (e) {

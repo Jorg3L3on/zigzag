@@ -152,6 +152,10 @@ export const FieldJobCard = ({
           total={job.total}
           paid={job.paid}
           companyId={job.companyId}
+          folio={job.folio ?? null}
+          clientName={job.clientName}
+          clientTel={job.clientTel}
+          companyName={job.companyName ?? null}
           onPaymentApplied={(result) => {
             onPaymentApplied?.(result);
           }}

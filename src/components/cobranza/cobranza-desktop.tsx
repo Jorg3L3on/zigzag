@@ -105,13 +105,15 @@ const plural = (count: number, one: string, many: string) =>
 
 type CobranzaDesktopProps = {
   canWrite: boolean;
+  /** False while the phone layout owns the viewport: nothing loads (CobranzaView). */
+  enabled?: boolean;
 };
 
 /**
  * Cobranza from md (ZIG-I31-2/3, canvas CobA/CobB): aging strip with amounts,
  * the queue by ticket or by client, and the En proceso footnote. Finished work only.
  */
-export const CobranzaDesktop = ({ canWrite }: CobranzaDesktopProps) => {
+export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopProps) => {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.id ?? null;
   const companyName = selectedCompany?.name ?? null;
@@ -182,6 +184,7 @@ export const CobranzaDesktop = ({ canWrite }: CobranzaDesktopProps) => {
     });
 
   const load = React.useCallback(async () => {
+    if (!enabled) return;
     const requestId = ++requestRef.current;
     setLoading(true);
     const result = await getCobranzaPaginated({
@@ -214,6 +217,7 @@ export const CobranzaDesktop = ({ canWrite }: CobranzaDesktopProps) => {
     clientId,
     companyId,
     debouncedSearch,
+    enabled,
     groupBy,
     pagination.pageIndex,
     pagination.pageSize,
@@ -510,8 +514,9 @@ export const CobranzaDesktop = ({ canWrite }: CobranzaDesktopProps) => {
                     ? 'y se cobra al terminarlo'
                     : 'y se cobran al terminarlos'}{' '}
                   ·{' '}
+                  {/* The tickets view that counts the same: unfinished with a saldo. */}
                   <Link
-                    href="/tickets?finished=no"
+                    href="/tickets?status=due&finished=no"
                     className="font-medium text-primary underline-offset-4 hover:underline"
                   >
                     Ver en Tickets

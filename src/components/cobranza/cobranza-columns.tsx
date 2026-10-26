@@ -119,7 +119,7 @@ export const createCobranzaColumns = ({
 }: CobranzaColumnsOptions): ColumnDef<CobranzaRow>[] => [
   {
     id: 'folio',
-    meta: { className: 'w-[5.5rem]' },
+    meta: { className: 'w-20' },
     header: () => <span>Folio</span>,
     cell: ({ row }) => (
       <Link
@@ -152,8 +152,8 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'services',
-    // At 1024 with the sidebar open, Trabajo yields so the money and ⋮ fit.
-    meta: { className: 'hidden w-44 xl:table-cell' },
+    // Columns join as the window grows (sidebar open): Trabajo from 1536.
+    meta: { className: 'hidden w-44 2xl:table-cell' },
     header: () => <span>Trabajo</span>,
     cell: ({ row }) => <CobranzaWorkSummary row={row.original} />,
   },
@@ -176,7 +176,8 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'total',
-    meta: { className: 'w-28 text-right' },
+    // Total, Pagado and Fecha from 1280; below that Saldo and Días carry the row.
+    meta: { className: 'hidden w-28 text-right xl:table-cell' },
     header: () => <span className="block text-right">Total</span>,
     cell: ({ row }) => (
       <div className="text-right tabular-nums">
@@ -186,7 +187,6 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'paid',
-    // Pagado is Total − Saldo; below xl it yields so the client name keeps room at 1024.
     meta: { className: 'hidden w-28 text-right xl:table-cell' },
     header: () => <span className="block text-right">Pagado</span>,
     cell: ({ row }) =>
@@ -213,7 +213,7 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'days',
-    meta: { className: 'w-40' },
+    meta: { className: 'w-[9.5rem]' },
     header: () => <span>Días sin pagar</span>,
     cell: ({ row }) => (
       <CobranzaDaysCell
@@ -225,7 +225,8 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'actions',
-    meta: { className: 'w-14' },
+    // Cobrar · WhatsApp · ⋮, as in the canvas Acciones column.
+    meta: { className: 'w-36' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div
