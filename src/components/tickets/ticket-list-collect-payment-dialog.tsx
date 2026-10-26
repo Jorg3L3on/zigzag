@@ -25,7 +25,10 @@ import { formatServiceCurrency } from '@/components/tickets/ticket-services-util
 import { getErrorMessageByType } from '@/lib/network-awareness';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
-import { Loader2 } from 'lucide-react';
+import { FILTER_SELECTED_CLASS } from '@/components/list-filter';
+import { cn } from '@/lib/utils';
+import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
+import { Loader2, Wallet } from 'lucide-react';
 
 export type TicketListCollectPaymentResult = {
   ticketId: number;
@@ -41,7 +44,27 @@ type TicketListCollectPaymentDialogProps = {
   paid: number | null;
   companyId?: number | null;
   onPaymentApplied: (result: TicketListCollectPaymentResult) => void;
+  /** Desktop title «Cobrar ticket R-0016»; plain «Cobrar» without it (folio, never the id). */
+  folio?: string | null;
+  clientName?: string | null;
+  /** With a phone, settling the ticket offers «Enviar recibo» by WhatsApp. */
+  clientTel?: string | null;
+  companyName?: string | null;
+  /** Desktop: the second line of the «Listo, quedó pagado» toast (Cobranza says what moved). */
+  settledDescription?: string;
 };
+
+/** Desktop shortcuts (ZIG-I31-3): the whole saldo by default, half, or another amount. */
+export type CollectShortcut = 'all' | 'half' | 'other';
+
+const halfOf = (amount: number): number => Math.round((amount / 2) * 100) / 100;
+
+/** Amount text for the field, grouped like the canvas (`421,582.39`); cents only when there are any. */
+const amountInputValue = (amount: number): string =>
+  amount.toLocaleString('es-MX', {
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 
 /** Round amounts below the balance, plus half of it: "mitad", $500, $1,000... */
 export const getCollectQuickAmounts = (
@@ -66,12 +89,19 @@ export const TicketListCollectPaymentDialog = ({
   paid,
   companyId = null,
   onPaymentApplied,
+  folio = null,
+  clientName = null,
+  clientTel = null,
+  companyName = null,
+  settledDescription,
 }: TicketListCollectPaymentDialogProps) => {
   const isMobile = useIsMobile();
   const [partial, setPartial] = React.useState(false);
   const [amountInput, setAmountInput] = React.useState('');
   const [amountError, setAmountError] = React.useState<string | null>(null);
+  const [shortcut, setShortcut] = React.useState<CollectShortcut>('all');
   const [isPending, startTransition] = React.useTransition();
+  const desktopAmountRef = React.useRef<HTMLInputElement>(null);
 
   const balanceDue = getTicketBalanceDue(total, paid);
 
@@ -80,8 +110,12 @@ export const TicketListCollectPaymentDialog = ({
       setPartial(false);
       setAmountInput('');
       setAmountError(null);
+      setShortcut('all');
+    } else if (!isMobile) {
+      // Desktop starts with the whole saldo in the field.
+      setAmountInput(amountInputValue(balanceDue));
     }
-  }, [open]);
+  }, [open, isMobile, balanceDue]);
 
   const parseAmount = (value: string): number => {
     const parsed = Number.parseFloat(value.replace(/[,\s$]/g, ''));
@@ -106,7 +140,33 @@ export const TicketListCollectPaymentDialog = ({
               ? (total ?? paid ?? 0)
               : (paid ?? 0) + amount;
         vibrateSuccess();
-        toast.success(fullyPaid ? 'Listo, quedó pagado' : 'Cobro anotado');
+        const receipt =
+          fullyPaid && !isMobile && total != null
+            ? buildWhatsAppReceiptShare({
+                phone: clientTel,
+                clientName,
+                ticketId,
+                folio,
+                total,
+                paid: nextPaid,
+                companyName,
+              })
+            : null;
+        if (receipt) {
+          toast.success('Listo, quedó pagado', {
+            description: settledDescription,
+            action: {
+              label: 'Enviar recibo',
+              onClick: () => {
+                window.open(receipt.href, '_blank', 'noopener,noreferrer');
+              },
+            },
+          });
+        } else if (fullyPaid && !isMobile && settledDescription) {
+          toast.success('Listo, quedó pagado', { description: settledDescription });
+        } else {
+          toast.success(fullyPaid ? 'Listo, quedó pagado' : 'Cobro anotado');
+        }
         handleSuccess(nextPaid);
         return;
       }
@@ -141,6 +201,131 @@ export const TicketListCollectPaymentDialog = ({
   };
 
   const chips = getCollectQuickAmounts(balanceDue);
+
+  const pickShortcut = (next: CollectShortcut) => {
+    setShortcut(next);
+    setAmountError(null);
+    if (next === 'all') setAmountInput(amountInputValue(balanceDue));
+    if (next === 'half') setAmountInput(amountInputValue(halfOf(balanceDue)));
+    if (next === 'other') {
+      setAmountInput('');
+      window.requestAnimationFrame(() => desktopAmountRef.current?.focus());
+    }
+  };
+
+
+  const desktopContent = (
+    <form
+      className="mt-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        handlePayPart();
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+        <span className="text-[13px]">Saldo pendiente</span>
+        <span className="text-base font-semibold tabular-nums">
+          <FormattedCurrency amount={balanceDue} />
+        </span>
+      </div>
+
+      <div className="mt-3.5">
+        <label
+          htmlFor={`list-ticket-payment-desktop-${ticketId}`}
+          className="mb-1.5 block text-[13px] font-medium text-slate-700 dark:text-slate-300"
+        >
+          ¿Cuánto pagó?
+        </label>
+        <div className="relative">
+          <span
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xl text-muted-foreground"
+            aria-hidden
+          >
+            $
+          </span>
+          <Input
+            ref={desktopAmountRef}
+            id={`list-ticket-payment-desktop-${ticketId}`}
+            type="text"
+            inputMode="decimal"
+            disabled={isPending}
+            value={amountInput}
+            onChange={(event) => {
+              setAmountInput(event.target.value);
+              setAmountError(null);
+              setShortcut('other');
+            }}
+            placeholder="0.00"
+            aria-invalid={amountError ? true : undefined}
+            aria-describedby={`list-ticket-payment-note-${ticketId}${amountError ? ` list-ticket-payment-err-${ticketId}` : ''}`}
+            className="h-12 rounded-[10px] pl-8 text-xl font-semibold tabular-nums"
+          />
+        </div>
+      </div>
+
+      <div role="radiogroup" aria-label="Cuánto te pagó" className="mt-2.5 flex flex-wrap gap-1.5">
+        {(
+          [
+            { value: 'all', label: 'Todo el saldo' },
+            { value: 'half', label: `La mitad · ${formatServiceCurrency(halfOf(balanceDue))}` },
+            { value: 'other', label: 'Otro monto' },
+          ] as const
+        ).map((option) => {
+          const checked = shortcut === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              disabled={isPending || (option.value === 'half' && balanceDue <= 1)}
+              onClick={() => pickShortcut(option.value)}
+              className={cn(
+                'h-[34px] rounded-full border px-3 text-[13px] font-medium tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                checked
+                  ? FILTER_SELECTED_CLASS
+                  : 'border-border text-slate-700 hover:bg-muted/50 dark:text-slate-300',
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {amountError ? (
+        <p
+          id={`list-ticket-payment-err-${ticketId}`}
+          role="alert"
+          className="mt-2 text-sm text-destructive"
+        >
+          {amountError}
+        </p>
+      ) : null}
+      <p
+        id={`list-ticket-payment-note-${ticketId}`}
+        className="mt-3 text-xs leading-[1.45] text-muted-foreground"
+      >
+        Con todo el saldo el ticket queda{' '}
+        <b className="font-semibold text-emerald-700 dark:text-emerald-400">Pagado</b> y se ofrece
+        enviar el recibo por WhatsApp. Un monto menor lo deja en Pago parcial.
+      </p>
+
+      <div className="mt-4 flex justify-end gap-2">
+        <Button type="button" variant="outline" disabled={isPending} onClick={() => onOpenChange(false)}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending || balanceDue <= 0}>
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Wallet className="h-4 w-4" aria-hidden data-icon="inline-start" />
+          )}
+          Anotar cobro
+        </Button>
+      </div>
+    </form>
+  );
 
   const content = (
     <div className="space-y-4">
@@ -297,10 +482,10 @@ export const TicketListCollectPaymentDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" data-testid="collect-payment-sheet">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{folio?.trim() ? `Cobrar ticket ${folio.trim()}` : title}</DialogTitle>
+          <DialogDescription>{clientName?.trim() || description}</DialogDescription>
         </DialogHeader>
-        {content}
+        {desktopContent}
       </DialogContent>
     </Dialog>
   );

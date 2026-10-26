@@ -1,23 +1,24 @@
 'use client';
 
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CobranzaRow } from '@/lib/cobranza';
-import { COBRANZA_AGING_LABEL } from '@/lib/cobranza';
-import { CobranzaWhatsAppButton } from '@/components/cobranza/cobranza-whatsapp-button';
+import { CobranzaRowActions } from '@/components/cobranza/cobranza-row-actions';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { FormattedDate } from '@/components/formatted-date';
-import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
-import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
-import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
+import { companyDay } from '@/lib/company-day';
+import { formatPhoneDisplay } from '@/lib/phone-links';
+import { cn } from '@/lib/utils';
 
 export type CobranzaColumnsOptions = {
-  onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
+  onCollect: (row: CobranzaRow) => void;
   canWrite?: boolean;
   companyId?: number | null;
   companyName?: string | null;
 };
 
+/** The ticket shape TicketRowActions takes, for the phone cards. */
 export const cobranzaRowToTicketActions = (row: CobranzaRow) => ({
   id: BigInt(row.id),
   finished: row.finished,
@@ -27,110 +28,219 @@ export const cobranzaRowToTicketActions = (row: CobranzaRow) => ({
   ticket_date: row.ticket_date ? new Date(row.ticket_date) : null,
 });
 
+const plural = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+
+/** `2 ago 25`: the short date of the canvas, in the company's calendar. */
+export const formatCobranzaDate = (value: Date | string): string =>
+  format(companyDay(new Date(value)).date, 'd MMM yy', { locale: es }).replace('.', '');
+
+/** Red past 90 days, amber from 31 (ZIG-I31-2). */
+export const cobranzaDaysClassName = (days: number): string =>
+  days > 90
+    ? 'text-red-700 dark:text-red-400'
+    : days > 30
+      ? 'text-amber-800 dark:text-amber-300'
+      : 'text-foreground';
+
+/** A recent payment reads relative («hace 1 día»); an older one shows its date. */
+const RELATIVE_PAYMENT_DAYS = 7;
+
+/** «hoy», «hace 3 días», «3 ago 25»; null when nothing was paid yet. */
+export const formatPaymentWhen = (
+  lastPaymentAt: Date | string | null,
+  daysSinceLastPayment: number | null,
+): string | null => {
+  if (lastPaymentAt == null || daysSinceLastPayment == null) return null;
+  if (daysSinceLastPayment === 0) return 'hoy';
+  if (daysSinceLastPayment <= RELATIVE_PAYMENT_DAYS) {
+    return `hace ${plural(daysSinceLastPayment, 'día', 'días')}`;
+  }
+  return formatCobranzaDate(lastPaymentAt);
+};
+
+/** «último pago hace 1 día», «último pago 3 ago 25», «sin ningún pago». */
+export const formatLastPayment = (
+  lastPaymentAt: Date | string | null,
+  daysSinceLastPayment: number | null,
+): string => {
+  const when = formatPaymentWhen(lastPaymentAt, daysSinceLastPayment);
+  return when ? `último pago ${when}` : 'sin ningún pago';
+};
+
+export const CobranzaDaysCell = ({
+  days,
+  lastPaymentAt,
+  daysSinceLastPayment,
+}: {
+  days: number;
+  lastPaymentAt: Date | string | null;
+  daysSinceLastPayment: number | null;
+}) => (
+  <div className="flex min-w-0 flex-col text-[13px] leading-[1.3]">
+    <span
+      className={cn('font-semibold tabular-nums', cobranzaDaysClassName(days))}
+      data-testid="cobranza-days"
+    >
+      {plural(days, 'día', 'días')}
+    </span>
+    <span
+      className="truncate text-xs font-normal tabular-nums text-muted-foreground"
+      data-testid="cobranza-last-payment"
+    >
+      {formatLastPayment(lastPaymentAt, daysSinceLastPayment)}
+    </span>
+  </div>
+);
+
+/** The first two names of the work, then «+N» for the rest (canvas CobA). */
+export const CobranzaWorkSummary = ({ row }: { row: CobranzaRow }) => {
+  const summary = row.services_summary?.trim();
+  if (!summary) {
+    return <span className="text-[13px] text-muted-foreground">Sin servicios</span>;
+  }
+  const names = summary.split(', ');
+  const extra = Math.max(row.services_count, names.length) - 2;
+  return (
+    <span className="block truncate text-[13px] text-slate-600 dark:text-slate-300" title={summary}>
+      {extra > 0 ? `${names.slice(0, 2).join(', ')}…` : summary}
+      {extra > 0 ? <span className="text-muted-foreground/80"> +{extra}</span> : null}
+    </span>
+  );
+};
+
+const workDate = (row: CobranzaRow): Date => new Date(row.ticket_date ?? row.created_at);
+
 export const createCobranzaColumns = ({
-  onPaymentApplied,
+  onCollect,
   canWrite = false,
   companyId = null,
   companyName = null,
-}: CobranzaColumnsOptions = {}): ColumnDef<CobranzaRow>[] => [
+}: CobranzaColumnsOptions): ColumnDef<CobranzaRow>[] => [
   {
-    id: 'id',
-    accessorFn: (row) => Number(row.id),
-    header: 'ID',
+    id: 'folio',
+    meta: { className: 'w-[5.5rem]' },
+    header: () => <span>Folio</span>,
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.id}</span>
+      <Link
+        href={`/tickets/${row.original.id}`}
+        className="font-mono text-[13px] tabular-nums underline-offset-4 hover:underline"
+        onClick={(event) => event.stopPropagation()}
+        data-testid="cobranza-folio"
+      >
+        {row.original.folio}
+      </Link>
     ),
   },
   {
-    id: 'client_name',
-    accessorKey: 'client_name',
-    header: 'Cliente',
-    // Long names truncate with the full name on hover, so Saldo and ⋮ fit (ZIG-I27-2).
-    cell: ({ row }) =>
-      row.original.client_id != null ? (
-        <Link
-          href={`/clients/${row.original.client_id}`}
-          className="font-medium flex min-h-11 max-w-[11rem] items-center underline-offset-4 hover:underline xl:max-w-[14rem]"
-          title={row.original.client_name ?? undefined}
-        >
-          <span className="truncate">{row.original.client_name ?? 'Sin cliente'}</span>
-        </Link>
-      ) : (
+    id: 'client',
+    header: () => <span>Cliente</span>,
+    cell: ({ row }) => {
+      const name = row.original.client_name?.trim() || 'Sin cliente';
+      const phone = formatPhoneDisplay(row.original.client_tel);
+      return (
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium leading-[1.3]" title={name}>
+            {name}
+          </p>
+          {phone ? (
+            <p className="truncate text-xs tabular-nums leading-4 text-muted-foreground">{phone}</p>
+          ) : null}
+        </div>
+      );
+    },
+  },
+  {
+    id: 'services',
+    // Columns join as the window grows (sidebar open): Trabajo from 1536.
+    meta: { className: 'hidden w-44 2xl:table-cell' },
+    header: () => <span>Trabajo</span>,
+    cell: ({ row }) => <CobranzaWorkSummary row={row.original} />,
+  },
+  {
+    id: 'date',
+    // Días already says how old the work is; the date yields below xl too.
+    meta: { className: 'hidden w-20 xl:table-cell' },
+    header: () => <span>Fecha</span>,
+    cell: ({ row }) => {
+      const date = workDate(row.original);
+      return (
         <span
-          className="block max-w-[11rem] truncate font-medium xl:max-w-[14rem]"
-          title={row.original.client_name ?? undefined}
+          className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
+          title={format(date, 'PPP', { locale: es })}
         >
-          {row.original.client_name ?? 'Sin cliente'}
+          {formatCobranzaDate(date)}
         </span>
-      ),
+      );
+    },
   },
   {
-    id: 'ticket_date',
-    accessorFn: (row) =>
-      new Date(row.ticket_date ?? row.created_at).getTime(),
-    header: 'Fecha',
+    id: 'total',
+    // Total, Pagado and Fecha from 1280; below that Saldo and Días carry the row.
+    meta: { className: 'hidden w-[6.5rem] text-right xl:table-cell' },
+    header: () => <span className="block text-right">Total</span>,
     cell: ({ row }) => (
-      <FormattedDate
-        date={new Date(row.original.ticket_date ?? row.original.created_at)}
-      />
-    ),
-  },
-  {
-    id: 'payment',
-    accessorFn: (row) => row.balanceDue,
-    header: 'Cobro',
-    cell: ({ row }) => (
-      <TicketListPaymentSummary
-        total={row.original.total}
-        paid={row.original.paid}
-      />
-    ),
-  },
-  {
-    id: 'balanceDue',
-    accessorKey: 'balanceDue',
-    header: 'Saldo',
-    cell: ({ row }) => (
-      <span className="font-semibold tabular-nums text-amber-800 dark:text-amber-300">
-        <FormattedCurrency amount={row.original.balanceDue} />
-      </span>
-    ),
-  },
-  {
-    id: 'daysOutstanding',
-    accessorKey: 'daysOutstanding',
-    header: 'Días sin pagar',
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5 text-sm">
-        <span className="tabular-nums">
-          {row.original.daysOutstanding}{' '}
-          {row.original.daysOutstanding === 1 ? 'día' : 'días'}
-        </span>
-        <span className="text-caption text-muted-foreground">
-          {COBRANZA_AGING_LABEL[row.original.agingBucket]}
-        </span>
+      <div className="text-right tabular-nums">
+        <FormattedCurrency amount={row.original.total} />
       </div>
     ),
   },
   {
+    id: 'paid',
+    meta: { className: 'hidden w-[6.5rem] text-right xl:table-cell' },
+    header: () => <span className="block text-right">Pagado</span>,
+    cell: ({ row }) =>
+      (row.original.paid ?? 0) > 0.01 ? (
+        <div className="text-right tabular-nums text-slate-600 dark:text-slate-300">
+          <FormattedCurrency amount={row.original.paid} />
+        </div>
+      ) : (
+        <div className="text-right text-muted-foreground/70">—</div>
+      ),
+  },
+  {
+    id: 'balance',
+    meta: { className: 'w-28 text-right' },
+    header: () => <span className="block text-right">Saldo</span>,
+    cell: ({ row }) => (
+      <div
+        className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-300"
+        data-testid="cobranza-balance"
+      >
+        <FormattedCurrency amount={row.original.balanceDue} />
+      </div>
+    ),
+  },
+  {
+    id: 'days',
+    meta: { className: 'w-[9.5rem]' },
+    header: () => <span>Días sin pagar</span>,
+    cell: ({ row }) => (
+      <CobranzaDaysCell
+        days={row.original.daysOutstanding}
+        lastPaymentAt={row.original.last_payment_at}
+        daysSinceLastPayment={row.original.daysSinceLastPayment}
+      />
+    ),
+  },
+  {
     id: 'actions',
-    enableSorting: false,
+    // Cobrar · WhatsApp · ⋮, as in the canvas Acciones column.
+    meta: { className: 'w-[9.5rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div
-        className="flex items-center justify-end gap-0.5"
+        className="flex justify-end"
         onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}
       >
-        <CobranzaWhatsAppButton
+        <CobranzaRowActions
           row={row.original}
-          companyName={companyName}
-        />
-        <TicketRowActions
-          ticket={cobranzaRowToTicketActions(row.original)}
-          onPaymentApplied={onPaymentApplied}
           canWrite={canWrite}
           companyId={companyId}
+          companyName={companyName}
+          onCollect={onCollect}
         />
       </div>
     ),

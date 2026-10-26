@@ -278,7 +278,9 @@ export const companySummaryOutputSchema = z.object({
     .describe('Saldo de los trabajos terminados por cobrar (tarjeta Por cobrar de Inicio).'),
   pending_balance_total: z
     .number()
-    .describe('Saldo pendiente de todos los tickets (KPI Saldo por cobrar del dashboard).'),
+    .describe(
+      'Saldo pendiente de los tickets terminados (KPI Saldo por cobrar del dashboard; los En proceso no cuentan).',
+    ),
   active_tickets: z.number().int(),
   payment_status_counts: z.object({
     pendiente: paymentStatusBucketSchema,
