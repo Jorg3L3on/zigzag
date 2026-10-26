@@ -226,7 +226,7 @@ export const ServiceSchedulesList = () => {
       setActionLoading(true);
       const result = await snoozeClientServiceSchedule(
         schedule.id,
-        7,
+        { days: 7 },
         selectedCompany?.id ?? null,
       );
       setActionLoading(false);
