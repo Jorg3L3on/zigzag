@@ -80,7 +80,7 @@ const RoleListItem = ({ role }: { role: CompanyRoleSummary }) => {
     <>
       <span className="flex w-full items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 font-semibold">
-          <span className="truncate">{role.isGlobal ? teamRoleLabel(role.name) : role.name}</span>
+          <span className="truncate">{teamRoleLabel(role.name)}</span>
           {role.isGlobal ? (
             <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Rol compartido" />
           ) : null}
@@ -144,7 +144,7 @@ const RoleCard = ({
   >
     <span className="flex w-full items-center justify-between gap-2">
       <span className="truncate font-semibold">
-        {role.isGlobal ? teamRoleLabel(role.name) : role.name}
+        {teamRoleLabel(role.name)}
       </span>
       <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
         {peopleBadge(role.userCount)}
