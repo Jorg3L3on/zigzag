@@ -24,6 +24,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   presupuesto_canceled: 'Presupuesto cancelado',
   receipt_shared: 'Recibo compartido',
   presupuesto_duplicated: 'Presupuesto duplicado',
+  presupuesto_extended: 'Vigencia del presupuesto extendida',
   logo_uploaded: 'Logo subido',
   logo_removed: 'Logo eliminado',
   permissions_changed: 'Permisos modificados',

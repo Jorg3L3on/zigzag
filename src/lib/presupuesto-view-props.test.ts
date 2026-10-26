@@ -104,6 +104,26 @@ describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
     expect(fallback.clientAddress).toBeNull();
   });
 
+  it('treats an address that is only the country as no address, like the ticket card', () => {
+    const props = buildPresupuestoViewProps({
+      ...(row as object),
+      client: {
+        email: null,
+        phone: '9981000002',
+        street: null,
+        exterior_number: null,
+        interior_number: null,
+        neighborhood: null,
+        city: null,
+        state: null,
+        postal_code: null,
+        country: 'México',
+        address: null,
+      },
+    } as never);
+    expect(props.clientAddress).toBeNull();
+  });
+
   it('maps the row into composer edit state, keeping inline lines inline', () => {
     const state = buildPresupuestoEditState(row);
     expect(state.client).toEqual({
