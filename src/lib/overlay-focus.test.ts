@@ -36,4 +36,19 @@ describe('focusInitialOverlayTarget', () => {
 
     expect(focusSpy).toHaveBeenCalled();
   });
+
+  it('focuses the panel itself while its content has no control yet', () => {
+    const container = document.createElement('div');
+    container.tabIndex = -1;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.setAttribute('data-overlay-close', '');
+    container.append(close);
+    document.body.append(container);
+
+    focusInitialOverlayTarget(new Event('focusin', { cancelable: true }), container);
+
+    expect(document.activeElement).toBe(container);
+    container.remove();
+  });
 });

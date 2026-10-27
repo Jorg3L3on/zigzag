@@ -33,5 +33,7 @@ export const focusInitialOverlayTarget = (
       element.tabIndex !== -1,
   );
 
-  candidates[0]?.focus();
+  // Content still loading has no control yet: focus the panel itself, as Radix would,
+  // so focus never stays on the row that opened it.
+  (candidates[0] ?? container).focus();
 };

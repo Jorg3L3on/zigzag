@@ -103,7 +103,6 @@ export const ScheduleActionsMenu = ({
           className={cn('shrink-0', triggerClassName ?? ROW_TRIGGER_CLASS)}
           aria-label={`Acciones del recordatorio de ${schedule.clientName}`}
           onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
         >
           <MoreHorizontal className="size-4" aria-hidden />
         </Button>

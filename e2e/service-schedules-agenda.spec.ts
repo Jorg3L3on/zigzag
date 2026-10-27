@@ -272,6 +272,8 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30, ZIG-I33-5)', () => {
     await page.getByRole('menuitem', { name: /^30 días/ }).click();
     await expect(panel.getByText('en 30 días')).toBeVisible();
     await expect(tabCount(page, 'por-atender')).toHaveText('2');
+    // The menu's exit animation would take the first Escape.
+    await expect(page.getByRole('menu')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
     await expect(page).not.toHaveURL(/ver=/);
