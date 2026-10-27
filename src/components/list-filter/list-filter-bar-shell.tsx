@@ -234,8 +234,10 @@ export const ListFilterBarShell = ({
         {desktopInline && showFilterSheet ? (
           <div
             className={cn(
-              "hidden shrink-0 items-center gap-3 lg:flex",
-              desktopTrailing != null && "min-w-0 flex-1",
+              "hidden items-center gap-3 lg:flex",
+              // With a trailing control the row can run out of room (Limpiar filtros
+              // appears with a filter): wrap instead of overflowing the page.
+              desktopTrailing != null ? "min-w-0 flex-1 flex-wrap" : "shrink-0",
             )}
           >
             {desktopContent}
