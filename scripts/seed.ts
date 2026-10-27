@@ -419,6 +419,9 @@ async function main() {
   });
   // Rows inserted straight into the table get their company folio here.
   await backfillMissingFolios(db);
+  // The demo company is inserted with a fixed id after the first sync, so sync again:
+  // otherwise the next company created on a fresh database collides with it (ZIG-31).
+  await syncPostgresIdSequences();
   console.log(
     `Seeded demo company "${demoResult.companyId}" with ${demoResult.ticketCount} tickets.`,
   );
