@@ -154,7 +154,17 @@ Dashboard list pages (TanStack table + mobile cards): [.cursor/rules/lists-and-r
 
 ### Deployment (Vercel)
 
-**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). **`sandbox`** is the integration branch: initiatives branch `feat/<slug>` off `sandbox`, slice PRs merge into `feat/<slug>` (agents squash-merge once the local checks pass; there is no GitHub CI for now), and the final PR goes **`feat/<slug>` → `sandbox`**; standalone fixes PR straight into `sandbox`. Agents open but never merge PRs into `sandbox`, and never target `main`: **only Jorge merges `sandbox` → `main`**. Nothing below `main` gets a preview deploy, so verify locally. Ports 3069 and 3071 are Jorge's dev servers; agents use 3072+. See [docs/agents/deployment.md](docs/agents/deployment.md).
+**`main` = production** (only branch Vercel builds; see `git.deploymentEnabled` in `vercel.json`). **`sandbox`** is the integration branch: initiatives branch `feat/<slug>` off `sandbox`, slice PRs merge into `feat/<slug>` (agents squash-merge once CI is green), and the final PR goes **`feat/<slug>` → `sandbox`**; standalone fixes PR straight into `sandbox`. Agents open but never merge PRs into `sandbox`, and never target `main`: **only Jorge merges `sandbox` → `main`**. Nothing below `main` gets a preview deploy, so UI changes are looked at locally (see Checks before a PR). Ports 3069 and 3071 are Jorge's dev servers; agents use 3072+. See [docs/agents/deployment.md](docs/agents/deployment.md).
+
+### Checks before a PR
+
+GitHub CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every PR into `sandbox`, `main` and `feat/**`: typecheck, lint, migration safety, IDOR coverage, the migrations twice on an empty Postgres plus the seed, jest (the `*.db.test.ts` suites included) and the production build. Locally, keep the checks proportional to the change (Jorge, ZIG-31):
+
+- **Every PR:** `npx tsc --noEmit`, `npm run lint` and the jest suites of the code you touched. No production build.
+- **UI work:** one build of the branch (or a dev server on 3072+), then screenshots of the changed pages at 1280 px, plus 1024 px when the layout changes there, and one dark look when colors change. Never a second build of the base branch.
+- **Phone A/B against the base:** only when the change edits a phone layout (classes below `md`, phone-only components).
+- **Playwright:** only the specs that cover the changed flow, never the full suite.
+- **A database copy and a test login:** only for flows that write data or need a signed-in page.
 
 ## Cursor Cloud specific instructions
 

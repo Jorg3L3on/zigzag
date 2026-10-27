@@ -1,0 +1,86 @@
+name: CI
+
+# Every PR into sandbox, main or an initiative branch, and every push to sandbox and
+# main. The production build runs here so agents do not have to run it locally on
+# every PR (see "Checks before a PR" in AGENTS.md).
+on:
+  pull_request:
+    branches: [sandbox, main, "feat/**"]
+  push:
+    branches: [sandbox, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Throwaway database: migrations, the seed and the *.db.test.ts suites (they run
+    # whenever DATABASE_URL points at a local host).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: zigzag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # 127.0.0.1, not localhost, so it never resolves to IPv6.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/zigzag
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/zigzag
+      AUTH_SECRET: ci-auth-secret-with-at-least-32-characters
+      NEXTAUTH_URL: http://127.0.0.1:3000
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The migration safety check diffs against the base branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      # Fails when a PR adds a migration that can lose data without a `-- data-loss-ok:` line.
+      - name: Migration safety
+        if: github.event_name == 'pull_request'
+        run: npm run check:migrations
+
+      - name: IDOR coverage gate
+        run: npm run check:idor-coverage
+
+      # Every migration applies on an empty database and a second run is a no-op.
+      - name: Migrate twice and seed
+        run: |
+          npm run db:migrate
+          npm run db:migrate
+          npm run seed
+
+      - name: Unit and database tests
+        run: npx jest --ci --maxWorkers=2
+
+      - name: Production build
+        run: npm run build
