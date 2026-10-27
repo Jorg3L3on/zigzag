@@ -70,7 +70,7 @@ test.describe('Listas de administración en escritorio @1280px (ZIG-I33-7)', () 
     await page.getByRole('menuitem', { name: 'Editar' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText('Actualizar usuario')).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Actualizar usuario' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
   });
