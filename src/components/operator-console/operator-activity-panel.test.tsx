@@ -168,11 +168,12 @@ describe('OperatorActivityPanel', () => {
       ).not.toBeInTheDocument();
 
       fireEvent.click(row);
-      expect(row).toHaveAttribute('aria-expanded', 'true');
+      // aria-expanded is not allowed on a table row (axe aria-conditional-attr); the open row is selected.
+      expect(row).toHaveAttribute('data-state', 'selected');
       expect(screen.getByText('Carga útil')).toBeInTheDocument();
 
       fireEvent.keyDown(row, { key: 'Enter' });
-      expect(row).toHaveAttribute('aria-expanded', 'false');
+      expect(row).not.toHaveAttribute('data-state');
       expect(screen.queryByText('Carga útil')).not.toBeInTheDocument();
     });
 
