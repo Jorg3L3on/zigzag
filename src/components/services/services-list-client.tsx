@@ -511,7 +511,7 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
                 ))}
               </TableBody>
             </table>
-            <p className="border-t border-border/70 px-4 py-3 text-[13px] tabular-nums text-muted-foreground">
+            <p className="border-t border-border/70 px-4 py-3 text-sm tabular-nums text-muted-foreground md:text-[13px]">
               {filteredServices.length} de {services.length} servicios
             </p>
           </div>

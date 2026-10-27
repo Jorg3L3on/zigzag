@@ -684,7 +684,7 @@ export function ClientList({ desktopActions }: ClientListProps = {}) {
               </TableBody>
             </table>
             <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
-              <p className="text-[13px] tabular-nums text-muted-foreground">
+              <p className="text-sm tabular-nums text-muted-foreground md:text-[13px]">
                 {firstShown}–{lastShown} de {filteredClients.length} clientes
               </p>
               {table.getPageCount() > 1 ? (

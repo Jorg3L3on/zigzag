@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
  */
 
 export const LIST_SORTABLE_HEADER_CLASS =
-  '-ml-1.5 h-7 max-w-full gap-1 px-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-transparent hover:text-foreground';
+  '-ml-1.5 h-7 max-w-full gap-1 px-1.5 md:text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-transparent hover:text-foreground';
 
 /** «8 oct», with the year only when it is not this one, like the tickets list. */
 export const ListShortDate = ({ date }: { date: Date | null | undefined }) => {
