@@ -8,7 +8,8 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
-import { TicketListRowQuickActions } from '@/components/tickets/ticket-list-row-quick-actions';
+import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
+import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import {
   getTicketBalanceDue,
   getTicketPaymentStatus,
@@ -293,7 +294,7 @@ export const createTicketsColumns = ({
   {
     id: 'actions',
     enableSorting: false,
-    // Only ⋮ takes room; Cobrar, Terminar and PDF float with the row (canvas hover actions).
+    // Only ⋯: no buttons appear on hover, Terminar, Cobrar and the PDF live in the menu (ZIG-33).
     meta: { className: 'w-[3.25rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
@@ -302,13 +303,19 @@ export const createTicketsColumns = ({
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <TicketListRowQuickActions
+        <TicketRowActions
           ticket={row.original}
           onDelete={onDelete}
           onDeleteFailed={onDeleteFailed}
           onPaymentApplied={onPaymentApplied}
           canWrite={canWrite}
           companyId={companyId}
+          triggerIcon="horizontal"
+          finishHref={
+            row.original.services_summary?.trim()
+              ? hrefForTicketListRow(row.original, canWrite)
+              : undefined
+          }
         />
       </div>
     ),
