@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { CobranzaRow } from '@/lib/cobranza';
+import type { CobranzaRow, CobranzaSort } from '@/lib/cobranza';
 import { CobranzaRowActions } from '@/components/cobranza/cobranza-row-actions';
 import { FormattedCurrency } from '@/components/formatted-currency';
+import { ListShortDate, ListSortableHeader } from '@/components/list-page';
 import { companyDay } from '@/lib/company-day';
 import { formatPhoneDisplay } from '@/lib/phone-links';
 import { cn } from '@/lib/utils';
@@ -31,9 +32,15 @@ export const cobranzaRowToTicketActions = (row: CobranzaRow) => ({
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
-/** `2 ago 25`: the short date of the canvas, in the company's calendar. */
-export const formatCobranzaDate = (value: Date | string): string =>
-  format(companyDay(new Date(value)).date, 'd MMM yy', { locale: es }).replace('.', '');
+/**
+ * ListShortDate as text («8 oct», «3 ago 2025»), for the lines that word a date
+ * inside a sentence: the last payment. Date columns use ListShortDate (ZIG-I33 §6).
+ */
+export const formatCobranzaDate = (value: Date | string): string => {
+  const day = companyDay(new Date(value)).date;
+  const thisYear = companyDay(new Date()).date.getUTCFullYear();
+  return format(day, day.getUTCFullYear() === thisYear ? 'd MMM' : 'd MMM yyyy', { locale: es });
+};
 
 /** Red past 90 days, amber from 31 (ZIG-I31-2). */
 export const cobranzaDaysClassName = (days: number): string =>
@@ -46,7 +53,7 @@ export const cobranzaDaysClassName = (days: number): string =>
 /** A recent payment reads relative («hace 1 día»); an older one shows its date. */
 const RELATIVE_PAYMENT_DAYS = 7;
 
-/** «hoy», «hace 3 días», «3 ago 25»; null when nothing was paid yet. */
+/** «hoy», «hace 3 días», «3 ago 2025»; null when nothing was paid yet. */
 export const formatPaymentWhen = (
   lastPaymentAt: Date | string | null,
   daysSinceLastPayment: number | null,
@@ -59,7 +66,7 @@ export const formatPaymentWhen = (
   return formatCobranzaDate(lastPaymentAt);
 };
 
-/** «último pago hace 1 día», «último pago 3 ago 25», «sin ningún pago». */
+/** «último pago hace 1 día», «último pago 3 ago 2025», «sin ningún pago». */
 export const formatLastPayment = (
   lastPaymentAt: Date | string | null,
   daysSinceLastPayment: number | null,
@@ -111,6 +118,20 @@ export const CobranzaWorkSummary = ({ row }: { row: CobranzaRow }) => {
 
 const workDate = (row: CobranzaRow): Date => new Date(row.ticket_date ?? row.created_at);
 
+/**
+ * The Por ticket column behind each server order (ZIG-I33-3): the header sorts, the
+ * page sends `sort` and its direction to getCobranzaPaginated.
+ */
+export const COBRANZA_SORT_COLUMN = {
+  folio: 'folio',
+  client: 'client',
+  recent: 'date',
+  total: 'total',
+  paid: 'paid',
+  balance: 'balance',
+  days: 'days',
+} as const satisfies Record<CobranzaSort, string>;
+
 export const createCobranzaColumns = ({
   onCollect,
   canWrite = false,
@@ -119,13 +140,14 @@ export const createCobranzaColumns = ({
 }: CobranzaColumnsOptions): ColumnDef<CobranzaRow>[] => [
   {
     id: 'folio',
+    accessorFn: (row) => row.folio,
+    sortDescFirst: false,
     meta: { className: 'w-[5.5rem]' },
-    header: () => <span>Folio</span>,
+    header: ({ column }) => <ListSortableHeader column={column} label="Folio" />,
     cell: ({ row }) => (
       <Link
         href={`/tickets/${row.original.id}`}
-        className="font-mono text-[13px] tabular-nums underline-offset-4 hover:underline"
-        onClick={(event) => event.stopPropagation()}
+        className="font-mono tabular-nums underline-offset-4 hover:underline md:text-[13px]"
         data-testid="cobranza-folio"
       >
         {row.original.folio}
@@ -134,7 +156,9 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'client',
-    header: () => <span>Cliente</span>,
+    accessorFn: (row) => row.client_name ?? '',
+    sortDescFirst: false,
+    header: ({ column }) => <ListSortableHeader column={column} label="Cliente" />,
     cell: ({ row }) => {
       const name = row.original.client_name?.trim() || 'Sin cliente';
       const phone = formatPhoneDisplay(row.original.client_tel);
@@ -152,6 +176,7 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'services',
+    enableSorting: false,
     // Columns join as the window grows (sidebar open): Trabajo from 1536.
     meta: { className: 'hidden w-44 2xl:table-cell' },
     header: () => <span>Trabajo</span>,
@@ -159,62 +184,58 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'date',
+    accessorFn: (row) => workDate(row).getTime(),
+    sortDescFirst: true,
     // Días already says how old the work is; the date yields below xl too.
-    meta: { className: 'hidden w-20 xl:table-cell' },
-    header: () => <span>Fecha</span>,
-    cell: ({ row }) => {
-      const date = workDate(row.original);
-      return (
-        <span
-          className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
-          title={format(date, 'PPP', { locale: es })}
-        >
-          {formatCobranzaDate(date)}
-        </span>
-      );
-    },
+    meta: { className: 'hidden w-24 xl:table-cell' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Fecha" />,
+    cell: ({ row }) => <ListShortDate date={workDate(row.original)} />,
   },
   {
     id: 'total',
+    accessorFn: (row) => row.total ?? 0,
+    sortDescFirst: true,
     // Total, Pagado and Fecha from 1280; below that Saldo and Días carry the row.
-    meta: { className: 'hidden w-[6.5rem] text-right xl:table-cell' },
-    header: () => <span className="block text-right">Total</span>,
-    cell: ({ row }) => (
-      <div className="text-right tabular-nums">
-        <FormattedCurrency amount={row.original.total} />
-      </div>
-    ),
+    meta: { className: 'hidden w-[6.5rem] xl:table-cell', align: 'right' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Total" align="right" />,
+    cell: ({ row }) => <FormattedCurrency amount={row.original.total} />,
   },
   {
     id: 'paid',
-    meta: { className: 'hidden w-[6.5rem] text-right xl:table-cell' },
-    header: () => <span className="block text-right">Pagado</span>,
+    accessorFn: (row) => row.paid ?? 0,
+    sortDescFirst: true,
+    meta: { className: 'hidden w-[6.5rem] xl:table-cell', align: 'right' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Pagado" align="right" />,
     cell: ({ row }) =>
       (row.original.paid ?? 0) > 0.01 ? (
-        <div className="text-right tabular-nums text-slate-600 dark:text-slate-300">
+        <span className="text-slate-600 dark:text-slate-300">
           <FormattedCurrency amount={row.original.paid} />
-        </div>
+        </span>
       ) : (
-        <div className="text-right text-muted-foreground/70">—</div>
+        <span className="text-muted-foreground/70">—</span>
       ),
   },
   {
     id: 'balance',
-    meta: { className: 'w-28 text-right' },
-    header: () => <span className="block text-right">Saldo</span>,
+    accessorFn: (row) => row.balanceDue,
+    sortDescFirst: true,
+    meta: { className: 'w-28', align: 'right' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Saldo" align="right" />,
     cell: ({ row }) => (
-      <div
-        className="text-right font-semibold tabular-nums text-amber-700 dark:text-amber-300"
+      <span
+        className="font-semibold text-amber-700 dark:text-amber-300"
         data-testid="cobranza-balance"
       >
         <FormattedCurrency amount={row.original.balanceDue} />
-      </div>
+      </span>
     ),
   },
   {
     id: 'days',
+    accessorFn: (row) => row.daysOutstanding,
+    sortDescFirst: true,
     meta: { className: 'w-[9.5rem]' },
-    header: () => <span>Días sin pagar</span>,
+    header: ({ column }) => <ListSortableHeader column={column} label="Días sin pagar" />,
     cell: ({ row }) => (
       <CobranzaDaysCell
         days={row.original.daysOutstanding}
@@ -225,24 +246,18 @@ export const createCobranzaColumns = ({
   },
   {
     id: 'actions',
-    // Cobrar · WhatsApp · ⋮, as in the canvas Acciones column.
-    meta: { className: 'w-[9.5rem]' },
+    enableSorting: false,
+    // Cobrar always visible, then the ⋯ (ZIG-I33 §5).
+    meta: { className: 'w-[8.5rem]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
-      <div
-        className="flex justify-end"
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-      >
-        <CobranzaRowActions
-          row={row.original}
-          canWrite={canWrite}
-          companyId={companyId}
-          companyName={companyName}
-          onCollect={onCollect}
-        />
-      </div>
+      <CobranzaRowActions
+        row={row.original}
+        canWrite={canWrite}
+        companyId={companyId}
+        companyName={companyName}
+        onCollect={onCollect}
+      />
     ),
   },
 ];

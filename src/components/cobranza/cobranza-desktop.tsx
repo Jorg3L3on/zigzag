@@ -3,13 +3,14 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { toast } from 'sonner';
 import {
   getCoreRowModel,
   useReactTable,
+  type OnChangeFn,
   type PaginationState,
+  type SortingState,
 } from '@tanstack/react-table';
-import { Banknote, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Banknote } from 'lucide-react';
 import {
   getCobranzaPaginated,
   type CobranzaGroupBy,
@@ -17,29 +18,35 @@ import {
 } from '@/actions/cobranza';
 import { CobranzaAgingStrip } from '@/components/cobranza/cobranza-aging-strip';
 import { CobranzaClientTable } from '@/components/cobranza/cobranza-client-table';
-import { createCobranzaColumns } from '@/components/cobranza/cobranza-columns';
 import {
-  COBRANZA_TABLE_CARD_CLASS,
-  CobranzaTicketTable,
-} from '@/components/cobranza/cobranza-ticket-table';
+  COBRANZA_SORT_COLUMN,
+  createCobranzaColumns,
+} from '@/components/cobranza/cobranza-columns';
+import { CobranzaTicketTable } from '@/components/cobranza/cobranza-ticket-table';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { TicketListCollectPaymentDialog } from '@/components/tickets/ticket-list-collect-payment-dialog';
-import { TripledEmptyState, TripledListLoadingState } from '@/components/tripled';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFilterSelect,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListTableCard,
+  ListToolbar,
+  type ListFooterPagination,
+} from '@/components/list-page';
+import { TicketListCollectPaymentDialog } from '@/components/tickets/ticket-list-collect-payment-dialog';
+import { Button } from '@/components/ui/button';
 import { useCompany } from '@/contexts/company-context';
 import {
+  COBRANZA_SORT_FIRST_DIRECTION,
+  isCobranzaSort,
   isCobranzaStatusFilter,
   type CobranzaAgingBucket,
   type CobranzaRow,
   type CobranzaSort,
+  type CobranzaSortDirection,
   type CobranzaStatusFilter,
 } from '@/lib/cobranza';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
@@ -47,24 +54,13 @@ import { cn } from '@/lib/utils';
 
 const TABLE_ID = 'cobranza-desktop-table';
 const PAGE_SIZE = 25;
+/** ZIG-I33 §2: the search waits 300 ms and never reaches the URL. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_OPTIONS: Array<{ value: CobranzaStatusFilter; label: string }> = [
   { value: 'all', label: 'Pendientes y parciales' },
   { value: 'pending', label: 'Solo pendientes' },
   { value: 'partial', label: 'Solo parciales' },
-];
-
-/** Desktop labels of the canvas; the phone keeps its own (COBRANZA_SORT_OPTIONS). */
-const TICKET_SORT_OPTIONS: Array<{ value: CobranzaSort; label: string }> = [
-  { value: 'days', label: 'Más días sin pagar' },
-  { value: 'balance', label: 'Mayor saldo' },
-  { value: 'recent', label: 'Más recientes' },
-];
-
-/** Por cliente sorts the groups: Mayor saldo first (canvas CobB), or the oldest work. */
-const CLIENT_SORT_OPTIONS: Array<{ value: CobranzaSort; label: string }> = [
-  { value: 'balance', label: 'Mayor saldo' },
-  { value: 'days', label: 'Más días sin pagar' },
 ];
 
 const VIEW_COPY: Record<CobranzaGroupBy, { subtitle: string; placeholder: string }> = {
@@ -90,14 +86,50 @@ export const parseCobranzaTramo = (value: string | null): CobranzaAgingBucket =>
 const tramoParam = (bucket: CobranzaAgingBucket): string | null =>
   bucket === 'all' ? null : bucket;
 
-/** `?orden=` per view; each view drops its own default from the URL. */
+/** The server order behind the table headers, and its direction. */
+export type CobranzaOrder = { sort: CobranzaSort; direction: CobranzaSortDirection };
+
+/** Each view's default order, which the URL leaves out. */
 const DEFAULT_SORT: Record<CobranzaGroupBy, CobranzaSort> = { ticket: 'days', client: 'balance' };
 
-const parseSort = (value: string | null, groupBy: CobranzaGroupBy): CobranzaSort => {
-  const options = groupBy === 'client' ? CLIENT_SORT_OPTIONS : TICKET_SORT_OPTIONS;
-  return options.some((option) => option.value === value)
-    ? (value as CobranzaSort)
-    : DEFAULT_SORT[groupBy];
+/** Por cliente sorts the groups by Más antiguo or Saldo total only. */
+const CLIENT_SORTS: ReadonlySet<CobranzaSort> = new Set(['balance', 'days']);
+
+/**
+ * `?orden=`: the order (`balance`) in its first direction, or with the other one
+ * (`balance-asc`); anything else is the view's default.
+ */
+export const parseCobranzaOrder = (
+  value: string | null,
+  groupBy: CobranzaGroupBy,
+): CobranzaOrder => {
+  const [key = '', dir] = (value ?? '').trim().split('-');
+  const allowed =
+    isCobranzaSort(key) && (groupBy === 'ticket' || CLIENT_SORTS.has(key));
+  const sort = allowed ? key : DEFAULT_SORT[groupBy];
+  const direction: CobranzaSortDirection =
+    allowed && (dir === 'asc' || dir === 'desc') ? dir : COBRANZA_SORT_FIRST_DIRECTION[sort];
+  return { sort, direction };
+};
+
+/** The `?orden=` value of an order; null for the view's default. */
+export const cobranzaOrderParam = (
+  { sort, direction }: CobranzaOrder,
+  groupBy: CobranzaGroupBy,
+): string | null => {
+  const first = COBRANZA_SORT_FIRST_DIRECTION[sort];
+  if (sort === DEFAULT_SORT[groupBy] && direction === first) return null;
+  return direction === first ? sort : `${sort}-${direction}`;
+};
+
+/** The table column of each order: Por ticket maps Fecha to `recent`; Por cliente uses the order. */
+const sortColumnId = (sort: CobranzaSort, groupBy: CobranzaGroupBy): string =>
+  groupBy === 'ticket' ? COBRANZA_SORT_COLUMN[sort] : sort;
+
+const sortOfColumn = (columnId: string, groupBy: CobranzaGroupBy): CobranzaSort | null => {
+  if (groupBy === 'client') return isCobranzaSort(columnId) ? columnId : null;
+  const entry = Object.entries(COBRANZA_SORT_COLUMN).find(([, column]) => column === columnId);
+  return entry ? (entry[0] as CobranzaSort) : null;
 };
 
 const plural = (count: number, one: string, many: string) =>
@@ -110,8 +142,10 @@ type CobranzaDesktopProps = {
 };
 
 /**
- * Cobranza from md (ZIG-I31-2/3, canvas CobA/CobB): aging strip with amounts,
- * the queue by ticket or by client, and the En proceso footnote. Finished work only.
+ * Cobranza from lg (ZIG-I31-2/3, canvas CobA/CobB; ZIG-I33-3 list standard): the
+ * title with the queue count, the aging strip with amounts, the filter row, the
+ * queue by ticket or by client sorted from its headers on the server, and the
+ * footer with the sum, the En proceso note and the pager. Finished work only.
  */
 export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopProps) => {
   const { selectedCompany } = useCompany();
@@ -127,12 +161,11 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
   // Por cliente has no payment-state filter (canvas CobB); it always shows every saldo.
   const status: CobranzaStatusFilter =
     groupBy === 'ticket' && statusRaw && isCobranzaStatusFilter(statusRaw) ? statusRaw : 'all';
-  const sort = parseSort(searchParams.get('orden'), groupBy);
+  const { sort, direction } = parseCobranzaOrder(searchParams.get('orden'), groupBy);
   const clientIdParam = searchParams.get('clientId');
   const clientId =
     clientIdParam && /^\d+$/.test(clientIdParam) ? Number(clientIdParam) : null;
   const copy = VIEW_COPY[groupBy];
-  const sortOptions = groupBy === 'client' ? CLIENT_SORT_OPTIONS : TICKET_SORT_OPTIONS;
 
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
@@ -147,14 +180,17 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
   const requestRef = React.useRef(0);
 
   React.useEffect(() => {
-    const timeoutId = window.setTimeout(() => setDebouncedSearch(searchValue.trim()), 250);
+    const timeoutId = window.setTimeout(
+      () => setDebouncedSearch(searchValue.trim()),
+      SEARCH_DEBOUNCE_MS,
+    );
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
 
-  // Any filter change goes back to the first page.
+  // Any filter or order change goes back to the first page.
   React.useEffect(() => {
     setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
-  }, [bucket, groupBy, status, sort, clientId, debouncedSearch]);
+  }, [bucket, groupBy, status, sort, direction, clientId, debouncedSearch]);
 
   const replaceParams = React.useCallback(
     (edit: (params: URLSearchParams) => void) => {
@@ -183,6 +219,25 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
       params.delete('orden');
     });
 
+  // The headers sort: the order lives in `?orden=` and the server applies it.
+  const sorting = React.useMemo<SortingState>(
+    () => [{ id: sortColumnId(sort, groupBy), desc: direction === 'desc' }],
+    [direction, groupBy, sort],
+  );
+  const onSortingChange = React.useCallback<OnChangeFn<SortingState>>(
+    (updater) => {
+      const next = typeof updater === 'function' ? updater(sorting) : updater;
+      const first = next[0];
+      const nextSort = first ? sortOfColumn(first.id, groupBy) : null;
+      if (!first || !nextSort) return;
+      setParam(
+        'orden',
+        cobranzaOrderParam({ sort: nextSort, direction: first.desc ? 'desc' : 'asc' }, groupBy),
+      );
+    },
+    [groupBy, setParam, sorting],
+  );
+
   const load = React.useCallback(async () => {
     if (!enabled) return;
     const requestId = ++requestRef.current;
@@ -193,6 +248,7 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
       status,
       search: debouncedSearch,
       sort,
+      sortDirection: direction,
       groupBy,
       clientId,
       page: pagination.pageIndex + 1,
@@ -202,12 +258,10 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
     setLoading(false);
     if (!result.success || !result.data) {
       const errorType = classifyClientError(null, undefined, result.errorType);
-      const message = getErrorMessageByType(
-        errorType,
-        result.error || 'No se pudo cargar la cobranza',
+      // The error state says it (role=alert); no toast on top (ZIG-I33 §8).
+      setLoadError(
+        getErrorMessageByType(errorType, result.error || 'No se pudo cargar la cobranza'),
       );
-      setLoadError(message);
-      toast.error(message);
       return;
     }
     setLoadError(null);
@@ -217,6 +271,7 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
     clientId,
     companyId,
     debouncedSearch,
+    direction,
     enabled,
     groupBy,
     pagination.pageIndex,
@@ -244,15 +299,19 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
     data: data?.rows ?? [],
     columns,
     manualPagination: true,
+    manualSorting: true,
+    enableSortingRemoval: false,
     pageCount: data?.totalPages ?? 1,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange,
     getCoreRowModel: getCoreRowModel(),
   });
 
   const hasFilters =
     bucket !== 'all' || status !== 'all' || debouncedSearch.length > 0 || clientId != null;
 
+  // Limpiar never touches the order (ZIG-I33 §2).
   const clearFilters = () => {
     setSearchValue('');
     setDebouncedSearch('');
@@ -266,59 +325,119 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
     clientId != null
       ? (data?.rows[0]?.client_name ?? data?.groups[0]?.client_name ?? `#${clientId}`)
       : null;
-  const shown = groupBy === 'client' ? (data?.groups.length ?? 0) : (data?.rows.length ?? 0);
-  const totalPages = data?.totalPages ?? 1;
-  const pageIndex = pagination.pageIndex;
+  const refreshing = data != null && loading;
+
+  const footer = (pageData: CobranzaPaginatedData) => {
+    const shown = groupBy === 'client' ? pageData.groups.length : pageData.rows.length;
+    const start = (pageData.page - 1) * pageData.pageSize + 1;
+    const range =
+      pageData.totalPages > 1 ? `${start}–${start + shown - 1}` : String(shown);
+    const pager: ListFooterPagination = {
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+      pageCount: pageData.totalPages,
+      onPageChange: (pageIndex) => setPagination((prev) => ({ ...prev, pageIndex })),
+      onPageSizeChange: (pageSize) => setPagination({ pageIndex: 0, pageSize }),
+    };
+    return (
+      <div data-testid="cobranza-footer">
+        <ListFooter
+          total={pageData.total}
+          noun={groupBy === 'client' ? 'clientes' : 'tickets'}
+          pagination={pager}
+          label={
+            groupBy === 'client' ? (
+              <>
+                {range} de {plural(pageData.total, 'cliente', 'clientes')} ·{' '}
+                <FormattedCurrency amount={pageData.totalBalance} /> en{' '}
+                {plural(pageData.ticketCount, 'ticket', 'tickets')}
+              </>
+            ) : (
+              <>
+                {range} de {plural(pageData.total, 'ticket', 'tickets')} · suman{' '}
+                <FormattedCurrency amount={pageData.totalBalance} />
+              </>
+            )
+          }
+          extra={
+            groupBy === 'client' ? (
+              <span>
+                Clientes con varios tickets se despliegan; el estado de cuenta va en un solo
+                WhatsApp desde el ⋯
+              </span>
+            ) : pageData.inProgress.count > 0 ? (
+              <span className="tabular-nums" data-testid="cobranza-in-progress">
+                {pageData.inProgress.count === 1
+                  ? '1 ticket en proceso suma '
+                  : `${pageData.inProgress.count} tickets en proceso suman `}
+                <FormattedCurrency amount={pageData.inProgress.total} />{' '}
+                {pageData.inProgress.count === 1
+                  ? 'y se cobra al terminarlo'
+                  : 'y se cobran al terminarlos'}{' '}
+                ·{' '}
+                {/* The tickets view that counts the same: unfinished with a saldo. */}
+                <Link
+                  href="/tickets?status=due&finished=no"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Ver en Tickets
+                </Link>
+              </span>
+            ) : null
+          }
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col" data-testid="cobranza-desktop">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Cobranza</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">{copy.subtitle}</p>
-        </div>
-        <div
-          role="group"
-          aria-label="Agrupar"
-          className="inline-flex gap-0.5 rounded-lg bg-slate-100 p-[3px] dark:bg-muted"
-        >
-          {(
-            [
-              { value: 'ticket', label: 'Por ticket' },
-              { value: 'client', label: 'Por cliente' },
-            ] as const
-          ).map((option) => {
-            const pressed = groupBy === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={pressed}
-                onClick={() => setView(option.value)}
-                className={cn(
-                  'h-8 rounded-md px-3 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                  pressed
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-slate-600 hover:text-foreground dark:text-slate-300',
-                )}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <ListDesktopTitle
+        title="Cobranza"
+        count={data?.queueCount ?? null}
+        description={copy.subtitle}
+        actions={
+          <div
+            role="group"
+            aria-label="Agrupar"
+            className="inline-flex gap-0.5 rounded-lg bg-slate-100 p-[3px] dark:bg-muted"
+          >
+            {(
+              [
+                { value: 'ticket', label: 'Por ticket' },
+                { value: 'client', label: 'Por cliente' },
+              ] as const
+            ).map((option) => {
+              const pressed = groupBy === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => setView(option.value)}
+                  className={cn(
+                    'h-8 rounded-md px-3 font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring md:text-[13px]',
+                    pressed
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-slate-600 hover:text-foreground dark:text-slate-300',
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        }
+      />
 
-      <div className="mt-[18px]">
-        <CobranzaAgingStrip
-          buckets={data?.buckets ?? null}
-          collectedThisMonth={data?.collectedThisMonth ?? null}
-          value={bucket}
-          onChange={(next) => setParam('tramo', tramoParam(next))}
-          controls={TABLE_ID}
-          view={groupBy}
-        />
-      </div>
+      <CobranzaAgingStrip
+        buckets={data?.buckets ?? null}
+        collectedThisMonth={data?.collectedThisMonth ?? null}
+        value={bucket}
+        onChange={(next) => setParam('tramo', tramoParam(next))}
+        controls={TABLE_ID}
+        view={groupBy}
+      />
 
       {clientId != null ? (
         <div
@@ -340,191 +459,65 @@ export const CobranzaDesktop = ({ canWrite, enabled = true }: CobranzaDesktopPro
         </div>
       ) : null}
 
-      <div className="mb-3 mt-4 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[14rem] max-w-[340px] flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder={copy.placeholder}
-            aria-label="Buscar en cobranza"
-            className="h-10 rounded-[10px] pl-9"
-          />
-        </div>
-        {groupBy === 'ticket' ? (
-          <Select
-            value={status}
-            onValueChange={(value) => setParam('status', value === 'all' ? null : value)}
-          >
-            <SelectTrigger className="h-10 w-auto gap-2 rounded-[10px] font-medium" aria-label="Estado de pago">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-        {hasFilters ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={clearFilters}
-          >
-            Limpiar
-          </Button>
-        ) : null}
-        <span className="flex-1" aria-hidden />
-        <Select
-          value={sort}
-          onValueChange={(value) =>
-            setParam('orden', value === DEFAULT_SORT[groupBy] ? null : value)
+      <div className="mb-3 mt-4">
+        <ListToolbar
+          search={{
+            value: searchValue,
+            onChange: setSearchValue,
+            placeholder: copy.placeholder,
+            ariaLabel: 'Buscar en cobranza',
+          }}
+          filters={
+            groupBy === 'ticket' ? (
+              <ListFilterSelect
+                value={status}
+                allValue="all"
+                onChange={(value) => setParam('status', value === 'all' ? null : value)}
+                options={STATUS_OPTIONS}
+                ariaLabel="Estado de pago"
+              />
+            ) : null
           }
-        >
-          <SelectTrigger className="h-10 w-auto gap-2 rounded-[10px] font-medium" aria-label="Ordenar">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {sortOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          hasActiveFilters={hasFilters}
+          onClear={clearFilters}
+          clearAriaLabel="Limpiar filtros de cobranza"
+        />
       </div>
 
       {/* Always present: the strip tabs point here even while an empty state shows. */}
-      <div
-        id={TABLE_ID}
-        className={cn('transition-opacity', data != null && loading && 'opacity-60')}
-        aria-busy={loading || undefined}
-      >
+      <div id={TABLE_ID}>
         {data == null && loading ? (
-          <TripledListLoadingState label="Cargando cobranza…" desktopColumns={7} />
-        ) : data == null && loadError ? (
-          <TripledEmptyState
-            icon={<Banknote className="size-8" aria-hidden />}
-            title="No se pudo cargar"
-            description={loadError}
-            action={
-              <Button type="button" variant="outline" onClick={() => void load()}>
-                Reintentar
-              </Button>
-            }
-          />
+          <ListLoading label="Cargando cobranza" columns={groupBy === 'client' ? 7 : 8} />
+        ) : loadError ? (
+          <ListError description={loadError} onRetry={() => void load()} />
         ) : nothingOwed ? (
-          <TripledEmptyState
-            icon={<Banknote className="size-8" aria-hidden />}
-            title="No hay saldos pendientes"
+          <ListEmpty
+            icon={<Banknote className="h-4 w-4 text-muted-foreground" aria-hidden />}
+            title="Sin saldos pendientes"
             description="Todos tus tickets terminados están pagados."
           />
         ) : data != null && data.total === 0 ? (
-          <TripledEmptyState
-            icon={<Banknote className="size-8" aria-hidden />}
-            title="Sin resultados"
+          <ListNoResults
             description="Ningún ticket coincide con los filtros actuales."
-            action={
-              <Button type="button" variant="outline" onClick={clearFilters}>
-                Limpiar filtros
-              </Button>
-            }
+            onClear={clearFilters}
           />
         ) : data != null ? (
-          <div className={COBRANZA_TABLE_CARD_CLASS}>
+          <ListTableCard footer={footer(data)}>
             {groupBy === 'client' ? (
               <CobranzaClientTable
                 groups={data.groups}
                 canWrite={canWrite}
+                companyId={companyId}
                 companyName={companyName}
                 onCollect={setCollectRow}
+                sorting={sorting}
+                onSortingChange={onSortingChange}
+                busy={refreshing}
               />
             ) : (
-              <CobranzaTicketTable table={table} />
+              <CobranzaTicketTable table={table} busy={refreshing} />
             )}
-            <div
-              className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-border/70 px-4 py-3 text-[13px] text-muted-foreground"
-              data-testid="cobranza-footer"
-            >
-              <div className="flex items-center gap-3">
-                <span className="tabular-nums">
-                  {groupBy === 'client' ? (
-                    <>
-                      {shown} de {plural(data.total, 'cliente', 'clientes')} ·{' '}
-                      <FormattedCurrency amount={data.totalBalance} /> en{' '}
-                      {plural(data.ticketCount, 'ticket', 'tickets')}
-                    </>
-                  ) : (
-                    <>
-                      {shown} de {plural(data.total, 'ticket', 'tickets')} · suman{' '}
-                      <FormattedCurrency amount={data.totalBalance} />
-                    </>
-                  )}
-                </span>
-                {totalPages > 1 ? (
-                  <span className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => table.previousPage()}
-                      disabled={pageIndex === 0}
-                      aria-label="Página anterior"
-                    >
-                      <ChevronLeft className="h-4 w-4" aria-hidden />
-                    </Button>
-                    <span className="tabular-nums">
-                      {pageIndex + 1} / {totalPages}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => table.nextPage()}
-                      disabled={pageIndex + 1 >= totalPages}
-                      aria-label="Página siguiente"
-                    >
-                      <ChevronRight className="h-4 w-4" aria-hidden />
-                    </Button>
-                  </span>
-                ) : null}
-              </div>
-              {groupBy === 'client' ? (
-                <span>
-                  Clientes con varios tickets se despliegan; «Estado de cuenta» manda un solo
-                  WhatsApp con todos
-                </span>
-              ) : data.inProgress.count > 0 ? (
-                <span className="tabular-nums" data-testid="cobranza-in-progress">
-                  {data.inProgress.count === 1
-                    ? '1 ticket en proceso suma '
-                    : `${data.inProgress.count} tickets en proceso suman `}
-                  <FormattedCurrency amount={data.inProgress.total} />{' '}
-                  {data.inProgress.count === 1
-                    ? 'y se cobra al terminarlo'
-                    : 'y se cobran al terminarlos'}{' '}
-                  ·{' '}
-                  {/* The tickets view that counts the same: unfinished with a saldo. */}
-                  <Link
-                    href="/tickets?status=due&finished=no"
-                    className="font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    Ver en Tickets
-                  </Link>
-                </span>
-              ) : null}
-            </div>
-          </div>
+          </ListTableCard>
         ) : null}
       </div>
 

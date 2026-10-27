@@ -168,6 +168,28 @@ describe('cobranza helpers', () => {
     expect(sortCobranzaRows(rows, 'recent').map((r) => r.id)).toEqual(['3', '2', '1']);
   });
 
+  it('sortCobranzaRows sorts by every desktop column, in either direction (ZIG-I33-3)', () => {
+    const rows = buildCobranzaRows(
+      [
+        baseTicket({ id: 1, total: 50, client_name: 'Beto', folio_number: 12, folio_prefix: 'R' }),
+        baseTicket({ id: 2, total: 900, paid: 100, client_name: 'ana', folio_number: 3, folio_prefix: 'R' }),
+        baseTicket({ id: 3, total: 300, paid: 20, client_name: '', folio_number: 7, folio_prefix: 'R' }),
+      ],
+      now,
+    );
+    const ids = (sort: Parameters<typeof sortCobranzaRows>[1], direction?: 'asc' | 'desc') =>
+      sortCobranzaRows(rows, sort, direction).map((r) => r.id);
+    expect(ids('folio')).toEqual(['2', '3', '1']);
+    expect(ids('folio', 'desc')).toEqual(['1', '3', '2']);
+    // No name goes last, whichever the direction.
+    expect(ids('client')).toEqual(['2', '1', '3']);
+    expect(ids('client', 'desc')).toEqual(['1', '2', '3']);
+    expect(ids('total')).toEqual(['2', '3', '1']);
+    expect(ids('total', 'asc')).toEqual(['1', '3', '2']);
+    expect(ids('paid')).toEqual(['2', '3', '1']);
+    expect(ids('balance', 'asc')).toEqual(['1', '3', '2']);
+  });
+
   it('filters by status, aging, and client search', () => {
     const rows = buildCobranzaRows(
       [
@@ -268,6 +290,11 @@ describe('cobranza helpers', () => {
       'Ana',
       'Museo de Arte Contemporáneo',
       ' ana ',
+    ]);
+    expect(groupCobranzaRowsByClient(rows, 'balance', 'asc').map((g) => g.client_name)).toEqual([
+      ' ana ',
+      'Museo de Arte Contemporáneo',
+      'Ana',
     ]);
     const museo = groups[1];
     expect(museo.balanceDue).toBe(2810);
