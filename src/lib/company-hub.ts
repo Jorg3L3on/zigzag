@@ -35,6 +35,15 @@ export const COMPANY_HUB_TABS: CompanyHubTab[] = [
   },
 ];
 
+/**
+ * Where the sidebar's Mi empresa link goes (ZIG-34): the first hub tab the
+ * user may open, in tab order, or null when none (the sidebar hides it).
+ */
+export const getCompanyHubEntryHref = (
+  can: (permission?: string) => boolean,
+): string | null =>
+  COMPANY_HUB_TABS.find((tab) => can(tab.requiredPermission))?.href ?? null;
+
 const isAtOrUnder = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 

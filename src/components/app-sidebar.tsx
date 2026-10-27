@@ -37,6 +37,7 @@ import {
   getLongestMatchingHref,
   NAV_MAIN_ITEMS,
   NAV_SYSTEM_ITEMS,
+  getVisibleNavMainItems,
 } from '@/lib/nav-items';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -154,17 +155,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 
   const visibleNavMain = React.useMemo(
-    () =>
-      data.navMain
-        .map((item) => ({
-          ...item,
-          items: item.items?.filter((sub) => canAccess(sub.requiredPermission)),
-        }))
-        .filter((item) => isMobile || !item.mobileOnly)
-        .filter(
-          (item) =>
-            canAccess(item.requiredPermission) || Boolean(item.items?.length),
-        ),
+    () => getVisibleNavMainItems(data.navMain, { can: canAccess, isMobile }),
     [canAccess, isMobile],
   );
 
@@ -198,7 +189,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const allSidebarHrefs = React.useMemo(
     () => [
       ...data.navMain.flatMap((item) => [
-        item.url,
+        item.activeUrl ?? item.url,
         ...(item.items?.map((s) => s.url) ?? []),
       ]),
       ...data.system.map((s) => s.url),
@@ -229,7 +220,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
       return {
         ...item,
-        isActive: globalLongest === item.url,
+        isActive: globalLongest === (item.activeUrl ?? item.url),
       };
     });
   }, [pathname, globalLongest, visibleNavMain]);
