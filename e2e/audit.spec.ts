@@ -21,7 +21,7 @@ test.describe('Audit log access', () => {
 
     await expect(page.getByText('Auditoría', { exact: true }).first()).toBeVisible();
     await expect(
-      page.getByLabel('Buscar eventos de auditoría'),
+      page.getByLabel('Buscar eventos de auditoría').filter({ visible: true }).first(),
     ).toBeVisible();
   });
 
@@ -63,7 +63,7 @@ test.describe('Auditoría en escritorio (ZIG-I33-8)', () => {
     // Click the Cuándo cell: the summary may hold a link to the resource.
     const row = table.getByTestId('audit-row').first();
     await row.getByRole('cell').nth(1).click();
-    await expect(row).toHaveAttribute('aria-expanded', 'true');
+    await expect(row).toHaveAttribute('data-state', 'selected');
     const detail = table.getByTestId('audit-row-detail');
     await expect(detail).toBeVisible();
     await expect(detail.getByRole('heading', { name: 'Metadatos de solicitud' })).toBeVisible();
@@ -71,7 +71,7 @@ test.describe('Auditoría en escritorio (ZIG-I33-8)', () => {
     // And by keyboard.
     await row.focus();
     await page.keyboard.press('Enter');
-    await expect(row).toHaveAttribute('aria-expanded', 'false');
+    await expect(row).not.toHaveAttribute('data-state');
     await expect(detail).toHaveCount(0);
 
     await expect(page.getByTestId('list-footer')).toContainText(/eventos? cargados?/);
