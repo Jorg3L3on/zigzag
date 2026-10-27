@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Button } from '@/components/ui/button';
 import { Plus, Upload, Wrench } from 'lucide-react';
 import Link from 'next/link';
@@ -11,6 +12,11 @@ import {
 import { requirePagePermission } from '@/lib/page-authz';
 import { getSessionPermissionMap } from '@/actions/authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
+
+export const metadata: Metadata = {
+  title: 'Servicios',
+  description: 'Administra el catálogo de servicios',
+};
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -28,11 +34,10 @@ export default async function ServicesPage() {
       <TripledPageHeader items={[{ label: 'Servicios' }]} />
 
       <TripledDashboardShell>
-        {/* From lg the list draws its own title row, without the card (ZIG-30). */}
+        {/* From lg no card: the list draws its own title row with the count (ZIG-I33 §1). */}
         <TripledResourceCard
-          className="lg:contents"
+          desktop="title"
           headerClassName="lg:hidden"
-          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
           title="Servicios"
           description="Administra el catálogo de servicios disponibles"
           icon={<Wrench className="size-5" aria-hidden />}

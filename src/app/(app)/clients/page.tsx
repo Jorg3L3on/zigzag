@@ -35,11 +35,10 @@ export default async function ClientsPage() {
       <TripledPageHeader items={[{ label: 'Clientes' }]} />
 
       <TripledDashboardShell>
-        {/* From lg the list draws its own title row, without the card (ZIG-30). */}
+        {/* From lg no card: the list draws its own title row with the count (ZIG-I33 §1). */}
         <TripledResourceCard
-          className="lg:contents"
+          desktop="title"
           headerClassName="lg:hidden"
-          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
           title="Clientes"
           description="Catálogo de clientes y datos de contacto"
           icon={<Users className="size-5" aria-hidden />}
