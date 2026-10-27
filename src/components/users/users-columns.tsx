@@ -1,66 +1,31 @@
 'use client';
 
 import type { Company, Role, User } from '@/db/schema';
-import type { Column, ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { FormattedDate } from '@/components/formatted-date';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import {
+  ListShortDate,
+  ListSortableHeader,
+  ListStatusPill,
+} from '@/components/list-page';
 
 export type UserWithRelations = User & {
   company: Company | null;
   role: Role | null;
 };
 
-function UserSortableHeader<TData>({
-  column,
-  label,
-  className,
-}: {
-  column: Column<TData>;
-  label: string;
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
-      )}
-    </Button>
-  );
-}
-
 export type UsersColumnsOptions = {
   renderActions: (user: UserWithRelations) => ReactNode;
 };
 
+/** The desktop table of the system users list (ZIG-I33); phones draw cards. */
 export const createUsersColumns = ({
   renderActions,
 }: UsersColumnsOptions): ColumnDef<UserWithRelations>[] => [
   {
     id: 'id',
     accessorFn: (row) => row.id,
-    header: ({ column }) => <UserSortableHeader column={column} label="ID" />,
+    header: ({ column }) => <ListSortableHeader column={column} label="ID" />,
     cell: ({ row }) => (
       <span className="tabular-nums">{row.original.id.toString()}</span>
     ),
@@ -71,17 +36,14 @@ export const createUsersColumns = ({
       if (x > y) return 1;
       return 0;
     },
+    meta: { className: 'w-16' },
   },
   {
     id: 'name',
     accessorKey: 'name',
-    header: ({ column }) => (
-      <UserSortableHeader column={column} label="Nombre" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Nombre" />,
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[12rem] font-medium">
-        {row.original.name}
-      </span>
+      <span className="line-clamp-2 font-medium">{row.original.name}</span>
     ),
     sortingFn: (a, b) => {
       const na = a.original.name.toLocaleLowerCase();
@@ -92,11 +54,11 @@ export const createUsersColumns = ({
   {
     id: 'email',
     accessorKey: 'email',
-    header: ({ column }) => (
-      <UserSortableHeader column={column} label="Correo" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Correo" />,
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[14rem]">{row.original.email}</span>
+      <span className="block truncate" title={row.original.email}>
+        {row.original.email}
+      </span>
     ),
     sortingFn: (a, b) => {
       const na = a.original.email.toLocaleLowerCase();
@@ -107,67 +69,62 @@ export const createUsersColumns = ({
   {
     id: 'companyName',
     accessorFn: (row) => row.company?.name ?? '',
-    header: ({ column }) => (
-      <UserSortableHeader column={column} label="Empresa" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Empresa" />,
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[12rem]">
-        {row.original.company?.name ?? 'Sin empresa'}
-      </span>
+      <span className="line-clamp-2">{row.original.company?.name ?? 'Sin empresa'}</span>
     ),
     sortingFn: (a, b) => {
       const na = (a.original.company?.name ?? '').toLocaleLowerCase();
       const nb = (b.original.company?.name ?? '').toLocaleLowerCase();
       return na.localeCompare(nb, 'es');
     },
+    meta: { className: 'w-32' },
   },
   {
     id: 'roleName',
     accessorFn: (row) => row.role?.name ?? '',
-    header: ({ column }) => <UserSortableHeader column={column} label="Rol" />,
+    header: ({ column }) => <ListSortableHeader column={column} label="Rol" />,
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[10rem]">
-        {row.original.role?.name ?? 'Sin rol'}
-      </span>
+      <span className="line-clamp-2">{row.original.role?.name ?? 'Sin rol'}</span>
     ),
     sortingFn: (a, b) => {
       const na = (a.original.role?.name ?? '').toLocaleLowerCase();
       const nb = (b.original.role?.name ?? '').toLocaleLowerCase();
       return na.localeCompare(nb, 'es');
     },
+    meta: { className: 'w-28' },
   },
   {
     id: 'emailVerifiedRank',
     accessorFn: (row) => (row.email_verified_at ? 1 : 0),
     header: ({ column }) => (
-      <UserSortableHeader column={column} label="Correo verificado" />
+      <ListSortableHeader column={column} label="Correo verificado" />
     ),
     cell: ({ row }) =>
       row.original.email_verified_at ? (
-        <Badge variant="secondary" className="font-normal">
-          Sí
-        </Badge>
+        <ListStatusPill tone="emerald">Sí</ListStatusPill>
       ) : (
-        <Badge variant="outline" className="font-normal text-muted-foreground">
-          No
-        </Badge>
+        <ListStatusPill tone="slate">No</ListStatusPill>
       ),
+    meta: { className: 'w-44' },
   },
   {
     id: 'created_at',
     accessorFn: (row) => row.created_at?.getTime() ?? 0,
-    header: ({ column }) => <UserSortableHeader column={column} label="Alta" />,
-    cell: ({ row }) => <FormattedDate date={row.original.created_at} />,
+    header: ({ column }) => <ListSortableHeader column={column} label="Alta" />,
+    cell: ({ row }) => <ListShortDate date={row.original.created_at} />,
     sortingFn: (rowA, rowB) => {
       const ta = rowA.original.created_at?.getTime() ?? 0;
       const tb = rowB.original.created_at?.getTime() ?? 0;
       return ta - tb;
     },
+    meta: { className: 'w-28' },
   },
   {
     id: 'actions',
     enableSorting: false,
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => renderActions(row.original),
+    meta: { className: 'w-12' },
   },
 ];

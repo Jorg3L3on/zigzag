@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import {
-  flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
@@ -14,17 +14,24 @@ import {
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Button } from '@/components/ui/button';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+  type ListRowMenuItem,
+} from '@/components/list-page';
 import { CreatePermissionDialog } from '@/app/(app)/permissions/create-permission-dialog';
 import { UpdatePermissionDialog } from '@/app/(app)/permissions/update-permission-dialog';
 import { DeletePermissionDialog } from '@/app/(app)/permissions/delete-permission-dialog';
@@ -32,7 +39,7 @@ import {
   createPermissionsColumns,
   type Permission,
 } from '@/components/permissions/permissions-columns';
-import { PermissionActionsMenu } from '@/components/permissions/permission-actions-menu';
+import { AdminRecordMenu } from '@/components/roles/admin-record-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { FormattedDate } from '@/components/formatted-date';
 import {
@@ -42,6 +49,9 @@ import {
 import { DEFAULT_PERMISSION_SORTING } from '@/components/permissions/permissions-sort-presets';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS as RBAC_PERMISSIONS } from '@/lib/permissions';
+
+const PERMISSIONS_DESCRIPTION =
+  'Claves de permiso que revisa el código. Solo para operadores del sistema.';
 
 export function PermissionsList() {
   const sessionPermissions = usePermissions();
@@ -135,18 +145,33 @@ export function PermissionsList() {
     setEditPermission(row);
   }, []);
 
+  /** Editar, then Eliminar last; the phone card keeps its old icon spacing. */
+  const menuItems = React.useCallback(
+    (row: Permission, iconClassName?: string): ListRowMenuItem[] => [
+      {
+        label: 'Editar',
+        icon: <Pencil className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => openEdit(row),
+      },
+      {
+        label: 'Eliminar',
+        icon: <Trash2 className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => setDeletePermission(row),
+        destructive: true,
+      },
+    ],
+    [openEdit],
+  );
+
   const columns = React.useMemo(
     () =>
       createPermissionsColumns({
         renderActions: (row) =>
           canWritePermissions ? (
-          <PermissionActionsMenu
-            onEditRequest={() => openEdit(row)}
-            onDeleteRequest={() => setDeletePermission(row)}
-          />
+            <ListRowMenu label={`Acciones de ${row.name}`} items={menuItems(row)} />
           ) : null,
       }),
-    [openEdit, canWritePermissions],
+    [menuItems, canWritePermissions],
   );
 
   const table = useReactTable({
@@ -154,10 +179,14 @@ export function PermissionsList() {
     columns,
     state: { sorting },
     onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: LIST_PAGE_SIZE } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     getRowId: (row) => String(row.id),
   });
+  // Phones list every permission, as before; only the desktop table pages at 25.
+  const phoneRows = table.getPrePaginationRowModel().rows;
 
   const hasActiveFilters = debouncedSearch !== '' || companyScopeFilter !== 'all';
   const sheetFilterCount = companyScopeFilter !== 'all' ? 1 : 0;
@@ -169,11 +198,21 @@ export function PermissionsList() {
     hasActiveFilters,
   });
 
+  // A refetch after a write keeps the desktop table, dimmed (ZIG-I33 §8).
+  const desktopListState = resolveResourceListState({
+    isLoading: loading && permissions.length === 0,
+    loadError,
+    totalCount: permissions.length,
+    visibleCount: filteredPermissions.length,
+    hasActiveFilters,
+  });
+  const paged = table.getPageCount() > 1;
+
+  // Limpiar clears filters and search, never the sort (ZIG-I33 §2).
   const handleClearFilters = () => {
     setSearchValue('');
     setDebouncedSearch('');
     setCompanyScopeFilter('all');
-    setSorting(DEFAULT_PERMISSION_SORTING);
   };
 
   const filterChips = [
@@ -196,226 +235,195 @@ export function PermissionsList() {
       : []),
   ];
 
-  return (
+  const createPermissionDialog = canWritePermissions ? (
+    <CreatePermissionDialog onCreated={fetchPermissions} />
+  ) : null;
+
+  const filterBar = (
+    <PermissionsFilterBar
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
+      companyScopeFilter={companyScopeFilter}
+      onCompanyScopeFilterChange={setCompanyScopeFilter}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      sheetFilterCount={sheetFilterCount}
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={handleClearFilters}
+      filterChips={filterChips}
+    />
+  );
+
+  const phone = (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        {canWritePermissions ? (
-          <CreatePermissionDialog onCreated={fetchPermissions} />
-        ) : null}
-      </div>
+      <div className="flex justify-end">{createPermissionDialog}</div>
 
-      <PermissionsFilterBar
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        companyScopeFilter={companyScopeFilter}
-        onCompanyScopeFilterChange={setCompanyScopeFilter}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        sheetFilterCount={sheetFilterCount}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={handleClearFilters}
-        filterChips={filterChips}
-      />
+      {filterBar}
 
-        {listState.kind === 'loading' ? (
-          <TripledListLoadingState
-            label="Cargando lista de permisos"
-            desktopColumns={4}
-            desktopRows={5}
-          />
-        ) : listState.kind === 'error' ? (
-          <TripledEmptyState
-            icon={<KeyRound className="h-4 w-4" />}
-            title="Error de carga"
-            description={listState.message}
-            role="alert"
-            action={
-              <Button
-                type="button"
-                variant="outline"
-                onClick={fetchPermissions}
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de permisos"
+          desktopColumns={4}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<KeyRound className="h-4 w-4" />}
+          title="Error de carga"
+          description={listState.message}
+          role="alert"
+          action={
+            <Button type="button" variant="outline" onClick={fetchPermissions}>
+              Reintentar
+            </Button>
+          }
+        />
+      ) : listState.kind === 'empty' ? (
+        <TripledEmptyState
+          icon={<KeyRound className="h-4 w-4" />}
+          title="Sin permisos"
+          description={
+            canWritePermissions
+              ? 'Crea el primer permiso para habilitar controles de acceso por rol.'
+              : 'No hay permisos registrados.'
+          }
+          action={createPermissionDialog}
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<KeyRound className="h-4 w-4" />}
+          title="Sin resultados"
+          description="No hay permisos que coincidan con la búsqueda o los filtros."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {phoneRows.map((row) => {
+            const permRow = row.original;
+            return (
+              <TripledMobileRecordCard
+                key={row.id}
+                interactive={canWritePermissions}
+                tabIndex={canWritePermissions ? 0 : -1}
+                role="button"
+                aria-label={
+                  canWritePermissions
+                    ? `Editar permiso ${permRow.name}`
+                    : `Permiso ${permRow.name}`
+                }
+                onClick={() => {
+                  if (canWritePermissions) {
+                    openEdit(permRow);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    canWritePermissions &&
+                    (event.key === 'Enter' || event.key === ' ')
+                  ) {
+                    event.preventDefault();
+                    openEdit(permRow);
+                  }
+                }}
               >
-                Reintentar
-              </Button>
-            }
-          />
-        ) : listState.kind === 'empty' ? (
-          <TripledEmptyState
-            icon={<KeyRound className="h-4 w-4" />}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {permRow.name}
+                    </h3>
+                    <p className="line-clamp-3 text-sm text-muted-foreground">
+                      {permRow.description || '—'}
+                    </p>
+                  </div>
+                  {canWritePermissions ? (
+                    <div onPointerDown={(event) => event.stopPropagation()}>
+                      <AdminRecordMenu items={menuItems(permRow, 'mr-2 h-4 w-4')} />
+                    </div>
+                  ) : null}
+                </div>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Empresa</dt>
+                    <dd className="truncate">
+                      {permRow.company?.name ?? 'Sin empresa'}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Creado</dt>
+                    <dd>
+                      <FormattedDate date={permRow.created_at} />
+                    </dd>
+                  </div>
+                </dl>
+              </TripledMobileRecordCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Permisos"
+        count={loading && permissions.length === 0 ? null : permissions.length}
+        description={PERMISSIONS_DESCRIPTION}
+        actions={createPermissionDialog}
+      />
+      <div className="space-y-4">
+        {filterBar}
+        {desktopListState.kind === 'loading' ? (
+          <ListLoading label="Cargando lista de permisos" columns={5} />
+        ) : desktopListState.kind === 'error' ? (
+          <ListError description={desktopListState.message} onRetry={fetchPermissions} />
+        ) : desktopListState.kind === 'empty' ? (
+          <ListEmpty
+            icon={<KeyRound className="h-4 w-4 text-muted-foreground" aria-hidden />}
             title="Sin permisos"
             description={
               canWritePermissions
                 ? 'Crea el primer permiso para habilitar controles de acceso por rol.'
                 : 'No hay permisos registrados.'
             }
-            action={
-              canWritePermissions ? (
-                <CreatePermissionDialog onCreated={fetchPermissions} />
-              ) : null
-            }
+            action={createPermissionDialog}
           />
-        ) : listState.kind === 'filtered-empty' ? (
-          <TripledEmptyState
-            icon={<KeyRound className="h-4 w-4" />}
-            title="Sin resultados"
+        ) : desktopListState.kind === 'filtered-empty' ? (
+          <ListNoResults
             description="No hay permisos que coincidan con la búsqueda o los filtros."
-            action={
-              <Button type="button" variant="outline" onClick={handleClearFilters}>
-                Limpiar filtros
-              </Button>
-            }
+            onClear={handleClearFilters}
           />
         ) : (
-          <>
-            <div className="space-y-3 md:hidden">
-              {table.getRowModel().rows.map((row) => {
-                const permRow = row.original;
-                return (
-                  <TripledMobileRecordCard
-                    key={row.id}
-                    interactive={canWritePermissions}
-                    tabIndex={canWritePermissions ? 0 : -1}
-                    role="button"
-                    aria-label={
-                      canWritePermissions
-                        ? `Editar permiso ${permRow.name}`
-                        : `Permiso ${permRow.name}`
-                    }
-                    onClick={() => {
-                      if (canWritePermissions) {
-                        openEdit(permRow);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        canWritePermissions &&
-                        (event.key === 'Enter' || event.key === ' ')
-                      ) {
-                        event.preventDefault();
-                        openEdit(permRow);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {permRow.name}
-                        </h3>
-                        <p className="line-clamp-3 text-sm text-muted-foreground">
-                          {permRow.description || '—'}
-                        </p>
-                      </div>
-                      {canWritePermissions ? (
-                        <div
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                        <PermissionActionsMenu
-                          onEditRequest={() => openEdit(permRow)}
-                          onDeleteRequest={() => setDeletePermission(permRow)}
-                        />
-                        </div>
-                      ) : null}
-                    </div>
-                    <dl className="mt-3 space-y-2 text-sm">
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Empresa</dt>
-                        <dd className="truncate">
-                          {permRow.company?.name ?? 'Sin empresa'}
-                        </dd>
-                      </div>
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Creado</dt>
-                        <dd>
-                          <FormattedDate date={permRow.created_at} />
-                        </dd>
-                      </div>
-                    </dl>
-                  </TripledMobileRecordCard>
-                );
-              })}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <div className="rounded-xl border border-border/70 shadow-sm">
-                <Table
-                  className={
-                    '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-                  }
-                >
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead
-                            key={header.id}
-                            className={
-                              header.column.id === 'actions'
-                                ? 'text-right'
-                                : undefined
-                            }
-                          >
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        className={
-                          canWritePermissions ? 'cursor-pointer' : undefined
-                        }
-                        tabIndex={canWritePermissions ? 0 : -1}
-                        aria-label={
-                          canWritePermissions
-                            ? `Editar permiso ${row.original.name}`
-                            : `Permiso ${row.original.name}`
-                        }
-                        onClick={() => {
-                          if (canWritePermissions) {
-                            openEdit(row.original);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (
-                            canWritePermissions &&
-                            (event.key === 'Enter' || event.key === ' ')
-                          ) {
-                            event.preventDefault();
-                            openEdit(row.original);
-                          }
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            className={
-                              cell.column.id === 'actions'
-                                ? 'text-right'
-                                : undefined
-                            }
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </>
+          <ListTableCard
+            footer={
+              <ListFooter
+                total={paged ? filteredPermissions.length : permissions.length}
+                shown={filteredPermissions.length}
+                noun="permisos"
+                pagination={listFooterPagination(table, { pageSizes: false })}
+              />
+            }
+          >
+            <ListTable
+              table={table}
+              ariaLabel="Permisos"
+              busy={loading}
+              onOpenRow={canWritePermissions ? (row) => openEdit(row.original) : undefined}
+              rowTestId="permissions-row"
+            />
+          </ListTableCard>
         )}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <DesktopSwitch phone={phone} desktop={desktop} />
       {editPermission ? (
         <UpdatePermissionDialog
           permission={editPermission}
@@ -440,6 +448,6 @@ export function PermissionsList() {
           onSuccess={fetchPermissions}
         />
       ) : null}
-    </div>
+    </>
   );
 }

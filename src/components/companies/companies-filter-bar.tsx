@@ -12,6 +12,7 @@ import {
   type ButtonFilterOption,
   type ListFilterChip,
 } from '@/components/list-filter';
+import { ListFilterSelect, ListToolbar } from '@/components/list-page';
 
 export type CompaniesStatusFilter = 'all' | 'setup' | 'active' | 'restricted';
 
@@ -54,6 +55,12 @@ type CompaniesFilterBarProps<T extends string> = {
   searchClassName?: string;
   searchTrailing?: ReactNode;
   showSort?: boolean;
+  /**
+   * The ZIG-I33 filter row: from lg the status is a pill (`ListToolbar`) and the
+   * chips hide; the phone sheet keeps the labelled group. Off for the operator fleet
+   * until it moves to the standard.
+   */
+  desktopPills?: boolean;
 };
 
 export const CompaniesFilterBar = <T extends string>({
@@ -74,6 +81,7 @@ export const CompaniesFilterBar = <T extends string>({
   searchClassName,
   searchTrailing,
   showSort = true,
+  desktopPills = false,
 }: CompaniesFilterBarProps<T>) => {
   const renderStatus = (layout: 'desktop' | 'sheet') => (
     <ButtonFilterGroup
@@ -102,6 +110,48 @@ export const CompaniesFilterBar = <T extends string>({
       />
     ) : null;
 
+  const sheetDescription = showSort
+    ? 'Estado de la empresa y orden de la lista.'
+    : 'Estado de la empresa.';
+
+  if (desktopPills) {
+    // A pill shows only its value, so the «all» option says what it is about.
+    const pillOptions = statusOptions.map((option, index) =>
+      index === 0 ? { ...option, label: 'Todos los estados' } : option,
+    );
+    return (
+      <ListToolbar
+        search={{
+          value: searchValue,
+          onChange: onSearchChange,
+          placeholder: searchPlaceholder,
+          ariaLabel: searchAriaLabel,
+        }}
+        filters={
+          <ListFilterSelect
+            value={statusFilter}
+            allValue={statusOptions[0].value}
+            onChange={onStatusFilterChange}
+            options={pillOptions}
+            ariaLabel="Filtrar por estado"
+          />
+        }
+        hasActiveFilters={hasActiveFilters}
+        onClear={onClearFilters}
+        clearAriaLabel={clearFiltersAriaLabel}
+        sheetFilterCount={sheetFilterCount}
+        sheetDescription={sheetDescription}
+        filterChips={filterChips}
+        sheetContent={
+          <>
+            {renderStatus('sheet')}
+            {sortBlock}
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <ListFilterBarShell
       searchValue={searchValue}
@@ -111,11 +161,7 @@ export const CompaniesFilterBar = <T extends string>({
       searchClassName={searchClassName}
       searchTrailing={searchTrailing}
       sheetFilterCount={sheetFilterCount}
-      sheetDescription={
-        showSort
-          ? 'Estado de la empresa y orden de la lista.'
-          : 'Estado de la empresa.'
-      }
+      sheetDescription={sheetDescription}
       hasActiveFilters={hasActiveFilters}
       onClearFilters={onClearFilters}
       clearFiltersAriaLabel={clearFiltersAriaLabel}

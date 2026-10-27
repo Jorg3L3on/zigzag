@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import {
-  flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
@@ -14,23 +14,30 @@ import {
   TripledListLoadingState,
   TripledMobileRecordCard,
 } from '@/components/tripled';
-import { Shield } from 'lucide-react';
+import { Pencil, Shield, Trash2 } from 'lucide-react';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+  type ListRowMenuItem,
+} from '@/components/list-page';
 import { CreateRoleDialog } from '@/app/(app)/roles/create-role-dialog';
 import { UpdateRoleDialog } from '@/app/(app)/roles/update-role-dialog';
 import { DeleteRoleDialog } from '@/app/(app)/roles/delete-role-dialog';
 import { createRolesColumns, type Role } from '@/components/roles/roles-columns';
-import { RoleActionsMenu } from '@/components/roles/role-actions-menu';
+import { AdminRecordMenu } from '@/components/roles/admin-record-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { FormattedDate } from '@/components/formatted-date';
 import {
@@ -45,6 +52,9 @@ import { PERMISSIONS } from '@/lib/permissions';
 
 const countAssignedPermissions = (role: Role) =>
   role.permissions.filter((p) => p.permission != null).length;
+
+const ROLES_DESCRIPTION =
+  'Roles de todas las empresas y roles compartidos. Cada empresa edita los suyos en Mi empresa › Roles.';
 
 export function RolesList() {
   const permissions = usePermissions();
@@ -158,18 +168,33 @@ export function RolesList() {
     setEditRole(roleRow);
   }, []);
 
+  /** Editar, then Eliminar last; the phone card keeps its old icon spacing. */
+  const menuItems = React.useCallback(
+    (roleRow: Role, iconClassName?: string): ListRowMenuItem[] => [
+      {
+        label: 'Editar',
+        icon: <Pencil className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => openEdit(roleRow),
+      },
+      {
+        label: 'Eliminar',
+        icon: <Trash2 className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => setDeleteRole(roleRow),
+        destructive: true,
+      },
+    ],
+    [openEdit],
+  );
+
   const columns = React.useMemo(
     () =>
       createRolesColumns({
         renderActions: (roleRow) =>
           canWriteRoles ? (
-          <RoleActionsMenu
-            onEditRequest={() => openEdit(roleRow)}
-            onDeleteRequest={() => setDeleteRole(roleRow)}
-          />
+            <ListRowMenu label={`Acciones de ${roleRow.name}`} items={menuItems(roleRow)} />
           ) : null,
       }),
-    [openEdit, canWriteRoles],
+    [menuItems, canWriteRoles],
   );
 
   const table = useReactTable({
@@ -177,10 +202,14 @@ export function RolesList() {
     columns,
     state: { sorting },
     onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: LIST_PAGE_SIZE } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     getRowId: (row) => String(row.id),
   });
+  // Phones list every role, as before; only the desktop table pages at 25.
+  const phoneRows = table.getPrePaginationRowModel().rows;
 
   const hasActiveFilters =
     debouncedSearch !== '' ||
@@ -197,12 +226,22 @@ export function RolesList() {
     hasActiveFilters,
   });
 
+  // A refetch after a write keeps the desktop table, dimmed (ZIG-I33 §8).
+  const desktopListState = resolveResourceListState({
+    isLoading: loading && roles.length === 0,
+    loadError,
+    totalCount: roles.length,
+    visibleCount: filteredRoles.length,
+    hasActiveFilters,
+  });
+  const paged = table.getPageCount() > 1;
+
+  // Limpiar clears filters and search, never the sort (ZIG-I33 §2).
   const handleClearFilters = () => {
     setSearchValue('');
     setDebouncedSearch('');
     setCompanyScopeFilter('all');
     setPermissionAssignmentFilter('all');
-    setSorting(DEFAULT_ROLE_SORTING);
   };
 
   const filterChips = [
@@ -236,239 +275,211 @@ export function RolesList() {
       : []),
   ];
 
-  return (
+  const createRoleDialog = canWriteRoles ? (
+    <CreateRoleDialog
+      onCreated={fetchRoles}
+      defaultCompanyId={tenantCompanyId ?? undefined}
+      defaultCompanyName={tenantCompanyName ?? undefined}
+      lockCompany={isTenantScoped}
+    />
+  ) : null;
+
+  const filterBar = (
+    <RolesFilterBar
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
+      companyScopeFilter={companyScopeFilter}
+      onCompanyScopeFilterChange={setCompanyScopeFilter}
+      permissionAssignmentFilter={permissionAssignmentFilter}
+      onPermissionAssignmentFilterChange={setPermissionAssignmentFilter}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      sheetFilterCount={sheetFilterCount}
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={handleClearFilters}
+      filterChips={filterChips}
+    />
+  );
+
+  const phone = (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        {canWriteRoles ? (
-          <CreateRoleDialog
-            onCreated={fetchRoles}
-            defaultCompanyId={tenantCompanyId ?? undefined}
-            defaultCompanyName={tenantCompanyName ?? undefined}
-            lockCompany={isTenantScoped}
-          />
-        ) : null}
-      </div>
+      <div className="flex justify-end">{createRoleDialog}</div>
 
-      <RolesFilterBar
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        companyScopeFilter={companyScopeFilter}
-        onCompanyScopeFilterChange={setCompanyScopeFilter}
-        permissionAssignmentFilter={permissionAssignmentFilter}
-        onPermissionAssignmentFilterChange={setPermissionAssignmentFilter}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        sheetFilterCount={sheetFilterCount}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={handleClearFilters}
-        filterChips={filterChips}
+      {filterBar}
+
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de roles"
+          desktopColumns={5}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<Shield className="h-4 w-4" />}
+          title="Error de carga"
+          description={listState.message}
+          role="alert"
+          action={
+            <Button type="button" variant="outline" onClick={fetchRoles}>
+              Reintentar
+            </Button>
+          }
+        />
+      ) : listState.kind === 'empty' ? (
+        <TripledEmptyState
+          icon={<Shield className="h-4 w-4" />}
+          title="Sin roles"
+          description={
+            canWriteRoles
+              ? 'Crea el primer rol para agrupar permisos y asignarlo a usuarios.'
+              : 'No hay roles registrados.'
+          }
+          action={createRoleDialog}
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<Shield className="h-4 w-4" />}
+          title="Sin resultados"
+          description="No hay roles que coincidan con la búsqueda o los filtros."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {phoneRows.map((row) => {
+            const roleRow = row.original;
+            return (
+              <TripledMobileRecordCard
+                key={row.id}
+                interactive={canWriteRoles}
+                tabIndex={canWriteRoles ? 0 : -1}
+                role="button"
+                aria-label={
+                  canWriteRoles ? `Editar rol ${roleRow.name}` : `Rol ${roleRow.name}`
+                }
+                onClick={() => {
+                  if (canWriteRoles) {
+                    openEdit(roleRow);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    canWriteRoles &&
+                    (event.key === 'Enter' || event.key === ' ')
+                  ) {
+                    event.preventDefault();
+                    openEdit(roleRow);
+                  }
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {roleRow.name}
+                    </h3>
+                    <p className="line-clamp-2 text-sm text-muted-foreground">
+                      {roleRow.description || '—'}
+                    </p>
+                  </div>
+                  {canWriteRoles ? (
+                    <div
+                      onPointerDown={(event) => event.stopPropagation()}
+                    >
+                      <AdminRecordMenu items={menuItems(roleRow, 'mr-2 h-4 w-4')} />
+                    </div>
+                  ) : null}
+                </div>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Empresa</dt>
+                    <dd className="truncate">
+                      {roleRow.company?.name ?? 'Sin empresa'}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Creado</dt>
+                    <dd>
+                      <FormattedDate date={roleRow.created_at} />
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {roleRow.permissions.map(({ permission }) =>
+                    permission ? (
+                      <Badge key={permission.id} variant="secondary">
+                        {permission.name}
+                      </Badge>
+                    ) : null,
+                  )}
+                </div>
+              </TripledMobileRecordCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Roles"
+        count={loading && roles.length === 0 ? null : roles.length}
+        description={ROLES_DESCRIPTION}
+        actions={createRoleDialog}
       />
-
-        {listState.kind === 'loading' ? (
-          <TripledListLoadingState
-            label="Cargando lista de roles"
-            desktopColumns={5}
-            desktopRows={5}
-          />
-        ) : listState.kind === 'error' ? (
-          <TripledEmptyState
-            icon={<Shield className="h-4 w-4" />}
-            title="Error de carga"
-            description={listState.message}
-            role="alert"
-            action={
-              <Button type="button" variant="outline" onClick={fetchRoles}>
-                Reintentar
-              </Button>
-            }
-          />
-        ) : listState.kind === 'empty' ? (
-          <TripledEmptyState
-            icon={<Shield className="h-4 w-4" />}
+      <div className="space-y-4">
+        {filterBar}
+        {desktopListState.kind === 'loading' ? (
+          <ListLoading label="Cargando lista de roles" columns={6} />
+        ) : desktopListState.kind === 'error' ? (
+          <ListError description={desktopListState.message} onRetry={fetchRoles} />
+        ) : desktopListState.kind === 'empty' ? (
+          <ListEmpty
+            icon={<Shield className="h-4 w-4 text-muted-foreground" aria-hidden />}
             title="Sin roles"
             description={
               canWriteRoles
                 ? 'Crea el primer rol para agrupar permisos y asignarlo a usuarios.'
                 : 'No hay roles registrados.'
             }
-            action={
-              canWriteRoles ? (
-                <CreateRoleDialog
-                  onCreated={fetchRoles}
-                  defaultCompanyId={tenantCompanyId ?? undefined}
-                  defaultCompanyName={tenantCompanyName ?? undefined}
-                  lockCompany={isTenantScoped}
-                />
-              ) : null
-            }
+            action={createRoleDialog}
           />
-        ) : listState.kind === 'filtered-empty' ? (
-          <TripledEmptyState
-            icon={<Shield className="h-4 w-4" />}
-            title="Sin resultados"
+        ) : desktopListState.kind === 'filtered-empty' ? (
+          <ListNoResults
             description="No hay roles que coincidan con la búsqueda o los filtros."
-            action={
-              <Button type="button" variant="outline" onClick={handleClearFilters}>
-                Limpiar filtros
-              </Button>
-            }
+            onClear={handleClearFilters}
           />
         ) : (
-          <>
-            <div className="space-y-3 md:hidden">
-              {table.getRowModel().rows.map((row) => {
-                const roleRow = row.original;
-                return (
-                  <TripledMobileRecordCard
-                    key={row.id}
-                    interactive={canWriteRoles}
-                    tabIndex={canWriteRoles ? 0 : -1}
-                    role="button"
-                    aria-label={
-                      canWriteRoles ? `Editar rol ${roleRow.name}` : `Rol ${roleRow.name}`
-                    }
-                    onClick={() => {
-                      if (canWriteRoles) {
-                        openEdit(roleRow);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        canWriteRoles &&
-                        (event.key === 'Enter' || event.key === ' ')
-                      ) {
-                        event.preventDefault();
-                        openEdit(roleRow);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {roleRow.name}
-                        </h3>
-                        <p className="line-clamp-2 text-sm text-muted-foreground">
-                          {roleRow.description || '—'}
-                        </p>
-                      </div>
-                      {canWriteRoles ? (
-                        <div
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                        <RoleActionsMenu
-                          onEditRequest={() => openEdit(roleRow)}
-                          onDeleteRequest={() => setDeleteRole(roleRow)}
-                        />
-                        </div>
-                      ) : null}
-                    </div>
-                    <dl className="mt-3 space-y-2 text-sm">
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Empresa</dt>
-                        <dd className="truncate">
-                          {roleRow.company?.name ?? 'Sin empresa'}
-                        </dd>
-                      </div>
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Creado</dt>
-                        <dd>
-                          <FormattedDate date={roleRow.created_at} />
-                        </dd>
-                      </div>
-                    </dl>
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {roleRow.permissions.map(({ permission }) =>
-                        permission ? (
-                          <Badge key={permission.id} variant="secondary">
-                            {permission.name}
-                          </Badge>
-                        ) : null,
-                      )}
-                    </div>
-                  </TripledMobileRecordCard>
-                );
-              })}
-            </div>
-
-            <div className="hidden overflow-x-auto md:block">
-              <div className="rounded-xl border border-border/70 shadow-sm">
-                <Table
-                  className={
-                    '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-                  }
-                >
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead
-                            key={header.id}
-                            className={
-                              header.column.id === 'actions'
-                                ? 'text-right'
-                                : undefined
-                            }
-                          >
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        className={canWriteRoles ? 'cursor-pointer' : undefined}
-                        tabIndex={canWriteRoles ? 0 : -1}
-                        aria-label={
-                          canWriteRoles
-                            ? `Editar rol ${row.original.name}`
-                            : `Rol ${row.original.name}`
-                        }
-                        onClick={() => {
-                          if (canWriteRoles) {
-                            openEdit(row.original);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (
-                            canWriteRoles &&
-                            (event.key === 'Enter' || event.key === ' ')
-                          ) {
-                            event.preventDefault();
-                            openEdit(row.original);
-                          }
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            className={
-                              cell.column.id === 'actions'
-                                ? 'text-right'
-                                : undefined
-                            }
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </>
+          <ListTableCard
+            footer={
+              <ListFooter
+                total={paged ? filteredRoles.length : roles.length}
+                shown={filteredRoles.length}
+                noun="roles"
+                pagination={listFooterPagination(table, { pageSizes: false })}
+              />
+            }
+          >
+            <ListTable
+              table={table}
+              ariaLabel="Roles"
+              busy={loading}
+              onOpenRow={canWriteRoles ? (row) => openEdit(row.original) : undefined}
+              rowTestId="roles-row"
+            />
+          </ListTableCard>
         )}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <DesktopSwitch phone={phone} desktop={desktop} />
       {editRole ? (
         <UpdateRoleDialog
           role={editRole}
@@ -493,6 +504,6 @@ export function RolesList() {
           onSuccess={fetchRoles}
         />
       ) : null}
-    </div>
+    </>
   );
 }

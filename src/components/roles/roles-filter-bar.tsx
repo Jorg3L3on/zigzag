@@ -6,10 +6,11 @@ import {
 } from '@/components/roles/roles-sort-presets';
 import {
   ButtonFilterGroup,
-  ListFilterBarShell,
+  ListFilterSelect,
+  ListToolbar,
   MobileSortSelect,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 export type CompanyScopeFilter = 'all' | 'global' | 'company';
 export type PermissionAssignmentFilter = 'all' | 'with' | 'without';
@@ -41,37 +42,7 @@ type RolesFilterBarProps = {
   filterChips: ListFilterChip[];
 };
 
-const renderFilters = (
-  companyScopeFilter: CompanyScopeFilter,
-  onCompanyScopeFilterChange: (value: CompanyScopeFilter) => void,
-  permissionAssignmentFilter: PermissionAssignmentFilter,
-  onPermissionAssignmentFilterChange: (value: PermissionAssignmentFilter) => void,
-  layout: 'desktop' | 'sheet',
-) => (
-  <>
-    <ButtonFilterGroup
-      label="Alcance"
-      options={COMPANY_SCOPE_OPTIONS}
-      value={companyScopeFilter}
-      onChange={onCompanyScopeFilterChange}
-      layout={layout}
-      getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar por alcance: ${optionLabel.toLowerCase()}`
-      }
-    />
-    <ButtonFilterGroup
-      label="Permisos"
-      options={PERMISSION_OPTIONS}
-      value={permissionAssignmentFilter}
-      onChange={onPermissionAssignmentFilterChange}
-      layout={layout}
-      getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar por permisos: ${optionLabel.toLowerCase()}`
-      }
-    />
-  </>
-);
-
+/** Search and filters: pills from lg, the labelled groups and the sort in the phone sheet. */
 export const RolesFilterBar = ({
   searchValue,
   onSearchChange,
@@ -86,26 +57,59 @@ export const RolesFilterBar = ({
   onClearFilters,
   filterChips,
 }: RolesFilterBarProps) => (
-  <ListFilterBarShell
-    searchValue={searchValue}
-    onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar por rol, descripción, empresa o permiso..."
-    searchAriaLabel="Buscar roles"
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por rol, descripción, empresa o permiso...',
+      ariaLabel: 'Buscar roles',
+    }}
+    filters={
+      <>
+        <ListFilterSelect
+          value={companyScopeFilter}
+          allValue="all"
+          onChange={onCompanyScopeFilterChange}
+          options={COMPANY_SCOPE_OPTIONS}
+          ariaLabel="Filtrar por alcance"
+        />
+        <ListFilterSelect
+          value={permissionAssignmentFilter}
+          allValue="all"
+          onChange={onPermissionAssignmentFilterChange}
+          options={PERMISSION_OPTIONS}
+          ariaLabel="Filtrar por permisos"
+        />
+      </>
+    }
+    hasActiveFilters={hasActiveFilters}
+    onClear={onClearFilters}
+    clearAriaLabel="Limpiar filtros de roles"
     sheetFilterCount={sheetFilterCount}
     sheetDescription="Alcance, permisos y orden de la lista."
-    hasActiveFilters={hasActiveFilters}
-    onClearFilters={onClearFilters}
-    clearFiltersAriaLabel="Limpiar filtros de roles"
     filterChips={filterChips}
     sheetContent={
       <>
-        {renderFilters(
-          companyScopeFilter,
-          onCompanyScopeFilterChange,
-          permissionAssignmentFilter,
-          onPermissionAssignmentFilterChange,
-          'sheet',
-        )}
+        <ButtonFilterGroup
+          label="Alcance"
+          options={COMPANY_SCOPE_OPTIONS}
+          value={companyScopeFilter}
+          onChange={onCompanyScopeFilterChange}
+          layout="sheet"
+          getOptionAriaLabel={(_label, optionLabel) =>
+            `Filtrar por alcance: ${optionLabel.toLowerCase()}`
+          }
+        />
+        <ButtonFilterGroup
+          label="Permisos"
+          options={PERMISSION_OPTIONS}
+          value={permissionAssignmentFilter}
+          onChange={onPermissionAssignmentFilterChange}
+          layout="sheet"
+          getOptionAriaLabel={(_label, optionLabel) =>
+            `Filtrar por permisos: ${optionLabel.toLowerCase()}`
+          }
+        />
         <MobileSortSelect
           sorting={sorting}
           onSortingChange={onSortingChange}
@@ -118,12 +122,5 @@ export const RolesFilterBar = ({
         />
       </>
     }
-    desktopContent={renderFilters(
-      companyScopeFilter,
-      onCompanyScopeFilterChange,
-      permissionAssignmentFilter,
-      onPermissionAssignmentFilterChange,
-      'desktop',
-    )}
   />
 );
