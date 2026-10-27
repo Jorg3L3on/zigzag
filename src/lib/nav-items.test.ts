@@ -3,11 +3,13 @@ import {
   filterSystemNavItems,
   getActiveMobileTabHref,
   getLongestMatchingHref,
+  getVisibleNavMainItems,
   MOBILE_CREATE_ACTIONS,
   MOBILE_DOCK_CREATE_SLOT,
   MOBILE_TAB_ITEMS,
   NAV_MAIN_ITEMS,
   NAV_SYSTEM_ITEMS,
+  type NavItemDefinition,
 } from '@/lib/nav-items';
 
 describe('nav-items', () => {
@@ -162,30 +164,111 @@ describe('nav-items', () => {
     ).toBe('/tickets/create');
   });
 
-  it('nests Datos, Equipo and Roles under Mi empresa', () => {
+  it('Mi empresa is one link to the hub, without sub-items (ZIG-34)', () => {
     const company = NAV_MAIN_ITEMS.find((item) => item.title === 'Mi empresa');
     expect(company?.url).toBe('/company');
-    expect(
-      company?.items?.map((sub) => [sub.title, sub.url, sub.requiredPermission]),
-    ).toEqual([
-      ['Datos', '/company', 'company.manage'],
-      ['Equipo', '/company/equipo', 'users.read'],
-      ['Roles', '/company/roles', 'roles.read'],
-    ]);
+    expect(company?.requiredPermission).toBe('company.manage');
+    expect(company?.items).toBeUndefined();
   });
 
-  it('keeps Mi empresa sub-items active on nested hub routes', () => {
-    const hubHrefs =
-      NAV_MAIN_ITEMS.find((item) => item.title === 'Mi empresa')?.items?.map(
-        (sub) => sub.url,
-      ) ?? [];
-    expect(getLongestMatchingHref('/company', hubHrefs)).toBe('/company');
-    expect(getLongestMatchingHref('/company/equipo', hubHrefs)).toBe(
+  it('keeps Mi empresa active on every hub route', () => {
+    const hrefs = NAV_MAIN_ITEMS.map((item) => item.activeUrl ?? item.url);
+    for (const pathname of [
+      '/company',
       '/company/equipo',
-    );
-    expect(getLongestMatchingHref('/company/roles/3', hubHrefs)).toBe(
       '/company/roles',
-    );
+      '/company/roles/nuevo',
+      '/company/roles/3',
+    ]) {
+      expect(getLongestMatchingHref(pathname, hrefs)).toBe('/company');
+    }
+    expect(getLongestMatchingHref('/clients', hrefs)).toBe('/clients');
+  });
+
+  describe('getVisibleNavMainItems', () => {
+    const canOnly =
+      (...granted: string[]) =>
+      (permission?: string) =>
+        permission === undefined || granted.includes(permission);
+    const find = (items: NavItemDefinition[]) =>
+      items.find((item) => item.title === 'Mi empresa');
+
+    it('sends an owner to Datos and lights the item under /company', () => {
+      const company = find(
+        getVisibleNavMainItems(NAV_MAIN_ITEMS, {
+          can: canOnly('company.manage', 'users.read', 'roles.read'),
+          isMobile: false,
+        }),
+      );
+      expect(company?.url).toBe('/company');
+      expect(company?.activeUrl).toBe('/company');
+      expect(company?.items).toBeUndefined();
+    });
+
+    it('sends users.read without company.manage to Equipo', () => {
+      const company = find(
+        getVisibleNavMainItems(NAV_MAIN_ITEMS, {
+          can: canOnly('users.read', 'roles.read'),
+          isMobile: false,
+        }),
+      );
+      expect(company?.url).toBe('/company/equipo');
+      expect(company?.activeUrl).toBe('/company');
+    });
+
+    it('sends roles.read alone to Roles and hides Mi empresa with no hub permission', () => {
+      expect(
+        find(
+          getVisibleNavMainItems(NAV_MAIN_ITEMS, {
+            can: canOnly('roles.read'),
+            isMobile: false,
+          }),
+        )?.url,
+      ).toBe('/company/roles');
+      expect(
+        find(
+          getVisibleNavMainItems(NAV_MAIN_ITEMS, {
+            can: canOnly('tickets.read'),
+            isMobile: false,
+          }),
+        ),
+      ).toBeUndefined();
+    });
+
+    it('keeps permission filtering and mobileOnly for the other items', () => {
+      const can = canOnly('tickets.read', 'tickets.write');
+      const desktop = getVisibleNavMainItems(NAV_MAIN_ITEMS, { can, isMobile: false });
+      expect(desktop.map((item) => item.title)).toEqual([
+        'Inicio',
+        'Tickets',
+        'Cobranza',
+        'Presupuestos',
+        'Recordatorios de servicio',
+      ]);
+      const mobile = getVisibleNavMainItems(NAV_MAIN_ITEMS, { can, isMobile: true });
+      expect(mobile.map((item) => item.title)).toContain('Anotar trabajo');
+    });
+
+    it('still filters sub-items by permission for grouped items', () => {
+      const grouped: NavItemDefinition[] = [
+        {
+          title: 'Grupo',
+          url: '/grupo',
+          requiredPermission: 'grupo.manage',
+          items: [
+            { title: 'A', url: '/grupo/a', requiredPermission: 'a.read' },
+            { title: 'B', url: '/grupo/b', requiredPermission: 'b.read' },
+          ],
+        },
+      ];
+      expect(
+        getVisibleNavMainItems(grouped, { can: canOnly('b.read'), isMobile: false })[0]
+          ?.items,
+      ).toEqual([{ title: 'B', url: '/grupo/b', requiredPermission: 'b.read' }]);
+      expect(
+        getVisibleNavMainItems(grouped, { can: canOnly('x'), isMobile: false }),
+      ).toEqual([]);
+    });
   });
 
   it('shows Usuarios, Roles and Catálogo de permisos to system users only', () => {
