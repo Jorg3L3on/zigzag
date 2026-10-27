@@ -6,6 +6,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+  type Row,
   type SortingState,
 } from '@tanstack/react-table';
 import { useCompany } from '@/contexts/company-context';
@@ -16,13 +17,27 @@ import {
 import { FormattedDate } from '@/components/formatted-date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TableCell, TableRow } from '@/components/ui/table';
 import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  AUDIT_ACTION_FILTER_OPTIONS,
+  AUDIT_RESOURCE_FILTER_OPTIONS,
+  auditResultFilterOptions,
+} from '@/components/audit/audit-filter-fields';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  FILTER_SELECTED_CLASS,
+  ListClickableRow,
+  ListEmpty,
+  ListError,
+  ListFilterSelect,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListTable,
+  ListTableCard,
+  ListToolbar,
+  listColumnClassName,
+} from '@/components/list-page';
 import { createOperatorActivityColumns } from '@/components/operator-console/operator-activity-columns';
 import { OperatorActivityFilterBar } from '@/components/operator-console/operator-activity-filter-bar';
 import {
@@ -59,6 +74,10 @@ const DEFAULT_SORTING: SortingState = [{ id: 'occurred_at', desc: true }];
 /** Viewport for ~10 body rows + header (h-12 + ~3.25rem rows). */
 const ACTIVITY_TABLE_SCROLL_CLASS =
   'max-h-[calc(3rem+3.25rem*10)] overflow-y-auto';
+/** Desktop: the list header (h-10) and ten h-14 rows; the header sticks at the top of it. */
+const ACTIVITY_DESKTOP_SCROLL_CLASS =
+  'max-h-[calc(2.5rem+3.5rem*10)] overflow-y-auto';
+const RESULT_FILTER_OPTIONS = auditResultFilterOptions('Todos los resultados');
 
 const AuditJsonBlock = ({
   title,
@@ -377,11 +396,10 @@ export const OperatorActivityPanel = () => {
     () =>
       createOperatorActivityColumns({
         expandedId,
-        onToggleExpand: handleToggleExpand,
         showIncidentColumn: hasIncidents,
         tenantCompanyId: companyId ?? undefined,
       }),
-    [companyId, expandedId, handleToggleExpand, hasIncidents],
+    [companyId, expandedId, hasIncidents],
   );
 
   const table = useReactTable({
@@ -416,6 +434,141 @@ export const OperatorActivityPanel = () => {
     </div>
   );
 
+  const desktopState = resolveResourceListState({
+    isLoading: loading && groupedEvents.length === 0,
+    loadError,
+    totalCount: groupedEvents.length,
+    visibleCount: groupedEvents.length,
+    hasActiveFilters,
+  });
+
+  /** The event row opens its payload underneath, by click, Enter or Space (ZIG-I33 §4). */
+  const renderDesktopRow = (row: Row<OperatorActivityRow>) => {
+    const event = row.original;
+    const expanded = expandedId === event.id;
+    const cells = row.getVisibleCells();
+    return (
+      <React.Fragment key={row.id}>
+        <ListClickableRow
+          data-testid="operator-activity-row"
+          aria-expanded={expanded}
+          selected={expanded}
+          onOpen={() => handleToggleExpand(event.id)}
+        >
+          {cells.map((cell) => (
+            <TableCell
+              key={cell.id}
+              className={listColumnClassName(cell.column.columnDef.meta)}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </TableCell>
+          ))}
+        </ListClickableRow>
+        {expanded ? (
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableCell colSpan={cells.length} className="h-auto! py-4!">
+              {renderDetails(event)}
+            </TableCell>
+          </TableRow>
+        ) : null}
+      </React.Fragment>
+    );
+  };
+
+  const loadedLabel = `${events.length} ${events.length === 1 ? 'evento cargado' : 'eventos cargados'}`;
+
+  const desktop = (
+    <div className="space-y-4">
+      <ListToolbar
+        search={{
+          value: searchValue,
+          onChange: setSearchValue,
+          placeholder: 'Buscar actividad...',
+          ariaLabel: 'Buscar actividad de auditoría',
+        }}
+        filters={
+          <>
+            <ListFilterSelect
+              value={resourceType}
+              allValue="all"
+              onChange={setResourceType}
+              options={AUDIT_RESOURCE_FILTER_OPTIONS}
+              ariaLabel="Filtrar por tipo de recurso"
+            />
+            <ListFilterSelect
+              value={actionFilter}
+              allValue="all"
+              onChange={setActionFilter}
+              options={AUDIT_ACTION_FILTER_OPTIONS}
+              ariaLabel="Filtrar por acción"
+            />
+            <ListFilterSelect
+              value={resultFilter}
+              allValue="all"
+              onChange={setResultFilter}
+              options={RESULT_FILTER_OPTIONS}
+              ariaLabel="Filtrar por resultado"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className={cn('h-11 shrink-0 rounded-full px-4', incidentsOnly && FILTER_SELECTED_CLASS)}
+              onClick={() => setIncidentsOnly((current) => !current)}
+              aria-pressed={incidentsOnly}
+            >
+              Solo incidentes
+            </Button>
+          </>
+        }
+        hasActiveFilters={hasActiveFilters}
+        onClear={handleClearFilters}
+        clearAriaLabel="Limpiar filtros de actividad"
+      />
+
+      {desktopState.kind === 'loading' ? (
+        <ListLoading label="Cargando actividad" columns={hasIncidents ? 7 : 6} />
+      ) : desktopState.kind === 'error' ? (
+        <ListError description={desktopState.message} onRetry={handleRetry} />
+      ) : desktopState.kind === 'empty' ? (
+        <ListEmpty
+          icon={<ClipboardList className="h-4 w-4 text-muted-foreground" aria-hidden />}
+          title="Sin actividad"
+          description="No hay eventos de auditoría para esta empresa."
+        />
+      ) : desktopState.kind === 'filtered-empty' ? (
+        <ListNoResults
+          description="No hay eventos con los filtros o búsqueda actuales."
+          onClear={handleClearFilters}
+        />
+      ) : (
+        <ListTableCard
+          footer={
+            <ListFooter
+              total={events.length}
+              noun="eventos"
+              label={loadedLabel}
+              loadMore={{
+                hasMore: nextCursor != null,
+                loading: loadingMore,
+                onLoadMore: () => void handleLoadMore(),
+              }}
+            />
+          }
+        >
+          <div className={ACTIVITY_DESKTOP_SCROLL_CLASS}>
+            <ListTable
+              table={table}
+              ariaLabel="Actividad reciente"
+              stickyTop="top-0"
+              busy={loading}
+              renderRow={renderDesktopRow}
+            />
+          </div>
+        </ListTableCard>
+      )}
+    </div>
+  );
+
   return (
     <section className="space-y-4 border-t border-border/60 pt-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -435,219 +588,145 @@ export const OperatorActivityPanel = () => {
         ) : null}
       </div>
 
-      <OperatorActivityFilterBar
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        resourceType={resourceType}
-        onResourceTypeChange={setResourceType}
-        actionFilter={actionFilter}
-        onActionFilterChange={setActionFilter}
-        resultFilter={resultFilter}
-        onResultFilterChange={setResultFilter}
-        incidentsOnly={incidentsOnly}
-        onIncidentsOnlyChange={setIncidentsOnly}
-        sheetFilterCount={sheetFilterCount}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={handleClearFilters}
-        filterChips={filterChips}
-      />
-
-      <div className="space-y-4">
-          {listState.kind === 'loading' ? (
-            <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : listState.kind === 'error' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-destructive" role="alert">
-                {listState.message}
-              </p>
-              <Button type="button" variant="outline" onClick={handleRetry}>
-                Reintentar
-              </Button>
-            </div>
-          ) : listState.kind === 'empty' || listState.kind === 'filtered-empty' ? (
-            <TripledEmptyState
-              icon={<ClipboardList className="h-4 w-4" aria-hidden />}
-              title={
-                listState.kind === 'filtered-empty'
-                  ? 'Sin resultados'
-                  : 'Sin actividad'
-              }
-              description={
-                listState.kind === 'filtered-empty'
-                  ? 'No hay eventos con los filtros o búsqueda actuales.'
-                  : 'No hay eventos de auditoría para esta empresa.'
-              }
+      <DesktopSwitch
+        phone={
+          <div className="space-y-4">
+            <OperatorActivityFilterBar
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              resourceType={resourceType}
+              onResourceTypeChange={setResourceType}
+              actionFilter={actionFilter}
+              onActionFilterChange={setActionFilter}
+              resultFilter={resultFilter}
+              onResultFilterChange={setResultFilter}
+              incidentsOnly={incidentsOnly}
+              onIncidentsOnlyChange={setIncidentsOnly}
+              sheetFilterCount={sheetFilterCount}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={handleClearFilters}
+              filterChips={filterChips}
             />
-          ) : (
-            <>
-              <div
-                className={cn('space-y-3 md:hidden', ACTIVITY_TABLE_SCROLL_CLASS)}
-              >
-                {table.getRowModel().rows.map((row) => {
-                  const event = row.original;
-                  const expanded = expandedId === event.id;
-                  return (
-                    <TripledMobileRecordCard key={row.id}>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <ResultBadge event={event} />
-                        <Badge variant="outline">
-                          {formatAuditActionLabel(event.action)}
-                        </Badge>
-                        {event.count > 1 ? (
-                          <Badge variant="secondary">×{event.count}</Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-sm">
-                        <AuditResourceLink
-                          event={event}
-                          tenantCompanyId={companyId}
-                        />
-                      </p>
-                      <p className="mt-1 text-caption text-muted-foreground">
-                        Actor:{' '}
-                        {actorDisplayName(
-                          event.actor_user_id,
-                          event.actor_name,
-                        )}{' '}
-                        ·{' '}
-                        <FormattedDate
-                          date={new Date(event.occurred_at)}
-                          withTime
-                        />
-                      </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2 h-8 px-2"
-                        onClick={() => handleToggleExpand(event.id)}
-                        aria-expanded={expanded}
-                        aria-label={`Ver detalle del evento ${event.id}`}
-                      >
-                        <ChevronDown
-                          className={cn(
-                            'mr-1 h-4 w-4 transition-transform',
-                            expanded && 'rotate-180',
-                          )}
-                          aria-hidden
-                        />
-                        {expanded ? 'Ocultar detalle' : 'Ver detalle'}
-                      </Button>
-                      {expanded ? (
-                        <div className="mt-3 border-t border-border/60 pt-3">
-                          {renderDetails(event)}
-                        </div>
-                      ) : null}
-                    </TripledMobileRecordCard>
-                  );
-                })}
-              </div>
 
-              <div
-                className={cn(
-                  'hidden rounded-xl border border-border/70 md:block',
-                  ACTIVITY_TABLE_SCROLL_CLASS,
-                )}
-              >
-                <table className="w-full caption-bottom text-sm">
-                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_hsl(var(--border))] [&_tr]:border-b">
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                        {headerGroup.headers.map((header) => (
-                          <TableHead
-                            key={header.id}
-                            className={cn(
-                              'bg-card',
-                              header.id === 'expand' ? 'w-8' : undefined,
-                            )}
-                          >
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
+            <div className="space-y-4">
+              {listState.kind === 'loading' ? (
+                <div className="flex h-32 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : listState.kind === 'error' ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-destructive" role="alert">
+                    {listState.message}
+                  </p>
+                  <Button type="button" variant="outline" onClick={handleRetry}>
+                    Reintentar
+                  </Button>
+                </div>
+              ) : listState.kind === 'empty' || listState.kind === 'filtered-empty' ? (
+                <TripledEmptyState
+                  icon={<ClipboardList className="h-4 w-4" aria-hidden />}
+                  title={
+                    listState.kind === 'filtered-empty'
+                      ? 'Sin resultados'
+                      : 'Sin actividad'
+                  }
+                  description={
+                    listState.kind === 'filtered-empty'
+                      ? 'No hay eventos con los filtros o búsqueda actuales.'
+                      : 'No hay eventos de auditoría para esta empresa.'
+                  }
+                />
+              ) : (
+                <>
+                  <div
+                    className={cn('space-y-3', ACTIVITY_TABLE_SCROLL_CLASS)}
+                  >
                     {table.getRowModel().rows.map((row) => {
                       const event = row.original;
                       const expanded = expandedId === event.id;
                       return (
-                        <React.Fragment key={row.id}>
-                          <TableRow
-                            className="cursor-pointer"
+                        <TripledMobileRecordCard key={row.id}>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ResultBadge event={event} />
+                            <Badge variant="outline">
+                              {formatAuditActionLabel(event.action)}
+                            </Badge>
+                            {event.count > 1 ? (
+                              <Badge variant="secondary">×{event.count}</Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-2 text-sm">
+                            <AuditResourceLink
+                              event={event}
+                              tenantCompanyId={companyId}
+                            />
+                          </p>
+                          <p className="mt-1 text-caption text-muted-foreground">
+                            Actor:{' '}
+                            {actorDisplayName(
+                              event.actor_user_id,
+                              event.actor_name,
+                            )}{' '}
+                            ·{' '}
+                            <FormattedDate
+                              date={new Date(event.occurred_at)}
+                              withTime
+                            />
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 h-8 px-2"
                             onClick={() => handleToggleExpand(event.id)}
-                            onKeyDown={(keyEvent) => {
-                              if (
-                                keyEvent.key === 'Enter' ||
-                                keyEvent.key === ' '
-                              ) {
-                                keyEvent.preventDefault();
-                                handleToggleExpand(event.id);
-                              }
-                            }}
-                            tabIndex={0}
                             aria-expanded={expanded}
                             aria-label={`Ver detalle del evento ${event.id}`}
                           >
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell
-                                key={cell.id}
-                                className={
-                                  cell.column.id === 'expand'
-                                    ? 'w-8 px-2'
-                                    : undefined
-                                }
-                              >
-                                {flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext(),
-                                )}
-                              </TableCell>
-                            ))}
-                          </TableRow>
+                            <ChevronDown
+                              className={cn(
+                                'mr-1 h-4 w-4 transition-transform',
+                                expanded && 'rotate-180',
+                              )}
+                              aria-hidden
+                            />
+                            {expanded ? 'Ocultar detalle' : 'Ver detalle'}
+                          </Button>
                           {expanded ? (
-                            <TableRow className="bg-muted/30 hover:bg-muted/30">
-                              <TableCell colSpan={row.getVisibleCells().length}>
-                                {renderDetails(event)}
-                              </TableCell>
-                            </TableRow>
+                            <div className="mt-3 border-t border-border/60 pt-3">
+                              {renderDetails(event)}
+                            </div>
                           ) : null}
-                        </React.Fragment>
+                        </TripledMobileRecordCard>
                       );
                     })}
-                  </TableBody>
-                </table>
-              </div>
+                  </div>
 
-              {nextCursor != null ? (
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void handleLoadMore()}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Cargando…
-                      </>
-                    ) : (
-                      'Cargar más'
-                    )}
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )}
-      </div>
+                  {nextCursor != null ? (
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleLoadMore()}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Cargando…
+                          </>
+                        ) : (
+                          'Cargar más'
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
+        }
+        desktop={desktop}
+      />
     </section>
   );
 };
