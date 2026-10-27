@@ -10,6 +10,8 @@ import { OperatorActivityPanel } from '@/components/operator-console/operator-ac
 import { OperatorCompanyMetrics } from '@/components/operator-console/operator-company-metrics';
 import { OperatorCompanyOverview } from '@/components/operator-console/operator-company-overview';
 import { OperatorLifecyclePanel } from '@/components/operator-console/operator-lifecycle-panel';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import { ListViewTabs } from '@/components/list-page';
 import { TripledEmptyState } from '@/components/tripled';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCompany } from '@/contexts/company-context';
+import { useDesktopViewport } from '@/hooks/use-desktop';
 import {
   buildOperatorAttentionSignals,
   type OperatorAttentionSignal,
@@ -48,6 +51,8 @@ const TABS: Array<{ id: DetailTab; label: string }> = [
   { id: 'acceso', label: 'Acceso' },
   { id: 'ciclo', label: 'Ciclo de vida' },
 ];
+
+const TABS_LABEL = 'Secciones de la empresa seleccionada';
 
 const attentionBadgeVariant = (
   tone: OperatorAttentionSignal['tone'],
@@ -209,6 +214,21 @@ export const OperatorConsoleDetail = () => {
     };
   }, [companyId, isSystemTenant, reloadToken]);
 
+  // From lg the tabs are ListViewTabs (buttons, no tab ids): the panels name themselves.
+  const isDesktop = useDesktopViewport() === true;
+  const panelProps = (id: DetailTab) =>
+    isDesktop
+      ? {
+          role: 'region' as const,
+          id: `operator-panel-${id}`,
+          'aria-label': TABS.find((item) => item.id === id)?.label,
+        }
+      : {
+          role: 'tabpanel' as const,
+          id: `operator-panel-${id}`,
+          'aria-labelledby': `operator-tab-${id}`,
+        };
+
   const handleSelectTab = (next: DetailTab) => {
     setTab(next);
     setVisited((prev) => ({ ...prev, [next]: true }));
@@ -358,35 +378,46 @@ export const OperatorConsoleDetail = () => {
           </div>
         </div>
 
-        <div
-          role="tablist"
-          aria-label="Secciones de la empresa seleccionada"
-          className="flex flex-wrap gap-2"
-        >
-          {TABS.map((item, index) => (
-            <Button
-              key={item.id}
-              type="button"
-              role="tab"
-              id={`operator-tab-${item.id}`}
-              aria-selected={tab === item.id}
-              aria-controls={`operator-panel-${item.id}`}
-              tabIndex={tab === item.id ? 0 : -1}
-              variant={tab === item.id ? 'default' : 'outline'}
-              className="min-h-11 rounded-xl"
-              onClick={() => handleSelectTab(item.id)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
+        {/* Phones keep their pill tabs; from lg the list view tabs (ZIG-I33-8, eb0ff213). */}
+        <DesktopSwitch
+          phone={
+            <div
+              role="tablist"
+              aria-label={TABS_LABEL}
+              className="flex flex-wrap gap-2"
             >
-              {item.label}
-            </Button>
-          ))}
-        </div>
+              {TABS.map((item, index) => (
+                <Button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  id={`operator-tab-${item.id}`}
+                  aria-selected={tab === item.id}
+                  aria-controls={`operator-panel-${item.id}`}
+                  tabIndex={tab === item.id ? 0 : -1}
+                  variant={tab === item.id ? 'default' : 'outline'}
+                  className="min-h-11 rounded-xl"
+                  onClick={() => handleSelectTab(item.id)}
+                  onKeyDown={(event) => handleTabKeyDown(event, index)}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </div>
+          }
+          desktop={
+            <ListViewTabs
+              label={TABS_LABEL}
+              tabs={TABS.map((item) => ({ ...item, count: null }))}
+              isSelected={(id) => tab === id}
+              onSelect={handleSelectTab}
+            />
+          }
+        />
       </div>
 
       <div
-        role="tabpanel"
-        id="operator-panel-resumen"
-        aria-labelledby="operator-tab-resumen"
+        {...panelProps('resumen')}
         hidden={tab !== 'resumen'}
         className={cn(tab === 'resumen' ? 'space-y-4' : 'hidden')}
       >
@@ -419,9 +450,7 @@ export const OperatorConsoleDetail = () => {
 
       {visited.actividad ? (
         <div
-          role="tabpanel"
-          id="operator-panel-actividad"
-          aria-labelledby="operator-tab-actividad"
+          {...panelProps('actividad')}
           hidden={tab !== 'actividad'}
           className={cn(tab === 'actividad' ? 'block' : 'hidden')}
         >
@@ -431,9 +460,7 @@ export const OperatorConsoleDetail = () => {
 
       {visited.acceso ? (
         <div
-          role="tabpanel"
-          id="operator-panel-acceso"
-          aria-labelledby="operator-tab-acceso"
+          {...panelProps('acceso')}
           hidden={tab !== 'acceso'}
           className={cn(tab === 'acceso' ? 'block' : 'hidden')}
         >
@@ -443,9 +470,7 @@ export const OperatorConsoleDetail = () => {
 
       {visited.ciclo ? (
         <div
-          role="tabpanel"
-          id="operator-panel-ciclo"
-          aria-labelledby="operator-tab-ciclo"
+          {...panelProps('ciclo')}
           hidden={tab !== 'ciclo'}
           className={cn(tab === 'ciclo' ? 'block' : 'hidden')}
         >

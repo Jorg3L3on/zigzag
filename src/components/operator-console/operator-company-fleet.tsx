@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
-  flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
@@ -23,20 +23,25 @@ import {
   FLEET_STATUS_FILTER_OPTIONS,
 } from '@/components/companies/companies-filter-bar';
 import { createOperatorFleetColumns } from '@/components/operator-console/operator-company-fleet-columns';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  ListEmpty,
+  ListError,
+  ListFilterSelect,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  ListToolbar,
+} from '@/components/list-page';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import {
   OPERATOR_CONSOLE_COMPANY_QUERY_PARAM,
   operatorConsoleCompanyHref,
   operatorTenantHref,
 } from '@/lib/operator-tenant-scope';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, Factory, X, Plus } from 'lucide-react';
@@ -47,6 +52,14 @@ import { PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'setup' | 'active' | 'suspended' | 'archived';
+
+/** The desktop pill reads «Todos los estados» at rest (ZIG-I33 §2). */
+const FLEET_STATUS_SELECT_OPTIONS = FLEET_STATUS_FILTER_OPTIONS.map((option) =>
+  option.value === 'all' ? { ...option, label: 'Todos los estados' } : option,
+);
+
+/** «Nueva empresa» opens the create page (it pointed at /companies/create, which does not exist). */
+const NEW_COMPANY_HREF = '/companies/new';
 
 const matchesStatusFilter = (
   lifecycle: OperatorFleetRow['lifecycle'],
@@ -87,7 +100,7 @@ export const OperatorCompanyFleet = () => {
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
       () => setDebouncedSearch(searchValue.trim()),
-      250,
+      300,
     );
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
@@ -194,14 +207,15 @@ export const OperatorCompanyFleet = () => {
               Actual
             </Badge>
           ) : (
-            <span className="sr-only"> </span>
+            null
           ),
         renderActions: (row) => (
           <>
             <Button
+              type="button"
               variant="outline"
               size="sm"
-              className="mr-1"
+              className="h-8"
               aria-label={`Seleccionar contexto ${row.name}`}
               onClick={(event) => {
                 event.stopPropagation();
@@ -211,17 +225,17 @@ export const OperatorCompanyFleet = () => {
               Seleccionar
             </Button>
             {canWriteCompanies ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Editar ${row.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  router.push(operatorTenantHref(row.editHref, row.id));
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
+              <ListRowMenu
+                label={`Acciones de ${row.name}`}
+                items={[
+                  {
+                    label: 'Editar',
+                    icon: <Pencil className="h-4 w-4" aria-hidden />,
+                    onSelect: () =>
+                      router.push(operatorTenantHref(row.editHref, row.id)),
+                  },
+                ]}
+              />
             ) : null}
           </>
         ),
@@ -277,7 +291,7 @@ export const OperatorCompanyFleet = () => {
       : []),
   ];
 
-  return (
+  const phone = (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -291,7 +305,7 @@ export const OperatorCompanyFleet = () => {
         {canWriteCompanies ? (
           <Button
             className="min-h-11 rounded-xl"
-            onClick={() => router.push('/companies/create')}
+            onClick={() => router.push(NEW_COMPANY_HREF)}
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden />
             Nueva empresa
@@ -355,7 +369,7 @@ export const OperatorCompanyFleet = () => {
 
       {listState.kind === 'ready' ? (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3">
             {table.getRowModel().rows.map((tableRow) => {
               const row = tableRow.original;
               const isCurrent = selectedCompany?.id === row.id;
@@ -453,62 +467,91 @@ export const OperatorCompanyFleet = () => {
               );
             })}
           </div>
-
-          <div className="hidden overflow-hidden rounded-xl border border-border/70 md:block">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((tableRow) => {
-                  const row = tableRow.original;
-                  const isCurrent = selectedCompany?.id === row.id;
-                  return (
-                    <TableRow
-                      key={tableRow.id}
-                      className={cn(
-                        'cursor-pointer',
-                        isCurrent && 'bg-muted/40',
-                      )}
-                      onClick={() => handleSelectContext(row)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          handleSelectContext(row);
-                        }
-                      }}
-                      tabIndex={0}
-                      aria-label={`Seleccionar contexto ${row.name}`}
-                    >
-                      {tableRow.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
         </>
       ) : null}
     </div>
   );
+
+  const visibleCount = table.getRowModel().rows.length;
+
+  const desktop = (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-foreground">
+            Flota de empresas
+            {listState.kind === 'loading' || listState.kind === 'error' ? null : (
+              <span className="font-normal text-muted-foreground">
+                {' · '}
+                <span className="tabular-nums">{rows.length}</span>
+              </span>
+            )}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Estado, preparación e incidentes de cada tenant operativo.
+          </p>
+        </div>
+        {canWriteCompanies ? (
+          <Button asChild className="shrink-0">
+            <Link href={NEW_COMPANY_HREF}>
+              <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
+              Nueva empresa
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+
+      <ListToolbar
+        search={{
+          value: searchValue,
+          onChange: setSearchValue,
+          placeholder: 'Buscar empresa, correo o teléfono',
+          ariaLabel: 'Buscar empresas',
+        }}
+        filters={
+          <ListFilterSelect
+            value={statusFilter}
+            allValue="all"
+            onChange={setStatusFilter}
+            options={FLEET_STATUS_SELECT_OPTIONS}
+            ariaLabel="Filtrar por estado"
+          />
+        }
+        hasActiveFilters={hasActiveFilters}
+        onClear={handleClearFilters}
+        clearAriaLabel="Limpiar filtros de flota"
+      />
+
+      {listState.kind === 'loading' ? (
+        <ListLoading label="Cargando flota de empresas" columns={6} />
+      ) : listState.kind === 'error' ? (
+        <ListError description={listState.message} onRetry={() => void fetchFleet()} />
+      ) : listState.kind === 'empty' ? (
+        <ListEmpty
+          icon={<Factory className="h-4 w-4 text-muted-foreground" aria-hidden />}
+          title="Sin empresas"
+          description="Aún no hay tenants operativos en la plataforma."
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <ListNoResults
+          description="No hay tenants que coincidan con el filtro."
+          onClear={handleClearFilters}
+        />
+      ) : (
+        <ListTableCard
+          footer={<ListFooter total={rows.length} shown={visibleCount} noun="empresas" />}
+        >
+          <ListTable
+            table={table}
+            ariaLabel="Flota de empresas"
+            rowTestId="operator-fleet-row"
+            onOpenRow={(row) => handleSelectContext(row.original)}
+            isRowSelected={(row) => selectedCompany?.id === row.original.id}
+          />
+        </ListTableCard>
+      )}
+    </div>
+  );
+
+  return <DesktopSwitch phone={phone} desktop={desktop} />;
 };
