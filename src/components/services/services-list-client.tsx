@@ -10,7 +10,6 @@ import {
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -57,8 +56,18 @@ import { canWriteServices } from '@/lib/services-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { cn } from '@/lib/utils';
+import {
+  COBRANZA_TABLE_CARD_CLASS,
+  COBRANZA_TABLE_CLASS,
+} from '@/components/cobranza/cobranza-ticket-table';
+import { ListDesktopTitle, ListRowMenu } from '@/components/list-filter';
 
-export function ServicesListClient() {
+type ServicesListClientProps = {
+  /** Importar CSV and Nuevo servicio, beside the desktop title (ZIG-30). */
+  desktopActions?: React.ReactNode;
+};
+
+export function ServicesListClient({ desktopActions }: ServicesListClientProps = {}) {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const canWrite = canWriteServices(permissions.can);
@@ -175,30 +184,22 @@ export function ServicesListClient() {
       createServicesColumns({
         renderActions: (service) =>
           canWrite ? (
-            <>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Editar ${service.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/services/${service.id}/edit`);
-              }}
-            >
-              <Pencil className="h-4 w-4"  data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Eliminar ${service.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                openDeleteDialog(service.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-            </Button>
-            </>
+            <ListRowMenu
+              label={`Acciones de ${service.name}`}
+              items={[
+                {
+                  label: 'Editar servicio',
+                  icon: <Pencil className="size-4" aria-hidden />,
+                  onSelect: () => router.push(`/services/${service.id}/edit`),
+                },
+                {
+                  label: 'Eliminar servicio',
+                  icon: <Trash2 className="size-4" aria-hidden />,
+                  onSelect: () => openDeleteDialog(service.id),
+                  destructive: true,
+                },
+              ]}
+            />
           ) : null,
       }),
     [router, openDeleteDialog, canWrite],
@@ -267,6 +268,12 @@ export function ServicesListClient() {
 
   return (
     <>
+      <ListDesktopTitle
+        title="Servicios"
+        count={loadingServices && services.length === 0 ? null : services.length}
+        description="Catálogo de servicios y precios que usas en tickets y presupuestos."
+        actions={desktopActions}
+      />
       <div className="space-y-4">
         <ServicesFilterBar
           searchValue={searchValue}
@@ -449,12 +456,9 @@ export function ServicesListClient() {
             })}
           </div>
 
-          <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-            <Table
-              className={
-                '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-              }
-            >
+          {/* From md the Cobranza table, its count in the footer (ZIG-30). */}
+          <div className={cn(COBRANZA_TABLE_CARD_CLASS, 'mt-4 hidden md:block')}>
+            <table className={COBRANZA_TABLE_CLASS} aria-label="Servicios">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -478,7 +482,7 @@ export function ServicesListClient() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={canWrite ? 'cursor-pointer' : undefined}
+                    className={cn('h-14', canWrite && 'cursor-pointer')}
                     tabIndex={canWrite ? 0 : -1}
                     onClick={() => {
                       if (canWrite) {
@@ -506,7 +510,10 @@ export function ServicesListClient() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </table>
+            <p className="border-t border-border/70 px-4 py-3 text-[13px] tabular-nums text-muted-foreground">
+              {filteredServices.length} de {services.length} servicios
+            </p>
           </div>
         </>
       )}

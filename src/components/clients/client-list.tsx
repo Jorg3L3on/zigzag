@@ -12,7 +12,6 @@ import {
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -72,13 +71,23 @@ import { formatClientAddressOneLine } from '@/lib/client-address';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import {
+  COBRANZA_TABLE_CARD_CLASS,
+  COBRANZA_TABLE_CLASS,
+} from '@/components/cobranza/cobranza-ticket-table';
+import { ListDesktopTitle, ListRowMenu } from '@/components/list-filter';
 
 type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
 const hasMeaningfulText = (value: string | null | undefined): boolean =>
   Boolean(value && value.trim().length > 0);
 
-export function ClientList() {
+type ClientListProps = {
+  /** Importar CSV and Nuevo cliente, beside the desktop title (ZIG-30). */
+  desktopActions?: React.ReactNode;
+};
+
+export function ClientList({ desktopActions }: ClientListProps = {}) {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const canWrite = canWriteClients(permissions.can);
@@ -258,30 +267,22 @@ export function ClientList() {
       createClientsColumns({
         renderActions: (clientRow) =>
           canWrite && snapshotUpdatedAt == null ? (
-            <>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Editar ${clientRow.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/clients/${clientRow.id}/edit`);
-              }}
-            >
-              <Pencil className="h-4 w-4"  data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Eliminar ${clientRow.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                openDeleteDialog(clientRow.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-            </Button>
-            </>
+            <ListRowMenu
+              label={`Acciones de ${clientRow.name}`}
+              items={[
+                {
+                  label: 'Editar cliente',
+                  icon: <Pencil className="size-4" aria-hidden />,
+                  onSelect: () => router.push(`/clients/${clientRow.id}/edit`),
+                },
+                {
+                  label: 'Eliminar cliente',
+                  icon: <Trash2 className="size-4" aria-hidden />,
+                  onSelect: () => openDeleteDialog(clientRow.id),
+                  destructive: true,
+                },
+              ]}
+            />
           ) : null,
       }),
     [router, openDeleteDialog, canWrite, snapshotUpdatedAt],
@@ -401,8 +402,18 @@ export function ClientList() {
     hasActiveFilters,
   });
 
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const firstShown = filteredClients.length === 0 ? 0 : pageIndex * pageSize + 1;
+  const lastShown = Math.min((pageIndex + 1) * pageSize, filteredClients.length);
+
   return (
     <>
+      <ListDesktopTitle
+        title="Clientes"
+        count={loadingClients && clients.length === 0 ? null : clients.length}
+        description="Catálogo de clientes y datos de contacto."
+        actions={desktopActions}
+      />
       <div className="space-y-4">
         <ClientsFilterBar
           searchValue={searchValue}
@@ -611,12 +622,9 @@ export function ClientList() {
             })}
           </div>
 
-          <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-            <Table
-              className={
-                '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-              }
-            >
+          {/* From md the Cobranza table, its footer inside the card (ZIG-30). */}
+          <div className={cn(COBRANZA_TABLE_CARD_CLASS, 'mt-4 hidden md:block')}>
+            <table className={COBRANZA_TABLE_CLASS} aria-label="Clientes">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -643,7 +651,7 @@ export function ClientList() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={canOpenDetail ? 'cursor-pointer' : undefined}
+                    className={cn('h-14', canOpenDetail && 'cursor-pointer')}
                     tabIndex={canOpenDetail ? 0 : -1}
                     onClick={() => {
                       if (canOpenDetail) {
@@ -674,10 +682,37 @@ export function ClientList() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </table>
+            <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
+              <p className="text-[13px] tabular-nums text-muted-foreground">
+                {firstShown}–{lastShown} de {filteredClients.length} clientes
+              </p>
+              {table.getPageCount() > 1 ? (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage() || isBusy}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage() || isBusy}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4 md:hidden">
             <p className="text-caption text-muted-foreground">
               Página {table.getState().pagination.pageIndex + 1} de{' '}
               {table.getPageCount()}

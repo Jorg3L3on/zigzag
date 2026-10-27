@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Upload, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { ServicesListClient } from '@/components/services/services-list-client';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
   TripledDashboardShell,
   TripledPageHeader,
@@ -27,7 +28,11 @@ export default async function ServicesPage() {
       <TripledPageHeader items={[{ label: 'Servicios' }]} />
 
       <TripledDashboardShell>
+        {/* From lg the list draws its own title row, without the card (ZIG-30). */}
         <TripledResourceCard
+          className="lg:contents"
+          headerClassName="lg:hidden"
+          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
           title="Servicios"
           description="Administra el catálogo de servicios disponibles"
           icon={<Wrench className="size-5" aria-hidden />}
@@ -50,20 +55,44 @@ export default async function ServicesPage() {
           }
         >
           {canWriteServices ? (
-            <div className="mb-4">
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href="/services/import">
-                  <Upload
-                    className="size-4"
-                    aria-hidden
-                    data-icon="inline-start"
-                  />
-                  Importar CSV
-                </Link>
-              </Button>
-            </div>
+            <DesktopSwitch
+              phone={
+                <div className="mb-4">
+                  <Button asChild variant="outline" size="sm" className="gap-1.5">
+                    <Link href="/services/import">
+                      <Upload
+                        className="size-4"
+                        aria-hidden
+                        data-icon="inline-start"
+                      />
+                      Importar CSV
+                    </Link>
+                  </Button>
+                </div>
+              }
+              desktop={null}
+            />
           ) : null}
-          <ServicesListClient />
+          <ServicesListClient
+            desktopActions={
+              canWriteServices ? (
+                <>
+                  <Button asChild variant="outline" className="gap-1.5">
+                    <Link href="/services/import">
+                      <Upload className="size-4" aria-hidden data-icon="inline-start" />
+                      Importar CSV
+                    </Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/services/new">
+                      <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+                      Nuevo servicio
+                    </Link>
+                  </Button>
+                </>
+              ) : null
+            }
+          />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>

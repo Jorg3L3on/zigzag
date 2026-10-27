@@ -34,11 +34,16 @@ export default function AccountPage() {
       <TripledDashboardShell maxWidthClassName="max-w-3xl">
         <TripledMobileAppBar title="Mi cuenta" subtitle="Perfil y empresa" className="mb-3" />
         <TripledResourceCard
+          desktop="title"
           title="Mi cuenta"
           description="Perfil, empresa y datos de acceso."
           icon={<UserRound className="size-5" aria-hidden />}
         >
-          <Card className="border-border/60 shadow-sm" data-testid="account-card">
+          {/* From lg this card is the light panel under the page title (ZIG-30). */}
+          <Card
+            className="border-border/60 shadow-sm lg:bg-none lg:bg-card lg:shadow-none! lg:hover:transform-none! lg:hover:shadow-none!"
+            data-testid="account-card"
+          >
             <CardHeader>
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">

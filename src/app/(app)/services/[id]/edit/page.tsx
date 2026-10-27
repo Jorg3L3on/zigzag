@@ -65,6 +65,7 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
             className="mb-3"
           />
           <TripledResourceCard
+            desktop="page"
             title="Nuevo servicio"
             description="Completa los datos para crear un nuevo servicio."
             icon={<Wrench className="size-5" aria-hidden />}
@@ -114,6 +115,7 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
           className="mb-3"
         />
         <TripledResourceCard
+          desktop="page"
           title="Editar servicio"
           description="Modifica los datos del servicio."
           icon={<Wrench className="size-5" aria-hidden />}

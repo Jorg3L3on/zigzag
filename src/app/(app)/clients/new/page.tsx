@@ -55,6 +55,7 @@ export default async function NewClientPage() {
           className="mb-3"
         />
         <TripledResourceCard
+          desktop="page"
           title="Información del cliente"
           description="Ingresa la información del nuevo cliente."
           icon={<UserPlus className="size-5" aria-hidden />}

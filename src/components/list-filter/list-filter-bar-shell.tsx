@@ -53,6 +53,11 @@ export type ListFilterBarShellProps = {
    */
   mobileSort?: ReactNode;
   moreFiltersLabel?: string;
+  /**
+   * From lg the desktop controls sit on the search row and the chips hide, for lists
+   * whose title already carries the count (ZIG-30).
+   */
+  desktopInline?: boolean;
 };
 
 export const ListFilterBarShell = ({
@@ -76,6 +81,7 @@ export const ListFilterBarShell = ({
   quickFilters,
   mobileSort,
   moreFiltersLabel,
+  desktopInline = false,
 }: ListFilterBarShellProps) => {
   const sheet = showFilterSheet ? (
     <Sheet>
@@ -185,6 +191,24 @@ export const ListFilterBarShell = ({
     </Sheet>
   ) : null;
 
+  const desktopClear =
+    showDesktopClear && hasActiveFilters ? (
+      <Button
+        type="button"
+        variant="ghost"
+        className={cn(CLEAR_FILTERS_CLASS, "shrink-0")}
+        onClick={onClearFilters}
+        aria-label={clearFiltersAriaLabel}
+      >
+        <X
+          className="mr-2 h-4 w-4"
+          aria-hidden
+          data-icon="inline-start"
+        />
+        Limpiar filtros
+      </Button>
+    ) : null;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex min-w-0 w-full gap-2">
@@ -204,11 +228,23 @@ export const ListFilterBarShell = ({
         </div>
 
         {moreFiltersLabel ? null : sheet}
+        {desktopInline && showFilterSheet ? (
+          <div className="hidden shrink-0 items-center gap-3 lg:flex">
+            {desktopContent}
+            {desktopClear}
+          </div>
+        ) : null}
       </div>
 
       {/* Phones: one control per row (contents). From lg the chips, the labelled controls and
           Limpiar share one row, bottoms aligned (ZIG-I27-3). */}
-      <div className="contents lg:flex lg:flex-wrap lg:items-end lg:gap-x-6 lg:gap-y-3">
+      <div
+        className={
+          desktopInline
+            ? "contents"
+            : "contents lg:flex lg:flex-wrap lg:items-end lg:gap-x-6 lg:gap-y-3"
+        }
+      >
         {quickFilters}
 
         {moreFiltersLabel && (mobileSort || sheet) ? (
@@ -221,30 +257,15 @@ export const ListFilterBarShell = ({
           </div>
         ) : null}
 
-        {showFilterSheet ? (
+        {showFilterSheet && !desktopInline ? (
           <div className="hidden gap-x-6 gap-y-3 lg:flex lg:flex-wrap lg:items-end">
             {desktopContent}
-            {showDesktopClear && hasActiveFilters ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className={cn(CLEAR_FILTERS_CLASS, "shrink-0")}
-                onClick={onClearFilters}
-                aria-label={clearFiltersAriaLabel}
-              >
-                <X
-                  className="mr-2 h-4 w-4"
-                  aria-hidden
-                  data-icon="inline-start"
-                />
-                Limpiar filtros
-              </Button>
-            ) : null}
+            {desktopClear}
           </div>
         ) : null}
       </div>
 
-      <TripledFilterChips chips={filterChips} />
+      <TripledFilterChips chips={filterChips} className={desktopInline ? "lg:hidden" : undefined} />
     </div>
   );
 };

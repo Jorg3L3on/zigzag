@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { presentActionError } from '@/lib/network-awareness';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Form,
   FormControl,
@@ -19,6 +20,8 @@ import { bulkImportClients } from '@/actions/clients';
 import { useCompany } from '@/contexts/company-context';
 
 type ClientsCsvImportProps = {
+  /** The desktop title row matches its height to Nuevo cliente (ZIG-30). */
+  buttonClassName?: string;
   companyId?: number | null;
 };
 
@@ -33,6 +36,7 @@ type ImportFormValues = {
  */
 export const ClientsCsvImport = ({
   companyId: companyIdProp,
+  buttonClassName,
 }: ClientsCsvImportProps) => {
   const router = useRouter();
   const { selectedCompany } = useCompany();
@@ -105,7 +109,7 @@ export const ClientsCsvImport = ({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="gap-1.5"
+                className={cn('gap-1.5', buttonClassName)}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={busy}
               >
