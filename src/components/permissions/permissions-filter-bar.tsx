@@ -6,10 +6,11 @@ import {
 } from '@/components/permissions/permissions-sort-presets';
 import {
   ButtonFilterGroup,
-  ListFilterBarShell,
+  ListFilterSelect,
+  ListToolbar,
   MobileSortSelect,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 export type PermissionsCompanyScopeFilter = 'all' | 'global' | 'company';
 
@@ -32,23 +33,7 @@ type PermissionsFilterBarProps = {
   filterChips: ListFilterChip[];
 };
 
-const renderScopeFilter = (
-  companyScopeFilter: PermissionsCompanyScopeFilter,
-  onCompanyScopeFilterChange: (value: PermissionsCompanyScopeFilter) => void,
-  layout: 'desktop' | 'sheet',
-) => (
-  <ButtonFilterGroup
-    label="Alcance"
-    options={COMPANY_SCOPE_OPTIONS}
-    value={companyScopeFilter}
-    onChange={onCompanyScopeFilterChange}
-    layout={layout}
-    getOptionAriaLabel={(_label, optionLabel) =>
-      `Filtrar por alcance: ${optionLabel.toLowerCase()}`
-    }
-  />
-);
-
+/** Search and the scope filter: a pill from lg, the labelled group and the sort in the phone sheet. */
 export const PermissionsFilterBar = ({
   searchValue,
   onSearchChange,
@@ -61,24 +46,40 @@ export const PermissionsFilterBar = ({
   onClearFilters,
   filterChips,
 }: PermissionsFilterBarProps) => (
-  <ListFilterBarShell
-    searchValue={searchValue}
-    onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar por permiso, descripción o empresa..."
-    searchAriaLabel="Buscar permisos"
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por permiso, descripción o empresa...',
+      ariaLabel: 'Buscar permisos',
+    }}
+    filters={
+      <ListFilterSelect
+        value={companyScopeFilter}
+        allValue="all"
+        onChange={onCompanyScopeFilterChange}
+        options={COMPANY_SCOPE_OPTIONS}
+        ariaLabel="Filtrar por alcance"
+      />
+    }
+    hasActiveFilters={hasActiveFilters}
+    onClear={onClearFilters}
+    clearAriaLabel="Limpiar filtros de permisos"
     sheetFilterCount={sheetFilterCount}
     sheetDescription="Alcance y orden de la lista."
-    hasActiveFilters={hasActiveFilters}
-    onClearFilters={onClearFilters}
-    clearFiltersAriaLabel="Limpiar filtros de permisos"
     filterChips={filterChips}
     sheetContent={
       <>
-        {renderScopeFilter(
-          companyScopeFilter,
-          onCompanyScopeFilterChange,
-          'sheet',
-        )}
+        <ButtonFilterGroup
+          label="Alcance"
+          options={COMPANY_SCOPE_OPTIONS}
+          value={companyScopeFilter}
+          onChange={onCompanyScopeFilterChange}
+          layout="sheet"
+          getOptionAriaLabel={(_label, optionLabel) =>
+            `Filtrar por alcance: ${optionLabel.toLowerCase()}`
+          }
+        />
         <MobileSortSelect
           sorting={sorting}
           onSortingChange={onSortingChange}
@@ -91,10 +92,5 @@ export const PermissionsFilterBar = ({
         />
       </>
     }
-    desktopContent={renderScopeFilter(
-      companyScopeFilter,
-      onCompanyScopeFilterChange,
-      'desktop',
-    )}
   />
 );

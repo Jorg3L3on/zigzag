@@ -114,7 +114,7 @@ test.describe('Temporary password and forced change', () => {
     await loginAsSystemUser(page);
     await page.goto('/users');
     await page.getByPlaceholder(/buscar/i).first().fill(member.email);
-    await page.getByRole('row').filter({ hasText: member.email }).getByRole('button', { name: 'Abrir menú' }).click();
+    await page.getByRole('row').filter({ hasText: member.email }).getByRole('button', { name: /^Acciones de / }).click();
     await page.getByRole('menuitem', { name: 'Dar contraseña temporal' }).click();
     const dialog = page.getByRole('alertdialog');
     await dialog.getByRole('button', { name: 'Dar contraseña temporal' }).click();

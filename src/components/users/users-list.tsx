@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import {
-  flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
@@ -16,20 +16,27 @@ import {
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
-import { Users as UsersIcon } from 'lucide-react';
+import { KeyRound, Pencil, Trash, Users as UsersIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+  type ListRowMenuItem,
+} from '@/components/list-page';
 import { CreateUserDialog } from '@/app/(app)/users/create-user-dialog';
 import { UpdateUserDialog } from '@/app/(app)/users/update-user-dialog';
 import { DeleteUserDialog } from '@/app/(app)/users/delete-user-dialog';
-import { UserActionsMenu } from '@/components/users/user-actions-menu';
+import { AdminRecordMenu } from '@/components/roles/admin-record-menu';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import {
   createUsersColumns,
@@ -46,6 +53,9 @@ import { Badge } from '@/components/ui/badge';
 import { useOperatorTenantCompany } from '@/hooks/use-operator-tenant-company';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+
+const USERS_DESCRIPTION =
+  'Usuarios de todas las empresas. Cada empresa gestiona su equipo en Mi empresa › Equipo.';
 
 export function UsersList() {
   const permissions = usePermissions();
@@ -170,25 +180,38 @@ export function UsersList() {
     tenantCompanyId,
   ]);
 
+  /** Editar, Dar contraseña temporal, then Eliminar last; the phone card keeps its old icon spacing. */
+  const menuItems = React.useCallback(
+    (userRow: UserWithRelations, iconClassName?: string): ListRowMenuItem[] => [
+      {
+        label: 'Editar',
+        icon: <Pencil className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => setEditUser(userRow),
+      },
+      {
+        label: 'Dar contraseña temporal',
+        icon: <KeyRound className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => setResetUser(userRow),
+      },
+      {
+        label: 'Eliminar',
+        icon: <Trash className={iconClassName} aria-hidden data-icon="inline-start" />,
+        onSelect: () => setDeleteUser(userRow),
+        destructive: true,
+      },
+    ],
+    [],
+  );
+
   const columns = React.useMemo(
     () =>
       createUsersColumns({
         renderActions: (userRow) =>
           canWriteUsers ? (
-          <div
-            className="flex justify-end"
-            onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <UserActionsMenu
-              onEditRequest={() => setEditUser(userRow)}
-              onDeleteRequest={() => setDeleteUser(userRow)}
-              onResetPasswordRequest={() => setResetUser(userRow)}
-            />
-          </div>
+            <ListRowMenu label={`Acciones de ${userRow.name}`} items={menuItems(userRow)} />
           ) : null,
       }),
-    [canWriteUsers],
+    [menuItems, canWriteUsers],
   );
 
   const table = useReactTable({
@@ -196,9 +219,13 @@ export function UsersList() {
     columns,
     state: { sorting },
     onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: LIST_PAGE_SIZE } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
+  // Phones list every user, as before; only the desktop table pages at 25.
+  const phoneRows = table.getPrePaginationRowModel().rows;
 
   const hasActiveFilters =
     debouncedSearch !== '' ||
@@ -215,12 +242,22 @@ export function UsersList() {
     hasActiveFilters,
   });
 
+  // A refetch after a write keeps the desktop table, dimmed (ZIG-I33 §8).
+  const desktopListState = resolveResourceListState({
+    isLoading: loading && users.length === 0,
+    loadError,
+    totalCount: users.length,
+    visibleCount: filteredUsers.length,
+    hasActiveFilters,
+  });
+  const paged = table.getPageCount() > 1;
+
+  // Limpiar clears filters and search, never the sort (ZIG-I33 §2).
   const handleClearFilters = () => {
     setSearchValue('');
     setDebouncedSearch('');
     setVerificationFilter('all');
     setCompanyAssignmentFilter('all');
-    setSorting(DEFAULT_USERS_SORTING);
   };
 
   const filterChips = [
@@ -256,251 +293,222 @@ export function UsersList() {
       : []),
   ];
 
+  const createUserDialog = canWriteUsers ? (
+    <CreateUserDialog
+      onCreated={fetchUsers}
+      defaultCompanyId={tenantCompanyId ?? undefined}
+      defaultCompanyName={tenantCompanyName ?? undefined}
+      lockCompany={isTenantScoped}
+    />
+  ) : null;
+
+  const filterBar = (
+    <UsersFilterBar
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
+      verificationFilter={verificationFilter}
+      onVerificationFilterChange={setVerificationFilter}
+      companyAssignmentFilter={companyAssignmentFilter}
+      onCompanyAssignmentFilterChange={setCompanyAssignmentFilter}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      sheetFilterCount={sheetFilterCount}
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={handleClearFilters}
+      filterChips={filterChips}
+    />
+  );
+
+  const phone = (
+    <div className="space-y-4">
+      <div className="flex justify-end">{createUserDialog}</div>
+
+      {filterBar}
+
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de usuarios"
+          desktopColumns={6}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<UsersIcon className="h-4 w-4" />}
+          title="Error de carga"
+          description={listState.message}
+          role="alert"
+          action={
+            <Button type="button" variant="outline" onClick={fetchUsers}>
+              Reintentar
+            </Button>
+          }
+        />
+      ) : listState.kind === 'empty' ? (
+        <TripledEmptyState
+          icon={<UsersIcon className="h-4 w-4" />}
+          title="Sin usuarios"
+          description={
+            canWriteUsers
+              ? 'Crea el primer usuario y asígnale empresa y rol para habilitar su acceso.'
+              : 'No hay usuarios registrados.'
+          }
+          action={createUserDialog}
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<UsersIcon className="h-4 w-4" />}
+          title="Sin resultados"
+          description="No hay usuarios que coincidan con la búsqueda o los filtros."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {phoneRows.map((row) => {
+            const u = row.original;
+            return (
+              <TripledMobileRecordCard
+                key={row.id}
+                interactive={canWriteUsers}
+                tabIndex={canWriteUsers ? 0 : -1}
+                role="button"
+                aria-label={
+                  canWriteUsers ? `Editar usuario ${u.name}` : `Usuario ${u.name}`
+                }
+                onClick={() => {
+                  if (canWriteUsers) {
+                    setEditUser(u);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    canWriteUsers &&
+                    (event.key === 'Enter' || event.key === ' ')
+                  ) {
+                    event.preventDefault();
+                    setEditUser(u);
+                  }
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {u.name}
+                    </h3>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {u.email}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {u.email_verified_at ? (
+                        <Badge variant="secondary" className="text-caption">
+                          Correo verificado
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-caption text-muted-foreground"
+                        >
+                          Sin verificar
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {canWriteUsers ? (
+                    <div onPointerDown={(event) => event.stopPropagation()}>
+                      <AdminRecordMenu items={menuItems(u, 'mr-2 h-4 w-4')} />
+                    </div>
+                  ) : null}
+                </div>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">ID</dt>
+                    <dd className="tabular-nums">{u.id.toString()}</dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Empresa</dt>
+                    <dd className="truncate">
+                      {u.company?.name ?? 'Sin empresa'}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Rol</dt>
+                    <dd className="truncate">{u.role?.name ?? 'Sin rol'}</dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Alta</dt>
+                    <dd>
+                      <FormattedDate date={u.created_at} />
+                    </dd>
+                  </div>
+                </dl>
+              </TripledMobileRecordCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Usuarios"
+        count={loading && users.length === 0 ? null : users.length}
+        description={USERS_DESCRIPTION}
+        actions={createUserDialog}
+      />
+      <div className="space-y-4">
+        {filterBar}
+        {desktopListState.kind === 'loading' ? (
+          <ListLoading label="Cargando lista de usuarios" columns={8} />
+        ) : desktopListState.kind === 'error' ? (
+          <ListError description={desktopListState.message} onRetry={fetchUsers} />
+        ) : desktopListState.kind === 'empty' ? (
+          <ListEmpty
+            icon={<UsersIcon className="h-4 w-4 text-muted-foreground" aria-hidden />}
+            title="Sin usuarios"
+            description={
+              canWriteUsers
+                ? 'Crea el primer usuario y asígnale empresa y rol para habilitar su acceso.'
+                : 'No hay usuarios registrados.'
+            }
+            action={createUserDialog}
+          />
+        ) : desktopListState.kind === 'filtered-empty' ? (
+          <ListNoResults
+            description="No hay usuarios que coincidan con la búsqueda o los filtros."
+            onClear={handleClearFilters}
+          />
+        ) : (
+          <ListTableCard
+            footer={
+              <ListFooter
+                total={paged ? filteredUsers.length : users.length}
+                shown={filteredUsers.length}
+                noun="usuarios"
+                pagination={listFooterPagination(table, { pageSizes: false })}
+              />
+            }
+          >
+            <ListTable
+              table={table}
+              ariaLabel="Usuarios"
+              busy={loading}
+              onOpenRow={canWriteUsers ? (row) => setEditUser(row.original) : undefined}
+              rowTestId="users-row"
+            />
+          </ListTableCard>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <>
-      <div className="space-y-4">
-        <div className="flex justify-end">
-            {canWriteUsers ? (
-              <CreateUserDialog
-                onCreated={fetchUsers}
-                defaultCompanyId={tenantCompanyId ?? undefined}
-                defaultCompanyName={tenantCompanyName ?? undefined}
-                lockCompany={isTenantScoped}
-              />
-            ) : null}
-        </div>
-
-        <UsersFilterBar
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          verificationFilter={verificationFilter}
-          onVerificationFilterChange={setVerificationFilter}
-          companyAssignmentFilter={companyAssignmentFilter}
-          onCompanyAssignmentFilterChange={setCompanyAssignmentFilter}
-          sorting={sorting}
-          onSortingChange={setSorting}
-          sheetFilterCount={sheetFilterCount}
-          hasActiveFilters={hasActiveFilters}
-          onClearFilters={handleClearFilters}
-          filterChips={filterChips}
-        />
-
-          {listState.kind === 'loading' ? (
-            <TripledListLoadingState
-              label="Cargando lista de usuarios"
-              desktopColumns={6}
-              desktopRows={5}
-            />
-          ) : listState.kind === 'error' ? (
-            <TripledEmptyState
-              icon={<UsersIcon className="h-4 w-4" />}
-              title="Error de carga"
-              description={listState.message}
-              role="alert"
-              action={
-                <Button type="button" variant="outline" onClick={fetchUsers}>
-                  Reintentar
-                </Button>
-              }
-            />
-          ) : listState.kind === 'empty' ? (
-            <TripledEmptyState
-              icon={<UsersIcon className="h-4 w-4" />}
-              title="Sin usuarios"
-              description={
-                canWriteUsers
-                  ? 'Crea el primer usuario y asígnale empresa y rol para habilitar su acceso.'
-                  : 'No hay usuarios registrados.'
-              }
-              action={
-                canWriteUsers ? (
-                  <CreateUserDialog
-                    onCreated={fetchUsers}
-                    defaultCompanyId={tenantCompanyId ?? undefined}
-                    defaultCompanyName={tenantCompanyName ?? undefined}
-                    lockCompany={isTenantScoped}
-                  />
-                ) : null
-              }
-            />
-          ) : listState.kind === 'filtered-empty' ? (
-            <TripledEmptyState
-              icon={<UsersIcon className="h-4 w-4" />}
-              title="Sin resultados"
-              description="No hay usuarios que coincidan con la búsqueda o los filtros."
-              action={
-                <Button type="button" variant="outline" onClick={handleClearFilters}>
-                  Limpiar filtros
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              <div className="space-y-3 md:hidden">
-                {table.getRowModel().rows.map((row) => {
-                  const u = row.original;
-                  return (
-                    <TripledMobileRecordCard
-                      key={row.id}
-                      interactive={canWriteUsers}
-                      tabIndex={canWriteUsers ? 0 : -1}
-                      role="button"
-                      aria-label={
-                        canWriteUsers ? `Editar usuario ${u.name}` : `Usuario ${u.name}`
-                      }
-                      onClick={() => {
-                        if (canWriteUsers) {
-                          setEditUser(u);
-                        }
-                      }}
-                      onKeyDown={(event) => {
-                        if (
-                          canWriteUsers &&
-                          (event.key === 'Enter' || event.key === ' ')
-                        ) {
-                          event.preventDefault();
-                          setEditUser(u);
-                        }
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 space-y-1">
-                          <h3 className="text-sm font-semibold text-foreground">
-                            {u.name}
-                          </h3>
-                          <p className="truncate text-sm text-muted-foreground">
-                            {u.email}
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {u.email_verified_at ? (
-                              <Badge variant="secondary" className="text-caption">
-                                Correo verificado
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-caption text-muted-foreground"
-                              >
-                                Sin verificar
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        {canWriteUsers ? (
-                          <div onPointerDown={(event) => event.stopPropagation()}>
-                          <UserActionsMenu
-                            onEditRequest={() => setEditUser(u)}
-                            onDeleteRequest={() => setDeleteUser(u)}
-                            onResetPasswordRequest={() => setResetUser(u)}
-                          />
-                          </div>
-                        ) : null}
-                      </div>
-                      <dl className="mt-3 space-y-2 text-sm">
-                        <div className="grid grid-cols-[88px_1fr] gap-2">
-                          <dt className="text-muted-foreground">ID</dt>
-                          <dd className="tabular-nums">{u.id.toString()}</dd>
-                        </div>
-                        <div className="grid grid-cols-[88px_1fr] gap-2">
-                          <dt className="text-muted-foreground">Empresa</dt>
-                          <dd className="truncate">
-                            {u.company?.name ?? 'Sin empresa'}
-                          </dd>
-                        </div>
-                        <div className="grid grid-cols-[88px_1fr] gap-2">
-                          <dt className="text-muted-foreground">Rol</dt>
-                          <dd className="truncate">{u.role?.name ?? 'Sin rol'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[88px_1fr] gap-2">
-                          <dt className="text-muted-foreground">Alta</dt>
-                          <dd>
-                            <FormattedDate date={u.created_at} />
-                          </dd>
-                        </div>
-                      </dl>
-                    </TripledMobileRecordCard>
-                  );
-                })}
-              </div>
-
-              <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-                <Table
-                  className={
-                    '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-                  }
-                >
-                  <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <TableHead
-                            key={header.id}
-                            className={
-                              header.column.id === 'actions'
-                                ? 'text-right'
-                                : undefined
-                            }
-                          >
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        className={canWriteUsers ? 'cursor-pointer' : undefined}
-                        tabIndex={canWriteUsers ? 0 : -1}
-                        aria-label={
-                          canWriteUsers
-                            ? `Editar usuario ${row.original.name}`
-                            : `Usuario ${row.original.name}`
-                        }
-                        onClick={() => {
-                          if (canWriteUsers) {
-                            setEditUser(row.original);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (
-                            canWriteUsers &&
-                            (event.key === 'Enter' || event.key === ' ')
-                          ) {
-                            event.preventDefault();
-                            setEditUser(row.original);
-                          }
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            className={
-                              cell.column.id === 'actions'
-                                ? 'text-right'
-                                : undefined
-                            }
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
-          )}
-      </div>
+      <DesktopSwitch phone={phone} desktop={desktop} />
 
       {editUser ? (
         <UpdateUserDialog
