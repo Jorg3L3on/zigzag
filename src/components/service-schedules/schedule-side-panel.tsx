@@ -15,8 +15,8 @@ import {
   type ScheduleActionHandlers,
 } from '@/components/service-schedules/schedule-actions-menu';
 import {
+  ScheduleBucketPill,
   ScheduleNextDue,
-  ScheduleStatusPill,
   scheduleWhatsAppHref,
 } from '@/components/service-schedules/service-schedules-columns';
 import { FormattedCurrency } from '@/components/formatted-currency';
@@ -179,7 +179,7 @@ export const ScheduleSidePanel = ({
                   {formatScheduleEvery(schedule.intervalValue, schedule.intervalUnit)}
                 </p>
               </div>
-              <ScheduleStatusPill bucket={schedule.bucket} />
+              <ScheduleBucketPill bucket={schedule.bucket} />
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-4">
               <div>

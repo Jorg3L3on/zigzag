@@ -878,12 +878,14 @@ export async function listClientServiceSchedulesPaginated(params: {
     const orderBy =
       sort === 'cliente'
         ? [asc(client.name), asc(clientServiceSchedule.next_due_at), asc(clientServiceSchedule.id)]
-        : sort === 'ultimo'
-          ? [
-              sql`${clientServiceSchedule.last_service_at} asc nulls last`,
-              asc(clientServiceSchedule.id),
-            ]
-          : [asc(clientServiceSchedule.next_due_at), asc(clientServiceSchedule.id)];
+        : sort === 'servicio'
+          ? [asc(service.name), asc(clientServiceSchedule.next_due_at), asc(clientServiceSchedule.id)]
+          : sort === 'ultimo'
+            ? [
+                sql`${clientServiceSchedule.last_service_at} asc nulls last`,
+                asc(clientServiceSchedule.id),
+              ]
+            : [asc(clientServiceSchedule.next_due_at), asc(clientServiceSchedule.id)];
 
     const viewCondition = viewConditions[view];
     const rows = await db

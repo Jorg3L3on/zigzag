@@ -6,8 +6,10 @@ import {
   getCoreRowModel,
   useReactTable,
   type RowSelectionState,
+  type SortingState,
+  type Updater,
 } from '@tanstack/react-table';
-import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CalendarClock, ChevronDown, Plus } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -36,7 +38,22 @@ import type { ScheduleActionHandlers } from '@/components/service-schedules/sche
 import { ScheduleSidePanel } from '@/components/service-schedules/schedule-side-panel';
 import { createServiceSchedulesColumns } from '@/components/service-schedules/service-schedules-columns';
 import { ServiceSchedulesAgendaToolbar } from '@/components/service-schedules/service-schedules-agenda-toolbar';
-import { TripledEmptyState, TripledListLoadingState } from '@/components/tripled';
+import {
+  LIST_BULK_BAR_ACTION_CLASS,
+  ListBulkBar,
+  ListBulkBarButton,
+  ListClickableRow,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListTable,
+  ListTableCard,
+  listColumnClassName,
+} from '@/components/list-page';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,7 +72,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableCell } from '@/components/ui/table';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { ActionErrorType } from '@/lib/errors';
@@ -65,6 +82,8 @@ import {
   buildScheduleAgendaQuery,
   parseScheduleAgendaParams,
   SCHEDULE_AGENDA_PAGE_SIZE,
+  scheduleAgendaSortColumn,
+  scheduleAgendaSortFromColumn,
   type ScheduleAgendaParams,
 } from '@/lib/schedule-agenda-params';
 import { SCHEDULE_SNOOZE_DAY_OPTIONS, type ScheduleSnoozeInput } from '@/lib/schedule-snooze';
@@ -88,11 +107,15 @@ const errorMessage = (
     result.error || fallback,
   );
 
+/** Columns of the agenda with write access, for the first-load skeleton. */
+const AGENDA_COLUMNS = 7;
+
 /**
- * Service schedules as an agenda (ZIG-I30, canvas RecA + RecPanel), from md:
- * views with counts, relative dates, hover Crear ticket and WhatsApp, ⋮ on
- * every row, a selection bar for Posponer / Pausar / Eliminar, and a side
- * panel with the service history. Phones keep ServiceSchedulesList.
+ * Service schedules as an agenda (ZIG-I30, canvas RecA + RecPanel), from lg, on
+ * the desktop list standard (ZIG-I33-5): view tabs with counts, the filter row,
+ * headers that sort on the server, rows that open the side panel by click, Enter
+ * or Space, everything a row does in its ⋯, and the shared selection bar for
+ * Posponer / Pausar / Eliminar. Phones keep ServiceSchedulesList.
  */
 export const ServiceSchedulesAgenda = () => {
   const { selectedCompany } = useCompany();
@@ -138,7 +161,7 @@ export const ServiceSchedulesAgenda = () => {
   );
 
   React.useEffect(() => {
-    const timeoutId = window.setTimeout(() => setDebouncedSearch(searchValue.trim()), 250);
+    const timeoutId = window.setTimeout(() => setDebouncedSearch(searchValue.trim()), 300);
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
 
@@ -157,7 +180,7 @@ export const ServiceSchedulesAgenda = () => {
     if (!canRead || missingCompany) {
       setLoading(false);
       setData(null);
-      setLoadError(missingCompany ? 'Selecciona una empresa para ver recordatorios.' : null);
+      setLoadError(null);
       return;
     }
     let cancelled = false;
@@ -364,18 +387,31 @@ export const ServiceSchedulesAgenda = () => {
         canWrite,
         canCreateTicket,
         companyName,
-        onOpen: (schedule) => navigate({ openId: schedule.id }),
         ...handlers,
       }),
-    [canCreateTicket, canWrite, companyName, handlers, navigate],
+    [canCreateTicket, canWrite, companyName, handlers],
   );
+
+  // `?orden` is the sorting state: one column, in the one direction the server sorts it.
+  const sorting = React.useMemo<SortingState>(
+    () => [{ id: scheduleAgendaSortColumn(params.sort), desc: false }],
+    [params.sort],
+  );
+  const handleSortingChange = (updater: Updater<SortingState>) => {
+    const next = typeof updater === 'function' ? updater(sorting) : updater;
+    const sort = scheduleAgendaSortFromColumn(next[0]?.id);
+    if (sort !== params.sort) navigate({ sort, page: 1 });
+  };
 
   const table = useReactTable({
     data: items,
     columns,
-    state: { rowSelection },
+    state: { rowSelection, sorting },
     enableRowSelection: canWrite,
     onRowSelectionChange: setRowSelection,
+    onSortingChange: handleSortingChange,
+    enableSortingRemoval: false,
+    enableMultiSort: false,
     getRowId: (row) => String(row.id),
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
@@ -411,8 +447,6 @@ export const ServiceSchedulesAgenda = () => {
   const hasActiveFilters = debouncedSearch !== '' || params.serviceId != null;
   const counts = data?.counts ?? null;
   const total = data?.total ?? 0;
-  const start = total === 0 ? 0 : (params.page - 1) * SCHEDULE_AGENDA_PAGE_SIZE + 1;
-  const end = Math.min(total, params.page * SCHEDULE_AGENDA_PAGE_SIZE);
   const totalPages = data?.totalPages ?? 1;
   const clearFilters = () => {
     setSearchValue('');
@@ -424,31 +458,33 @@ export const ServiceSchedulesAgenda = () => {
     setFormOpen(true);
   };
 
+  const newButton = canWrite ? (
+    <Button type="button" onClick={openNew}>
+      <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
+      Nuevo recordatorio
+    </Button>
+  ) : null;
+
+  if (missingCompany) {
+    return (
+      <div data-testid="service-schedules-agenda">
+        <ListDesktopTitle
+          title="Recordatorios de servicio"
+          description="Servicios recurrentes por cliente. Al terminar el ticket, el recordatorio se reprograma solo."
+        />
+        <SystemCompanyContextEmptyState resourceLabel="recordatorios" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4" data-testid="service-schedules-agenda">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Recordatorios de servicio
-            {counts ? (
-              <span className="font-normal text-muted-foreground">
-                {' · '}
-                <span className="tabular-nums">{counts.todos}</span>
-              </span>
-            ) : null}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Servicios recurrentes por cliente. Al terminar el ticket, el recordatorio se reprograma
-            solo.
-          </p>
-        </div>
-        {canWrite ? (
-          <Button type="button" className="min-h-11 gap-1.5 rounded-xl" onClick={openNew}>
-            <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
-            Nuevo recordatorio
-          </Button>
-        ) : null}
-      </div>
+      <ListDesktopTitle
+        title="Recordatorios de servicio"
+        count={counts?.todos ?? null}
+        description="Servicios recurrentes por cliente. Al terminar el ticket, el recordatorio se reprograma solo."
+        actions={newButton}
+      />
 
       <ServiceSchedulesAgendaToolbar
         view={params.view}
@@ -459,204 +495,119 @@ export const ServiceSchedulesAgenda = () => {
         serviceId={params.serviceId}
         onServiceChange={(serviceId) => navigate({ serviceId, page: 1 })}
         serviceOptions={serviceOptions}
-        sort={params.sort}
-        onSortChange={(sort) => navigate({ sort, page: 1 })}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearFilters}
       />
 
       {loading && !data ? (
-        <TripledListLoadingState
-          label="Cargando lista de recordatorios"
-          desktopColumns={6}
-          desktopRows={6}
-        />
+        <ListLoading label="Cargando lista de recordatorios" columns={AGENDA_COLUMNS} />
       ) : loadError ? (
-        <TripledEmptyState
-          icon={<CalendarClock className="h-4 w-4" />}
-          title="Error al cargar"
-          description={loadError}
-          role="alert"
-          action={
-            <Button type="button" variant="outline" className="rounded-xl" onClick={reload}>
-              Reintentar
-            </Button>
-          }
-        />
+        <ListError description={loadError} onRetry={reload} />
       ) : counts && counts.todos === 0 && !hasActiveFilters ? (
-        <TripledEmptyState
-          icon={<CalendarClock className="h-4 w-4" />}
+        <ListEmpty
+          icon={<CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />}
           title="Sin recordatorios"
           description={
             canWrite
               ? 'Crea el primer recordatorio para programar servicios recurrentes.'
               : 'No hay recordatorios registrados todavía.'
           }
-          action={
-            canWrite ? (
-              <Button type="button" className="rounded-xl" onClick={openNew}>
-                <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
-                Nuevo recordatorio
-              </Button>
-            ) : null
-          }
+          action={newButton}
+        />
+      ) : items.length === 0 && hasActiveFilters ? (
+        <ListNoResults
+          description="No hay recordatorios que coincidan con la búsqueda o el servicio."
+          onClear={clearFilters}
         />
       ) : items.length === 0 ? (
-        <TripledEmptyState
-          icon={<CalendarClock className="h-4 w-4" />}
-          title={hasActiveFilters ? 'Sin resultados' : 'Nada en esta vista'}
+        <ListEmpty
+          icon={<CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />}
+          title="Nada en esta vista"
           description={
-            hasActiveFilters
-              ? 'No hay recordatorios que coincidan con la búsqueda o el servicio.'
-              : params.view === 'por-atender'
-                ? 'No hay recordatorios atrasados ni para las próximas dos semanas.'
-                : 'No hay recordatorios en esta vista.'
-          }
-          action={
-            hasActiveFilters ? (
-              <Button type="button" variant="outline" onClick={clearFilters}>
-                Limpiar filtros
-              </Button>
-            ) : null
+            params.view === 'por-atender'
+              ? 'No hay recordatorios atrasados ni para las próximas dos semanas.'
+              : 'No hay recordatorios en esta vista.'
           }
         />
       ) : (
-        <div className={cn('flex flex-col', loading && 'opacity-60 transition-opacity')}>
-          <table
-            className="w-full table-fixed caption-bottom border-collapse text-sm [&_td]:h-14 [&_td]:px-3 [&_td]:py-0 [&_td]:align-middle [&_th]:h-10 [&_th]:bg-background [&_th]:px-3 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60"
-            data-testid="service-schedules-table"
-          >
-            <TableHeader className="sticky top-16 z-20 bg-background">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? 'selected' : undefined}
-                  data-testid="service-schedule-row"
-                  data-schedule-id={row.original.id}
-                  className={cn(
-                    'group cursor-pointer',
-                    params.openId === row.original.id && 'bg-muted/50',
-                  )}
-                  onClick={() => navigate({ openId: row.original.id })}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </table>
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 px-1 py-3">
-            <p className="text-sm tabular-nums text-muted-foreground" data-testid="service-schedules-range">
-              {`${start}–${end} de ${total}`}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-11 w-11"
-                onClick={() => navigate({ page: params.page - 1 })}
-                disabled={params.page <= 1}
-                aria-label="Página anterior"
+        <ListTableCard
+          footer={
+            <ListFooter
+              total={total}
+              noun="recordatorios"
+              pagination={{
+                pageIndex: params.page - 1,
+                pageSize: SCHEDULE_AGENDA_PAGE_SIZE,
+                pageCount: totalPages,
+                onPageChange: (pageIndex) => navigate({ page: pageIndex + 1 }),
+              }}
+            />
+          }
+        >
+          <ListTable
+            table={table}
+            ariaLabel="Recordatorios de servicio"
+            busy={loading}
+            renderRow={(row) => (
+              <ListClickableRow
+                key={row.id}
+                data-testid="service-schedule-row"
+                data-schedule-id={row.original.id}
+                selected={row.getIsSelected() || params.openId === row.original.id}
+                onOpen={() => navigate({ openId: row.original.id })}
               >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-11 w-11"
-                onClick={() => navigate({ page: params.page + 1 })}
-                disabled={params.page >= totalPages}
-                aria-label="Página siguiente"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    key={cell.id}
+                    className={listColumnClassName(cell.column.columnDef.meta)}
+                    // The checkbox cell selects; a click beside the box must not open the panel.
+                    onClick={cell.column.id === 'select' ? (event) => event.stopPropagation() : undefined}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </ListClickableRow>
+            )}
+          />
+        </ListTableCard>
       )}
 
-      {selectedIds.length > 0 ? (
-        <div
-          role="toolbar"
-          aria-label="Acciones de la selección"
-          data-testid="service-schedules-selection-bar"
-          className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl bg-foreground px-3 py-2 text-background shadow-xl"
-        >
-          <span className="px-2 text-sm font-medium tabular-nums">
-            {selectedIds.length === 1 ? '1 seleccionado' : `${selectedIds.length} seleccionados`}
-          </span>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-9 gap-1 text-background hover:bg-background/15 hover:text-background"
-                disabled={busy}
-              >
-                Posponer
-                <ChevronDown className="h-4 w-4" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" side="top">
-              {SCHEDULE_SNOOZE_DAY_OPTIONS.map((days) => (
-                <DropdownMenuItem key={days} onSelect={() => void snoozeMany(selectedIds, { days })}>
-                  {days} días
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => setSnoozeDateTarget({ ids: selectedIds, schedule: null })}
-              >
-                Elegir fecha…
+      <ListBulkBar
+        count={selectedIds.length}
+        onCancel={() => setRowSelection({})}
+        testId="service-schedules-selection-bar"
+      >
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <ListBulkBarButton className={cn(LIST_BULK_BAR_ACTION_CLASS, 'gap-1')} disabled={busy}>
+              Posponer
+              <ChevronDown className="h-4 w-4" aria-hidden />
+            </ListBulkBarButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top">
+            {SCHEDULE_SNOOZE_DAY_OPTIONS.map((days) => (
+              <DropdownMenuItem key={days} onSelect={() => void snoozeMany(selectedIds, { days })}>
+                {days} días
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-9 text-background hover:bg-background/15 hover:text-background"
-            disabled={busy}
-            onClick={() => setPauseTarget({ ids: selectedIds, schedule: null })}
-          >
-            Pausar
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-9 text-red-300 hover:bg-background/15 hover:text-red-200"
-            disabled={busy}
-            onClick={() => setBulkDeleteOpen(true)}
-          >
-            Eliminar
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-9 text-background/80 hover:bg-background/15 hover:text-background"
-            onClick={() => setRowSelection({})}
-          >
-            Cancelar
-          </Button>
-        </div>
-      ) : null}
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => setSnoozeDateTarget({ ids: selectedIds, schedule: null })}
+            >
+              Elegir fecha…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <ListBulkBarButton
+          disabled={busy}
+          onClick={() => setPauseTarget({ ids: selectedIds, schedule: null })}
+        >
+          Pausar
+        </ListBulkBarButton>
+        <ListBulkBarButton destructive disabled={busy} onClick={() => setBulkDeleteOpen(true)}>
+          Eliminar
+        </ListBulkBarButton>
+      </ListBulkBar>
 
       <ScheduleSidePanel
         scheduleId={params.openId}

@@ -30,11 +30,11 @@ export default async function ServiceSchedulesPage() {
       />
 
       <TripledDashboardShell>
-        {/* From md the agenda draws its own title row; phones keep the card (ZIG-I30). */}
+        {/* From lg the agenda draws its own title row; phones keep the card (ZIG-I30, ZIG-I33-5). */}
         <TripledResourceCard
-          className="md:contents"
-          headerClassName="md:hidden"
-          contentClassName="md:bg-transparent md:p-0 md:pt-0"
+          className="lg:contents"
+          headerClassName="lg:hidden"
+          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
           title="Recordatorios de servicio"
           description="Gestiona recordatorios por cliente y servicio"
           icon={<CalendarClock className="size-5" aria-hidden />}
