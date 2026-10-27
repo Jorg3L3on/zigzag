@@ -9,8 +9,8 @@ import { expectNoSeriousViolations } from './helpers/a11y';
 import { DEMO_COMPANY_NAME } from '../src/lib/demo-company';
 
 /**
- * Cobranza on desktop (ZIG-I31-2/3) against ClimaTotal Demo. The last test
- * records a payment, so run it only against a disposable database.
+ * Cobranza on desktop (ZIG-I31-2/3, list standard ZIG-I33-3) against ClimaTotal
+ * Demo. The last test records a payment, so run it only against a disposable database.
  */
 const money = (text: string | null): number => {
   const match = /\$\s?([\d,]+(?:\.\d{1,2})?)/.exec(text ?? '');
@@ -31,7 +31,33 @@ const days = async (rows: Locator): Promise<number[]> =>
     Number.parseInt(text, 10),
   );
 
-test.describe('Cobranza en escritorio (ZIG-I31)', () => {
+const balances = async (rows: Locator): Promise<number[]> =>
+  (await rows.getByTestId('cobranza-balance').allTextContents()).map(money);
+
+/** Nothing between the control and its row is transparent: shown without hover (85563215). */
+const shownWithoutHover = (control: Locator): Promise<boolean> =>
+  control.evaluate((element) => {
+    for (let node: Element | null = element; node && node.tagName !== 'TR'; node = node.parentElement) {
+      if (getComputedStyle(node).opacity === '0') return false;
+    }
+    return true;
+  });
+
+/** ListRowMenu opens WhatsApp with window.open; keep the URL instead of a new tab. */
+const captureWindowOpen = (page: Page) =>
+  page.evaluate(() => {
+    const opened: string[] = [];
+    (window as unknown as { __opened: string[] }).__opened = opened;
+    window.open = ((url?: string | URL) => {
+      opened.push(String(url));
+      return null;
+    }) as typeof window.open;
+  });
+
+const openedUrls = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as unknown as { __opened: string[] }).__opened);
+
+test.describe('Cobranza en escritorio (ZIG-I31, ZIG-I33-3)', () => {
   test.setTimeout(180_000);
 
   test.beforeEach(async ({ page }) => {
@@ -45,8 +71,8 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     await page.goto('/cobranza');
     await waitForQueue(page);
 
-    // No card wrapper from md: one title, the strip and the table.
-    await expect(page.getByRole('heading', { level: 1, name: 'Cobranza' })).toBeVisible();
+    // No card wrapper from lg: one title with the queue count, the strip and the table.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Cobranza · \d+$/);
     await expect(page.getByText('Saldos de tickets terminados', { exact: false })).toBeVisible();
 
     const total = await stripAmount(page, 'all');
@@ -65,8 +91,11 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     const ages = await days(rows);
     expect(ages).toEqual([...ages].sort((a, b) => b - a));
     for (const line of await rows.getByTestId('cobranza-last-payment').allTextContents()) {
-      // Relative for the last week (canvas «hace 1 día»), then the date («3 ago 25»).
-      expect(line).toMatch(/^(último pago (hoy|hace \d+ días?|\d{1,2} [a-z]{3} \d{2})|sin ningún pago)$/);
+      // Relative for the last week (canvas «hace 1 día»), then the ListShortDate text
+      // («3 ago», with the year only when it is not this one: «3 ago 2025»).
+      expect(line).toMatch(
+        /^(último pago (hoy|hace \d+ días?|\d{1,2} [a-z]{3,4}\.?( \d{4})?)|sin ningún pago)$/,
+      );
     }
 
     // En proceso stays out of the queue and is named in the footer.
@@ -87,7 +116,7 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
       .poll(async () => (await days(rows)).every((value) => value > 90), { timeout: 15_000 })
       .toBe(true);
 
-    // ⋮ is reachable with the keyboard from the row.
+    // The ⋯ is reachable with the keyboard from the row, after the visible Cobrar.
     await rows.first().focus();
     let reached = false;
     for (let i = 0; i < 6 && !reached; i += 1) {
@@ -138,9 +167,15 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     await expect(museo.getByTestId('cobranza-client-count')).toHaveText('2 tickets');
     await expect(museo.getByTestId('cobranza-client-balance')).toHaveText('$2,810.00');
 
-    await museo.hover();
-    const statement = museo.getByTestId('cobranza-statement');
-    const href = (await statement.getAttribute('href')) ?? '';
+    // Cobrar ▾ shows without hover; the estado de cuenta is in the ⋯ (ZIG-I33-3).
+    await page.mouse.move(0, 0);
+    const collect = museo.getByRole('button', { name: /Cobrar un ticket de Museo/ });
+    await expect(collect).toBeVisible();
+    expect(await shownWithoutHover(collect)).toBe(true);
+    await captureWindowOpen(page);
+    await museo.getByRole('button', { name: /Más acciones de Museo/ }).click();
+    await page.getByRole('menuitem', { name: 'Estado de cuenta por WhatsApp' }).click();
+    const href = (await openedUrls(page))[0] ?? '';
     expect(href).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     const text = decodeURIComponent(href.split('?text=')[1]);
     // The whole text of the canvas board CobAcciones (ClimaTotal Demo has no transfer data).
@@ -153,11 +188,18 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
         'Cuando puedas, por favor confirma el pago. ¡Gracias!',
       ].join('\n'),
     );
+    await expect(page.getByRole('menu')).toHaveCount(0);
 
-    await museo.getByRole('button', { name: /Ver los tickets de Museo/ }).click();
+    // The client row opens with Enter, like a button (ZIG-I33 §4).
+    await museo.focus();
+    await page.keyboard.press('Enter');
     const tickets = page.getByTestId('cobranza-client-ticket');
     await expect(tickets.filter({ hasText: 'R-0016' })).toHaveCount(1);
     await expect(tickets.filter({ hasText: 'R-0036' })).toHaveCount(1);
+    await expect(museo.getByRole('button', { name: /Ocultar los tickets de Museo/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
 
     await expectNoSeriousViolations(page, 'cobranza por cliente');
 
@@ -173,6 +215,86 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     expect(cardText).toBe(text);
   });
 
+  test('Cobrar shows without hover, WhatsApp is in the ⋯, headers sort on the server, numbered pager', async ({
+    page,
+  }) => {
+    await page.goto('/cobranza');
+    await waitForQueue(page);
+    await page.mouse.move(0, 0);
+    const rows = page.getByTestId('cobranza-row');
+
+    // Cobrar on every row without hover; no WhatsApp button outside the ⋯ (ZIG-I33 §5).
+    const collect = rows.first().getByRole('button', { name: /^Cobrar el ticket / });
+    await expect(collect).toBeVisible();
+    expect(await shownWithoutHover(collect)).toBe(true);
+    await expect(rows.getByRole('link', { name: /WhatsApp/ })).toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: 'Ordenar' })).toHaveCount(0);
+
+    // Recordar por WhatsApp is a ⋯ item of a row with a phone.
+    let whatsApp = false;
+    const count = Math.min(await rows.count(), 6);
+    for (let index = 0; index < count && !whatsApp; index += 1) {
+      await rows.nth(index).getByRole('button', { name: /^Más acciones del ticket / }).click();
+      await expect(page.getByRole('menuitem', { name: 'Ver ticket' })).toBeVisible();
+      whatsApp = (await page.getByRole('menuitem', { name: 'Recordar por WhatsApp' }).count()) > 0;
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+    }
+    expect(whatsApp).toBe(true);
+
+    // Días sin pagar is the default order; Saldo sorts from its header, on the server.
+    const daysHeader = page.getByRole('columnheader', { name: /Días sin pagar/ });
+    await expect(daysHeader).toHaveAttribute('aria-sort', 'descending');
+    await page.getByRole('button', { name: /^Saldo/ }).click();
+    await expect(page).toHaveURL(/orden=balance(?!-)/);
+    await expect(page.getByRole('columnheader', { name: /^Saldo/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+    await expect
+      .poll(async () => {
+        const values = await balances(rows);
+        return values.every((value, index) => index === 0 || values[index - 1] >= value);
+      }, { timeout: 15_000 })
+      .toBe(true);
+    const descending = await balances(rows);
+
+    await page.getByRole('button', { name: /^Saldo/ }).click();
+    await expect(page).toHaveURL(/orden=balance-asc/);
+    await expect
+      .poll(async () => {
+        const values = await balances(rows);
+        return values.every((value, index) => index === 0 || values[index - 1] <= value);
+      }, { timeout: 15_000 })
+      .toBe(true);
+    // The server sorts the whole queue (?orden= goes to getCobranzaPaginated): the first
+    // row now owes no more than any row of the largest-first page.
+    expect((await balances(rows))[0]).toBeLessThanOrEqual(Math.min(...descending));
+
+    // The footer counts with a noun and the sum; the numbered pager only with a second page.
+    const footer = page.getByTestId('cobranza-footer');
+    await expect(footer).toContainText(/de \d+ tickets? · suman \$/);
+    const total = Number(/de (\d+) tickets?/.exec((await footer.textContent()) ?? '')?.[1] ?? 0);
+    const pager = footer.getByRole('navigation', { name: 'Paginación' });
+    if (total > 25) {
+      await expect(footer).toContainText(`1–25 de ${total} tickets`);
+      await expect(pager.getByRole('button', { name: 'Página 1' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+      await pager.getByRole('button', { name: 'Página 2' }).click();
+      await expect(footer).toContainText(new RegExp(`26–\\d+ de ${total} tickets`));
+      await expect(pager.getByRole('button', { name: 'Página 2' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    } else {
+      await expect(pager).toHaveCount(0);
+    }
+
+    await expectNoSeriousViolations(page, 'cobranza ordenada por saldo');
+  });
+
   test('Cobrar with Todo el saldo settles the ticket and offers Enviar recibo', async ({ page }) => {
     await page.goto('/cobranza');
     await waitForQueue(page);
@@ -182,7 +304,6 @@ test.describe('Cobranza en escritorio (ZIG-I31)', () => {
     const folio = (await row.getByTestId('cobranza-folio').textContent())!.trim();
     const saldo = money(await row.getByTestId('cobranza-balance').textContent());
 
-    await row.hover();
     await row.getByRole('button', { name: `Cobrar el ticket ${folio}` }).click();
     const dialog = page.getByRole('dialog', { name: `Cobrar ticket ${folio}` });
     await expect(dialog).toBeVisible();
