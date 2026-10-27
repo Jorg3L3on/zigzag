@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForSettledLayout } from './helpers/layout';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -22,6 +23,7 @@ test.describe('Tickets list Estado column', () => {
     // 1280 width; Trabajo shows once the list is 75rem wide (1536 with the sidebar open).
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/tickets');
+    await waitForSettledLayout(page);
     await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
