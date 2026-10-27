@@ -87,9 +87,32 @@ const arrange = ({
   mockGetServices.mockResolvedValue(result);
 };
 
+/** From lg (ZIG-I33): DesktopSwitch mounts only the desktop tree. */
+const mockViewport = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: desktop && query.includes('min-width: 1024px'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
+
+const manyServices = (count: number) =>
+  Array.from({ length: count }, (_, index) =>
+    makeService({ id: index + 1, name: `Servicio ${String(index + 1).padStart(2, '0')}` }),
+  );
+
 describe('ServicesListClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockViewport(false);
   });
 
   it('shows a permission-aware first-use empty state for writers', async () => {
@@ -193,5 +216,60 @@ describe('ServicesListClient', () => {
     expect(counts).toHaveLength(1);
     expect(counts[0]).toHaveTextContent('2 materiales');
   });
-});
 
+  it('keeps every card on the phone, without a pager or a table (ZIG-I33)', async () => {
+    arrange({ result: { success: true, data: manyServices(30) } });
+
+    render(<ServicesListClient />);
+
+    expect(await screen.findByText('Servicio 30')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
+  });
+
+  describe('from lg (ZIG-I33)', () => {
+    beforeEach(() => {
+      mockViewport(true);
+    });
+
+    it('pages the table by 25 in the browser once the catalog passes 25', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyServices(30) } });
+
+      render(<ServicesListClient />);
+
+      const table = await screen.findByRole('table', { name: 'Servicios' });
+      expect(screen.queryByTestId('service-card-materials')).not.toBeInTheDocument();
+      expect(screen.getAllByTestId('services-row')).toHaveLength(25);
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1–25 de 30 servicios');
+      expect(table.querySelector('thead')).toHaveClass('sticky', 'top-16');
+
+      await user.click(screen.getByRole('button', { name: 'Página siguiente' }));
+
+      expect(screen.getAllByTestId('services-row')).toHaveLength(5);
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('26–30 de 30 servicios');
+    });
+
+    it('counts a short catalog with its noun, right-aligns Precio and pills the status', async () => {
+      arrange({
+        result: {
+          success: true,
+          data: [makeService(), makeService({ id: 2, name: 'Servicio Beta', deleted_at: new Date() })],
+        },
+      });
+
+      render(<ServicesListClient />);
+
+      await screen.findByRole('table', { name: 'Servicios' });
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('2 de 2 servicios');
+      expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Precio/ })).toHaveClass('text-right');
+      expect(screen.getByText('Activo')).toHaveAttribute('data-tone', 'emerald');
+      expect(screen.getByText('Eliminado')).toHaveAttribute('data-tone', 'red');
+      expect(screen.getByRole('columnheader', { name: /Nombre/ })).toHaveAttribute(
+        'aria-sort',
+        'ascending',
+      );
+    });
+  });
+});
