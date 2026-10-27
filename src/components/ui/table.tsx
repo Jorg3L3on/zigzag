@@ -6,10 +6,11 @@ import { cn } from '@/lib/utils';
  * The desktop list table (ZIG-I33, the Cobranza recipe of ZIG-I31): fixed layout,
  * 11 px uppercase headers on the opaque list-head band, 56 px rows and 12 px of
  * padding per side, 16 px at the edges. `ListTable` (components/list-page) uses it;
- * the defaults of `Table`, `TableHead` and `TableCell` below stay as they are.
+ * the defaults of `Table`, `TableHead` and `TableCell` below stay as they are. The 11 px
+ * header size sits behind `md:`: these tables are desktop only (type floor, ZIG-I18-5).
  */
 export const LIST_TABLE_CLASS =
-  'w-full table-fixed caption-bottom border-collapse text-sm [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_th]:border-b [&_th]:border-border/70 [&_th]:bg-list-head [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-muted-foreground [&_td]:h-14 [&_td]:py-0 [&_td]:align-middle [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4 [&_tr]:border-border/60';
+  'w-full table-fixed caption-bottom border-collapse text-sm [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_th]:border-b [&_th]:border-border/70 [&_th]:bg-list-head md:[&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-muted-foreground [&_td]:h-14 [&_td]:py-0 [&_td]:align-middle [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4 [&_tr]:border-border/60';
 
 /** Default density: 12 px each side. */
 export const LIST_TABLE_PADDING_CLASS = '[&_th]:px-3 [&_td]:px-3';
