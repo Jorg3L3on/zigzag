@@ -1,6 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TicketListRowQuickActions } from '@/components/tickets/ticket-list-row-quick-actions';
 import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
 
 const mockToastSuccess = jest.fn();
@@ -60,19 +59,41 @@ describe('TicketRowActions', () => {
   it('names the folio people see, not the internal id, in every row action label', async () => {
     const user = userEvent.setup();
     const withFolio = { ...ticket, id: BigInt(1121), folio_prefix: 'R', folio_number: 60 };
-    render(<TicketListRowQuickActions ticket={withFolio as never} onDelete={jest.fn()} canWrite />);
-    expect(screen.getByRole('button', { name: 'Cobrar R-0060' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'PDF de R-0060' })).toBeInTheDocument();
+    render(<TicketRowActions ticket={withFolio} onDelete={jest.fn()} canWrite triggerIcon="horizontal" />);
     await user.click(screen.getByRole('button', { name: 'Más acciones de R-0060' }));
     expect(await screen.findByRole('menuitem', { name: 'Cobrar R-0060' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Descargar R-0060' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Eliminar R-0060' })).toBeInTheDocument();
     expect(screen.queryByText(/1121/)).toBeNull();
   });
 
-  it('falls back to #id only when the row has no folio', () => {
-    render(<TicketListRowQuickActions ticket={{ ...ticket, finished: false, services_summary: 'Mantenimiento' } as never} onDelete={jest.fn()} canWrite />);
-    expect(screen.getByRole('link', { name: 'Terminar #7' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Más acciones de #7' })).toBeInTheDocument();
+  it('puts Terminar in the menu of an open ticket when the table passes its link (ZIG-33)', async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketRowActions
+        ticket={{ ...ticket, finished: false }}
+        onDelete={jest.fn()}
+        canWrite
+        triggerIcon="horizontal"
+        finishHref="/tickets/7"
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Más acciones de #7' }));
+    const terminar = await screen.findByRole('menuitem', { name: 'Terminar #7' });
+    expect(terminar.closest('a')).toHaveAttribute('href', '/tickets/7');
+  });
+
+  it('has no Terminar without a finish link or once the ticket is finished', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<TicketRowActions ticket={{ ...ticket, finished: false }} canWrite />);
+    await user.click(screen.getByRole('button', { name: 'Más acciones de #7' }));
+    await screen.findByRole('menuitem', { name: /ver detalles/i });
+    expect(screen.queryByRole('menuitem', { name: /terminar/i })).toBeNull();
+    unmount();
+    render(<TicketRowActions ticket={ticket} canWrite finishHref="/tickets/7" />);
+    await user.click(screen.getByRole('button', { name: 'Más acciones de #7' }));
+    await screen.findByRole('menuitem', { name: /ver detalles/i });
+    expect(screen.queryByRole('menuitem', { name: /terminar/i })).toBeNull();
   });
 
   it('offers no Llamar, even when the client has a phone (ZIG-27)', async () => {

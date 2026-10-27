@@ -144,53 +144,60 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     expect(screen.getByTestId('ticket-list-estado')).toHaveTextContent('En proceso');
   });
 
-  it('offers Cobrar and PDF for a finished ticket with a balance, and keeps the menu', async () => {
+  it('shows no buttons on the row, only ⋯ with Cobrar and the PDF for a finished ticket (ZIG-33)', async () => {
     const user = userEvent.setup();
     render(<TableHarness ticket={makeTicket()} />);
 
-    const quick = screen.getByRole('button', { name: /^cobrar R-0012$/i }).parentElement;
-    expect(quick).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
-    expect(screen.getByRole('button', { name: /^más acciones de R-0012$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^pdf de R-0012$/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).not.toContain(
+      'Cobrar R-0012',
+    );
     expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /^cobrar R-0012$/i }));
-    expect(screen.getByRole('heading', { name: /^cobrar ticket R-0012$/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
+    expect(await screen.findByRole('menuitem', { name: /^cobrar R-0012$/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^descargar R-0012$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /terminar/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('menuitem', { name: /^cobrar R-0012$/i }));
+    expect(await screen.findByRole('heading', { name: /^cobrar ticket R-0012$/i })).toBeInTheDocument();
   });
 
-  it('links Terminar to the detail when the work is still in progress', () => {
+  it('puts Terminar in ⋯, linked to the detail, while the work is in progress', async () => {
+    const user = userEvent.setup();
     render(
       <TableHarness
         ticket={makeTicket({ finished: false, paid: 0, services_summary: 'Compresor' })}
       />,
     );
 
-    expect(screen.getByRole('link', { name: /^terminar R-0012$/i })).toHaveAttribute(
-      'href',
-      '/tickets/12',
-    );
-    expect(screen.queryByRole('button', { name: /cobrar/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
+    const terminar = await screen.findByRole('menuitem', { name: /^terminar R-0012$/i });
+    expect(terminar.closest('a')).toHaveAttribute('href', '/tickets/12');
+    expect(screen.queryByRole('menuitem', { name: /cobrar/i })).not.toBeInTheDocument();
   });
 
-  it('links Editar when an in-progress ticket has no services', () => {
+  it('offers Editar, not Terminar, in ⋯ when an in-progress ticket has no services', async () => {
+    const user = userEvent.setup();
     render(
       <TableHarness
         ticket={makeTicket({ finished: false, paid: 0, services_summary: '  ' })}
       />,
     );
 
-    expect(screen.getByRole('link', { name: /^editar R-0012$/i })).toHaveAttribute(
-      'href',
-      '/tickets/12/edit',
-    );
+    await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
+    const editar = await screen.findByRole('menuitem', { name: /^editar$/i });
+    expect(editar.closest('a')).toHaveAttribute('href', '/tickets/12/edit');
+    expect(screen.queryByRole('menuitem', { name: /terminar/i })).not.toBeInTheDocument();
   });
 
-  it('hides the write actions when the user cannot write, and still reaches the menu', () => {
+  it('leaves out the write actions when the user cannot write, and keeps the PDF', async () => {
+    const user = userEvent.setup();
     render(<TableHarness ticket={makeTicket()} canWrite={false} />);
 
-    expect(screen.queryByRole('button', { name: /cobrar/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^más acciones de R-0012$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^pdf de R-0012$/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
+    expect(await screen.findByRole('menuitem', { name: /^descargar R-0012$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /cobrar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /eliminar/i })).not.toBeInTheDocument();
   });
 });

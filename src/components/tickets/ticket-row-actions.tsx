@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2, CircleCheck } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
@@ -49,6 +49,11 @@ interface TicketRowActionsProps {
   companyId?: number | null;
   /** The desktop table uses the canvas ⋯; phone cards and Cobranza keep ⋮. */
   triggerIcon?: 'vertical' | 'horizontal';
+  /**
+   * Adds Terminar for an open ticket. The desktop table passes it since its rows have
+   * no hover buttons (ZIG-33); phone cards and Cobranza show Terminar elsewhere.
+   */
+  finishHref?: string;
 }
 
 const buildListTicketPdfFileName = (ticket: Ticket): string => {
@@ -69,6 +74,7 @@ export function TicketRowActions({
   canWrite = true,
   companyId,
   triggerIcon = 'vertical',
+  finishHref,
 }: TicketRowActionsProps) {
   const { can } = usePermissions();
   const canDownload = canDownloadTicketInvoice(can);
@@ -134,6 +140,14 @@ export function TicketRowActions({
               Ver detalles
             </DropdownMenuItem>
           </Link>
+          {canWrite && !ticket.finished && finishHref ? (
+            <Link href={finishHref}>
+              <DropdownMenuItem aria-label={`Terminar ${folio}`}>
+                <CircleCheck className="mr-2 h-4 w-4" data-icon="inline-start" />
+                Terminar
+              </DropdownMenuItem>
+            </Link>
+          ) : null}
           {showCollectAction ? (
             <DropdownMenuItem
               onSelect={() => setCollectOpen(true)}
