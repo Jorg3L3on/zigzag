@@ -1,19 +1,22 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
-import { Ban, CalendarPlus, Copy, Download, Loader2, MessageCircle, MoreHorizontal, Pencil } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowRightLeft,
+  Ban,
+  CalendarPlus,
+  Copy,
+  Download,
+  Loader2,
+  MessageCircle,
+  Pencil,
+  Ticket,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { PresupuestoTableItem } from '@/actions/presupuestos';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ListRowMenu, type ListRowMenuItem } from '@/components/list-page';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 import { buildWhatsAppQuoteReminder } from '@/lib/whatsapp-share';
 
@@ -24,22 +27,23 @@ export type PresupuestoRowHandlers = {
   onDuplicate: (item: PresupuestoTableItem) => void;
 };
 
-type PresupuestoRowActionsProps = PresupuestoRowHandlers & {
+type PresupuestoRowMenuProps = PresupuestoRowHandlers & {
   item: PresupuestoTableItem;
   canWrite: boolean;
   canInvoice: boolean;
   companyId: number | null;
   companyName: string | null;
+  /** A conversion, cancellation or duplicate is running: the row actions wait. */
   busy: boolean;
 };
 
 /**
- * Hover and focus actions of a presupuesto row (ZIG-I29-3, ListaPresuA):
- * Convertir, Recordar por WhatsApp and PDF while open or expired (Editar when
- * it has no conceptos yet), Ver ticket R once accepted, Duplicar once
- * canceled. The ⋮ menu is always visible.
+ * The ⋯ of a presupuesto row (ZIG-I33-2), the only row actions: nothing appears on
+ * hover (85563215). While open or expired: Convertir a ticket (once it has conceptos),
+ * Editar, Recordar por WhatsApp; the PDF; Ver ticket R once accepted; Duplicar;
+ * Extender vigencia; Cancelar presupuesto last.
  */
-export const PresupuestoRowActions = ({
+export const PresupuestoRowMenu = ({
   item,
   canWrite,
   canInvoice,
@@ -50,15 +54,14 @@ export const PresupuestoRowActions = ({
   onCancel,
   onExtend,
   onDuplicate,
-}: PresupuestoRowActionsProps) => {
+}: PresupuestoRowMenuProps) => {
+  const router = useRouter();
   const [downloading, setDownloading] = React.useState(false);
   const open = item.status === 'abierto' || item.status === 'vencido';
   const empty = !item.servicesSummary?.trim();
-  const editHref = `/presupuestos/${item.id}/edit`;
   // No folio means the R ticket is gone (deleted): nothing to open.
   const accepted =
     item.status === 'convertido' && Boolean(item.convertedToTicketId) && Boolean(item.convertedTicketFolio);
-  const canceled = item.status === 'cancelado' && canWrite;
   const reminder = open
     ? buildWhatsAppQuoteReminder({
         phone: item.clientTel,
@@ -71,9 +74,6 @@ export const PresupuestoRowActions = ({
         companyName,
       })
     : null;
-
-  const hasQuickActions =
-    (open && canWrite) || Boolean(reminder) || (open && canInvoice && !empty) || accepted || canceled;
 
   const handleDownload = async () => {
     if (downloading) return;
@@ -93,141 +93,76 @@ export const PresupuestoRowActions = ({
     }
   };
 
-  return (
-    <div className="relative flex items-center justify-end">
-      {hasQuickActions ? (
-        // Floats over Estado and Total so the table reserves room only for ⋮.
-        <div
-          className="pointer-events-none absolute right-full top-1/2 z-10 mr-1 flex -translate-y-1/2 items-center gap-1 rounded-lg bg-background p-1 opacity-0 shadow-sm ring-1 ring-border/60 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
-          data-testid="presupuesto-row-quick-actions"
-        >
-          {open && canWrite && !empty ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => onConvert(item)}
-              aria-label={`Convertir ${item.folio} a ticket`}
-            >
-              Convertir
-            </Button>
-          ) : null}
-          {open && canWrite && empty ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={editHref} aria-label={`Editar ${item.folio}`}>
-                Editar
-              </Link>
-            </Button>
-          ) : null}
-          {reminder ? (
-            <Button asChild variant="outline" size="sm" className="w-9 px-0">
-              <a
-                href={reminder.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Recordar ${item.folio} por WhatsApp`}
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden />
-              </a>
-            </Button>
-          ) : null}
-          {open && canInvoice && !empty ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-9 px-0"
-              disabled={downloading}
-              onClick={() => void handleDownload()}
-              aria-label={`PDF de ${item.folio}`}
-            >
-              {downloading ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Download className="h-4 w-4" aria-hidden />
-              )}
-            </Button>
-          ) : null}
-          {accepted ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/tickets/${item.convertedToTicketId}`}>
-                {`Ver ticket ${item.convertedTicketFolio}`}
-              </Link>
-            </Button>
-          ) : null}
-          {canceled ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => onDuplicate(item)}
-              aria-label={`Duplicar ${item.folio}`}
-            >
-              Duplicar
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0"
-            aria-label={`Más acciones de ${item.folio}`}
-          >
-            <MoreHorizontal className="h-4 w-4" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {open && canWrite ? (
-            <DropdownMenuItem asChild className="min-h-11">
-              <Link href={editHref}>
-                <Pencil className="mr-2 h-4 w-4" aria-hidden />
-                Editar
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {canWrite ? (
-            <DropdownMenuItem className="min-h-11" disabled={busy} onSelect={() => onDuplicate(item)}>
-              <Copy className="mr-2 h-4 w-4" aria-hidden />
-              Duplicar
-            </DropdownMenuItem>
-          ) : null}
-          {open && canWrite ? (
-            <DropdownMenuItem className="min-h-11" disabled={busy} onSelect={() => onExtend(item)}>
-              <CalendarPlus className="mr-2 h-4 w-4" aria-hidden />
-              Extender vigencia
-            </DropdownMenuItem>
-          ) : null}
-          {canInvoice ? (
-            <DropdownMenuItem
-              className="min-h-11"
-              disabled={downloading}
-              onSelect={() => void handleDownload()}
-            >
-              <Download className="mr-2 h-4 w-4" aria-hidden />
-              Descargar PDF
-            </DropdownMenuItem>
-          ) : null}
-          {open && canWrite ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="min-h-11 text-destructive focus:text-destructive"
-                disabled={busy}
-                onSelect={() => onCancel(item)}
-              >
-                <Ban className="mr-2 h-4 w-4" aria-hidden />
-                Cancelar presupuesto
-              </DropdownMenuItem>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
+  // A running conversion or duplicate leaves the other actions waiting.
+  const unlessBusy = (action: () => void) => () => {
+    if (!busy) action();
+  };
+
+  const items: ListRowMenuItem[] = [];
+  if (open && canWrite && !empty) {
+    items.push({
+      label: 'Convertir a ticket',
+      icon: <ArrowRightLeft className="h-4 w-4" aria-hidden />,
+      onSelect: unlessBusy(() => onConvert(item)),
+    });
+  }
+  if (open && canWrite) {
+    items.push({
+      label: 'Editar',
+      icon: <Pencil className="h-4 w-4" aria-hidden />,
+      onSelect: () => router.push(`/presupuestos/${item.id}/edit`),
+    });
+  }
+  if (reminder) {
+    items.push({
+      label: 'Recordar por WhatsApp',
+      icon: <MessageCircle className="h-4 w-4" aria-hidden />,
+      onSelect: () => {
+        window.open(reminder.href, '_blank', 'noopener,noreferrer');
+      },
+    });
+  }
+  if (canInvoice) {
+    items.push({
+      label: downloading ? 'Generando…' : 'Descargar PDF',
+      icon: downloading ? (
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+      ) : (
+        <Download className="h-4 w-4" aria-hidden />
+      ),
+      onSelect: () => void handleDownload(),
+    });
+  }
+  if (accepted) {
+    items.push({
+      label: `Ver ticket ${item.convertedTicketFolio}`,
+      icon: <Ticket className="h-4 w-4" aria-hidden />,
+      onSelect: () => router.push(`/tickets/${item.convertedToTicketId}`),
+    });
+  }
+  if (canWrite) {
+    items.push({
+      label: 'Duplicar',
+      icon: <Copy className="h-4 w-4" aria-hidden />,
+      onSelect: unlessBusy(() => onDuplicate(item)),
+    });
+  }
+  if (open && canWrite) {
+    items.push(
+      {
+        label: 'Extender vigencia',
+        icon: <CalendarPlus className="h-4 w-4" aria-hidden />,
+        onSelect: unlessBusy(() => onExtend(item)),
+      },
+      {
+        label: 'Cancelar presupuesto',
+        icon: <Ban className="h-4 w-4" aria-hidden />,
+        onSelect: unlessBusy(() => onCancel(item)),
+        destructive: true,
+      },
+    );
+  }
+
+  if (items.length === 0) return null;
+  return <ListRowMenu label={`Más acciones de ${item.folio}`} items={items} />;
 };

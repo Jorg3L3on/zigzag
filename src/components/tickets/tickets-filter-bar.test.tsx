@@ -1,6 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
+import {
+  TicketCollectionTabs,
+  TicketsDesktopToolbar,
+  TicketsFilterBar,
+} from '@/components/tickets/tickets-filter-bar';
 import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
 
 const baseProps = {
@@ -54,22 +58,6 @@ describe('TicketsFilterBar', () => {
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
   });
 
-  it('calls onClearFilters from the desktop clear button', async () => {
-    const user = userEvent.setup();
-    const onClearFilters = jest.fn();
-
-    render(
-      <TicketsFilterBar
-        {...baseProps}
-        hasActiveFilters
-        onClearFilters={onClearFilters}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /limpiar filtros/i }));
-    expect(onClearFilters).toHaveBeenCalledTimes(1);
-  });
-
   it('does not render Con PDF / Sin PDF filter controls', async () => {
     const user = userEvent.setup();
     render(<TicketsFilterBar {...baseProps} />);
@@ -106,25 +94,20 @@ describe('TicketsFilterBar', () => {
     ).toHaveTextContent('Más recientes');
   });
 
-  it('keeps Trabajo in the phone sheet and the dates on the desktop bar (ZIG-I28-4)', async () => {
+  it('keeps Trabajo, the dates and the order in the phone sheet (ZIG-I28-4)', async () => {
     const user = userEvent.setup();
     render(<TicketsFilterBar {...baseProps} />);
 
     expect(screen.queryByRole('combobox', { name: 'Trabajo' })).not.toBeInTheDocument();
-    // Canvas ListaA: «Todas las fechas» with no label above it on desktop.
-    expect(screen.getByRole('button', { name: 'Filtrar por rango de fechas del ticket' })).toHaveTextContent(
-      'Todas las fechas',
-    );
-    expect(screen.queryByText('Fechas', { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText('Cobro')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Buscar por cliente, folio o teléfono').parentElement).toHaveClass(
-      'max-w-[360px]',
-    );
+    // The phone bar has no desktop pieces since ZIG-I33-2.
+    expect(screen.queryByRole('navigation', { name: 'Vistas de tickets' })).not.toBeInTheDocument();
 
     await user.click(
       within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
     );
     expect(screen.getByRole('combobox', { name: 'Trabajo' })).toBeInTheDocument();
+    expect(screen.getByText('Fechas', { exact: true })).toBeInTheDocument();
   });
 
   it('tints the chosen chip instead of the solid page-action style (ZIG-I27-3)', () => {
@@ -143,20 +126,78 @@ describe('TicketsFilterBar', () => {
     expect(screen.queryByTestId('tickets-balance-due')).not.toBeInTheDocument();
   });
 
-  it('clears filters with a neutral button, not a destructive one (ZIG-I27-3)', () => {
-    render(<TicketsFilterBar {...baseProps} hasActiveFilters />);
+});
 
-    const clear = screen.getByRole('button', { name: 'Limpiar filtros' });
-    expect(clear.className).not.toContain('text-destructive');
+const toolbarProps = {
+  searchValue: '',
+  onSearchChange: jest.fn(),
+  finishedFilter: 'all' as const,
+  onFinishedFilterChange: jest.fn(),
+  dateRange: undefined,
+  onDateRangeChange: jest.fn(),
+  hasActiveFilters: false,
+  onClearFilters: jest.fn(),
+};
+
+describe('TicketsDesktopToolbar (ZIG-I33-2)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
+  it('is one row: search, dates, the Terminado pill and Columnas, with no order select or CSV', () => {
+    render(
+      <TicketsDesktopToolbar {...toolbarProps} columnsMenu={<button type="button">Columnas</button>} />,
+    );
+
+    expect(screen.getByRole('textbox', { name: 'Buscar por cliente, folio o teléfono' })).toHaveAttribute(
+      'placeholder',
+      'Buscar por cliente, folio o teléfono',
+    );
+    // Canvas ListaA: «Todas las fechas» with no label above it.
+    expect(screen.getByRole('button', { name: 'Filtrar por rango de fechas del ticket' })).toHaveTextContent(
+      'Todas las fechas',
+    );
+    expect(screen.queryByText('Fechas', { exact: true })).not.toBeInTheDocument();
+    const terminado = screen.getByRole('combobox', { name: 'Filtrar por trabajo terminado' });
+    expect(terminado).toHaveTextContent('Todos los trabajos');
+    expect(terminado.className).toContain('rounded-full');
+    expect(terminado.className).not.toContain('bg-primary/10');
+    expect(screen.getByRole('button', { name: 'Columnas' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /ordenar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Más filtros' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /csv|exportar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument();
+  });
+
+  it('tints a chosen Terminado and clears with a neutral button', async () => {
+    const user = userEvent.setup();
+    const onClearFilters = jest.fn();
+    render(
+      <TicketsDesktopToolbar
+        {...toolbarProps}
+        finishedFilter="no"
+        hasActiveFilters
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    const terminado = screen.getByRole('combobox', { name: 'Filtrar por trabajo terminado' });
+    expect(terminado).toHaveTextContent('En proceso');
+    expect(terminado.className).toContain('bg-primary/10');
+    const clear = screen.getByRole('button', { name: 'Limpiar filtros' });
+    expect(clear.className).not.toContain('text-destructive');
+    await user.click(clear);
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TicketCollectionTabs', () => {
   it('tints the selected collection tab and never shows money (ZIG-I28-4)', async () => {
     const user = userEvent.setup();
     const onStatusFilterChange = jest.fn();
     const onFinishedFilterChange = jest.fn();
     render(
-      <TicketsFilterBar
-        {...baseProps}
+      <TicketCollectionTabs
         statusFilter="due"
         finishedFilter="yes"
         counts={{ all: 8, due: 3, inProgress: 2, paid: 1 }}
@@ -188,18 +229,5 @@ describe('TicketsFilterBar', () => {
     await user.click(within(views).getByRole('button', { name: 'Todos 8 tickets' }));
     expect(onStatusFilterChange).toHaveBeenCalledWith('all');
     expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
-  });
-
-  it('shows the order at the right of the desktop bar, Trabajo (terminado o en proceso) under Más filtros, and no CSV export', async () => {
-    const user = userEvent.setup();
-    render(<TicketsFilterBar {...baseProps} columnsMenu={<button type="button">Columnas</button>} />);
-
-    expect(screen.queryByRole('button', { name: /csv|exportar/i })).not.toBeInTheDocument();
-    const desktop = screen.getByRole('navigation', { name: 'Vistas de tickets' }).parentElement;
-    if (!desktop) throw new Error('desktop bar missing');
-    expect(within(desktop).getByRole('combobox', { name: 'Ordenar lista de tickets' })).toBeInTheDocument();
-    expect(within(desktop).getByRole('button', { name: 'Columnas' })).toBeInTheDocument();
-    await user.click(within(desktop).getByRole('button', { name: 'Más filtros' }));
-    expect(screen.getByRole('combobox', { name: 'Trabajo' })).toBeInTheDocument();
   });
 });

@@ -4,6 +4,9 @@ import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tan
 import type { Ticket } from '@/actions/tickets';
 import { createTicketsColumns, ticketListEstadoLabel } from '@/components/tickets/tickets-columns';
 
+// userEvent flows can pass 5 s on a loaded runner (ZIG-I10 QA).
+jest.setTimeout(30_000);
+
 jest.mock('sonner', () => ({
   toast: { success: jest.fn(), error: jest.fn() },
 }));
@@ -19,8 +22,9 @@ jest.mock('@/actions/tickets', () => ({
   deleteTicket: jest.fn(),
 }));
 
+const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+  useRouter: () => ({ push: mockPush, refresh: jest.fn() }),
 }));
 
 const makeTicket = (overrides: Partial<Ticket> = {}): Ticket => ({
@@ -101,6 +105,8 @@ describe('ticket list estado (ZIG-I28-4)', () => {
 });
 
 describe('tickets collection columns (ZIG-I28-4)', () => {
+  beforeEach(() => mockPush.mockClear());
+
   const headers = () => screen.getAllByRole('columnheader');
 
   it('shows folio, client with phone, work, saldo and a one-line estado', () => {
@@ -125,7 +131,20 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
       return element?.classList.contains('font-semibold') === true && /800/.test(text);
     })).toBeInTheDocument();
     expect(screen.getByTestId('ticket-list-estado')).toHaveTextContent('Pago parcial');
+    // ZIG-I33 §6: the shared pill, money still owed in amber.
+    expect(screen.getByTestId('ticket-list-estado').parentElement).toHaveAttribute('data-tone', 'amber');
     expect(screen.queryByTestId('ticket-payment-summary')).not.toBeInTheDocument();
+  });
+
+  it('sorts by every figure and name from the header and aligns money right (ZIG-I33-2)', () => {
+    render(<TableHarness ticket={makeTicket()} />);
+
+    for (const name of ['Folio', 'Cliente', 'Fecha', 'Total', 'Saldo', 'Estado']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Trabajo' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Total' }).className).toContain('uppercase');
+    expect(screen.getByRole('columnheader', { name: 'Acciones' })).toHaveClass('w-12');
   });
 
   it('uses an em dash for saldo and En proceso when the ticket is unfinished and unpaid', () => {
@@ -148,21 +167,28 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     const user = userEvent.setup();
     render(<TableHarness ticket={makeTicket()} />);
 
-    expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).not.toContain(
-      'Cobrar R-0012',
-    );
+    expect(
+      screen
+        .getAllByRole('button')
+        .filter((button) => !button.closest('th'))
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Más acciones de R-0012']);
     expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
-    expect(await screen.findByRole('menuitem', { name: /^cobrar R-0012$/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /^descargar R-0012$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Cobrar' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Descargar ticket' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /terminar/i })).not.toBeInTheDocument();
+    // Destructive last (ZIG-I33 §5).
+    const items = screen.getAllByRole('menuitem');
+    expect(items[items.length - 1]).toHaveTextContent('Eliminar');
+    expect(items[items.length - 1].className).toContain('text-destructive');
 
-    await user.click(screen.getByRole('menuitem', { name: /^cobrar R-0012$/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Cobrar' }));
     expect(await screen.findByRole('heading', { name: /^cobrar ticket R-0012$/i })).toBeInTheDocument();
   });
 
-  it('puts Terminar in ⋯, linked to the detail, while the work is in progress', async () => {
+  it('puts Terminar in ⋯, opening the detail, while the work is in progress', async () => {
     const user = userEvent.setup();
     render(
       <TableHarness
@@ -172,8 +198,9 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
 
     expect(screen.queryByRole('link', { name: /terminar/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
-    const terminar = await screen.findByRole('menuitem', { name: /^terminar R-0012$/i });
-    expect(terminar.closest('a')).toHaveAttribute('href', '/tickets/12');
+    await user.click(await screen.findByRole('menuitem', { name: 'Terminar' }));
+    expect(mockPush).toHaveBeenCalledWith('/tickets/12');
+    await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
     expect(screen.queryByRole('menuitem', { name: /cobrar/i })).not.toBeInTheDocument();
   });
 
@@ -186,9 +213,9 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
-    const editar = await screen.findByRole('menuitem', { name: /^editar$/i });
-    expect(editar.closest('a')).toHaveAttribute('href', '/tickets/12/edit');
     expect(screen.queryByRole('menuitem', { name: /terminar/i })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('menuitem', { name: 'Editar' }));
+    expect(mockPush).toHaveBeenCalledWith('/tickets/12/edit');
   });
 
   it('leaves out the write actions when the user cannot write, and keeps the PDF', async () => {
@@ -196,7 +223,7 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     render(<TableHarness ticket={makeTicket()} canWrite={false} />);
 
     await user.click(screen.getByRole('button', { name: /^más acciones de R-0012$/i }));
-    expect(await screen.findByRole('menuitem', { name: /^descargar R-0012$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Descargar ticket' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /cobrar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /eliminar/i })).not.toBeInTheDocument();
   });
