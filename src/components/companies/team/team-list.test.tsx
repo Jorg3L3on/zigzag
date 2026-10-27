@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { TeamList } from '@/components/companies/team/team-list';
 import { addTeamMember, getTeam } from '@/actions/team';
 import type { TeamData } from '@/actions/team';
@@ -6,11 +7,21 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsDesktop } from '@/hooks/use-desktop';
 
 jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => true) }));
-jest.mock('@/hooks/use-desktop', () => ({ useIsDesktop: jest.fn(() => false) }));
+jest.mock('@/hooks/use-desktop', () => {
+  const useIsDesktop = jest.fn(() => false);
+  // DesktopSwitch follows the same mocked width (ZIG-28).
+  return {
+    ...jest.requireActual('@/hooks/use-desktop'),
+    useIsDesktop,
+    useDesktopViewport: () => useIsDesktop(),
+  };
+});
 
 const mockSearchParams = { current: new URLSearchParams() };
+const mockReplace = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: jest.fn() }),
+  useRouter: () => ({ refresh: jest.fn(), replace: mockReplace, push: jest.fn() }),
+  usePathname: () => '/company/equipo',
   useSearchParams: () => mockSearchParams.current,
 }));
 
@@ -97,7 +108,15 @@ describe('TeamList', () => {
     expect(access).toEqual(['Activo', 'Debe cambiar contraseña']);
     expect(screen.queryByText('Beto Baja')).toBeNull();
 
+    // The chosen pill is the filter tint, never the solid page-action blue (eb0ff213).
+    const activos = screen.getByRole('button', { name: 'Activos' });
+    expect(activos).toHaveAttribute('aria-pressed', 'true');
+    expect(activos.className).toContain('bg-primary/10');
+    expect(activos.className).not.toContain('bg-primary ');
+
     fireEvent.click(screen.getByRole('button', { name: /^Todos/ }));
+    expect(screen.getByRole('button', { name: /^Todos/ }).className).toContain('bg-primary/10');
+    expect(screen.getByRole('button', { name: 'Activos' }).className).not.toContain('bg-primary/10');
 
     const card = (await screen.findByText('Beto Baja')).closest('li')!;
     expect(within(card).getByTestId('team-member-access')).toHaveTextContent('Desactivado');
@@ -221,16 +240,104 @@ describe('TeamList', () => {
       expect(within(row).queryByRole('button', { name: /Acciones de/ })).toBeNull();
     });
 
-    it('offers Cambiar rol and Restablecer contraseña on the row, never reset for yourself', async () => {
+    it('keeps every row action in the ⋯, nothing on hover; your own row only offers Editar', async () => {
+      const user = userEvent.setup();
       mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
       render(<TeamList />);
-      await screen.findByTestId('team-desktop');
+      const desktop = await screen.findByTestId('team-desktop');
 
-      expect(screen.getByRole('button', { name: 'Restablecer contraseña de Carlos Técnico' })).toBeInTheDocument();
-      // Your own row: neither reset nor role change (ZIG-I32 review).
-      expect(screen.queryByRole('button', { name: 'Restablecer contraseña de Ana Admin' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Cambiar rol de Ana Admin' })).toBeNull();
-      expect(screen.getByRole('button', { name: 'Cambiar rol de Carlos Técnico' })).toBeInTheDocument();
+      expect(within(desktop).queryByRole('button', { name: /^Cambiar rol de / })).toBeNull();
+      expect(within(desktop).queryByRole('button', { name: /^Restablecer contraseña de / })).toBeNull();
+
+      await user.click(within(desktop).getByRole('button', { name: 'Acciones de Carlos Técnico' }));
+      const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
+      expect(items).toEqual(['Editar', 'Cambiar rol', 'Restablecer contraseña', 'Desactivar']);
+      await user.keyboard('{Escape}');
+
+      // Your own row: no role change, reset or deactivation (ZIG-I32 review, guards unchanged).
+      await user.click(within(desktop).getByRole('button', { name: 'Acciones de Ana Admin' }));
+      await waitFor(() =>
+        expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Editar']),
+      );
+    });
+
+    it('opens Cambiar rol from the ⋯ and the edit panel from the row', async () => {
+      const user = userEvent.setup();
+      mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
+      render(<TeamList />);
+      const desktop = await screen.findByTestId('team-desktop');
+
+      await user.click(within(desktop).getByRole('button', { name: 'Acciones de Carlos Técnico' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Cambiar rol' }));
+      expect(await screen.findByRole('dialog')).toHaveTextContent('Carlos Técnico');
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+      await user.click(within(desktop).getByText('carlos@demo.mx'));
+      const panel = await screen.findByTestId('team-member-panel');
+      expect(within(panel).getByLabelText('Nombre')).toHaveValue('Carlos Técnico');
+    });
+
+    it('sorts by the Alta header and counts «N de M personas» in the footer', async () => {
+      const user = userEvent.setup();
+      mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
+      render(<TeamList />);
+      const desktop = await screen.findByTestId('team-desktop');
+
+      const names = () =>
+        within(desktop)
+          .getAllByTestId('team-member-row')
+          .map((row) => row.querySelector('.font-medium')?.firstChild?.textContent);
+      expect(names()).toEqual(['Ana Admin', 'Carlos Técnico']);
+      const alta = within(desktop).getByRole('columnheader', { name: /Alta/ });
+      expect(alta).toHaveAttribute('aria-sort', 'none');
+
+      // Dates sort newest first on the first click, then oldest first.
+      await user.click(within(alta).getByRole('button'));
+      expect(alta).toHaveAttribute('aria-sort', 'descending');
+      expect(names()).toEqual(['Carlos Técnico', 'Ana Admin']);
+      await user.click(within(alta).getByRole('button'));
+      expect(alta).toHaveAttribute('aria-sort', 'ascending');
+      expect(names()).toEqual(['Ana Admin', 'Carlos Técnico']);
+
+      // Activos: 2 of the 3 people (one deactivated); no pager under 25.
+      expect(within(desktop).getByTestId('list-footer')).toHaveTextContent('2 de 3 personas');
+      expect(within(desktop).queryByRole('navigation', { name: 'Paginación' })).toBeNull();
+      expect(within(desktop).getByRole('heading', { level: 2 })).toHaveTextContent('Equipo · 3');
+    });
+
+    it('shows the role and access as status pills', async () => {
+      mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
+      render(<TeamList />);
+      const desktop = await screen.findByTestId('team-desktop');
+
+      const row = within(desktop).getAllByTestId('team-member-row')[1];
+      const pills = [...row.querySelectorAll('[data-tone]')].map(
+        (pill) => `${pill.textContent}:${pill.getAttribute('data-tone')}`,
+      );
+      expect(pills).toEqual(
+        expect.arrayContaining(['Operador:violet', 'Debe cambiar contraseña:amber']),
+      );
+      const self = within(desktop).getAllByTestId('team-member-row')[0];
+      expect(self.querySelector('[data-tone="blue"]')).toHaveTextContent('Admin');
+      expect(self.querySelector('[data-tone="emerald"]')).toHaveTextContent('Activo');
+    });
+
+    it('Limpiar filtros appears with a filter and puts Activos and every role back', async () => {
+      mockSearchParams.current = new URLSearchParams('rol=2');
+      mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
+      render(<TeamList />);
+      const desktop = await screen.findByTestId('team-desktop');
+
+      expect(within(desktop).queryByText('Ana Admin')).toBeNull();
+      fireEvent.click(within(desktop).getByRole('button', { name: 'Limpiar filtros' }));
+      expect(await within(desktop).findByText('Ana Admin')).toBeInTheDocument();
+      expect(within(desktop).getByRole('combobox', { name: 'Filtrar por rol' })).toHaveTextContent(
+        'Todos los roles',
+      );
+      expect(mockReplace).toHaveBeenCalledWith('/company/equipo', { scroll: false });
+      expect(within(desktop).queryByRole('button', { name: 'Limpiar filtros' })).toBeNull();
+      mockSearchParams.current = new URLSearchParams();
     });
 
     it('adds a person from the panel and shows the temporary password once', async () => {
@@ -277,6 +384,21 @@ describe('TeamList', () => {
       expect(within(desktop).queryByText('Ana Admin')).toBeNull();
       expect(within(desktop).getByText('Carlos Técnico')).toBeInTheDocument();
       mockSearchParams.current = new URLSearchParams();
+    });
+
+    it('writes the chosen role to ?rol', async () => {
+      mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
+      render(<TeamList />);
+      const desktop = await screen.findByTestId('team-desktop');
+
+      Element.prototype.hasPointerCapture = jest.fn(() => false);
+      Element.prototype.scrollIntoView = jest.fn();
+      const roleFilter = within(desktop).getByRole('combobox', { name: 'Filtrar por rol' });
+      fireEvent.keyDown(roleFilter, { key: 'ArrowDown' });
+      fireEvent.click(await screen.findByRole('option', { name: 'Operador' }));
+
+      expect(mockReplace).toHaveBeenCalledWith('/company/equipo?rol=2', { scroll: false });
+      expect(within(desktop).queryByText('Ana Admin')).toBeNull();
     });
 
     it('hides Agregar persona and row actions for readers', async () => {

@@ -60,14 +60,15 @@ test.describe('Mi empresa: team and role flow', () => {
     await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
   });
 
-  test('Restablecer contraseña on hover shows the password once; self and last admin stay blocked', async ({
+  test('Restablecer contraseña from the ⋯ shows the password once; your own row stays blocked', async ({
     page,
   }) => {
     await login(page);
     await page.goto('/company/equipo');
     const row = page.getByTestId('team-member-row').filter({ hasText: member.email });
-    await row.hover();
-    await row.getByRole('button', { name: `Restablecer contraseña de ${member.name}` }).click();
+    // Every row action lives in the ⋯, nothing on hover (ZIG-I33-6).
+    await row.getByRole('button', { name: `Acciones de ${member.name}` }).click();
+    await page.getByRole('menuitem', { name: 'Restablecer contraseña' }).click();
     const dialog = page.getByRole('alertdialog');
     await expect(dialog.getByText(`Restablecer contraseña de ${member.name}`)).toBeVisible();
     await dialog.getByRole('button', { name: 'Restablecer contraseña' }).click();
@@ -77,12 +78,11 @@ test.describe('Mi empresa: team and role flow', () => {
     await dialog.getByRole('button', { name: 'Listo' }).click();
     await expect(row.getByTestId('team-member-access').filter({ visible: true })).toHaveText('Debe cambiar contraseña');
 
-    // Your own row: no reset on hover and Desactivar disabled (team-guards unchanged).
+    // Your own row: the ⋯ only offers Editar (no reset, role change or deactivation).
     const self = page.getByTestId('team-member-row').filter({ hasText: '(tú)' });
-    await self.hover();
-    await expect(self.getByRole('button', { name: /^Restablecer contraseña/ })).toHaveCount(0);
     await self.getByRole('button', { name: /^Acciones de/ }).click();
-    await expect(page.getByRole('menuitem', { name: 'Desactivar (eres tú)' })).toBeDisabled();
+    await expect(page.getByRole('menuitem', { name: 'Editar' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Restablecer contraseña|Cambiar rol|Desactivar/ })).toHaveCount(0);
     await page.keyboard.press('Escape');
   });
 
