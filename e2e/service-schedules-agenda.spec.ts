@@ -7,7 +7,9 @@ import { expectNoSeriousViolations } from './helpers/a11y';
 import { e2eCredentialsSkipReason, ensureTenantCompany, hasE2eCredentials, login } from './helpers/auth';
 
 /**
- * ZIG-I30: service schedules as an agenda at 1280 px. The spec seeds its own
+ * ZIG-I30: service schedules as an agenda at 1280 px, on the desktop list standard
+ * since ZIG-I33-5 (ListViewTabs, header sort, ⋯ with no hover buttons, keyboard
+ * rows, ListBulkBar, ListFooter). The spec seeds its own
  * clients, service, schedules and one finished ticket in the e2e company and
  * narrows the agenda to them with the search, so the counts are exact. Saves
  * data: scratch DB or CI, never Neon.
@@ -139,6 +141,11 @@ const row = (page: Page, key: keyof Fixtures['schedules'] | number): Locator =>
 
 const tabCount = (page: Page, view: string) => page.getByTestId(`schedule-tab-count-${view}`);
 
+const viewTabs = (page: Page) => page.getByRole('navigation', { name: 'Vistas de recordatorios' });
+const viewTab = (page: Page, name: RegExp) => viewTabs(page).getByRole('button', { name });
+
+const footer = (page: Page) => page.getByTestId('list-footer');
+
 const openAgenda = async (page: Page, query = '') => {
   await page.goto(`/service-schedules${query}`);
   await ensureTenantCompany(page);
@@ -151,7 +158,7 @@ const openAgenda = async (page: Page, query = '') => {
   }).toPass({ timeout: 30_000 });
 };
 
-test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
+test.describe('Recordatorios agenda @1280px (ZIG-I30, ZIG-I33-5)', () => {
   test.describe.configure({ mode: 'serial' });
   test.use({ viewport: { width: 1280, height: 900 } });
   test.setTimeout(180_000);
@@ -170,28 +177,40 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await login(page);
   });
 
-  test('Por atender by default with counts, relative dates, hover Crear ticket, ⋮ by keyboard, bulk Posponer with Deshacer', async ({ page }) => {
+  test('Por atender by default with counts, relative dates, ⋯ by keyboard, bulk Posponer with Deshacer, Crear ticket in the ⋯', async ({ page }) => {
     await openAgenda(page);
-    await expect(page.getByRole('button', { name: /^Por atender/ })).toHaveAttribute('aria-pressed', 'true');
+    // ListViewTabs: the four views with their counts under the name, no sort select.
+    await expect(viewTab(page, /^Por atender/)).toHaveAttribute('aria-pressed', 'true');
+    await expect(viewTabs(page).getByRole('button')).toHaveCount(4);
     await expect(tabCount(page, 'por-atender')).toHaveText('3');
     await expect(tabCount(page, 'programados')).toHaveText('1');
     await expect(tabCount(page, 'pausados')).toHaveText('0');
     await expect(tabCount(page, 'todos')).toHaveText('4');
-    await expect(page.getByTestId('service-schedules-range')).toHaveText('1–3 de 3');
+    await expect(page.getByRole('combobox', { name: 'Ordenar recordatorios' })).toHaveCount(0);
+    await expect(footer(page)).toHaveText('3 de 3 recordatorios');
 
     const overdue = row(page, 'A').getByText('hace 20 días');
     await expect(overdue).toBeVisible();
     await expect(overdue).toHaveClass(/text-destructive/);
     await expect(row(page, 'A').getByText('Atrasado')).toBeVisible();
 
-    await page.getByRole('button', { name: /^Programados/ }).click();
+    await viewTab(page, /^Programados/).click();
     await expect(page).toHaveURL(/vista=programados/);
     await expect(row(page, 'B').getByText('en 40 días')).toBeVisible();
     await expect(row(page, 'B').getByText('Programado')).toBeVisible();
-    await page.getByRole('button', { name: /^Por atender/ }).click();
+    await viewTab(page, /^Por atender/).click();
     await expect(row(page, 'A')).toBeVisible();
 
-    // ⋮ is a real button: focus it and open it with the keyboard.
+    // Sorting is the column headers': Cliente writes ?orden=cliente, Próximo goes back
+    // to the default (most overdue first), which leaves the URL.
+    await page.getByRole('columnheader', { name: 'Cliente' }).getByRole('button').click();
+    await expect(page).toHaveURL(/orden=cliente/);
+    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toHaveAttribute('aria-sort', 'ascending');
+    await page.getByRole('columnheader', { name: 'Próximo' }).getByRole('button').click();
+    await expect(page).not.toHaveURL(/orden=/);
+    await expect(page.getByRole('columnheader', { name: 'Próximo' })).toHaveAttribute('aria-sort', 'ascending');
+
+    // ⋯ is a real button: focus it and open it with the keyboard.
     const menuTrigger = row(page, 'A').getByRole('button', { name: /^Acciones del recordatorio/ });
     await menuTrigger.focus();
     await page.keyboard.press('Enter');
@@ -205,6 +224,8 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await row(page, 'D').getByRole('checkbox').click();
     const bar = page.getByTestId('service-schedules-selection-bar');
     await expect(bar).toContainText('2 seleccionados');
+    await expect(bar.getByRole('button', { name: 'Pausar' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Eliminar' })).toBeVisible();
     await bar.getByRole('button', { name: 'Posponer' }).click();
     await page.getByRole('menuitem', { name: '30 días' }).click();
     await expect(tabCount(page, 'por-atender')).toHaveText('1');
@@ -213,11 +234,14 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await expect(tabCount(page, 'por-atender')).toHaveText('3');
     await expect(row(page, 'C').getByText('hace 5 días')).toBeVisible();
 
-    // Hover shows Crear ticket, which opens the composer with the client and the service.
+    // Nothing appears on hover: Crear ticket and WhatsApp live in the ⋯, and Crear ticket
+    // opens the composer with the client and the service.
     await row(page, 'A').hover();
-    const createTicket = row(page, 'A').getByRole('link', { name: /^Crear ticket para/ });
-    await expect(createTicket).toBeVisible();
-    await createTicket.click();
+    await expect(row(page, 'A').getByRole('link')).toHaveCount(0);
+    await expect(row(page, 'A').getByRole('button')).toHaveCount(1);
+    await row(page, 'A').getByRole('button', { name: /^Acciones del recordatorio/ }).click();
+    await expect(page.getByRole('menuitem', { name: 'Recordar por WhatsApp' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Crear ticket' }).click();
     await expect(page).toHaveURL(
       new RegExp(`/tickets/create\\?clientId=${fixtures.clients.A}&serviceId=${fixtures.serviceId}`),
     );
@@ -225,15 +249,17 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
 
   test('the old ?filter=atrasados link narrows Por atender', async ({ page }) => {
     await openAgenda(page, '?filter=atrasados');
-    await expect(page.getByRole('button', { name: /^Por atender/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(viewTab(page, /^Por atender/)).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('button', { name: /^Atrasados/ })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('service-schedules-range')).toHaveText('1–3 de 3');
+    await expect(footer(page)).toHaveText('3 de 3 recordatorios');
   });
 
   test('panel with the service history, Posponer 30 días, Marcar como hecho and Nuevo recordatorio', async ({ page }) => {
     await openAgenda(page);
 
-    await row(page, 'A').getByText(`Mantenimiento ${suffix}`).click();
+    // The row opens the panel from the keyboard: Enter on the focused row.
+    await row(page, 'A').focus();
+    await page.keyboard.press('Enter');
     const panel = page.getByTestId('schedule-side-panel');
     await expect(panel).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`ver=${fixtures.schedules.A}`));
@@ -257,7 +283,7 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
     await expect(doneDialog.getByTestId('schedule-mark-done-preview')).toContainText('El próximo queda para el');
     await doneDialog.getByRole('button', { name: 'Marcar como hecho' }).click();
     await expect(tabCount(page, 'por-atender')).toHaveText('1');
-    await page.getByRole('button', { name: /^Programados/ }).click();
+    await viewTab(page, /^Programados/).click();
     await expect(row(page, 'C').getByText('Programado')).toBeVisible();
     await expect(row(page, 'C').getByText('en 6 meses')).toBeVisible();
 
@@ -283,11 +309,16 @@ test.describe('Recordatorios agenda @1280px (ZIG-I30)', () => {
   test('agenda and panel pass axe; the panel takes focus and Escape closes it', async ({ page }) => {
     await openAgenda(page);
     await expectNoSeriousViolations(page, 'agenda Por atender');
-    await page.getByRole('button', { name: /^Todos/ }).first().click();
+    await viewTab(page, /^Todos/).click();
     await expect(page).toHaveURL(/vista=todos/);
     await expectNoSeriousViolations(page, 'agenda Todos');
 
-    await row(page, 'B').getByRole('button', { name: `${prefix} B`, exact: true }).click();
+    // A click in the checkbox cell, beside the box, does not open the panel.
+    await row(page, 'B').getByRole('cell').first().click({ position: { x: 4, y: 4 } });
+    await expect(page.getByTestId('schedule-side-panel')).toBeHidden();
+    await expect(page).not.toHaveURL(/ver=/);
+
+    await row(page, 'B').getByText(`${prefix} B`, { exact: true }).click();
     const panel = page.getByTestId('schedule-side-panel');
     await expect(panel).toBeVisible();
     await expect

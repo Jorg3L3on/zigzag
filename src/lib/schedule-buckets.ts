@@ -125,8 +125,11 @@ export const companyDaysFromToday = (
 ): number =>
   differenceInCalendarDays(companyDay(date).date, companyDay(today).date);
 
-/** Agenda order: most overdue first (default), client A–Z, oldest last service first. */
-export const SCHEDULE_AGENDA_SORTS = ['proximo', 'cliente', 'ultimo'] as const;
+/**
+ * Agenda order: most overdue first (default), client A–Z, service A–Z (ZIG-I33-5),
+ * oldest last service first.
+ */
+export const SCHEDULE_AGENDA_SORTS = ['proximo', 'cliente', 'servicio', 'ultimo'] as const;
 
 export type ScheduleAgendaSort = (typeof SCHEDULE_AGENDA_SORTS)[number];
 

@@ -6,7 +6,7 @@ import {
   CalendarCheck,
   CalendarClock,
   MessageCircle,
-  MoreVertical,
+  MoreHorizontal,
   Pause,
   Pencil,
   Play,
@@ -53,14 +53,20 @@ type ScheduleActionsMenuProps = ScheduleActionHandlers & {
   whatsappHref: string | null;
   /** Hides Crear ticket and WhatsApp when the caller already shows them (the panel). */
   showPrimary?: boolean;
+  /** Replaces the row trigger's classes (the panel's bordered 44 px button). */
   triggerClassName?: string;
   align?: 'start' | 'end';
 };
 
+/** The trigger of ListRowMenu (ZIG-I33 §5): ⋯, 32 px, always visible. */
+const ROW_TRIGGER_CLASS = 'size-8 rounded-lg text-muted-foreground hover:text-foreground';
+
 /**
- * The ⋮ menu of an agenda row and of the side panel (ZIG-I30): everything the
- * row does, Eliminar last after a separator. Paused schedules offer Reanudar
- * instead of Posponer and Marcar como hecho.
+ * The ⋯ menu of an agenda row and of the side panel (ZIG-I30, ZIG-I33-5): everything
+ * the row does, in the order of the standard, Eliminar last after a separator. Paused
+ * schedules offer Reanudar instead of Marcar como hecho, Posponer and Pausar. It keeps
+ * its own DropdownMenu instead of ListRowMenu, which has no links or submenus (Crear
+ * ticket, WhatsApp, Posponer ▸); the trigger and the content follow it.
  */
 export const ScheduleActionsMenu = ({
   schedule,
@@ -94,11 +100,12 @@ export const ScheduleActionsMenu = ({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn('h-9 w-9 shrink-0', triggerClassName)}
+          className={cn('shrink-0', triggerClassName ?? ROW_TRIGGER_CLASS)}
           aria-label={`Acciones del recordatorio de ${schedule.clientName}`}
           onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
         >
-          <MoreVertical className="h-4 w-4" aria-hidden />
+          <MoreHorizontal className="size-4" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -124,6 +131,10 @@ export const ScheduleActionsMenu = ({
         ) : null}
         {canWrite && !paused ? (
           <>
+            <DropdownMenuItem onSelect={run(onMarkDone)}>
+              <CalendarCheck className="h-4 w-4" aria-hidden />
+              Marcar como hecho
+            </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <CalendarClock className="h-4 w-4" aria-hidden />
@@ -144,18 +155,10 @@ export const ScheduleActionsMenu = ({
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem onSelect={run(onMarkDone)}>
-              <CalendarCheck className="h-4 w-4" aria-hidden />
-              Marcar como hecho
-            </DropdownMenuItem>
           </>
         ) : null}
         {canWrite ? (
           <>
-            <DropdownMenuItem onSelect={run(onEdit)}>
-              <Pencil className="h-4 w-4" aria-hidden />
-              Editar
-            </DropdownMenuItem>
             {paused ? (
               <DropdownMenuItem onSelect={run(onResume)}>
                 <Play className="h-4 w-4" aria-hidden />
@@ -167,6 +170,10 @@ export const ScheduleActionsMenu = ({
                 Pausar
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onSelect={run(onEdit)}>
+              <Pencil className="h-4 w-4" aria-hidden />
+              Editar
+            </DropdownMenuItem>
           </>
         ) : null}
         <DropdownMenuItem asChild>
