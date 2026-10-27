@@ -147,7 +147,7 @@ test.describe('Mi empresa hub', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/company/equipo');
 
-      // Someone else's row: yours only offers Editar (ZIG-I33-6).
+      // Someone else's row: on yours only Editar is enabled (ZIG-I33-6, ZIG-I33-9).
       const firstMenu = page
         .getByTestId('team-member-row')
         .filter({ hasNotText: '(tú)' })
@@ -164,12 +164,14 @@ test.describe('Mi empresa hub', () => {
       await expect(page.getByRole('menuitem', { name: /Desactivar/ })).toBeVisible();
       await page.keyboard.press('Escape');
 
-      // The caller's own row cannot be deactivated: its ⋯ leaves Desactivar out.
+      // The caller's own row cannot be deactivated.
       const selfRow = page.getByTestId('team-member-row').filter({ hasText: '(tú)' });
       if ((await selfRow.count()) > 0) {
         await selfRow.getByRole('button', { name: /^Acciones de / }).click();
         await expect(page.getByRole('menuitem', { name: 'Editar' })).toBeVisible();
-        await expect(page.getByRole('menuitem', { name: /Desactivar/ })).toHaveCount(0);
+        await expect(
+          page.getByRole('menuitem', { name: 'Desactivar (eres tú)' }),
+        ).toHaveAttribute('data-disabled', '');
         await page.keyboard.press('Escape');
       }
     });

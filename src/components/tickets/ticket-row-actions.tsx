@@ -4,17 +4,9 @@ import { companyDay } from '@/lib/company-day';
 import { formatDocumentFolio } from '@/lib/folio';
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ListRowMenu, type ListRowMenuItem } from '@/components/list-page';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2, CircleCheck } from 'lucide-react';
+import { ListCardMenu, ListRowMenu, type ListCardMenuItem } from '@/components/list-page';
+import { Eye, Pencil, FileDown, Banknote, Loader2, Trash2, CircleCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
 import {
@@ -50,8 +42,6 @@ type TicketRowActionsOptions = {
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
-  /** The desktop table uses the canvas ⋯; phone cards and Cobranza keep ⋮. */
-  triggerIcon?: 'vertical' | 'horizontal';
   /**
    * Adds Terminar for an open ticket. The desktop table passes it since its rows have
    * no hover buttons (ZIG-33); phone cards and Cobranza show Terminar elsewhere.
@@ -69,20 +59,17 @@ const buildListTicketPdfFileName = (ticket: Ticket): string => {
   return `${safeName}_${datePart}_${ticket.id.toString()}.pdf`;
 };
 
-/** One entry of a ticket row menu: a `ListRowMenu` item, plus what the phone menu also draws. */
-export type TicketRowActionItem = ListRowMenuItem & {
-  /** Names the folio («Cobrar R-0060») for the phone ⋮ menu. */
-  ariaLabel?: string;
-  /** Navigation: a link in the phone menu, `router.push` from `ListRowMenu`. */
-  href?: string;
-  disabled?: boolean;
-};
+/**
+ * One entry of a ticket row menu: the phone ⋮ (`ListCardMenu`) names the folio with
+ * `ariaLabel` and draws `href` as a link; `ListRowMenu` uses `router.push`.
+ */
+export type TicketRowActionItem = ListCardMenuItem;
 
 /**
  * The items of a ticket row menu and the dialogs they open (ZIG-I33-2): Ver detalles,
  * Terminar, Cobrar, Editar, Descargar ticket and Eliminar, by permission and state.
- * The desktop table draws them with `ListRowMenu` (`TicketRowMenu`); phone cards and
- * Cobranza keep the ⋮ menu of `TicketRowActions`. Render `dialogs` beside the menu.
+ * The desktop table draws them with `ListRowMenu` (`TicketRowMenu`); Cobranza's
+ * phone cards keep the ⋮ of `TicketRowActions`. Render `dialogs` beside the menu.
  */
 export const useTicketRowActions = (
   {
@@ -93,7 +80,7 @@ export const useTicketRowActions = (
     canWrite = true,
     companyId,
     finishHref,
-  }: Omit<TicketRowActionsOptions, 'triggerIcon'>,
+  }: TicketRowActionsOptions,
   iconClassName = 'h-4 w-4',
 ): { label: string; items: TicketRowActionItem[]; dialogs: ReactNode } => {
   const router = useRouter();
@@ -236,7 +223,7 @@ export const useTicketRowActions = (
 };
 
 /** The ⋯ of a desktop tickets row (ZIG-I33-2): `ListRowMenu` with the ticket items. */
-export const TicketRowMenu = (props: Omit<TicketRowActionsOptions, 'triggerIcon'>) => {
+export const TicketRowMenu = (props: TicketRowActionsOptions) => {
   const { label, items, dialogs } = useTicketRowActions(props);
   return (
     <>
@@ -246,52 +233,13 @@ export const TicketRowMenu = (props: Omit<TicketRowActionsOptions, 'triggerIcon'
   );
 };
 
-/** The ⋮ menu of phone ticket cards and Cobranza, from the same items. */
-export function TicketRowActions({ triggerIcon = 'vertical', ...options }: TicketRowActionsOptions) {
+/** The ⋮ menu of Cobranza's phone cards, from the same items (`ListCardMenu`). */
+export function TicketRowActions(options: TicketRowActionsOptions) {
   const { label, items, dialogs } = useTicketRowActions(options, 'mr-2 h-4 w-4');
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={label}
-          >
-            {triggerIcon === 'horizontal' ? (
-              <MoreHorizontal className="h-4 w-4" aria-hidden data-icon="inline-start" />
-            ) : (
-              <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start" />
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {items.map((item) => {
-            const entry = (
-              <DropdownMenuItem
-                key={item.label}
-                className={cn(item.destructive && 'text-destructive focus:text-destructive')}
-                disabled={item.disabled}
-                aria-label={item.ariaLabel}
-                onSelect={item.href ? undefined : item.onSelect}
-              >
-                {item.icon}
-                {item.label}
-              </DropdownMenuItem>
-            );
-            // Links stay real links here, as before (open in a new tab, prefetch).
-            return item.href ? (
-              <Link key={item.label} href={item.href}>
-                {entry}
-              </Link>
-            ) : (
-              entry
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
+      <ListCardMenu label={label} items={items} />
       {dialogs}
     </>
   );

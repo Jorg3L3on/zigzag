@@ -65,7 +65,7 @@ import { resolveResourceListState } from '@/lib/resource-list-state';
 import Link from 'next/link';
 import { ChevronDown, ClipboardList, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ListFilterChip } from '@/components/list-filter';
+import type { ListFilterChip } from '@/components/list-page';
 
 type AuditEventRow = AuditEventListItem;
 

@@ -240,7 +240,7 @@ describe('TeamList', () => {
       expect(within(row).queryByRole('button', { name: /Acciones de/ })).toBeNull();
     });
 
-    it('keeps every row action in the ⋯, nothing on hover; your own row only offers Editar', async () => {
+    it('keeps every row action in the ⋯, nothing on hover; your own row only enables Editar', async () => {
       const user = userEvent.setup();
       mockGetTeam.mockResolvedValue({ success: true, data: teamData() });
       render(<TeamList />);
@@ -254,10 +254,20 @@ describe('TeamList', () => {
       expect(items).toEqual(['Editar', 'Cambiar rol', 'Restablecer contraseña', 'Desactivar']);
       await user.keyboard('{Escape}');
 
-      // Your own row: no role change, reset or deactivation (ZIG-I32 review, guards unchanged).
+      // Your own row: no role change, reset or deactivation (ZIG-I32 review, guards unchanged),
+      // shown disabled like the phone menu.
       await user.click(within(desktop).getByRole('button', { name: 'Acciones de Ana Admin' }));
       await waitFor(() =>
-        expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Editar']),
+        expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+          'Editar',
+          'Cambiar rol',
+          'Restablecer contraseña',
+          'Desactivar (eres tú)',
+        ]),
+      );
+      expect(screen.getByRole('menuitem', { name: 'Editar' })).not.toHaveAttribute('data-disabled');
+      expect(screen.getByRole('menuitem', { name: 'Desactivar (eres tú)' })).toHaveAttribute(
+        'data-disabled',
       );
     });
 

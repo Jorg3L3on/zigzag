@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { companyDay } from '@/lib/company-day';
+import { formatListShortDate } from '@/lib/list-short-date';
 
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 
@@ -27,9 +28,6 @@ export const companyDaysBetween = (from: Date, to: Date): number =>
 
 const sameYear = (a: Date, b: Date) => civil(a).getUTCFullYear() === civil(b).getUTCFullYear();
 
-const shortDate = (date: Date, now: Date): string =>
-  format(civil(date), sameYear(date, now) ? 'd MMM' : 'd MMM yyyy', { locale: es });
-
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
@@ -51,7 +49,7 @@ export const describePresupuestoVigencia = ({
   if (!expires || Number.isNaN(expires.getTime())) {
     return { text: 'Sin vencimiento', tone: 'none' };
   }
-  const date = shortDate(expires, now);
+  const date = formatListShortDate(expires, now);
   const daysLeft = companyDaysBetween(now, expires);
 
   if (status === 'vencido' || (status === 'abierto' && daysLeft < 0)) {
@@ -134,7 +132,7 @@ export const describePresupuestoVigenciaCard = ({
 }): PresupuestoVigenciaCard => {
   const issued = toDate(ticketDate);
   const expires = toDate(expiresAt);
-  const issuedText = issued ? `Emitido el ${shortDate(issued, now)}` : null;
+  const issuedText = issued ? `Emitido el ${formatListShortDate(issued, now)}` : null;
   if (!expires) {
     return { text: 'Sin vencimiento', tone: 'none', progress: null, issuedText, lengthText: null };
   }
@@ -181,7 +179,7 @@ export const describePresupuestoPastVigencia = (
   now: Date = new Date(),
 ): string | null => {
   const expires = toDate(expiresAt);
-  return expires ? `vencía el ${shortDate(expires, now)}` : null;
+  return expires ? `vencía el ${formatListShortDate(expires, now)}` : null;
 };
 
 export type PresupuestoVenceCell = {
@@ -210,7 +208,7 @@ export const describePresupuestoVenceCell = ({
 }): PresupuestoVenceCell => {
   const expires = toDate(expiresAt);
   if (!expires) return { text: 'Sin vencimiento', sub: null, tone: 'none' };
-  const date = shortDate(expires, now);
+  const date = formatListShortDate(expires, now);
   if (!isOpen(status)) return { text: `Vencía ${date}`, sub: null, tone: 'none' };
   const issued = toDate(ticketDate);
   const length = issued ? Math.max(companyDaysBetween(issued, expires), 0) : null;

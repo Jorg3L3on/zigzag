@@ -31,7 +31,8 @@ import { canDownloadTicketInvoice, canWriteTickets } from '@/lib/tickets-rbac';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
 
-const shortDate = (value: string): string => {
+/** The phone card's «8 oct 26» (unchanged by ZIG-I33); the desktop table uses ListShortDate. */
+const phoneCardDate = (value: string): string => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? ''
@@ -348,7 +349,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
                         {item.ticketDate ? (
                           <>
                             <span aria-hidden>·</span>
-                            <span>{shortDate(item.ticketDate)}</span>
+                            <span>{phoneCardDate(item.ticketDate)}</span>
                           </>
                         ) : null}
                         {item.expiresAt ? (
@@ -356,7 +357,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
                             <span aria-hidden>·</span>
                             <span className="inline-flex items-center gap-1">
                               <CalendarClock className="h-3 w-3" aria-hidden />
-                              Vence {shortDate(item.expiresAt)}
+                              Vence {phoneCardDate(item.expiresAt)}
                             </span>
                           </>
                         ) : null}

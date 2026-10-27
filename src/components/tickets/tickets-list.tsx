@@ -72,6 +72,7 @@ import { Ticket as TicketIcon, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { parseFinishedFilter, parseStatusFilter } from '@/components/tickets/tickets-list-types';
@@ -458,6 +459,17 @@ export default function TicketsList() {
       sin conexión.
     </div>
   ) : null;
+  // Desktop: the shared Alert, like Clientes (ZIG-I33 §8); phones keep the banner above.
+  const offlineAlert = snapshotUpdatedAt ? (
+    <Alert
+      role="status"
+      className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+    >
+      <AlertDescription>
+        {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar sin conexión.
+      </AlertDescription>
+    </Alert>
+  ) : null;
 
   // Phones (below lg): the cards of ZIG-I13-7, unchanged by ZIG-I33.
   const phone =
@@ -662,7 +674,7 @@ export default function TicketsList() {
             }
           />
         </div>
-        {offlineBanner}
+        {offlineAlert}
         {desktopBody}
       </div>
     </>

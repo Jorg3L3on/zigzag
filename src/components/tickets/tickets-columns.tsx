@@ -56,15 +56,6 @@ const ESTADO_TONE: Record<TicketListEstadoLabel, ListStatusTone> = {
   'En proceso': 'slate',
 };
 
-const TicketListEstadoChip = ({ ticket }: { ticket: Ticket }) => {
-  const label = ticketListEstadoLabel(ticket);
-  return (
-    <ListStatusPill tone={ESTADO_TONE[label]}>
-      <span data-testid="ticket-list-estado">{label}</span>
-    </ListStatusPill>
-  );
-};
-
 /** Em dash when the ticket is still En proceso or the saldo is already 0. */
 const TicketListSaldo = ({ ticket }: { ticket: Ticket }) => {
   const balance = getTicketBalanceDue(ticket.total, ticket.paid);
@@ -204,7 +195,14 @@ export const createTicketsColumns = ({
     sortDescFirst: false,
     meta: { className: 'w-[7.5rem]' },
     header: ({ column }) => <ListSortableHeader column={column} label="Estado" />,
-    cell: ({ row }) => <TicketListEstadoChip ticket={row.original} />,
+    cell: ({ row }) => {
+      const label = ticketListEstadoLabel(row.original);
+      return (
+        <ListStatusPill tone={ESTADO_TONE[label]}>
+          <span data-testid="ticket-list-estado">{label}</span>
+        </ListStatusPill>
+      );
+    },
   },
   {
     id: 'actions',

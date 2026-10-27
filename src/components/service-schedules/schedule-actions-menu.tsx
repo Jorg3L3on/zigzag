@@ -26,7 +26,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatScheduleShortDate } from '@/lib/schedule-agenda-format';
+import { formatListShortDate } from '@/lib/list-short-date';
 import {
   computeSnoozedNextDueAt,
   SCHEDULE_SNOOZE_DAY_OPTIONS,
@@ -145,7 +145,7 @@ export const ScheduleActionsMenu = ({
                   <DropdownMenuItem key={days} onSelect={run((item) => onSnoozeDays(item, days))}>
                     <span className="flex-1">{days} días</span>
                     <span className="text-caption text-muted-foreground">
-                      {formatScheduleShortDate(computeSnoozedNextDueAt(nextDueAt, days))}
+                      {formatListShortDate(computeSnoozedNextDueAt(nextDueAt, days))}
                     </span>
                   </DropdownMenuItem>
                 ))}

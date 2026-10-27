@@ -3,7 +3,7 @@
 import type { Column } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
-import { LIST_SORTABLE_HEADER_CLASS } from '@/components/list-filter/list-desktop';
+import { LIST_SORTABLE_HEADER_CLASS } from '@/components/list-page/list-desktop';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 

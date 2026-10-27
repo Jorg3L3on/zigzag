@@ -10,14 +10,8 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { MoreVertical, PenLine, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { PenLine, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
 import Link from 'next/link';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { PERMISSIONS } from '@/lib/permissions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -65,6 +59,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DesktopSwitch } from '@/components/desktop-switch';
 import {
   LIST_PAGE_SIZE,
+  ListCardMenu,
   ListDesktopTitle,
   ListEmpty,
   ListError,
@@ -581,36 +576,25 @@ export function ClientList({ desktopActions }: ClientListProps = {}) {
                           {clientRow.name}
                         </h3>
                         {effectiveCanWrite ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="-mr-2 -mt-2 size-11 shrink-0"
-                                aria-label={`Más acciones de ${clientRow.name}`}
-                                onClick={(event) => event.stopPropagation()}
-                                onKeyDown={(event) => event.stopPropagation()}
-                              >
-                                <MoreVertical className="h-5 w-5" aria-hidden data-icon="inline-start" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                              <DropdownMenuItem
-                                className="min-h-11"
-                                onSelect={() => router.push(`/clients/${clientRow.id}/edit`)}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                                Editar cliente
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="min-h-11 text-destructive focus:text-destructive"
-                                onSelect={() => openDeleteDialog(clientRow.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                                Eliminar cliente
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <ListCardMenu
+                            label={`Más acciones de ${clientRow.name}`}
+                            triggerClassName="-mr-2 -mt-2 size-11 shrink-0"
+                            iconClassName="h-5 w-5"
+                            itemClassName="min-h-11"
+                            items={[
+                              {
+                                label: 'Editar cliente',
+                                icon: <Pencil className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />,
+                                onSelect: () => router.push(`/clients/${clientRow.id}/edit`),
+                              },
+                              {
+                                label: 'Eliminar cliente',
+                                icon: <Trash2 className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />,
+                                onSelect: () => openDeleteDialog(clientRow.id),
+                                destructive: true,
+                              },
+                            ]}
+                          />
                         ) : null}
                       </div>
 

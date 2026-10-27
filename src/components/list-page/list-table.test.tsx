@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -8,7 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 
-import { ListRowMenu } from '@/components/list-filter/list-desktop';
+import { ListRowMenu } from '@/components/list-page/list-desktop';
 import { ListSortableHeader } from '@/components/list-page/list-sortable-header';
 import { ListTable, ListTableCard } from '@/components/list-page/list-table';
 
@@ -146,5 +147,40 @@ describe('ListTable', () => {
     expect(table).toHaveAttribute('aria-busy', 'true');
     expect(table.className).toContain('opacity-60');
     expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+});
+
+describe('ListRowMenu', () => {
+  it('greys out a disabled item, reads its hint in the label and never selects it', async () => {
+    const user = userEvent.setup();
+    const onEdit = jest.fn();
+    const onDeactivate = jest.fn();
+    render(
+      <ListRowMenu
+        label="Acciones de Ana"
+        items={[
+          { label: 'Editar', icon: null, onSelect: onEdit },
+          {
+            label: 'Desactivar',
+            icon: null,
+            onSelect: onDeactivate,
+            destructive: true,
+            disabled: true,
+            hint: 'eres tú',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Acciones de Ana' }));
+    const blocked = await screen.findByRole('menuitem', { name: 'Desactivar (eres tú)' });
+    expect(blocked).toHaveAttribute('data-disabled');
+    expect(blocked).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('menuitem', { name: 'Editar' })).not.toHaveAttribute('data-disabled');
+
+    await user.click(blocked);
+    expect(onDeactivate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('menuitem', { name: 'Editar' }));
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
 });

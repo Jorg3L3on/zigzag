@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 
-import { ListShortDate } from '@/components/list-filter/list-desktop';
+import { ListShortDate } from '@/components/list-page/list-desktop';
 
 describe('ListShortDate', () => {
   beforeAll(() => {

@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FILTER_SELECTED_CLASS } from '@/components/list-filter/filter-styles';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page/filter-styles';
 import { companyDay } from '@/lib/company-day';
+import { formatListShortDate } from '@/lib/list-short-date';
 import { cn } from '@/lib/utils';
 
 /*
@@ -41,14 +42,12 @@ export const LIST_SORTABLE_HEADER_CLASS =
 export const ListShortDate = ({ date }: { date: Date | string | null | undefined }) => {
   if (!date) return <span className="text-muted-foreground">—</span>;
   const day = companyDay(new Date(date)).date;
-  const thisYear = companyDay(new Date()).date.getUTCFullYear();
-  const pattern = day.getUTCFullYear() === thisYear ? 'd MMM' : 'd MMM yyyy';
   return (
     <span
       className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
       title={format(day, 'PPP', { locale: es })}
     >
-      {format(day, pattern, { locale: es })}
+      {formatListShortDate(date)}
     </span>
   );
 };
@@ -130,6 +129,10 @@ export type ListRowMenuItem = {
   icon: ReactNode;
   onSelect: () => void;
   destructive?: boolean;
+  /** Shown greyed and not selectable, like the phone menus do for blocked actions. */
+  disabled?: boolean;
+  /** Why it is disabled, read as part of the label: «Desactivar (eres tú)». */
+  hint?: string;
 };
 
 /** The ⋯ menu at the end of a desktop row; clicks never reach the row. */
@@ -153,10 +156,11 @@ export const ListRowMenu = ({ label, items }: { label: string; items: ListRowMen
         <DropdownMenuItem
           key={item.label}
           className={cn(item.destructive && 'text-destructive focus:text-destructive')}
+          disabled={item.disabled}
           onSelect={item.onSelect}
         >
           {item.icon}
-          {item.label}
+          {item.hint ? `${item.label} (${item.hint})` : item.label}
         </DropdownMenuItem>
       ))}
     </DropdownMenuContent>

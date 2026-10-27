@@ -28,12 +28,16 @@ Aplica a toda página de lista con tabla desde **1024 px** (`lg`): Tickets, Pres
 | `ListTableCard` | La tarjeta con slot `footer`. |
 | `ListSortableHeader` | Encabezado ordenable (11 px mayúsculas, flecha `size-3`). |
 | `ListClickableRow` | Fila con `tabIndex`, Enter / Espacio, `href` u `onOpen`; ignora clics en controles. `ListTable` la usa por defecto; `renderRow` para filas a medida. |
-| `ListRowMenu` | El ⋯ de cada fila; destructivas al final. |
+| `ListRowMenu` | El ⋯ de cada fila; destructivas al final; `disabled` + `hint` para una acción bloqueada («Desactivar (eres tú)»). |
+| `ListCardMenu` | El ⋮ de las tarjetas de teléfono (Clientes, Cobranza), con enlaces; solo para el árbol de teléfono. |
 | `ListStatusPill` | Píldora de estado con tono. |
-| `ListShortDate` | Fecha corta en el calendario de la empresa. |
+| `ListShortDate` | Fecha corta en el calendario de la empresa; `formatListShortDate` (`src/lib/list-short-date.ts`) es el mismo texto para frases y avisos. |
 | `ListFooter` + `listFooterPagination(table)` | Pie con conteo, extra, paginador o «Cargar más». |
 | `ListLoading`, `ListError`, `ListEmpty`, `ListNoResults` | Estados de la lista. |
 | `ListBulkBar` + `ListBulkBarButton` | Barra flotante de selección múltiple. |
+| `ListFilterBarShell`, `ButtonFilterGroup`, `MobileSortSelect` | La hoja de filtros de teléfono (antes `list-filter/`). |
+
+`src/lib/list-standard.test.ts` hace cumplir el estándar: nada de `[&_th]:` / `[&_td]:` fuera de `ui/table.tsx`, ni `MoreVertical` en componentes de lista, ni `SortableHeader`, `shortDate` o `useDesktopViewport` propios.
 
 ## Ejemplo de página
 

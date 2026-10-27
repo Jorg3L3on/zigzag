@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import { ListFilterBarShell, type ListFilterChip } from '@/components/list-filter/list-filter-bar-shell';
+import { ListFilterBarShell, type ListFilterChip } from '@/components/list-page/list-filter-bar-shell';
 
 type ListToolbarProps = {
   search: {

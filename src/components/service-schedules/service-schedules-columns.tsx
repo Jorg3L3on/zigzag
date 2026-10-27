@@ -17,11 +17,11 @@ import {
   formatDaysSince,
   formatRelativeDays,
   formatScheduleEvery,
-  formatScheduleShortDate,
   SCHEDULE_BUCKET_LABELS,
   SCHEDULE_DUE_TONE_CLASS,
   scheduleDueTone,
 } from '@/lib/schedule-agenda-format';
+import { formatListShortDate } from '@/lib/list-short-date';
 import type { ScheduleDisplayBucket } from '@/lib/schedule-buckets';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
@@ -66,7 +66,7 @@ export const ScheduleNextDue = ({ schedule }: { schedule: ClientServiceScheduleA
     </div>
     {schedule.pausedAt ? (
       <div className="truncate text-caption text-muted-foreground">
-        pausado desde {formatScheduleShortDate(schedule.pausedAt)}
+        pausado desde {formatListShortDate(schedule.pausedAt)}
       </div>
     ) : (
       <div

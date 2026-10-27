@@ -3,7 +3,7 @@ import {
   ButtonFilterGroup,
   ListFilterBarShell,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 const FILTER_OPTIONS: Array<{ value: ScheduleFilterBucket; label: string }> = [
   { value: 'todos', label: 'Todos' },

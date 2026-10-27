@@ -1,30 +1,26 @@
 /*
  * Desktop list pages (ZIG-I33): one module for the frame, the filter row, the table,
- * the row menu, pills, dates, the footer and the states. The standard and an example
- * page live in docs/listas-escritorio.md. list-filter/ and list-views/ stay as they
- * are until the cleanup phase; import from here in new code.
+ * the row menu, pills, dates, the footer and the states, plus the phone filter sheet
+ * pieces. The standard and an example page live in docs/listas-escritorio.md.
  */
+export { ButtonFilterGroup, type ButtonFilterOption } from './button-filter-group';
+export { FILTER_SELECTED_CLASS } from './filter-styles';
 export {
-  ButtonFilterGroup,
-  FILTER_SELECTED_CLASS,
   LIST_SORTABLE_HEADER_CLASS,
   ListDesktopTitle,
-  ListFilterBarShell,
   ListFilterSelect,
   ListRowMenu,
   ListShortDate,
-  MobileSortSelect,
-  type ButtonFilterOption,
+  type ListRowMenuItem,
+} from './list-desktop';
+export {
+  ListFilterBarShell,
   type ListFilterBarShellProps,
   type ListFilterChip,
-  type ListRowMenuItem,
-} from '@/components/list-filter';
-export {
-  ListColumnsMenu,
-  useListHiddenColumns,
-  type ListColumnOption,
-} from '@/components/list-views/list-columns-menu';
-export { ListViewTabs, type ListViewTab } from '@/components/list-views/list-view-tabs';
+} from './list-filter-bar-shell';
+export { MobileSortSelect } from './mobile-sort-select';
+export { ListColumnsMenu, useListHiddenColumns, type ListColumnOption } from './list-columns-menu';
+export { ListViewTabs, type ListViewTab } from './list-view-tabs';
 export {
   LIST_TABLE_CARD_CLASS,
   LIST_TABLE_CLASS,
@@ -38,6 +34,7 @@ export {
   ListBulkBar,
   ListBulkBarButton,
 } from './list-bulk-bar';
+export { ListCardMenu, type ListCardMenuItem } from './list-card-menu';
 export { ListClickableRow } from './list-clickable-row';
 export {
   LIST_PAGE_SIZE,

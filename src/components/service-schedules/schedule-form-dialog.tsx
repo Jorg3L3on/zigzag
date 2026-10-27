@@ -38,7 +38,7 @@ import type { Service } from '@/db/schema';
 import { useCompany } from '@/contexts/company-context';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { FILTER_SELECTED_CLASS } from '@/components/list-filter';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page';
 import {
   classifyClientError,
   getErrorMessageByType,

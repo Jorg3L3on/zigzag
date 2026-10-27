@@ -11,7 +11,7 @@ import {
   MobileSortSelect,
   type ButtonFilterOption,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 import { ListFilterSelect, ListToolbar } from '@/components/list-page';
 
 export type CompaniesStatusFilter = 'all' | 'setup' | 'active' | 'restricted';

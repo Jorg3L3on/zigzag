@@ -8,7 +8,7 @@ import {
   type PaginationState,
 } from '@tanstack/react-table';
 import type { Ticket } from '@/actions/tickets';
-import { pagerPages, TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
+import { TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
 
 const makeTicket = (id: number): Ticket => ({
   id: BigInt(id),
@@ -31,23 +31,13 @@ const columns: ColumnDef<Ticket>[] = [
   { accessorKey: 'client_name', header: 'Cliente' },
 ];
 
-const PaginationHarness = ({
-  pageSize = 10,
-  variant = 'phone',
-  totalCount,
-  note,
-}: {
-  pageSize?: number;
-  variant?: 'phone' | 'desktop';
-  totalCount?: number;
-  note?: string;
-}) => {
+const PaginationHarness = ({ pageSize = 10 }: { pageSize?: number }) => {
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize,
   });
   const table = useReactTable({
-    data: Array.from({ length: Math.min(totalCount ?? 15, 15) }, (_, index) => makeTicket(index + 1)),
+    data: Array.from({ length: 15 }, (_, index) => makeTicket(index + 1)),
     columns,
     state: { pagination },
     onPaginationChange: (updater) => {
@@ -59,7 +49,7 @@ const PaginationHarness = ({
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  return <TicketsListPagination table={table} variant={variant} totalCount={totalCount} note={note} />;
+  return <TicketsListPagination table={table} />;
 };
 
 describe('TicketsListPagination', () => {
@@ -77,32 +67,5 @@ describe('TicketsListPagination', () => {
         ),
       ),
     ).toBeInTheDocument();
-  });
-
-  it('shows the desktop range, page size and pager (ZIG-I28-4)', () => {
-    render(<PaginationHarness variant="desktop" totalCount={40} pageSize={10} />);
-
-    expect(screen.getByText('1\u201310 de 40 tickets')).toBeInTheDocument();
-    expect(screen.getByLabelText(/filas por página/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /página anterior/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /página siguiente/i })).toBeEnabled();
-    expect(screen.queryByText('1 / 2')).not.toBeInTheDocument();
-    // Canvas: numbered pages, the current one marked.
-    expect(screen.getByRole('button', { name: 'Página 1' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('button', { name: 'Página 2' })).not.toHaveAttribute('aria-current');
-  });
-
-  it('reads «N de N» on a single page and can show a note there', () => {
-    render(<PaginationHarness variant="desktop" totalCount={6} pageSize={25} note="Orden: vencen primero" />);
-    expect(screen.getByText('6 de 6 tickets')).toBeInTheDocument();
-    expect(screen.getByText('Orden: vencen primero')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /página siguiente/i })).toBeNull();
-  });
-});
-
-describe('pagerPages', () => {
-  it('keeps the ends and the neighbours of the current page', () => {
-    expect(pagerPages(1, 3)).toEqual([1, 2, 3]);
-    expect(pagerPages(6, 12)).toEqual([1, 'gap', 5, 6, 7, 'gap', 12]);
   });
 });

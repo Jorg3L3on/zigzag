@@ -77,7 +77,7 @@ import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { ActionErrorType } from '@/lib/errors';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import { formatScheduleShortDate } from '@/lib/schedule-agenda-format';
+import { formatListShortDate } from '@/lib/list-short-date';
 import {
   buildScheduleAgendaQuery,
   parseScheduleAgendaParams,
@@ -254,7 +254,7 @@ export const ServiceSchedulesAgenda = () => {
         lastServiceAt: schedule.lastServiceAt,
         nextDueAt: result.data.previousNextDueAt,
       };
-      undoToast(`Pospuesto al ${formatScheduleShortDate(result.data.nextDueAt)}`, () => {
+      undoToast(`Pospuesto al ${formatListShortDate(result.data.nextDueAt)}`, () => {
         void restoreDates([previous]);
       });
       reload();
@@ -359,7 +359,7 @@ export const ServiceSchedulesAgenda = () => {
     }
     const { previous, applied } = result.data;
     setMarkDoneTarget(null);
-    undoToast(`Marcado como hecho. Próximo: ${formatScheduleShortDate(applied.nextDueAt)}`, () => {
+    undoToast(`Marcado como hecho. Próximo: ${formatListShortDate(applied.nextDueAt)}`, () => {
       void restoreDates([previous]);
     });
     reload();

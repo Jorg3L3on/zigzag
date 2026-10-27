@@ -24,8 +24,8 @@ import { Button } from '@/components/ui/button';
 import {
   formatDaysSince,
   formatScheduleEvery,
-  formatScheduleShortDate,
 } from '@/lib/schedule-agenda-format';
+import { formatListShortDate } from '@/lib/list-short-date';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
 
 type ScheduleSidePanelProps = ScheduleActionHandlers & {
@@ -62,7 +62,7 @@ const TicketHistoryList = ({
         >
           <span className="w-16 shrink-0 font-mono text-sm">{row.folio}</span>
           <span className="w-20 shrink-0 text-muted-foreground">
-            {formatScheduleShortDate(row.date)}
+            {formatListShortDate(row.date)}
           </span>
           <span className="flex-1 truncate text-right tabular-nums">
             <FormattedCurrency amount={row.total} />
@@ -194,7 +194,7 @@ export const ScheduleSidePanel = ({
                   {schedule.lastServiceAt ? (
                     <>
                       <div className="text-sm tabular-nums">
-                        {formatScheduleShortDate(schedule.lastServiceAt)}
+                        {formatListShortDate(schedule.lastServiceAt)}
                       </div>
                       <div className="text-caption text-muted-foreground">
                         {formatDaysSince(schedule.daysSinceLast)}
@@ -222,7 +222,7 @@ export const ScheduleSidePanel = ({
 
           {schedule.pausedAt ? (
             <section className="rounded-xl bg-muted/60 p-4 text-sm">
-              <p className="font-medium">Pausado desde el {formatScheduleShortDate(schedule.pausedAt)}</p>
+              <p className="font-medium">Pausado desde el {formatListShortDate(schedule.pausedAt)}</p>
               <p className="mt-1 text-muted-foreground">
                 {schedule.pauseReason?.trim() || 'Sin motivo.'}
               </p>

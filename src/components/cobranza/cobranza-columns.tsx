@@ -1,14 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CobranzaRow, CobranzaSort } from '@/lib/cobranza';
 import { CobranzaRowActions } from '@/components/cobranza/cobranza-row-actions';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import { ListShortDate, ListSortableHeader } from '@/components/list-page';
-import { companyDay } from '@/lib/company-day';
+import { formatListShortDate } from '@/lib/list-short-date';
 import { formatPhoneDisplay } from '@/lib/phone-links';
 import { cn } from '@/lib/utils';
 
@@ -32,16 +30,6 @@ export const cobranzaRowToTicketActions = (row: CobranzaRow) => ({
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
-/**
- * ListShortDate as text («8 oct», «3 ago 2025»), for the lines that word a date
- * inside a sentence: the last payment. Date columns use ListShortDate (ZIG-I33 §6).
- */
-export const formatCobranzaDate = (value: Date | string): string => {
-  const day = companyDay(new Date(value)).date;
-  const thisYear = companyDay(new Date()).date.getUTCFullYear();
-  return format(day, day.getUTCFullYear() === thisYear ? 'd MMM' : 'd MMM yyyy', { locale: es });
-};
-
 /** Red past 90 days, amber from 31 (ZIG-I31-2). */
 export const cobranzaDaysClassName = (days: number): string =>
   days > 90
@@ -63,7 +51,7 @@ export const formatPaymentWhen = (
   if (daysSinceLastPayment <= RELATIVE_PAYMENT_DAYS) {
     return `hace ${plural(daysSinceLastPayment, 'día', 'días')}`;
   }
-  return formatCobranzaDate(lastPaymentAt);
+  return formatListShortDate(lastPaymentAt);
 };
 
 /** «último pago hace 1 día», «último pago 3 ago 2025», «sin ningún pago». */

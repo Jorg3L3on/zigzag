@@ -105,41 +105,40 @@ const TeamAccessStatus = ({ member, wrap = false }: { member: TeamMember; wrap?:
 };
 
 /**
- * The ⋯ of a desktop row. Same guards as the phone menu: deactivated people have
- * none (the caller passes no menu), and your own row only offers Editar, since
+ * The ⋯ of a desktop row, the same items as the phone menu: deactivated people have
+ * none (the caller passes no menu), and on your own row only Editar is enabled, since
  * there is no self role change, reset or deactivation (ZIG-I32 review).
- * `ListRowMenu` has no disabled items, so the blocked ones are left out.
  */
 export const teamRowMenuItems = (
   member: TeamMember,
   handlers: TeamMemberMenuHandlers,
-): ListRowMenuItem[] => {
-  const edit: ListRowMenuItem = {
+): ListRowMenuItem[] => [
+  {
     label: 'Editar',
     icon: <Pencil className="size-4" aria-hidden />,
     onSelect: () => handlers.onEdit(member),
-  };
-  if (member.isSelf) return [edit];
-  return [
-    edit,
-    {
-      label: 'Cambiar rol',
-      icon: <ShieldCheck className="size-4" aria-hidden />,
-      onSelect: () => handlers.onChangeRole(member),
-    },
-    {
-      label: 'Restablecer contraseña',
-      icon: <KeyRound className="size-4" aria-hidden />,
-      onSelect: () => handlers.onResetPassword(member),
-    },
-    {
-      label: 'Desactivar',
-      icon: <UserX className="size-4" aria-hidden />,
-      onSelect: () => handlers.onDeactivate(member),
-      destructive: true,
-    },
-  ];
-};
+  },
+  {
+    label: 'Cambiar rol',
+    icon: <ShieldCheck className="size-4" aria-hidden />,
+    onSelect: () => handlers.onChangeRole(member),
+    disabled: member.isSelf,
+  },
+  {
+    label: 'Restablecer contraseña',
+    icon: <KeyRound className="size-4" aria-hidden />,
+    onSelect: () => handlers.onResetPassword(member),
+    disabled: member.isSelf,
+  },
+  {
+    label: 'Desactivar',
+    icon: <UserX className="size-4" aria-hidden />,
+    onSelect: () => handlers.onDeactivate(member),
+    destructive: true,
+    disabled: member.isSelf,
+    hint: member.isSelf ? 'eres tú' : undefined,
+  },
+];
 
 // Narrow hub column (1024 with the sidebar open): Rol and Acceso move under the
 // name as pills, like the phone card; Alta needs a bit more room.
