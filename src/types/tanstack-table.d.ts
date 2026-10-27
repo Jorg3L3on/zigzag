@@ -7,5 +7,7 @@ declare module '@tanstack/react-table' {
      * column on small desktop windows so Total and ⋮ fit (ZIG-I27-2).
      */
     className?: string;
+    /** Numbers (Total, Saldo…): right-aligned tabular figures in the th and the td (ZIG-I33). */
+    align?: 'right';
   }
 }

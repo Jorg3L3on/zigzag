@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { pagerPages } from '@/components/list-page/list-footer';
 
 type TicketsListPaginationProps<TData> = {
   table: ReactTable<TData>;
@@ -20,18 +21,7 @@ type TicketsListPaginationProps<TData> = {
   note?: string;
 };
 
-/** Page numbers around the current one, with gaps: 1 … 4 5 6 … 12. */
-export const pagerPages = (current: number, count: number): Array<number | 'gap'> => {
-  if (count <= 7) return Array.from({ length: count }, (_, index) => index + 1);
-  const pages = new Set([1, count, current - 1, current, current + 1]);
-  const sorted = [...pages].filter((page) => page >= 1 && page <= count).sort((a, b) => a - b);
-  const out: Array<number | 'gap'> = [];
-  sorted.forEach((page, index) => {
-    if (index > 0 && page - sorted[index - 1] > 1) out.push('gap');
-    out.push(page);
-  });
-  return out;
-};
+export { pagerPages };
 
 const PageSizeSelect = <TData,>({ table }: { table: ReactTable<TData> }) => (
   <Select

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FILTER_SELECTED_CLASS } from '@/components/list-filter/filter-styles';
+import { companyDay } from '@/lib/company-day';
 import { cn } from '@/lib/utils';
 
 /*
@@ -32,17 +33,22 @@ import { cn } from '@/lib/utils';
 export const LIST_SORTABLE_HEADER_CLASS =
   '-ml-1.5 h-7 max-w-full gap-1 px-1.5 md:text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-transparent hover:text-foreground';
 
-/** «8 oct», with the year only when it is not this one, like the tickets list. */
-export const ListShortDate = ({ date }: { date: Date | null | undefined }) => {
+/**
+ * «8 oct», with the year only when it is not this one, in the company's calendar
+ * (America/Mexico_City, like Cobranza and Recordatorios), so an evening date does
+ * not read as the next day. The full date sits in the title (ZIG-I33 §6).
+ */
+export const ListShortDate = ({ date }: { date: Date | string | null | undefined }) => {
   if (!date) return <span className="text-muted-foreground">—</span>;
-  const value = new Date(date);
-  const pattern = value.getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy';
+  const day = companyDay(new Date(date)).date;
+  const thisYear = companyDay(new Date()).date.getUTCFullYear();
+  const pattern = day.getUTCFullYear() === thisYear ? 'd MMM' : 'd MMM yyyy';
   return (
     <span
       className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
-      title={format(value, 'PPP', { locale: es })}
+      title={format(day, 'PPP', { locale: es })}
     >
-      {format(value, pattern, { locale: es })}
+      {format(day, pattern, { locale: es })}
     </span>
   );
 };
