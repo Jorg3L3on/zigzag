@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ClientList } from '@/components/clients/client-list';
 import { ClientsCsvImport } from '@/components/clients/clients-csv-import';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
   TripledDashboardShell,
   TripledPageHeader,
@@ -34,7 +35,11 @@ export default async function ClientsPage() {
       <TripledPageHeader items={[{ label: 'Clientes' }]} />
 
       <TripledDashboardShell>
+        {/* From lg the list draws its own title row, without the card (ZIG-30). */}
         <TripledResourceCard
+          className="lg:contents"
+          headerClassName="lg:hidden"
+          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
           title="Clientes"
           description="Catálogo de clientes y datos de contacto"
           icon={<Users className="size-5" aria-hidden />}
@@ -57,11 +62,30 @@ export default async function ClientsPage() {
           }
         >
           {canWriteClients ? (
-            <div className="mb-4">
-              <ClientsCsvImport />
-            </div>
+            <DesktopSwitch
+              phone={
+                <div className="mb-4">
+                  <ClientsCsvImport />
+                </div>
+              }
+              desktop={null}
+            />
           ) : null}
-          <ClientList />
+          <ClientList
+            desktopActions={
+              canWriteClients ? (
+                <>
+                  <ClientsCsvImport buttonClassName="h-9 px-3" />
+                  <Button asChild>
+                    <Link href="/clients/new">
+                      <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+                      Nuevo cliente
+                    </Link>
+                  </Button>
+                </>
+              ) : null
+            }
+          />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>

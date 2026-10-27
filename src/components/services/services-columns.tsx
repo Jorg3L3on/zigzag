@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
+import { LIST_SORTABLE_HEADER_CLASS } from '@/components/list-filter/list-desktop';
 import { cn } from '@/lib/utils';
 
 function ServiceSortableHeader<TData>({
@@ -23,10 +24,7 @@ function ServiceSortableHeader<TData>({
     <Button
       type="button"
       variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
+      className={cn(LIST_SORTABLE_HEADER_CLASS, className)}
       onClick={column.getToggleSortingHandler()}
       aria-sort={
         sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
@@ -34,11 +32,11 @@ function ServiceSortableHeader<TData>({
     >
       {label}
       {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
+        <ArrowDown className="size-3 shrink-0" aria-hidden data-icon="inline-end"/>
       ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
+        <ArrowUp className="size-3 shrink-0" aria-hidden data-icon="inline-end"/>
       ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
+        <ArrowUpDown className="size-3 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
       )}
     </Button>
   );
@@ -64,10 +62,9 @@ export const createServicesColumns = ({
     header: ({ column }) => (
       <ServiceSortableHeader column={column} label="Nombre" />
     ),
-    // Two lines at most, like the clients list, so a long name never pushes Precio and ⋮
-    // out of the card (ZIG-I27-2).
+    // One line, like the clients list; the full name on hover (ZIG-30).
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[14rem] font-medium" title={row.original.name}>
+      <span className="block truncate font-medium" title={row.original.name}>
         {row.original.name}
       </span>
     ),
@@ -86,7 +83,7 @@ export const createServicesColumns = ({
       <ServiceSortableHeader column={column} label="Descripción" />
     ),
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-md text-muted-foreground">
+      <span className="block truncate text-muted-foreground" title={row.original.description}>
         {row.original.description}
       </span>
     ),
@@ -99,6 +96,7 @@ export const createServicesColumns = ({
   {
     id: 'status',
     accessorFn: (row) => (row.deleted_at ? 1 : 0),
+    meta: { className: 'w-[112px]' },
     header: ({ column }) => (
       <ServiceSortableHeader column={column} label="Estado" />
     ),
@@ -117,6 +115,7 @@ export const createServicesColumns = ({
   {
     id: 'materials',
     accessorFn: (row) => serviceMaterialCount(row),
+    meta: { className: 'w-[120px]' },
     header: ({ column }) => (
       <ServiceSortableHeader column={column} label="Materiales" />
     ),
@@ -132,6 +131,7 @@ export const createServicesColumns = ({
   {
     id: 'price',
     accessorFn: (row) => row.price,
+    meta: { className: 'w-[132px]' },
     header: ({ column }) => (
       <ServiceSortableHeader
         column={column}
@@ -149,6 +149,7 @@ export const createServicesColumns = ({
   {
     id: 'actions',
     enableSorting: false,
+    meta: { className: 'w-[56px]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div

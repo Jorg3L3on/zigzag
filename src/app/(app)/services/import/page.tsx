@@ -21,6 +21,7 @@ export default function ServicesImportPage() {
 
       <TripledDashboardShell>
         <TripledResourceCard
+          desktop="page"
           title="Importar servicios"
           description="Plantilla, vista previa, progreso y resultado de la importación"
           icon={<Wrench className="size-5" aria-hidden />}

@@ -8,6 +8,7 @@ import {
 import {
   ButtonFilterGroup,
   ListFilterBarShell,
+  ListFilterSelect,
   MobileSortSelect,
   type ListFilterChip,
 } from '@/components/list-filter';
@@ -86,10 +87,15 @@ export const ServicesFilterBar = ({
         />
       </>
     }
-    desktopContent={renderStatusFilter(
-      statusFilter,
-      onStatusFilterChange,
-      'desktop',
-    )}
+    desktopInline
+    desktopContent={
+      <ListFilterSelect
+        value={statusFilter}
+        allValue="active"
+        onChange={onStatusFilterChange}
+        options={STATUS_OPTIONS}
+        ariaLabel="Filtrar servicios por estado"
+      />
+    }
   />
 );

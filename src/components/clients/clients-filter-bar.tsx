@@ -7,6 +7,7 @@ import {
 import {
   ButtonFilterGroup,
   ListFilterBarShell,
+  ListFilterSelect,
   MobileSortSelect,
   type ListFilterChip,
 } from '@/components/list-filter';
@@ -21,6 +22,19 @@ const EMAIL_FILTER_OPTIONS = [
 
 const PHONE_FILTER_OPTIONS = [
   { value: 'all' as const, label: 'Todos' },
+  { value: 'with' as const, label: 'Con teléfono' },
+  { value: 'without' as const, label: 'Sin teléfono' },
+];
+
+/** The desktop pills say what they filter, since they have no label above (ZIG-30). */
+const EMAIL_SELECT_OPTIONS = [
+  { value: 'all' as const, label: 'Con y sin correo' },
+  { value: 'with' as const, label: 'Con correo' },
+  { value: 'without' as const, label: 'Sin correo' },
+];
+
+const PHONE_SELECT_OPTIONS = [
+  { value: 'all' as const, label: 'Con y sin teléfono' },
   { value: 'with' as const, label: 'Con teléfono' },
   { value: 'without' as const, label: 'Sin teléfono' },
 ];
@@ -117,12 +131,24 @@ export const ClientsFilterBar = ({
         />
       </>
     }
-    desktopContent={renderContactFilters(
-      emailFilter,
-      onEmailFilterChange,
-      phoneFilter,
-      onPhoneFilterChange,
-      'desktop',
-    )}
+    desktopInline
+    desktopContent={
+      <>
+        <ListFilterSelect
+          value={emailFilter}
+          allValue="all"
+          onChange={onEmailFilterChange}
+          options={EMAIL_SELECT_OPTIONS}
+          ariaLabel="Filtrar clientes por correo"
+        />
+        <ListFilterSelect
+          value={phoneFilter}
+          allValue="all"
+          onChange={onPhoneFilterChange}
+          options={PHONE_SELECT_OPTIONS}
+          ariaLabel="Filtrar clientes por teléfono"
+        />
+      </>
+    }
   />
 );
