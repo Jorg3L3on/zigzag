@@ -451,7 +451,6 @@ export const OperatorActivityPanel = () => {
       <React.Fragment key={row.id}>
         <ListClickableRow
           data-testid="operator-activity-row"
-          aria-expanded={expanded}
           selected={expanded}
           onOpen={() => handleToggleExpand(event.id)}
         >

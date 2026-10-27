@@ -880,7 +880,6 @@ export const AuditList = () => {
       <React.Fragment key={row.id}>
         <ListClickableRow
           data-testid="audit-row"
-          aria-expanded={expanded}
           selected={expanded}
           onOpen={() => handleToggleExpanded(row.original.id)}
         >

@@ -239,13 +239,14 @@ describe('AuditList', () => {
       const row = within(table).getByTestId('audit-row');
       fireEvent.click(row);
 
-      expect(row).toHaveAttribute('aria-expanded', 'true');
+      // aria-expanded is not allowed on a table row (axe aria-conditional-attr); the open row is selected.
+      expect(row).toHaveAttribute('data-state', 'selected');
       expect(await screen.findByText('IP: 203.0.113.10')).toBeInTheDocument();
       expect(screen.getByText(/UA: Mozilla\/5\.0 TestAgent/)).toBeInTheDocument();
       expect(screen.getByText('Request ID: req-test-1234')).toBeInTheDocument();
 
       fireEvent.keyDown(row, { key: 'Enter' });
-      expect(row).toHaveAttribute('aria-expanded', 'false');
+      expect(row).not.toHaveAttribute('data-state');
       expect(screen.queryByTestId('audit-row-detail')).not.toBeInTheDocument();
     });
 
