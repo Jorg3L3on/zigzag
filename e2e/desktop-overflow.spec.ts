@@ -177,7 +177,7 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
     }
   });
 
-  test('the tickets filters are labelled and share a row at 1120 and 1280 (ZIG-I28-4)', async ({ page }) => {
+  test('the tickets filters are labelled and share a row at 1120 and 1280 (ZIG-I28-4, ZIG-I33-2)', async ({ page }) => {
     for (const width of [1120, 1280]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto('/tickets');
@@ -187,33 +187,34 @@ test.describe('Desktop tables at 1024–1280 (ZIG-I27-2)', () => {
         .getByRole('button', { name: 'Filtrar por rango de fechas del ticket' })
         .filter({ visible: true })
         .first();
-      const more = page.getByRole('button', { name: 'Más filtros' }).filter({ visible: true }).first();
+      // Más filtros became the Terminado pill on the bar itself (ZIG-I33-2).
+      const terminado = page
+        .getByRole('combobox', { name: 'Filtrar por trabajo terminado' })
+        .filter({ visible: true })
+        .first();
       await expect(search).toBeVisible();
       await expect(fechas).toBeVisible();
-      await expect(more).toBeVisible();
-      await expect(page.getByRole('combobox', { name: 'Trabajo' }).filter({ visible: true })).toHaveCount(0);
-      const [a, b] = [(await search.boundingBox())!, (await fechas.boundingBox())!];
+      await expect(terminado).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Más filtros' }).filter({ visible: true })).toHaveCount(0);
+      const [a, b, c] = [(await search.boundingBox())!, (await fechas.boundingBox())!, (await terminado.boundingBox())!];
       expect(Math.abs(a.y - b.y), `@${width}: search and Fechas on one row`).toBeLessThanOrEqual(8);
+      expect(Math.abs(a.y - c.y), `@${width}: search and Terminado on one row`).toBeLessThanOrEqual(8);
       await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
     }
   });
 
-  // Canvas ListaA: at 1280 with the sidebar the whole bar is one row, the order reading «Más recientes».
-  test('at 1280 the tickets and presupuestos bars keep one row with a short order label', async ({ page }) => {
+  // ZIG-I33-2: at 1280 with the sidebar the whole bar is one row and there is no order select:
+  // the column headers sort.
+  test('at 1280 the tickets and presupuestos bars keep one row with no order select', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    for (const { path, order } of [
-      { path: '/tickets', order: 'Ordenar lista de tickets' },
-      { path: '/presupuestos', order: 'Ordenar presupuestos' },
-    ]) {
+    for (const path of ['/tickets', '/presupuestos']) {
       await page.goto(path);
       await page.waitForLoadState('networkidle');
       const search = page.getByPlaceholder('Buscar por cliente, folio o teléfono').filter({ visible: true }).first();
-      const sort = page.getByRole('combobox', { name: order }).filter({ visible: true }).first();
       const columns = page.getByRole('button', { name: 'Elegir columnas' }).filter({ visible: true }).first();
-      await expect(sort).toBeVisible({ timeout: 15_000 });
-      if (path === '/tickets') await expect(sort).toHaveText('Más recientes');
-      const [s, o, c] = [(await search.boundingBox())!, (await sort.boundingBox())!, (await columns.boundingBox())!];
-      expect(Math.abs(s.y - o.y), `${path}: search and order on one row`).toBeLessThanOrEqual(8);
+      await expect(columns).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('combobox', { name: /^Ordenar/ }).filter({ visible: true })).toHaveCount(0);
+      const [s, c] = [(await search.boundingBox())!, (await columns.boundingBox())!];
       expect(Math.abs(s.y - c.y), `${path}: search and Columnas on one row`).toBeLessThanOrEqual(8);
     }
   });

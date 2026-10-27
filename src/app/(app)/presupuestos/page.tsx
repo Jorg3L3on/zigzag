@@ -29,11 +29,10 @@ export default async function PresupuestosPage() {
       />
 
       <TripledDashboardShell>
-        {/* From md the card steps aside for the table's own header (ZIG-I29-3). */}
+        {/* From lg the card steps aside for the list's own title and table card (ZIG-I33-2). */}
         <TripledResourceCard
-          className="md:contents"
-          headerClassName="md:hidden"
-          contentClassName="md:bg-transparent md:p-0 md:pt-0"
+          desktop="title"
+          headerClassName="lg:hidden"
           title="Presupuestos"
           description="Cola comercial de presupuestos"
           icon={<FileText className="size-5" aria-hidden />}

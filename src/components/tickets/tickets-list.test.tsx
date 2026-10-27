@@ -1,12 +1,16 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TicketsList from '@/components/tickets/tickets-list';
 import { getTicketsPaginated } from '@/actions/tickets';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import {
   readOfflineSnapshot,
   writeOfflineSnapshot,
 } from '@/lib/offline-snapshot';
+
+// userEvent flows can pass 5 s on a loaded runner (ZIG-I10 QA).
+jest.setTimeout(30_000);
 
 jest.mock('@/actions/tickets', () => ({
   getTicketsPaginated: jest.fn(),
@@ -161,11 +165,34 @@ const mockMobileViewport = () => {
   });
 };
 
+/** From lg the desktop tree mounts instead (ZIG-I33-2, DesktopSwitch). */
+const mockDesktopViewport = () => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: query.includes('min-width: 1024px'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
+
 describe('TicketsList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockReadOfflineSnapshot.mockResolvedValue(null);
     mockWriteOfflineSnapshot.mockResolvedValue({} as never);
+  });
+
+  afterEach(() => {
+    // No matchMedia is the phone, as in jsdom by default.
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined });
+    (useSearchParams() as unknown as URLSearchParams).delete('orden');
   });
 
   it('keeps the search input mounted while tickets reload', async () => {
@@ -334,6 +361,7 @@ describe('TicketsList', () => {
   });
 
   it('maps the desktop views onto status and finished (ZIG-I28-4)', async () => {
+    mockDesktopViewport();
     arrange({
       result: paginatedResult([makeTicket()], {
         counts: { all: 8, due: 3, inProgress: 2, paid: 1 },
@@ -372,5 +400,115 @@ describe('TicketsList', () => {
         expect.objectContaining({ statusFilter: 'all', finishedFilter: 'all' }),
       ),
     );
+  });
+
+  describe('desktop (ZIG-I33-2)', () => {
+    const manyTickets = (n: number) =>
+      Array.from({ length: n }, (_, index) =>
+        makeTicket({ id: BigInt(100 + index), client_name: `Cliente ${index}`, total: 100 + index }),
+      );
+
+    it('asks the server for the newest ticket date first and shows title, table card and footer', async () => {
+      mockDesktopViewport();
+      arrange({ result: paginatedResult([makeTicket()]) });
+
+      render(<TicketsList />);
+
+      expect(await screen.findByRole('table', { name: 'Tickets' })).toBeInTheDocument();
+      expect(mockGetTicketsPaginated).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, pageSize: 25, sort: { column: 'fecha', direction: 'desc' } }),
+      );
+      expect(screen.getByRole('heading', { level: 1, name: /Tickets · 1/ })).toBeInTheDocument();
+      expect(screen.getByText('Lista de todos los tickets registrados')).toBeInTheDocument();
+      // One Nuevo ticket, at the title; no sort select, no phone cards.
+      expect(screen.getAllByRole('link', { name: /Nuevo ticket/ })).toHaveLength(1);
+      expect(screen.queryByRole('combobox', { name: /ordenar/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tickets-pull-to-refresh')).not.toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Fecha/ })).toHaveAttribute('aria-sort', 'descending');
+      expect(screen.getByRole('columnheader', { name: /Total/ })).toHaveClass('text-right');
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 de 1 tickets');
+      expect(screen.getAllByTestId('tickets-row')).toHaveLength(1);
+    });
+
+    it('sorts the whole list on the server from the header and writes ?orden=', async () => {
+      mockDesktopViewport();
+      arrange({ result: paginatedResult([makeTicket()]) });
+      const router = useRouter();
+
+      render(<TicketsList />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Total' }));
+
+      await waitFor(() =>
+        expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+          expect.objectContaining({ page: 1, sort: { column: 'total', direction: 'desc' } }),
+        ),
+      );
+      expect(router.replace).toHaveBeenCalledWith('/tickets?orden=total-desc', { scroll: false });
+      expect(screen.getByRole('columnheader', { name: /Total/ })).toHaveAttribute('aria-sort', 'descending');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Total' }));
+      await waitFor(() =>
+        expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+          expect.objectContaining({ sort: { column: 'total', direction: 'asc' } }),
+        ),
+      );
+    });
+
+    it('reads the old ?orden= of the sort select', async () => {
+      mockDesktopViewport();
+      (useSearchParams() as unknown as URLSearchParams).set('orden', 'paymentRank:desc');
+      arrange({ result: paginatedResult([makeTicket()]) });
+
+      render(<TicketsList />);
+
+      await waitFor(() =>
+        expect(mockGetTicketsPaginated).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: { column: 'estado', direction: 'desc' } }),
+        ),
+      );
+      expect(await screen.findByRole('columnheader', { name: /Estado/ })).toHaveAttribute(
+        'aria-sort',
+        'descending',
+      );
+    });
+
+    it('pages on the server with a numbered pager and keeps the rows, dimmed, while the next page loads', async () => {
+      mockDesktopViewport();
+      const first = paginatedResult(manyTickets(25));
+      if (!first.data) throw new Error('no data');
+      first.data.total = 60;
+      arrange({ result: first });
+
+      render(<TicketsList />);
+      expect(await screen.findByText('1–25 de 60 tickets')).toBeInTheDocument();
+
+      mockGetTicketsPaginated.mockReturnValueOnce(new Promise(() => undefined));
+      fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
+
+      await waitFor(() =>
+        expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })),
+      );
+      const table = screen.getByRole('table', { name: 'Tickets' });
+      expect(table).toHaveAttribute('aria-busy', 'true');
+      expect(table).toHaveClass('opacity-60');
+      expect(screen.queryByText('Cargando tickets')).not.toBeInTheDocument();
+    });
+
+    it('clears the filters but never the order', async () => {
+      mockDesktopViewport();
+      arrange({ result: paginatedResult([makeTicket()]) });
+
+      render(<TicketsList />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Saldo' }));
+      const views = screen.getByRole('navigation', { name: 'Vistas de tickets' });
+      fireEvent.click(within(views).getByRole('button', { name: /Pagados/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Limpiar filtros' }));
+
+      await waitFor(() =>
+        expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+          expect.objectContaining({ statusFilter: 'all', sort: { column: 'saldo', direction: 'desc' } }),
+        ),
+      );
+    });
   });
 });

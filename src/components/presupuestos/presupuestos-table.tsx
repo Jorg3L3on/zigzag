@@ -4,15 +4,15 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
   type PaginationState,
+  type SortingState,
+  type Updater,
 } from '@tanstack/react-table';
-import { endOfDay, format, startOfDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { FileText, Plus, Search } from 'lucide-react';
+import { endOfDay, startOfDay } from 'date-fns';
+import { Plus } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 
@@ -24,52 +24,51 @@ import {
 } from '@/actions/presupuestos';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import {
+  LIST_PAGE_SIZE,
   ListColumnsMenu,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListShortDate,
+  ListSortableHeader,
+  ListStatusPill,
+  ListTable,
+  ListTableCard,
+  ListToolbar,
+  ListViewTabs,
+  listFooterPagination,
   useListHiddenColumns,
   type ListColumnOption,
-} from '@/components/list-views/list-columns-menu';
-import { ListViewTabs, type ListViewTab } from '@/components/list-views/list-view-tabs';
+  type ListStatusTone,
+  type ListViewTab,
+} from '@/components/list-page';
 import {
   PresupuestoConfirmSheet,
   type PresupuestoConfirmKind,
 } from '@/components/presupuestos/presupuesto-confirm-sheet';
 import { PresupuestoExtendDialog } from '@/components/presupuestos/presupuesto-extend-dialog';
-import { PresupuestoRowActions } from '@/components/presupuestos/presupuesto-row-actions';
-import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-status-pill';
+import { PresupuestoRowMenu } from '@/components/presupuestos/presupuesto-row-actions';
+import {
+  parsePresupuestoSortParam,
+  presupuestoSortForServer,
+  presupuestoSortParam,
+} from '@/components/presupuestos/presupuestos-sort';
 import { usePresupuestoDuplicate } from '@/components/presupuestos/use-presupuesto-duplicate';
 import { TicketDateRangeFilter } from '@/components/tickets/tickets-filter-fields';
-import { TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
-import { TripledEmptyState, TripledListLoadingState } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { formatPhoneDisplay } from '@/lib/phone-links';
 import { describePresupuestoVenceCell } from '@/lib/presupuesto-vigencia';
 import {
   parsePresupuestoView,
-  PRESUPUESTO_SORT_LABEL,
   type PresupuestoListCounts,
-  type PresupuestoListSort,
   type PresupuestoListView,
 } from '@/lib/presupuestos-list-views';
+import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
-
-const DEFAULT_PAGE_SIZE = 25;
-
-/** The footer line of a single page (canvas ListaPresuA). */
-const SORT_NOTE: Record<PresupuestoListSort, string> = {
-  vence: 'Orden: vencen primero, luego los más recientes',
-  recientes: 'Orden: los más recientes primero',
-  total: 'Orden: el mayor total primero',
-};
 
 const OPTIONAL_COLUMNS: ListColumnOption[] = [
   { id: 'trabajo', label: 'Trabajo' },
@@ -77,6 +76,14 @@ const OPTIONAL_COLUMNS: ListColumnOption[] = [
   { id: 'vence', label: 'Vence' },
   { id: 'total', label: 'Total' },
 ];
+
+/** Aceptado is green on desktop only, the good outcome (6f15aba8); the phone keeps grey. */
+const STATUS_TONE: Record<PresupuestoStatus, ListStatusTone> = {
+  abierto: 'blue',
+  vencido: 'red',
+  convertido: 'emerald',
+  cancelado: 'slate',
+};
 
 const VENCE_TONE_CLASS = {
   expired: 'text-red-700 dark:text-red-300',
@@ -100,29 +107,21 @@ const TABS: Array<{
   { id: 'cancelados', label: 'Cancelados', countKey: 'cancelado', dot: 'bg-slate-500' },
 ];
 
-const shortDate = (value: string | null): string => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return format(date, date.getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy', {
-    locale: es,
-  });
-};
-
 type PresupuestosTableProps = {
   companyId: number | null;
   companyName: string | null;
   canWrite: boolean;
   canInvoice: boolean;
-  /** False below md, where the phone cards load instead. */
+  /** False below lg, where the phone cards load instead. */
   enabled: boolean;
 };
 
 /**
- * Presupuestos from md (ZIG-I29-3, ListaPresuA): view tabs with server counts
- * (default Abiertos + Vencidos), search, issue dates and order, then the table
- * Folio · Cliente · Trabajo · Emitido · Vence · Total · Estado with hover
- * actions and ⋮. No amounts in the views (f18a2f7d).
+ * Presupuestos from lg (ZIG-I29-3, ListaPresuA; ZIG-I33-2 standard): view tabs with
+ * server counts (default Abiertos + Vencidos), search and issue dates, then the table
+ * Folio · Cliente · Trabajo · Emitido · Vence · Total · Estado · ⋯ in its card with
+ * the footer. The headers sort on the server; every row action is in ⋯. No amounts
+ * in the views (f18a2f7d).
  */
 export const PresupuestosTable = ({
   companyId,
@@ -135,19 +134,23 @@ export const PresupuestosTable = ({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const view = parsePresupuestoView(searchParams.get('estado'));
+  // `?orden=` from the header (or an old link's `vence` / `recientes` / `total`).
+  const ordenParam = searchParams.get('orden');
+  const sorting = React.useMemo(() => parsePresupuestoSortParam(ordenParam), [ordenParam]);
+  const sortKey = presupuestoSortParam(sorting) ?? 'default';
 
   const [items, setItems] = React.useState<PresupuestoTableItem[]>([]);
   const [counts, setCounts] = React.useState<PresupuestoListCounts | null>(null);
   const [totalCount, setTotalCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
+  const [loadedOnce, setLoadedOnce] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [searchValue, setSearchValue] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
-  const [sort, setSort] = React.useState<PresupuestoListSort>('vence');
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize: LIST_PAGE_SIZE,
   });
   const [confirm, setConfirm] = React.useState<{
     kind: PresupuestoConfirmKind;
@@ -164,12 +167,13 @@ export const PresupuestosTable = ({
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, dateRange, sort, view]);
+  }, [debouncedSearch, dateRange, sortKey, view]);
 
   const load = React.useCallback(async () => {
     if (!enabled) return;
     if (!companyId) {
       setLoading(false);
+      setLoadedOnce(true);
       return;
     }
     setLoading(true);
@@ -183,7 +187,7 @@ export const PresupuestosTable = ({
         dateTo: dateRange?.from
           ? endOfDay(dateRange.to ?? dateRange.from).toISOString()
           : undefined,
-        sort,
+        sort: presupuestoSortForServer(sorting),
         page: pagination.pageIndex + 1,
         pageSize: pagination.pageSize,
       });
@@ -198,6 +202,7 @@ export const PresupuestosTable = ({
       setError('No se pudieron cargar los presupuestos');
     } finally {
       setLoading(false);
+      setLoadedOnce(true);
     }
   }, [
     enabled,
@@ -205,7 +210,7 @@ export const PresupuestosTable = ({
     view,
     debouncedSearch,
     dateRange,
-    sort,
+    sorting,
     pagination.pageIndex,
     pagination.pageSize,
   ]);
@@ -214,16 +219,23 @@ export const PresupuestosTable = ({
     void load();
   }, [load]);
 
-  const selectView = (next: TabId) => {
+  const setParam = (name: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
-    // Clicking the view you are on goes back to the default Abiertos + Vencidos.
-    if (next === view) {
-      params.delete('estado');
+    if (value == null) {
+      params.delete(name);
     } else {
-      params.set('estado', next);
+      params.set(name, value);
     }
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  // Clicking the view you are on goes back to the default Abiertos + Vencidos.
+  const selectView = (next: TabId) => setParam('estado', next === view ? null : next);
+
+  const handleSortingChange = (updater: Updater<SortingState>) => {
+    const next = typeof updater === 'function' ? updater(sorting) : updater;
+    setParam('orden', presupuestoSortParam(next));
   };
 
   const handleConfirm = async (kind: PresupuestoConfirmKind) => {
@@ -261,7 +273,9 @@ export const PresupuestosTable = ({
     () => [
       {
         id: 'folio',
-        header: 'Folio',
+        accessorFn: (row) => Number(row.id),
+        sortDescFirst: true,
+        header: ({ column }) => <ListSortableHeader column={column} label="Folio" />,
         meta: { className: 'w-[6rem]' },
         cell: ({ row }) => (
           <span className="font-mono text-sm font-medium tabular-nums">{row.original.folio}</span>
@@ -269,7 +283,9 @@ export const PresupuestosTable = ({
       },
       {
         id: 'cliente',
-        header: 'Cliente',
+        accessorFn: (row) => row.clientName ?? '',
+        sortDescFirst: false,
+        header: ({ column }) => <ListSortableHeader column={column} label="Cliente" />,
         // Takes what is left (about 200px at 1024 with the sidebar open) until Trabajo shows; then
         // 21rem, as wide as at 1280: client names win over Trabajo, as on the tickets list.
         meta: { className: '@min-[75rem]:w-[21rem]' },
@@ -300,7 +316,7 @@ export const PresupuestosTable = ({
           const more = Math.max((servicesCount ?? 0) - 2, 0);
           return (
             <span
-              className="flex min-w-0 items-baseline gap-1 text-[13px] text-slate-600 dark:text-slate-300"
+              className="flex min-w-0 items-baseline gap-1 text-slate-600 md:text-[13px] dark:text-slate-300"
               title={servicesSummary}
             >
               <span className="truncate">{servicesHead?.length ? servicesHead.join(', ') : servicesSummary}</span>
@@ -311,15 +327,17 @@ export const PresupuestosTable = ({
       },
       {
         id: 'emitido',
-        header: 'Emitido',
+        accessorFn: (row) => row.ticketDate,
+        sortDescFirst: true,
+        header: ({ column }) => <ListSortableHeader column={column} label="Emitido" />,
         meta: { className: 'hidden w-[5.5rem] @min-[48rem]:table-cell' },
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">{shortDate(row.original.ticketDate)}</span>
-        ),
+        cell: ({ row }) => <ListShortDate date={row.original.ticketDate} />,
       },
       {
         id: 'vence',
-        header: 'Vence',
+        accessorFn: (row) => row.expiresAt,
+        sortDescFirst: false,
+        header: ({ column }) => <ListSortableHeader column={column} label="Vence" />,
         // «25 oct · vigencia de 15 días» needs the room (canvas column 150px).
         meta: { className: 'w-[10rem]' },
         cell: ({ row }) => {
@@ -329,7 +347,7 @@ export const PresupuestosTable = ({
             ticketDate: row.original.ticketDate,
           });
           return (
-            <span className="flex flex-col text-[13px] leading-snug" data-testid="presupuesto-vence" data-tone={cell.tone}>
+            <span className="flex flex-col leading-snug md:text-[13px]" data-testid="presupuesto-vence" data-tone={cell.tone}>
               <span
                 className={cn(
                   'tabular-nums',
@@ -345,10 +363,12 @@ export const PresupuestosTable = ({
       },
       {
         id: 'total',
-        header: () => <span className="block text-right">Total</span>,
-        meta: { className: 'w-[8.5rem] text-right' },
+        accessorFn: (row) => row.total,
+        sortDescFirst: true,
+        header: ({ column }) => <ListSortableHeader column={column} label="Total" align="right" />,
+        meta: { className: 'w-[8.5rem]', align: 'right' },
         cell: ({ row }) => (
-          <span className="block text-right font-semibold tabular-nums">
+          <span className="font-semibold">
             <FormattedCurrency amount={row.original.total ?? 0} />
           </span>
         ),
@@ -357,21 +377,20 @@ export const PresupuestosTable = ({
         id: 'estado',
         header: 'Estado',
         meta: { className: 'w-[6.75rem]' },
-        cell: ({ row }) => <PresupuestoStatusPill status={row.original.status} surface="desktop" />,
+        cell: ({ row }) => (
+          <ListStatusPill tone={STATUS_TONE[row.original.status]}>
+            <span data-testid="presupuesto-status">{row.original.statusLabel}</span>
+          </ListStatusPill>
+        ),
       },
       {
         id: 'acciones',
+        enableHiding: false,
         header: () => <span className="sr-only">Acciones</span>,
-        // Only ⋮ takes room; the hover actions float over the row.
-        meta: { className: 'w-[3.25rem]' },
+        meta: { className: 'w-12' },
         cell: ({ row }) => (
-          <div
-            className="flex justify-end"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <PresupuestoRowActions
+          <div className="flex justify-end">
+            <PresupuestoRowMenu
               item={row.original}
               canWrite={canWrite}
               canInvoice={canInvoice}
@@ -394,10 +413,15 @@ export const PresupuestosTable = ({
   const table = useReactTable({
     data: items,
     columns,
-    state: { pagination, columnVisibility: hiddenColumns.visibility },
+    state: { sorting, pagination, columnVisibility: hiddenColumns.visibility },
+    onSortingChange: handleSortingChange,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    // The rows come sorted and paged from the server.
+    manualSorting: true,
     manualPagination: true,
+    enableMultiSort: false,
+    enableSortingRemoval: false,
     pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
   });
 
@@ -415,193 +439,125 @@ export const PresupuestosTable = ({
   const isSelected = (id: TabId) =>
     view === id || (view === 'pendientes' && (id === 'abiertos' || id === 'vencidos'));
   const hasFilters = debouncedSearch.length > 0 || Boolean(dateRange?.from);
+  // Limpiar shows as soon as something is typed, before the search debounces.
+  const hasActiveFilters = searchValue.trim().length > 0 || Boolean(dateRange?.from);
   const clearFilters = () => {
     setSearchValue('');
     setDebouncedSearch('');
     setDateRange(undefined);
   };
 
-  return (
-    <div className="space-y-4" data-testid="presupuestos-table-view">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Presupuestos
-            {counts ? <span className="font-normal text-muted-foreground"> · {counts.all}</span> : null}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            No cuentan en Cobranza ni en Hoy hasta convertirlos en ticket.
-          </p>
-        </div>
-        {canWrite ? (
-          <Button asChild>
-            <Link href="/presupuestos/create">
-              <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
-              Nuevo presupuesto
-            </Link>
-          </Button>
-        ) : null}
-      </div>
-
-      <ListViewTabs
-        label="Vistas de presupuestos"
-        tabs={tabs}
-        isSelected={isSelected}
-        onSelect={selectView}
-      />
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="relative min-w-[12rem] max-w-[360px] flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            className="h-11 rounded-xl bg-background pl-9 shadow-none"
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por cliente, folio o teléfono"
-            aria-label="Buscar presupuestos por cliente, folio o teléfono"
-          />
-        </div>
-        <TicketDateRangeFilter
-          layout="desktop"
-          value={dateRange}
-          onChange={setDateRange}
-          ariaLabel="Filtrar por fecha de emisión"
-        />
-        {/* The order sits at the right end of the bar, as on the canvas. */}
-        <div className="ml-auto flex items-center gap-2">
-          <Select value={sort} onValueChange={(value) => setSort(value as PresupuestoListSort)}>
-            <SelectTrigger className="h-11 w-auto gap-2 rounded-full px-4" aria-label="Ordenar presupuestos">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(PRESUPUESTO_SORT_LABEL) as PresupuestoListSort[]).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {PRESUPUESTO_SORT_LABEL[key]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <ListColumnsMenu table={table} options={OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
-        </div>
-        {hasFilters ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11 shrink-0 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            onClick={clearFilters}
-          >
-            Limpiar filtros
-          </Button>
-        ) : null}
-      </div>
-
-      {error ? (
-        <TripledEmptyState
-          icon={<FileText className="h-4 w-4" />}
-          title="Error al cargar"
-          description={error}
-          role="alert"
+  let body: React.ReactNode;
+  if (error) {
+    body = <ListError description={error} onRetry={() => void load()} />;
+  } else if (loading && !loadedOnce) {
+    body = <ListLoading label="Cargando presupuestos…" columns={7} />;
+  } else if (items.length === 0) {
+    if (counts && counts.all === 0 && !hasFilters) {
+      body = (
+        <ListEmpty
+          title="Sin presupuestos"
+          description="Crea un presupuesto para cotizar trabajo antes de abrirlo como ticket."
           action={
-            <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
-              Reintentar
-            </Button>
+            canWrite ? (
+              <Button asChild>
+                <Link href="/presupuestos/create">Nuevo presupuesto</Link>
+              </Button>
+            ) : undefined
           }
         />
-      ) : loading && items.length === 0 ? (
-        <TripledListLoadingState label="Cargando presupuestos…" desktopColumns={7} desktopRows={6} />
-      ) : items.length === 0 ? (
-        counts && counts.all === 0 && !hasFilters ? (
-          <TripledEmptyState
-            icon={<FileText className="h-4 w-4" />}
-            title="Sin presupuestos"
-            description="Crea un presupuesto para cotizar trabajo antes de abrirlo como ticket."
-            action={
-              canWrite ? (
-                <Button asChild>
-                  <Link href="/presupuestos/create">Nuevo presupuesto</Link>
-                </Button>
-              ) : null
-            }
-          />
-        ) : (
-          <TripledEmptyState
-            icon={<Search className="h-4 w-4" />}
-            title="Nada en esta vista"
-            description={
-              hasFilters
-                ? 'Ningún presupuesto coincide con la búsqueda o las fechas.'
-                : 'Elige otra vista arriba para ver más presupuestos.'
-            }
-            action={
-              hasFilters ? (
-                <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
-                  Limpiar filtros
-                </Button>
-              ) : null
-            }
-          />
-        )
-      ) : (
-        // Columns follow the page width, not the viewport: the sidebar takes 256px (ZIG-I29).
-        <div className="@container">
-          <table
-            aria-label="Presupuestos"
-            aria-busy={loading}
-            className="w-full table-fixed caption-bottom border-collapse text-sm [&_td]:h-14 [&_td]:px-3 [&_td]:py-0 [&_td]:align-middle [&_th]:h-10 [&_th]:bg-background [&_th]:px-3 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60"
-          >
-            <TableHeader className="sticky top-16 z-20 bg-background">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => {
-                const href = `/presupuestos/${row.original.id}`;
-                return (
-                  <TableRow
-                    key={row.id}
-                    className="group h-14 cursor-pointer"
-                    tabIndex={0}
-                    data-testid="presupuesto-table-row"
-                    aria-label={`Presupuesto ${row.original.folio} · ${row.original.clientName ?? 'Sin cliente'} · ${row.original.statusLabel}`}
-                    onClick={() => router.push(href)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        router.push(href);
-                      }
-                    }}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </table>
-          <TicketsListPagination
-            table={table}
-            variant="desktop"
-            totalCount={totalCount}
+      );
+    } else if (hasFilters) {
+      body = (
+        <ListNoResults
+          description="Ningún presupuesto coincide con la búsqueda o las fechas."
+          onClear={clearFilters}
+        />
+      );
+    } else {
+      body = (
+        <ListEmpty
+          title="Nada en esta vista"
+          description="Elige otra vista arriba para ver más presupuestos."
+        />
+      );
+    }
+  } else {
+    body = (
+      // Columns follow the page width, not the viewport: the sidebar takes 256px (ZIG-I29).
+      <ListTableCard
+        className="@container"
+        footer={
+          <ListFooter
+            total={totalCount}
             noun="presupuestos"
-            note={SORT_NOTE[sort]}
+            shown={items.length}
+            pagination={listFooterPagination(table)}
+          />
+        }
+      >
+        <ListTable
+          table={table}
+          ariaLabel="Presupuestos"
+          busy={loading}
+          getRowHref={(row) => `/presupuestos/${row.original.id}`}
+          rowTestId="presupuesto-table-row"
+        />
+      </ListTableCard>
+    );
+  }
+
+  return (
+    <div data-testid="presupuestos-table-view">
+      <ListDesktopTitle
+        title="Presupuestos"
+        count={counts?.all ?? null}
+        description="No cuentan en Cobranza ni en Hoy hasta convertirlos en ticket."
+        actions={
+          canWrite ? (
+            <Button asChild>
+              <Link href="/presupuestos/create">
+                <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+                Nuevo presupuesto
+              </Link>
+            </Button>
+          ) : null
+        }
+      />
+
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3">
+          <ListViewTabs
+            label="Vistas de presupuestos"
+            tabs={tabs}
+            isSelected={isSelected}
+            onSelect={selectView}
+          />
+          <ListToolbar
+            search={{
+              value: searchValue,
+              onChange: setSearchValue,
+              placeholder: 'Buscar por cliente, folio o teléfono',
+              ariaLabel: 'Buscar presupuestos por cliente, folio o teléfono',
+            }}
+            filters={
+              <TicketDateRangeFilter
+                layout="desktop"
+                value={dateRange}
+                onChange={setDateRange}
+                ariaLabel="Filtrar por fecha de emisión"
+              />
+            }
+            hasActiveFilters={hasActiveFilters}
+            onClear={clearFilters}
+            trailing={
+              <ListColumnsMenu table={table} options={OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
+            }
           />
         </div>
-      )}
+
+        {body}
+      </div>
 
       <PresupuestoConfirmSheet
         kind={confirm?.kind ?? null}
