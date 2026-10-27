@@ -107,7 +107,7 @@ export const ListFilterSelect = <TValue extends string>({
   <Select value={value} onValueChange={(next) => onChange(next as TValue)}>
     <SelectTrigger
       className={cn(
-        'h-11 w-auto min-w-[168px] rounded-full',
+        'h-11 w-auto min-w-[168px] gap-2 rounded-full',
         value !== allValue && FILTER_SELECTED_CLASS,
         className,
       )}
