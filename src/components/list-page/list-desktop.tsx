@@ -20,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FILTER_SELECTED_CLASS } from '@/components/list-filter/filter-styles';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page/filter-styles';
+import { companyDay } from '@/lib/company-day';
+import { formatListShortDate } from '@/lib/list-short-date';
 import { cn } from '@/lib/utils';
 
 /*
@@ -32,17 +34,20 @@ import { cn } from '@/lib/utils';
 export const LIST_SORTABLE_HEADER_CLASS =
   '-ml-1.5 h-7 max-w-full gap-1 px-1.5 md:text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-transparent hover:text-foreground';
 
-/** «8 oct», with the year only when it is not this one, like the tickets list. */
-export const ListShortDate = ({ date }: { date: Date | null | undefined }) => {
+/**
+ * «8 oct», with the year only when it is not this one, in the company's calendar
+ * (America/Mexico_City, like Cobranza and Recordatorios), so an evening date does
+ * not read as the next day. The full date sits in the title (ZIG-I33 §6).
+ */
+export const ListShortDate = ({ date }: { date: Date | string | null | undefined }) => {
   if (!date) return <span className="text-muted-foreground">—</span>;
-  const value = new Date(date);
-  const pattern = value.getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy';
+  const day = companyDay(new Date(date)).date;
   return (
     <span
       className="whitespace-nowrap tabular-nums text-slate-600 dark:text-slate-300"
-      title={format(value, 'PPP', { locale: es })}
+      title={format(day, 'PPP', { locale: es })}
     >
-      {format(value, pattern, { locale: es })}
+      {formatListShortDate(date)}
     </span>
   );
 };
@@ -101,7 +106,7 @@ export const ListFilterSelect = <TValue extends string>({
   <Select value={value} onValueChange={(next) => onChange(next as TValue)}>
     <SelectTrigger
       className={cn(
-        'h-11 w-auto min-w-[168px] rounded-full',
+        'h-11 w-auto min-w-[168px] gap-2 rounded-full',
         value !== allValue && FILTER_SELECTED_CLASS,
         className,
       )}
@@ -124,6 +129,10 @@ export type ListRowMenuItem = {
   icon: ReactNode;
   onSelect: () => void;
   destructive?: boolean;
+  /** Shown greyed and not selectable, like the phone menus do for blocked actions. */
+  disabled?: boolean;
+  /** Why it is disabled, read as part of the label: «Desactivar (eres tú)». */
+  hint?: string;
 };
 
 /** The ⋯ menu at the end of a desktop row; clicks never reach the row. */
@@ -147,10 +156,11 @@ export const ListRowMenu = ({ label, items }: { label: string; items: ListRowMen
         <DropdownMenuItem
           key={item.label}
           className={cn(item.destructive && 'text-destructive focus:text-destructive')}
+          disabled={item.disabled}
           onSelect={item.onSelect}
         >
           {item.icon}
-          {item.label}
+          {item.hint ? `${item.label} (${item.hint})` : item.label}
         </DropdownMenuItem>
       ))}
     </DropdownMenuContent>

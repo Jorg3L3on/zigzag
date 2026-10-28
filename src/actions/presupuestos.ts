@@ -218,15 +218,54 @@ export interface PaginatedPresupuestosData {
   counts: PresupuestoListCounts;
 }
 
-const PRESUPUESTO_SORTS: Record<PresupuestoListSort, SQL[]> = {
-  // Vencen primero: soonest expiry, no date last, then the newest issued.
-  vence: [
-    sql`${ticket.expires_at} ASC NULLS LAST`,
-    sql`${ticket.ticket_date} DESC NULLS LAST`,
+/** The columns the presupuestos list sorts by on the server (ZIG-I33-2). */
+export type PresupuestoListSortColumn = 'folio' | 'cliente' | 'emitido' | 'vence' | 'total';
+
+export type PresupuestoListColumnSort = {
+  column: PresupuestoListSortColumn;
+  direction: 'asc' | 'desc';
+};
+
+/** Whitelist: only these expressions reach ORDER BY; no text from the caller does. */
+const PRESUPUESTO_SORT_EXPRESSIONS: Record<PresupuestoListSortColumn, SQL> = {
+  folio: sql`${ticket.id}`,
+  cliente: sql`lower(${ticket.client_name})`,
+  emitido: sql`${ticket.ticket_date}`,
+  vence: sql`${ticket.expires_at}`,
+  total: sql`${ticket.total}`,
+};
+
+/** The orders of the old sort select (ZIG-I29-3), as column sorts. */
+const PRESUPUESTO_PRESET_SORTS: Record<PresupuestoListSort, PresupuestoListColumnSort> = {
+  vence: { column: 'vence', direction: 'asc' },
+  recientes: { column: 'emitido', direction: 'desc' },
+  total: { column: 'total', direction: 'desc' },
+};
+
+const hasKey = <T extends object>(record: T, key: unknown): key is keyof T =>
+  typeof key === 'string' && Object.prototype.hasOwnProperty.call(record, key);
+
+/**
+ * ORDER BY for one page. Nothing (or anything unknown) is «Vencen primero» as before;
+ * Vence breaks ties by the newest issued, and every sort ends with the id so equal
+ * values keep one order across pages. `vence asc`, `emitido desc` and `total desc`
+ * are exactly the old Vencen primero, Más recientes and Mayor total.
+ */
+const presupuestoListOrderBy = (
+  sort: PresupuestoListSort | PresupuestoListColumnSort | undefined,
+): SQL[] => {
+  let resolved = PRESUPUESTO_PRESET_SORTS.vence;
+  if (typeof sort === 'string') {
+    if (hasKey(PRESUPUESTO_PRESET_SORTS, sort)) resolved = PRESUPUESTO_PRESET_SORTS[sort];
+  } else if (sort && hasKey(PRESUPUESTO_SORT_EXPRESSIONS, sort.column)) {
+    resolved = { column: sort.column, direction: sort.direction === 'asc' ? 'asc' : 'desc' };
+  }
+  const direction = resolved.direction === 'asc' ? sql`asc` : sql`desc`;
+  return [
+    sql`${PRESUPUESTO_SORT_EXPRESSIONS[resolved.column]} ${direction} nulls last`,
+    ...(resolved.column === 'vence' ? [sql`${ticket.ticket_date} desc nulls last`] : []),
     desc(ticket.id),
-  ],
-  recientes: [sql`${ticket.ticket_date} DESC NULLS LAST`, desc(ticket.id)],
-  total: [sql`${ticket.total} DESC NULLS LAST`, desc(ticket.id)],
+  ];
 };
 
 /**
@@ -241,7 +280,8 @@ export async function getPresupuestosPaginated(params: {
   search?: string;
   dateFrom?: string;
   dateTo?: string;
-  sort?: PresupuestoListSort;
+  /** A column sort from the header, or one of the old presets; default Vencen primero. */
+  sort?: PresupuestoListSort | PresupuestoListColumnSort;
   page?: number;
   pageSize?: number;
 }): Promise<{
@@ -323,7 +363,7 @@ export async function getPresupuestosPaginated(params: {
       .select()
       .from(ticket)
       .where(where)
-      .orderBy(...PRESUPUESTO_SORTS[params.sort ?? 'vence'])
+      .orderBy(...presupuestoListOrderBy(params.sort))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 

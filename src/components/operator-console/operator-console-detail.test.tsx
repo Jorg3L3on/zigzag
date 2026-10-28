@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { OperatorConsoleDetail } from '@/components/operator-console/operator-console-detail';
 
 const mockUseCompany = jest.fn();
@@ -44,8 +44,26 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
+/** DesktopSwitch keeps one tree: the desktop one when the lg query matches. */
+const mockViewport = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: desktop && query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
+
 describe('OperatorConsoleDetail', () => {
   beforeEach(() => {
+    mockViewport(false);
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ data: [] }),
@@ -104,5 +122,30 @@ describe('OperatorConsoleDetail', () => {
     expect(screen.getByText('Overview stub')).toBeInTheDocument();
     expect(screen.getByText('Metrics stub')).toBeInTheDocument();
     expect(screen.queryByText('Activity stub')).not.toBeInTheDocument();
+  });
+
+  it('uses the list view tabs from lg, without the solid blue pill', async () => {
+    mockViewport(true);
+    mockUseCompany.mockReturnValue({
+      selectedCompany: { id: 4, name: 'ClimaTotal Demo', is_system: false },
+    });
+
+    render(<OperatorConsoleDetail />);
+
+    const tabs = await screen.findByRole('navigation', {
+      name: 'Secciones de la empresa seleccionada',
+    });
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    const resumen = within(tabs).getByRole('button', { name: 'Resumen' });
+    expect(resumen).toHaveAttribute('aria-pressed', 'true');
+    expect(resumen.className).toMatch(/border-primary/);
+    expect(screen.getByRole('region', { name: 'Resumen' })).toBeInTheDocument();
+
+    fireEvent.click(within(tabs).getByRole('button', { name: 'Actividad' }));
+    expect(within(tabs).getByRole('button', { name: 'Actividad' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('Activity stub')).toBeInTheDocument();
   });
 });

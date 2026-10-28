@@ -5,32 +5,34 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  type Row,
 } from '@tanstack/react-table';
+import type { DateRange } from 'react-day-picker';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ClipboardList, ListFilter, Search, X } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { getCompanies } from '@/actions/companies';
 import { getUsers } from '@/actions/users';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { TableCell, TableRow } from '@/components/ui/table';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  FILTER_SELECTED_CLASS,
+  ListClickableRow,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFilterBarShell,
+  ListFilterSelect,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListTable,
+  ListTableCard,
+  ListToolbar,
+  listColumnClassName,
+} from '@/components/list-page';
+import { TicketDateRangeFilter } from '@/components/tickets/tickets-filter-fields';
 import { TripledEmptyState, TripledListLoadingState } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { FormattedDate } from '@/components/formatted-date';
@@ -45,12 +47,15 @@ import {
 } from '@/components/audit/audit-columns';
 import { AuditSummaryCell } from '@/components/audit/audit-summary-cell';
 import {
+  AUDIT_ACTION_FILTER_OPTIONS,
+  AUDIT_RESOURCE_FILTER_OPTIONS,
   AuditActionFilter,
   AuditActorFilter,
   AuditCompanyFilter,
   AuditDateRangeFilter,
   AuditResourceTypeFilter,
   AuditResultFilter,
+  auditResultFilterOptions,
 } from '@/components/audit/audit-filter-fields';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
 import { redactAuditDisplayValue } from '@/lib/audit-display';
@@ -250,12 +255,24 @@ const buildFilterQuery = (input: {
   return params;
 };
 
+/** «yyyy-MM-dd» in the browser's calendar, as the date inputs and the URL carry it. */
+const parseLocalDateInput = (value: string): Date | undefined => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return undefined;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+};
+
+const RESULT_FILTER_OPTIONS = auditResultFilterOptions('Todos los estatus');
+
+const DEFAULT_DESCRIPTION = 'Visible solo para usuarios de la empresa System.';
+
 export const AuditList = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [events, setEvents] = React.useState<AuditEventRow[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [searchValue, setSearchValue] = React.useState(
     () => searchParams.get('search') ?? '',
@@ -299,6 +316,8 @@ export const AuditList = () => {
   const [actorUserOptions, setActorUserOptions] = React.useState<
     ActorUserOption[]
   >([]);
+  // Only the latest filter request may land; an older one would overwrite it.
+  const requestRef = React.useRef(0);
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -428,15 +447,28 @@ export const AuditList = () => {
     });
   }, [filterSnapshot, pathname, router]);
 
+  /**
+   * A filter change keeps the loaded rows on screen (dimmed on desktop) until the
+   * new ones arrive (ZIG-I33 §8); «Cargar más» appends.
+   */
   const fetchEvents = React.useCallback(
     async (cursor?: number | null, append = false) => {
-      setLoading(true);
-      setLoadError(null);
-      if (!append) {
-        setEvents([]);
-        setNextCursor(null);
+      const request = append ? requestRef.current : ++requestRef.current;
+      const isCurrent = () => request === requestRef.current;
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
         setExpandedId(null);
       }
+      setLoadError(null);
+      const fail = (message: string) => {
+        setLoadError(message);
+        if (!append) {
+          setEvents([]);
+          setNextCursor(null);
+        }
+      };
       try {
         const params = buildFilterQuery(filterSnapshot);
         if (cursor != null) {
@@ -445,13 +477,14 @@ export const AuditList = () => {
 
         const response = await fetch(`/api/audit/events?${params.toString()}`);
         const payload = await response.json();
+        if (!isCurrent()) return;
         if (!response.ok || !payload.success) {
           const errorType = classifyClientError(
             null,
             response.status,
             payload?.errorType,
           );
-          setLoadError(
+          fail(
             getErrorMessageByType(
               errorType,
               payload?.error || 'No se pudo cargar la auditoría',
@@ -465,14 +498,19 @@ export const AuditList = () => {
         setNextCursor(payload.data?.nextCursor ?? null);
       } catch (error) {
         console.error(error);
-        setLoadError(
+        if (!isCurrent()) return;
+        fail(
           getErrorMessageByType(
             classifyClientError(error),
             'No se pudo cargar la auditoría',
           ),
         );
       } finally {
-        setLoading(false);
+        if (append) {
+          setLoadingMore(false);
+        } else if (isCurrent()) {
+          setLoading(false);
+        }
       }
     },
     [filterSnapshot],
@@ -528,6 +566,17 @@ export const AuditList = () => {
     setIncidentsOnly((current) => !current);
   };
 
+  const dateRange = React.useMemo<DateRange | undefined>(() => {
+    const from = parseLocalDateInput(fromDate);
+    if (!from) return undefined;
+    return { from, to: parseLocalDateInput(toDate) };
+  }, [fromDate, toDate]);
+
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setFromDate(range?.from ? formatLocalDateInput(range.from) : '');
+    setToDate(range?.to ? formatLocalDateInput(range.to) : '');
+  };
+
   const hasActiveFilters =
     debouncedSearch !== '' ||
     targetCompanyId.trim() !== '' ||
@@ -539,7 +588,7 @@ export const AuditList = () => {
     toDate !== '' ||
     incidentsOnly;
 
-  /** Sheet badge counts dense controls only (search + presets stay outside). */
+  /** The phone filter badge counts dense controls only (search + presets stay outside). */
   const sheetFilterCount = [
     targetCompanyId.trim() !== '',
     actorUserId.trim() !== '',
@@ -557,6 +606,7 @@ export const AuditList = () => {
     visibleCount: events.length,
     hasActiveFilters,
   });
+  const refreshing = loading && events.length > 0;
 
   const handleClearFilters = () => {
     setSearchValue('');
@@ -571,188 +621,104 @@ export const AuditList = () => {
     setIncidentsOnly(false);
   };
 
-  const presetButtonClass = (active: boolean) =>
-    cn(
-      'h-8 rounded-full px-3 text-caption',
-      active && 'border-primary bg-primary/10 text-primary',
-    );
+  const presets = [
+    { label: 'Hoy', active: isTodayPreset, onClick: handlePresetToday },
+    { label: 'Últimos 7 días', active: isSevenDayPreset, onClick: handlePresetSevenDays },
+    { label: 'Solo denegados', active: resultFilter === 'denied', onClick: handlePresetDenied },
+    { label: 'Solo fallidos', active: resultFilter === 'failed', onClick: handlePresetFailed },
+    { label: 'Solo incidentes', active: incidentsOnly, onClick: handlePresetIncidents },
+  ];
 
-  return (
+  const renderPresets = (buttonClass: (active: boolean) => string) => (
+    <div
+      className="flex flex-wrap gap-2"
+      role="group"
+      aria-label="Presets de investigación"
+    >
+      {presets.map((preset) => (
+        <Button
+          key={preset.label}
+          type="button"
+          variant="outline"
+          className={buttonClass(preset.active)}
+          aria-pressed={preset.active}
+          onClick={preset.onClick}
+        >
+          {preset.label}
+        </Button>
+      ))}
+    </div>
+  );
+
+  const loadedLabel = `${events.length} ${events.length === 1 ? 'evento cargado' : 'eventos cargados'}`;
+
+  const sheetContent = (
+    <>
+      <AuditCompanyFilter
+        layout="sheet"
+        value={targetCompanyId}
+        onChange={handleTargetCompanyChange}
+        options={companyOptions}
+      />
+      <AuditActorFilter
+        layout="sheet"
+        value={actorUserId}
+        onChange={setActorUserId}
+        options={filteredActorUserOptions}
+      />
+      <AuditResourceTypeFilter
+        layout="sheet"
+        value={resourceType}
+        onChange={setResourceType}
+      />
+      <AuditActionFilter
+        layout="sheet"
+        value={actionFilter}
+        onChange={setActionFilter}
+      />
+      <AuditResultFilter
+        layout="sheet"
+        value={resultFilter}
+        onChange={setResultFilter}
+      />
+      <AuditDateRangeFilter
+        layout="sheet"
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
+      />
+    </>
+  );
+
+  const phone = (
     <div className="space-y-4">
-      <div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Buscar por recurso, acción o resultado"
-            className="h-12 rounded-xl pl-9 sm:h-11"
-            aria-label="Buscar eventos de auditoría"
-          />
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="relative h-12 w-12 shrink-0 rounded-xl bg-background shadow-none lg:hidden"
-                aria-label={
-                  sheetFilterCount > 0
-                    ? `Abrir filtros (${sheetFilterCount} activos)`
-                    : 'Abrir filtros'
-                }
-              >
-                <ListFilter className="h-4 w-4" aria-hidden />
-                {sheetFilterCount > 0 ? (
-                  <Badge
-                    variant="secondary"
-                    className="absolute -right-1 -top-1 flex h-5 min-w-5 justify-center px-1 text-caption leading-none"
-                  >
-                    {sheetFilterCount > 9 ? '9+' : sheetFilterCount}
-                  </Badge>
-                ) : null}
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="bottom"
-              showCloseButton={false}
-              className="flex max-h-[min(90vh,720px)] flex-col rounded-t-2xl border-t p-0"
-            >
-              <div
-                className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-muted"
-                aria-hidden
-              />
-              <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-left">
-                <SheetTitle
-                  data-initial-focus
-                  tabIndex={-1}
-                  className="outline-none focus:outline-none"
-                >
-                  Filtros
-                </SheetTitle>
-                <SheetDescription>
-                  Empresa, actor, recurso, acción, estatus y fechas.
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-2">
-                <AuditCompanyFilter
-                  layout="sheet"
-                  value={targetCompanyId}
-                  onChange={handleTargetCompanyChange}
-                  options={companyOptions}
-                />
-                <AuditActorFilter
-                  layout="sheet"
-                  value={actorUserId}
-                  onChange={setActorUserId}
-                  options={filteredActorUserOptions}
-                />
-                <AuditResourceTypeFilter
-                  layout="sheet"
-                  value={resourceType}
-                  onChange={setResourceType}
-                />
-                <AuditActionFilter
-                  layout="sheet"
-                  value={actionFilter}
-                  onChange={setActionFilter}
-                />
-                <AuditResultFilter
-                  layout="sheet"
-                  value={resultFilter}
-                  onChange={setResultFilter}
-                />
-                <AuditDateRangeFilter
-                  layout="sheet"
-                  fromDate={fromDate}
-                  toDate={toDate}
-                  onFromDateChange={setFromDate}
-                  onToDateChange={setToDate}
-                />
-                {sheetFilterCount > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="min-h-11 w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={handleClearFilters}
-                    aria-label="Limpiar todos los filtros"
-                  >
-                    <X className="mr-2 h-4 w-4 shrink-0" aria-hidden />
-                    Limpiar todos los filtros
-                  </Button>
-                ) : null}
-              </div>
-
-              <SheetFooter className="border-t bg-muted/30 px-4 py-3">
-                <SheetClose asChild>
-                  <Button type="button" size="lg" className="min-h-11 w-full">
-                    Listo
-                  </Button>
-                </SheetClose>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
-        </div>
-      </div>
+      {/* The shared sheet: its Limpiar is the neutral one (f6ffafda). */}
+      <ListFilterBarShell
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder="Buscar por recurso, acción o resultado"
+        searchAriaLabel="Buscar eventos de auditoría"
+        searchClassName="h-12 rounded-xl pl-9 sm:h-11"
+        searchContainerClassName="relative min-w-0 flex-1"
+        sheetFilterCount={sheetFilterCount}
+        sheetDescription="Empresa, actor, recurso, acción, estatus y fechas."
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        clearFiltersAriaLabel="Limpiar todos los filtros"
+        filterChips={[]}
+        sheetContent={sheetContent}
+        desktopContent={null}
+        showDesktopClear={false}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div
-          className="flex flex-wrap gap-2"
-          role="group"
-          aria-label="Presets de investigación"
-        >
-          <Button
-            type="button"
-            variant="outline"
-            className={presetButtonClass(isTodayPreset)}
-            aria-pressed={isTodayPreset}
-            onClick={handlePresetToday}
-          >
-            Hoy
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className={presetButtonClass(isSevenDayPreset)}
-            aria-pressed={isSevenDayPreset}
-            onClick={handlePresetSevenDays}
-          >
-            Últimos 7 días
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className={presetButtonClass(resultFilter === 'denied')}
-            aria-pressed={resultFilter === 'denied'}
-            onClick={handlePresetDenied}
-          >
-            Solo denegados
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className={presetButtonClass(resultFilter === 'failed')}
-            aria-pressed={resultFilter === 'failed'}
-            onClick={handlePresetFailed}
-          >
-            Solo fallidos
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className={presetButtonClass(incidentsOnly)}
-            aria-pressed={incidentsOnly}
-            onClick={handlePresetIncidents}
-          >
-            Solo incidentes
-          </Button>
-        </div>
+        {renderPresets((active) =>
+          cn(
+            'h-8 rounded-full px-3 text-caption',
+            active && 'border-primary bg-primary/10 text-primary',
+          ),
+        )}
         {hasActiveFilters ? (
           <Button
             type="button"
@@ -765,43 +731,6 @@ export const AuditList = () => {
             Limpiar filtros
           </Button>
         ) : null}
-      </div>
-
-      <div className="hidden gap-2 lg:grid lg:grid-cols-3">
-        <AuditCompanyFilter
-          layout="desktop"
-          value={targetCompanyId}
-          onChange={handleTargetCompanyChange}
-          options={companyOptions}
-        />
-        <AuditActorFilter
-          layout="desktop"
-          value={actorUserId}
-          onChange={setActorUserId}
-          options={filteredActorUserOptions}
-        />
-        <AuditResourceTypeFilter
-          layout="desktop"
-          value={resourceType}
-          onChange={setResourceType}
-        />
-        <AuditActionFilter
-          layout="desktop"
-          value={actionFilter}
-          onChange={setActionFilter}
-        />
-        <AuditResultFilter
-          layout="desktop"
-          value={resultFilter}
-          onChange={setResultFilter}
-        />
-        <AuditDateRangeFilter
-          layout="desktop"
-          fromDate={fromDate}
-          toDate={toDate}
-          onFromDateChange={setFromDate}
-          onToDateChange={setToDate}
-        />
       </div>
 
       {listState.kind === 'loading' ? (
@@ -841,7 +770,7 @@ export const AuditList = () => {
         />
       ) : (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3">
             {events.map((event) => {
               const summary = formatAuditEventSummary(event);
               return (
@@ -926,67 +855,12 @@ export const AuditList = () => {
             })}
           </div>
 
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                    <TableHead>Detalle</TableHead>
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <React.Fragment key={row.id}>
-                    <TableRow>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleExpanded(row.original.id)}
-                        >
-                          {expandedId === row.original.id ? 'Ocultar' : 'Ver'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                    {expandedId === row.original.id ? (
-                      <TableRow>
-                        <TableCell colSpan={columns.length + 1}>
-                          <AuditEventDetails event={row.original} />
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
           {nextCursor ? (
             <div className="flex justify-center pt-4">
               <Button
                 type="button"
                 variant="outline"
-                disabled={loading}
+                disabled={loading || loadingMore}
                 onClick={() => fetchEvents(nextCursor, true)}
               >
                 Cargar más
@@ -997,4 +871,155 @@ export const AuditList = () => {
       )}
     </div>
   );
+
+  /** The event row opens its detail underneath, by click, Enter or Space (ZIG-I33 §4). */
+  const renderDesktopRow = (row: Row<AuditEventRow>) => {
+    const expanded = expandedId === row.original.id;
+    const cells = row.getVisibleCells();
+    return (
+      <React.Fragment key={row.id}>
+        <ListClickableRow
+          data-testid="audit-row"
+          selected={expanded}
+          onOpen={() => handleToggleExpanded(row.original.id)}
+        >
+          {cells.map((cell) => (
+            <TableCell
+              key={cell.id}
+              className={listColumnClassName(cell.column.columnDef.meta)}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </TableCell>
+          ))}
+        </ListClickableRow>
+        {expanded ? (
+          <TableRow
+            className="bg-muted/30 hover:bg-muted/30"
+            data-testid="audit-row-detail"
+          >
+            <TableCell colSpan={cells.length} className="h-auto! py-4!">
+              <AuditEventDetails event={row.original} />
+            </TableCell>
+          </TableRow>
+        ) : null}
+      </React.Fragment>
+    );
+  };
+
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Auditoría"
+        description={
+          listState.kind === 'ready'
+            ? `${DEFAULT_DESCRIPTION.replace(/\.$/, '')} · ${loadedLabel}.`
+            : DEFAULT_DESCRIPTION
+        }
+      />
+      <div className="space-y-4">
+        <ListToolbar
+          search={{
+            value: searchValue,
+            onChange: setSearchValue,
+            placeholder: 'Buscar por recurso, acción o resultado',
+            ariaLabel: 'Buscar eventos de auditoría',
+          }}
+          filters={
+            <>
+              <ListFilterSelect
+                value={resourceType}
+                allValue="all"
+                onChange={setResourceType}
+                options={AUDIT_RESOURCE_FILTER_OPTIONS}
+                ariaLabel="Filtrar por tipo de recurso"
+              />
+              <ListFilterSelect
+                value={actionFilter}
+                allValue="all"
+                onChange={setActionFilter}
+                options={AUDIT_ACTION_FILTER_OPTIONS}
+                ariaLabel="Filtrar por acción"
+              />
+              <ListFilterSelect
+                value={resultFilter}
+                allValue="all"
+                onChange={setResultFilter}
+                options={RESULT_FILTER_OPTIONS}
+                ariaLabel="Filtrar por resultado"
+              />
+            </>
+          }
+          hasActiveFilters={hasActiveFilters}
+          onClear={handleClearFilters}
+          clearAriaLabel="Limpiar todos los filtros"
+          quickFilters={
+            <div className="flex flex-wrap items-center gap-3">
+              {renderPresets((active) =>
+                cn('h-11 rounded-full px-4', active && FILTER_SELECTED_CLASS),
+              )}
+              <TicketDateRangeFilter
+                layout="desktop"
+                value={dateRange}
+                onChange={handleDateRangeChange}
+                ariaLabel="Filtrar por rango de fechas"
+              />
+              <AuditCompanyFilter
+                layout="desktop"
+                value={targetCompanyId}
+                onChange={handleTargetCompanyChange}
+                options={companyOptions}
+              />
+              <AuditActorFilter
+                layout="desktop"
+                value={actorUserId}
+                onChange={setActorUserId}
+                options={filteredActorUserOptions}
+              />
+            </div>
+          }
+        />
+
+        {listState.kind === 'loading' ? (
+          <ListLoading label="Cargando eventos de auditoría" columns={6} />
+        ) : listState.kind === 'error' ? (
+          <ListError description={listState.message} onRetry={() => fetchEvents()} />
+        ) : listState.kind === 'empty' ? (
+          <ListEmpty
+            icon={<ClipboardList className="h-4 w-4 text-muted-foreground" aria-hidden />}
+            title="Sin eventos"
+            description="No hay eventos de auditoría registrados todavía."
+          />
+        ) : listState.kind === 'filtered-empty' ? (
+          <ListNoResults
+            description="No hay eventos de auditoría para los filtros seleccionados."
+            onClear={handleClearFilters}
+          />
+        ) : (
+          <ListTableCard
+            footer={
+              <ListFooter
+                total={events.length}
+                noun="eventos"
+                label={loadedLabel}
+                loadMore={{
+                  hasMore: nextCursor != null,
+                  loading: loadingMore,
+                  onLoadMore: () => fetchEvents(nextCursor, true),
+                }}
+              />
+            }
+          >
+            <ListTable
+              table={table}
+              ariaLabel="Eventos de auditoría"
+              busy={refreshing}
+              renderRow={renderDesktopRow}
+            />
+          </ListTableCard>
+        )}
+      </div>
+    </>
+  );
+
+  return <DesktopSwitch phone={phone} desktop={desktop} />;
 };

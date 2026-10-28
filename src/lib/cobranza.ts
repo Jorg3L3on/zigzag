@@ -66,7 +66,30 @@ export type CobranzaRow = {
   services_count: number;
 };
 
-export type CobranzaSort = 'days' | 'balance' | 'recent';
+/**
+ * The queue orders. The phone offers the first three (COBRANZA_SORT_OPTIONS); the
+ * desktop table sorts by any of its column headers, in either direction (ZIG-I33-3).
+ */
+export type CobranzaSort = 'days' | 'balance' | 'recent' | 'folio' | 'client' | 'total' | 'paid';
+
+export type CobranzaSortDirection = 'asc' | 'desc';
+
+/**
+ * The direction each order takes first: the most days, the largest amount and the
+ * newest work first (`desc`); folio and client from A to Z (`asc`).
+ */
+export const COBRANZA_SORT_FIRST_DIRECTION: Record<CobranzaSort, CobranzaSortDirection> = {
+  days: 'desc',
+  balance: 'desc',
+  recent: 'desc',
+  folio: 'asc',
+  client: 'asc',
+  total: 'desc',
+  paid: 'desc',
+};
+
+export const isCobranzaSort = (value: string): value is CobranzaSort =>
+  Object.prototype.hasOwnProperty.call(COBRANZA_SORT_FIRST_DIRECTION, value);
 
 export const COBRANZA_SORT_OPTIONS: Array<{ value: CobranzaSort; label: string }> = [
   { value: 'days', label: 'Días sin pagar' },
@@ -200,28 +223,38 @@ export const compareCobranzaUrgency = (a: CobranzaRow, b: CobranzaRow): number =
   return Number(a.id) - Number(b.id);
 };
 
+const compareText = (a: string | null, b: string | null): number =>
+  (a ?? '').trim().localeCompare((b ?? '').trim(), 'es', { sensitivity: 'base', numeric: true });
+
+/** A ticket with no client name sorts after every name, whichever the direction. */
+const compareMissingClient = (a: CobranzaRow, b: CobranzaRow): number =>
+  Number(!a.client_name?.trim()) - Number(!b.client_name?.trim());
+
+/** Each order in its first direction (COBRANZA_SORT_FIRST_DIRECTION); ties by urgency. */
+const COBRANZA_ROW_COMPARE: Record<CobranzaSort, (a: CobranzaRow, b: CobranzaRow) => number> = {
+  days: compareCobranzaUrgency,
+  balance: (a, b) => b.balanceDue - a.balanceDue || compareCobranzaUrgency(a, b),
+  recent: (a, b) =>
+    getCobranzaReferenceDate(b.ticket_date, b.created_at).getTime() -
+      getCobranzaReferenceDate(a.ticket_date, a.created_at).getTime() ||
+    Number(b.id) - Number(a.id),
+  folio: (a, b) => compareText(a.folio, b.folio) || Number(a.id) - Number(b.id),
+  client: (a, b) => compareText(a.client_name, b.client_name) || compareCobranzaUrgency(a, b),
+  total: (a, b) => (b.total ?? 0) - (a.total ?? 0) || compareCobranzaUrgency(a, b),
+  paid: (a, b) => (b.paid ?? 0) - (a.paid ?? 0) || compareCobranzaUrgency(a, b),
+};
+
+/** `direction` defaults to the order's first one; the other one reverses it. */
 export const sortCobranzaRows = (
   rows: CobranzaRow[],
   sort: CobranzaSort,
+  direction: CobranzaSortDirection = COBRANZA_SORT_FIRST_DIRECTION[sort],
 ): CobranzaRow[] => {
-  const next = [...rows];
-  if (sort === 'balance') {
-    next.sort(
-      (a, b) =>
-        b.balanceDue - a.balanceDue ||
-        compareCobranzaUrgency(a, b),
-    );
-  } else if (sort === 'recent') {
-    next.sort(
-      (a, b) =>
-        getCobranzaReferenceDate(b.ticket_date, b.created_at).getTime() -
-          getCobranzaReferenceDate(a.ticket_date, a.created_at).getTime() ||
-        Number(b.id) - Number(a.id),
-    );
-  } else {
-    next.sort(compareCobranzaUrgency);
-  }
-  return next;
+  const compare = COBRANZA_ROW_COMPARE[sort] ?? compareCobranzaUrgency;
+  const sign = direction === COBRANZA_SORT_FIRST_DIRECTION[sort] ? 1 : -1;
+  return [...rows].sort(
+    (a, b) => (sort === 'client' && compareMissingClient(a, b)) || sign * compare(a, b),
+  );
 };
 
 export const buildCobranzaRows = (
@@ -421,6 +454,8 @@ export type CobranzaClientSort = 'balance' | 'days';
 export const groupCobranzaRowsByClient = (
   rows: CobranzaRow[],
   sort: CobranzaClientSort = 'balance',
+  /** `asc` reverses the order: the smallest saldo, or the newest work, first. */
+  direction: CobranzaSortDirection = 'desc',
 ): CobranzaClientGroup[] => {
   const groups = new Map<string, CobranzaClientGroup>();
   for (const row of [...rows].sort(compareCobranzaUrgency)) {
@@ -456,10 +491,13 @@ export const groupCobranzaRowsByClient = (
       group.last_payment_at = row.last_payment_at;
     }
   }
+  const sign = direction === 'asc' ? -1 : 1;
   return [...groups.values()].sort((a, b) =>
     sort === 'days'
-      ? b.oldestDays - a.oldestDays || b.balanceDue - a.balanceDue || a.key.localeCompare(b.key)
-      : b.balanceDue - a.balanceDue || b.oldestDays - a.oldestDays || a.key.localeCompare(b.key),
+      ? sign * (b.oldestDays - a.oldestDays || b.balanceDue - a.balanceDue) ||
+        a.key.localeCompare(b.key)
+      : sign * (b.balanceDue - a.balanceDue || b.oldestDays - a.oldestDays) ||
+        a.key.localeCompare(b.key),
   );
 };
 

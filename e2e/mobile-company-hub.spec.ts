@@ -147,8 +147,10 @@ test.describe('Mi empresa hub', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/company/equipo');
 
+      // Someone else's row: on yours only Editar is enabled (ZIG-I33-6, ZIG-I33-9).
       const firstMenu = page
         .getByTestId('team-member-row')
+        .filter({ hasNotText: '(tú)' })
         .getByRole('button', { name: /^Acciones de / })
         .first();
       await expect(page.getByTestId('team-member-row').first()).toBeVisible();
@@ -166,6 +168,7 @@ test.describe('Mi empresa hub', () => {
       const selfRow = page.getByTestId('team-member-row').filter({ hasText: '(tú)' });
       if ((await selfRow.count()) > 0) {
         await selfRow.getByRole('button', { name: /^Acciones de / }).click();
+        await expect(page.getByRole('menuitem', { name: 'Editar' })).toBeVisible();
         await expect(
           page.getByRole('menuitem', { name: 'Desactivar (eres tú)' }),
         ).toHaveAttribute('data-disabled', '');

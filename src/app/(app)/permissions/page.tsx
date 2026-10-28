@@ -23,7 +23,10 @@ export default async function PermissionsPage() {
       <TripledPageHeader items={[{ label: 'Catálogo de permisos' }]} />
 
       <TripledDashboardShell>
+        {/* From lg the list draws its own title with the count, without the card (ZIG-I33). */}
         <TripledResourceCard
+          desktop="title"
+          headerClassName="lg:hidden"
           title="Catálogo de permisos"
           description="Claves de permiso que revisa el código. Solo para operadores del sistema."
           icon={<KeyRound className="size-5" aria-hidden />}

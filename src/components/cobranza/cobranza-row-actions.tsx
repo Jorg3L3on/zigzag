@@ -1,24 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import {
-  Banknote,
-  Eye,
-  FileDown,
-  Loader2,
-  MessageCircle,
-  MoreVertical,
-  UserRound,
-} from 'lucide-react';
+import { Banknote, Eye, FileDown, MessageCircle, UserRound } from 'lucide-react';
+import { ListRowMenu, type ListRowMenuItem } from '@/components/list-page';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { usePermissions } from '@/hooks/use-permissions';
 import { companyDay } from '@/lib/company-day';
@@ -30,10 +17,17 @@ import {
 } from '@/lib/tickets-rbac';
 import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
 
-/** Canvas CobA: a 30 px Cobrar outlined in the primary color, and a 30 px icon button. */
+/**
+ * The one always-visible button of a Cobranza row (ZIG-I33 §5): an outlined 32 px
+ * Cobrar in the primary color, as in the canvas CobA.
+ */
 export const COLLECT_BUTTON_CLASS =
-  'h-[30px] rounded-lg border-primary px-2.5 text-[13px] text-primary hover:bg-primary/10 hover:text-primary';
-export const ICON_BUTTON_CLASS = 'h-[30px] w-[30px] rounded-lg';
+  'h-8 rounded-lg border-primary px-2.5 text-primary hover:bg-primary/10 hover:text-primary md:text-[13px]';
+
+/** Opens a wa.me link from a menu item, which cannot be an anchor in ListRowMenu. */
+export const openWhatsApp = (href: string) => {
+  window.open(href, '_blank', 'noopener,noreferrer');
+};
 
 type CobranzaRowActionsProps = {
   row: CobranzaRow;
@@ -51,8 +45,10 @@ const receiptFileName = (row: CobranzaRow): string => {
 };
 
 /**
- * Cobrar and Recordar por WhatsApp show with the row (hover or focus); ⋮ stays
- * visible. No Editar or Eliminar here: the queue only collects (ZIG-I31-2).
+ * Cobrar always visible, then the ⋯ with Ver ticket, Recordar por WhatsApp and
+ * Cobrar (ZIG-I33-3); Ver cliente and Descargar recibo stay in it as before.
+ * Nothing shows on hover (85563215), and no Editar or Eliminar: the queue only
+ * collects (ZIG-I31-2).
  */
 export const CobranzaRowActions = ({
   row,
@@ -61,6 +57,7 @@ export const CobranzaRowActions = ({
   companyName,
   onCollect,
 }: CobranzaRowActionsProps) => {
+  const router = useRouter();
   const { can } = usePermissions();
   const payment = useCompanyPaymentInfo();
   const [isDownloading, setIsDownloading] = React.useState(false);
@@ -78,8 +75,8 @@ export const CobranzaRowActions = ({
 
   const handleDownload = async () => {
     if (isDownloading) return;
+    setIsDownloading(true);
     try {
-      setIsDownloading(true);
       const result = await fetchAndDeliverTicketInvoice({
         ticketId: BigInt(row.id),
         companyId,
@@ -98,99 +95,59 @@ export const CobranzaRowActions = ({
     }
   };
 
+  const items: ListRowMenuItem[] = [
+    {
+      label: 'Ver ticket',
+      icon: <Eye className="h-4 w-4" aria-hidden />,
+      onSelect: () => router.push(`/tickets/${row.id}`),
+    },
+  ];
+  if (share) {
+    items.push({
+      label: 'Recordar por WhatsApp',
+      icon: <MessageCircle className="h-4 w-4" aria-hidden />,
+      onSelect: () => openWhatsApp(share.href),
+    });
+  }
+  if (showCollect) {
+    items.push({
+      label: 'Cobrar',
+      icon: <Banknote className="h-4 w-4" aria-hidden />,
+      onSelect: () => onCollect(row),
+    });
+  }
+  if (row.client_id != null) {
+    const clientId = row.client_id;
+    items.push({
+      label: 'Ver cliente',
+      icon: <UserRound className="h-4 w-4" aria-hidden />,
+      onSelect: () => router.push(`/clients/${clientId}`),
+    });
+  }
+  if (canDownload) {
+    items.push({
+      label: 'Descargar recibo',
+      icon: <FileDown className="h-4 w-4" aria-hidden />,
+      onSelect: () => void handleDownload(),
+    });
+  }
+
   return (
     <div className="flex items-center justify-end gap-1">
-      {/* In the Acciones column, shown with the row (hover or keyboard focus), as in CobA. */}
-      <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-        {showCollect ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={COLLECT_BUTTON_CLASS}
-            onClick={() => onCollect(row)}
-            aria-label={`Cobrar el ticket ${row.folio}`}
-          >
-            Cobrar
-          </Button>
-        ) : null}
-        {share ? (
-          <Button asChild variant="outline" size="icon" className={ICON_BUTTON_CLASS}>
-            <a
-              href={share.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Recordar por WhatsApp el ticket ${row.folio}`}
-              title="Recordar por WhatsApp"
-            >
-              <MessageCircle className="h-3.5 w-3.5" aria-hidden />
-            </a>
-          </Button>
-        ) : null}
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={`Más acciones del ticket ${row.folio}`}
-          >
-            <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {showCollect ? (
-            <DropdownMenuItem onSelect={() => onCollect(row)}>
-              <Banknote className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-              Cobrar
-            </DropdownMenuItem>
-          ) : null}
-          {share ? (
-            <DropdownMenuItem asChild>
-              <a href={share.href} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                Recordar por WhatsApp
-              </a>
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem disabled>
-              <MessageCircle className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-              Sin teléfono para WhatsApp
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem asChild>
-            <Link href={`/tickets/${row.id}`}>
-              <Eye className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-              Ver ticket
-            </Link>
-          </DropdownMenuItem>
-          {canDownload ? (
-            <DropdownMenuItem
-              disabled={isDownloading}
-              onSelect={(event) => {
-                event.preventDefault();
-                void handleDownload();
-              }}
-            >
-              {isDownloading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden data-icon="inline-start" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-              )}
-              {isDownloading ? 'Generando…' : 'Descargar recibo'}
-            </DropdownMenuItem>
-          ) : null}
-          {row.client_id != null ? (
-            <DropdownMenuItem asChild>
-              <Link href={`/clients/${row.client_id}`}>
-                <UserRound className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                Ver cliente
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {showCollect ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={COLLECT_BUTTON_CLASS}
+          onClick={() => onCollect(row)}
+          aria-label={`Cobrar el ticket ${row.folio}`}
+          data-testid="cobranza-collect"
+        >
+          Cobrar
+        </Button>
+      ) : null}
+      <ListRowMenu label={`Más acciones del ticket ${row.folio}`} items={items} />
     </div>
   );
 };

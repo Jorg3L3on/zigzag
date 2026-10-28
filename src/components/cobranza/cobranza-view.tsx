@@ -4,39 +4,21 @@ import * as React from 'react';
 import { Banknote } from 'lucide-react';
 import { CobranzaDesktop } from '@/components/cobranza/cobranza-desktop';
 import { CobranzaList } from '@/components/cobranza/cobranza-list';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { TripledEmptyState } from '@/components/tripled';
 import { useCompany } from '@/contexts/company-context';
+import { useDesktopViewport } from '@/hooks/use-desktop';
 import { usePermissions } from '@/hooks/use-permissions';
-import { DESKTOP_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { PERMISSIONS } from '@/lib/permissions';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 
-const DESKTOP_QUERY = `(min-width: ${DESKTOP_BREAKPOINT_PX}px)`;
-
-/** Null until the client knows the width, then whether the desktop layout owns it. */
-const useDesktopViewport = (): boolean | null => {
-  const [isDesktop, setIsDesktop] = React.useState<boolean | null>(null);
-  React.useEffect(() => {
-    if (typeof window.matchMedia !== 'function') {
-      setIsDesktop(false);
-      return;
-    }
-    const media = window.matchMedia(DESKTOP_QUERY);
-    const update = () => setIsDesktop(media.matches);
-    update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
-  return isDesktop;
-};
-
 /**
- * Below lg the phone cards (CobranzaList); from lg, as in the canvas, the table of
- * ZIG-I31. On the first frame both are in the DOM and CSS picks one, so each layout
- * paints its own loading state; once the width is known only that layout stays
- * mounted (no duplicate controls or test ids) and only it loads the queue.
+ * Below lg the phone cards (CobranzaList); from lg the list-standard table (ZIG-I31,
+ * ZIG-I33-3). DesktopSwitch keeps both trees on the first frame so each paints its
+ * own loading state, then mounts only the one that owns the width; until the width
+ * is known neither loads the queue.
  */
 export const CobranzaView = () => {
   const isDesktop = useDesktopViewport();
@@ -66,13 +48,9 @@ export const CobranzaView = () => {
   }
 
   return (
-    <>
-      {isDesktop !== true ? (
-        <div className="lg:hidden">
-          <CobranzaList enabled={isDesktop === false} />
-        </div>
-      ) : null}
-      {isDesktop !== false ? <div className="hidden lg:block">{desktop}</div> : null}
-    </>
+    <DesktopSwitch
+      phone={<CobranzaList enabled={isDesktop === false} />}
+      desktop={desktop}
+    />
   );
 };

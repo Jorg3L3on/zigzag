@@ -1,6 +1,5 @@
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { companyDay } from '@/lib/company-day';
 import type { ScheduleDisplayBucket } from '@/lib/schedule-buckets';
 
 /**
@@ -10,21 +9,6 @@ import type { ScheduleDisplayBucket } from '@/lib/schedule-buckets';
 
 const plural = (count: number, one: string, many: string): string =>
   `${count} ${count === 1 ? one : many}`;
-
-/** `12 jun` this year, `12 jun 2025` otherwise; empty for a missing date. */
-export const formatScheduleShortDate = (
-  value: Date | string | null | undefined,
-  now: Date = new Date(),
-): string => {
-  if (!value) return '';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const day = companyDay(date).date;
-  const sameYear = day.getUTCFullYear() === companyDay(now).date.getUTCFullYear();
-  // companyDay().date is noon UTC: format its UTC fields so the zone of the browser does not move the day.
-  const wall = new Date(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate());
-  return format(wall, sameYear ? 'd MMM' : 'd MMM yyyy', { locale: es });
-};
 
 /** The span of `days` (absolute) in days, then months, then years. */
 const spanLabel = (absDays: number): string => {
@@ -62,17 +46,6 @@ export const SCHEDULE_BUCKET_LABELS: Record<ScheduleDisplayBucket, string> = {
   proximos: 'Próximo',
   programados: 'Programado',
   pausados: 'Pausado',
-};
-
-/** Atrasado red, Próximo amber, Programado green (on track), Pausado grey. */
-export const SCHEDULE_BUCKET_PILL_CLASS: Record<ScheduleDisplayBucket, string> = {
-  atrasados:
-    'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200',
-  proximos:
-    'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100',
-  programados:
-    'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100',
-  pausados: 'border-border bg-muted text-muted-foreground',
 };
 
 /** «cada 6 meses», «cada mes», «cada 15 días». */

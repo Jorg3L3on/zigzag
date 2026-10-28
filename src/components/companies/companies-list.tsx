@@ -2,12 +2,13 @@
 
 import React from 'react';
 import {
-  flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/db/schema';
 import { getCompanies } from '@/actions/companies';
@@ -18,15 +19,21 @@ import {
   TripledMobileRecordCard,
 } from '@/components/tripled';
 import { resolveResourceListState } from '@/lib/resource-list-state';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+} from '@/components/list-page';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, Trash2, Factory, Globe2, Plus } from 'lucide-react';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
@@ -56,6 +63,8 @@ type CompaniesListProps = {
    */
   rowClickAction?: CompaniesListRowClickAction;
 };
+
+const COMPANIES_DESCRIPTION = 'Administra las empresas disponibles en el sistema';
 
 const statusLabel = (status: Company['status']) =>
   companyLifecycleLabel(status);
@@ -109,7 +118,7 @@ export function CompaniesList({
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
       () => setDebouncedSearch(searchValue.trim()),
-      250,
+      300,
     );
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
@@ -251,50 +260,48 @@ export function CompaniesList({
     ],
   );
 
+  // Desktop rows (ZIG-I33 §5): Seleccionar stays visible for operators, edit and
+  // delete live in the ⋯ with Eliminar last. Nothing appears on hover.
   const columns = React.useMemo(
     () =>
       createCompaniesColumns({
         renderContextBadge,
+        actionsClassName: isSystemUser ? 'w-44' : 'w-12',
         renderActions: (companyRow) =>
           canWriteCompanies || isSystemUser ? (
-            <>
-            {isSystemUser ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mr-2"
-                aria-label={`Seleccionar contexto ${companyRow.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleSelectContext(companyRow);
-                }}
-              >
-                Seleccionar
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Editar ${companyRow.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/companies/${companyRow.id}/edit`);
-              }}
-            >
-              <Pencil className="h-4 w-4"  data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Eliminar ${companyRow.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                openDeleteDialog(companyRow);
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-            </Button>
-            </>
+            <div className="flex items-center justify-end gap-1">
+              {isSystemUser ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  aria-label={`Seleccionar contexto ${companyRow.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleSelectContext(companyRow);
+                  }}
+                >
+                  Seleccionar
+                </Button>
+              ) : null}
+              <ListRowMenu
+                label={`Acciones de ${companyRow.name}`}
+                items={[
+                  {
+                    label: 'Editar',
+                    icon: <Pencil className="h-4 w-4" aria-hidden />,
+                    onSelect: () => router.push(`/companies/${companyRow.id}/edit`),
+                  },
+                  {
+                    label: 'Eliminar',
+                    icon: <Trash2 className="h-4 w-4" aria-hidden />,
+                    onSelect: () => openDeleteDialog(companyRow),
+                    destructive: true,
+                  },
+                ]}
+              />
+            </div>
           ) : null,
       }),
     [
@@ -312,15 +319,19 @@ export function CompaniesList({
     columns,
     state: { sorting },
     onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: LIST_PAGE_SIZE } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
+  // Phones list every company, as before; only the desktop table pages at 25.
+  const phoneRows = table.getPrePaginationRowModel().rows;
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value);
   };
 
-  const rowCount = table.getRowModel().rows.length;
+  const rowCount = filteredCompanies.length;
   const sheetFilterCount = statusFilter !== 'all' ? 1 : 0;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'all';
   const listState = resolveResourceListState({
@@ -334,11 +345,21 @@ export function CompaniesList({
     COMPANIES_STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)?.label ??
     'Todas';
 
+  // A refetch keeps the desktop table, dimmed (ZIG-I33 §8).
+  const desktopListState = resolveResourceListState({
+    isLoading: loading && companies.length === 0,
+    loadError,
+    totalCount: companies.length,
+    visibleCount: rowCount,
+    hasActiveFilters,
+  });
+  const paged = table.getPageCount() > 1;
+
+  // Limpiar clears filters and search, never the sort (ZIG-I33 §2).
   const handleClearFilters = () => {
     setSearchValue('');
     setDebouncedSearch('');
     setStatusFilter('all');
-    setSorting(DEFAULT_COMPANY_SORTING);
   };
 
   const filterChips = [
@@ -365,280 +386,273 @@ export function CompaniesList({
       : []),
   ];
 
-  return (
-    <div className="space-y-4">
-        <CompaniesFilterBar
-          searchValue={searchValue}
-          onSearchChange={handleSearchChange}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          statusOptions={COMPANIES_STATUS_FILTER_OPTIONS}
-          sorting={sorting}
-          onSortingChange={setSorting}
-          sheetFilterCount={sheetFilterCount}
-          hasActiveFilters={hasActiveFilters}
-          onClearFilters={handleClearFilters}
-          filterChips={filterChips}
-        />
+  const filterBar = (
+    <CompaniesFilterBar
+      desktopPills
+      searchValue={searchValue}
+      onSearchChange={handleSearchChange}
+      statusFilter={statusFilter}
+      onStatusFilterChange={setStatusFilter}
+      statusOptions={COMPANIES_STATUS_FILTER_OPTIONS}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      sheetFilterCount={sheetFilterCount}
+      hasActiveFilters={hasActiveFilters}
+      onClearFilters={handleClearFilters}
+      filterChips={filterChips}
+    />
+  );
 
-        {listState.kind === 'loading' ? (
-          <TripledListLoadingState
-            label="Cargando lista de empresas"
-            desktopColumns={6}
-            desktopRows={5}
-          />
-        ) : listState.kind === 'error' ? (
-          <TripledEmptyState
-            icon={<Factory className="h-4 w-4" />}
-            title="Error de carga"
-            description={listState.message}
-            role="alert"
-            action={
+  const emptyDescription = canWriteCompanies
+    ? 'Crea la primera empresa para separar usuarios, permisos y operación por contexto.'
+    : 'No hay empresas registradas todavía.';
+
+  const phone = (
+    <div className="space-y-4">
+      {filterBar}
+
+      {listState.kind === 'loading' ? (
+        <TripledListLoadingState
+          label="Cargando lista de empresas"
+          desktopColumns={6}
+          desktopRows={5}
+        />
+      ) : listState.kind === 'error' ? (
+        <TripledEmptyState
+          icon={<Factory className="h-4 w-4" />}
+          title="Error de carga"
+          description={listState.message}
+          role="alert"
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void fetchCompanies();
+              }}
+            >
+              Reintentar
+            </Button>
+          }
+        />
+      ) : listState.kind === 'empty' ? (
+        <TripledEmptyState
+          icon={<Factory className="h-4 w-4" />}
+          title="Sin empresas"
+          description={emptyDescription}
+          action={
+            canWriteCompanies ? (
               <Button
                 type="button"
-                variant="outline"
+                onClick={() => router.push('/companies/new')}
+              >
+                <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                Nueva empresa
+              </Button>
+            ) : null
+          }
+        />
+      ) : listState.kind === 'filtered-empty' ? (
+        <TripledEmptyState
+          icon={<Factory className="h-4 w-4" />}
+          title="Sin resultados"
+          description="No encontramos empresas con esa búsqueda o esos filtros."
+          action={
+            <Button type="button" variant="outline" onClick={handleClearFilters}>
+              Limpiar filtros
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {phoneRows.map((row) => {
+            const companyRow = row.original;
+            return (
+              <TripledMobileRecordCard
+                key={row.id}
+                interactive={rowIsInteractive}
+                className={
+                  rowIsInteractive
+                    ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                    : undefined
+                }
+                tabIndex={rowIsInteractive ? 0 : -1}
+                role="button"
+                aria-label={
+                  selectOnRowClick
+                    ? `Seleccionar contexto ${companyRow.name}`
+                    : canWriteCompanies
+                      ? `Editar empresa ${companyRow.name}`
+                      : `Empresa ${companyRow.name}`
+                }
                 onClick={() => {
-                  void fetchCompanies();
+                  handleRowActivate(companyRow);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    rowIsInteractive &&
+                    (event.key === 'Enter' || event.key === ' ')
+                  ) {
+                    event.preventDefault();
+                    handleRowActivate(companyRow);
+                  }
                 }}
               >
-                Reintentar
-              </Button>
-            }
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {companyRow.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge
+                        variant={
+                          normalizeCompanyLifecycleStatus(companyRow.status) ===
+                          'ARCHIVED'
+                            ? 'destructive'
+                            : companyRow.status === 'ACTIVE'
+                              ? 'default'
+                              : 'secondary'
+                        }
+                      >
+                        {statusLabel(companyRow.status)}
+                      </Badge>
+                      {getReadinessBadge(companyRow)}
+                      {renderContextBadge(companyRow)}
+                    </div>
+                  </div>
+                  {canWriteCompanies || isSystemUser ? (
+                    <div className="flex shrink-0 gap-1">
+                      {isSystemUser ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`Seleccionar contexto ${companyRow.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSelectContext(companyRow);
+                          }}
+                        >
+                          Seleccionar
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Editar ${companyRow.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          router.push(`/companies/${companyRow.id}/edit`);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" data-icon="inline-start" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Eliminar ${companyRow.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDeleteDialog(companyRow);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" data-icon="inline-start" />
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+                <dl className="mt-3 space-y-1.5 text-sm">
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Teléfono</dt>
+                    <dd className="truncate tabular-nums">
+                      {companyRow.phone}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Correo</dt>
+                    <dd className="truncate">{companyRow.email}</dd>
+                  </div>
+                  <div className="grid grid-cols-[88px_1fr] gap-2">
+                    <dt className="text-muted-foreground">Dirección</dt>
+                    <dd className="line-clamp-2">
+                      {formatCompanyAddressOneLine(companyRow)}
+                    </dd>
+                  </div>
+                </dl>
+              </TripledMobileRecordCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const createButton = canWriteCompanies ? (
+    <Button asChild>
+      <Link href="/companies/new">
+        <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+        Nueva empresa
+      </Link>
+    </Button>
+  ) : null;
+
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Empresas"
+        count={loading && companies.length === 0 ? null : companies.length}
+        description={COMPANIES_DESCRIPTION}
+        actions={createButton}
+      />
+      <div className="space-y-4">
+        {filterBar}
+        {desktopListState.kind === 'loading' ? (
+          <ListLoading label="Cargando lista de empresas" columns={7} />
+        ) : desktopListState.kind === 'error' ? (
+          <ListError
+            description={desktopListState.message}
+            onRetry={() => {
+              void fetchCompanies();
+            }}
           />
-        ) : listState.kind === 'empty' ? (
-          <TripledEmptyState
-            icon={<Factory className="h-4 w-4" />}
+        ) : desktopListState.kind === 'empty' ? (
+          <ListEmpty
+            icon={<Factory className="h-4 w-4 text-muted-foreground" aria-hidden />}
             title="Sin empresas"
-            description={
-              canWriteCompanies
-                ? 'Crea la primera empresa para separar usuarios, permisos y operación por contexto.'
-                : 'No hay empresas registradas todavía.'
-            }
-            action={
-              canWriteCompanies ? (
-                <Button
-                  type="button"
-                  onClick={() => router.push('/companies/new')}
-                >
-                  <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                  Nueva empresa
-                </Button>
-              ) : null
-            }
+            description={emptyDescription}
+            action={createButton}
           />
-        ) : listState.kind === 'filtered-empty' ? (
-          <TripledEmptyState
-            icon={<Factory className="h-4 w-4" />}
-            title="Sin resultados"
+        ) : desktopListState.kind === 'filtered-empty' ? (
+          <ListNoResults
             description="No encontramos empresas con esa búsqueda o esos filtros."
-            action={
-              <Button type="button" variant="outline" onClick={handleClearFilters}>
-                Limpiar filtros
-              </Button>
-            }
+            onClear={handleClearFilters}
           />
         ) : (
-          <>
-            <div className="space-y-3 md:hidden">
-              {table.getRowModel().rows.map((row) => {
-                const companyRow = row.original;
-                return (
-                  <TripledMobileRecordCard
-                    key={row.id}
-                    interactive={rowIsInteractive}
-                    className={
-                      rowIsInteractive
-                        ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                        : undefined
-                    }
-                    tabIndex={rowIsInteractive ? 0 : -1}
-                    role="button"
-                    aria-label={
-                      selectOnRowClick
-                        ? `Seleccionar contexto ${companyRow.name}`
-                        : canWriteCompanies
-                          ? `Editar empresa ${companyRow.name}`
-                          : `Empresa ${companyRow.name}`
-                    }
-                    onClick={() => {
-                      handleRowActivate(companyRow);
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        rowIsInteractive &&
-                        (event.key === 'Enter' || event.key === ' ')
-                      ) {
-                        event.preventDefault();
-                        handleRowActivate(companyRow);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {companyRow.name}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Badge
-                            variant={
-                              normalizeCompanyLifecycleStatus(companyRow.status) ===
-                              'ARCHIVED'
-                                ? 'destructive'
-                                : companyRow.status === 'ACTIVE'
-                                  ? 'default'
-                                  : 'secondary'
-                            }
-                          >
-                            {statusLabel(companyRow.status)}
-                          </Badge>
-                          {getReadinessBadge(companyRow)}
-                          {renderContextBadge(companyRow)}
-                        </div>
-                      </div>
-                      {canWriteCompanies || isSystemUser ? (
-                        <div className="flex shrink-0 gap-1">
-                        {isSystemUser ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            aria-label={`Seleccionar contexto ${companyRow.name}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleSelectContext(companyRow);
-                            }}
-                          >
-                            Seleccionar
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Editar ${companyRow.name}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            router.push(
-                              `/companies/${companyRow.id}/edit`,
-                            );
-                          }}
-                        >
-                          <Pencil className="h-4 w-4"  data-icon="inline-start" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Eliminar ${companyRow.name}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openDeleteDialog(companyRow);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-                        </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                    <dl className="mt-3 space-y-1.5 text-sm">
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Teléfono</dt>
-                        <dd className="truncate tabular-nums">
-                          {companyRow.phone}
-                        </dd>
-                      </div>
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Correo</dt>
-                        <dd className="truncate">{companyRow.email}</dd>
-                      </div>
-                      <div className="grid grid-cols-[88px_1fr] gap-2">
-                        <dt className="text-muted-foreground">Dirección</dt>
-                        <dd className="line-clamp-2">
-                          {formatCompanyAddressOneLine(companyRow)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </TripledMobileRecordCard>
-                );
-              })}
-            </div>
-
-            <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-              <Table
-                className={
-                  '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-                }
-              >
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead
-                          key={header.id}
-                          className={
-                            header.column.id === 'actions' ||
-                            header.column.id === 'context'
-                              ? 'text-right'
-                              : undefined
-                          }
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className={rowIsInteractive ? 'cursor-pointer' : undefined}
-                      tabIndex={rowIsInteractive ? 0 : -1}
-                      aria-label={
-                        selectOnRowClick
-                          ? `Seleccionar contexto ${row.original.name}`
-                          : canWriteCompanies
-                            ? `Editar empresa ${row.original.name}`
-                            : undefined
-                      }
-                      onClick={() => {
-                        handleRowActivate(row.original);
-                      }}
-                      onKeyDown={(event) => {
-                        if (
-                          rowIsInteractive &&
-                          (event.key === 'Enter' || event.key === ' ')
-                        ) {
-                          event.preventDefault();
-                          handleRowActivate(row.original);
-                        }
-                      }}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className={
-                            cell.column.id === 'actions' ||
-                            cell.column.id === 'context'
-                              ? 'text-right'
-                              : undefined
-                          }
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
+          <ListTableCard
+            footer={
+              <ListFooter
+                total={paged ? rowCount : companies.length}
+                shown={rowCount}
+                noun="empresas"
+                pagination={listFooterPagination(table, { pageSizes: false })}
+              />
+            }
+          >
+            <ListTable
+              table={table}
+              ariaLabel="Empresas"
+              busy={loading}
+              onOpenRow={rowIsInteractive ? (row) => handleRowActivate(row.original) : undefined}
+              rowTestId="companies-row"
+            />
+          </ListTableCard>
         )}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <DesktopSwitch phone={phone} desktop={desktop} />
 
       {companyToDelete ? (
         <DeleteCompanyDialog
@@ -655,6 +669,6 @@ export function CompaniesList({
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }

@@ -8,8 +8,9 @@ import { waitForSettledLayout } from './helpers/layout';
 /**
  * ZIG-I29 at 1280px: the presupuesto detail in its four states (Vigencia y
  * aceptación, Vencido, Aceptado, Cancelado), Extender vigencia, and the table
- * with views, server counts, Vence tones and hover Convertir. Saves data and
- * moves one expiry into the past with SQL: scratch database or CI only.
+ * with views, server counts, Vence tones and Convertir / WhatsApp from ⋯ (no
+ * hover actions since ZIG-I33-2). Saves data and moves one expiry into the past
+ * with SQL: scratch database or CI only.
  */
 
 const DAY_MS = 86_400_000;
@@ -147,7 +148,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(chip).toHaveText('Vence en 7 días');
     await expect(page.getByTestId('presupuesto-activity-card')).toContainText('Vigencia extendida al');
 
-    // The table: default Abiertos + Vencidos, counts, the row with «en 7 días», Convertir on hover.
+    // The table: default Abiertos + Vencidos, counts, the row with «en 7 días»; every action in ⋯.
     await page.goto('/presupuestos');
     const tabs = page.getByRole('navigation', { name: 'Vistas de presupuestos' });
     await expect(tabs).toBeVisible({ timeout: 15_000 });
@@ -159,11 +160,17 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(row).toHaveCount(1, { timeout: 15_000 });
     await expect(row.getByTestId('presupuesto-vence')).toContainText('en 7 días');
     await expect(row.getByTestId('presupuesto-vence')).toHaveAttribute('data-tone', 'ok');
-    await expect(page.getByText(/^1 de 1 presupuestos$/)).toBeVisible();
+    await expect(page.getByTestId('list-footer')).toHaveText(/^1 de 1 presupuestos$/);
     await expect(tabs.getByRole('button', { name: /Todos/ })).toContainText('1');
     await expectNoSeriousViolations(page, 'presupuestos-lista');
 
-    // ⋮ is reachable with the keyboard.
+    // Nothing appears on hover (85563215): the row keeps only ⋯.
+    await row.hover();
+    await expect(row.getByRole('button')).toHaveCount(1);
+    await expect(row.getByRole('link')).toHaveCount(0);
+    await expect(row.getByTestId('presupuesto-row-quick-actions')).toHaveCount(0);
+
+    // ⋯ is reachable with the keyboard.
     const more = row.getByRole('button', { name: `Más acciones de ${folio}` });
     await more.focus();
     await page.keyboard.press('Enter');
@@ -171,13 +178,49 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('menu')).toBeHidden();
 
-    await row.hover();
-    await row.getByRole('button', { name: `Convertir ${folio} a ticket` }).click();
+    // Recordar por WhatsApp from ⋯ opens the reminder (stubbed, nothing leaves the test).
+    await page.context().route(/^https:\/\/(wa\.me|api\.whatsapp\.com)\//, (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<title>WhatsApp</title>' }),
+    );
+    await more.click();
+    const [whatsApp] = await Promise.all([
+      page.context().waitForEvent('page'),
+      page.getByRole('menuitem', { name: 'Recordar por WhatsApp' }).click(),
+    ]);
+    await whatsApp.waitForLoadState();
+    expect(whatsApp.url()).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    expect(decodeURIComponent(whatsApp.url())).toContain(folio);
+    await whatsApp.close();
+
+    // Convertir from ⋯, behind the same confirmation.
+    await more.click();
+    await page.getByRole('menuitem', { name: 'Convertir a ticket' }).click();
     const confirm = page.getByRole('dialog').filter({ hasText: `¿Convertir el presupuesto ${folio} en ticket?` });
     await expect(confirm).toBeVisible();
     await confirm.getByRole('button', { name: 'Convertir a ticket' }).click();
     await page.waitForURL(/\/tickets\/\d+$/, { timeout: 60_000 });
     const ticketId = page.url().match(/\/tickets\/(\d+)$/)?.[1];
+
+    // Aceptado in the list: emerald on desktop (6f15aba8), grey on the phone.
+    await page.goto('/presupuestos?estado=aceptados');
+    await page.getByRole('textbox', { name: /Buscar presupuestos/ }).fill(clientName);
+    const acceptedRow = page.getByTestId('presupuesto-table-row').filter({ hasText: folio });
+    await expect(acceptedRow).toHaveCount(1, { timeout: 15_000 });
+    const acceptedPill = acceptedRow.getByTestId('presupuesto-status');
+    await expect(acceptedPill).toHaveText('Aceptado');
+    await expect(acceptedPill.locator('..')).toHaveAttribute('data-tone', 'emerald');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/presupuestos');
+    await page
+      .getByRole('group', { name: 'Filtrar por estado' })
+      .getByRole('button', { name: /Aceptados/ })
+      .click({ timeout: 15_000 });
+    await page.getByRole('textbox', { name: /Buscar presupuestos/ }).fill(clientName);
+    const phoneRow = page.getByTestId('presupuesto-row').filter({ hasText: clientName });
+    await expect(phoneRow).toHaveCount(1, { timeout: 15_000 });
+    await expect(phoneRow.getByTestId('presupuesto-status')).toHaveClass(/bg-slate-500/);
+    await expect(phoneRow.getByTestId('presupuesto-status')).not.toHaveClass(/emerald/);
+    await page.setViewportSize({ width: 1280, height: 900 });
 
     // Aceptado: green pill, the R ticket card with its state and total, no Editar or Cancelar.
     await page.goto(`/presupuestos/${id}`);

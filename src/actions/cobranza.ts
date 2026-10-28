@@ -24,6 +24,7 @@ import {
   type CobranzaClientGroup,
   type CobranzaRow,
   type CobranzaSort,
+  type CobranzaSortDirection,
   type CobranzaStatusFilter,
 } from '@/lib/cobranza';
 
@@ -179,6 +180,8 @@ export type CobranzaPaginatedData = {
   inProgress: { count: number; total: number };
   /** Payments recorded in the company's current month, under the search and client. */
   collectedThisMonth: { amount: number; payments: number; month: string };
+  /** Every finished ticket with a saldo, with no filter: the « · N» of the title (ZIG-I33-3). */
+  queueCount: number;
 };
 
 export async function getCobranzaPaginated(params: {
@@ -187,6 +190,8 @@ export async function getCobranzaPaginated(params: {
   status?: CobranzaStatusFilter;
   search?: string;
   sort?: CobranzaSort;
+  /** Defaults to the order's first direction (COBRANZA_SORT_FIRST_DIRECTION). */
+  sortDirection?: CobranzaSortDirection;
   groupBy?: CobranzaGroupBy;
   /** Only the tickets of this client (ZIG-I17-2). */
   clientId?: number | null;
@@ -284,15 +289,18 @@ export async function getCobranzaPaginated(params: {
     const filtered = sortCobranzaRows(
       filterCobranzaRows(underStrip, { aging: params.bucket ?? 'all' }),
       params.sort ?? 'days',
+      params.sortDirection,
     );
     // Por cliente: the filters pick which clients are listed, but each group (its
     // Saldo total and the estado de cuenta) carries everything that client owes.
     const listedClients = new Set(filtered.map((row) => cobranzaClientKey(row)));
     const groups =
       groupBy === 'client'
-        ? groupCobranzaRowsByClient(allRows, params.sort === 'days' ? 'days' : 'balance').filter(
-            (group) => listedClients.has(group.key),
-          )
+        ? groupCobranzaRowsByClient(
+            allRows,
+            params.sort === 'days' ? 'days' : 'balance',
+            params.sort === 'days' || params.sort === 'balance' ? params.sortDirection : undefined,
+          ).filter((group) => listedClients.has(group.key))
         : [];
     const totalBalance =
       groupBy === 'client'
@@ -326,6 +334,7 @@ export async function getCobranzaPaginated(params: {
           ...collectedThisMonth,
           amount: roundCents(collectedThisMonth.amount),
         },
+        queueCount: allRows.length,
       },
     };
   } catch (e) {

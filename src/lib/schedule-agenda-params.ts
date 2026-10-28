@@ -81,3 +81,21 @@ export const buildScheduleAgendaQuery = (
 /** Por atender groups atrasados and próximos: its tab stays selected for both. */
 export const scheduleAgendaTab = (view: ScheduleAgendaView): ScheduleAgendaView =>
   view === 'atrasados' || view === 'proximos' ? 'por-atender' : view;
+
+/**
+ * `?orden` from the column headers (ZIG-I33-5): each sortable column has one order,
+ * in the one direction the server sorts it, so a click on the sorted column keeps it.
+ */
+const SORT_BY_COLUMN: Record<string, ScheduleAgendaSort> = {
+  client: 'cliente',
+  service: 'servicio',
+  lastServiceAt: 'ultimo',
+  nextDueAt: 'proximo',
+};
+
+export const scheduleAgendaSortColumn = (sort: ScheduleAgendaSort): string =>
+  Object.keys(SORT_BY_COLUMN).find((column) => SORT_BY_COLUMN[column] === sort) ?? 'nextDueAt';
+
+/** The order for a header click; no column (sorting cleared) is the default. */
+export const scheduleAgendaSortFromColumn = (column: string | undefined): ScheduleAgendaSort =>
+  (column && SORT_BY_COLUMN[column]) || DEFAULT_SCHEDULE_AGENDA_SORT;

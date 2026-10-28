@@ -3,30 +3,48 @@
 import * as React from 'react';
 import {
   getCoreRowModel,
-  getSortedRowModel,
   useReactTable,
   type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
 import type { Ticket, TicketListCounts } from '@/actions/tickets';
 import { getTicketsPaginated } from '@/actions/tickets';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
+  LIST_PAGE_SIZE,
   ListColumnsMenu,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
   useListHiddenColumns,
   type ListColumnOption,
-} from '@/components/list-views/list-columns-menu';
-import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
+} from '@/components/list-page';
+import {
+  TicketCollectionTabs,
+  TicketsDesktopToolbar,
+  TicketsFilterBar,
+} from '@/components/tickets/tickets-filter-bar';
 import {
   buildTicketFilterChips,
   countActiveFilters,
   hasActiveTicketFilters,
 } from '@/components/tickets/tickets-list-filter-utils';
 import { TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
-import { TicketsListTable } from '@/components/tickets/tickets-list-table';
 import { TicketsMobileCard } from '@/components/tickets/tickets-mobile-card';
 import { createTicketsColumns } from '@/components/tickets/tickets-columns';
 import { MobilePullToRefresh } from '@/components/mobile-pull-to-refresh';
-import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
+import {
+  encodeSortingState,
+  parseTicketSortParam,
+  ticketListSortForServer,
+  ticketSortParam,
+} from '@/components/tickets/tickets-sort-presets';
 import type {
   FinishedFilterValue,
   StatusFilterValue,
@@ -48,18 +66,21 @@ import {
 } from '@/lib/offline-snapshot';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { Ticket as TicketIcon, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { parseFinishedFilter, parseStatusFilter } from '@/components/tickets/tickets-list-types';
 
 type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
 
-const DEFAULT_PAGE_SIZE = 25;
+/** The one description of the page, as the phone card header reads it (a4aec7d5). */
+const TICKETS_DESCRIPTION = 'Lista de todos los tickets registrados';
 
 /** Columnas (canvas ListaA): what a person can hide on the desktop table. */
 const TICKET_OPTIONAL_COLUMNS: ListColumnOption[] = [
@@ -103,11 +124,16 @@ export default function TicketsList() {
       parseFinishedFilter(searchParams.get('finished')),
     );
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
-  const [sorting, setSorting] =
-    React.useState<SortingState>(DEFAULT_TICKET_SORTING);
+  // `?orden=`, written by the column headers on desktop and the sort select on phones;
+  // the server sorts the whole list, not the page (ZIG-I33-2).
+  const [sorting, setSorting] = React.useState<SortingState>(() =>
+    parseTicketSortParam(searchParams.get('orden')),
+  );
+  const sortKey = encodeSortingState(sorting);
+  const sortParam = ticketSortParam(sorting);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize: LIST_PAGE_SIZE,
   });
   const ticketsRef = React.useRef<Ticket[]>([]);
 
@@ -120,7 +146,7 @@ export default function TicketsList() {
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, statusFilter, finishedFilter, dateRange]);
+  }, [debouncedSearch, statusFilter, finishedFilter, dateRange, sortKey]);
 
   React.useEffect(() => {
     ticketsRef.current = tickets;
@@ -129,6 +155,10 @@ export default function TicketsList() {
   React.useEffect(() => {
     setStatusFilter(parseStatusFilter(searchParams.get('status')));
     setFinishedFilter(parseFinishedFilter(searchParams.get('finished')));
+    const nextSorting = parseTicketSortParam(searchParams.get('orden'));
+    setSorting((prev) =>
+      encodeSortingState(prev) === encodeSortingState(nextSorting) ? prev : nextSorting,
+    );
   }, [searchParams]);
 
   React.useEffect(() => {
@@ -143,6 +173,11 @@ export default function TicketsList() {
     } else {
       params.set('finished', finishedFilter);
     }
+    if (sortParam) {
+      params.set('orden', sortParam);
+    } else {
+      params.delete('orden');
+    }
     const nextQuery = params.toString();
     const currentQuery = searchParams.toString();
     if (nextQuery === currentQuery) {
@@ -151,7 +186,7 @@ export default function TicketsList() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
       scroll: false,
     });
-  }, [statusFilter, finishedFilter, pathname, router, searchParams]);
+  }, [statusFilter, finishedFilter, sortParam, pathname, router, searchParams]);
 
   const fetchTickets = React.useCallback(
     async ({
@@ -215,6 +250,7 @@ export default function TicketsList() {
           finishedFilter,
           dateFrom,
           dateTo,
+          sort: ticketListSortForServer(sorting),
         });
         if (result.success && result.data) {
           const pageItems = result.data.items as Ticket[];
@@ -282,6 +318,7 @@ export default function TicketsList() {
       statusFilter,
       finishedFilter,
       dateRange,
+      sorting,
     ],
   );
 
@@ -358,8 +395,11 @@ export default function TicketsList() {
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    // The rows come sorted and paged from the server.
+    manualSorting: true,
     manualPagination: true,
+    enableMultiSort: false,
+    enableSortingRemoval: false,
     pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
   });
 
@@ -389,7 +429,7 @@ export default function TicketsList() {
     setStatusFilter('all');
     setFinishedFilter('all');
     setDateRange(undefined);
-    setSorting(DEFAULT_TICKET_SORTING);
+    // Limpiar never touches the order (ZIG-I33 §2).
   };
 
   const handlePullToRefresh = React.useCallback(async () => {
@@ -406,166 +446,239 @@ export default function TicketsList() {
 
   const visibleRows = table.getRowModel().rows;
 
-  const desktopTitle = (
-    <div className="mb-4 hidden items-center justify-between gap-4 md:flex">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Tickets
-        {/* The whole list, whatever the view (canvas «Tickets · 60»). */}
-        {hasLoadedOnce ? (
-          <span className="font-normal text-muted-foreground"> · {counts?.all ?? totalCount}</span>
-        ) : null}
-      </h1>
-      {canWrite ? (
-        <Button asChild>
-          <Link href="/tickets/create">
-            <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
-            Nuevo ticket
-          </Link>
-        </Button>
-      ) : null}
-    </div>
-  );
-
   if (missingCompany) {
     return <SystemCompanyContextEmptyState resourceLabel="tickets" />;
   }
 
+  const offlineBanner = snapshotUpdatedAt ? (
+    <div
+      role="status"
+      className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
+    >
+      {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar
+      sin conexión.
+    </div>
+  ) : null;
+  // Desktop: the shared Alert, like Clientes (ZIG-I33 §8); phones keep the banner above.
+  const offlineAlert = snapshotUpdatedAt ? (
+    <Alert
+      role="status"
+      className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+    >
+      <AlertDescription>
+        {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar sin conexión.
+      </AlertDescription>
+    </Alert>
+  ) : null;
+
+  // Phones (below lg): the cards of ZIG-I13-7, unchanged by ZIG-I33.
+  const phone =
+    loading && !hasLoadedOnce ? (
+      <TicketsListSkeleton />
+    ) : (
+      <div className="space-y-4">
+        <TicketsFilterBar
+          dueCount={dueCount}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          finishedFilter={finishedFilter}
+          onFinishedFilterChange={setFinishedFilter}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          activeFilterCount={activeFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filterChips={filterChips}
+        />
+
+        {offlineBanner}
+
+        <MobilePullToRefresh
+          label="Desliza para actualizar tickets"
+          onRefresh={handlePullToRefresh}
+          testId="tickets-pull-to-refresh"
+        >
+          {listState.kind === 'loading' ? (
+            <TripledListLoadingState
+              label="Cargando tickets"
+              desktopColumns={7}
+              desktopRows={8}
+              mobileCards={4}
+            />
+          ) : listState.kind === 'error' ? (
+            <TripledEmptyState
+              icon={<TicketIcon className="h-4 w-4" />}
+              title="Error de carga"
+              description={listState.message}
+              role="alert"
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void fetchTickets();
+                  }}
+                >
+                  Reintentar
+                </Button>
+              }
+            />
+          ) : listState.kind === 'empty' ? (
+            <TripledEmptyState
+              icon={<TicketIcon className="h-4 w-4" />}
+              title="Sin tickets"
+              description={
+                canWrite
+                  ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
+                  : 'No hay tickets registrados aún.'
+              }
+              action={
+                canWrite ? (
+                  <Button
+                    type="button"
+                    onClick={() => router.push('/tickets/create')}
+                  >
+                    Crear ticket
+                  </Button>
+                ) : null
+              }
+            />
+          ) : listState.kind === 'filtered-empty' ? (
+            <TripledEmptyState
+              icon={<TicketIcon className="h-4 w-4" />}
+              title="Sin resultados"
+              description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
+              action={
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  Limpiar filtros
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                {visibleRows.map((row) => (
+                  <TicketsMobileCard
+                    key={row.id}
+                    ticket={row.original}
+                    canWrite={canWrite}
+                    onDelete={handleDelete}
+                    onDeleteFailed={handleDeleteFailed}
+                    onPaymentApplied={handlePaymentApplied}
+                    companyId={selectedCompany?.id}
+                  />
+                ))}
+              </div>
+              <TicketsListPagination table={table} />
+            </>
+          )}
+        </MobilePullToRefresh>
+      </div>
+    );
+
+  // From lg (ZIG-I33-2): a refresh keeps the rows, dimmed; the skeleton is the first load only.
+  let desktopBody: React.ReactNode;
   if (loading && !hasLoadedOnce) {
-    return (
-      <>
-        {desktopTitle}
-        <TicketsListSkeleton />
-      </>
+    desktopBody = <ListLoading label="Cargando tickets" columns={7} />;
+  } else if (loadError) {
+    desktopBody = <ListError description={loadError} onRetry={() => void fetchTickets()} />;
+  } else if (filteredTickets.length === 0 && totalCount === 0) {
+    desktopBody = hasActiveFilters ? (
+      <ListNoResults
+        description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
+        onClear={handleClearFilters}
+      />
+    ) : (
+      <ListEmpty
+        title="Sin tickets"
+        description={
+          canWrite
+            ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
+            : 'No hay tickets registrados aún.'
+        }
+        action={
+          canWrite ? (
+            <Button asChild>
+              <Link href="/tickets/create">Crear ticket</Link>
+            </Button>
+          ) : undefined
+        }
+      />
+    );
+  } else {
+    desktopBody = (
+      // Columns follow the list's width, not the viewport (the sidebar takes 256px).
+      <ListTableCard
+        className="@container"
+        footer={
+          <ListFooter
+            total={totalCount}
+            noun="tickets"
+            shown={filteredTickets.length}
+            pagination={listFooterPagination(table)}
+          />
+        }
+      >
+        <ListTable
+          table={table}
+          ariaLabel="Tickets"
+          busy={loading}
+          getRowHref={(row) => hrefForTicketListRow(row.original, canWrite)}
+          rowTestId="tickets-row"
+        />
+      </ListTableCard>
     );
   }
 
-  return (
-    <div>
-      {desktopTitle}
-      <div className="space-y-4">
-      <TicketsFilterBar
-        dueCount={dueCount}
-        counts={counts}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        finishedFilter={finishedFilter}
-        onFinishedFilterChange={setFinishedFilter}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        activeFilterCount={activeFilterCount}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={handleClearFilters}
-        filterChips={filterChips}
-        columnsMenu={
-          <ListColumnsMenu table={table} options={TICKET_OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Tickets"
+        // The whole list, whatever the view (canvas «Tickets · 60»).
+        count={hasLoadedOnce ? (counts?.all ?? totalCount) : null}
+        description={TICKETS_DESCRIPTION}
+        actions={
+          canWrite ? (
+            <Button asChild>
+              <Link href="/tickets/create">
+                <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+                Nuevo ticket
+              </Link>
+            </Button>
+          ) : null
         }
       />
-
-      {snapshotUpdatedAt ? (
-        <div
-          role="status"
-          className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
-        >
-          {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar
-          sin conexión.
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3">
+          <TicketCollectionTabs
+            statusFilter={statusFilter}
+            finishedFilter={finishedFilter}
+            counts={counts}
+            onStatusFilterChange={setStatusFilter}
+            onFinishedFilterChange={setFinishedFilter}
+          />
+          <TicketsDesktopToolbar
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            finishedFilter={finishedFilter}
+            onFinishedFilterChange={setFinishedFilter}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={handleClearFilters}
+            columnsMenu={
+              <ListColumnsMenu table={table} options={TICKET_OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
+            }
+          />
         </div>
-      ) : null}
-
-      <MobilePullToRefresh
-        label="Desliza para actualizar tickets"
-        onRefresh={handlePullToRefresh}
-        testId="tickets-pull-to-refresh"
-      >
-        {listState.kind === 'loading' ? (
-          <TripledListLoadingState
-            label="Cargando tickets"
-            desktopColumns={7}
-            desktopRows={8}
-            mobileCards={4}
-          />
-        ) : listState.kind === 'error' ? (
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Error de carga"
-            description={listState.message}
-            role="alert"
-            action={
-              <Button
-                variant="outline"
-                onClick={() => {
-                  void fetchTickets();
-                }}
-              >
-                Reintentar
-              </Button>
-            }
-          />
-        ) : listState.kind === 'empty' ? (
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Sin tickets"
-            description={
-              canWrite
-                ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
-                : 'No hay tickets registrados aún.'
-            }
-            action={
-              canWrite ? (
-                <Button
-                  type="button"
-                  onClick={() => router.push('/tickets/create')}
-                >
-                  Crear ticket
-                </Button>
-              ) : null
-            }
-          />
-        ) : listState.kind === 'filtered-empty' ? (
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Sin resultados"
-            description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
-            action={
-              <Button type="button" variant="outline" onClick={handleClearFilters}>
-                Limpiar filtros
-              </Button>
-            }
-          />
-        ) : (
-          <>
-            <div className="space-y-2.5 md:hidden">
-              {visibleRows.map((row) => (
-                <TicketsMobileCard
-                  key={row.id}
-                  ticket={row.original}
-                  canWrite={canWrite}
-                  onDelete={handleDelete}
-                  onDeleteFailed={handleDeleteFailed}
-                  onPaymentApplied={handlePaymentApplied}
-                  companyId={selectedCompany?.id}
-                />
-              ))}
-            </div>
-
-            <TicketsListTable table={table} canWrite={canWrite} />
-            <div className="md:hidden">
-              <TicketsListPagination table={table} />
-            </div>
-            <div className="hidden md:block">
-              <TicketsListPagination
-                table={table}
-                variant="desktop"
-                totalCount={totalCount}
-              />
-            </div>
-          </>
-        )}
-      </MobilePullToRefresh>
+        {offlineAlert}
+        {desktopBody}
       </div>
-    </div>
+    </>
   );
+
+  return <DesktopSwitch phone={phone} desktop={desktop} />;
 }

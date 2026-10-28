@@ -2,20 +2,14 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -55,12 +49,20 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { canWriteServices } from '@/lib/services-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
-import { cn } from '@/lib/utils';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import {
-  COBRANZA_TABLE_CARD_CLASS,
-  COBRANZA_TABLE_CLASS,
-} from '@/components/cobranza/cobranza-ticket-table';
-import { ListDesktopTitle, ListRowMenu } from '@/components/list-filter';
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+} from '@/components/list-page';
 
 type ServicesListClientProps = {
   /** Importar CSV and Nuevo servicio, beside the desktop title (ZIG-30). */
@@ -85,6 +87,11 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>('active');
   const [sorting, setSorting] = useState<SortingState>(DEFAULT_SERVICE_SORTING);
+  // Desktop pages the catalog by 25 in the browser; the phone keeps one long list.
+  const [desktopPagination, setDesktopPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: LIST_PAGE_SIZE,
+  });
   const router = useRouter();
   const searchParams = useSearchParams();
   const importedFlag = searchParams.get('imported');
@@ -92,7 +99,7 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
       () => setDebouncedSearch(searchValue.trim()),
-      250,
+      300,
     );
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
@@ -174,6 +181,10 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
     });
   }, [services, debouncedSearch]);
 
+  React.useEffect(() => {
+    setDesktopPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, statusFilter]);
+
   const openDeleteDialog = React.useCallback((id: number) => {
     setServiceToDelete(id);
     setDeleteDialogOpen(true);
@@ -213,6 +224,17 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+  // Same rows and order, in pages: only one of the two trees is mounted.
+  const desktopTable = useReactTable({
+    data: filteredServices,
+    columns,
+    state: { sorting, pagination: desktopPagination },
+    onSortingChange: setSorting,
+    onPaginationChange: setDesktopPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
   const isBusy = loading || loadingServices;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'active';
@@ -224,6 +246,15 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
     visibleCount: filteredServices.length,
     hasActiveFilters,
   });
+  // Desktop keeps the rows while it refreshes (dimmed); the skeleton is the first load only.
+  const desktopListState = resolveResourceListState({
+    isLoading: loadingServices && services.length === 0,
+    loadError,
+    totalCount: services.length,
+    visibleCount: filteredServices.length,
+    hasActiveFilters,
+  });
+  const desktopPaged = desktopTable.getPageCount() > 1;
   const activeStatusLabel =
     statusFilter === 'active'
       ? 'Activos'
@@ -289,234 +320,240 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
         />
       </div>
 
-      {listState.kind === 'loading' ? (
-        <TripledListLoadingState
-          label="Cargando lista de servicios"
-          desktopColumns={4}
-          desktopRows={5}
-        />
-      ) : listState.kind === 'error' ? (
-        <TripledEmptyState
-          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
-          title="Error de carga"
-          description={listState.message}
-          role="alert"
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                void fetchServices();
-              }}
-            >
-              Reintentar
-            </Button>
-          }
-        />
-      ) : listState.kind === 'empty' ? (
-        <TripledEmptyState
-          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
-          title="Sin servicios"
-          description={
-            canWrite
-              ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
-              : 'No hay servicios registrados en este catálogo todavía.'
-          }
-          action={
-            canWrite ? (
-              <Button
-                type="button"
-                onClick={() => router.push('/services/new')}
-              >
-                <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                Nuevo servicio
-              </Button>
-            ) : null
-          }
-        />
-      ) : listState.kind === 'filtered-empty' ? (
-        <TripledEmptyState
-          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
-          title="Sin resultados"
-          description="No encontramos servicios con esa búsqueda o esos filtros."
-          action={
-            <Button type="button" variant="outline" onClick={handleClearFilters}>
-              Limpiar filtros
-            </Button>
-          }
-        />
-      ) : (
-        <>
-          <div className="space-y-3 md:hidden">
-            {table.getRowModel().rows.map((row) => {
-              const service = row.original;
-              return (
-                <TripledMobileRecordCard
-                  key={row.id}
-                  role="button"
-                  tabIndex={canWrite ? 0 : -1}
-                  aria-label={
-                    canWrite
-                      ? `Editar servicio ${service.name}`
-                      : `Servicio ${service.name}`
-                  }
-                  interactive={canWrite}
-                  className={
-                    canWrite
-                      ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                      : undefined
-                  }
-                  onClick={() => {
-                    if (canWrite) {
-                      router.push(`/services/${service.id}/edit`);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      canWrite &&
-                      (event.key === 'Enter' || event.key === ' ')
-                    ) {
-                      event.preventDefault();
-                      router.push(`/services/${service.id}/edit`);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <dl className="min-w-0 space-y-2">
-                      <div>
-                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
-                          Nombre
-                        </dt>
-                        <dd className="font-medium">{service.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
-                          Descripción
-                        </dt>
-                        <dd className="line-clamp-2 text-sm text-muted-foreground">
-                          {service.description}
-                        </dd>
-                        {serviceMaterialCount(service) > 0 ? (
-                          <dd
-                            className="mt-1 text-caption text-muted-foreground"
-                            data-testid="service-card-materials"
-                          >
-                            {formatMaterialCount(serviceMaterialCount(service))}
-                          </dd>
-                        ) : null}
-                      </div>
-                      <div>
-                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
-                          Precio
-                        </dt>
-                        <dd className="font-semibold tabular-nums">
-                          <FormattedCurrency amount={service.price} />
-                        </dd>
-                      </div>
-                    </dl>
-                    <span
-                      className={`inline-flex shrink-0 rounded-full px-2 py-1 text-caption font-medium ${
-                        service.deleted_at
-                          ? 'bg-destructive/10 text-destructive'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
-                      }`}
-                    >
-                      {service.deleted_at ? 'Eliminado' : 'Activo'}
-                    </span>
-                  </div>
-
-                  {canWrite ? (
-                    <div className="mt-4 flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Editar ${service.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        router.push(`/services/${service.id}/edit`);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4"  data-icon="inline-start" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Eliminar ${service.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openDeleteDialog(service.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-                    </Button>
-                    </div>
-                  ) : null}
-                </TripledMobileRecordCard>
-              );
-            })}
-          </div>
-
-          {/* From md the Cobranza table, its count in the footer (ZIG-30). */}
-          <div className={cn(COBRANZA_TABLE_CARD_CLASS, 'mt-4 hidden md:block')}>
-            <table className={COBRANZA_TABLE_CLASS} aria-label="Servicios">
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        className={cn(header.id === 'price' && 'text-right', header.column.columnDef.meta?.className)}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn('h-14', canWrite && 'cursor-pointer')}
-                    tabIndex={canWrite ? 0 : -1}
+      {/* One tree from lg (ZIG-I33): below it the phone cards, from it the table. */}
+      <DesktopSwitch
+        phone={
+          <>
+            {listState.kind === 'loading' ? (
+              <TripledListLoadingState
+                label="Cargando lista de servicios"
+                desktopColumns={4}
+                desktopRows={5}
+              />
+            ) : listState.kind === 'error' ? (
+              <TripledEmptyState
+                icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
+                title="Error de carga"
+                description={listState.message}
+                role="alert"
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
-                      if (canWrite) {
-                        router.push(`/services/${row.original.id}/edit`);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        canWrite &&
-                        (event.key === 'Enter' || event.key === ' ')
-                      ) {
-                        event.preventDefault();
-                        router.push(`/services/${row.original.id}/edit`);
-                      }
+                      void fetchServices();
                     }}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(cell.column.id === 'price' && 'text-right', cell.column.columnDef.meta?.className)}
+                    Reintentar
+                  </Button>
+                }
+              />
+            ) : listState.kind === 'empty' ? (
+              <TripledEmptyState
+                icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
+                title="Sin servicios"
+                description={
+                  canWrite
+                    ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
+                    : 'No hay servicios registrados en este catálogo todavía.'
+                }
+                action={
+                  canWrite ? (
+                    <Button
+                      type="button"
+                      onClick={() => router.push('/services/new')}
+                    >
+                      <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                      Nuevo servicio
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : listState.kind === 'filtered-empty' ? (
+              <TripledEmptyState
+                icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
+                title="Sin resultados"
+                description="No encontramos servicios con esa búsqueda o esos filtros."
+                action={
+                  <Button type="button" variant="outline" onClick={handleClearFilters}>
+                    Limpiar filtros
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {table.getRowModel().rows.map((row) => {
+                    const service = row.original;
+                    return (
+                      <TripledMobileRecordCard
+                        key={row.id}
+                        role="button"
+                        tabIndex={canWrite ? 0 : -1}
+                        aria-label={
+                          canWrite
+                            ? `Editar servicio ${service.name}`
+                            : `Servicio ${service.name}`
+                        }
+                        interactive={canWrite}
+                        className={
+                          canWrite
+                            ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (canWrite) {
+                            router.push(`/services/${service.id}/edit`);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            canWrite &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
+                            event.preventDefault();
+                            router.push(`/services/${service.id}/edit`);
+                          }
+                        }}
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </table>
-            <p className="border-t border-border/70 px-4 py-3 text-sm tabular-nums text-muted-foreground md:text-[13px]">
-              {filteredServices.length} de {services.length} servicios
-            </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <dl className="min-w-0 space-y-2">
+                            <div>
+                              <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                                Nombre
+                              </dt>
+                              <dd className="font-medium">{service.name}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                                Descripción
+                              </dt>
+                              <dd className="line-clamp-2 text-sm text-muted-foreground">
+                                {service.description}
+                              </dd>
+                              {serviceMaterialCount(service) > 0 ? (
+                                <dd
+                                  className="mt-1 text-caption text-muted-foreground"
+                                  data-testid="service-card-materials"
+                                >
+                                  {formatMaterialCount(serviceMaterialCount(service))}
+                                </dd>
+                              ) : null}
+                            </div>
+                            <div>
+                              <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                                Precio
+                              </dt>
+                              <dd className="font-semibold tabular-nums">
+                                <FormattedCurrency amount={service.price} />
+                              </dd>
+                            </div>
+                          </dl>
+                          <span
+                            className={`inline-flex shrink-0 rounded-full px-2 py-1 text-caption font-medium ${
+                              service.deleted_at
+                                ? 'bg-destructive/10 text-destructive'
+                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
+                            }`}
+                          >
+                            {service.deleted_at ? 'Eliminado' : 'Activo'}
+                          </span>
+                        </div>
+
+                        {canWrite ? (
+                          <div className="mt-4 flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Editar ${service.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              router.push(`/services/${service.id}/edit`);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4"  data-icon="inline-start" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Eliminar ${service.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openDeleteDialog(service.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
+                          </Button>
+                          </div>
+                        ) : null}
+                      </TripledMobileRecordCard>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        }
+        desktop={
+          <div className="mt-4">
+            {desktopListState.kind === 'loading' ? (
+              <ListLoading label="Cargando lista de servicios" columns={5} />
+            ) : desktopListState.kind === 'error' ? (
+              <ListError
+                description={desktopListState.message}
+                onRetry={() => {
+                  void fetchServices();
+                }}
+              />
+            ) : desktopListState.kind === 'filtered-empty' ? (
+              <ListNoResults
+                description="No encontramos servicios con esa búsqueda o esos filtros."
+                onClear={handleClearFilters}
+              />
+            ) : desktopListState.kind === 'empty' ? (
+              <ListEmpty
+                title="Sin servicios"
+                description={
+                  canWrite
+                    ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
+                    : 'No hay servicios registrados en este catálogo todavía.'
+                }
+                action={
+                  canWrite ? (
+                    <Button type="button" onClick={() => router.push('/services/new')}>
+                      <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
+                      Nuevo servicio
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : (
+              <ListTableCard
+                footer={
+                  <ListFooter
+                    // Paged: «1–25 de N»; one page: «N de M» against the whole catalog.
+                    total={desktopPaged ? filteredServices.length : services.length}
+                    shown={filteredServices.length}
+                    noun="servicios"
+                    pagination={listFooterPagination(desktopTable, { pageSizes: false })}
+                  />
+                }
+              >
+                <ListTable
+                  table={desktopTable}
+                  ariaLabel="Servicios"
+                  busy={isBusy}
+                  // No detail page: the row opens the edit form, for writers only.
+                  getRowHref={
+                    canWrite ? (row) => `/services/${row.original.id}/edit` : undefined
+                  }
+                  rowTestId="services-row"
+                />
+              </ListTableCard>
+            )}
           </div>
-        </>
-      )}
+        }
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

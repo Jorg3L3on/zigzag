@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { FILTER_SELECTED_CLASS } from '@/components/list-filter/filter-styles';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page/filter-styles';
 import { cn } from '@/lib/utils';
 
 export type ButtonFilterOption<T extends string> = {

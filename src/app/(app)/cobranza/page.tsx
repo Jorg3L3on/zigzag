@@ -29,11 +29,12 @@ export default async function CobranzaPage() {
       />
 
       <TripledDashboardShell>
-        {/* From lg the view draws its own title and strip, without the card (ZIG-I31-2, canvas CobA). */}
+        {/* From lg the view draws its own title (ListDesktopTitle «Cobranza · N») and strip,
+            without the card (ZIG-I31-2, canvas CobA; ZIG-I33-3). */}
         <TripledResourceCard
-          className="lg:contents"
+          desktop="title"
           headerClassName="lg:hidden"
-          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
+          contentClassName="lg:pt-0"
           title="Cobranza"
           description="Quién te debe y desde cuándo."
           icon={<Banknote className="size-5" aria-hidden />}

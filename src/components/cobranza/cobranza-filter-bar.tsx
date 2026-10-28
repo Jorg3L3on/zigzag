@@ -10,7 +10,7 @@ import {
   ButtonFilterGroup,
   ListFilterBarShell,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 const STATUS_OPTIONS: Array<{ value: CobranzaStatusFilter; label: string }> = (
   ['all', 'pending', 'partial'] as const

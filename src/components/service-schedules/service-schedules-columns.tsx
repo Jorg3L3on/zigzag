@@ -1,12 +1,15 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import Link from 'next/link';
 import type { ClientServiceScheduleAgendaItem } from '@/actions/client-service-schedules';
-import { Button } from '@/components/ui/button';
+import {
+  ListShortDate,
+  ListSortableHeader,
+  ListStatusPill,
+  type ListStatusTone,
+} from '@/components/list-page';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  createTicketHref,
   ScheduleActionsMenu,
   type ScheduleActionHandlers,
 } from '@/components/service-schedules/schedule-actions-menu';
@@ -14,12 +17,12 @@ import {
   formatDaysSince,
   formatRelativeDays,
   formatScheduleEvery,
-  formatScheduleShortDate,
   SCHEDULE_BUCKET_LABELS,
-  SCHEDULE_BUCKET_PILL_CLASS,
   SCHEDULE_DUE_TONE_CLASS,
   scheduleDueTone,
 } from '@/lib/schedule-agenda-format';
+import { formatListShortDate } from '@/lib/list-short-date';
+import type { ScheduleDisplayBucket } from '@/lib/schedule-buckets';
 import { buildWhatsAppVisitShare } from '@/lib/whatsapp-share';
 import { cn } from '@/lib/utils';
 
@@ -35,31 +38,35 @@ export const scheduleWhatsAppHref = (
     companyName,
   })?.href ?? null;
 
-export const ScheduleStatusPill = ({
+/** Atrasado red, Próximo amber, Programado emerald (on track), Pausado slate (ZIG-I33 §6). */
+const SCHEDULE_BUCKET_TONE: Record<ScheduleDisplayBucket, ListStatusTone> = {
+  atrasados: 'red',
+  proximos: 'amber',
+  programados: 'emerald',
+  pausados: 'slate',
+};
+
+export const ScheduleBucketPill = ({
   bucket,
   className,
 }: {
   bucket: ClientServiceScheduleAgendaItem['bucket'];
   className?: string;
 }) => (
-  <span
-    className={cn(
-      'inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-caption font-medium',
-      SCHEDULE_BUCKET_PILL_CLASS[bucket],
-      className,
-    )}
-  >
+  <ListStatusPill tone={SCHEDULE_BUCKET_TONE[bucket]} className={className}>
     {SCHEDULE_BUCKET_LABELS[bucket]}
-  </span>
+  </ListStatusPill>
 );
 
 /** Próximo: the short date and «hace N días» red / «en N días» amber or grey / «pausado desde …». */
 export const ScheduleNextDue = ({ schedule }: { schedule: ClientServiceScheduleAgendaItem }) => (
   <div className="min-w-0 leading-tight">
-    <div className="truncate text-sm tabular-nums">{formatScheduleShortDate(schedule.nextDueAt)}</div>
+    <div className="truncate text-sm">
+      <ListShortDate date={schedule.nextDueAt} />
+    </div>
     {schedule.pausedAt ? (
       <div className="truncate text-caption text-muted-foreground">
-        pausado desde {formatScheduleShortDate(schedule.pausedAt)}
+        pausado desde {formatListShortDate(schedule.pausedAt)}
       </div>
     ) : (
       <div
@@ -78,21 +85,25 @@ export type ServiceSchedulesColumnsOptions = ScheduleActionHandlers & {
   canWrite: boolean;
   canCreateTicket: boolean;
   companyName?: string | null;
-  onOpen: (schedule: ClientServiceScheduleAgendaItem) => void;
 };
 
-/** Agenda columns (ZIG-I30, canvas RecA). Último servicio hides under xl so ⋮ fits at 1024. */
+/**
+ * Agenda columns (ZIG-I30, canvas RecA; list standard ZIG-I33-5). Cliente, Servicio,
+ * Último servicio and Próximo sort by their header (the column ids map to `?orden`
+ * in schedule-agenda-params); the row opens the side panel, so the last column is
+ * only the ⋯ menu. Último servicio hides under xl so the table fits at 1024.
+ */
 export const createServiceSchedulesColumns = ({
   canWrite,
   canCreateTicket,
   companyName = null,
-  onOpen,
   ...handlers
 }: ServiceSchedulesColumnsOptions): ColumnDef<ClientServiceScheduleAgendaItem>[] => [
   ...(canWrite
     ? [
         {
           id: 'select',
+          enableSorting: false,
           meta: { className: 'w-11' },
           header: ({ table }) => (
             <Checkbox
@@ -120,23 +131,16 @@ export const createServiceSchedulesColumns = ({
     : []),
   {
     id: 'client',
-    header: 'Cliente',
-    meta: { className: 'w-[24%]' },
+    accessorFn: (schedule) => schedule.clientName,
+    header: ({ column }) => <ListSortableHeader column={column} label="Cliente" />,
+    meta: { className: 'w-[26%]' },
     cell: ({ row }) => {
       const schedule = row.original;
       return (
         <div className="min-w-0 leading-tight">
-          <button
-            type="button"
-            className="block max-w-full truncate rounded-sm text-left text-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            title={schedule.clientName}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpen(schedule);
-            }}
-          >
+          <div className="truncate text-sm font-medium" title={schedule.clientName}>
             {schedule.clientName}
-          </button>
+          </div>
           <div className="truncate text-caption tabular-nums text-muted-foreground">
             {schedule.clientPhone || 'Sin teléfono'}
           </div>
@@ -146,8 +150,9 @@ export const createServiceSchedulesColumns = ({
   },
   {
     id: 'service',
-    header: 'Servicio',
-    meta: { className: 'w-[22%]' },
+    accessorFn: (schedule) => schedule.serviceName,
+    header: ({ column }) => <ListSortableHeader column={column} label="Servicio" />,
+    meta: { className: 'w-[24%]' },
     cell: ({ row }) => (
       <div className="min-w-0 leading-tight">
         <div className="truncate text-sm" title={row.original.serviceName}>
@@ -161,13 +166,14 @@ export const createServiceSchedulesColumns = ({
   },
   {
     id: 'lastServiceAt',
-    header: 'Último servicio',
-    meta: { className: 'hidden w-[14%] xl:table-cell' },
+    accessorFn: (schedule) => schedule.lastServiceAt,
+    header: ({ column }) => <ListSortableHeader column={column} label="Último servicio" />,
+    meta: { className: 'hidden w-[15%] xl:table-cell' },
     cell: ({ row }) =>
       row.original.lastServiceAt ? (
         <div className="min-w-0 leading-tight">
-          <div className="truncate text-sm tabular-nums">
-            {formatScheduleShortDate(row.original.lastServiceAt)}
+          <div className="truncate text-sm">
+            <ListShortDate date={row.original.lastServiceAt} />
           </div>
           <div className="truncate text-caption text-muted-foreground">
             {formatDaysSince(row.original.daysSinceLast)}
@@ -179,60 +185,34 @@ export const createServiceSchedulesColumns = ({
   },
   {
     id: 'nextDueAt',
-    header: 'Próximo',
-    meta: { className: 'w-[14%]' },
+    accessorFn: (schedule) => schedule.nextDueAt,
+    header: ({ column }) => <ListSortableHeader column={column} label="Próximo" />,
+    meta: { className: 'w-[15%]' },
     cell: ({ row }) => <ScheduleNextDue schedule={row.original} />,
   },
   {
     id: 'status',
     header: 'Estado',
-    meta: { className: 'w-[12%]' },
-    cell: ({ row }) => <ScheduleStatusPill bucket={row.original.bucket} />,
+    enableSorting: false,
+    meta: { className: 'w-[13%]' },
+    cell: ({ row }) => <ScheduleBucketPill bucket={row.original.bucket} />,
   },
   {
     id: 'actions',
+    enableSorting: false,
     header: () => <span className="sr-only">Acciones</span>,
-    meta: { className: 'w-[248px] text-right' },
-    cell: ({ row }) => {
-      const schedule = row.original;
-      const whatsappHref = scheduleWhatsAppHref(schedule, companyName);
-      return (
-        <div className="flex items-center justify-end" onClick={(event) => event.stopPropagation()}>
-          <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] group-focus-within:grid-cols-[1fr]">
-            <div className="flex min-w-0 items-center gap-1 overflow-hidden opacity-0 group-hover:overflow-visible group-hover:opacity-100 group-focus-within:overflow-visible group-focus-within:opacity-100">
-              {canCreateTicket ? (
-                <Button asChild variant="outline" size="sm">
-                  <Link
-                    href={createTicketHref(schedule)}
-                    aria-label={`Crear ticket para ${schedule.clientName}`}
-                  >
-                    Crear ticket
-                  </Link>
-                </Button>
-              ) : null}
-              {whatsappHref ? (
-                <Button asChild variant="outline" size="sm">
-                  <a
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Recordar por WhatsApp a ${schedule.clientName}`}
-                  >
-                    WhatsApp
-                  </a>
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <ScheduleActionsMenu
-            schedule={schedule}
-            canWrite={canWrite}
-            canCreateTicket={canCreateTicket}
-            whatsappHref={whatsappHref}
-            {...handlers}
-          />
-        </div>
-      );
-    },
+    // The 32 px ⋯ plus the cell padding (12 + 16).
+    meta: { className: 'w-[3.75rem]' },
+    cell: ({ row }) => (
+      <div className="flex justify-end">
+        <ScheduleActionsMenu
+          schedule={row.original}
+          canWrite={canWrite}
+          canCreateTicket={canCreateTicket}
+          whatsappHref={scheduleWhatsAppHref(row.original, companyName)}
+          {...handlers}
+        />
+      </div>
+    ),
   },
 ];

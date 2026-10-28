@@ -7,11 +7,11 @@ import {
 } from '@/components/services/services-sort-presets';
 import {
   ButtonFilterGroup,
-  ListFilterBarShell,
   ListFilterSelect,
+  ListToolbar,
   MobileSortSelect,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 const STATUS_OPTIONS: Array<{ value: ServiceStatusFilter; label: string }> = [
   { value: 'active', label: 'Activos' },
@@ -61,16 +61,20 @@ export const ServicesFilterBar = ({
   onClearFilters,
   filterChips,
 }: ServicesFilterBarProps) => (
-  <ListFilterBarShell
-    searchValue={searchValue}
-    onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar por nombre o descripción..."
-    searchAriaLabel="Buscar servicios"
+  // One bar for both layouts: the phone sheet, chips and sort below lg, the pill and
+  // Limpiar filtros on the search row from lg (ZIG-I33 §2).
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por nombre o descripción...',
+      ariaLabel: 'Buscar servicios',
+    }}
     sheetFilterCount={sheetFilterCount}
     sheetDescription="Estado del servicio y orden de la lista."
     hasActiveFilters={hasActiveFilters}
-    onClearFilters={onClearFilters}
-    clearFiltersAriaLabel="Limpiar filtros de servicios"
+    onClear={onClearFilters}
+    clearAriaLabel="Limpiar filtros de servicios"
     filterChips={filterChips}
     sheetContent={
       <>
@@ -87,8 +91,7 @@ export const ServicesFilterBar = ({
         />
       </>
     }
-    desktopInline
-    desktopContent={
+    filters={
       <ListFilterSelect
         value={statusFilter}
         allValue="active"

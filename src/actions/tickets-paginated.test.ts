@@ -15,9 +15,12 @@ jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 const mockSelect = db.select as unknown as jest.Mock;
 
 /** One chain per db.select(): from → where → (orderBy → limit → offset) resolves to `rows`. */
-const chain = (rows: unknown[], wheres: SQL[]) => {
+const chain = (rows: unknown[], wheres: SQL[], orders: SQL[][] = []) => {
   const terminal: Record<string, unknown> = {};
-  terminal.orderBy = jest.fn(() => terminal);
+  terminal.orderBy = jest.fn((...order: SQL[]) => {
+    orders.push(order);
+    return terminal;
+  });
   terminal.limit = jest.fn(() => terminal);
   terminal.offset = jest.fn(async () => rows);
   const afterWhere = Object.assign(Promise.resolve(rows), terminal);
@@ -54,6 +57,7 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
 
   const run = async (params: Parameters<typeof getTicketsPaginated>[0]) => {
     const wheres: SQL[] = [];
+    const orders: SQL[][] = [];
     const selects: unknown[] = [];
     const responses = [
       chain([{ total: 3 }], wheres), // filtered page count
@@ -61,7 +65,7 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
         [{ allCount: 4, dueCount: 2, phoneDueCount: 3, inProgressCount: 1, paidCount: 1 }],
         wheres,
       ), // one aggregate for the four tabs
-      chain([{ id: 1n }], wheres), // page
+      chain([{ id: 1n }], wheres, orders), // page
       summaryChain([{ ticket_id: 1n, summary: 'Compresor, Mano de obra' }], wheres),
     ];
     mockSelect.mockImplementation((fields?: unknown) => {
@@ -73,7 +77,7 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
       return next;
     });
     const result = await getTicketsPaginated(params);
-    return { result, wheres, selects };
+    return { result, wheres, selects, orders };
   };
 
   it('returns the count, the four tab counts and the phone chip count apart (ZIG-I28-4)', async () => {
@@ -175,5 +179,59 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     const { selects } = await run({ companyId: 10 });
     const phone = sqlOf((selects[1] as { phoneDueCount: SQL }).phoneDueCount);
     expect(phone.sql).not.toMatch(/"finished"/);
+  });
+
+  describe('sort over the whole list (ZIG-I33-2)', () => {
+    const orderSql = (order: SQL[]) =>
+      order.map((part) => sqlOf(part).sql.replace(/\s+/g, ' ').toLowerCase());
+
+    it('keeps the newest created first without a sort', async () => {
+      const { orders } = await run({ companyId: 10 });
+      expect(orderSql(orders[0])).toEqual(['"ticket"."created_at" desc']);
+    });
+
+    it('sorts by the chosen column, then the newest created and the id so pages never shuffle', async () => {
+      const { orders } = await run({ companyId: 10, sort: { column: 'total', direction: 'desc' } });
+      expect(orderSql(orders[0])).toEqual([
+        '"ticket"."total" desc nulls last',
+        '"ticket"."created_at" desc',
+        '"ticket"."id" desc',
+      ]);
+    });
+
+    it('sorts Saldo and Estado by the rules the list shows', async () => {
+      const saldo = await run({ companyId: 10, sort: { column: 'saldo', direction: 'asc' } });
+      const [balance] = orderSql(saldo.orders[0]);
+      expect(balance).toContain('case when coalesce("ticket"."total", 0) - coalesce("ticket"."paid", 0) > 0.01');
+      expect(balance).toMatch(/ asc nulls last$/);
+
+      const estado = await run({ companyId: 10, sort: { column: 'estado', direction: 'desc' } });
+      const [rank] = orderSql(estado.orders[0]);
+      expect(rank).toMatch(/^case when .* then 0 when .* then 1 else 2 end desc nulls last$/);
+    });
+
+    it('sorts Cliente case-insensitively and Fecha by the ticket date', async () => {
+      const cliente = await run({ companyId: 10, sort: { column: 'cliente', direction: 'asc' } });
+      expect(orderSql(cliente.orders[0])[0]).toBe('lower("ticket"."client_name") asc nulls last');
+      const fecha = await run({ companyId: 10, sort: { column: 'fecha', direction: 'desc' } });
+      expect(orderSql(fecha.orders[0])[0]).toBe('"ticket"."ticket_date" desc nulls last');
+    });
+
+    it('never puts caller text in ORDER BY: unknown columns keep the default order', async () => {
+      const { orders } = await run({
+        companyId: 10,
+        sort: { column: 'id; drop table "Ticket"' as never, direction: 'asc' },
+      });
+      expect(orderSql(orders[0])).toEqual(['"ticket"."created_at" desc']);
+
+      const odd = await run({
+        companyId: 10,
+        sort: { column: 'total', direction: 'sideways' as never },
+      });
+      expect(orderSql(odd.orders[0])[0]).toBe('"ticket"."total" desc nulls last');
+      for (const part of [...orders[0], ...odd.orders[0]]) {
+        expect(sqlOf(part).params).toEqual([]);
+      }
+    });
   });
 });

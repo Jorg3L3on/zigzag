@@ -20,7 +20,7 @@ import {
 } from '@/lib/documents/update-document';
 import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, count, ilike, or, inArray, ne } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, count, ilike, or, inArray, ne, type SQL } from 'drizzle-orm';
 import {
   client,
   service,
@@ -666,9 +666,57 @@ const buildTicketPaymentStatusCondition = (
   return sql`(${total} <= 0.01) OR (${paid} <= 0.01 AND NOT (${total} > 0.01 AND ${paid} >= ${total} - 0.01))`;
 };
 
+/** The columns the tickets list sorts by on the server (ZIG-I33-2). */
+export type TicketListSortColumn =
+  | 'folio'
+  | 'cliente'
+  | 'telefono'
+  | 'fecha'
+  | 'total'
+  | 'saldo'
+  | 'estado';
+
+export type TicketListSort = { column: TicketListSortColumn; direction: 'asc' | 'desc' };
+
+/** Saldo as the list shows it: 0 once covered within a cent (getTicketBalanceDue). */
+const TICKET_BALANCE_SORT = sql`CASE WHEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) > 0.01 THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END`;
+
+/** Pagado 0, parcial 1, pendiente 2 (getTicketPaymentStatusSortRank). */
+const TICKET_PAYMENT_RANK_SORT = sql`CASE WHEN ${buildTicketPaymentStatusCondition('paid')} THEN 0 WHEN ${buildTicketPaymentStatusCondition('partial')} THEN 1 ELSE 2 END`;
+
+/** Whitelist: only these expressions reach ORDER BY; no text from the caller does. */
+const TICKET_SORT_EXPRESSIONS: Record<TicketListSortColumn, SQL> = {
+  folio: sql`${ticket.id}`,
+  cliente: sql`lower(${ticket.client_name})`,
+  telefono: sql`${ticket.client_tel}`,
+  fecha: sql`${ticket.ticket_date}`,
+  total: sql`${ticket.total}`,
+  saldo: TICKET_BALANCE_SORT,
+  estado: TICKET_PAYMENT_RANK_SORT,
+};
+
+/**
+ * ORDER BY for one page. Without a sort (or with an unknown column) the order of
+ * before ZIG-I33-2, newest created first. A sort ends with the newest created and
+ * the id, so equal values keep one order across pages.
+ */
+const ticketListOrderBy = (sort: TicketListSort | undefined): SQL[] => {
+  const column = sort?.column;
+  if (!column || !Object.prototype.hasOwnProperty.call(TICKET_SORT_EXPRESSIONS, column)) {
+    return [desc(ticket.created_at)];
+  }
+  const direction = sort.direction === 'asc' ? sql`asc` : sql`desc`;
+  return [
+    sql`${TICKET_SORT_EXPRESSIONS[column]} ${direction} nulls last`,
+    desc(ticket.created_at),
+    desc(ticket.id),
+  ];
+};
+
 /**
  * Server-side paginated + searchable ticket list, scoped to the company. Keeps
- * large ticket tables responsive instead of loading every row client-side.
+ * large ticket tables responsive instead of loading every row client-side. The
+ * sort runs over the whole list, not the page (ZIG-I33-2).
  */
 export async function getTicketsPaginated(params: {
   companyId?: number | null;
@@ -679,6 +727,7 @@ export async function getTicketsPaginated(params: {
   finishedFilter?: TicketListFinishedFilter;
   dateFrom?: string;
   dateTo?: string;
+  sort?: TicketListSort;
 }): Promise<{
   success: boolean;
   data?: PaginatedTicketsData;
@@ -790,7 +839,7 @@ export async function getTicketsPaginated(params: {
       .select()
       .from(ticket)
       .where(whereCondition)
-      .orderBy(desc(ticket.created_at))
+      .orderBy(...ticketListOrderBy(params.sort))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 

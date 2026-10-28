@@ -23,7 +23,10 @@ export default async function RolesPage() {
       <TripledPageHeader items={[{ label: 'Roles (todas las empresas)' }]} />
 
       <TripledDashboardShell>
+        {/* From lg the list draws its own title with the count, without the card (ZIG-I33). */}
         <TripledResourceCard
+          desktop="title"
+          headerClassName="lg:hidden"
           title="Roles (todas las empresas)"
           description="Roles de todas las empresas y roles compartidos. Cada empresa edita los suyos en Mi empresa › Roles."
           icon={<Shield className="size-5" aria-hidden />}

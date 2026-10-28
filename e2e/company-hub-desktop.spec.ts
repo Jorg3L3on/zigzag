@@ -7,7 +7,8 @@ import { waitForSettledLayout } from './helpers/layout';
 /**
  * ZIG-I32 — Mi empresa at 1280: one header and a side nav, Datos as cards
  * with the receipt preview and the "Cambios sin guardar" bar, Equipo as a
- * table with real access states, Roles with switches.
+ * table with real access states, Roles with switches. ZIG-I33-6: Equipo on the
+ * list standard (pills, ⋯ only, header sort) and the phone list at 900.
  *
  * Read-only except the "Guardar persiste" test, which writes the tagline and
  * puts it back, so it only runs on a test database (CI=1).
@@ -22,6 +23,34 @@ const openDatos = async (page: Page) => {
   await waitForSettledLayout(page);
   await expect(page.getByTestId('company-datos-perfil')).toHaveCount(1, { timeout: 15_000 });
   await expect(page.getByTestId('company-datos-perfil')).toBeVisible();
+};
+
+const openEquipo = async (page: Page) => {
+  await page.goto('/company/equipo');
+  await waitForSettledLayout(page);
+  await expect(page.getByTestId('team-desktop').getByTestId('team-member-row').first()).toBeVisible({
+    timeout: 15_000,
+  });
+};
+
+const MONTHS = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+/** Each row's Alta as yyyymmdd, from the full date ListShortDate keeps in its title. */
+const altaDays = async (page: Page) => {
+  const titles = await page
+    .getByTestId('team-desktop')
+    .getByTestId('team-member-row')
+    .locator('td:nth-child(4) span[title]')
+    .evaluateAll((spans) => spans.map((span) => span.getAttribute('title') ?? ''));
+  return titles.map((title) => {
+    const match = /(\d+) de (\p{L}+) de (\d{4})/u.exec(title);
+    expect(match, `Alta title «${title}»`).toBeTruthy();
+    const [, day, month, year] = match!;
+    return Number(year) * 10_000 + (MONTHS.indexOf(month.toLowerCase()) + 1) * 100 + Number(day);
+  });
 };
 
 test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
@@ -121,25 +150,76 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
     await expect(page.getByTestId('form-changes-bar')).toHaveCount(0, { timeout: 15_000 });
   });
 
-  test('Equipo is a Persona · Rol · Acceso · Alta table without «Sin verificar»', async ({ page }) => {
-    await page.goto('/company/equipo');
+  test('Equipo is a Persona · Rol · Acceso · Alta table with pills and every action in the ⋯ (ZIG-I33-6)', async ({
+    page,
+  }) => {
+    await openEquipo(page);
     const desktop = page.getByTestId('team-desktop');
-    await expect(desktop.getByTestId('team-member-row').first()).toBeVisible({ timeout: 15_000 });
 
     const headers = await desktop.getByRole('columnheader').allTextContents();
     expect(headers.join(' ')).toMatch(/Persona.*Rol.*Acceso.*Alta/);
+    await expect(desktop.getByRole('heading', { level: 2 })).toHaveText(/^Equipo · \d+$/);
     await expect(desktop.getByText('Sin verificar')).toHaveCount(0);
-    await expect(desktop.getByTestId('team-member-access').filter({ visible: true }).first()).toHaveText(
-      /Activo|Debe cambiar contraseña/,
-    );
     await expect(desktop.getByRole('button', { name: 'Agregar persona' })).toBeVisible();
+    await expect(desktop.getByRole('combobox', { name: 'Filtrar por rol' })).toHaveText('Todos los roles');
     await expect(desktop.getByRole('combobox', { name: 'Filtrar por acceso' })).toHaveText('Activos');
-    // Hover actions stay inside the table (no sideways scroll).
+    // Nothing is filtered yet, so no Limpiar filtros.
+    await expect(desktop.getByRole('button', { name: 'Limpiar filtros' })).toHaveCount(0);
+
+    // Rol and Acceso are status pills (ZIG-I33 §6).
     const row = desktop.getByTestId('team-member-row').first();
+    await expect(row.locator('td').nth(1).locator('[data-tone]')).toHaveAttribute('data-tone', /^(blue|violet|slate)$/);
+    await expect(
+      row.getByTestId('team-member-access').filter({ visible: true }).locator('[data-tone]'),
+    ).toHaveAttribute('data-tone', /^(emerald|amber)$/);
+    await expect(desktop.getByTestId('list-footer')).toHaveText(/de \d+ personas/);
+
+    // No action appears on hover (85563215); Cambiar rol lives in the ⋯.
     await row.hover();
-    await expect(row.getByRole('button', { name: /^Cambiar rol de / })).toBeVisible();
-    const table = desktop.locator('table').locator('..');
-    expect(await table.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await expect(desktop.getByRole('button', { name: /^(Cambiar rol|Restablecer contraseña) de / })).toHaveCount(0);
+    const menu = desktop
+      .getByTestId('team-member-row')
+      .filter({ hasNotText: '(tú)' })
+      .getByRole('button', { name: /^Acciones de / })
+      .first();
+    if ((await menu.count()) > 0) {
+      await menu.click();
+      await expect(page.getByRole('menuitem', { name: 'Cambiar rol' })).toBeVisible();
+      await expect(page.getByRole('menuitem', { name: 'Restablecer contraseña' })).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
+
+    const card = desktop.locator('table').locator('..');
+    expect(await card.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  });
+
+  test('Equipo sorts by the Alta header (ZIG-I33-6)', async ({ page }) => {
+    await openEquipo(page);
+    const desktop = page.getByTestId('team-desktop');
+    const alta = desktop.getByRole('columnheader', { name: /Alta/ });
+    await expect(alta).toBeVisible();
+    await expect(alta).toHaveAttribute('aria-sort', 'none');
+
+    await alta.getByRole('button').click();
+    await expect(alta).toHaveAttribute('aria-sort', 'descending');
+    const newestFirst = await altaDays(page);
+    expect(newestFirst).toEqual([...newestFirst].sort((a, b) => b - a));
+
+    await alta.getByRole('button').click();
+    await expect(alta).toHaveAttribute('aria-sort', 'ascending');
+    const oldestFirst = await altaDays(page);
+    expect(oldestFirst).toEqual([...oldestFirst].sort((a, b) => a - b));
+  });
+
+  test('at 900 Equipo shows the phone list with rows, not an empty gap (ZIG-I33-6)', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.goto('/company/equipo');
+    await waitForSettledLayout(page);
+    await expect(page.getByTestId('team-member-card').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('team-desktop')).toHaveCount(0);
+    await expect(
+      page.getByRole('group', { name: 'Filtrar por acceso' }).getByRole('button', { name: 'Activos' }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('at 1024 with the sidebar open Equipo and Roles fit without sideways scroll', async ({ page }) => {
@@ -190,8 +270,8 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
     await openDatos(page);
     await expectNoSeriousViolations(page, 'company-datos-desktop');
 
-    await page.goto('/company/equipo');
-    await expect(page.getByTestId('team-member-row').first()).toBeVisible({ timeout: 15_000 });
+    await openEquipo(page);
+    await expectNoSeriousViolations(page, 'company-equipo-desktop');
     await page.getByRole('button', { name: 'Agregar persona' }).click();
     await expect(page.getByTestId('team-member-panel')).toBeVisible();
     await expectNoSeriousViolations(page, 'company-equipo-panel-desktop');
@@ -204,7 +284,7 @@ test.describe('Mi empresa desktop @1280px (ZIG-I32)', () => {
 
   test('the hub content meets 4.5:1 contrast (color-contrast is off in the shared helper)', async ({ page }) => {
     const contrast = async (label: string) => {
-      // Hover actions fade in; measure the resting page, not a half-faded row.
+      // Measure the resting page, not a hovered row.
       await page.mouse.move(0, 0);
       await page.waitForTimeout(400);
       const results = await new AxeBuilder({ page })

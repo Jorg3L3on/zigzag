@@ -58,6 +58,8 @@ export type ListFilterBarShellProps = {
    * whose title already carries the count (ZIG-30).
    */
   desktopInline?: boolean;
+  /** With desktopInline: controls pushed to the right end of the row («Columnas», ZIG-I33). */
+  desktopTrailing?: ReactNode;
 };
 
 export const ListFilterBarShell = ({
@@ -82,6 +84,7 @@ export const ListFilterBarShell = ({
   mobileSort,
   moreFiltersLabel,
   desktopInline = false,
+  desktopTrailing,
 }: ListFilterBarShellProps) => {
   const sheet = showFilterSheet ? (
     <Sheet>
@@ -229,9 +232,19 @@ export const ListFilterBarShell = ({
 
         {moreFiltersLabel ? null : sheet}
         {desktopInline && showFilterSheet ? (
-          <div className="hidden shrink-0 items-center gap-3 lg:flex">
+          <div
+            className={cn(
+              "hidden items-center gap-3 lg:flex",
+              // With a trailing control the row can run out of room (Limpiar filtros
+              // appears with a filter): wrap instead of overflowing the page.
+              desktopTrailing != null ? "min-w-0 flex-1 flex-wrap" : "shrink-0",
+            )}
+          >
             {desktopContent}
             {desktopClear}
+            {desktopTrailing != null ? (
+              <div className="ml-auto flex shrink-0 items-center gap-3">{desktopTrailing}</div>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -6,28 +6,27 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+  type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
 import { Loader2, Plus, Search, UserPlus, Users } from 'lucide-react';
 
 import { getTeam, resetTeamMemberPassword, type TeamData } from '@/actions/team';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page';
 import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import { TripledEmptyState, TripledMobileStickyActionBar } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
 import { useIsDesktop } from '@/hooks/use-desktop';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import {
   filterTeamMembers,
   TEAM_ACCESS_FILTERS,
   type TeamAccessFilter,
   type TeamMember,
 } from '@/lib/team-members';
-import {
-  createTeamColumns,
-  TeamAccessPill,
-  TeamAvatar,
-  TeamRolePill,
-} from './team-columns';
+import { TeamAccessPill, TeamAvatar, TeamRolePill } from './team-columns';
 import { TeamDeactivateDialog } from './team-deactivate-dialog';
 import { TeamMemberMenu, type TeamMemberMenuHandlers } from './team-member-menu';
 import { TeamDesktop } from './team-desktop';
@@ -36,6 +35,9 @@ import { TeamMemberSheet } from './team-member-sheet';
 import { TeamRoleSheet } from './team-role-sheet';
 
 const SEARCH_DEBOUNCE_MS = 200;
+
+/** The phone cards only sort by name (TanStack's text order, as before ZIG-I33). */
+const PHONE_COLUMNS: ColumnDef<TeamMember>[] = [{ id: 'usuario', accessorKey: 'name' }];
 
 type LoadState =
   | { status: 'loading' }
@@ -116,11 +118,9 @@ export const TeamList = () => {
         : [],
     [data, debouncedSearch, accessFilter],
   );
-  const columns = React.useMemo(() => createTeamColumns(handlers), [handlers]);
-
   const table = useReactTable({
     data: members,
-    columns,
+    columns: PHONE_COLUMNS,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -163,20 +163,9 @@ export const TeamList = () => {
   const totalMembers = state.data.members.length + state.data.deactivated.length;
   const addButtonLabel = 'Agregar persona';
 
-  return (
-    <div className="space-y-4">
-      {isDesktop ? (
-        <TeamDesktop
-          members={state.data.members}
-          deactivated={state.data.deactivated}
-          roles={state.data.roles}
-          handlers={handlers}
-          onAdd={() => setAddOpen(true)}
-          className="hidden lg:block"
-        />
-      ) : null}
-      {/* Phones and tablets (ZIG-I3-4); lg+ uses TeamDesktop (ZIG-I32-2). */}
-      <div className="space-y-4 lg:hidden">
+  // Phones and tablets below lg (ZIG-I3-4); from lg TeamDesktop (ZIG-I32-2, ZIG-I33-6).
+  const phone = (
+    <>
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative min-w-0 flex-1 basis-64">
           <span className="sr-only">Buscar en el equipo</span>
@@ -203,9 +192,10 @@ export const TeamList = () => {
               <Button
                 key={option.value}
                 type="button"
-                variant={active ? 'default' : 'outline'}
+                variant="outline"
                 aria-pressed={active}
-                className="h-10 shrink-0 rounded-full px-4"
+                // A chosen filter is a tint, never the solid blue of the page action (eb0ff213).
+                className={cn('h-10 shrink-0 rounded-full px-4', active && FILTER_SELECTED_CLASS)}
                 onClick={() => setAccessFilter(option.value)}
               >
                 {option.label}
@@ -238,45 +228,59 @@ export const TeamList = () => {
           }
         />
       ) : (
-        <>
-          {/* Mobile cards, same sorted order */}
-          <ul className="space-y-2.5 md:hidden">
-            {rows.map((row) => {
-              const member = row.original;
-              return (
-                <li
-                  key={row.id}
-                  data-testid="team-member-card"
-                  className="flex items-center gap-3 rounded-2xl border bg-card p-3.5"
-                >
-                  <TeamAvatar name={member.name} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="truncate font-semibold">
-                      {member.name}
-                      {member.isSelf ? (
-                        <span className="ml-1.5 text-caption font-normal text-muted-foreground">
-                          (tú)
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="truncate text-sm text-muted-foreground">
-                      {member.email}
-                    </span>
-                    <span className="flex flex-wrap items-center gap-2">
-                      <TeamRolePill name={member.roleName} />
-                      <TeamAccessPill member={member} />
-                    </span>
-                  </div>
-                  {handlers && !member.deactivated ? (
-                    <TeamMemberMenu member={member} {...handlers} />
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        </>
+        <ul className="space-y-2.5">
+          {rows.map((row) => {
+            const member = row.original;
+            return (
+              <li
+                key={row.id}
+                data-testid="team-member-card"
+                className="flex items-center gap-3 rounded-2xl border bg-card p-3.5"
+              >
+                <TeamAvatar name={member.name} />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="truncate font-semibold">
+                    {member.name}
+                    {member.isSelf ? (
+                      <span className="ml-1.5 text-caption font-normal text-muted-foreground">
+                        (tú)
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="truncate text-sm text-muted-foreground">
+                    {member.email}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <TeamRolePill name={member.roleName} />
+                    <TeamAccessPill member={member} />
+                  </span>
+                </div>
+                {handlers && !member.deactivated ? (
+                  <TeamMemberMenu member={member} {...handlers} />
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       )}
-      </div>
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      <DesktopSwitch
+        phone={phone}
+        phoneClassName="space-y-4"
+        desktop={
+          <TeamDesktop
+            members={state.data.members}
+            deactivated={state.data.deactivated}
+            roles={state.data.roles}
+            handlers={handlers}
+            onAdd={() => setAddOpen(true)}
+          />
+        }
+      />
 
       {canWrite ? (
         <TripledMobileStickyActionBar>

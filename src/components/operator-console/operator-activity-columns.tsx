@@ -1,11 +1,11 @@
 'use client';
 
-import type { Column, ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
+import { auditResultTone } from '@/components/audit/audit-columns';
 import { FormattedDate } from '@/components/formatted-date';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { ListSortableHeader, ListStatusPill } from '@/components/list-page';
 import { actorDisplayName } from '@/lib/audit-actor-display';
 import {
   formatAuditActionLabel,
@@ -22,47 +22,18 @@ import {
 } from '@/lib/operator-audit-incidents';
 import { cn } from '@/lib/utils';
 
-const SortableHeader = <TData,>({
-  column,
-  label,
-}: {
-  column: Column<TData>;
-  label: string;
-}) => {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className="-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent"
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden />
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden />
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden />
-      )}
-    </Button>
-  );
-};
-
 export type OperatorActivityColumnsOptions = {
   expandedId: number | null;
-  onToggleExpand: (eventId: number) => void;
   showIncidentColumn: boolean;
   tenantCompanyId?: number;
 };
 
+/**
+ * The desktop activity table (ZIG-I33-8). The row opens its detail (click, Enter,
+ * Space), so the first column only shows whether it is open.
+ */
 export const createOperatorActivityColumns = ({
   expandedId,
-  onToggleExpand,
   showIncidentColumn,
   tenantCompanyId,
 }: OperatorActivityColumnsOptions): ColumnDef<OperatorActivityRow>[] => {
@@ -70,39 +41,25 @@ export const createOperatorActivityColumns = ({
     {
       id: 'expand',
       enableSorting: false,
+      meta: { className: 'w-10' },
       header: () => <span className="sr-only">Detalle</span>,
-      cell: ({ row }) => {
-        const expanded = expandedId === row.original.id;
-        return (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            aria-expanded={expanded}
-            aria-label={`Ver detalle del evento ${row.original.id}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleExpand(row.original.id);
-            }}
-          >
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 text-muted-foreground transition-transform',
-                expanded && 'rotate-180',
-              )}
-              aria-hidden
-            />
-          </Button>
-        );
-      },
+      cell: ({ row }) => (
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 text-muted-foreground transition-transform',
+            expandedId === row.original.id && 'rotate-180',
+          )}
+          aria-hidden
+        />
+      ),
     },
     {
       id: 'occurred_at',
       accessorKey: 'occurred_at',
-      header: ({ column }) => <SortableHeader column={column} label="Fecha" />,
+      meta: { className: 'w-44' },
+      header: ({ column }) => <ListSortableHeader column={column} label="Fecha" />,
       cell: ({ row }) => (
-        <div className="whitespace-nowrap text-sm">
+        <div className="tabular-nums text-slate-600 dark:text-slate-300">
           <FormattedDate
             date={new Date(row.original.occurred_at)}
             withTime
@@ -117,11 +74,12 @@ export const createOperatorActivityColumns = ({
     },
     {
       id: 'actor',
+      meta: { className: 'w-40' },
       accessorFn: (row) =>
         actorDisplayName(row.actor_user_id, row.actor_name),
-      header: ({ column }) => <SortableHeader column={column} label="Actor" />,
+      header: ({ column }) => <ListSortableHeader column={column} label="Actor" />,
       cell: ({ row }) => (
-        <span className="text-sm">
+        <span className="line-clamp-2">
           {actorDisplayName(row.original.actor_user_id, row.original.actor_name)}
         </span>
       ),
@@ -133,7 +91,7 @@ export const createOperatorActivityColumns = ({
           actorName: row.actor_name,
         }),
       header: ({ column }) => (
-        <SortableHeader column={column} label="Recurso" />
+        <ListSortableHeader column={column} label="Recurso" />
       ),
       cell: ({ row }) => {
         const link = resolveAuditResourceLink(
@@ -148,13 +106,13 @@ export const createOperatorActivityColumns = ({
         );
 
         if (!link) {
-          return <span className="text-sm">{label}</span>;
+          return <span className="line-clamp-2">{label}</span>;
         }
 
         return (
           <Link
             href={link.href}
-            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="line-clamp-2 font-medium text-primary underline-offset-4 hover:underline"
             onClick={(event) => event.stopPropagation()}
           >
             {link.label}
@@ -165,23 +123,21 @@ export const createOperatorActivityColumns = ({
     {
       id: 'action',
       accessorKey: 'action',
-      header: ({ column }) => <SortableHeader column={column} label="Acción" />,
+      meta: { className: 'w-36' },
+      header: ({ column }) => <ListSortableHeader column={column} label="Acción" />,
       cell: ({ row }) => formatAuditActionLabel(row.original.action),
     },
     {
       id: 'result',
       accessorKey: 'result',
+      meta: { className: 'w-32' },
       header: ({ column }) => (
-        <SortableHeader column={column} label="Resultado" />
+        <ListSortableHeader column={column} label="Resultado" />
       ),
       cell: ({ row }) => (
-        <Badge
-          variant={
-            row.original.result === 'success' ? 'default' : 'destructive'
-          }
-        >
+        <ListStatusPill tone={auditResultTone(row.original.result)}>
           {formatAuditResultLabel(row.original.result)}
-        </Badge>
+        </ListStatusPill>
       ),
     },
   ];
@@ -189,10 +145,11 @@ export const createOperatorActivityColumns = ({
   if (showIncidentColumn) {
     columns.push({
       id: 'incident',
+      meta: { className: 'w-40' },
       accessorFn: (row) =>
         isOperatorIncidentEvent(row) ? operatorIncidentLabel(row) : '',
       header: ({ column }) => (
-        <SortableHeader column={column} label="Incidente" />
+        <ListSortableHeader column={column} label="Incidente" />
       ),
       cell: ({ row }) => {
         if (!isOperatorIncidentEvent(row.original)) {
@@ -201,9 +158,11 @@ export const createOperatorActivityColumns = ({
           );
         }
         return (
-          <Badge variant="destructive">
-            {operatorIncidentLabel(row.original)}
-          </Badge>
+          <ListStatusPill tone="red" className="max-w-full">
+            <span className="truncate" title={operatorIncidentLabel(row.original)}>
+              {operatorIncidentLabel(row.original)}
+            </span>
+          </ListStatusPill>
         );
       },
     });

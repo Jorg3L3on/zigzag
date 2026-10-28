@@ -20,7 +20,7 @@ import {
   FILTER_SELECTED_CLASS,
   ListFilterBarShell,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 import { cn } from '@/lib/utils';
 
 type OperatorActivityFilterBarProps = {

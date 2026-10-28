@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import type { SortingState } from '@tanstack/react-table';
-import { ListFilter, Search } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import {
   TicketDateRangeFilter,
@@ -16,23 +15,20 @@ import {
   filtersForTicketCollectionView,
   ticketCollectionView,
 } from '@/components/tickets/tickets-list-types';
-import { ListViewTabs } from '@/components/list-views/list-view-tabs';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
   FILTER_SELECTED_CLASS,
   ListFilterBarShell,
+  ListFilterSelect,
+  ListToolbar,
+  ListViewTabs,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 type TicketsFilterBarProps = {
   /** Tickets with a saldo under the search/date/finished filters (Por cobrar chip). */
   dueCount?: number | null;
-  /** Tab counts under the current search and date range. */
-  counts?: TicketListCounts | null;
   searchValue: string;
   onSearchChange: (value: string) => void;
   statusFilter: StatusFilterValue;
@@ -47,8 +43,6 @@ type TicketsFilterBarProps = {
   hasActiveFilters: boolean;
   onClearFilters: () => void;
   filterChips: ListFilterChip[];
-  /** Desktop «Columnas» menu, built by the list from its table. */
-  columnsMenu?: ReactNode;
 };
 
 const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
@@ -61,12 +55,12 @@ const COLLECTION_VIEWS: Array<{
   id: TicketCollectionView;
   label: string;
   countKey: keyof TicketListCounts;
-  /** The canvas dot; the estado pill colours of the rows in that view. */
+  /** The canvas dot; the estado pill tones of the rows in that view (ZIG-I33 §6). */
   dot: string | null;
 }> = [
   { id: 'all', label: 'Todos', countKey: 'all', dot: null },
   { id: 'due', label: 'Por cobrar', countKey: 'due', dot: 'bg-amber-500' },
-  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress', dot: 'bg-sky-500' },
+  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress', dot: 'bg-slate-500' },
   { id: 'paid', label: 'Pagados', countKey: 'paid', dot: 'bg-emerald-500' },
 ];
 
@@ -112,7 +106,8 @@ const TicketQuickFilters = ({
   </div>
 );
 
-const TicketCollectionTabs = ({
+/** Todos / Por cobrar / En proceso / Pagados over the list, with counts (desktop). */
+export const TicketCollectionTabs = ({
   statusFilter,
   finishedFilter,
   counts,
@@ -173,9 +168,12 @@ const renderTicketFilters = (
   </>
 );
 
+/**
+ * The phone filter bar (unchanged by ZIG-I33): search, the Cobro chips, the short
+ * sort and Más filtros with the full sheet. Desktop uses `TicketsDesktopToolbar`.
+ */
 export const TicketsFilterBar = ({
   dueCount = null,
-  counts = null,
   searchValue,
   onSearchChange,
   statusFilter,
@@ -190,128 +188,116 @@ export const TicketsFilterBar = ({
   hasActiveFilters,
   onClearFilters,
   filterChips,
-  columnsMenu = null,
 }: TicketsFilterBarProps) => (
-  <div className="flex flex-col gap-3">
-    <div className="hidden flex-col gap-3 md:flex">
-      <TicketCollectionTabs
-        statusFilter={statusFilter}
-        finishedFilter={finishedFilter}
-        counts={counts}
-        onStatusFilterChange={onStatusFilterChange}
-        onFinishedFilterChange={onFinishedFilterChange}
+  <ListFilterBarShell
+    searchValue={searchValue}
+    onSearchChange={onSearchChange}
+    searchPlaceholder="Cliente, número de ticket o teléfono"
+    searchAriaLabel="Buscar tickets por folio, cliente, teléfono o correo"
+    searchContainerClassName="relative min-w-0 flex-1 lg:min-w-0"
+    quickFilters={
+      <TicketQuickFilters
+        value={statusFilter}
+        onChange={onStatusFilterChange}
+        dueCount={dueCount}
       />
-      {/* Canvas ListaA: search, dates, Más filtros, then the order and Columnas at the right end. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[12rem] max-w-[360px] flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            className="h-11 rounded-xl bg-background pl-9 shadow-none"
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Buscar por cliente, folio o teléfono"
-            aria-label="Buscar por cliente, folio o teléfono"
-          />
-        </div>
-        <TicketDateRangeFilter
-          layout="desktop"
-          value={dateRange}
-          onChange={onDateRangeChange}
+    }
+    moreFiltersLabel="Más filtros"
+    mobileSort={
+      <TicketsSortControls
+        variant="phone"
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        id="ticket-sort-phone"
+        className="min-w-0 flex-1 space-y-1"
+        triggerClassName="h-12 w-full rounded-xl text-base"
+      />
+    }
+    sheetFilterCount={activeFilterCount}
+    sheetDescription="Cobro, terminado, fechas y orden de la lista."
+    hasActiveFilters={hasActiveFilters}
+    onClearFilters={onClearFilters}
+    clearFiltersAriaLabel="Limpiar filtros"
+    filterChips={filterChips}
+    showDesktopClear={false}
+    sheetContent={
+      <>
+        {renderTicketFilters(
+          finishedFilter,
+          onFinishedFilterChange,
+          dateRange,
+          onDateRangeChange,
+          'sheet',
+        )}
+        <TicketsSortControls
+          sorting={sorting}
+          onSortingChange={onSortingChange}
+          id="ticket-sort-sheet"
+          className="space-y-2"
         />
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="outline" className="h-11 shrink-0 gap-2 rounded-full px-4">
-              <ListFilter className="h-4 w-4" aria-hidden data-icon="inline-start" />
-              Más filtros
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-80">
-            <TicketFinishedFilter
-              layout="desktop"
-              value={finishedFilter}
-              onChange={onFinishedFilterChange}
-            />
-          </PopoverContent>
-        </Popover>
-        {hasActiveFilters ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11 shrink-0 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            onClick={onClearFilters}
-            aria-label="Limpiar filtros"
-          >
-            Limpiar filtros
-          </Button>
-        ) : null}
-        <div className="ml-auto flex items-center gap-2">
-          <TicketsSortControls
-            variant="desktop"
-            sorting={sorting}
-            onSortingChange={onSortingChange}
-            id="ticket-sort-desktop"
-            labelHidden
-            triggerClassName="h-11 w-auto gap-2 rounded-full px-4"
-          />
-          {columnsMenu}
-        </div>
-      </div>
-    </div>
+      </>
+    }
+    desktopContent={null}
+  />
+);
 
-    <div className="md:hidden">
-      <ListFilterBarShell
-        searchValue={searchValue}
-        onSearchChange={onSearchChange}
-        searchPlaceholder="Cliente, número de ticket o teléfono"
-        searchAriaLabel="Buscar tickets por folio, cliente, teléfono o correo"
-        searchContainerClassName="relative min-w-0 flex-1 lg:min-w-0"
-        quickFilters={
-          <TicketQuickFilters
-            value={statusFilter}
-            onChange={onStatusFilterChange}
-            dueCount={dueCount}
-          />
-        }
-        moreFiltersLabel="Más filtros"
-        mobileSort={
-          <TicketsSortControls
-            variant="phone"
-            sorting={sorting}
-            onSortingChange={onSortingChange}
-            id="ticket-sort-phone"
-            className="min-w-0 flex-1 space-y-1"
-            triggerClassName="h-12 w-full rounded-xl text-base"
-          />
-        }
-        sheetFilterCount={activeFilterCount}
-        sheetDescription="Cobro, terminado, fechas y orden de la lista."
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={onClearFilters}
-        clearFiltersAriaLabel="Limpiar filtros"
-        filterChips={filterChips}
-        showDesktopClear={false}
-        sheetContent={
-          <>
-            {renderTicketFilters(
-              finishedFilter,
-              onFinishedFilterChange,
-              dateRange,
-              onDateRangeChange,
-              'sheet',
-            )}
-            <TicketsSortControls
-              sorting={sorting}
-              onSortingChange={onSortingChange}
-              id="ticket-sort-sheet"
-              className="space-y-2"
-            />
-          </>
-        }
-        desktopContent={null}
-      />
-    </div>
-  </div>
+const FINISHED_OPTIONS: ReadonlyArray<{ value: FinishedFilterValue; label: string }> = [
+  { value: 'all', label: 'Todos los trabajos' },
+  { value: 'yes', label: 'Terminados' },
+  { value: 'no', label: 'En proceso' },
+];
+
+type TicketsDesktopToolbarProps = {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  finishedFilter: FinishedFilterValue;
+  onFinishedFilterChange: (value: FinishedFilterValue) => void;
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (value: DateRange | undefined) => void;
+  hasActiveFilters: boolean;
+  /** Clears the filters and the search, never the order. */
+  onClearFilters: () => void;
+  /** «Columnas», built by the list from its table. */
+  columnsMenu?: ReactNode;
+};
+
+/**
+ * The desktop filter row (ZIG-I33-2): search, the dates and Terminado as pills,
+ * Limpiar filtros while one is on, Columnas at the right. No sort select: the
+ * column headers sort.
+ */
+export const TicketsDesktopToolbar = ({
+  searchValue,
+  onSearchChange,
+  finishedFilter,
+  onFinishedFilterChange,
+  dateRange,
+  onDateRangeChange,
+  hasActiveFilters,
+  onClearFilters,
+  columnsMenu = null,
+}: TicketsDesktopToolbarProps) => (
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por cliente, folio o teléfono',
+      ariaLabel: 'Buscar por cliente, folio o teléfono',
+    }}
+    filters={
+      <>
+        <TicketDateRangeFilter layout="desktop" value={dateRange} onChange={onDateRangeChange} />
+        <ListFilterSelect
+          value={finishedFilter}
+          allValue="all"
+          onChange={onFinishedFilterChange}
+          options={FINISHED_OPTIONS}
+          ariaLabel="Filtrar por trabajo terminado"
+        />
+      </>
+    }
+    hasActiveFilters={hasActiveFilters}
+    onClear={onClearFilters}
+    trailing={columnsMenu}
+  />
 );

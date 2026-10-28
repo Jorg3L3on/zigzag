@@ -7,7 +7,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  TICKETS_DESKTOP_SORT_OPTIONS,
   TICKETS_MOBILE_SORT_OPTIONS,
   TICKETS_PHONE_SORT_OPTIONS,
   decodeSortingState,
@@ -22,11 +21,9 @@ type TicketsSortControlsProps = {
   triggerClassName?: string;
   /**
    * Three plain options for phones; the sheet keeps the full list with long labels
-   * (ZIG-I18-9); the desktop bar has every order with short labels («Más recientes»).
+   * (ZIG-I18-9). Desktop sorts by the column headers, never here (ZIG-I33-2).
    */
-  variant?: 'full' | 'phone' | 'desktop';
-  /** Desktop bar (canvas): the order shows only its value; the label stays for screen readers. */
-  labelHidden?: boolean;
+  variant?: 'full' | 'phone';
 };
 
 export const TicketsSortControls = ({
@@ -36,14 +33,8 @@ export const TicketsSortControls = ({
   className,
   triggerClassName = 'h-11 w-full',
   variant = 'full',
-  labelHidden = false,
 }: TicketsSortControlsProps) => {
-  const options =
-    variant === 'phone'
-      ? TICKETS_PHONE_SORT_OPTIONS
-      : variant === 'desktop'
-        ? TICKETS_DESKTOP_SORT_OPTIONS
-        : TICKETS_MOBILE_SORT_OPTIONS;
+  const options = variant === 'phone' ? TICKETS_PHONE_SORT_OPTIONS : TICKETS_MOBILE_SORT_OPTIONS;
   const encoded = encodeSortingState(sorting);
   // A sort picked in the sheet that is not one of the three shows as "Otro orden".
   const mobileSortValue = options.some((opt) => opt.value === encoded) ? encoded : '';
@@ -52,7 +43,7 @@ export const TicketsSortControls = ({
     <div className={className}>
       <label
         htmlFor={id}
-        className={labelHidden ? 'sr-only' : 'text-caption font-medium text-muted-foreground'}
+        className="text-caption font-medium text-muted-foreground"
       >
         Ordenar por
       </label>

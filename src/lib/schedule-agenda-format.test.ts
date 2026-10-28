@@ -3,7 +3,6 @@ import {
   formatRelativeDays,
   formatScheduleEvery,
   formatScheduleLongDate,
-  formatScheduleShortDate,
   isoDayToLocalDate,
   localDateToIsoDay,
   scheduleDueTone,
@@ -34,14 +33,6 @@ describe('schedule agenda words (ZIG-I30)', () => {
     expect(formatDaysSince(0)).toBe('hoy');
     expect(formatDaysSince(180)).toBe('hace 6 meses');
     expect(formatDaysSince(null)).toBe('');
-  });
-
-  it('formats short dates on the company calendar, with the year only when it differs', () => {
-    const now = new Date('2026-10-25T18:00:00.000Z');
-    // 23:30 CDMX on 24 Oct is already 25 Oct in UTC.
-    expect(formatScheduleShortDate('2026-10-25T05:30:00.000Z', now)).toBe('24 oct');
-    expect(formatScheduleShortDate('2025-06-12T12:00:00.000Z', now)).toBe('12 jun 2025');
-    expect(formatScheduleShortDate(null, now)).toBe('');
   });
 
   it('says how often', () => {

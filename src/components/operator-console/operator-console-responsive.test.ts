@@ -5,28 +5,45 @@ const read = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
 
 describe('operator console responsive surfaces', () => {
-  it('uses mobile cards and desktop tables in the fleet list', () => {
+  it('uses phone cards and the desktop list table in the fleet list', () => {
     const source = read(
       'src/components/operator-console/operator-company-fleet.tsx',
     );
-    expect(source).toContain('md:hidden');
-    expect(source).toContain('hidden overflow-hidden rounded-xl border');
+    expect(source).toContain('<DesktopSwitch phone={phone} desktop={desktop} />');
+    expect(source).toContain('<ListTable');
+    expect(source).toContain('<ListToolbar');
+    expect(source).not.toContain('md:hidden');
     expect(source).toContain('getOperatorCompanyFleet');
   });
 
-  it('uses mobile cards and desktop tables in activity panel', () => {
+  it('uses phone cards and the desktop list table in activity panel', () => {
     const source = read(
       'src/components/operator-console/operator-activity-panel.tsx',
     );
-    expect(source).toContain('md:hidden');
-    expect(source).toContain('rounded-xl border border-border/70 md:block');
+    expect(source).toContain('<DesktopSwitch');
+    expect(source).not.toContain('md:hidden');
     expect(source).toContain('useReactTable');
     expect(source).toContain('OperatorActivityFilterBar');
+    expect(source).toContain('<ListToolbar');
     expect(source).toContain('debouncedSearch');
     expect(source).toContain('ACTIVITY_TABLE_SCROLL_CLASS');
     expect(source).toContain('max-h-[calc(3rem+3.25rem*10)]');
-    expect(source).toContain('<table className="w-full caption-bottom text-sm">');
-    expect(source).toContain('sticky top-0');
+    // The list header sticks at the top of the scroll area (ZIG-I33 §4).
+    expect(source).toContain('stickyTop="top-0"');
+    expect(source).toContain('max-h-[calc(2.5rem+3.5rem*10)]');
+  });
+
+  it('sorts both console tables with the shared list header', () => {
+    const fleetColumns = read(
+      'src/components/operator-console/operator-company-fleet-columns.tsx',
+    );
+    const activityColumns = read(
+      'src/components/operator-console/operator-activity-columns.tsx',
+    );
+    expect(fleetColumns).not.toContain('FleetSortableHeader');
+    expect(activityColumns).not.toMatch(/(^|[^A-Za-z])SortableHeader/);
+    expect(fleetColumns).toContain('ListSortableHeader');
+    expect(activityColumns).toContain('ListSortableHeader');
   });
 
   it('keeps sticky company chrome in the detail shell', () => {

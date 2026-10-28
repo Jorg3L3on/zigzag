@@ -2,16 +2,11 @@
 
 import { companyDay } from '@/lib/company-day';
 import { formatDocumentFolio } from '@/lib/folio';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, MoreVertical, Eye, Pencil, FileDown, Banknote, Loader2, Trash2, CircleCheck } from 'lucide-react';
-import Link from 'next/link';
+import { useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { ListCardMenu, ListRowMenu, type ListCardMenuItem } from '@/components/list-page';
+import { Eye, Pencil, FileDown, Banknote, Loader2, Trash2, CircleCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
 import {
@@ -40,21 +35,19 @@ interface Ticket {
   folio_prefix?: string | null;
 }
 
-interface TicketRowActionsProps {
+type TicketRowActionsOptions = {
   ticket: Ticket;
   onDelete?: (id: number) => void;
   onDeleteFailed?: (id: number) => void;
   onPaymentApplied?: (result: TicketListCollectPaymentResult) => void;
   canWrite?: boolean;
   companyId?: number | null;
-  /** The desktop table uses the canvas ⋯; phone cards and Cobranza keep ⋮. */
-  triggerIcon?: 'vertical' | 'horizontal';
   /**
    * Adds Terminar for an open ticket. The desktop table passes it since its rows have
    * no hover buttons (ZIG-33); phone cards and Cobranza show Terminar elsewhere.
    */
   finishHref?: string;
-}
+};
 
 const buildListTicketPdfFileName = (ticket: Ticket): string => {
   const safeName =
@@ -66,16 +59,31 @@ const buildListTicketPdfFileName = (ticket: Ticket): string => {
   return `${safeName}_${datePart}_${ticket.id.toString()}.pdf`;
 };
 
-export function TicketRowActions({
-  ticket,
-  onDelete,
-  onDeleteFailed,
-  onPaymentApplied,
-  canWrite = true,
-  companyId,
-  triggerIcon = 'vertical',
-  finishHref,
-}: TicketRowActionsProps) {
+/**
+ * One entry of a ticket row menu: the phone ⋮ (`ListCardMenu`) names the folio with
+ * `ariaLabel` and draws `href` as a link; `ListRowMenu` uses `router.push`.
+ */
+export type TicketRowActionItem = ListCardMenuItem;
+
+/**
+ * The items of a ticket row menu and the dialogs they open (ZIG-I33-2): Ver detalles,
+ * Terminar, Cobrar, Editar, Descargar ticket and Eliminar, by permission and state.
+ * The desktop table draws them with `ListRowMenu` (`TicketRowMenu`); Cobranza's
+ * phone cards keep the ⋮ of `TicketRowActions`. Render `dialogs` beside the menu.
+ */
+export const useTicketRowActions = (
+  {
+    ticket,
+    onDelete,
+    onDeleteFailed,
+    onPaymentApplied,
+    canWrite = true,
+    companyId,
+    finishHref,
+  }: TicketRowActionsOptions,
+  iconClassName = 'h-4 w-4',
+): { label: string; items: TicketRowActionItem[]; dialogs: ReactNode } => {
+  const router = useRouter();
   const { can } = usePermissions();
   const canDownload = canDownloadTicketInvoice(can);
   const canCollect = canCollectTicketPayment(can);
@@ -92,8 +100,9 @@ export function TicketRowActions({
   // Labels name the folio people see (R-0060); #id only for a row without one.
   const folio = formatDocumentFolio(ticket);
 
-  const handleDownloadTicket = async (event: Event) => {
-    event.preventDefault();
+  // Keeps the menu open while the PDF is generated (preventDefault on the item event).
+  const handleDownloadTicket = async (event?: Event) => {
+    event?.preventDefault();
     if (isDownloading) return;
 
     try {
@@ -117,85 +126,62 @@ export function TicketRowActions({
     }
   };
 
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Más acciones de ${folio}`}
-          >
-            {triggerIcon === 'horizontal' ? (
-              <MoreHorizontal className="h-4 w-4" aria-hidden data-icon="inline-start" />
-            ) : (
-              <MoreVertical className="h-4 w-4" aria-hidden data-icon="inline-start" />
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <Link href={`/tickets/${ticket.id}`}>
-            <DropdownMenuItem>
-              <Eye className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Ver detalles
-            </DropdownMenuItem>
-          </Link>
-          {canWrite && !ticket.finished && finishHref ? (
-            <Link href={finishHref}>
-              <DropdownMenuItem aria-label={`Terminar ${folio}`}>
-                <CircleCheck className="mr-2 h-4 w-4" data-icon="inline-start" />
-                Terminar
-              </DropdownMenuItem>
-            </Link>
-          ) : null}
-          {showCollectAction ? (
-            <DropdownMenuItem
-              onSelect={() => setCollectOpen(true)}
-              aria-label={`Cobrar ${folio}`}
-            >
-              <Banknote className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Cobrar
-            </DropdownMenuItem>
-          ) : null}
-          {canWrite && !ticket.finished && (
-            <Link href={`/tickets/${ticket.id}/edit`}>
-              <DropdownMenuItem>
-                <Pencil className="mr-2 h-4 w-4" data-icon="inline-start" />
-                Editar
-              </DropdownMenuItem>
-            </Link>
-          )}
-          {canDownload ? (
-            <DropdownMenuItem
-              disabled={isDownloading}
-              onSelect={handleDownloadTicket}
-              aria-label={`Descargar ${folio}`}
-            >
-              {isDownloading ? (
-                <Loader2
-                  className="mr-2 h-4 w-4 animate-spin"
-                  aria-hidden
-                  data-icon="inline-start"
-                />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" data-icon="inline-start" />
-              )}
-              {isDownloading ? 'Generando…' : 'Descargar ticket'}
-            </DropdownMenuItem>
-          ) : null}
-          {canWrite ? (
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={() => setDeleteOpen(true)}
-              aria-label={`Eliminar ${folio}`}
-            >
-              <Trash2 className="mr-2 h-4 w-4" data-icon="inline-start" />
-              Eliminar
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+  const link = (href: string) => ({ href, onSelect: () => router.push(href) });
+  const items: TicketRowActionItem[] = [
+    {
+      label: 'Ver detalles',
+      icon: <Eye className={iconClassName} aria-hidden data-icon="inline-start" />,
+      ...link(`/tickets/${ticket.id}`),
+    },
+  ];
+  if (canWrite && !ticket.finished && finishHref) {
+    items.push({
+      label: 'Terminar',
+      ariaLabel: `Terminar ${folio}`,
+      icon: <CircleCheck className={iconClassName} aria-hidden data-icon="inline-start" />,
+      ...link(finishHref),
+    });
+  }
+  if (showCollectAction) {
+    items.push({
+      label: 'Cobrar',
+      ariaLabel: `Cobrar ${folio}`,
+      icon: <Banknote className={iconClassName} aria-hidden data-icon="inline-start" />,
+      onSelect: () => setCollectOpen(true),
+    });
+  }
+  if (canWrite && !ticket.finished) {
+    items.push({
+      label: 'Editar',
+      icon: <Pencil className={iconClassName} aria-hidden data-icon="inline-start" />,
+      ...link(`/tickets/${ticket.id}/edit`),
+    });
+  }
+  if (canDownload) {
+    items.push({
+      label: isDownloading ? 'Generando…' : 'Descargar ticket',
+      ariaLabel: `Descargar ${folio}`,
+      disabled: isDownloading,
+      icon: isDownloading ? (
+        <Loader2 className={cn(iconClassName, 'animate-spin')} aria-hidden data-icon="inline-start" />
+      ) : (
+        <FileDown className={iconClassName} aria-hidden data-icon="inline-start" />
+      ),
+      onSelect: handleDownloadTicket,
+    });
+  }
+  if (canWrite) {
+    items.push({
+      label: 'Eliminar',
+      ariaLabel: `Eliminar ${folio}`,
+      destructive: true,
+      icon: <Trash2 className={iconClassName} aria-hidden data-icon="inline-start" />,
+      onSelect: () => setDeleteOpen(true),
+    });
+  }
 
+  const dialogs = (
+    <>
       {canWrite ? (
         // Outside the menu: the menu closes when Eliminar is picked, the sheet stays.
         <DeleteTicketSheet
@@ -230,6 +216,31 @@ export function TicketRowActions({
           }}
         />
       ) : null}
+    </>
+  );
+
+  return { label: `Más acciones de ${folio}`, items, dialogs };
+};
+
+/** The ⋯ of a desktop tickets row (ZIG-I33-2): `ListRowMenu` with the ticket items. */
+export const TicketRowMenu = (props: TicketRowActionsOptions) => {
+  const { label, items, dialogs } = useTicketRowActions(props);
+  return (
+    <>
+      <ListRowMenu label={label} items={items} />
+      {dialogs}
+    </>
+  );
+};
+
+/** The ⋮ menu of Cobranza's phone cards, from the same items (`ListCardMenu`). */
+export function TicketRowActions(options: TicketRowActionsOptions) {
+  const { label, items, dialogs } = useTicketRowActions(options, 'mr-2 h-4 w-4');
+
+  return (
+    <>
+      <ListCardMenu label={label} items={items} />
+      {dialogs}
     </>
   );
 }

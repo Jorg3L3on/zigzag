@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { ButtonFilterGroup } from '@/components/list-filter/button-filter-group';
+import { ButtonFilterGroup } from '@/components/list-page/button-filter-group';
 
 describe('ButtonFilterGroup', () => {
   it('marks the chosen option pressed and tints it, never the solid primary (ZIG-I27-3)', () => {

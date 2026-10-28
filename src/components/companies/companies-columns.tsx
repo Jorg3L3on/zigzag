@@ -1,70 +1,46 @@
 'use client';
 
-import type { Company } from '@/db/schema';
-import type { Column, ColumnDef } from '@tanstack/react-table';
+import type { Company, CompanyLifecycleStatus } from '@/db/schema';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import {
+  ListSortableHeader,
+  ListStatusPill,
+  type ListStatusTone,
+} from '@/components/list-page';
 import { formatCompanyAddressOneLine } from '@/lib/company-address';
-import { companyLifecycleLabel } from '@/lib/company-lifecycle';
-import { cn } from '@/lib/utils';
+import {
+  companyLifecycleLabel,
+  normalizeCompanyLifecycleStatus,
+} from '@/lib/company-lifecycle';
 
-function CompanySortableHeader<TData>({
-  column,
-  label,
-  className,
-}: {
-  column: Column<TData>;
-  label: string;
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
-      )}
-    </Button>
-  );
-}
+/** Active emerald, setting up amber, suspended slate, archived red (ZIG-I33 §6). */
+const LIFECYCLE_TONE: Record<CompanyLifecycleStatus, ListStatusTone> = {
+  ACTIVE: 'emerald',
+  SETUP: 'amber',
+  SUSPENDED: 'slate',
+  ARCHIVED: 'red',
+};
 
 export type CompaniesColumnsOptions = {
   renderActions: (row: Company) => ReactNode;
   renderContextBadge: (row: Company) => ReactNode;
+  /** Width of the actions column: Seleccionar and the ⋯ for operators, else the ⋯. */
+  actionsClassName?: string;
 };
 
+/** The desktop table of Empresas (ZIG-I33); phones draw cards. */
 export const createCompaniesColumns = ({
   renderActions,
   renderContextBadge,
+  actionsClassName = 'w-12',
 }: CompaniesColumnsOptions): ColumnDef<Company>[] => [
   {
     id: 'name',
     accessorKey: 'name',
-    header: ({ column }) => (
-      <CompanySortableHeader column={column} label="Nombre" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Nombre" />,
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[14rem] font-medium">
-        {row.original.name}
-      </span>
+      <span className="line-clamp-2 font-medium">{row.original.name}</span>
     ),
     sortingFn: (a, b) =>
       a.original.name.localeCompare(b.original.name, 'es'),
@@ -72,23 +48,22 @@ export const createCompaniesColumns = ({
   {
     id: 'phone',
     accessorKey: 'phone',
-    header: ({ column }) => (
-      <CompanySortableHeader column={column} label="Teléfono" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Teléfono" />,
     cell: ({ row }) => (
       <span className="tabular-nums">{row.original.phone}</span>
     ),
     sortingFn: (a, b) =>
       a.original.phone.localeCompare(b.original.phone, 'es', { numeric: true }),
+    meta: { className: 'w-36' },
   },
   {
     id: 'email',
     accessorKey: 'email',
-    header: ({ column }) => (
-      <CompanySortableHeader column={column} label="Correo" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Correo" />,
     cell: ({ row }) => (
-      <span className="line-clamp-1 max-w-[14rem]">{row.original.email}</span>
+      <span className="block truncate" title={row.original.email}>
+        {row.original.email}
+      </span>
     ),
     sortingFn: (a, b) =>
       a.original.email.localeCompare(b.original.email, 'es'),
@@ -96,11 +71,9 @@ export const createCompaniesColumns = ({
   {
     id: 'address',
     accessorFn: (row) => formatCompanyAddressOneLine(row),
-    header: ({ column }) => (
-      <CompanySortableHeader column={column} label="Dirección" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Dirección" />,
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[280px] text-sm text-muted-foreground">
+      <span className="line-clamp-2 text-sm text-muted-foreground">
         {formatCompanyAddressOneLine(row.original)}
       </span>
     ),
@@ -113,39 +86,28 @@ export const createCompaniesColumns = ({
   {
     id: 'status',
     accessorKey: 'status',
-    header: ({ column }) => (
-      <CompanySortableHeader column={column} label="Estado" />
+    header: ({ column }) => <ListSortableHeader column={column} label="Estado" />,
+    cell: ({ row }) => (
+      <ListStatusPill tone={LIFECYCLE_TONE[normalizeCompanyLifecycleStatus(row.original.status)]}>
+        {companyLifecycleLabel(row.original.status)}
+      </ListStatusPill>
     ),
-    cell: ({ row }) => {
-      const active = row.original.status === 'ACTIVE';
-      return (
-        <Badge variant={active ? 'default' : 'secondary'}>
-          {companyLifecycleLabel(row.original.status)}
-        </Badge>
-      );
-    },
     sortingFn: (a, b) =>
       a.original.status.localeCompare(b.original.status, 'es'),
+    meta: { className: 'w-40' },
   },
   {
     id: 'context',
     enableSorting: false,
-    header: () => <span className="text-right">Empresa</span>,
-    cell: ({ row }) => (
-      <div className="text-right">{renderContextBadge(row.original)}</div>
-    ),
+    header: 'Empresa',
+    cell: ({ row }) => renderContextBadge(row.original),
+    meta: { className: 'w-24 text-right' },
   },
   {
     id: 'actions',
     enableSorting: false,
     header: () => <span className="sr-only">Acciones</span>,
-    cell: ({ row }) => (
-      <div
-        className="flex justify-end"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        {renderActions(row.original)}
-      </div>
-    ),
+    cell: ({ row }) => renderActions(row.original),
+    meta: { className: actionsClassName },
   },
 ];

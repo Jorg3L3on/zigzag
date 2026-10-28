@@ -59,7 +59,7 @@ describe('TicketRowActions', () => {
   it('names the folio people see, not the internal id, in every row action label', async () => {
     const user = userEvent.setup();
     const withFolio = { ...ticket, id: BigInt(1121), folio_prefix: 'R', folio_number: 60 };
-    render(<TicketRowActions ticket={withFolio} onDelete={jest.fn()} canWrite triggerIcon="horizontal" />);
+    render(<TicketRowActions ticket={withFolio} onDelete={jest.fn()} canWrite />);
     await user.click(screen.getByRole('button', { name: 'Más acciones de R-0060' }));
     expect(await screen.findByRole('menuitem', { name: 'Cobrar R-0060' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Descargar R-0060' })).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('TicketRowActions', () => {
         ticket={{ ...ticket, finished: false }}
         onDelete={jest.fn()}
         canWrite
-        triggerIcon="horizontal"
+       
         finishHref="/tickets/7"
       />,
     );

@@ -25,7 +25,7 @@ import { formatServiceCurrency } from '@/components/tickets/ticket-services-util
 import { getErrorMessageByType } from '@/lib/network-awareness';
 import { vibrateSuccess } from '@/lib/vibrate-success';
 import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
-import { FILTER_SELECTED_CLASS } from '@/components/list-filter';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page';
 import { cn } from '@/lib/utils';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 import { Loader2, Wallet } from 'lucide-react';

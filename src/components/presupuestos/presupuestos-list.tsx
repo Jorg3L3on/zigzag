@@ -17,12 +17,13 @@ import {
   TripledEmptyState,
   TripledListLoadingState,
 } from '@/components/tripled';
-import { ListFilterBarShell } from '@/components/list-filter';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import { ListFilterBarShell, ListLoading } from '@/components/list-page';
 import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { useCompany } from '@/contexts/company-context';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useDesktopViewport } from '@/hooks/use-desktop';
 import { usePermissions } from '@/hooks/use-permissions';
-import { MOBILE_BREAKPOINT_PX } from '@/lib/breakpoints';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { filterPresupuestosBySearch } from '@/lib/presupuestos-search';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
@@ -30,7 +31,8 @@ import { canDownloadTicketInvoice, canWriteTickets } from '@/lib/tickets-rbac';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
 
-const shortDate = (value: string): string => {
+/** The phone card's «8 oct 26» (unchanged by ZIG-I33); the desktop table uses ListShortDate. */
+const phoneCardDate = (value: string): string => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? ''
@@ -47,47 +49,36 @@ const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
 /** Open pipeline by default: Abiertos + Vencidos (ZIG-I5-5). */
 export const DEFAULT_PRESUPUESTO_FILTER: PresupuestoStatus[] = ['abierto', 'vencido'];
 
-/** Read at load time, so a phone never fetches the desktop page while it hydrates. */
-const isPhoneWidthNow = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`).matches;
-
 /**
- * Presupuestos list. Below md the cards of ZIG-I5-5 (unchanged); from md the
- * table with views and server counts (ZIG-I29-3). Only the visible one loads.
+ * Presupuestos list. Below lg the cards of ZIG-I5-5 (unchanged); from lg the
+ * table with views and server counts (ZIG-I29-3, ZIG-I33-2). DesktopSwitch keeps
+ * one tree, and only the tree that owns the width loads, never both while it hydrates.
  */
 export const PresupuestosList = () => {
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
-  const isPhone = useIsMobile();
+  const isDesktop = useDesktopViewport();
   const missingCompany = needsSelectedCompanyContext(isSystem, selectedCompany?.id);
 
   return (
-    <>
-      <div className="md:hidden">
-        <PresupuestosPhoneList enabled={isPhone} />
-      </div>
-      <div className="hidden md:block">
-        {isPhone ? null : permissionsLoading ? (
-          <TripledListLoadingState label="Cargando presupuestos…" />
+    <DesktopSwitch
+      phone={<PresupuestosPhoneList enabled={isDesktop === false} />}
+      desktop={
+        permissionsLoading ? (
+          <ListLoading label="Cargando presupuestos…" columns={7} />
         ) : missingCompany ? (
-          <TripledEmptyState
-            icon={<FileText className="h-4 w-4" />}
-            title="Selecciona una empresa"
-            description="Selecciona una empresa para ver presupuestos."
-          />
+          <SystemCompanyContextEmptyState resourceLabel="presupuestos" />
         ) : (
           <PresupuestosTable
             companyId={selectedCompany?.id ?? null}
             companyName={selectedCompany?.name ?? null}
             canWrite={canWriteTickets(can)}
             canInvoice={canDownloadTicketInvoice(can)}
-            enabled={!isPhone && !isPhoneWidthNow()}
+            enabled={isDesktop === true}
           />
-        )}
-      </div>
-    </>
+        )
+      }
+    />
   );
 };
 
@@ -122,7 +113,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
   }, [searchValue]);
 
   const load = React.useCallback(async () => {
-    if (permissionsLoading || !enabled || !isPhoneWidthNow()) return;
+    if (permissionsLoading || !enabled) return;
     if (missingCompany) {
       setLoading(false);
       setItems([]);
@@ -358,7 +349,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
                         {item.ticketDate ? (
                           <>
                             <span aria-hidden>·</span>
-                            <span>{shortDate(item.ticketDate)}</span>
+                            <span>{phoneCardDate(item.ticketDate)}</span>
                           </>
                         ) : null}
                         {item.expiresAt ? (
@@ -366,7 +357,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
                             <span aria-hidden>·</span>
                             <span className="inline-flex items-center gap-1">
                               <CalendarClock className="h-3 w-3" aria-hidden />
-                              Vence {shortDate(item.expiresAt)}
+                              Vence {phoneCardDate(item.expiresAt)}
                             </span>
                           </>
                         ) : null}

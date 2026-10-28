@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default async function CompanyTeamPage() {
   await requirePagePermission('users.read');
 
-  // Phones keep the card; md+ shows TeamDesktop's own header (ZIG-I32-2).
+  // Phones keep the card; lg+ shows TeamDesktop's own header (ZIG-I32-2, ZIG-I33-6).
   return (
     <TripledResourceCard
       title="Equipo"

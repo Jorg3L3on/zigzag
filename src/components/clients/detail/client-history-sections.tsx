@@ -12,17 +12,22 @@ import type {
   ClientDetailTicket,
 } from '@/actions/client-detail';
 import type { ClientServiceScheduleListItem } from '@/actions/client-service-schedules';
-import {
-  COBRANZA_TABLE_CARD_CLASS,
-  COBRANZA_TABLE_CLASS,
-} from '@/components/cobranza/cobranza-ticket-table';
 import { DesktopSwitch } from '@/components/desktop-switch';
 import { FormattedDate } from '@/components/formatted-date';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-status-pill';
 import { TicketDetailStatusPill } from '@/components/tickets/detail/ticket-detail-status-pill';
 import { Badge } from '@/components/ui/badge';
-import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  LIST_TABLE_CARD_CLASS,
+  LIST_TABLE_CLASS,
+  LIST_TABLE_DENSE_PADDING_CLASS,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   TICKET_PAYMENT_STATUS_LABEL,
   type TicketPaymentStatus,
@@ -129,8 +134,8 @@ const HistoryTable = ({
     router.push(href);
   };
   return (
-    <div className={COBRANZA_TABLE_CARD_CLASS}>
-      <table className={COBRANZA_TABLE_CLASS} aria-label={label}>
+    <div className={LIST_TABLE_CARD_CLASS}>
+      <table className={`${LIST_TABLE_CLASS} ${LIST_TABLE_DENSE_PADDING_CLASS}`} aria-label={label}>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             {columns.map((column) => (

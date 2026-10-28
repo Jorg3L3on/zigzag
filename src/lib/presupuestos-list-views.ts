@@ -49,12 +49,3 @@ export const parsePresupuestoView = (value: string | null | undefined): Presupue
   value === 'todos'
     ? value
     : 'pendientes';
-
-export const parsePresupuestoSort = (value: string | null | undefined): PresupuestoListSort =>
-  value === 'recientes' || value === 'total' ? value : 'vence';
-
-export const PRESUPUESTO_SORT_LABEL: Record<PresupuestoListSort, string> = {
-  vence: 'Vencen primero',
-  recientes: 'Más recientes',
-  total: 'Mayor total',
-};
