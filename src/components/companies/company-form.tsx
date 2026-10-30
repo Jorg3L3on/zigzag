@@ -64,6 +64,7 @@ import {
 } from '@/lib/company-payment-info';
 import { CompanyLogoUpload } from '@/components/companies/company-logo-upload';
 import { CompanyFormSection } from '@/components/companies/company-form-section';
+import { ClabeBankHint } from '@/components/companies/clabe-bank-hint';
 import { CompanyReceiptPreview } from '@/components/companies/company-receipt-preview';
 import { FormChangesBar } from '@/components/companies/form-changes-bar';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
@@ -772,11 +773,22 @@ export const CompanyForm = ({
       )}
     />
   );
+  // The CLABE's own error (length, check digit) wins over the bank hint.
+  const clabeBankHint = (hasError: boolean) =>
+    hasError ? null : (
+      <ClabeBankHint
+        clabe={values.settings?.payment_clabe}
+        bank={values.settings?.payment_bank}
+        onUseBank={(name) =>
+          form.setValue('settings.payment_bank', name, { shouldDirty: true, shouldValidate: true })
+        }
+      />
+    );
   const paymentClabeField = (
     <FormField
       control={form.control}
       name="settings.payment_clabe"
-      render={({ field }) => (
+      render={({ field, fieldState }) => (
         <FormItem className="md:col-span-2">
           <FormLabel>CLABE</FormLabel>
           <FormControl>
@@ -795,6 +807,7 @@ export const CompanyForm = ({
             Los 18 dígitos de tu cuenta. Revisamos que el último dígito
             coincida para evitar errores al copiarla.
           </FormDescription>
+          {clabeBankHint(Boolean(fieldState.error))}
           <FormMessage />
         </FormItem>
       )}
@@ -896,6 +909,7 @@ export const CompanyForm = ({
     className,
     inputClassName,
     inputMode,
+    below,
   }: {
     name: FieldPath<CompanyBootstrapFormValues>;
     label: string;
@@ -906,11 +920,13 @@ export const CompanyForm = ({
     className?: string;
     inputClassName?: string;
     inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+    /** Rendered between the description and the error, told whether there is one. */
+    below?: (hasError: boolean) => React.ReactNode;
   }) => (
     <FormField
       control={form.control}
       name={name}
-      render={({ field }) => (
+      render={({ field, fieldState }) => (
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>
           <FormControl>
@@ -926,6 +942,7 @@ export const CompanyForm = ({
             />
           </FormControl>
           {description ? <FormDescription>{description}</FormDescription> : null}
+          {below?.(Boolean(fieldState.error))}
           <FormMessage />
         </FormItem>
       )}
@@ -1192,6 +1209,7 @@ export const CompanyForm = ({
                       className: 'col-span-2',
                       inputClassName: 'font-mono tracking-wide',
                       inputMode: 'numeric',
+                      below: clabeBankHint,
                     })
                   : null}
                 {paymentKind === 'card' ? paymentCardField : null}
