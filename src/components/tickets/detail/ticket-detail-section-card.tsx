@@ -81,7 +81,7 @@ export const TicketDetailSectionHeading = ({
 
 /** The small uppercase label that heads each card of the desktop column (canvas). */
 export const TICKET_RAIL_LABEL_CLASS =
-  'text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground';
+  'text-caption lg:text-[11px]/[inherit] font-semibold uppercase tracking-[0.08em] text-muted-foreground';
 
 export const TicketDetailRailLabel = ({
   id,

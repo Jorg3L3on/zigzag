@@ -123,7 +123,7 @@ const ReceiptDocumentLine = ({
         {/* Canvas Linea: the index in a 26px column, the description under the name. */}
         <p className="flex items-baseline text-[15px] font-semibold leading-snug text-foreground">
           {index != null ? (
-            <span className="w-[26px] shrink-0 font-mono text-[11px] font-normal tabular-nums text-muted-foreground">
+            <span className="w-[26px] shrink-0 font-mono text-caption lg:text-[11px]/[inherit] font-normal tabular-nums text-muted-foreground">
               {formatLineIndex(index)}
             </span>
           ) : null}
@@ -131,7 +131,7 @@ const ReceiptDocumentLine = ({
             {name}
             {serviceId === null ? (
               <span
-                className="ml-2 inline-flex h-5 items-center rounded-md bg-indigo-50 px-1.5 align-middle text-[11px] font-semibold text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200"
+                className="ml-2 inline-flex h-5 items-center rounded-md bg-indigo-50 px-1.5 align-middle text-caption lg:text-[11px]/[inherit] font-semibold text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200"
                 data-testid="document-line-uncatalogued"
               >
                 Fuera de catálogo
@@ -143,7 +143,7 @@ const ReceiptDocumentLine = ({
           <div className={cn(index != null && 'pl-[26px]')}>
             <p
               className={cn(
-                'mt-0.5 text-[13px] leading-snug text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400',
+                'mt-0.5 text-caption leading-snug lg:text-[13px] text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400',
                 clampDescription && 'line-clamp-2',
               )}
               data-testid="document-line-description"
@@ -155,7 +155,7 @@ const ReceiptDocumentLine = ({
                 type="button"
                 aria-expanded={descriptionOpen}
                 onClick={() => setDescriptionOpen((open) => !open)}
-                className="text-[13px] font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                className="text-caption lg:text-[13px]/[inherit] font-medium text-primary outline-none underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {descriptionOpen ? 'menos' : 'más'}
               </button>
@@ -192,12 +192,12 @@ const ReceiptDocumentLine = ({
             aria-controls={breakdownId}
             onClick={() => setMaterialsOpen((open) => !open)}
             data-testid="document-line-materials-chip"
-            className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 text-[13px] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-slate-200"
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 text-caption lg:text-[13px]/[inherit] font-medium text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-slate-200"
           >
             {materialsChipLabel(listed.length, lineMaterialsListedTotal(listed))}
             <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', materialsOpen && 'rotate-180')} aria-hidden />
           </button>
-          <span className="text-[13px] text-muted-foreground" data-testid="document-line-subtotal">
+          <span className="text-caption lg:text-[13px]/[inherit] text-muted-foreground" data-testid="document-line-subtotal">
             Subtotal{' '}
             <MoneyFigure amount={groupTotal} size="sm" className="text-foreground" />
           </span>
