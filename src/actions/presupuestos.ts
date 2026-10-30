@@ -532,7 +532,7 @@ export async function createPresupuestoWithLines(
         id: String(created.id),
         total: created.total,
         folio: created.folio,
-        replayed: created.replayed,
+        ...(created.replayed ? { replayed: true } : {}),
       },
     };
   } catch (error) {

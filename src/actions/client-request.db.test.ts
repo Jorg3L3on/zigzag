@@ -153,7 +153,8 @@ describeDb('composer client_request_id (real actions, real Postgres)', () => {
     const before = await countDocuments(a.companyId);
 
     const first = await createTicketWithLines(ticketInput(a, key) as never);
-    expect(first).toMatchObject({ success: true, data: { replayed: false } });
+    expect(first.success).toBe(true);
+    expect(first.data).not.toHaveProperty('replayed');
     const again = await createTicketWithLines(ticketInput(a, key) as never);
     expect(again).toMatchObject({ success: true, data: { replayed: true } });
     expect(again.data?.id).toBe(first.data?.id);
@@ -180,8 +181,8 @@ describeDb('composer client_request_id (real actions, real Postgres)', () => {
     as(userIds[0], b.companyId);
     const otherCompany = await createTicketWithLines(ticketInput(b, key) as never);
 
-    expect(otherUser.data?.replayed).toBe(false);
-    expect(otherCompany.data?.replayed).toBe(false);
+    expect(otherUser.data?.replayed).toBeUndefined();
+    expect(otherCompany.data?.replayed).toBeUndefined();
     expect(new Set([mine.data?.id, otherUser.data?.id, otherCompany.data?.id]).size).toBe(3);
   });
 

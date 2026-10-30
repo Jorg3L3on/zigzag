@@ -410,8 +410,8 @@ export async function createTicketWithLines(
         id: String(created.id),
         total: created.total,
         folio: created.folio,
-        replayed: created.replayed,
-        finished: finish !== undefined,
+        ...(created.replayed ? { replayed: true } : {}),
+        ...(finish !== undefined ? { finished: true } : {}),
       },
     };
   } catch (error) {
