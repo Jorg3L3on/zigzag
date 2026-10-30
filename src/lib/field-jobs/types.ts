@@ -1,3 +1,5 @@
+import type { TicketComposerDraftLine } from '@/lib/ticket-composer-draft';
+
 export const FIELD_JOB_DB_NAME = 'zigzag-field';
 export const FIELD_JOB_DB_VERSION = 1;
 
@@ -11,6 +13,31 @@ export type FieldJobServiceLine = {
   service_id: number;
   quantity: number;
   price: number;
+};
+
+/** How Guardar y terminar was answered offline; same shape as the finish action. */
+export type ComposerFinishChoice = 'pendiente' | 'pagado' | { parcial: number };
+
+/** One composer line as the draft keeps it (catalog or inline, with materials). */
+export type ComposerDocumentLine = TicketComposerDraftLine;
+
+/**
+ * A full ticket or presupuesto saved from the composer with no signal
+ * (ZIG-I35-3). It syncs through the create actions with `client_request_id`,
+ * so a replay never makes a second document; the folio comes from the server.
+ */
+export type ComposerDocumentPayload = {
+  kind: 'ticket' | 'presupuesto';
+  client_request_id: string;
+  client_id: number;
+  client_label: string;
+  /** ISO strings. */
+  ticket_date: string;
+  expires_at?: string | null;
+  work_notes: string;
+  lines: ComposerDocumentLine[];
+  /** Tickets only: finish on sync with this payment, in the same transaction. */
+  finish?: ComposerFinishChoice;
 };
 
 /** Draft ticket payload captured offline in the field. */
@@ -28,6 +55,8 @@ export type FieldJobPayload = {
   total?: number;
   paid?: number;
   finished?: boolean;
+  /** Set for documents saved from the composer (ZIG-I35); absent for Anotar jobs. */
+  composer?: ComposerDocumentPayload;
 };
 
 /** Locally persisted field job awaiting server sync. */
@@ -39,11 +68,13 @@ export type LocalJob = {
   syncError?: string | null;
   /** Set after a successful create/update sync. */
   remoteTicketId?: string | null;
+  /** Company folio the server gave a composer document (ZIG-I35). */
+  remoteFolio?: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-export type OutboxOperation = 'create' | 'update';
+export type OutboxOperation = 'create' | 'update' | 'create_document';
 
 /** Queued mutation to replay when connectivity returns. */
 export type OutboxEntry = {
@@ -63,4 +94,5 @@ export type PutLocalJobInput = {
   syncStatus?: SyncStatus;
   syncError?: string | null;
   remoteTicketId?: string | null;
+  remoteFolio?: string | null;
 };

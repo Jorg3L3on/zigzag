@@ -38,6 +38,7 @@ export const mergeFieldJobPayload = (
   ...base,
   ...patch,
   services: patch.services ?? base.services,
+  composer: patch.composer ?? base.composer,
 });
 
 export class FieldJobStore implements FieldJobStoreAdapter {
@@ -97,6 +98,7 @@ export class FieldJobStore implements FieldJobStoreAdapter {
       syncStatus: input.syncStatus ?? existing?.syncStatus ?? 'pending',
       syncError: input.syncError ?? existing?.syncError ?? null,
       remoteTicketId: input.remoteTicketId ?? existing?.remoteTicketId ?? null,
+      remoteFolio: input.remoteFolio ?? existing?.remoteFolio ?? null,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };

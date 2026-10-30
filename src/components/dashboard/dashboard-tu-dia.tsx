@@ -162,11 +162,13 @@ const TicketRow = ({
 }) => {
   const localOnly = Boolean(item.pendingSync && item.localJobId);
   const clientName = item.clientName?.trim() || 'Cliente sin nombre';
-  const context =
-    item.servicesSummary ??
-    (localOnly
-      ? 'Anotar trabajo'
-      : `#${item.id} · ${format(new Date(item.ticketDate), 'd MMM', { locale: es })}`);
+  const composerDoc = localOnly && item.composerKind === 'ticket';
+  const context = composerDoc
+    ? `${item.servicesSummary ?? 'Ticket'} · Sin folio todavía`
+    : (item.servicesSummary ??
+      (localOnly
+        ? 'Anotar trabajo'
+        : `#${item.id} · ${format(new Date(item.ticketDate), 'd MMM', { locale: es })}`));
   const job = toFieldJobSnapshotFromDayTicket(item, {
     companyId,
     companyName,
@@ -192,7 +194,13 @@ const TicketRow = ({
           {formatTicketListAmount(item.total ?? 0)}
         </span>
       ) : null}
-      {localOnly ? null : (
+      {composerDoc ? (
+        <Button asChild size="sm" className={PRIMARY_PILL}>
+          <Link href={`/tickets/create?pendiente=${encodeURIComponent(item.localJobId ?? '')}`}>
+            {item.syncStatus === 'error' ? 'Revisar' : 'Abrir'}
+          </Link>
+        </Button>
+      ) : localOnly ? null : (
         <Button asChild size="sm" className={PRIMARY_PILL}>
           <Link
             href={

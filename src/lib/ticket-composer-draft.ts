@@ -23,6 +23,7 @@ const TICKET_COMPOSER_DRAFT_PREFIX = 'zigzag:ticket-composer-draft:v1';
 /** Nuevo presupuesto keeps its own draft so it never mixes with a ticket draft. */
 const PRESUPUESTO_COMPOSER_DRAFT_PREFIX = 'zigzag:presupuesto-composer-draft:v1';
 const MAX_DRAFT_LINES = 50;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * One composer line. Catalog lines carry `service_id`; inline lines (ZIG-I5)
@@ -52,6 +53,8 @@ export type TicketComposerDraft = {
   expires_at?: string;
   work_notes?: string;
   lines: TicketComposerDraftLine[];
+  /** One per draft (ZIG-I35-1): every save of this draft replays to one document. */
+  client_request_id?: string;
 };
 
 export type StoredTicketComposerDraft = TicketComposerDraft & {
@@ -222,6 +225,8 @@ export const sanitizeTicketComposerDraft = (
   if (expiresAt) draft.expires_at = expiresAt;
   const notes = cleanString(raw.work_notes);
   if (notes) draft.work_notes = notes;
+  const requestId = cleanString(raw.client_request_id);
+  if (requestId && UUID_PATTERN.test(requestId)) draft.client_request_id = requestId;
   return draft;
 };
 

@@ -10,6 +10,7 @@ import {
   Calendar as CalendarIcon,
   Check,
   CloudCheck,
+  CloudOff,
   Loader2,
   Plus,
   Receipt,
@@ -76,6 +77,8 @@ import {
 } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
+import { notifyFieldJobsChanged } from '@/hooks/use-field-job-sync';
+import { useNetworkStatus } from '@/hooks/use-network-status';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { ValidationIssue } from '@/lib/action-result';
 import { mapServerIssues } from '@/lib/composer-server-errors';
@@ -87,6 +90,7 @@ import {
 import type { ServiceWithMaterials } from '@/actions/services';
 import {
   buildToastErrorContent,
+  type PublicErrorResponse,
   classifyClientError,
   getErrorMessageByType,
 } from '@/lib/network-awareness';
@@ -100,6 +104,22 @@ import {
   writeTicketComposerDraft,
   type TicketComposerDraftLine,
 } from '@/lib/ticket-composer-draft';
+import {
+  enqueueComposerDocument,
+  fieldJobStore,
+  type ComposerDocumentPayload,
+  type ComposerFinishChoice,
+} from '@/lib/field-jobs';
+import {
+  filterComposerClients,
+  readComposerClients,
+  readComposerServices,
+  refreshComposerClients,
+  rememberComposerClients,
+  saveComposerServices,
+  type ComposerClientOption,
+} from '@/lib/offline-composer-catalog';
+import { requestPersistentStorage } from '@/lib/persistent-storage';
 import { cn } from '@/lib/utils';
 import { GLASS_CARD_CLASS } from '@/components/toolbar-glass';
 import { vibrateSuccess } from '@/lib/vibrate-success';
@@ -111,6 +131,18 @@ const SECTION_CLASS = GLASS_CARD_CLASS;
 
 type ComposerClient = { id: number; label: string; name?: string; phone?: string | null };
 type SaveState = 'idle' | 'saving' | 'done';
+
+/** useNetworkStatus says online until it mounts; loaders ask the browser directly. */
+const isBrowserOffline = (): boolean =>
+  typeof navigator !== 'undefined' && navigator.onLine === false;
+
+/** One per draft (ZIG-I35-1): every save of this draft replays to the same document. */
+const newClientRequestId = (): string =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () =>
+        Math.floor(Math.random() * 16).toString(16),
+      );
 
 const clientLabel = (item: Pick<Client, 'name' | 'phone'>) =>
   item.phone ? `${item.name} · ${item.phone}` : item.name;
@@ -212,6 +244,10 @@ type DocumentComposerProps = {
   edit?: ComposerEditState;
 };
 
+/** Offline saves land on the list; the pending strip there shows them (ZIG-I35-3). */
+const pendingListHref = (kind: ComposerKind) =>
+  kind === 'presupuesto' ? '/presupuestos?pendientes=1' : '/tickets?pendientes=1';
+
 export type ComposerEditState = {
   id: string;
   /** Company folio for titles and toasts; falls back to `#id`. */
@@ -270,13 +306,22 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       : null;
   const prefillClientId = searchParams.get('clientId');
   const prefillServiceId = searchParams.get('serviceId');
+  // Revisar (ZIG-I35-3): reopen a document saved offline that has not synced yet.
+  const pendingJobId = isEdit ? null : searchParams.get('pendiente');
+  const { isOnline } = useNetworkStatus();
+  const [requestId, setRequestId] = React.useState<string>(() => pendingJobId ?? newClientRequestId());
+  const [pendingLoaded, setPendingLoaded] = React.useState(false);
+  // Documents saved here with no signal in this visit, for the notice's link.
+  const [savedOfflineCount, setSavedOfflineCount] = React.useState(0);
 
   // Guardar stays tappable when something is missing; the hint turns into the error (ZIG-I18-13).
   const [attemptedSave, setAttemptedSave] = React.useState(false);
   const [client, setClient] = React.useState<ComposerClient | null>(
     isEdit ? edit.client : null,
   );
-  const [clients, setClients] = React.useState<Client[]>([]);
+  const [clients, setClients] = React.useState<ComposerClientOption[]>([]);
+  // The catalog came from the copy on this phone, not the server (ZIG-I35-2).
+  const [catalogOffline, setCatalogOffline] = React.useState(false);
   const [clientQuery, setClientQuery] = React.useState('');
   const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
@@ -316,7 +361,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const clientPrefillAppliedRef = React.useRef<string | null>(null);
 
   // Editing an existing quote keeps no local draft: the server row is the source.
-  const draftKey = companyId && !isEdit
+  const draftKey = companyId && !isEdit && !pendingJobId
     ? isQuote
       ? buildPresupuestoComposerDraftKey(companyId)
       : buildTicketComposerDraftKey(companyId)
@@ -328,11 +373,21 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const canSave = Boolean(companyId && client && lines.length > 0 && !belowPaid);
   // No default: nothing is recorded as paid unless the user picks it (ZIG-I12 Q2).
   const paymentChoice = usePaymentChoice(total);
-  const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
+  const { payMode, chosenPaid, partialTooHigh, hasPayChoice, setPayMode, setPartialInput } =
+    paymentChoice;
   const finishing = finishable && payMode !== null;
   const paymentInvalid = finishing && (!hasPayChoice || partialTooHigh);
   const [scheduleLines, setScheduleLines] = React.useState<TicketFinishScheduleLine[]>([]);
   const editingLine = lines.find((line) => line.key === lineSheet.editingKey) ?? null;
+  // No signal (ZIG-I35): a new document saves on this phone and syncs later.
+  const savesOffline = !isEdit && !isOnline;
+  const offlineFinish: ComposerFinishChoice | undefined = !finishing
+    ? undefined
+    : payMode === 'full'
+      ? 'pagado'
+      : payMode === 'partial'
+        ? { parcial: roundMoney(chosenPaid) }
+        : 'pendiente';
 
   // Restore the local draft once per company.
   React.useEffect(() => {
@@ -349,9 +404,54 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       if (isQuote && draft.expires_at) setExpiresAt(new Date(draft.expires_at));
       if (draft.work_notes) setNotes(draft.work_notes);
       if (draft.lines.length > 0) setLines(draft.lines);
+      if (draft.client_request_id) setRequestId(draft.client_request_id);
     }
     setDraftReady(true);
   }, [draftKey, isQuote]);
+
+  // Load the pending document into the composer once.
+  React.useEffect(() => {
+    if (!pendingJobId || pendingLoaded) return;
+    let cancelled = false;
+    void fieldJobStore
+      .getLocalJob(pendingJobId)
+      .catch(() => null)
+      .then((job) => {
+        if (cancelled) return;
+        setPendingLoaded(true);
+        const document = job?.payload.composer;
+        if (!job || !document || document.kind !== kind) {
+          toast.error('No encontramos ese documento en este teléfono');
+          router.replace(copy.listHref);
+          return;
+        }
+        if (job.remoteTicketId) {
+          // It synced meanwhile: go to the real document.
+          router.replace(`${copy.listHref}/${job.remoteTicketId}`);
+          return;
+        }
+        setClient({
+          id: document.client_id,
+          label: document.client_label,
+          name: job.payload.client_name,
+          phone: job.payload.client_tel ?? null,
+        });
+        setTicketDate(new Date(document.ticket_date));
+        if (document.expires_at) setExpiresAt(new Date(document.expires_at));
+        setNotes(document.work_notes);
+        setLines(document.lines);
+        if (document.finish === 'pagado') setPayMode('full');
+        else if (document.finish === 'pendiente') setPayMode('pending');
+        else if (document.finish) {
+          setPayMode('partial');
+          setPartialInput(String(document.finish.parcial));
+        }
+        setDraftReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingJobId, pendingLoaded, kind, router, copy.listHref, setPayMode, setPartialInput]);
 
   // Persist every change after the restore so a reload keeps the work.
   React.useEffect(() => {
@@ -363,6 +463,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       ...(isQuote && expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
       work_notes: notes,
       lines,
+      client_request_id: requestId,
     });
     setDraftSavedAt(client || lines.length > 0 || notes.trim() ? new Date() : null);
   }, [
@@ -374,6 +475,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     isQuote,
     notes,
     lines,
+    requestId,
     saveState,
   ]);
 
@@ -392,47 +494,97 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       return;
     }
     setIsClientsLoading(true);
+    // No signal: search the copy of the clients kept on this phone (ZIG-I35-2).
+    const fromSnapshot = async () => {
+      const snapshot = await readComposerClients(companyId);
+      if (cancelled) return;
+      setClients(filterComposerClients(snapshot?.clients ?? [], debouncedClientQuery));
+      setIsClientsLoading(false);
+    };
+    if (!isOnline || isBrowserOffline()) {
+      void fromSnapshot();
+      return () => {
+        cancelled = true;
+      };
+    }
     void getClients({
       companyId,
       page: 1,
       pageSize: CLIENT_SEARCH_PAGE_SIZE,
       search: debouncedClientQuery || undefined,
-    }).then((result) => {
-      if (cancelled) return;
-      if (result.success && result.data) {
-        setClients(result.data.items);
-      }
-      setIsClientsLoading(false);
-    });
+    })
+      .catch(() => null)
+      .then((result) => {
+        if (cancelled) return;
+        if (result?.success && result.data) {
+          setClients(result.data.items);
+          setIsClientsLoading(false);
+          void rememberComposerClients(companyId, result.data.items);
+          return;
+        }
+        void fromSnapshot();
+      });
     return () => {
       cancelled = true;
     };
-  }, [companyId, debouncedClientQuery]);
+  }, [companyId, debouncedClientQuery, isOnline]);
 
+  // Keep the offline copy of the clients fresh while there is signal.
+  React.useEffect(() => {
+    if (!companyId || !isOnline || isEdit) return;
+    void refreshComposerClients(companyId, (page) =>
+      getClients({ companyId, page, pageSize: 100 }),
+    ).catch(() => undefined);
+  }, [companyId, isOnline, isEdit]);
+
+  // Services: from the server with signal (and kept on the phone), else from that copy.
+  // Losing signal keeps what is already loaded; getting it back refreshes once.
+  const servicesLoadedRef = React.useRef(false);
   React.useEffect(() => {
     let cancelled = false;
     if (!companyId) {
       setIsServicesLoading(false);
       return;
     }
+    if ((!isOnline || isBrowserOffline()) && servicesLoadedRef.current) return;
     setIsServicesLoading(true);
-    void getServices(companyId).then((result) => {
+    const fromSnapshot = async (failure: PublicErrorResponse & { success?: boolean }) => {
+      const cached = await readComposerServices(companyId);
       if (cancelled) return;
-      if (result.success && result.data) {
-        setServices(result.data);
-      } else if (!result.success) {
-        const content = buildToastErrorContent(
-          result,
-          'No se pudieron cargar los servicios',
-        );
+      if (cached) {
+        setServices(cached);
+        setCatalogOffline(true);
+        servicesLoadedRef.current = true;
+      } else {
+        const content = buildToastErrorContent(failure, 'No se pudieron cargar los servicios');
         toast.error(content.title, { description: content.description });
       }
       setIsServicesLoading(false);
-    });
+    };
+    if (!isOnline || isBrowserOffline()) {
+      void fromSnapshot({ success: false, errorType: 'network' });
+      return () => {
+        cancelled = true;
+      };
+    }
+    void getServices(companyId)
+      .catch(() => ({ success: false as const, errorType: 'network' as const }))
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && 'data' in result && result.data) {
+          setServices(result.data);
+          setCatalogOffline(false);
+          servicesLoadedRef.current = true;
+          saveComposerServices(companyId, result.data);
+          setIsServicesLoading(false);
+          return;
+        }
+        void fromSnapshot(result);
+      });
     return () => {
       cancelled = true;
     };
-  }, [companyId]);
+  }, [companyId, isOnline]);
 
   // ?clientId= deep link (e.g. from a client page).
   React.useEffect(() => {
@@ -624,6 +776,88 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     return mapped.summary;
   };
 
+  /** Saved online from Revisar: the outbox entry is done, keep the folio for a day. */
+  const forgetPendingJob = async (
+    localJobId: string,
+    saved: { id: string; folio?: string },
+  ) => {
+    try {
+      const job = await fieldJobStore.getLocalJob(localJobId);
+      const entry = await fieldJobStore.findOutboxEntryForLocalJob(localJobId);
+      if (entry) await fieldJobStore.deleteOutboxEntry(entry.outboxId);
+      if (job) {
+        await fieldJobStore.putLocalJob({
+          ...job,
+          syncStatus: 'synced',
+          syncError: null,
+          remoteTicketId: saved.id,
+          remoteFolio: saved.folio ?? null,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // The key makes a later sync of the same entry a harmless replay.
+    }
+  };
+
+  /** Guardar sin conexión (ZIG-I35-3): the document waits on this phone for signal. */
+  const saveOffline = async () => {
+    if (!client || !companyId) return;
+    setSaveState('saving');
+    const document: ComposerDocumentPayload = {
+      kind,
+      client_request_id: requestId,
+      client_id: client.id,
+      client_label: client.label,
+      ticket_date: ticketDate.toISOString(),
+      ...(isQuote ? { expires_at: expiresAt ? expiresAt.toISOString() : null } : {}),
+      work_notes: notes,
+      lines,
+      ...(offlineFinish !== undefined ? { finish: offlineFinish } : {}),
+    };
+    const parts = clientParts(client);
+    try {
+      await enqueueComposerDocument(fieldJobStore, {
+        companyId,
+        document,
+        clientName: parts.name,
+        clientTel: parts.phone,
+      });
+    } catch {
+      toast.error('No se pudo guardar en este teléfono', {
+        description: 'Tu borrador sigue aquí. Libera espacio o inténtalo con señal.',
+      });
+      setSaveState('idle');
+      return;
+    }
+    void requestPersistentStorage();
+    notifyFieldJobsChanged();
+    if (draftKey) clearTicketComposerDraft(draftKey);
+    vibrateSuccess();
+    toast.success(`${copy.noun} guardado sin conexión`, {
+      description: 'Se sube solo y toma su folio cuando haya señal.',
+      action: { label: 'Ver pendientes', onClick: () => router.push(pendingListHref(kind)) },
+    });
+    setSavedOfflineCount((count) => count + 1);
+    if (pendingJobId) {
+      // Revisar with no signal: the corrected copy waits in the same entry.
+      setSaveState('done');
+      return;
+    }
+    // Stay here, empty, for the next job: the list may not open with no signal.
+    setClient(null);
+    setLines([]);
+    setNotes('');
+    setTicketDate(new Date());
+    setExpiresAt(null);
+    setPayMode(null);
+    setPartialInput('');
+    setAttemptedSave(false);
+    setRequestId(newClientRequestId());
+    setSaveState('idle');
+    window.scrollTo({ top: 0 });
+  };
+
   const handleSave = async () => {
     if (saveState !== 'idle') {
       return;
@@ -635,12 +869,13 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     if (!companyId) {
       return;
     }
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (!isEdit && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      await saveOffline();
+      return;
+    }
+    if (isEdit && typeof navigator !== 'undefined' && navigator.onLine === false) {
       toast.error('Sin conexión', {
-        description:
-          isQuote
-            ? 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal.'
-            : 'Tu borrador sigue en este teléfono. Guarda cuando tengas señal o usa Anotar trabajo.',
+        description: 'Los cambios siguen en pantalla. Guarda cuando tengas señal.',
       });
       return;
     }
@@ -648,6 +883,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     setSaveState('saving');
     setLineErrors({});
     setNotesError(null);
+    let created = false;
     try {
       const payload = {
         company_id: companyId,
@@ -656,6 +892,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         work_notes: notes,
         lines: lines.map(draftLineToServiceLineInput),
         client_total: total,
+        client_request_id: requestId,
       };
       if (isEdit && ticketEdit) {
         const updated = await updateTicketLines(Number(edit.id), {
@@ -712,8 +949,10 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         : await createTicketWithLines(payload);
 
       if (result.success && result.data) {
+        created = true;
         setSaveState('done');
         if (draftKey) clearTicketComposerDraft(draftKey);
+        if (pendingJobId) await forgetPendingJob(pendingJobId, result.data);
         const savedLabel = `${copy.noun} ${result.data.folio ?? `#${result.data.id}`}`;
         if (isQuote) {
           vibrateSuccess();
@@ -754,15 +993,22 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       }
 
       const content = buildToastErrorContent(result, copy.saveError);
+      if (content.errorType === 'network') {
+        // Says online but the request never made it: keep it on the phone with the same key.
+        await saveOffline();
+        return;
+      }
       const mappedSummary = applyServerIssues(result.issues);
       toast.error(content.title, {
-        description:
-          content.errorType === 'network'
-            ? 'Tu borrador sigue en este teléfono. Vuelve a intentarlo cuando tengas señal.'
-            : (mappedSummary ?? content.description),
+        description: mappedSummary ?? content.description,
       });
       setSaveState('idle');
     } catch {
+      if (!isEdit && !created) {
+        // The request died on the way (weak signal): same as no signal, same key.
+        await saveOffline();
+        return;
+      }
       toast.error(copy.saveError, {
         description: 'Tu borrador sigue en este teléfono. Vuelve a intentarlo.',
       });
@@ -787,12 +1033,47 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       )}
     </ActionSwap>
   );
-  const saveLabel = renderSaveLabel(finishing ? 'Guardar y terminar' : copy.saveLabel);
+  const saveLabel = renderSaveLabel(
+    savesOffline
+      ? finishing
+        ? 'Terminar sin conexión'
+        : 'Guardar sin conexión'
+      : finishing
+        ? 'Guardar y terminar'
+        : copy.saveLabel,
+  );
   // The sticky bar is tight at 333px next to a seven-figure total: the screen's
   // title already says what is being saved.
   const mobileSaveLabel = renderSaveLabel(
     isEdit ? copy.saveLabel : finishing ? 'Terminar' : 'Guardar',
   );
+  const offlineNotice = savesOffline ? (
+    <div
+      role="status"
+      data-testid="composer-offline-notice"
+      className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-3 text-sm"
+    >
+      <CloudOff className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <div className="min-w-0 space-y-1">
+        <p>
+          <span className="font-semibold">Sin conexión.</span> Guárdalo aquí: se sube solo cuando
+          haya señal y ahí toma su folio. Mientras, es provisional (no es factura).
+          {catalogOffline ? ' Servicios y clientes de la última copia en este teléfono.' : ''}
+        </p>
+        {savedOfflineCount > 0 ? (
+          <Link
+            href={pendingListHref(kind)}
+            className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline"
+            data-testid="composer-offline-saved"
+          >
+            {savedOfflineCount === 1
+              ? '1 guardado en este teléfono · Ver pendientes'
+              : `${savedOfflineCount} guardados en este teléfono · Ver pendientes`}
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  ) : null;
 
   const materialCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
   const countsLabel = [
@@ -874,6 +1155,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
 
         <CompanyProductionNotice />
 
+        {offlineNotice}
+
         {ticketEdit?.finished ? (
           <div
             role="status"
@@ -924,11 +1207,15 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                         disabled={clientLocked}
                         placeholder="Busca o elige un cliente"
                         searchPlaceholder="Buscar por nombre o teléfono…"
-                        emptyText="Sin clientes que coincidan"
+                        emptyText={
+                          savesOffline
+                            ? 'Sin coincidencias en este teléfono. Un cliente nuevo se agrega con señal.'
+                            : 'Sin clientes que coincidan'
+                        }
                         className="h-12 w-full rounded-xl border border-input bg-background text-base shadow-sm md:h-10 md:text-sm"
                       />
                     </div>
-                    {clientLocked ? null : (
+                    {clientLocked || savesOffline ? null : (
                       <Button
                         type="button"
                         variant="outline"
@@ -1143,7 +1430,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               </BlurFade>
             ) : null}
 
-            {finishing && scheduleLines.length > 0 ? (
+            {finishing && !savesOffline && scheduleLines.length > 0 ? (
               <BlurFade delay={0.14}>
                 <InlineSchedulePicker
                   className={SECTION_CLASS}
@@ -1168,9 +1455,9 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               </Button>
             </div>
 
-            {isQuote ? null : (
+            {isQuote || isEdit ? null : (
               <p className="text-center text-caption text-muted-foreground md:hidden">
-                ¿Sin señal o con prisa?{' '}
+                ¿Con prisa?{' '}
                 <Link href="/anotar" className="font-medium text-primary underline-offset-4 hover:underline">
                   Anotar trabajo
                 </Link>
@@ -1216,6 +1503,11 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               >
                 {isEdit ? (
                   'Nada cambia hasta Guardar cambios.'
+                ) : savesOffline ? (
+                  <>
+                    <CloudOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Se guarda en este teléfono hasta que haya señal
+                  </>
                 ) : draftSavedAt ? (
                   <>
                     <CloudCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />

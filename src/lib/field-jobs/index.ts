@@ -1,4 +1,7 @@
 export type {
+  ComposerDocumentLine,
+  ComposerDocumentPayload,
+  ComposerFinishChoice,
   FieldJobPayload,
   FieldJobServiceLine,
   LocalJob,
@@ -28,15 +31,22 @@ export {
 
 export {
   coalesceOutboxEntry,
+  composerDocumentSummary,
+  composerDocumentTotal,
+  discardLocalJob,
+  enqueueComposerDocument,
   enqueueFieldJobCreate,
   enqueueFieldJobUpdate,
   listPendingOutboxEntries,
+  requeueLocalJob,
+  type EnqueueComposerDocumentInput,
   type EnqueueCreateInput,
   type EnqueueUpdateInput,
 } from '@/lib/field-jobs/outbox';
 
 export {
   flushFieldJobOutbox,
+  pruneSyncedComposerJobs,
   type SyncFlushResult,
 } from '@/lib/field-jobs/sync';
 

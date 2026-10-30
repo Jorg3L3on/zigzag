@@ -14,6 +14,8 @@ export type MergedTechnicianDayTicket = TechnicianDayTicket & {
   syncStatus?: LocalJob['syncStatus'];
   syncError?: string | null;
   pendingSync?: boolean;
+  /** Saved from the composer with no signal (ZIG-I35): opens back in the composer. */
+  composerKind?: 'ticket' | 'presupuesto';
 };
 
 const isPendingLocalJob = (job: LocalJob): boolean =>
@@ -48,6 +50,7 @@ export const localJobToTechnicianDayTicket = (
     syncStatus: job.syncStatus,
     syncError: job.syncError,
     pendingSync: isPendingLocalJob(job),
+    ...(job.payload.composer ? { composerKind: job.payload.composer.kind } : {}),
   };
 };
 
@@ -59,7 +62,10 @@ export const mergeTechnicianDayWithLocalJobs = (
   serverItems: TechnicianDayTicket[],
   localJobs: LocalJob[],
 ): MergedTechnicianDayTicket[] => {
-  const pending = localJobs.filter(isPendingLocalJob);
+  // Presupuestos saved offline wait on the presupuestos list, not on the day.
+  const pending = localJobs.filter(
+    (job) => isPendingLocalJob(job) && job.payload.composer?.kind !== 'presupuesto',
+  );
   const remoteIds = new Set(
     pending
       .map((job) => job.remoteTicketId)
