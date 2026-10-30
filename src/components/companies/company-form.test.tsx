@@ -239,6 +239,59 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     });
   });
 
+  it('names the CLABE bank, fills an empty Banco and warns softly on a different one (ZIG-36)', async () => {
+    mockUpdateOwnCompany.mockResolvedValue({ success: true } as Awaited<ReturnType<typeof updateOwnCompany>>);
+    render(<CompanyForm company={company} mode="self" />);
+    const pago = section('pago');
+    fireEvent.click(within(pago).getByRole('button', { name: /Para pagar por transferencia/ }));
+    const clabe = within(pago).getByLabelText('CLABE');
+
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+    fireEvent.change(clabe, { target: { value: '01' } });
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+    fireEvent.change(clabe, { target: { value: '012 180' } });
+    expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('Banco: BBVA México');
+    fireEvent.change(clabe, { target: { value: '999 180' } });
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+
+    // Synthetic fixture: prefix 012, zeros, matching check digit.
+    fireEvent.change(clabe, { target: { value: '012 180 00000000000 2' } });
+    expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('BBVA México');
+    expect(within(pago).getByTestId('clabe-bank-hint')).not.toHaveTextContent('Banco:');
+
+    fireEvent.click(within(pago).getByRole('button', { name: 'Usar BBVA México' }));
+    expect(within(pago).getByLabelText('Banco')).toHaveValue('BBVA México');
+    expect(within(pago).queryByRole('button', { name: /^Usar / })).toBeNull();
+    expect(within(pago).queryByTestId('clabe-bank-mismatch')).toBeNull();
+
+    fireEvent.change(within(pago).getByLabelText('Banco'), { target: { value: 'Bancomer' } });
+    expect(within(pago).queryByTestId('clabe-bank-mismatch')).toBeNull();
+    fireEvent.change(within(pago).getByLabelText('Banco'), { target: { value: 'Banorte' } });
+    expect(within(pago).getByTestId('clabe-bank-mismatch')).toHaveTextContent(
+      'Esta CLABE parece de BBVA México',
+    );
+
+    // A warning, never a blocker.
+    fireEvent.submit(document.getElementById('company-form')!);
+    await waitFor(() => expect(mockUpdateOwnCompany).toHaveBeenCalled());
+    expect(mockUpdateOwnCompany.mock.calls[0][0]).toMatchObject({
+      settings: { payment_bank: 'Banorte', payment_clabe: '012 180 00000000000 2' },
+    });
+  });
+
+  it('lets the CLABE error win over the bank hint (ZIG-36)', async () => {
+    render(<CompanyForm company={company} mode="self" />);
+    const pago = section('pago');
+
+    fireEvent.change(within(pago).getByLabelText('CLABE'), {
+      target: { value: '012 180 00000000000 3' },
+    });
+    expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('Banco: BBVA México');
+    fireEvent.submit(document.getElementById('company-form')!);
+    expect(await screen.findByText(/el último dígito no coincide/)).toBeInTheDocument();
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+  });
+
   it('warns on a card and never asks for vencimiento or CVV (ZIG-23)', async () => {
     render(
       <CompanyForm
@@ -352,6 +405,21 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
         'Para pagar a la cuenta:',
       );
       expect(screen.getByTestId('receipt-preview-whatsapp')).toHaveTextContent('Banco BBVA');
+    });
+
+    it('shows the CLABE bank hint in the Pagos card (ZIG-36)', () => {
+      render(<CompanyForm company={company} mode="self" />);
+      const pagos = desktopCard('pagos');
+
+      fireEvent.change(within(pagos).getByRole('textbox', { name: 'CLABE' }), {
+        target: { value: '012180000000000002' },
+      });
+      fireEvent.click(within(pagos).getByRole('button', { name: 'Usar BBVA México' }));
+      expect(within(pagos).getByLabelText('Banco')).toHaveValue('BBVA México');
+      fireEvent.change(within(pagos).getByLabelText('Banco'), { target: { value: 'HSBC' } });
+      expect(within(pagos).getByTestId('clabe-bank-mismatch')).toBeInTheDocument();
+      fireEvent.click(within(pagos).getByRole('radio', { name: 'Tarjeta' }));
+      expect(within(pagos).queryByTestId('clabe-bank-hint')).toBeNull();
     });
 
     it('focuses the first invalid field on save', async () => {
