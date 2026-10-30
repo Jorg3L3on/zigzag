@@ -4,11 +4,13 @@ import {
   mergeFieldJobPayload,
 } from '@/lib/field-jobs/store';
 import type {
+  ComposerDocumentPayload,
   FieldJobPayload,
   LocalJob,
   OutboxEntry,
   OutboxOperation,
 } from '@/lib/field-jobs/types';
+import { addMoney, lineTotalWithMaterials } from '@/lib/money';
 
 export type EnqueueCreateInput = {
   companyId: number;
@@ -136,3 +138,100 @@ export const enqueueFieldJobUpdate = async (
 export const listPendingOutboxEntries = async (
   store: FieldJobStore,
 ): Promise<OutboxEntry[]> => store.listOutboxEntries();
+
+export type EnqueueComposerDocumentInput = {
+  companyId: number;
+  document: ComposerDocumentPayload;
+  /** Client name and phone for Hoy and the lists while it is pending. */
+  clientName: string;
+  clientTel?: string | null;
+};
+
+export const composerDocumentTotal = (document: ComposerDocumentPayload): number =>
+  addMoney(...document.lines.map(lineTotalWithMaterials));
+
+const composerDocumentPaid = (document: ComposerDocumentPayload, total: number): number => {
+  const finish = document.finish;
+  if (finish === undefined || finish === 'pendiente') return 0;
+  if (finish === 'pagado') return total;
+  return Math.min(total, finish.parcial);
+};
+
+/** What Hoy and the lists show for a composer document before it syncs. */
+export const composerDocumentSummary = (document: ComposerDocumentPayload): string =>
+  document.lines.map((line) => line.service_name).join(', ');
+
+/**
+ * Save a full composer document offline (ZIG-I35-3). The local job id is the
+ * client_request_id, so saving it again (Revisar → Guardar) coalesces into the
+ * same outbox entry and the sync replays with the same key.
+ */
+export const enqueueComposerDocument = async (
+  store: FieldJobStore,
+  input: EnqueueComposerDocumentInput,
+): Promise<{ job: LocalJob; outboxEntry: OutboxEntry }> => {
+  const now = new Date().toISOString();
+  const { document } = input;
+  const total = composerDocumentTotal(document);
+  const payload: FieldJobPayload = {
+    client_id: document.client_id,
+    client_name: input.clientName,
+    client_tel: input.clientTel ?? undefined,
+    ticket_date: document.ticket_date,
+    work_notes: composerDocumentSummary(document),
+    total,
+    paid: composerDocumentPaid(document, total),
+    finished: document.kind === 'ticket' && document.finish !== undefined,
+    composer: document,
+  };
+  const localJobId = document.client_request_id;
+  const existing = await store.getLocalJob(localJobId);
+  if (existing?.remoteTicketId) {
+    throw new Error('Este documento ya se sincronizó');
+  }
+  const job = await store.putLocalJob({
+    localJobId,
+    companyId: input.companyId,
+    payload,
+    syncStatus: 'pending',
+    syncError: null,
+    remoteTicketId: null,
+    remoteFolio: null,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  });
+
+  const pending = await store.findOutboxEntryForLocalJob(localJobId, 'create_document');
+  const outboxEntry: OutboxEntry = pending
+    ? { ...pending, payload, updatedAt: now }
+    : {
+        outboxId: createFieldJobId(),
+        localJobId,
+        companyId: input.companyId,
+        operation: 'create_document',
+        payload,
+        createdAt: now,
+        updatedAt: now,
+      };
+  await store.putOutboxEntry(outboxEntry);
+  return { job, outboxEntry };
+};
+
+/** Reintentar: put a document that failed back in line, unchanged. */
+export const requeueLocalJob = async (
+  store: FieldJobStore,
+  localJobId: string,
+): Promise<LocalJob | null> => store.updateSyncStatus(localJobId, 'pending', null);
+
+/** Descartar a document that never synced: removes the local job and its outbox rows. */
+export const discardLocalJob = async (
+  store: FieldJobStore,
+  localJobId: string,
+): Promise<void> => {
+  for (;;) {
+    const entry = await store.findOutboxEntryForLocalJob(localJobId);
+    if (!entry) break;
+    await store.deleteOutboxEntry(entry.outboxId);
+  }
+  await store.deleteLocalJob(localJobId);
+};

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { PendingDocumentsStrip } from '@/components/field/pending-documents-strip';
 import { Button } from '@/components/ui/button';
 import { Plus, Ticket } from 'lucide-react';
 import Link from 'next/link';
@@ -34,6 +35,7 @@ export default async function TicketsPage() {
       <TripledPageHeader items={[{ label: 'Tickets' }]} />
 
       <TripledDashboardShell>
+        <PendingDocumentsStrip kind="ticket" />
         {/* From lg the card steps aside: the list draws its title, the one Nuevo ticket
             and the table card (ZIG-I33-2). Phones keep the card as it was. */}
         <TripledResourceCard

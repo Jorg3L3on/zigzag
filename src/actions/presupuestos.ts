@@ -16,6 +16,10 @@ import {
 import { db } from '@/lib/db';
 import { createDocumentWithLines } from '@/lib/documents/create-document';
 import {
+  clientRequestBeforeInsert,
+  loadClientRequestDocument,
+} from '@/lib/documents/client-request';
+import {
   convertPresupuesto,
   PresupuestoNotConvertibleError,
   PresupuestoNotFoundError,
@@ -455,6 +459,8 @@ const createPresupuestoWithLinesSchema = z
     lines: z.array(composerServiceLineSchema).min(1).max(50),
     /** What the composer showed; audit only. The server always recomputes the total. */
     client_total: z.number().finite().optional(),
+    /** One per composer draft (ZIG-I35-1): a replay returns the document it created. */
+    client_request_id: z.string().uuid().optional(),
   })
   .refine(
     (value) =>
@@ -477,7 +483,7 @@ export async function createPresupuestoWithLines(
   input: CreatePresupuestoWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number; folio?: string };
+  data?: { id: string; total: number; folio?: string; replayed?: boolean };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -485,11 +491,19 @@ export async function createPresupuestoWithLines(
 }> {
   try {
     const validated = createPresupuestoWithLinesSchema.parse(input);
-    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
 
+    const requestScope = validated.client_request_id
+      ? { companyId: effectiveCompanyId, userId: context.userId, key: validated.client_request_id }
+      : null;
+    if (requestScope) {
+      const replayed = await loadClientRequestDocument(requestScope);
+      if (replayed) return { success: true, data: replayed };
+    }
+
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     await assertCompanyProductionReady(effectiveCompanyId);
 
     const created = await createDocumentWithLines(context, {
@@ -501,6 +515,12 @@ export async function createPresupuestoWithLines(
       workNotes: validated.work_notes,
       lines: validated.lines,
       clientTotal: validated.client_total,
+      ...(requestScope
+        ? {
+            audit: { extra: { client_request_id: requestScope.key } },
+            beforeInsert: clientRequestBeforeInsert(requestScope),
+          }
+        : {}),
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -508,7 +528,12 @@ export async function createPresupuestoWithLines(
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total, folio: created.folio },
+      data: {
+        id: String(created.id),
+        total: created.total,
+        folio: created.folio,
+        ...(created.replayed ? { replayed: true } : {}),
+      },
     };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {

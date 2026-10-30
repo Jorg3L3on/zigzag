@@ -290,10 +290,10 @@ describe('TicketsList', () => {
       },
     });
     mockReadOfflineSnapshot.mockResolvedValue({
-      key: 'tickets:v1:company:1',
+      key: 'tickets:v2:company:1',
       resource: 'tickets',
       companyKey: 'company:1',
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: snapshotUpdatedAt,
       data: [makeTicket({ client_name: 'Cliente Snapshot' })],
     });

@@ -29,6 +29,10 @@ jest.mock('@/components/operator-tenant-company-sync', () => ({
   OperatorTenantCompanySync: () => null,
 }));
 
+jest.mock('@/components/field/field-sync-runner', () => ({
+  FieldSyncRunner: () => null,
+}));
+
 jest.mock('@/hooks/use-mobile', () => ({
   useIsMobile: jest.fn(),
 }));
