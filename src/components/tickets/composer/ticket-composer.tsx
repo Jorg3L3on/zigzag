@@ -77,7 +77,7 @@ import {
 } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompany } from '@/contexts/company-context';
-import { notifyFieldJobsChanged } from '@/hooks/use-field-job-sync';
+import { notifyFieldJobsChanged } from '@/lib/field-jobs/events';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { ValidationIssue } from '@/lib/action-result';

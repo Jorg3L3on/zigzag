@@ -9,7 +9,7 @@ import {
   type FieldJobPayload,
   type LocalJob,
 } from '@/lib/field-jobs';
-import { FIELD_JOBS_CHANGED_EVENT } from '@/hooks/use-field-job-sync';
+import { FIELD_JOBS_CHANGED_EVENT } from '@/lib/field-jobs/events';
 
 export type UseFieldJobStoreState = {
   loading: boolean;

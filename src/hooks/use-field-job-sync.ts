@@ -11,14 +11,12 @@ import {
   type SyncFlushResult,
 } from '@/lib/field-jobs';
 
-/** Fired after the local queue changes (a save offline, a flush), so lists reload. */
-export const FIELD_JOBS_CHANGED_EVENT = 'zigzag:field-jobs-changed';
+import {
+  FIELD_JOBS_CHANGED_EVENT,
+  notifyFieldJobsChanged,
+} from '@/lib/field-jobs/events';
 
-export const notifyFieldJobsChanged = (): void => {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event(FIELD_JOBS_CHANGED_EVENT));
-  }
-};
+export { FIELD_JOBS_CHANGED_EVENT, notifyFieldJobsChanged };
 
 /**
  * One flush at a time for the whole app: Hoy and the app-wide runner share it,

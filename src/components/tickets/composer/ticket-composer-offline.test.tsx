@@ -179,6 +179,11 @@ describe('TicketComposer offline (ZIG-I35)', () => {
 
   afterEach(() => setOnline(true));
 
+  // jsdom has no scrolling; the composer scrolls to the top after an offline save.
+  beforeAll(() => {
+    window.scrollTo = jest.fn() as unknown as typeof window.scrollTo;
+  });
+
   it('with no signal lists the cached catalog and saves the whole ticket on the phone', async () => {
     setOnline(false);
     mockEnqueue.mockResolvedValue({ job: {}, outboxEntry: {} });
