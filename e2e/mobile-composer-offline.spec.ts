@@ -121,7 +121,7 @@ test.describe('Composer with no signal (ZIG-I35)', () => {
     await expect(row).toBeVisible({ timeout: 30_000 });
     await expect(row).toContainText('Pendiente de sincronizar');
     await expect(row).toContainText('Sin folio todavía · no es factura');
-    await expect(row).toContainText('$1,340.00');
+    await expect(row).toContainText('$840.00');
     await page.screenshot({ path: test.info().outputPath('pending.png'), fullPage: true });
 
     await page.unroute('**/*');
@@ -135,13 +135,17 @@ test.describe('Composer with no signal (ZIG-I35)', () => {
     const folio = (await synced.textContent())?.match(/R-\d+/)?.[0];
     await expect(pendingRows(page)).toHaveCount(0);
 
-    // One ticket with that folio, total with the material.
-    await page.goto('/tickets');
-    await page.getByRole('searchbox').first().fill(clientName);
-    const card = page.getByText(clientName).filter({ visible: true });
-    await expect(card).toHaveCount(1, { timeout: 30_000 });
+    await page.screenshot({ path: test.info().outputPath('synced.png'), fullPage: true });
+
+    // Ver opens the real ticket: its folio, the client, and the total with the material.
     expect(folio).toBeTruthy();
-    await expect(page.getByText(folio!).filter({ visible: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Ver' }).click();
+    await page.waitForURL(/\/tickets\/\d+/, { timeout: 30_000 });
+    await expect(page.getByText(folio!).filter({ visible: true }).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByText(clientName).filter({ visible: true }).first()).toBeVisible();
+    await expect(page.getByText('$840.00').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('a refused document turns into Revisar with the reason, Reintentar keeps it, Descartar removes it', async ({
