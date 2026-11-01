@@ -219,8 +219,17 @@ export const ComposerLineSheet = ({
     setPendingDefaults(null);
   };
 
+  /**
+   * The picker leaves the DOM once a service is chosen (and returns on Cambiar), so
+   * focus is handed on explicitly: it never falls to the page behind the sheet (ZIG-I36 M-15).
+   */
+  const focusSheetField = (id: string) => {
+    window.setTimeout(() => document.getElementById(id)?.focus(), 0);
+  };
+
   const handleServiceChange = (value: string) => {
     setServiceId(value);
+    if (value) focusSheetField('composer-line-quantity');
     const match = services.find((item) => String(item.id) === value);
     if (match) {
       setPrice(String(servicePrice(match)));
@@ -259,6 +268,7 @@ export const ComposerLineSheet = ({
   const changeService = () => {
     setMode('catalog');
     setServiceId('');
+    focusSheetField('composer-line-service');
   };
 
   const submitMaterial = () => {
@@ -373,14 +383,15 @@ export const ComposerLineSheet = ({
           </button>
         </p>
       ) : null}
-      <h2
+      {/* The sheet title is the one heading; this is its visible face (ZIG-I36 M-32). */}
+      <p
         className="text-lg font-semibold leading-snug [overflow-wrap:anywhere]"
         data-testid="composer-line-headline"
       >
         {headline}
-      </h2>
+      </p>
       {serviceChosen ? null : (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground" aria-hidden>
           {mode === 'custom'
             ? 'Escríbelo aquí. Marca "Guardar en mis servicios" para usarlo otra vez.'
             : 'Elige el servicio, la cantidad y el precio.'}
@@ -494,7 +505,11 @@ export const ComposerLineSheet = ({
               disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              {documentKind === 'presupuesto' ? 'Agregar al presupuesto' : 'Agregar al ticket'}
+              {isEditing
+                ? 'Guardar cambios'
+                : documentKind === 'presupuesto'
+                  ? 'Agregar al presupuesto'
+                  : 'Agregar al ticket'}
             </Button>
           </div>
         </div>

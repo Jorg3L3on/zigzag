@@ -12,7 +12,7 @@ import {
   SheetPortal,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { focusInitialOverlayTarget } from '@/lib/overlay-focus';
+import { createOverlayOpenerMemory, focusInitialOverlayTarget } from '@/lib/overlay-focus';
 import { cn } from '@/lib/utils';
 
 const PANEL_SPRING: Transition = {
@@ -60,6 +60,9 @@ export const SidePanel = ({
 }: SidePanelProps) => {
   const reduceMotion = useReducedMotion();
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const [opener] = React.useState(createOverlayOpenerMemory);
+  // The control that opened the sheet gets focus back on close (ZIG-I36 M-15).
+  if (open) opener.remember();
   const transition = reduceMotion ? INSTANT : PANEL_SPRING;
 
   return (
@@ -72,6 +75,7 @@ export const SidePanel = ({
               asChild
               forceMount
               onOpenAutoFocus={(event) => focusInitialOverlayTarget(event, contentRef.current)}
+              onCloseAutoFocus={opener.restore}
               // A tap on a toast (Deshacer) is outside the panel but must not dismiss it.
               onInteractOutside={(event) => {
                 const target = event.target as HTMLElement | null;

@@ -262,7 +262,7 @@ describe('TicketComposer', () => {
     await user.click(
       within(sheet).getByRole('button', { name: 'Aumentar cantidad del servicio' }),
     );
-    await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() =>
       expect(screen.getByText('2 × $4,200.00')).toBeTruthy(),
     );

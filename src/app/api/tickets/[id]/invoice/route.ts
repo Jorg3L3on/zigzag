@@ -7,6 +7,7 @@ import { buildReceiptPdfEtag } from '@/lib/receipt-pdf/etag';
 import { buildReceiptPdfPayload } from '@/lib/receipt-pdf/payload';
 import { renderReceiptPdf } from '@/lib/receipt-pdf/render';
 import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
+import { contentDisposition } from '@/lib/content-disposition';
 import { recordDocumentGeneratedAudit } from '@/lib/resource-audit';
 
 export const runtime = 'nodejs';
@@ -108,7 +109,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `${disposition}; filename="${filename.replace(/"/g, '')}"`,
+        'Content-Disposition': contentDisposition(disposition, filename),
         'Cache-Control': CACHE_CONTROL,
         ETag: etag,
       },

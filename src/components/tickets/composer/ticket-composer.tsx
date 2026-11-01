@@ -325,6 +325,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const [clientQuery, setClientQuery] = React.useState('');
   const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
+  /** Clients of the company when the list is the unfiltered first page (M-21). */
+  const [clientTotal, setClientTotal] = React.useState<number | null>(null);
   const [isNewClientOpen, setIsNewClientOpen] = React.useState(false);
   // Once a client is chosen, client + date fold into one card; Cambiar reopens them.
   const [partyOpen, setPartyOpen] = React.useState(false);
@@ -499,6 +501,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       const snapshot = await readComposerClients(companyId);
       if (cancelled) return;
       setClients(filterComposerClients(snapshot?.clients ?? [], debouncedClientQuery));
+      setClientTotal(null);
       setIsClientsLoading(false);
     };
     if (!isOnline || isBrowserOffline()) {
@@ -518,6 +521,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         if (cancelled) return;
         if (result?.success && result.data) {
           setClients(result.data.items);
+          setClientTotal(debouncedClientQuery ? null : result.data.total);
           setIsClientsLoading(false);
           void rememberComposerClients(companyId, result.data.items);
           return;
@@ -1125,10 +1129,16 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     <>
       <TripledPageHeader
         className="hidden md:flex"
-        items={[
-          { label: copy.listLabel, href: copy.listHref },
-          { label: copy.title },
-        ]}
+        items={
+          isEdit
+            ? [
+                // Tickets › R-0043 › Editar, each crumb to its own page (ZIG-I36 M-31).
+                { label: baseCopy.listLabel, href: baseCopy.listHref },
+                { label: edit.folio ?? `#${edit.id}`, href: copy.listHref },
+                { label: 'Editar' },
+              ]
+            : [{ label: copy.listLabel, href: copy.listHref }, { label: copy.title }]
+        }
       />
 
       <TripledDashboardShell
@@ -1203,7 +1213,12 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                         value={client ? String(client.id) : ''}
                         onValueChange={handleClientChange}
                         onSearchChange={setClientQuery}
-                        isLoading={isClientsLoading}
+                        isLoading={isClientsLoading || clientQuery.trim() !== debouncedClientQuery}
+                        footerHint={
+                          clientTotal != null && clientTotal > clients.length
+                            ? `Escribe para buscar entre los ${clientTotal.toLocaleString('es-MX')} clientes`
+                            : undefined
+                        }
                         disabled={clientLocked}
                         placeholder="Busca o elige un cliente"
                         searchPlaceholder="Buscar por nombre o teléfono…"
@@ -1375,6 +1390,14 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
                     </AnimatePresence>
                   </ul>
                 )}
+                {lines.length > 0 ? (
+                  <p
+                    className="mt-2 text-sm text-muted-foreground lg:hidden"
+                    data-testid="composer-lines-hint"
+                  >
+                    Toca una línea para cambiarla o quitarla
+                  </p>
+                ) : null}
 
                 <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border/60 pt-3 lg:hidden">
                   <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">

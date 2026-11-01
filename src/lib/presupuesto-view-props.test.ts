@@ -47,7 +47,7 @@ describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
       clientName: 'Plaza Comercial Aurora',
       total: 4800,
       status: 'abierto',
-      downloadFileName: 'presupuesto_Plaza Comercial Aurora_2026-10-09_1057.pdf',
+      downloadFileName: 'Presupuesto 1057 · Plaza Comercial Aurora.pdf',
     });
     expect(props.clientAddress).toBeNull();
     expect(props.clientEmail).toBeNull();

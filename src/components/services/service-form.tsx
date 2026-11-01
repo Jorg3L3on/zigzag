@@ -217,13 +217,14 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
           render={({ field }) => (
             <FormItem className="space-y-3">
               <FormLabel className="text-sm font-medium text-foreground">
-                Precio base
+                Precio
               </FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
+                {/* FormControl wraps the input itself so the label names it (ZIG-I36 M-32). */}
+                <FormControl>
                   <Input
                     type="number"
                     step="0.01"
@@ -232,8 +233,8 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
                     className="h-12 border-2 pl-8 focus:border-primary transition-colors"
                     {...field}
                   />
-                </div>
-              </FormControl>
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}

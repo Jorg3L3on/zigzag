@@ -60,19 +60,35 @@ export const buildInvoiceDataFromTicketDetail = (
 const fileFolio = (ticket: Parameters<typeof formatDocumentFolio>[0] & { id: bigint | number | string }): string =>
   ticket.folio_number != null ? formatDocumentFolio(ticket) : String(ticket.id);
 
+/** Longest PDF / share file name, ".pdf" included (ZIG-I36 M-20). */
+export const TICKET_PDF_FILE_NAME_MAX = 60;
+
+/**
+ * "Recibo R-0043 · Bodega de Abarrotes y Distri….pdf": keeps ñ and accents,
+ * drops only what file systems refuse, and cuts the client name with "…" so the
+ * whole name stays within 60 characters. Quotes start with "Presupuesto".
+ */
 export const buildTicketPdfFileName = (
-  ticket: Pick<TicketDetailData, 'id' | 'client_name' | 'ticket_date'> & {
+  ticket: {
+    id: bigint | number | string;
+    client_name?: string | null;
     document_kind?: string | null;
     folio_number?: number | null;
     folio_prefix?: string | null;
   },
 ): string => {
-  const safeName = (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() || 'ticket';
-  const datePart = companyDay(
-    ticket.ticket_date ? new Date(ticket.ticket_date) : new Date(),
-  ).iso;
-  // Quotes download as presupuesto_<cliente>_<fecha>_<id>.pdf (ZIG-I5-4).
-  const prefix = isPresupuestoTicket(ticket.document_kind) ? 'presupuesto_' : '';
+  const kindLabel = isPresupuestoTicket(ticket.document_kind) ? 'Presupuesto' : 'Recibo';
+  const head = `${kindLabel} ${fileFolio(ticket)}`;
+  const safeName = (ticket.client_name ?? '')
+    .replace(/[\u0000-\u001f\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const extension = '.pdf';
+  if (!safeName) return `${head}${extension}`;
 
-  return `${prefix}${safeName}_${datePart}_${fileFolio(ticket)}.pdf`;
+  const room = TICKET_PDF_FILE_NAME_MAX - extension.length - head.length - ' · '.length;
+  if (room < 2) return `${head}${extension}`;
+  const shown =
+    safeName.length <= room ? safeName : `${safeName.slice(0, room - 1).trimEnd()}…`;
+  return `${head} · ${shown}${extension}`;
 };

@@ -92,7 +92,7 @@ const ticketServiceLineSchema = serviceLineInputSchema;
 /** Shell fields only — service lines attach via ticket-services actions (TCI-06). */
 const ticketSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre del cliente es obligatorio').max(100),
+  client_name: z.string().min(1, 'El nombre del cliente es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio').max(20),
   email: z
     .string()

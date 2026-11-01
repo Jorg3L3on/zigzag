@@ -56,7 +56,6 @@ describe('companyDayStart and parseCompanyDayIso (ZIG-I30)', () => {
 
 describe('company day replaces UTC today slices (ZIG-25)', () => {
   const files = [
-    'src/components/tickets/ticket-row-actions.tsx',
     'src/components/field/job-whatsapp-send-menu.tsx',
     'src/lib/mcp/domain/documents.ts',
     'src/lib/technician-day-queue.ts',

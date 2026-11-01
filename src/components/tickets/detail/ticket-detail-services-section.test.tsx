@@ -63,4 +63,27 @@ describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
     );
     expect(screen.queryByRole('link', { name: 'Editar servicios' })).toBeNull();
   });
+
+  it('shows the ticket note under Nota on the phone (ZIG-I36-16)', () => {
+    render(
+      <TicketDetailServicesSection
+        ticketId={5}
+        total={300}
+        paid={0}
+        workNotes={'  Revisar la fuga en 15 días.\nCliente pide factura.  '}
+        services={[line(1, 'Uno')]}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Nota' })).toBeInTheDocument();
+    expect(screen.getByTestId('ticket-phone-note')).toHaveTextContent(
+      'Revisar la fuga en 15 días. Cliente pide factura.',
+    );
+  });
+
+  it('has no Nota block without a note', () => {
+    render(
+      <TicketDetailServicesSection ticketId={5} total={300} paid={0} workNotes="  " services={[line(1, 'Uno')]} />,
+    );
+    expect(screen.queryByRole('heading', { name: 'Nota' })).toBeNull();
+  });
 });

@@ -27,7 +27,7 @@ const SECTIONS = {
     title: 'Presupuestos',
     description: 'Cola comercial de presupuestos',
     icon: <FileText className="size-5" aria-hidden />,
-    breadcrumbs: [{ label: 'Hoy', href: '/dashboard' }, { label: 'Presupuestos' }],
+    breadcrumbs: [{ label: 'Presupuestos' }],
     listLabel: 'Cargando presupuestos',
     detailLabel: 'Cargando presupuesto',
     detailCrumb: 'Presupuesto',

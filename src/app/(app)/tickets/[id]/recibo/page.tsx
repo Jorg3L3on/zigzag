@@ -77,6 +77,7 @@ export default async function TicketReciboPage({
           lines={lines}
           total={total}
           paid={paid}
+          notes={ticket.work_notes}
         />
       }
       whatsApp={{
