@@ -144,7 +144,7 @@ export const TicketDetailClientCard = ({
       <div className="mt-3 flex items-start gap-3">
         <span
           aria-hidden
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-blue-100 text-[13px] font-bold text-blue-800 dark:bg-blue-500/20 dark:text-blue-200"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-blue-100 text-caption lg:text-[13px]/[inherit] font-bold text-blue-800 dark:bg-blue-500/20 dark:text-blue-200"
         >
           {clientInitials(name)}
         </span>

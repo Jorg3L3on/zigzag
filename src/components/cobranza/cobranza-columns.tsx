@@ -72,7 +72,7 @@ export const CobranzaDaysCell = ({
   lastPaymentAt: Date | string | null;
   daysSinceLastPayment: number | null;
 }) => (
-  <div className="flex min-w-0 flex-col text-[13px] leading-[1.3]">
+  <div className="flex min-w-0 flex-col text-caption leading-[1.3] lg:text-[13px]">
     <span
       className={cn('font-semibold tabular-nums', cobranzaDaysClassName(days))}
       data-testid="cobranza-days"
@@ -80,7 +80,7 @@ export const CobranzaDaysCell = ({
       {plural(days, 'día', 'días')}
     </span>
     <span
-      className="truncate text-xs font-normal tabular-nums text-muted-foreground"
+      className="truncate text-caption lg:text-xs font-normal tabular-nums text-muted-foreground"
       data-testid="cobranza-last-payment"
     >
       {formatLastPayment(lastPaymentAt, daysSinceLastPayment)}
@@ -92,12 +92,12 @@ export const CobranzaDaysCell = ({
 export const CobranzaWorkSummary = ({ row }: { row: CobranzaRow }) => {
   const summary = row.services_summary?.trim();
   if (!summary) {
-    return <span className="text-[13px] text-muted-foreground">Sin servicios</span>;
+    return <span className="text-caption lg:text-[13px]/[inherit] text-muted-foreground">Sin servicios</span>;
   }
   const names = summary.split(', ');
   const extra = Math.max(row.services_count, names.length) - 2;
   return (
-    <span className="block truncate text-[13px] text-slate-600 dark:text-slate-300" title={summary}>
+    <span className="block truncate text-caption lg:text-[13px]/[inherit] text-slate-600 dark:text-slate-300" title={summary}>
       {extra > 0 ? `${names.slice(0, 2).join(', ')}…` : summary}
       {extra > 0 ? <span className="text-muted-foreground/80"> +{extra}</span> : null}
     </span>
@@ -156,7 +156,7 @@ export const createCobranzaColumns = ({
             {name}
           </p>
           {phone ? (
-            <p className="truncate text-xs tabular-nums leading-4 text-muted-foreground">{phone}</p>
+            <p className="truncate text-caption lg:text-xs tabular-nums leading-4 text-muted-foreground">{phone}</p>
           ) : null}
         </div>
       );

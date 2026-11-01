@@ -223,7 +223,7 @@ export const TicketListCollectPaymentDialog = ({
       }}
     >
       <div className="flex items-baseline justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
-        <span className="text-[13px]">Saldo pendiente</span>
+        <span className="text-caption lg:text-[13px]/[inherit]">Saldo pendiente</span>
         <span className="text-base font-semibold tabular-nums">
           <FormattedCurrency amount={balanceDue} />
         </span>
@@ -232,7 +232,7 @@ export const TicketListCollectPaymentDialog = ({
       <div className="mt-3.5">
         <label
           htmlFor={`list-ticket-payment-desktop-${ticketId}`}
-          className="mb-1.5 block text-[13px] font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1.5 block text-caption lg:text-[13px]/[inherit] font-medium text-slate-700 dark:text-slate-300"
         >
           ¿Cuánto pagó?
         </label>
@@ -281,7 +281,7 @@ export const TicketListCollectPaymentDialog = ({
               disabled={isPending || (option.value === 'half' && balanceDue <= 1)}
               onClick={() => pickShortcut(option.value)}
               className={cn(
-                'h-[34px] rounded-full border px-3 text-[13px] font-medium tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                'h-[34px] rounded-full border px-3 text-caption lg:text-[13px]/[inherit] font-medium tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
                 checked
                   ? FILTER_SELECTED_CLASS
                   : 'border-border text-slate-700 hover:bg-muted/50 dark:text-slate-300',
@@ -304,7 +304,7 @@ export const TicketListCollectPaymentDialog = ({
       ) : null}
       <p
         id={`list-ticket-payment-note-${ticketId}`}
-        className="mt-3 text-xs leading-[1.45] text-muted-foreground"
+        className="mt-3 text-caption leading-[1.45] lg:text-xs text-muted-foreground"
       >
         Con todo el saldo el ticket queda{' '}
         <b className="font-semibold text-emerald-700 dark:text-emerald-400">Pagado</b> y se ofrece

@@ -22,7 +22,7 @@ const PRIMARY_DESKTOP_CLASS =
 
 /** The small uppercase label that heads each card of the desktop column (ticket detail rail). */
 export const CLIENT_RAIL_LABEL_CLASS =
-  'text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground';
+  'text-caption lg:text-[11px]/[inherit] font-semibold uppercase tracking-[0.08em] text-muted-foreground';
 
 /** A card of the desktop column; below lg the content sits on the page card as before. */
 export const CLIENT_RAIL_CARD_CLASS =

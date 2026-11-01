@@ -25,9 +25,9 @@ const TABS: StripTab[] = [
 
 const CARD_CLASS =
   'flex min-w-0 flex-col items-start gap-0.5 rounded-xl border border-b-[3px] px-4 py-3.5 text-left';
-const LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-[0.08em]';
+const LABEL_CLASS = 'text-caption lg:text-[11px]/[inherit] font-semibold uppercase tracking-[0.08em]';
 const VALUE_CLASS = 'mt-1 text-[22px] font-semibold leading-tight tracking-tight tabular-nums';
-const SECONDARY_CLASS = 'mt-0.5 w-full text-xs font-normal leading-4 tabular-nums text-muted-foreground';
+const SECONDARY_CLASS = 'mt-0.5 w-full text-caption lg:text-xs font-normal leading-4 tabular-nums text-muted-foreground';
 
 /** «octubre» from the `YYYY-MM` the server counted payments in. */
 const monthName = (month: string | null | undefined): string => {
