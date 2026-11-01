@@ -49,6 +49,7 @@ const RESOURCE_TYPE_LABELS: Record<AuditResourceType, string> = {
   ticket: 'Ticket',
   client: 'Cliente',
   service: 'Servicio',
+  material: 'Material',
   company: 'Empresa',
   user: 'Usuario',
   role: 'Rol',

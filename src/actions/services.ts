@@ -324,16 +324,34 @@ export async function updateService(
     if (!materials.ok) return materials.error;
 
     const existing = await db.query.service.findFirst({
-      where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
+      where: and(
+        eq(service.id, id),
+        eq(service.company_id, effectiveCompanyId),
+        isNull(service.deleted_at),
+      ),
     });
+    if (!existing) {
+      return buildActionError('SV005');
+    }
     const updated = await db.transaction(async (tx) => {
+      // Whitelist: never spread raw input into .set() (deleted_at, company_id, ...).
       const [row] = await tx
         .update(service)
         .set({
-          ...updateData,
-          company_id: effectiveCompanyId,
+          ...(updateData.name !== undefined ? { name: updateData.name } : {}),
+          ...(updateData.description !== undefined
+            ? { description: updateData.description }
+            : {}),
+          ...(updateData.price !== undefined ? { price: updateData.price } : {}),
+          updated_at: new Date(),
         })
-        .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)))
+        .where(
+          and(
+            eq(service.id, id),
+            eq(service.company_id, effectiveCompanyId),
+            isNull(service.deleted_at),
+          ),
+        )
         .returning();
 
       if (!row) return row;
@@ -366,6 +384,10 @@ export async function updateService(
       return row;
     });
 
+    if (!updated) {
+      return buildActionError('SV005');
+    }
+
     revalidatePath('/services');
     return { success: true, data: updated };
   } catch (error) {
@@ -381,7 +403,11 @@ export async function deleteService(
     const { context, companyId: effectiveCompanyId } =
       await requireTenantActionPermission('services.write', companyId);
     const existing = await db.query.service.findFirst({
-      where: and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)),
+      where: and(
+        eq(service.id, id),
+        eq(service.company_id, effectiveCompanyId),
+        isNull(service.deleted_at),
+      ),
     });
     const [deleted] = await db
       .update(service)
@@ -389,21 +415,28 @@ export async function deleteService(
         deleted_at: new Date(),
         updated_at: new Date(),
       })
-      .where(and(eq(service.id, id), eq(service.company_id, effectiveCompanyId)))
+      .where(
+        and(
+          eq(service.id, id),
+          eq(service.company_id, effectiveCompanyId),
+          isNull(service.deleted_at),
+        ),
+      )
       .returning();
 
-    if (deleted) {
-      await recordResourceAudit(db, {
-        actor: context,
-        resourceType: 'service',
-        resourceId: id,
-        targetCompanyId: effectiveCompanyId,
-        action: 'deleted',
-        before: existing,
-        after: deleted,
-        source: 'action',
-      });
+    if (!deleted) {
+      return buildActionError('SV005');
     }
+    await recordResourceAudit(db, {
+      actor: context,
+      resourceType: 'service',
+      resourceId: id,
+      targetCompanyId: effectiveCompanyId,
+      action: 'deleted',
+      before: existing,
+      after: deleted,
+      source: 'action',
+    });
 
     await pauseSchedulesForService(id, effectiveCompanyId);
 

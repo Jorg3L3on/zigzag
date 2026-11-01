@@ -155,6 +155,7 @@ export async function createDocumentWithLines(
 
       const { rows: lineRows, createdServiceIds, createdMaterialIds } =
         await insertServiceLines(tx, {
+          actor: context,
           companyId: input.companyId,
           ticketId: created.id,
           lines: input.lines,

@@ -9,6 +9,7 @@ export const AUDIT_RESOURCE_TYPES = [
   'ticket',
   'client',
   'service',
+  'material',
   'company',
   'user',
   'role',

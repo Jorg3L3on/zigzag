@@ -3,7 +3,7 @@ import type { AuditAction, AuditSource } from '@/lib/audit-catalog';
 import type { ActionAuthContext } from '@/lib/authz-context';
 import { db } from '@/lib/db';
 
-export type ResourceAuditType = 'client' | 'service';
+export type ResourceAuditType = 'client' | 'service' | 'material';
 
 export type ResourceAuditAction = Extract<AuditAction, 'created' | 'updated' | 'deleted'>;
 

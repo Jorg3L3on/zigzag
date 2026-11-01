@@ -1,6 +1,7 @@
 import { createTicketWithLines } from '@/actions/tickets';
 import { db } from '@/lib/db';
 import { AuthorizationError } from '@/lib/errors';
+import { requireActionPermission } from '@/lib/security';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { syncTicketTotal } from '@/lib/ticket-financials';
 import { requireTicketWrite } from '@/lib/tickets-rbac-server';
@@ -35,6 +36,9 @@ jest.mock('@/lib/ticket-audit', () => ({
   recordTicketAudit: jest.fn(),
 }));
 
+jest.mock('@/lib/security', () => ({ requireActionPermission: jest.fn() }));
+jest.mock('@/lib/resource-audit', () => ({ recordResourceAudit: jest.fn() }));
+
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -62,6 +66,9 @@ const mockDb = db as unknown as {
 
 const mockRequireTicketWrite = requireTicketWrite as jest.MockedFunction<
   typeof requireTicketWrite
+>;
+const mockRequireServicesWrite = requireActionPermission as jest.MockedFunction<
+  typeof requireActionPermission
 >;
 const mockRecordTicketAudit = recordTicketAudit as jest.MockedFunction<
   typeof recordTicketAudit
@@ -186,6 +193,43 @@ describe('createTicketWithLines', () => {
       { ticket_id: 1201n, service_id: 7, quantity: 3, price: 4200 },
       { ticket_id: 1201n, service_id: 8, quantity: 1, price: 350.01 },
     ]);
+  });
+
+  it('refuses save_to_catalog for a Técnico without services.write (ZIG-I36-8)', async () => {
+    const captured: Captured = {};
+    mockTransaction(captured);
+    mockRequireServicesWrite.mockRejectedValueOnce(
+      new AuthorizationError('Insufficient permissions'),
+    );
+
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [
+        {
+          kind: 'custom',
+          name: 'Instalación',
+          save_to_catalog: true,
+          quantity: 1,
+          price: 3500,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockRequireServicesWrite).toHaveBeenCalledWith('services.write', 10);
+    expect(captured.lineValues).toBeUndefined();
+  });
+
+  it('keeps inline lines without save_to_catalog on tickets.write alone', async () => {
+    mockTransaction({});
+
+    const result = await createTicketWithLines({
+      ...validInput,
+      lines: [{ kind: 'custom', name: 'Cambio de capacitor', quantity: 1, price: 850 }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRequireServicesWrite).not.toHaveBeenCalled();
   });
 
   it('uses the server-synced total, not the client total', async () => {

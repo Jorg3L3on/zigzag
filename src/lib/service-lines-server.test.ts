@@ -10,8 +10,25 @@ import {
   parseServiceLines,
 } from '@/lib/service-lines-server';
 import { AuthorizationError } from '@/lib/errors';
+import { recordResourceAudit } from '@/lib/resource-audit';
+import { requireActionPermission } from '@/lib/security';
 
 jest.mock('@/lib/db', () => ({ db: {} }));
+jest.mock('@/lib/security', () => ({ requireActionPermission: jest.fn() }));
+jest.mock('@/lib/resource-audit', () => ({ recordResourceAudit: jest.fn() }));
+
+const mockRequireServicesWrite = requireActionPermission as jest.MockedFunction<
+  typeof requireActionPermission
+>;
+const mockRecordResourceAudit = recordResourceAudit as jest.MockedFunction<
+  typeof recordResourceAudit
+>;
+const actor = { userId: '1', companyId: 10, companyIsSystem: false };
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockRequireServicesWrite.mockResolvedValue({ context: actor, companyId: 10 });
+});
 
 type InsertCall = { table: unknown; values: unknown };
 
@@ -72,6 +89,7 @@ describe('service-lines-server (ZIG-I5)', () => {
   it('inserts catalog, inline and saved-to-catalog lines in the same transaction', async () => {
     const { tx, calls } = makeTx();
     const { rows, createdServiceIds } = await insertServiceLines(tx as never, {
+      actor,
       companyId: 10,
       ticketId: 42n,
       lines,
@@ -102,9 +120,50 @@ describe('service-lines-server (ZIG-I5)', () => {
     expect(rows).toHaveLength(3);
   });
 
+  it('refuses save_to_catalog without services.write and inserts nothing (ZIG-I36-8)', async () => {
+    const { tx, calls } = makeTx();
+    mockRequireServicesWrite.mockRejectedValueOnce(
+      new AuthorizationError('Insufficient permissions'),
+    );
+    await expect(
+      insertServiceLines(tx as never, { actor, companyId: 10, ticketId: 42n, lines }),
+    ).rejects.toBeInstanceOf(AuthorizationError);
+    expect(mockRequireServicesWrite).toHaveBeenCalledWith('services.write', 10);
+    expect(calls).toEqual([]);
+  });
+
+  it('does not ask for services.write when no line saves to the catalog', async () => {
+    const { tx } = makeTx();
+    await insertServiceLines(tx as never, {
+      actor,
+      companyId: 10,
+      ticketId: 42n,
+      lines: parseServiceLines([{ kind: 'custom', name: 'Visita', quantity: 1, price: 300 }]),
+    });
+    expect(mockRequireServicesWrite).not.toHaveBeenCalled();
+    expect(mockRecordResourceAudit).not.toHaveBeenCalled();
+  });
+
+  it('writes a service audit row with actor and company for a Service saved from a line (ZIG-I36-8)', async () => {
+    const { tx } = makeTx();
+    await insertServiceLines(tx as never, { actor, companyId: 10, ticketId: 42n, lines });
+    expect(mockRecordResourceAudit).toHaveBeenCalledTimes(1);
+    expect(mockRecordResourceAudit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        actor,
+        resourceType: 'service',
+        resourceId: 501,
+        targetCompanyId: 10,
+        action: 'created',
+      }),
+    );
+  });
+
   it('a saved-to-catalog Service without description uses its name', async () => {
     const { tx, calls } = makeTx();
     await insertServiceLines(tx as never, {
+      actor,
       companyId: 10,
       ticketId: 1n,
       lines: parseServiceLines([
@@ -119,7 +178,7 @@ describe('service-lines-server (ZIG-I5)', () => {
   it('propagates a failure after the Service insert so the transaction rolls both back', async () => {
     const { tx, calls } = makeTx({ failLineInsert: true });
     await expect(
-      insertServiceLines(tx as never, { companyId: 10, ticketId: 42n, lines }),
+      insertServiceLines(tx as never, { actor, companyId: 10, ticketId: 42n, lines }),
     ).rejects.toThrow('line insert failed');
     // Both writes went through the same tx (no separate db call), so the
     // caller's db.transaction aborts the Service insert too.
@@ -216,6 +275,7 @@ describe('line materials in service-lines-server (ZIG-I10)', () => {
       [],
     ]);
     const { rows, createdMaterialIds } = await insertServiceLines(tx as never, {
+      actor,
       companyId: 10,
       ticketId: 42n,
       lines: parseServiceLines([
@@ -283,12 +343,23 @@ describe('line materials in service-lines-server (ZIG-I10)', () => {
     ]);
     expect(createdMaterialIds).toEqual([41]);
     expect(rows.map((row) => row.materials.length)).toEqual([3, 0]);
+    expect(mockRecordResourceAudit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        actor,
+        resourceType: 'material',
+        resourceId: 41,
+        targetCompanyId: 10,
+        action: 'created',
+      }),
+    );
   });
 
   it('rejects a catalog material of another company (IDOR) before inserting materials', async () => {
     const { tx, inserts } = makeMaterialTx([[]]);
     await expect(
       insertServiceLines(tx as never, {
+      actor,
         companyId: 10,
         ticketId: 42n,
         lines: parseServiceLines([

@@ -14,7 +14,7 @@ import {
   type ActionErrorType,
 } from '@/lib/errors';
 import { queryAuditEvents } from '@/lib/audit-query';
-import { checkPermission } from '@/lib/security';
+import { checkPermission, requireActionAuth } from '@/lib/security';
 
 const DEFAULT_LIMIT = 15;
 const FETCH_PAGE_SIZE = 40;
@@ -77,6 +77,8 @@ export async function fetchDashboardActivity(
   input: FetchDashboardActivityInput = {},
 ): Promise<DashboardActivityResponse> {
   try {
+    // Revoked (token_version) and must-change-password sessions stop here.
+    await requireActionAuth();
     const session = await auth();
     if (!session?.user?.company_id) {
       return buildActionError('AU001');

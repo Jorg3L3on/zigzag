@@ -198,7 +198,7 @@ export async function replaceDocumentLines(
 
     const { rows: lineRows, createdServiceIds, createdMaterialIds } = await insertServiceLines(
       tx,
-      { companyId, ticketId, lines: input.lines },
+      { actor: context, companyId, ticketId, lines: input.lines },
     );
 
     const syncedTotal = await syncTicketTotal(tx, ticketId);
