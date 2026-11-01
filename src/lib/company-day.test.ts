@@ -84,6 +84,14 @@ describe('companyDayRangeIso (ZIG-I36-24)', () => {
     });
   });
 
+  it('around midnight UTC: 02:00 UTC on 1 Nov is still 31 Oct for the company', () => {
+    const { from, to } = companyDayRangeIso(new Date(2026, 9, 31));
+    const inRange = (iso: string) => iso >= from && iso <= to;
+    expect(inRange('2026-11-01T02:00:00.000Z')).toBe(true); // 20:00 on 31 Oct in Mexico City
+    expect(inRange('2026-10-31T05:59:59.999Z')).toBe(false); // 23:59 on 30 Oct
+    expect(inRange('2026-11-01T06:00:00.000Z')).toBe(false); // 00:00 on 1 Nov
+  });
+
   it('spans a range to the end of its last day', () => {
     const range = companyDayRangeIso(new Date(2026, 0, 5), new Date(2026, 0, 7));
     expect(range).toEqual({ from: '2026-01-05T06:00:00.000Z', to: '2026-01-08T05:59:59.999Z' });
