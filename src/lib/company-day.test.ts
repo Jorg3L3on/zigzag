@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   companyDay,
+  companyDayRangeIso,
   companyDayStart,
   COMPANY_TIME_ZONE,
   parseCompanyDayIso,
@@ -71,5 +72,20 @@ describe('company day replaces UTC today slices (ZIG-25)', () => {
     const source = readFileSync(path.join(process.cwd(), file), 'utf8');
     expect(source).not.toMatch(/toISOString\(\)\.slice\(0,\s*10\)/);
     expect(source).toContain('companyDay');
+  });
+});
+
+describe('companyDayRangeIso (ZIG-I36-24)', () => {
+  it('covers the company day, 06:00 UTC to 05:59:59.999 UTC next day', () => {
+    const picked = new Date(2026, 9, 31, 0, 0, 0);
+    expect(companyDayRangeIso(picked)).toEqual({
+      from: '2026-10-31T06:00:00.000Z',
+      to: '2026-11-01T05:59:59.999Z',
+    });
+  });
+
+  it('spans a range to the end of its last day', () => {
+    const range = companyDayRangeIso(new Date(2026, 0, 5), new Date(2026, 0, 7));
+    expect(range).toEqual({ from: '2026-01-05T06:00:00.000Z', to: '2026-01-08T05:59:59.999Z' });
   });
 });

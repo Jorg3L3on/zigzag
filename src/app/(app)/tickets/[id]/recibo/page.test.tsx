@@ -95,7 +95,7 @@ describe('/tickets/[id]/recibo page', () => {
     const element = await call('1113');
 
     expect(element.props).toMatchObject({
-      subtitle: 'Trabajo terminado · Pendiente',
+      subtitle: 'Trabajo terminado · Por cobrar',
       backHref: '/tickets/1113',
       backLabel: 'Volver al ticket',
     });

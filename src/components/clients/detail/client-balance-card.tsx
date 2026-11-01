@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 
 import { ClientStatementButton } from '@/components/clients/detail/client-statement-button';
 import { MoneyFigure } from '@/components/documents/money-figure';
+import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import type { ClientDetailTicket } from '@/actions/client-detail';
 import type { ClientBalanceSummary } from '@/lib/client-detail';
 import { cn } from '@/lib/utils';
@@ -61,6 +62,11 @@ export const ClientBalanceCard = ({
         className="block font-bold leading-tight lg:pt-0.5 lg:text-[30px] lg:leading-[1.1] lg:tracking-tight"
         data-testid="client-balance-amount"
       />
+      {(balance.inProgressDue ?? 0) > 0 ? (
+        <p className="text-caption text-muted-foreground" data-testid="client-balance-in-progress">
+          Además {formatServiceCurrency(balance.inProgressDue ?? 0)} en tickets en proceso
+        </p>
+      ) : null}
       {owes ? (
         <>
           <p className="text-caption text-muted-foreground" data-testid="client-balance-count">

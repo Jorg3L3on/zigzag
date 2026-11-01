@@ -27,7 +27,7 @@ describe('TicketListPaymentSummary', () => {
       'data-payment-status',
       'pending',
     );
-    expect(screen.getByText('Pendiente')).toBeInTheDocument();
+    expect(screen.getByText('Por cobrar')).toBeInTheDocument();
     expect(
       screen.getByRole('progressbar', {
         name: /progreso de pago 0 por ciento/i,

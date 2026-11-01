@@ -92,8 +92,9 @@ for (const width of MOBILE_WIDTHS) {
       }
       const partialCard = cards.filter({ hasText: 'Pago parcial' }).first();
       await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Pagado $500,000.00');
-      await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Saldo $800,488.89');
-      const openCard = cards.filter({ hasText: 'Pendiente de pago' }).first();
+      await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Faltan $800,488.89');
+      // Unpaid fixtures are still unfinished: En proceso with the Total (ZIG-I36-17).
+      const openCard = cards.filter({ hasText: 'En proceso' }).first();
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('Total');
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('$1,300,488.89');
       await expectNoPageOverflow(page, 'tickets list');
@@ -110,8 +111,9 @@ for (const width of MOBILE_WIDTHS) {
       await group.getByRole('button', { name: /^Por cobrar/ }).click();
       await expect(page).toHaveURL(/status=due/);
       await expect(group.getByRole('button', { name: /^Por cobrar/ })).toHaveAttribute('aria-pressed', 'true');
-      await expect(group.getByRole('button', { name: /^Por cobrar · 3$/ })).toBeVisible({ timeout: 15_000 });
-      await expect(cards).toHaveCount(3);
+      await expect(group.getByRole('button', { name: /^Por cobrar · 1$/ })).toBeVisible({ timeout: 15_000 });
+      // Por cobrar is finished work with a saldo: only the half-paid ticket (ZIG-I36-17).
+      await expect(cards).toHaveCount(1);
       await expect(search).toHaveValue(suffix);
 
       await group.getByRole('button', { name: 'Pagados' }).click();

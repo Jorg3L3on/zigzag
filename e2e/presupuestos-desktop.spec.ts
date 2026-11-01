@@ -160,7 +160,7 @@ test.describe('Presupuestos desktop at 1280 and 1024 (ZIG-I29)', () => {
     await expect(row).toHaveCount(1, { timeout: 15_000 });
     await expect(row.getByTestId('presupuesto-vence')).toContainText('en 7 días');
     await expect(row.getByTestId('presupuesto-vence')).toHaveAttribute('data-tone', 'ok');
-    await expect(page.getByTestId('list-footer')).toHaveText(/^1 de 1 presupuestos$/);
+    await expect(page.getByTestId('list-footer')).toHaveText(/^1 resultado$/);
     await expect(tabs.getByRole('button', { name: /Todos/ })).toContainText('1');
     await expectNoSeriousViolations(page, 'presupuestos-lista');
 

@@ -1,3 +1,4 @@
+import { matchesSearchText } from '@/lib/search-text';
 import type { Ticket } from '@/actions/tickets';
 import { endOfDay, format, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -46,13 +47,11 @@ export const filterTickets = (
     'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
   >,
 ): Ticket[] => {
-  const search = filters.searchValue.toLowerCase().trim();
+  const search = filters.searchValue.trim();
   return tickets.filter((ticket) => {
     const matchesSearch =
       ticket.id.toString().includes(search) ||
-      (ticket.client_name ?? '').toLowerCase().includes(search) ||
-      (ticket.client_tel ?? '').toLowerCase().includes(search) ||
-      (ticket.email ?? '').toLowerCase().includes(search);
+      matchesSearchText([ticket.client_name, ticket.client_tel, ticket.email], search);
 
     if (!matchesSearch) {
       return false;
@@ -61,7 +60,7 @@ export const filterTickets = (
     if (filters.statusFilter !== 'all') {
       const paymentStatus = getTicketPaymentStatus(ticket.total, ticket.paid);
       if (filters.statusFilter === 'due') {
-        if (getTicketBalanceDue(ticket.total, ticket.paid) <= 0) {
+        if (!ticket.finished || getTicketBalanceDue(ticket.total, ticket.paid) <= 0) {
           return false;
         }
       } else if (paymentStatus !== filters.statusFilter) {
@@ -115,7 +114,7 @@ export const hasActiveTicketFilters = (
 
 export const buildTicketFilterChips = (
   totalCount: number,
-  filteredCount: number,
+  _filteredCount: number,
   filters: Pick<
     TicketsFilterState,
     'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
@@ -123,7 +122,10 @@ export const buildTicketFilterChips = (
 ) => [
   {
     key: 'count',
-    label: `${filteredCount} de ${totalCount} tickets`,
+    // «41 tickets» without a filter, «3 resultados» with one; never «1 de 1» (ZIG-I36 M-26).
+    label: hasActiveTicketFilters(filters)
+      ? `${totalCount} ${totalCount === 1 ? 'resultado' : 'resultados'}`
+      : `${totalCount} ${totalCount === 1 ? 'ticket' : 'tickets'}`,
     variant: 'secondary' as const,
   },
   ...(filters.statusFilter !== 'all'

@@ -127,7 +127,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       // The list, filtered to the fixture.
       await page.goto('/tickets');
       await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
-      await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText('1 resultado')).toBeVisible({ timeout: 20_000 });
       await shot(page, 'tickets-list');
 
       // Presupuesto detail.

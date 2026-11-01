@@ -23,6 +23,7 @@ import {
   TicketAlreadyPaidError,
   TotalBelowPaidError,
 } from '@/lib/documents/update-document';
+import { sqlFoldedContains } from '@/lib/search-text';
 import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
 import { desc, eq, and, isNull, sql, count, ilike, or, inArray, ne, type SQL } from 'drizzle-orm';
@@ -30,6 +31,7 @@ import {
   client,
   service,
   servicesTickets,
+  ticketLineMaterial,
   ticket,
   ticketAuditEvent,
   type Client,
@@ -135,6 +137,8 @@ export type Ticket = {
   /** First two service names (desktop list). */
   services_head?: string[];
   services_count?: number;
+  /** Materials across the lines (list card and row). */
+  materials_count?: number;
 };
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
@@ -681,6 +685,7 @@ export interface PaginatedTicketsData {
       /** First two service names, in order (canvas «A, B… +N»). */
       services_head: string[];
       services_count: number;
+      materials_count: number;
     }
   >;
   total: number;
@@ -715,7 +720,8 @@ const buildTicketPaymentStatusCondition = (
   }
 
   if (status === 'due') {
-    return TICKET_DUE_CONDITION;
+    // Por cobrar is finished work with a saldo (ZIG-I36-17); En proceso has none yet.
+    return sql`${ticket.finished} = true AND ${TICKET_DUE_CONDITION}`;
   }
 
   if (status === 'partial') {
@@ -805,10 +811,10 @@ export async function getTicketsPaginated(params: {
     const folioSearch = search ? parseFolioSearch(search) : null;
     const searchCondition = search
       ? or(
-          ilike(ticket.client_name, `%${search}%`),
-          ilike(ticket.email, `%${search}%`),
-          ilike(ticket.document, `%${search}%`),
-          ilike(ticket.client_tel, `%${search}%`),
+          sqlFoldedContains(ticket.client_name, search),
+          sqlFoldedContains(ticket.email, search),
+          sqlFoldedContains(ticket.document, search),
+          sqlFoldedContains(ticket.client_tel, search),
           sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search}%`}`,
           // R-0012, r-12 or 0012: the stored prefix plus the padded number (ZIG-I17-6).
           sql`(${ticket.folio_prefix} || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
@@ -867,10 +873,12 @@ export async function getTicketsPaginated(params: {
     // the tab must match the ?status=due&finished=yes view (PR #610 review: 26 vs 17).
     const dueCondition = and(eq(ticket.finished, true), TICKET_DUE_CONDITION) ?? sql`false`;
     const paidCondition = buildTicketPaymentStatusCondition('paid') ?? sql`false`;
-    // The phone chip keeps its ZIG-I13-7 meaning: a saldo under the ?finished filter.
-    const phoneDueCondition =
-      (finishedCondition ? and(finishedCondition, TICKET_DUE_CONDITION) : TICKET_DUE_CONDITION) ??
-      sql`false`;
+    // The phone chip counts the same thing: Por cobrar is finished work with a saldo
+    // on every screen (ZIG-I36-17).
+    const phoneDueCondition = and(
+      dueCondition,
+      ...(finishedCondition ? [finishedCondition] : []),
+    ) ?? sql`false`;
 
     const [{ total }] = await db
       .select({ total: count() })
@@ -930,6 +938,31 @@ export async function getTicketsPaginated(params: {
     const summaryByTicket = new Map(
       serviceLines.map((r) => [String(r.ticket_id), r]),
     );
+    // Materials of those lines, for «3 servicios · 6 materiales» (ZIG-I36-19).
+    const materialRows = pageIds.length
+      ? await db
+          .select({
+            ticket_id: servicesTickets.ticket_id,
+            materials: sql<number>`count(*)`,
+          })
+          .from(ticketLineMaterial)
+          .innerJoin(servicesTickets, eq(servicesTickets.id, ticketLineMaterial.services_tickets_id))
+          .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              isNull(ticket.deleted_at),
+              eq(ticket.document_kind, 'ticket'),
+              inArray(servicesTickets.ticket_id, pageIds),
+              isNull(servicesTickets.deleted_at),
+              isNull(ticketLineMaterial.deleted_at),
+            ),
+          )
+          .groupBy(servicesTickets.ticket_id)
+      : [];
+    const materialsByTicket = new Map(
+      materialRows.map((r) => [String(r.ticket_id), Number(r.materials)]),
+    );
 
     return {
       success: true,
@@ -941,6 +974,7 @@ export async function getTicketsPaginated(params: {
             services_summary: work?.summary ?? null,
             services_head: work?.head ?? [],
             services_count: Number(work?.lines ?? 0),
+            materials_count: materialsByTicket.get(String(row.id)) ?? 0,
           };
         }),
         total: totalCount,

@@ -168,7 +168,7 @@ describe('OperatorCompanyFleet', () => {
       const table = await screen.findByRole('table', { name: 'Flota de empresas' });
       fireEvent.keyDown(within(table).getByTestId('operator-fleet-row'), { key: 'Enter' });
       expect(mockSetSelectedCompany).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }));
-      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 de 1 empresas');
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 empresa');
       expect(screen.getByRole('combobox', { name: 'Filtrar por estado' })).toHaveTextContent(
         'Todos los estados',
       );

@@ -1,6 +1,7 @@
 'use server';
 
-import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { sqlFoldedContains } from '@/lib/search-text';
+import { and, count, desc, eq, isNull, or } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
@@ -93,17 +94,17 @@ export async function getClients(params: GetClientsParams): Promise<{
       isNull(client.deleted_at),
       search
         ? or(
-            ilike(client.name, `%${search}%`),
-            ilike(client.email, `%${search}%`),
-            ilike(client.phone, `%${search}%`),
-            ilike(client.street, `%${search}%`),
-            ilike(client.exterior_number, `%${search}%`),
-            ilike(client.interior_number, `%${search}%`),
-            ilike(client.neighborhood, `%${search}%`),
-            ilike(client.city, `%${search}%`),
-            ilike(client.state, `%${search}%`),
-            ilike(client.postal_code, `%${search}%`),
-            ilike(client.country, `%${search}%`),
+            sqlFoldedContains(client.name, search),
+            sqlFoldedContains(client.email, search),
+            sqlFoldedContains(client.phone, search),
+            sqlFoldedContains(client.street, search),
+            sqlFoldedContains(client.exterior_number, search),
+            sqlFoldedContains(client.interior_number, search),
+            sqlFoldedContains(client.neighborhood, search),
+            sqlFoldedContains(client.city, search),
+            sqlFoldedContains(client.state, search),
+            sqlFoldedContains(client.postal_code, search),
+            sqlFoldedContains(client.country, search),
           )
         : undefined,
     );

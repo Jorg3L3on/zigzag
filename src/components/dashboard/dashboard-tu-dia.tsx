@@ -55,6 +55,7 @@ import {
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
@@ -93,15 +94,25 @@ const RowText = ({
   title,
   context,
   badge,
+  wrapTitle = false,
 }: {
   title: string;
   context: React.ReactNode;
   badge?: React.ReactNode;
+  /** Long client names take up to two lines, and the context wraps, instead of one cut line. */
+  wrapTitle?: boolean;
 }) => (
   <div className="min-w-0 flex-1 space-y-0.5">
-    <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+    <p
+      className={cn(
+        'text-sm font-semibold text-foreground',
+        wrapTitle ? 'line-clamp-2 [overflow-wrap:anywhere]' : 'truncate',
+      )}
+    >
+      {title}
+    </p>
     <div className="flex min-w-0 items-center gap-2 text-caption text-muted-foreground">
-      <span className="truncate">{context}</span>
+      <span className={wrapTitle ? '[overflow-wrap:anywhere]' : 'truncate'}>{context}</span>
       {badge}
     </div>
   </div>
@@ -243,16 +254,19 @@ const CobroRow = ({
     balanceDue: row.balanceDue,
     companyName,
   });
-  const status = row.paymentStatus === 'partial' ? 'parcial' : 'pendiente';
+  const age =
+    row.daysOutstanding <= 0
+      ? 'hoy'
+      : `hace ${row.daysOutstanding} ${row.daysOutstanding === 1 ? 'día' : 'días'}`;
+  const context = [row.folio, age, row.paymentStatus === 'partial' ? 'parcial' : null]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <li className={ROW_CLASS}>
-      <RowText
-        title={clientName}
-        context={`${row.folio} · ${row.daysOutstanding} d · ${status}`}
-      />
+      <RowText title={clientName} context={context} wrapTitle />
       <span className="shrink-0 text-sm font-semibold tabular-nums">
-        {formatTicketListAmount(row.balanceDue)}
+        {formatServiceCurrency(row.balanceDue)}
       </span>
       {canWrite ? (
         <Button

@@ -67,6 +67,7 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
       ), // one aggregate for the four tabs
       chain([{ id: 1n }], wheres, orders), // page
       summaryChain([{ ticket_id: 1n, summary: 'Compresor, Mano de obra' }], wheres),
+      summaryChain([{ ticket_id: 1n, materials: 6 }], wheres), // materials count (ZIG-I36-19)
     ];
     mockSelect.mockImplementation((fields?: unknown) => {
       selects.push(fields ?? null);
@@ -95,8 +96,12 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
   it('attaches the work summary of each ticket with one company-scoped aggregate (ZIG-I18-8)', async () => {
     const { result, wheres } = await run({ companyId: 10 });
 
-    expect(result.data?.items[0]).toMatchObject({ id: 1n, services_summary: 'Compresor, Mano de obra' });
-    expect(mockSelect).toHaveBeenCalledTimes(4);
+    expect(result.data?.items[0]).toMatchObject({
+      id: 1n,
+      services_summary: 'Compresor, Mano de obra',
+      materials_count: 6,
+    });
+    expect(mockSelect).toHaveBeenCalledTimes(5);
     const { sql: text, params } = sqlOf(wheres[3]);
     expect(text).toContain('"company_id"');
     expect(params).toContain(10);
@@ -175,10 +180,26 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     expect(phone.sql).toContain('< COALESCE("Ticket"."total", 0) - 0.01');
   });
 
-  it('leaves the phone chip unfiltered by finished when the filter is all', async () => {
+  it('counts the phone chip as finished work with a saldo even without a finished filter (ZIG-I36-17)', async () => {
     const { selects } = await run({ companyId: 10 });
     const phone = sqlOf((selects[1] as { phoneDueCount: SQL }).phoneDueCount);
-    expect(phone.sql).not.toMatch(/"finished"/);
+    expect(phone.sql).toMatch(/"finished" = \$\d+/);
+    expect(phone.params).toContain(true);
+  });
+
+  it('the Por cobrar status filter is finished work only', async () => {
+    const { wheres } = await run({ companyId: 10, statusFilter: 'due' });
+    const list = sqlOf(wheres[0]);
+    expect(list.sql).toMatch(/"finished" = true/);
+  });
+
+  it('searches without accents or case and by phone digits (ZIG-I36-25)', async () => {
+    const { wheres } = await run({ companyId: 10, search: 'Muñoz 555 000 0632' });
+    const list = sqlOf(wheres[0]);
+    expect(list.sql).toContain('translate(lower(');
+    expect(list.params).toEqual(expect.arrayContaining(['%munoz 555 000 0632%']));
+    const phoneRun = await run({ companyId: 10, search: '(555) 000-0632' });
+    expect(sqlOf(phoneRun.wheres[0]).params).toEqual(expect.arrayContaining(['%5550000632%']));
   });
 
   describe('sort over the whole list (ZIG-I33-2)', () => {

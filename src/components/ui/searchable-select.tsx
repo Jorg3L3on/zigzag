@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesSearchText } from '@/lib/search-text';
 import * as React from 'react';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,13 +64,11 @@ export const SearchableSelect = ({
     if (externalSearch) {
       return options;
     }
-    const term = search.trim().toLowerCase();
+    const term = search.trim();
     if (!term) {
       return options;
     }
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(term),
-    );
+    return options.filter((option) => matchesSearchText([option.label], term));
   }, [externalSearch, options, search]);
 
   const handleOpenChange = (nextOpen: boolean) => {

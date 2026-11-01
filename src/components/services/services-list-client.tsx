@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesSearchText } from '@/lib/search-text';
 import React, { useMemo, useState } from 'react';
 import {
   getCoreRowModel,
@@ -172,13 +173,9 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
   }, [importedFlag, fetchServices, router]);
 
   const filteredServices = useMemo(() => {
-    const search = debouncedSearch.toLowerCase();
-    return services.filter((service) => {
-      return (
-        service.name.toLowerCase().includes(search) ||
-        service.description.toLowerCase().includes(search)
-      );
-    });
+    return services.filter((service) =>
+      matchesSearchText([service.name, service.description], debouncedSearch.trim()),
+    );
   }, [services, debouncedSearch]);
 
   React.useEffect(() => {

@@ -374,8 +374,8 @@ describe('TicketsList', () => {
     expect(within(views).getByRole('button', { name: /Todos/ })).toHaveTextContent('8');
     expect(within(views).getByRole('button', { name: /Por cobrar/ })).toHaveTextContent('3');
     expect(views).not.toHaveTextContent('$');
-    // The heading counts the whole list, not the page or the view (canvas «Tickets · 60»).
-    expect(await screen.findByRole('heading', { name: /Tickets · 8/ })).toHaveClass(
+    // No count in the title: it lives in the tabs (ZIG-I36 M-33).
+    expect(await screen.findByRole('heading', { name: 'Tickets' })).toHaveClass(
       'text-2xl',
       'font-semibold',
     );
@@ -418,7 +418,7 @@ describe('TicketsList', () => {
       expect(mockGetTicketsPaginated).toHaveBeenCalledWith(
         expect.objectContaining({ page: 1, pageSize: 25, sort: { column: 'fecha', direction: 'desc' } }),
       );
-      expect(screen.getByRole('heading', { level: 1, name: /Tickets · 1/ })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Tickets' })).toBeInTheDocument();
       expect(screen.getByText('Lista de todos los tickets registrados')).toBeInTheDocument();
       // One Nuevo ticket, at the title; no sort select, no phone cards.
       expect(screen.getAllByRole('link', { name: /Nuevo ticket/ })).toHaveLength(1);
@@ -426,7 +426,7 @@ describe('TicketsList', () => {
       expect(screen.queryByTestId('tickets-pull-to-refresh')).not.toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /Fecha/ })).toHaveAttribute('aria-sort', 'descending');
       expect(screen.getByRole('columnheader', { name: /Total/ })).toHaveClass('text-right');
-      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 de 1 tickets');
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 ticket');
       expect(screen.getAllByTestId('tickets-row')).toHaveLength(1);
     });
 

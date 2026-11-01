@@ -163,7 +163,7 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
         pageSize: 25,
       }),
     );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Presupuestos · 6');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Presupuestos$/);
     const tabs = screen.getByRole('navigation', { name: 'Vistas de presupuestos' });
     const pressed = within(tabs)
       .getAllByRole('button')
@@ -172,8 +172,8 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
     expect(pressed).toEqual(['Abiertos4 · 1 vence hoy', 'Vencidos0']);
     expect(within(tabs).getByRole('button', { name: /Todos/ })).toHaveTextContent('Todos6 presupuestos');
     expect(tabs.textContent).not.toContain('$');
-    // One page reads «3 de 3 presupuestos», inside the table card; the order is the header's arrow.
-    expect(screen.getByTestId('list-footer')).toHaveTextContent('3 de 3 presupuestos');
+    // One page reads «3 presupuestos», inside the table card; the order is the header's arrow.
+    expect(screen.getByTestId('list-footer')).toHaveTextContent('3 presupuestos');
     expect(screen.getByRole('columnheader', { name: /Vence/ })).toHaveAttribute('aria-sort', 'ascending');
     expect(screen.queryByRole('combobox', { name: /ordenar/i })).toBeNull();
   });

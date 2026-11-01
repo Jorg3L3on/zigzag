@@ -127,7 +127,7 @@ describe('ServiceSchedulesAgenda (ZIG-I33-5)', () => {
     expect(screen.getByTestId('schedule-tab-count-programados')).toHaveTextContent('3');
     expect(screen.queryByRole('combobox', { name: 'Ordenar recordatorios' })).toBeNull();
     expect(screen.getByRole('combobox', { name: 'Filtrar por servicio' })).toBeInTheDocument();
-    expect(screen.getByTestId('list-footer')).toHaveTextContent('2 de 2 recordatorios');
+    expect(screen.getByTestId('list-footer')).toHaveTextContent('2 recordatorios');
   });
 
   it('shows the pills of the standard and the next date with its relative line', async () => {

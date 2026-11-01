@@ -406,7 +406,7 @@ describe('ClientList', () => {
       const nameHeader = screen.getByRole('columnheader', { name: /Nombre/ });
       expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
       expect(screen.getByRole('button', { name: /Nombre/ })).not.toHaveAttribute('aria-sort');
-      expect(screen.getByTestId('list-footer')).toHaveTextContent('3 de 3 clientes');
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('3 clientes');
       expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: /Nombre/ }));

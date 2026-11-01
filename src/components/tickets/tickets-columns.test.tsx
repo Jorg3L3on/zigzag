@@ -95,9 +95,9 @@ const TableHarness = ({
 };
 
 describe('ticket list estado (ZIG-I28-4)', () => {
-  it('lets En proceso win only over Pendiente', () => {
+  it('lets En proceso win only over Por cobrar', () => {
     expect(ticketListEstadoLabel({ finished: false, total: 100, paid: 0 })).toBe('En proceso');
-    expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 0 })).toBe('Pendiente');
+    expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 0 })).toBe('Por cobrar');
     expect(ticketListEstadoLabel({ finished: false, total: 100, paid: 40 })).toBe('En proceso');
     expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 40 })).toBe('Pago parcial');
     expect(ticketListEstadoLabel({ finished: true, total: 100, paid: 100 })).toBe('Pagado');

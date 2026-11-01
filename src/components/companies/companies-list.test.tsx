@@ -145,7 +145,7 @@ describe('CompaniesList on desktop (ZIG-I33)', () => {
       'href',
       '/companies/new',
     );
-    expect(screen.getByTestId('list-footer')).toHaveTextContent('2 de 2 empresas');
+    expect(screen.getByTestId('list-footer')).toHaveTextContent('2 empresas');
   });
 
   it('keeps Seleccionar visible and puts Editar and Eliminar (last) in the ⋯', async () => {

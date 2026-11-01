@@ -58,7 +58,7 @@ import {
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { classifyClientError, presentActionError } from '@/lib/network-awareness';
-import { endOfDay, startOfDay } from 'date-fns';
+import { companyDayRangeIso } from '@/lib/company-day';
 import {
   formatOfflineSnapshotBanner,
   readOfflineSnapshot,
@@ -233,12 +233,12 @@ export default function TicketsList() {
         }
       };
 
-      const dateFrom = dateRange?.from
-        ? startOfDay(dateRange.from).toISOString()
+      // The picked day is the company's day, the one the list prints (ZIG-I36-24).
+      const pickedRange = dateRange?.from
+        ? companyDayRangeIso(dateRange.from, dateRange.to ?? dateRange.from)
         : undefined;
-      const dateTo = dateRange?.from
-        ? endOfDay(dateRange.to ?? dateRange.from).toISOString()
-        : undefined;
+      const dateFrom = pickedRange?.from;
+      const dateTo = pickedRange?.to;
 
       try {
         const result = await getTicketsPaginated({
@@ -617,6 +617,7 @@ export default function TicketsList() {
           <ListFooter
             total={totalCount}
             noun="tickets"
+            filtered={hasActiveFilters}
             shown={filteredTickets.length}
             pagination={listFooterPagination(table)}
           />
@@ -637,8 +638,8 @@ export default function TicketsList() {
     <>
       <ListDesktopTitle
         title="Tickets"
-        // The whole list, whatever the view (canvas «Tickets · 60»).
-        count={hasLoadedOnce ? (counts?.all ?? totalCount) : null}
+        // No count in the title: it lives in the tabs, so it never disagrees with the rows (M-33).
+        count={null}
         description={TICKETS_DESCRIPTION}
         actions={
           canWrite ? (
