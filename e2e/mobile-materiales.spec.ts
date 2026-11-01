@@ -223,7 +223,7 @@ test.describe('Materiales (mobile)', () => {
     const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await expect(editSheet.getByText(gas)).toBeVisible();
     await editSheet.getByRole('button', { name: `Quitar ${inline}` }).click();
-    await editSheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
+    await editSheet.getByRole('button', { name: /^(Agregar al (ticket|presupuesto)|Guardar cambios)$/ }).click();
     await expect(editSheet).toBeHidden({ timeout: 10_000 });
     // 3500 + 570
     await expect(page.getByTestId('composer-total')).toHaveText(money(4070));

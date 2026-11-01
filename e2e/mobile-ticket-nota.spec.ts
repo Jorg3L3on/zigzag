@@ -40,10 +40,10 @@ test.describe('Nota del ticket en el teléfono', () => {
     await sheet.getByRole('button', { name: 'Cancelar' }).click();
     await expect(sheet).toBeHidden();
 
-    await page.getByLabel(/^Notas/).fill(note);
+    await page.getByRole('textbox', { name: /^Notas/ }).fill(note);
     const ticketId = await saveComposer(page);
 
-    await expect(page.getByRole('heading', { name: 'Nota' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Nota', exact: true })).toBeVisible();
     await expect(page.getByTestId('ticket-phone-note')).toHaveText(note);
 
     await finishOnDetail(page, ticketId, { mode: 'full' });

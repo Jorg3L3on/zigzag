@@ -81,7 +81,7 @@ for (const width of MOBILE_WIDTHS) {
       const sheet = page.getByRole('dialog', { name: 'Editar servicio' });
       await expect(sheet.getByTestId('composer-line-material-rows').getByRole('listitem')).toHaveCount(2);
       await sheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }).fill('2');
-      await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
+      await sheet.getByRole('button', { name: /^(Agregar al (ticket|presupuesto)|Guardar cambios)$/ }).click();
       await expect(sheet).toBeHidden({ timeout: 10_000 });
       // Quitar a line: gone, with Deshacer; undo brings it back.
       await rows.nth(2).click();

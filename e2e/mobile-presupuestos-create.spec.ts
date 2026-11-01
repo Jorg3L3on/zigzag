@@ -101,7 +101,7 @@ test.describe('Presupuesto creation (mobile)', () => {
       page.waitForEvent('download', { timeout: 60_000 }),
       page.getByRole('button', { name: /Descargar PDF/ }).click(),
     ]);
-    expect(download.suggestedFilename()).toMatch(/^presupuesto_.*\.pdf$/);
+    expect(download.suggestedFilename()).toMatch(/^Presupuesto P-\d+ · .+\.pdf$/);
 
     await expect(page).toHaveURL(new RegExp(`/presupuestos/${presupuestoId}$`));
 

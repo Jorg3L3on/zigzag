@@ -44,8 +44,10 @@ test.describe('Terminar › Recordatorios @1280px', () => {
     // The ticket is finished with the payment, whichever way the dialog was closed.
     await expect(page.locator('#finalizar').filter({ visible: true })).toHaveCount(0, { timeout: 60_000 });
     await page.goto(`/tickets/${ticketId}`);
-    await expect(page.getByText('Pago parcial').first()).toBeVisible();
-    await expect(page.getByText('$400.00').first()).toBeVisible();
-    await expect(page.getByText('$600.00').first()).toBeVisible();
+    await expect(page.getByTestId('ticket-status-pill').filter({ visible: true }).first()).toHaveText(
+      'Pago parcial',
+    );
+    await expect(page.getByText('$400.00').filter({ visible: true }).first()).toBeVisible();
+    await expect(page.getByText('$600.00').filter({ visible: true }).first()).toBeVisible();
   });
 });
