@@ -11,7 +11,14 @@
  * snapshots, not from this HTML. sw.ts routes are unchanged.
  */
 
-export const COMPOSER_OFFLINE_ROUTES = ['/tickets/create', '/presupuestos/create'] as const;
+export const COMPOSER_OFFLINE_ROUTES = [
+  '/tickets/create',
+  '/presupuestos/create',
+  // A cold open with no signal lands on Hoy, or on the offline page whose
+  // "Ver pendientes" opens the list (ZIG-I36-15).
+  '/dashboard',
+  '/tickets?pendientes=1',
+] as const;
 
 /** Cache names from src/app/sw.ts. */
 const PAGE_CACHE = 'pages';
@@ -20,6 +27,8 @@ const SCRIPT_CACHE = 'next-static-js-assets';
 const STYLE_CACHE = 'static-style-assets';
 
 const WARM_STORAGE_KEY = 'zigzag:composer-offline-warm:v1';
+/** Which company this phone was last prepared for (ZIG-I36-23). */
+const READY_STORAGE_KEY = 'zigzag:offline-ready:v1';
 /** Refresh at most this often: new deploys change the chunk names. */
 export const COMPOSER_WARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -125,12 +134,29 @@ export const warmComposerPages = async (env: WarmEnv = {}): Promise<string[]> =>
   return stored;
 };
 
+export const isOfflineReady = (companyId: number): boolean => {
+  try {
+    return window.localStorage.getItem(READY_STORAGE_KEY) === String(companyId);
+  } catch {
+    return false;
+  }
+};
+
+export const markOfflineReady = (companyId: number): void => {
+  try {
+    window.localStorage.setItem(READY_STORAGE_KEY, String(companyId));
+  } catch {
+    // Blocked storage: it just prepares again next time.
+  }
+};
+
 /** Logout: cached pages carry the last user's screens, so they go too. */
 export const clearComposerPageCaches = async (
   cacheStorage: CacheStorage | undefined = typeof caches !== 'undefined' ? caches : undefined,
 ): Promise<void> => {
   try {
     window.localStorage.removeItem(WARM_STORAGE_KEY);
+    window.localStorage.removeItem(READY_STORAGE_KEY);
   } catch {
     // Ignore blocked storage.
   }

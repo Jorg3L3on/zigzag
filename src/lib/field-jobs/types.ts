@@ -57,6 +57,8 @@ export type FieldJobPayload = {
   finished?: boolean;
   /** Set for documents saved from the composer (ZIG-I35); absent for Anotar jobs. */
   composer?: ComposerDocumentPayload;
+  /** Name of the company it was saved for (composer documents). */
+  company_name?: string;
 };
 
 /** Locally persisted field job awaiting server sync. */

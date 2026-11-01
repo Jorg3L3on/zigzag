@@ -11,6 +11,7 @@ import {
   type SyncFlushResult,
 } from '@/lib/field-jobs';
 
+import { probeSession, sessionMayUploadFor } from '@/lib/session-probe';
 import {
   FIELD_JOBS_CHANGED_EVENT,
   notifyFieldJobsChanged,
@@ -22,7 +23,7 @@ export { FIELD_JOBS_CHANGED_EVENT, notifyFieldJobsChanged };
  * One flush at a time for the whole app: Hoy and the app-wide runner share it,
  * so an entry is never sent twice in parallel.
  */
-let flushInFlight: Promise<SyncFlushResult> | null = null;
+let flushInFlight: Promise<SyncFlushResult | null> | null = null;
 
 export type UseFieldJobSyncState = {
   syncing: boolean;
@@ -76,11 +77,20 @@ export const useFieldJobSync = (
 
     setSyncing(true);
     try {
-      flushInFlight = flushFieldJobOutbox(fieldJobStore, { companyId });
+      // A dead session, or one for another company than the jobs on screen, uploads
+      // nothing: the jobs stay queued and no false error is written on them.
+      flushInFlight = probeSession().then((probe) =>
+        sessionMayUploadFor(probe, companyId)
+          ? flushFieldJobOutbox(fieldJobStore, { companyId })
+          : null,
+      );
       const result = await flushInFlight;
+      if (!result) return null;
       setLastResult(result);
       await reloadPending();
       if (result.processed > 0) notifyFieldJobsChanged();
+      // The list behind the toast now has the real ticket (ZIG-I36 M-23).
+      if (result.documents.length > 0) router.refresh();
 
       for (const doc of result.documents) {
         const noun = doc.kind === 'presupuesto' ? 'Presupuesto' : 'Ticket';
