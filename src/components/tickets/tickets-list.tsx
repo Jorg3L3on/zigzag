@@ -455,8 +455,8 @@ export default function TicketsList() {
       role="status"
       className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
     >
-      {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar
-      sin conexión.
+      {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. Un ticket nuevo se guarda
+      en este teléfono y se sube con señal.
     </div>
   ) : null;
   // Desktop: the shared Alert, like Clientes (ZIG-I33 §8); phones keep the banner above.
@@ -466,7 +466,7 @@ export default function TicketsList() {
       className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
     >
       <AlertDescription>
-        {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar sin conexión.
+        {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. Un ticket nuevo se guarda en este equipo y se sube con señal.
       </AlertDescription>
     </Alert>
   ) : null;

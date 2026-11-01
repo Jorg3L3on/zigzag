@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { PendingDocumentsStrip } from '@/components/field/pending-documents-strip';
 import { FileText } from 'lucide-react';
 import { PresupuestosList } from '@/components/presupuestos/presupuestos-list';
 import {
@@ -29,6 +30,7 @@ export default async function PresupuestosPage() {
       />
 
       <TripledDashboardShell>
+        <PendingDocumentsStrip kind="presupuesto" />
         {/* From lg the card steps aside for the list's own title and table card (ZIG-I33-2). */}
         <TripledResourceCard
           desktop="title"

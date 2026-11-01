@@ -1,12 +1,19 @@
 'use client';
 
-export const OFFLINE_SNAPSHOT_SCHEMA_VERSION = 1;
+/** v2 (ZIG-I35-2): adds the composer catalog; older snapshots read as missing. */
+export const OFFLINE_SNAPSHOT_SCHEMA_VERSION = 2;
 
 const DATABASE_NAME = 'zigzag-offline-snapshots';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'resourceSnapshots';
 
-export type OfflineSnapshotResource = 'tickets' | 'clients';
+export type OfflineSnapshotResource =
+  | 'tickets'
+  | 'clients'
+  /** Catalog services with their default materials, for the offline composer. */
+  | 'composer-services'
+  /** id, name and phone of the company's clients, for the offline composer. */
+  | 'composer-clients';
 
 export type OfflineSnapshot<T> = {
   key: string;
@@ -91,6 +98,12 @@ export async function writeOfflineSnapshot<T>(
   });
 }
 
+/** A snapshot written by another schema version is treated as missing. */
+export const isCurrentOfflineSnapshot = <T>(
+  snapshot: { schemaVersion?: unknown } | null | undefined,
+): snapshot is OfflineSnapshot<T> =>
+  snapshot != null && snapshot.schemaVersion === OFFLINE_SNAPSHOT_SCHEMA_VERSION;
+
 export async function readOfflineSnapshot<T>(
   resource: OfflineSnapshotResource,
   companyId: number | null | undefined,
@@ -106,14 +119,7 @@ export async function readOfflineSnapshot<T>(
     request.onsuccess = () => {
       closeDb(database);
       const snapshot = request.result as OfflineSnapshot<T> | undefined;
-      if (
-        !snapshot ||
-        snapshot.schemaVersion !== OFFLINE_SNAPSHOT_SCHEMA_VERSION
-      ) {
-        resolve(null);
-        return;
-      }
-      resolve(snapshot);
+      resolve(isCurrentOfflineSnapshot(snapshot) ? snapshot : null);
     };
     request.onerror = () => {
       closeDb(database);
@@ -121,6 +127,21 @@ export async function readOfflineSnapshot<T>(
     };
   });
 }
+
+/** Logout (ZIG-I35-2): the snapshots hold tenant data, so a shared phone keeps none. */
+export const deleteOfflineSnapshotDatabase = (): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (!canUseIndexedDb()) {
+      resolve();
+      return;
+    }
+    const request = window.indexedDB.deleteDatabase(DATABASE_NAME);
+    request.onsuccess = () => resolve();
+    // Another tab holds it open: the delete finishes once that tab closes it.
+    request.onblocked = () => resolve();
+    request.onerror = () =>
+      reject(request.error ?? new Error('Unable to delete offline snapshots'));
+  });
 
 export function formatOfflineSnapshotTime(updatedAt: string): string {
   const date = new Date(updatedAt);

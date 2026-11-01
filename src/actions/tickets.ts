@@ -7,8 +7,13 @@ import {
   EmptyTicketFinishError,
   FinishPaidExceedsTotalError,
   finishTicketInTx,
+  paidAmountForChoice,
   TicketAlreadyFinishedError,
 } from '@/lib/documents/finish-ticket';
+import {
+  clientRequestBeforeInsert,
+  loadClientRequestDocument,
+} from '@/lib/documents/client-request';
 import {
   assertIsWorkTicketRow,
   assertTicketNotFullyPaid,
@@ -309,6 +314,19 @@ const createTicketWithLinesSchema = z.object({
   lines: z.array(composerLineSchema).min(1).max(50),
   /** What the composer showed; audit only. The server always recomputes the total. */
   client_total: z.number().finite().optional(),
+  /** One per composer draft (ZIG-I35-1): a replay returns the document it created. */
+  client_request_id: z.string().uuid().optional(),
+  /**
+   * Guardar y terminar in the same transaction (ZIG-I35): the offline outbox
+   * replays create + finish as one write, so there is never a half-saved ticket.
+   */
+  finish: z
+    .union([
+      z.literal('pendiente'),
+      z.literal('pagado'),
+      z.object({ parcial: z.number().finite().min(0) }),
+    ])
+    .optional(),
 });
 
 export type CreateTicketWithLinesInput = z.input<
@@ -324,7 +342,7 @@ export async function createTicketWithLines(
   input: CreateTicketWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number; folio?: string };
+  data?: { id: string; total: number; folio?: string; replayed?: boolean; finished?: boolean };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -332,13 +350,23 @@ export async function createTicketWithLines(
 }> {
   try {
     const validated = createTicketWithLinesSchema.parse(input);
-    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
 
+    // A replay returns what the first call saved, even if the catalog changed since.
+    const requestScope = validated.client_request_id
+      ? { companyId: effectiveCompanyId, userId: context.userId, key: validated.client_request_id }
+      : null;
+    if (requestScope) {
+      const replayed = await loadClientRequestDocument(requestScope);
+      if (replayed) return { success: true, data: replayed };
+    }
+
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     await assertCompanyProductionReady(effectiveCompanyId);
 
+    const finish = validated.finish;
     const created = await createDocumentWithLines(context, {
       companyId: effectiveCompanyId,
       kind: 'ticket',
@@ -347,18 +375,49 @@ export async function createTicketWithLines(
       workNotes: validated.work_notes,
       lines: validated.lines,
       clientTotal: validated.client_total,
+      ...(requestScope
+        ? {
+            audit: { extra: { client_request_id: requestScope.key } },
+            beforeInsert: clientRequestBeforeInsert(requestScope),
+          }
+        : {}),
+      afterInsert:
+        finish !== undefined
+          ? async (tx, row) => {
+              if (typeof finish === 'object' && finish.parcial > row.total + 0.005) {
+                throw new FinishPaidExceedsTotalError();
+              }
+              await finishTicketInTx(tx, context, {
+                ticketId: row.id,
+                companyId: effectiveCompanyId,
+                paid: (total) => paidAmountForChoice(finish, total),
+                prior: row,
+                clientTotal: validated.client_total,
+              });
+            }
+          : undefined,
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     revalidatePath('/dashboard');
     revalidatePath('/tickets');
     revalidatePath(`/tickets/${String(created.id)}`);
+    if (finish !== undefined) revalidatePath('/cobranza');
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total, folio: created.folio },
+      data: {
+        id: String(created.id),
+        total: created.total,
+        folio: created.folio,
+        ...(created.replayed ? { replayed: true } : {}),
+        ...(finish !== undefined ? { finished: true } : {}),
+      },
     };
   } catch (error) {
+    if (error instanceof FinishPaidExceedsTotalError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
     if (error instanceof CompanyProductionBlockedError) {
       return handleServerActionError(error);
     }

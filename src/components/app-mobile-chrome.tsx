@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+import { FieldSyncRunner } from '@/components/field/field-sync-runner';
 import { MobileBottomDock } from '@/components/mobile-bottom-dock';
 import { OperatorTenantCompanySync } from '@/components/operator-tenant-company-sync';
 import { MobileChromeProvider, useMobileChrome } from '@/contexts/mobile-chrome-context';
@@ -127,6 +128,7 @@ export const AppMobileChrome = ({ children }: { children: ReactNode }) => {
     <MobileChromeProvider>
       <DisplayModeStandaloneMarker />
       <OperatorTenantCompanySync />
+      <FieldSyncRunner />
       <IdlePrefetch />
       <AppContentTransition>{children}</AppContentTransition>
       <MobileBottomTabSpacer />
