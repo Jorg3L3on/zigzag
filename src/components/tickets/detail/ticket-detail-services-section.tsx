@@ -141,6 +141,20 @@ export const TicketDetailServicesSection = ({
           toggleLabel={detailToggleLabel}
         />
       )}
+
+      {workNotes?.trim() ? (
+        <section className="mt-4 border-t border-border pt-3" aria-labelledby="ticket-phone-note-heading">
+          <h3 id="ticket-phone-note-heading" className="text-[15px] font-semibold">
+            Nota
+          </h3>
+          <p
+            className="mt-1 whitespace-pre-wrap text-sm text-foreground [overflow-wrap:anywhere]"
+            data-testid="ticket-phone-note"
+          >
+            {workNotes.trim()}
+          </p>
+        </section>
+      ) : null}
     </TicketDetailSectionCard>
   );
 

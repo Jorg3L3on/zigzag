@@ -21,9 +21,9 @@ describe('TicketDetailHero (ZIG-I13-4)', () => {
   it('a settled ticket says Pagado with the total', () => {
     render(<TicketDetailHero finished total={500} paid={500} />);
 
-    expect(screen.getAllByText('Pagado').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pagado')).toHaveLength(1);
     expect(screen.getByTestId('ticket-hero-amount')).toHaveTextContent('$500.00');
-    expect(screen.getByTestId('ticket-hero-paid')).toHaveTextContent('Pagado');
+    expect(screen.queryByTestId('ticket-hero-paid')).toBeNull();
   });
 
   it('an unfinished ticket shows its Total and no progress bar', () => {

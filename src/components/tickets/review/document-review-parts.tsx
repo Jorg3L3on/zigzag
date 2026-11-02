@@ -270,6 +270,8 @@ type ReciboSummaryProps = {
   lines: ReviewLine[];
   total: number;
   paid: number;
+  /** The ticket's work notes (ZIG-I36 M-02). */
+  notes?: string | null;
 };
 
 /** HTML stand-in for the PDF where the browser cannot show it inline. */
@@ -281,6 +283,7 @@ export const ReciboSummary = ({
   lines,
   total,
   paid,
+  notes = null,
 }: ReciboSummaryProps) => {
   const balance = Math.max(subtractMoney(total, paid), 0);
   return (
@@ -340,6 +343,17 @@ export const ReciboSummary = ({
           <dd className="text-right [overflow-wrap:anywhere]">{formatServiceCurrency(balance)}</dd>
         </div>
       </dl>
+      {notes?.trim() ? (
+        <div className="mt-3 border-t border-border/60 pt-3">
+          <p className="font-semibold">Nota</p>
+          <p
+            className="mt-0.5 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]"
+            data-testid="recibo-note"
+          >
+            {notes.trim()}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -72,10 +72,12 @@ const settleRemainingBalance = async (page: Page) => {
   await expect(sheet).toBeVisible();
   await sheet.getByRole('button', { name: 'Pagó todo' }).click();
 
-  await expect(visible(page.getByTestId('ticket-hero-paid'))).toHaveText('Pagado', {
+  // One "Pagado" on the settled hero (ZIG-I36 M-18): the label above the figure, no second line.
+  await expect(visible(page.getByTestId('ticket-status-pill'))).toHaveText('Pagado', {
     timeout: 30_000,
   });
-  await expect(visible(page.getByTestId('ticket-status-pill'))).toHaveText('Pagado');
+  await expect(visible(page.getByTestId('ticket-hero')).getByText('Pagado', { exact: true })).toHaveCount(1);
+  await expect(page.getByTestId('ticket-hero-paid')).toHaveCount(0);
 };
 
 const downloadInvoicePdf = async (page: Page, ticketId: string) => {
@@ -153,7 +155,7 @@ test.describe('Mobile core business flows (Pixel 5)', () => {
     await expect(
       editSheet.getByRole('spinbutton', { name: 'Cantidad del servicio' }),
     ).toHaveValue(String(UPDATED_QUANTITY));
-    await editSheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
+    await editSheet.getByRole('button', { name: /^(Agregar al (ticket|presupuesto)|Guardar cambios)$/ }).click();
     await expect(editSheet).toBeHidden();
     await expectServicesTotal(page, UNIT_PRICE * UPDATED_QUANTITY);
 

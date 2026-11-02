@@ -58,6 +58,7 @@ const Section = ({
   >
     <h2 id={`client-${id}-title`} className="text-lg font-semibold lg:text-base lg:tracking-tight">
       {title}
+      <span className="sr-only">, </span>
       <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">
         {count}
       </span>

@@ -52,14 +52,15 @@ export const TicketDetailHero = ({ finished, total, paid, className }: TicketDet
       {finished ? (
         <>
           <TicketPaymentProgressBar total={total} paid={paid} className="max-w-none" />
-          <p
-            className="text-caption tabular-nums text-muted-foreground [overflow-wrap:anywhere]"
-            data-testid="ticket-hero-paid"
-          >
-            {status === 'paid'
-              ? 'Pagado'
-              : `Pagado ${formatServiceCurrency(paidAmount)} de ${formatServiceCurrency(totalAmount)}`}
-          </p>
+          {/* A settled ticket already says Pagado above the figure (ZIG-I36 M-18). */}
+          {status === 'paid' ? null : (
+            <p
+              className="text-caption tabular-nums text-muted-foreground [overflow-wrap:anywhere]"
+              data-testid="ticket-hero-paid"
+            >
+              {`Pagado ${formatServiceCurrency(paidAmount)} de ${formatServiceCurrency(totalAmount)}`}
+            </p>
+          )}
         </>
       ) : (
         <p className="text-caption text-muted-foreground">

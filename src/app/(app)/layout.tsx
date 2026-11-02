@@ -37,10 +37,20 @@ export default async function DashboardLayout({
   return (
     <PermissionsProvider initialPermissionMap={initialPermissionMap}>
       <SidebarProvider defaultOpen={sidebarOpen}>
+        <a
+          href="#contenido"
+          className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-3 focus-visible:top-3 focus-visible:z-[100] focus-visible:inline-flex focus-visible:min-h-11 focus-visible:items-center focus-visible:rounded-lg focus-visible:bg-background focus-visible:px-4 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary focus-visible:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Saltar al contenido
+        </a>
         <NotificationReadFromUrl />
         <AppBadgeSync />
         <AppSidebar />
-        <SidebarInset className="bg-gradient-to-b from-background to-muted/20">
+        <SidebarInset
+          id="contenido"
+          tabIndex={-1}
+          className="bg-gradient-to-b from-background to-muted/20 outline-none"
+        >
           <AppMobileChrome>{children}</AppMobileChrome>
         </SidebarInset>
       </SidebarProvider>

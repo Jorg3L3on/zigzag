@@ -20,6 +20,7 @@ import {
 import { TicketDetailHeader } from '@/components/tickets/detail/ticket-detail-header';
 import { TicketDetailPrimaryActions } from '@/components/tickets/detail/ticket-detail-primary-actions';
 import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-detail-finish-panel';
+import { TicketFinishReminders } from '@/components/tickets/detail/ticket-finish-reminders';
 import { TicketDetailActionsMenu } from '@/components/tickets/detail/ticket-detail-actions-menu';
 import { TicketCollectProvider } from '@/components/tickets/detail/ticket-detail-collect-context';
 import { TicketDetailHero } from '@/components/tickets/detail/ticket-detail-hero';
@@ -316,6 +317,7 @@ export default async function TicketDetailsPage({
             downloadFileName={downloadFileName}
           />
         ) : null}
+        <TicketFinishReminders ticketId={Number(ticket.id)} />
       </TicketCollectProvider>
     </>
   );

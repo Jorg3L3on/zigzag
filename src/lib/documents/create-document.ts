@@ -109,7 +109,7 @@ export async function createDocumentWithLines(
 
   const values = {
     client_id: clientRow.id,
-    client_name: clientRow.name.slice(0, 100),
+    client_name: clientRow.name,
     client_tel: (clientRow.phone ?? '').slice(0, 20),
     email:
       clientRow.email && clientRow.email.length <= TICKET_EMAIL_MAX_LENGTH

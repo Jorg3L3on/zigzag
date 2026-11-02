@@ -8,13 +8,9 @@ import { FileText, Loader2 } from 'lucide-react';
 import { finishTicket } from '@/actions/tickets';
 import {
   listClientServiceSchedulesForClient,
-  upsertClientServiceSchedule,
   type ClientServiceScheduleListItem,
 } from '@/actions/client-service-schedules';
-import {
-  TicketFinishSchedulesDialog,
-  type TicketFinishScheduleLine,
-} from '@/components/service-schedules/ticket-finish-schedules-dialog';
+import { openFinishReminders } from '@/components/tickets/detail/ticket-finish-reminders';
 import {
   TicketDetailRailLabel,
   TicketDetailSectionCard,
@@ -88,10 +84,6 @@ export const TicketDetailFinishPanel = ({
   const paymentChoice = usePaymentChoice(total ?? 0);
   const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [schedulesDialogOpen, setSchedulesDialogOpen] = React.useState(false);
-  const [existingSchedules, setExistingSchedules] = React.useState<
-    ClientServiceScheduleListItem[]
-  >([]);
 
   if (!canFinish) {
     return null;
@@ -109,11 +101,12 @@ export const TicketDetailFinishPanel = ({
         `${clientName ?? 'ticket'}_${String(ticketId)}.pdf`,
     });
 
+  /** Saves the terminate and the payment, then delivers the recibo. The page is not refreshed here. */
   const executeFinishAndDownload = async (): Promise<boolean> => {
     const finalPaidAmount = chosenPaid;
 
     if (payMode === 'partial' && finalPaidAmount > ticketTotal) {
-      toast.error('El monto pagado no puede ser mayor al total. Código: TC009');
+      toast.error('El monto pagado no puede ser mayor al total.');
       return false;
     }
 
@@ -151,25 +144,44 @@ export const TicketDetailFinishPanel = ({
       toast.success('Ticket finalizado correctamente');
     }
 
-    router.refresh();
     return true;
   };
 
+  // The terminate and the payment are saved first (ZIG-I36-26). The Recordatorios
+  // question comes after and only decides about reminders: it lives outside this panel
+  // (saving swaps the panel out), and closing it any way means Omitir.
   const handleFinishClick = async () => {
     try {
       setIsSubmitting(true);
 
-      if (!clientId || serviceLines.length === 0) {
-        await executeFinishAndDownload();
-        return;
+      let existingSchedules: ClientServiceScheduleListItem[] = [];
+      const asksReminders = Boolean(clientId) && serviceLines.length > 0;
+      if (asksReminders && clientId) {
+        try {
+          const schedulesResult = await listClientServiceSchedulesForClient(
+            clientId,
+            selectedCompany?.id ?? null,
+          );
+          existingSchedules = schedulesResult.data ?? [];
+        } catch (error) {
+          console.error('Error loading reminders before finish:', error);
+        }
       }
 
-      const schedulesResult = await listClientServiceSchedulesForClient(
-        clientId,
-        selectedCompany?.id ?? null,
-      );
-      setExistingSchedules(schedulesResult.data ?? []);
-      setSchedulesDialogOpen(true);
+      const finishedOk = await executeFinishAndDownload();
+      if (!finishedOk) return;
+
+      if (asksReminders && clientId) {
+        openFinishReminders({
+          ticketId: Number(ticketId),
+          clientId,
+          ticketDate: ticketDate ?? new Date(),
+          serviceLines,
+          existingSchedules,
+        });
+      } else {
+        router.refresh();
+      }
     } catch (error) {
       console.error('Error preparing finish:', error);
       const errorType = classifyClientError(error);
@@ -188,69 +200,8 @@ export const TicketDetailFinishPanel = ({
     }
   };
 
-  const handleSchedulesSkip = async () => {
-    try {
-      setIsSubmitting(true);
-      await executeFinishAndDownload();
-      setSchedulesDialogOpen(false);
-    } catch (error) {
-      const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSchedulesConfirm = async (lines: TicketFinishScheduleLine[]) => {
-    try {
-      setIsSubmitting(true);
-      const finishedOk = await executeFinishAndDownload();
-      if (!finishedOk || !clientId) {
-        return;
-      }
-
-      for (const line of lines.filter((item) => item.checked)) {
-        const upsertResult = await upsertClientServiceSchedule({
-          clientId,
-          serviceId: line.serviceId,
-          intervalValue: line.intervalValue,
-          intervalUnit: line.intervalUnit,
-          lastServiceAt: line.lastServiceAt,
-          companyId: selectedCompany?.id ?? null,
-        });
-        if (!upsertResult.success) {
-          toast.error(
-            upsertResult.error ||
-              'El ticket se finalizó pero no se pudo guardar un recordatorio',
-          );
-        }
-      }
-
-      setSchedulesDialogOpen(false);
-    } catch (error) {
-      console.error('Error saving schedules:', error);
-      const errorType = classifyClientError(error);
-      toast.error(getErrorMessageByType(errorType, 'Ocurrió un error'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const paidExceedsTotal = partialTooHigh;
   const finishBlocked = isSubmitting || !hasServices || paidExceedsTotal || !hasPayChoice;
-
-  const schedulesDialog = (
-    <TicketFinishSchedulesDialog
-      open={schedulesDialogOpen}
-      onOpenChange={setSchedulesDialogOpen}
-      ticketDate={ticketDate ?? new Date()}
-      serviceLines={serviceLines}
-      existingSchedules={existingSchedules}
-      saving={isSubmitting}
-      onConfirm={(lines) => void handleSchedulesConfirm(lines)}
-      onSkip={() => void handleSchedulesSkip()}
-    />
-  );
 
   const finishButtonLabel = isSubmitting ? (
     <>
@@ -377,7 +328,6 @@ export const TicketDetailFinishPanel = ({
   return (
     <>
       <DesktopSwitch phone={phonePanel} desktop={desktopPanel} />
-      {schedulesDialog}
     </>
   );
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { companyDay } from '@/lib/company-day';
+import { buildTicketPdfFileName } from '@/lib/ticket-pdf-data';
 import { formatDocumentFolio } from '@/lib/folio';
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
@@ -47,16 +47,6 @@ type TicketRowActionsOptions = {
    * no hover buttons (ZIG-33); phone cards and Cobranza show Terminar elsewhere.
    */
   finishHref?: string;
-};
-
-const buildListTicketPdfFileName = (ticket: Ticket): string => {
-  const safeName =
-    (ticket.client_name ?? 'ticket').replace(/[^\w\s\-]/g, '').trim() ||
-    'ticket';
-  const datePart = companyDay(
-    ticket.ticket_date ? new Date(ticket.ticket_date) : new Date(),
-  ).iso;
-  return `${safeName}_${datePart}_${ticket.id.toString()}.pdf`;
 };
 
 /**
@@ -110,7 +100,7 @@ export const useTicketRowActions = (
       const result = await fetchAndDeliverTicketInvoice({
         ticketId: ticket.id,
         companyId,
-        downloadFileName: buildListTicketPdfFileName(ticket),
+        downloadFileName: buildTicketPdfFileName(ticket),
       });
 
       if (result === 'shared') {

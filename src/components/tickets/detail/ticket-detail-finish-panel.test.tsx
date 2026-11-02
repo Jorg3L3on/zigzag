@@ -1,15 +1,17 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-detail-finish-panel';
+import { TicketFinishReminders } from '@/components/tickets/detail/ticket-finish-reminders';
 
 const mockFinishTicket = jest.fn();
 const mockToastError = jest.fn();
+const mockRefresh = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: jest.fn() }),
+  useRouter: () => ({ refresh: mockRefresh }),
 }));
 
 jest.mock('sonner', () => ({
@@ -122,6 +124,63 @@ describe('TicketDetailFinishPanel', () => {
     expect(finish).toBeDisabled();
     await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
     expect(finish).toBeEnabled();
+  });
+});
+
+describe('TicketDetailFinishPanel reminders after saving (ZIG-I36-26)', () => {
+  beforeEach(() => {
+    mockFinishTicket.mockReset();
+    mockRefresh.mockClear();
+  });
+
+  const renderPanel = () =>
+    render(
+      <>
+        <TicketDetailFinishPanel
+          ticketId={5}
+          clientId={2}
+          clientName="Cliente"
+          total={100}
+          ticketDate={new Date('2026-07-01')}
+          serviceLines={[{ serviceId: 1, serviceName: 'Servicio' }]}
+          downloadFileName="t.pdf"
+        />
+        <TicketFinishReminders ticketId={5} />
+      </>,
+    );
+
+  it('saves the terminate and the payment before Recordatorios, and X keeps them', async () => {
+    mockFinishTicket.mockResolvedValue({ success: true });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole('radio', { name: 'Todo' }));
+    await user.click(screen.getByRole('button', { name: /terminar y generar recibo/i }));
+
+    // Saved first: the dialog is only the question about reminders.
+    expect(await screen.findByText('Recordatorios de servicio')).toBeInTheDocument();
+    expect(mockFinishTicket).toHaveBeenCalledTimes(1);
+    expect(mockFinishTicket).toHaveBeenCalledWith(5, 100, 100, 1);
+    expect(mockRefresh).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /cerrar/i }));
+
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('Recordatorios de servicio')).toBeNull();
+    expect(mockFinishTicket).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask about reminders when the terminate failed', async () => {
+    mockFinishTicket.mockResolvedValue({ success: false, error: 'No se pudo' });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole('radio', { name: 'Nada aún' }));
+    await user.click(screen.getByRole('button', { name: /terminar y generar recibo/i }));
+
+    await waitFor(() => expect(mockFinishTicket).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('Recordatorios de servicio')).toBeNull();
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 });
 
