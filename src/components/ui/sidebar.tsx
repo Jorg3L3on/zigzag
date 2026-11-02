@@ -1,11 +1,12 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 import { Slot as SlotPrimitive } from "radix-ui"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsCompactNav } from "@/hooks/use-mobile"
 import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar-state"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  /** The control that opened the sheet; it gets the focus back when the sheet closes. */
+  openerRef: React.MutableRefObject<HTMLElement | null>
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -73,8 +76,15 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    // Below `lg` the navigation is a sheet that opens from the menu button
+    // (ZIG-I36 M-17); it closes on navigation, backdrop and Escape.
+    const isMobile = useIsCompactNav()
     const [openMobile, setOpenMobile] = React.useState(false)
+    const pathname = usePathname()
+    const openerRef = React.useRef<HTMLElement | null>(null)
+    React.useEffect(() => {
+      setOpenMobile(false)
+    }, [pathname])
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
@@ -97,9 +107,12 @@ const SidebarProvider = React.forwardRef<
 
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
-      return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
+      if (isMobile) {
+        openerRef.current =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null
+        return setOpenMobile((open) => !open)
+      }
+      return setOpen((open) => !open)
     }, [isMobile, setOpen, setOpenMobile])
 
     // Adds a keyboard shortcut to toggle the sidebar.
@@ -131,6 +144,7 @@ const SidebarProvider = React.forwardRef<
         openMobile,
         setOpenMobile,
         toggleSidebar,
+        openerRef,
       }),
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
@@ -181,7 +195,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { state, openMobile, setOpenMobile } = useSidebar()
+    const { state, openMobile, setOpenMobile, openerRef } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -200,11 +214,29 @@ const Sidebar = React.forwardRef<
 
     return (
       <>
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.stopPropagation()
+                setOpenMobile(false)
+              }
+            }}
+            onCloseAutoFocus={(event) => {
+              // Back to the menu button (M-17), also after navigating away.
+              event.preventDefault()
+              const opener = openerRef.current
+              const target =
+                opener && opener.isConnected
+                  ? opener
+                  : Array.from(
+                      document.querySelectorAll<HTMLElement>('[data-sidebar="trigger"]'),
+                    ).find((el) => el.offsetParent !== null)
+              target?.focus()
+            }}
             className="top-[var(--network-status-banner-offset,0px)] h-[calc(100svh-var(--network-status-banner-offset,0px))] w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
@@ -226,7 +258,7 @@ const Sidebar = React.forwardRef<
 
         <div
         ref={ref}
-        className="group peer hidden text-sidebar-foreground md:block"
+        className="group peer hidden text-sidebar-foreground lg:block"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
@@ -245,7 +277,7 @@ const Sidebar = React.forwardRef<
         />
         <div
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear md:flex",
+            "fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear lg:flex",
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -353,7 +385,7 @@ const SidebarInset = React.forwardRef<
       ref={ref}
       className={cn(
         "relative flex w-full min-w-0 flex-1 flex-col bg-background",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+        "lg:peer-data-[variant=inset]:m-2 lg:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 lg:peer-data-[variant=inset]:ml-0 lg:peer-data-[variant=inset]:rounded-xl lg:peer-data-[variant=inset]:shadow",
         className
       )}
       {...props}

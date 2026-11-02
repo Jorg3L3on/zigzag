@@ -57,7 +57,7 @@ export const CompanyHubTabs = ({
                 href={tab.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-10 items-center justify-center truncate rounded-full px-2 text-sm font-semibold transition-colors',
+                  'flex min-h-11 items-center justify-center truncate rounded-full px-2 text-sm font-semibold transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   isActive
                     ? 'bg-background text-foreground shadow-sm'
