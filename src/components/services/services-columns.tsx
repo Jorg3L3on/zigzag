@@ -30,9 +30,12 @@ export const createServicesColumns = ({
     header: ({ column }) => (
       <ListSortableHeader column={column} label="Nombre" />
     ),
-    // One line, like the clients list; the full name on hover (ZIG-30).
+    // Up to two lines, the full name on hover (M-37).
     cell: ({ row }) => (
-      <span className="block truncate font-medium" title={row.original.name}>
+      <span
+        className="line-clamp-2 font-medium [overflow-wrap:anywhere]"
+        title={row.original.name}
+      >
         {row.original.name}
       </span>
     ),

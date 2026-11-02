@@ -14,6 +14,7 @@ import {
   TripledPageHeader,
   TripledResourceCard,
 } from '@/components/tripled';
+import { CLIENT_HISTORY_PREVIEW } from '@/lib/client-detail';
 import { requirePagePermission } from '@/lib/page-authz';
 import { canAccessPermission, PERMISSIONS } from '@/lib/permissions';
 
@@ -41,7 +42,8 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
   if (!result.success || !result.data) {
     notFound();
   }
-  const { client, balance, tickets, presupuestos, payments, schedules } = result.data;
+  const { client, balance, tickets, presupuestos, payments, paymentCount, schedules } =
+    result.data;
 
   const permissionMap = await getSessionPermissionMap();
   const canWriteClients = canAccessPermission(permissionMap, PERMISSIONS.clients.write);
@@ -59,14 +61,14 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
       />
       <TripledDashboardShell maxWidthClassName="max-w-3xl lg:max-w-[1200px]">
         <TripledMobileAppBar title="Cliente" subtitle={client.name} backHref="/clients" className="mb-3" />
-        {/* From lg the page draws its own title, without the card (like Cobranza and the ticket detail). */}
+        {/* The app bar (phone) and the page title (lg) name the screen, so the card has no header of its own (M-22). */}
         <TripledResourceCard
           title="Cliente"
           description="Datos, saldo e historial del cliente."
           icon={<UserRound className="size-5" aria-hidden />}
           compactOnMobile
           className="lg:contents"
-          headerClassName="lg:hidden"
+          headerClassName="hidden"
           contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
         >
           {/* A container, not lg: with the sidebar open 1024 leaves ~720 px, so two columns
@@ -96,18 +98,22 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
                 tickets={tickets}
                 className="@min-[60rem]:col-start-2 @min-[60rem]:row-start-3"
               />
-              <ClientHistorySections
-                tickets={tickets}
-                presupuestos={presupuestos}
-                payments={payments}
-                schedules={schedules}
-                className="@min-[60rem]:col-start-1 @min-[60rem]:row-span-3 @min-[60rem]:row-start-3"
-              />
+              {/* Notas before the lists, so a client with 400 tickets still shows them (M-14). */}
               <ClientNotesCard
                 clientId={client.id}
                 initialNotes={client.notes}
                 canWrite={canWriteClients}
                 className="@min-[60rem]:col-start-2 @min-[60rem]:row-start-5"
+              />
+              <ClientHistorySections
+                tickets={tickets.slice(0, CLIENT_HISTORY_PREVIEW)}
+                ticketTotal={tickets.length}
+                allTicketsHref={`/tickets?q=${encodeURIComponent(client.name)}`}
+                presupuestos={presupuestos}
+                payments={payments.slice(0, CLIENT_HISTORY_PREVIEW)}
+                paymentTotal={paymentCount}
+                schedules={schedules}
+                className="@min-[60rem]:col-start-1 @min-[60rem]:row-span-3 @min-[60rem]:row-start-3"
               />
             </div>
           </div>

@@ -53,7 +53,19 @@ export function ClabeBankHint({
           data-testid="clabe-bank-mismatch"
           className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
         >
-          Esta CLABE parece de {clabeBank}. Revisa el banco o la CLABE.
+          <span className="block">
+            Esta CLABE parece de {clabeBank}. Revisa el banco o la CLABE.
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2 bg-background"
+            onClick={() => onUseBank(clabeBank)}
+            data-testid="clabe-bank-use"
+          >
+            Usar {clabeBank}
+          </Button>
         </p>
       ) : null}
     </div>

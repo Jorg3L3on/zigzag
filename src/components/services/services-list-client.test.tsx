@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ServicesListClient } from '@/components/services/services-list-client';
+import { describeServiceUsage, ServicesListClient } from '@/components/services/services-list-client';
 import { getServices } from '@/actions/services';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -19,6 +19,13 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/actions/services', () => ({
   deleteService: jest.fn(),
   getServices: jest.fn(),
+}));
+
+jest.mock('@/actions/service-usage', () => ({
+  getServiceUsage: jest.fn().mockResolvedValue({
+    success: true,
+    data: { openTickets: 1, openPresupuestos: 1 },
+  }),
 }));
 
 jest.mock('@/contexts/company-context', () => ({
@@ -270,6 +277,21 @@ describe('ServicesListClient', () => {
         'aria-sort',
         'ascending',
       );
+    });
+  });
+
+  describe('Eliminar servicio copy (M-36)', () => {
+    it('names what still uses the service and says it stays as it is', () => {
+      expect(describeServiceUsage({ openTickets: 1, openPresupuestos: 1 })).toBe(
+        'Lo usan 1 ticket abierto y 1 presupuesto. Esos se quedan como están.',
+      );
+      expect(describeServiceUsage({ openTickets: 3, openPresupuestos: 0 })).toBe(
+        'Lo usan 3 tickets abiertos. Esos se quedan como están.',
+      );
+      expect(describeServiceUsage({ openTickets: 0, openPresupuestos: 1 })).toBe(
+        'Lo usa 1 presupuesto. Esos se quedan como están.',
+      );
+      expect(describeServiceUsage(null)).toMatch(/se quedan como están/);
     });
   });
 });
