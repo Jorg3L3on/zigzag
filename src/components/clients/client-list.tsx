@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesSearchText } from '@/lib/search-text';
 import React from 'react';
 import {
   getCoreRowModel,
@@ -221,17 +222,16 @@ export function ClientList({ desktopActions }: ClientListProps = {}) {
   }, [fetchClients]);
 
   const filteredClients = React.useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
+    const q = debouncedSearch.trim();
     return clients.filter((clientRow) => {
       const formattedAddress = formatClientAddressOneLine(clientRow);
       const matchesSearch =
         !q ||
         clientRow.id.toString().includes(q) ||
-        clientRow.name.toLowerCase().includes(q) ||
-        (clientRow.email ?? '').toLowerCase().includes(q) ||
-        (clientRow.phone ?? '').toLowerCase().includes(q) ||
-        (clientRow.document ?? '').toLowerCase().includes(q) ||
-        formattedAddress.toLowerCase().includes(q);
+        matchesSearchText(
+          [clientRow.name, clientRow.email, clientRow.phone, clientRow.document, formattedAddress],
+          q,
+        );
 
       if (!matchesSearch) {
         return false;
@@ -705,6 +705,7 @@ export function ClientList({ desktopActions }: ClientListProps = {}) {
                     // Paged: «1–25 de N»; one page: «N de M» against every client.
                     total={desktopPaged ? filteredClients.length : clients.length}
                     shown={filteredClients.length}
+                    filtered={Boolean(debouncedSearch.trim())}
                     noun="clientes"
                     pagination={listFooterPagination(desktopTable, { pageSizes: false })}
                   />

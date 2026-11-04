@@ -101,7 +101,7 @@ describe('UsersList on desktop (ZIG-I33)', () => {
       'Empresa: todas',
     );
     expect(screen.getAllByRole('button', { name: 'Crear usuario' })).toHaveLength(1);
-    expect(screen.getByTestId('list-footer')).toHaveTextContent('2 de 2 usuarios');
+    expect(screen.getByTestId('list-footer')).toHaveTextContent('2 usuarios');
   });
 
   it('draws the verified state as a pill and the date short', async () => {

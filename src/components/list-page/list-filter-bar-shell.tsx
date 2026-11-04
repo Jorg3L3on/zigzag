@@ -68,7 +68,7 @@ export const ListFilterBarShell = ({
   searchPlaceholder,
   searchAriaLabel,
   searchClassName = "h-12 rounded-xl bg-muted/30 pl-9 shadow-none sm:h-11 sm:bg-background",
-  searchContainerClassName = "relative min-w-0 flex-1 lg:max-w-md",
+  searchContainerClassName = "relative min-w-0 flex-1 self-start lg:min-w-[9rem] lg:max-w-md",
   searchTrailing,
   sheetFilterCount,
   sheetDescription,
@@ -237,7 +237,10 @@ export const ListFilterBarShell = ({
               "hidden items-center gap-3 lg:flex",
               // With a trailing control the row can run out of room (Limpiar filtros
               // appears with a filter): wrap instead of overflowing the page.
-              desktopTrailing != null ? "min-w-0 flex-1 flex-wrap" : "shrink-0",
+              // The search shrinks first (down to 9rem); Columnas keeps its place on the row (M-28).
+              desktopTrailing != null
+                ? "min-w-0 flex-wrap lg:max-w-[calc(100%-9.5rem)]"
+                : "shrink-0",
             )}
           >
             {desktopContent}

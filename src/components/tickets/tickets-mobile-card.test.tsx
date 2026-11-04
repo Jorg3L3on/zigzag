@@ -21,7 +21,7 @@ const ticket = {
   ticket_date: new Date('2026-05-01T12:00:00Z'),
   total: 250,
   paid: 100,
-  finished: false,
+  finished: true,
   created_at: new Date('2026-05-01T00:00:00Z'),
   updated_at: null,
   deleted_at: null,
@@ -53,10 +53,10 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     ).toBeInTheDocument();
     const money = screen.getByTestId('ticket-payment-summary');
     expect(money).toHaveTextContent('Pagado $100.00');
-    expect(money).toHaveTextContent('Saldo $150.00');
+    expect(money).toHaveTextContent('Faltan $150.00');
     expect(screen.queryByText('Teléfono')).not.toBeInTheDocument();
 
-    await screen.getByRole('button', { name: /editar ticket 42/i }).click();
+    await screen.getByRole('button', { name: /ver ticket 42/i }).click();
     expect(mockPush).toHaveBeenCalled();
   });
 
@@ -77,7 +77,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     expect(screen.getByTestId('ticket-card-name').className).toContain('line-clamp-2');
     const money = screen.getByTestId('ticket-payment-summary');
     expect(money).toHaveTextContent('Pagado $1,234.57');
-    expect(money).toHaveTextContent('Saldo $9,999,998,765.42');
+    expect(money).toHaveTextContent('Faltan $9,999,998,765.42');
     expect(money.className).toContain('flex-wrap');
     for (const span of Array.from(money.querySelectorAll('span'))) {
       expect(span.className).not.toContain('truncate');
@@ -103,7 +103,7 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
     );
   });
 
-  it('shows Pendiente de pago with the Total when nothing is paid', () => {
+  it('shows Por cobrar with the Total and Faltan when a finished ticket has no payments', () => {
     render(
       <TicketsMobileCard
         ticket={{ ...ticket, total: 100, paid: 0 }}
@@ -112,12 +112,37 @@ describe('TicketsMobileCard (ZIG-I13-7)', () => {
       />,
     );
 
-    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Pendiente de pago');
+    expect(screen.getByTestId('ticket-card-meta')).toHaveTextContent('Por cobrar');
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     const money = screen.getByTestId('ticket-payment-summary');
     expect(money).toHaveTextContent('Total');
     expect(money).toHaveTextContent('$100.00');
-    expect(money).not.toHaveTextContent('Saldo');
+    expect(money).toHaveTextContent('Faltan $100.00');
+  });
+
+  it('says En proceso, never Por cobrar, on an unfinished ticket (ZIG-I36-17)', () => {
+    render(
+      <TicketsMobileCard
+        ticket={{ ...ticket, finished: false, total: 100, paid: 0 }}
+        canWrite
+        onDelete={jest.fn()}
+      />,
+    );
+
+    const meta = screen.getByTestId('ticket-card-meta');
+    expect(meta).toHaveTextContent('En proceso');
+    expect(meta).not.toHaveTextContent('Por cobrar');
+    expect(screen.getByTestId('ticket-payment-summary')).not.toHaveTextContent('Faltan');
+  });
+
+  it('shows the services on up to two lines with the materials count (ZIG-I36-19)', () => {
+    render(
+      <TicketsMobileCard ticket={{ ...ticket, materials_count: 6 }} canWrite onDelete={jest.fn()} />,
+    );
+
+    const services = screen.getByTestId('ticket-card-services');
+    expect(services.className).toContain('line-clamp-2');
+    expect(services).toHaveTextContent('Compresor, Mano de obra · 6 materiales');
   });
 
   it('says hoy for a ticket dated today', () => {

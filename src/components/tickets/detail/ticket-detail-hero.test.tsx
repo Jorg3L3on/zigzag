@@ -45,7 +45,7 @@ describe('TicketDetailHero (ZIG-I13-4)', () => {
 describe('TicketDetailStatusPill', () => {
   it.each([
     [false, 100, 0, 'En proceso'],
-    [true, 100, 0, 'Pendiente de pago'],
+    [true, 100, 0, 'Por cobrar'],
     [true, 100, 40, 'Pago parcial'],
     [true, 100, 100, 'Pagado'],
   ])('finished=%s total=%s paid=%s → %s', (finished, total, paid, label) => {

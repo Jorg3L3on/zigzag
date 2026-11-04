@@ -31,7 +31,7 @@ describe('ListFooter', () => {
 
   it('has no pager on a single page, only the count with its noun', () => {
     render(<ListFooter total={6} noun="presupuestos" pagination={pagination(0, 1)} />);
-    expect(screen.getByText('6 de 6 presupuestos')).toBeInTheDocument();
+    expect(screen.getByText('6 presupuestos')).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
@@ -39,6 +39,15 @@ describe('ListFooter', () => {
     render(<ListFooter total={12} shown={8} noun="personas" extra={<span>· suman $1,200</span>} />);
     expect(screen.getByText('8 de 12 personas')).toBeInTheDocument();
     expect(screen.getByText('· suman $1,200')).toBeInTheDocument();
+  });
+
+  it('reads «N resultados» with a filter and uses the singular for one (ZIG-I36 M-26)', () => {
+    const { rerender } = render(<ListFooter total={3} shown={1} filtered noun="tickets" />);
+    expect(screen.getByText('3 resultados')).toBeInTheDocument();
+    rerender(<ListFooter total={1} shown={1} filtered noun="tickets" />);
+    expect(screen.getByText('1 resultado')).toBeInTheDocument();
+    rerender(<ListFooter total={1} noun="tickets" />);
+    expect(screen.getByText('1 ticket')).toBeInTheDocument();
   });
 
   it('shows «Por página» only for server pagination', () => {

@@ -46,7 +46,7 @@ test.describe('Tickets list Estado column', () => {
     const count = await chips.count();
     for (let i = 0; i < count; i += 1) {
       const label = (await chips.nth(i).innerText()).trim();
-      expect(['Pagado', 'Pago parcial', 'Pendiente', 'En proceso']).toContain(label);
+      expect(['Pagado', 'Pago parcial', 'Por cobrar', 'En proceso']).toContain(label);
     }
 
     const views = page.getByRole('navigation', { name: 'Vistas de tickets' });
@@ -81,7 +81,8 @@ test.describe('Tickets list Estado column', () => {
       const status = await summary.getAttribute('data-payment-status');
       if (status === 'partial') {
         await expect(summary.getByText(/^Pagado /)).toBeVisible();
-        await expect(summary.getByText(/^Saldo /)).toBeVisible();
+        // Finished: «Faltan $X»; an advance on unfinished work: «Total $X» (ZIG-I36-17).
+        await expect(summary.getByText(/^(Faltan|Total) /)).toBeVisible();
       } else {
         // exact: «Sin total» (a ticket without services) also contains the word.
         await expect(summary.getByText('Total', { exact: true })).toBeVisible();

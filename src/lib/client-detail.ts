@@ -23,6 +23,8 @@ export type ClientBalanceSummary = {
   dueTicketCount: number;
   /** Work tickets, finished or not. */
   ticketCount: number;
+  /** Unpaid amount on tickets still En proceso: not Por cobrar yet (ZIG-I36-17). */
+  inProgressDue?: number;
 };
 
 const roundCents = (value: number): number => Math.round(value * 100) / 100;
@@ -33,11 +35,15 @@ export const summarizeClientBalance = (
   let balanceDue = 0;
   let dueTicketCount = 0;
   let ticketCount = 0;
+  let inProgressDue = 0;
 
   for (const row of tickets) {
     if (!isWorkTicket(row.document_kind)) continue;
     ticketCount += 1;
-    if (!row.finished) continue;
+    if (!row.finished) {
+      inProgressDue += getTicketBalanceDue(row.total, row.paid);
+      continue;
+    }
     const due = getTicketBalanceDue(row.total, row.paid);
     if (due <= 0 || getTicketPaymentStatus(row.total, row.paid) === 'paid') {
       continue;
@@ -46,7 +52,12 @@ export const summarizeClientBalance = (
     dueTicketCount += 1;
   }
 
-  return { balanceDue: roundCents(balanceDue), dueTicketCount, ticketCount };
+  return {
+    balanceDue: roundCents(balanceDue),
+    dueTicketCount,
+    ticketCount,
+    inProgressDue: roundCents(inProgressDue),
+  };
 };
 
 export const CLIENT_NOTES_MAX_LENGTH = 2000;

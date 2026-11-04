@@ -62,6 +62,7 @@ import {
   catalogServiceIds,
   insertServiceLines,
 } from '@/lib/service-lines-server';
+import { sqlFoldedContains } from '@/lib/search-text';
 import { activeLineMaterialsWith } from '@/lib/line-materials-query';
 import { companyDay } from '@/lib/company-day';
 import {
@@ -307,8 +308,8 @@ export async function getPresupuestosPaginated(params: {
     const folioSearch = search ? parseFolioSearch(search) : null;
     const searchCondition = search
       ? or(
-          ilike(ticket.client_name, `%${search}%`),
-          ilike(ticket.client_tel, `%${search}%`),
+          sqlFoldedContains(ticket.client_name, search),
+          sqlFoldedContains(ticket.client_tel, search),
           // P-0004, p4 or 0004: the stored prefix plus the padded number, like tickets. A bare
           // number matches the folio number exactly (below), not every id containing it.
           sql`(coalesce(${ticket.folio_prefix}, 'P') || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,

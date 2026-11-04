@@ -62,6 +62,8 @@ type ListFooterProps = {
   noun: string;
   /** Without a pager: how many rows are shown («8 de 12 personas»); defaults to total. */
   shown?: number;
+  /** A search or filter is on: the count reads «3 resultados» (ZIG-I36 M-26). */
+  filtered?: boolean;
   pagination?: ListFooterPagination;
   /** A second line on the left: «· suman $…», the En proceso note. */
   extra?: ReactNode;
@@ -80,6 +82,7 @@ export const ListFooter = ({
   total,
   noun,
   shown,
+  filtered = false,
   pagination,
   extra,
   label,
@@ -88,13 +91,18 @@ export const ListFooter = ({
   const paged = pagination != null && pagination.pageCount > 1;
   let count: ReactNode = label;
   if (count == null) {
+    // «1 ticket», «1 resultado»: the singular drops the plural s.
+    const word = (n: number, plural: string) => (n === 1 ? plural.replace(/s$/, '') : plural);
+    const unit = filtered ? 'resultados' : noun;
     if (paged) {
       const { pageIndex, pageSize } = pagination;
       const start = total === 0 ? 0 : pageIndex * pageSize + 1;
       const end = Math.min(total, (pageIndex + 1) * pageSize);
-      count = `${start}–${end} de ${total} ${noun}`;
+      count = `${start}–${end} de ${total} ${unit}`;
+    } else if (filtered || shown == null || shown === total) {
+      count = `${total} ${word(total, unit)}`;
     } else {
-      count = `${shown ?? total} de ${total} ${noun}`;
+      count = `${shown} de ${total} ${noun}`;
     }
   }
 

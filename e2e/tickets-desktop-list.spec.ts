@@ -63,7 +63,7 @@ test.describe('Tickets en escritorio, estándar de listas (ZIG-I33-2)', () => {
     await page.goto('/tickets');
     const table = await ticketsTable(page);
 
-    await expect(page.getByRole('heading', { level: 1, name: /^Tickets · \d+$/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Tickets$/ })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Nuevo ticket' }).filter({ visible: true })).toHaveCount(1);
     await expect(page.getByRole('combobox', { name: /^Ordenar/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Más filtros' })).toHaveCount(0);

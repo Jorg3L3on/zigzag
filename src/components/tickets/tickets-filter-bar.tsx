@@ -214,7 +214,7 @@ export const TicketsFilterBar = ({
       />
     }
     sheetFilterCount={activeFilterCount}
-    sheetDescription="Cobro, terminado, fechas y orden de la lista."
+    sheetDescription="Trabajo, fechas y orden"
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros"

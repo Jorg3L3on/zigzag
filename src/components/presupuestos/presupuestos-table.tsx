@@ -491,6 +491,7 @@ export const PresupuestosTable = ({
           <ListFooter
             total={totalCount}
             noun="presupuestos"
+            filtered={hasActiveFilters}
             shown={items.length}
             pagination={listFooterPagination(table)}
           />
@@ -511,7 +512,7 @@ export const PresupuestosTable = ({
     <div data-testid="presupuestos-table-view">
       <ListDesktopTitle
         title="Presupuestos"
-        count={counts?.all ?? null}
+        count={null}
         description="No cuentan en Cobranza ni en Hoy hasta convertirlos en ticket."
         actions={
           canWrite ? (

@@ -109,3 +109,26 @@ export const parseCompanyDayIso = (iso: string): Date | null => {
     ? date
     : null;
 };
+
+/**
+ * A calendar pick (local midnight of the day the user tapped) as the company's day
+ * range: from the start of `from`'s civil day to the last millisecond of `to`'s
+ * (default the same day), as ISO instants for SQL (ZIG-I36-24).
+ */
+export const companyDayRangeIso = (
+  from: Date,
+  to: Date = from,
+  timeZone: string = COMPANY_TIME_ZONE,
+): { from: string; to: string } => {
+  const noonOf = (picked: Date): Date =>
+    new Date(Date.UTC(picked.getFullYear(), picked.getMonth(), picked.getDate(), 12, 0, 0));
+  const start = companyDayStart(noonOf(from), timeZone);
+  const nextDayStart = companyDayStart(
+    new Date(noonOf(to).getTime() + 86_400_000),
+    timeZone,
+  );
+  return {
+    from: start.toISOString(),
+    to: new Date(nextDayStart.getTime() - 1).toISOString(),
+  };
+};

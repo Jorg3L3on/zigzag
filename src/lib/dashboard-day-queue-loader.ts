@@ -90,6 +90,9 @@ export const loadDashboardDayQueueForCompany = async (
       finished: row.finished,
       company_id: row.company_id,
       document_kind: row.document_kind,
+      // The row names the ticket by its folio (R-0007), not the id (ZIG-I36-18).
+      folio_number: row.folio_number,
+      folio_prefix: row.folio_prefix,
     })),
     companyToday,
   );

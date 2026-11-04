@@ -20,11 +20,11 @@ import {
 } from '@/lib/ticket-payment-status';
 import { formatPhoneDisplay } from '@/lib/phone-links';
 
-export type TicketListEstadoLabel = 'Pagado' | 'Pago parcial' | 'Pendiente' | 'En proceso';
+export type TicketListEstadoLabel = 'Pagado' | 'Pago parcial' | 'Por cobrar' | 'En proceso';
 
 /**
  * One-line estado. A ticket still in progress is En proceso when it would
- * otherwise read Pendiente (ZIG-I28-4).
+ * otherwise read Por cobrar (ZIG-I28-4).
  */
 const PAYMENT_ESTADO_LABEL: Record<
   ReturnType<typeof getTicketPaymentStatus>,
@@ -32,7 +32,7 @@ const PAYMENT_ESTADO_LABEL: Record<
 > = {
   paid: 'Pagado',
   partial: 'Pago parcial',
-  pending: 'Pendiente',
+  pending: 'Por cobrar',
 };
 
 export const ticketListEstadoLabel = (
@@ -52,8 +52,22 @@ export const ticketListEstadoLabel = (
 const ESTADO_TONE: Record<TicketListEstadoLabel, ListStatusTone> = {
   Pagado: 'emerald',
   'Pago parcial': 'amber',
-  Pendiente: 'amber',
+  'Por cobrar': 'amber',
   'En proceso': 'slate',
+};
+
+const countWord = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+
+/** «3 servicios · 6 materiales» from data the ticket already carries (ZIG-I36-19). */
+export const ticketWorkLine = (
+  ticket: Pick<Ticket, 'services_count' | 'materials_count'>,
+): string | null => {
+  const parts = [
+    ticket.services_count ? countWord(ticket.services_count, 'servicio', 'servicios') : null,
+    ticket.materials_count ? countWord(ticket.materials_count, 'material', 'materiales') : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
 };
 
 /** Em dash when the ticket is still En proceso or the saldo is already 0. */
@@ -114,6 +128,7 @@ export const createTicketsColumns = ({
     cell: ({ row }) => {
       const name = row.original.client_name?.trim() || '—';
       const phone = row.original.client_tel?.trim();
+      const workLine = ticketWorkLine(row.original);
       return (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium leading-5" title={name}>
@@ -122,6 +137,11 @@ export const createTicketsColumns = ({
           {phone ? (
             <p className="truncate text-caption leading-4 tabular-nums text-muted-foreground">
               {formatPhoneDisplay(phone) ?? phone}
+            </p>
+          ) : null}
+          {workLine ? (
+            <p className="truncate text-caption leading-4 text-muted-foreground" data-testid="ticket-row-work">
+              {workLine}
             </p>
           ) : null}
         </div>

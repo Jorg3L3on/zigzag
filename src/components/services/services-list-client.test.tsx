@@ -261,7 +261,7 @@ describe('ServicesListClient', () => {
       render(<ServicesListClient />);
 
       await screen.findByRole('table', { name: 'Servicios' });
-      expect(screen.getByTestId('list-footer')).toHaveTextContent('2 de 2 servicios');
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('2 servicios');
       expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
       expect(screen.getByRole('columnheader', { name: /Precio/ })).toHaveClass('text-right');
       expect(screen.getByText('Activo')).toHaveAttribute('data-tone', 'emerald');
