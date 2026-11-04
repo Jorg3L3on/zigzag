@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -79,6 +79,9 @@ describe('SearchableSelect (ZIG-I12)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
     const search = screen.getByRole('combobox', { name: 'Buscar…' });
+    // The search box takes focus one animation frame after opening; keys sent
+    // before that land on the body.
+    await waitFor(() => expect(search).toHaveFocus());
     const rows = within(screen.getByRole('listbox')).getAllByRole('option');
     expect(rows[0]).toHaveAttribute('data-active', 'true');
     expect(search).toHaveAttribute('aria-activedescendant', rows[0].id);
