@@ -46,6 +46,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
 | `services.ts` | getServices, getService, createService, updateService, deleteService, bulkImportServices, searchMaterials, previewServiceCsvImport, commitServiceCsvImportChunk | ✅ | `services-actions.test.ts` | #202, ZIG-I10 |
 | `services.ts` materials (ZIG-I10) | createService / updateService `materials[]`: catalog Material ids are checked against the caller's company (`loadCatalogMaterials`), new names land in the caller's company, and ServiceMaterial rows are replaced only after the company-scoped Service update matched | ✅ | `services-actions.test.ts` (service default materials) | ZIG-I10 |
+| `service-usage.ts` | getServiceUsage (Eliminar servicio dialog, M-36): read-only counts; `requireTenantActionPermission('services.write')` and every count joins Ticket on the caller's `company_id` | ✅ | `service-usage-actions.test.ts` | ZIG-I36-6 |
 
 ## Server Actions — Tickets (#187)
 
