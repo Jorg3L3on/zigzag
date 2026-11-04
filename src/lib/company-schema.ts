@@ -99,7 +99,7 @@ export const companySettingsSchema = companySettingsBaseSchema.superRefine((valu
       ctx.addIssue({
         code: 'custom',
         path: ['payment_clabe'],
-        message: 'Revisa la CLABE: el último dígito no coincide',
+        message: 'El último dígito no coincide; revisa la CLABE',
       });
     }
   }

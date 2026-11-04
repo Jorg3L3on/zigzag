@@ -185,24 +185,23 @@ export const describePresupuestoPastVigencia = (
 export type PresupuestoVenceCell = {
   /** «Vence hoy», «Vence en 3 días», «Venció hace 2 días», «Vencía 9 nov», «Sin vencimiento». */
   text: string;
-  /** «25 oct · vigencia de 15 días»; only while open or expired. */
+  /** The short date; only while open or expired. */
   sub: string | null;
   tone: PresupuestoVigencia['tone'];
 };
 
 /**
  * The Vence column of the desktop list (canvas ListaPresuA): how far it is on
- * top, amber within three days and red once past, and the date with the length
- * of the validity under it; grey once accepted or canceled.
+ * top, amber within three days and red once past, and the date under it; grey once accepted or canceled.
  */
 export const describePresupuestoVenceCell = ({
   expiresAt,
   status,
-  ticketDate = null,
   now = new Date(),
 }: {
   expiresAt: string | Date | null;
   status: PresupuestoStatus;
+  /** Not shown any more: the vigencia lives on the presupuesto page (M-34). */
   ticketDate?: string | Date | null;
   now?: Date;
 }): PresupuestoVenceCell => {
@@ -210,9 +209,7 @@ export const describePresupuestoVenceCell = ({
   if (!expires) return { text: 'Sin vencimiento', sub: null, tone: 'none' };
   const date = formatListShortDate(expires, now);
   if (!isOpen(status)) return { text: `Vencía ${date}`, sub: null, tone: 'none' };
-  const issued = toDate(ticketDate);
-  const length = issued ? Math.max(companyDaysBetween(issued, expires), 0) : null;
-  const sub = length == null ? date : `${date} · vigencia de ${plural(length, 'día', 'días')}`;
+  const sub = date;
   const chip = describePresupuestoVigenciaChip({ expiresAt: expires, status, now });
   return { text: chip?.text ?? date, sub, tone: chip?.tone ?? 'none' };
 };

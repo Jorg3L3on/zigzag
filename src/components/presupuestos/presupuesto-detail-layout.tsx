@@ -192,7 +192,8 @@ export const PresupuestoDetailLayout = (props: PresupuestoDetailLayoutProps) => 
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-3 md:space-y-4">
         <TripledMobileAppBar
-          title={`Presupuesto ${folio || `#${presupuestoId}`}`}
+          // The folio alone, so the title never cuts beside the status pill (M-24).
+          title={folio || `#${presupuestoId}`}
           backHref="/presupuestos"
           backLabel="Volver a presupuestos"
           endSlot={

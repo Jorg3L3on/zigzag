@@ -338,7 +338,7 @@ export const PresupuestosTable = ({
         accessorFn: (row) => row.expiresAt,
         sortDescFirst: false,
         header: ({ column }) => <ListSortableHeader column={column} label="Vence" />,
-        // «25 oct · vigencia de 15 días» needs the room (canvas column 150px).
+        // Two lines at most: «Vence hoy» and «25 oct» (M-34).
         meta: { className: 'w-[10rem]' },
         cell: ({ row }) => {
           const cell = describePresupuestoVenceCell({

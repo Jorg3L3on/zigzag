@@ -126,7 +126,7 @@ describe('describePresupuestoVenceCell (canvas ListaPresuA)', () => {
         status: 'abierto',
         now,
       }),
-    ).toEqual({ text: 'Vence hoy', sub: '10 oct · vigencia de 15 días', tone: 'soon' });
+    ).toEqual({ text: 'Vence hoy', sub: '10 oct', tone: 'soon' });
     expect(
       describePresupuestoVenceCell({ expiresAt: '2026-10-07T12:00:00', status: 'vencido', now }),
     ).toEqual({ text: 'Venció hace 3 días', sub: '7 oct', tone: 'expired' });

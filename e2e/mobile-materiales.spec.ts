@@ -80,7 +80,12 @@ test.describe('Materiales accessibility @375px (no save)', () => {
 
   test('Servicios material sheet and the composer material step', async ({ page }) => {
     await page.goto('/services/new');
+    // What is typed stays when the sheet opens: the page does not navigate (ZIG-I36-27).
+    const nameField = page.getByPlaceholder('Ej: Limpieza de oficinas');
+    await nameField.fill('Servicio con material');
     await page.getByRole('button', { name: 'Agregar material' }).click();
+    await expect(page).toHaveURL(/\/services\/new\/edit$/);
+    await expect(nameField).toHaveValue('Servicio con material');
     const serviceSheet = page.getByRole('dialog', { name: 'Agregar material' });
     await expect(serviceSheet).toBeVisible();
     await serviceSheet.getByRole('combobox', { name: 'Nombre del material' }).fill('Ga');
@@ -88,6 +93,8 @@ test.describe('Materiales accessibility @375px (no save)', () => {
     await expectNoSeriousViolations(page);
     await serviceSheet.getByRole('button', { name: 'Cancelar' }).click();
     await expect(serviceSheet).toBeHidden();
+    await expect(page).toHaveURL(/\/services\/new\/edit$/);
+    await expect(nameField).toHaveValue('Servicio con material');
 
     await page.goto('/presupuestos/create');
     await expect(page.getByRole('heading', { name: 'Cliente', exact: true })).toBeVisible({

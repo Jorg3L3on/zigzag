@@ -250,7 +250,7 @@ describe('PresupuestosTable (ZIG-I29-3)', () => {
     const [today, none, expired] = screen.getAllByTestId('presupuesto-vence');
     expect(today).toHaveAttribute('data-tone', 'soon');
     // Canvas: how far on top, the date and the validity length under it.
-    expect(today).toHaveTextContent('Vence hoy25 oct · vigencia de 15 días');
+    expect(today).toHaveTextContent('Vence hoy25 oct');
     expect(none).toHaveTextContent('Sin vencimiento');
     expect(expired).toHaveAttribute('data-tone', 'expired');
     expect(expired).toHaveTextContent('Venció hace 5 días');

@@ -67,3 +67,6 @@ export const normalizeClientNotes = (value: string | null | undefined): string |
   const trimmed = value?.trim() ?? '';
   return trimmed ? trimmed : null;
 };
+
+/** How many tickets and pagos the client page lists; the rest is one tap away (M-14). */
+export const CLIENT_HISTORY_PREVIEW = 10;

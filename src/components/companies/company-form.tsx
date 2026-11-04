@@ -784,6 +784,11 @@ export const CompanyForm = ({
         }
       />
     );
+  // Leaving the CLABE marks a wrong check digit right away, not only on save (M-39).
+  const checkClabeOnBlur = (event: React.FocusEvent<HTMLFormElement>) => {
+    if ((event.target as HTMLElement).dataset?.testid !== 'company-payment-clabe') return;
+    void form.trigger('settings.payment_clabe');
+  };
   const paymentClabeField = (
     <FormField
       control={form.control}
@@ -1033,6 +1038,7 @@ export const CompanyForm = ({
           <form
             id={COMPANY_FORM_ID}
             onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
+            onBlurCapture={checkClabeOnBlur}
             className="flex flex-col gap-4"
             noValidate
           >
@@ -1299,6 +1305,7 @@ export const CompanyForm = ({
       <form
         id={COMPANY_FORM_ID}
         onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
+        onBlurCapture={checkClabeOnBlur}
         className={isSectioned ? 'space-y-4 md:space-y-8' : 'space-y-8'}
         noValidate={isSectioned}
       >

@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { getServiceUsage, type ServiceUsage } from '@/actions/service-usage';
 import {
   deleteService,
   getServices,
@@ -70,6 +71,20 @@ type ServicesListClientProps = {
   desktopActions?: React.ReactNode;
 };
 
+/** «Lo usan 1 ticket abierto y 1 presupuesto. Esos se quedan como están.» (M-36) */
+export const describeServiceUsage = (usage: ServiceUsage | null): string => {
+  const parts: string[] = [];
+  if (usage && usage.openTickets > 0) {
+    parts.push(`${usage.openTickets} ${usage.openTickets === 1 ? 'ticket abierto' : 'tickets abiertos'}`);
+  }
+  if (usage && usage.openPresupuestos > 0) {
+    parts.push(`${usage.openPresupuestos} ${usage.openPresupuestos === 1 ? 'presupuesto' : 'presupuestos'}`);
+  }
+  if (parts.length === 0) return 'Los tickets y presupuestos que ya lo tienen se quedan como están.';
+  const verb = usage && usage.openTickets + usage.openPresupuestos === 1 ? 'Lo usa' : 'Lo usan';
+  return `${verb} ${parts.join(' y ')}. Esos se quedan como están.`;
+};
+
 export function ServicesListClient({ desktopActions }: ServicesListClientProps = {}) {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
@@ -84,6 +99,7 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<number | null>(null);
+  const [serviceUsage, setServiceUsage] = useState<ServiceUsage | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>('active');
@@ -182,10 +198,20 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
     setDesktopPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [debouncedSearch, statusFilter]);
 
-  const openDeleteDialog = React.useCallback((id: number) => {
-    setServiceToDelete(id);
-    setDeleteDialogOpen(true);
-  }, []);
+  const openDeleteDialog = React.useCallback(
+    (id: number) => {
+      setServiceToDelete(id);
+      setServiceUsage(null);
+      setDeleteDialogOpen(true);
+      // What still uses it, so the dialog says what happens (M-36). Without it, the plain text stays.
+      void getServiceUsage(id, selectedCompany?.id ?? null)
+        .then((result) => {
+          if (result.success && result.data) setServiceUsage(result.data);
+        })
+        .catch(() => undefined);
+    },
+    [selectedCompany?.id],
+  );
 
   const columns = useMemo(
     () =>
@@ -419,7 +445,9 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
                               <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
                                 Nombre
                               </dt>
-                              <dd className="font-medium">{service.name}</dd>
+                              <dd className="line-clamp-2 font-medium [overflow-wrap:anywhere]" title={service.name}>
+                                {service.name}
+                              </dd>
                             </div>
                             <div>
                               <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
@@ -557,8 +585,8 @@ export function ServicesListClient({ desktopActions }: ServicesListClientProps =
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción ocultará el servicio de la lista activa. Podrás verlo en
-              el filtro de eliminados.
+              {describeServiceUsage(serviceUsage)} Ya no saldrá para tickets
+              nuevos; lo verás en el filtro de eliminados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

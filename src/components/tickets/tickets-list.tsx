@@ -111,11 +111,13 @@ export default function TicketsList() {
   // filter bar has mounted it must stay mounted so typing keeps its focus.
   const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+  // `?q=` pre-fills the search (the client page links its full list this way).
+  const initialSearch = searchParams.get('q')?.trim() ?? '';
+  const [debouncedSearch, setDebouncedSearch] = React.useState(initialSearch);
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = React.useState<string | null>(
     null,
   );
-  const [searchValue, setSearchValue] = React.useState('');
+  const [searchValue, setSearchValue] = React.useState(initialSearch);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(() =>
     parseStatusFilter(searchParams.get('status')),
   );

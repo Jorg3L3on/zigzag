@@ -116,9 +116,7 @@ export const ClientDetailHeader = ({
       <div className={cn('min-w-0', CLIENT_RAIL_CARD_CLASS, detailsClassName)}>
         <h2 className={cn(CLIENT_RAIL_LABEL_CLASS, 'hidden lg:mb-3 lg:block')}>Datos</h2>
         <dl className="grid gap-3 sm:grid-cols-2 @min-[60rem]:grid-cols-1">
-          <Detail label="Teléfono">
-            {phone}
-          </Detail>
+          <Detail label="Teléfono">{phone || '—'}</Detail>
           <Detail label="Correo">{client.email?.trim() || '—'}</Detail>
           <Detail label="Dirección">{address || '—'}</Detail>
           <Detail label="Documento">{client.document?.trim() || '—'}</Detail>

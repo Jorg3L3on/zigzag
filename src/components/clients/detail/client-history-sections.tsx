@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { MouseEvent, ReactNode } from 'react';
 import { format } from 'date-fns';
@@ -40,13 +41,19 @@ const Section = ({
   id,
   title,
   count,
+  total = count,
+  footer,
   empty,
   phone,
   desktop,
 }: {
   id: string;
   title: string;
+  /** Rows shown. */
   count: number;
+  /** All rows the client has; the title counts these. */
+  total?: number;
+  footer?: ReactNode;
   empty: string;
   phone: ReactNode;
   desktop: ReactNode;
@@ -60,7 +67,7 @@ const Section = ({
       {title}
       <span className="sr-only">, </span>
       <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">
-        {count}
+        {total}
       </span>
     </h2>
     {count === 0 ? (
@@ -77,6 +84,7 @@ const Section = ({
         desktop={desktop}
       />
     )}
+    {footer}
   </section>
 );
 
@@ -226,9 +234,14 @@ const MONEY_COL = 'w-[128px] text-right';
 const STATUS_COL = 'w-[148px]';
 
 type ClientHistorySectionsProps = {
+  /** The newest tickets; `ticketTotal` is how many the client has. */
   tickets: ClientDetailTicket[];
+  ticketTotal?: number;
+  /** Opens the Tickets list searched by this client. */
+  allTicketsHref?: string;
   presupuestos: ClientDetailPresupuesto[];
   payments: ClientDetailPayment[];
+  paymentTotal?: number;
   schedules: ClientServiceScheduleListItem[];
   className?: string;
 };
@@ -236,16 +249,95 @@ type ClientHistorySectionsProps = {
 /** Tickets, presupuestos, pagos y recordatorios del cliente (ZIG-I17-2); tables from lg. */
 export const ClientHistorySections = ({
   tickets,
+  ticketTotal = tickets.length,
+  allTicketsHref,
   presupuestos,
   payments,
+  paymentTotal = payments.length,
   schedules,
   className,
 }: ClientHistorySectionsProps) => (
   <div className={cn('space-y-6 lg:space-y-8', className)} data-testid="client-history">
     <Section
+      id="recordatorios"
+      title="Recordatorios"
+      count={schedules.length}
+      empty="Sin recordatorios de servicio para este cliente."
+      phone={schedules.map((s) => (
+        <Row
+          key={s.id}
+          // Opens this schedule's panel in the agenda (ZIG-I30); phones show the full list.
+          href={`/service-schedules?vista=todos&ver=${s.id}`}
+          title={s.serviceName}
+          meta={
+            <>
+              {describeInterval(s.intervalValue, s.intervalUnit)} · próximo{' '}
+              <FormattedDate date={toDate(s.nextDueAt)} />
+            </>
+          }
+          right={
+            <Badge
+              variant={s.bucket === 'atrasados' ? 'destructive' : 'outline'}
+              className="font-medium"
+            >
+              {SCHEDULE_BUCKET_LABEL[s.bucket]}
+            </Badge>
+          }
+        />
+      ))}
+      desktop={
+        <HistoryTable
+          label="Recordatorios del cliente"
+          columns={[
+            { label: 'Servicio' },
+            { label: 'Frecuencia', className: 'w-[132px]' },
+            { label: 'Próximo', className: DATE_COL },
+            { label: 'Estado', className: 'w-[120px]' },
+          ]}
+          rows={schedules.map((s) => {
+            const href = `/service-schedules?vista=todos&ver=${s.id}`;
+            return {
+              key: String(s.id),
+              href,
+              cells: [
+                <Link
+                  key="service"
+                  href={href}
+                  className="block truncate font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {s.serviceName}
+                </Link>,
+                <span key="interval" className="whitespace-nowrap text-slate-600 dark:text-slate-300">
+                  {describeInterval(s.intervalValue, s.intervalUnit)}
+                </span>,
+                <ShortDate key="next" value={s.nextDueAt} />,
+                <span key="bucket" className={cn(PILL_CLASS, SCHEDULE_BUCKET_PILL[s.bucket])}>
+                  {SCHEDULE_BUCKET_LABEL[s.bucket]}
+                </span>,
+              ],
+            };
+          })}
+        />
+      }
+    />
+
+    <Section
       id="tickets"
       title="Tickets"
       count={tickets.length}
+      total={ticketTotal}
+      footer={
+        allTicketsHref && ticketTotal > tickets.length ? (
+          <Link
+            href={allTicketsHref}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+            data-testid="client-all-tickets-link"
+          >
+            Ver los {ticketTotal} tickets
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        ) : null
+      }
       empty="Todavía no hay tickets para este cliente."
       phone={tickets.map((t) => (
         <Row
@@ -356,6 +448,7 @@ export const ClientHistorySections = ({
       id="pagos"
       title="Pagos"
       count={payments.length}
+      total={paymentTotal}
       empty="Todavía no hay pagos registrados."
       phone={payments.map((p) => (
         <Row
@@ -387,69 +480,6 @@ export const ClientHistorySections = ({
               <Money key="amount" amount={p.amount} />,
             ],
           }))}
-        />
-      }
-    />
-
-    <Section
-      id="recordatorios"
-      title="Recordatorios"
-      count={schedules.length}
-      empty="Sin recordatorios de servicio para este cliente."
-      phone={schedules.map((s) => (
-        <Row
-          key={s.id}
-          // Opens this schedule's panel in the agenda (ZIG-I30); phones show the full list.
-          href={`/service-schedules?vista=todos&ver=${s.id}`}
-          title={s.serviceName}
-          meta={
-            <>
-              {describeInterval(s.intervalValue, s.intervalUnit)} · próximo{' '}
-              <FormattedDate date={toDate(s.nextDueAt)} />
-            </>
-          }
-          right={
-            <Badge
-              variant={s.bucket === 'atrasados' ? 'destructive' : 'outline'}
-              className="font-medium"
-            >
-              {SCHEDULE_BUCKET_LABEL[s.bucket]}
-            </Badge>
-          }
-        />
-      ))}
-      desktop={
-        <HistoryTable
-          label="Recordatorios del cliente"
-          columns={[
-            { label: 'Servicio' },
-            { label: 'Frecuencia', className: 'w-[132px]' },
-            { label: 'Próximo', className: DATE_COL },
-            { label: 'Estado', className: 'w-[120px]' },
-          ]}
-          rows={schedules.map((s) => {
-            const href = `/service-schedules?vista=todos&ver=${s.id}`;
-            return {
-              key: String(s.id),
-              href,
-              cells: [
-                <Link
-                  key="service"
-                  href={href}
-                  className="block truncate font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {s.serviceName}
-                </Link>,
-                <span key="interval" className="whitespace-nowrap text-slate-600 dark:text-slate-300">
-                  {describeInterval(s.intervalValue, s.intervalUnit)}
-                </span>,
-                <ShortDate key="next" value={s.nextDueAt} />,
-                <span key="bucket" className={cn(PILL_CLASS, SCHEDULE_BUCKET_PILL[s.bucket])}>
-                  {SCHEDULE_BUCKET_LABEL[s.bucket]}
-                </span>,
-              ],
-            };
-          })}
         />
       }
     />

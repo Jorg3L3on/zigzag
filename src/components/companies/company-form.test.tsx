@@ -218,7 +218,7 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
       target: { value: '0020 1007 7777 7777 72' },
     });
     fireEvent.submit(document.getElementById('company-form')!);
-    expect(await screen.findByText(/el último dígito no coincide/)).toBeInTheDocument();
+    expect(await screen.findByText(/último dígito no coincide/)).toBeInTheDocument();
     expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
 
     fireEvent.change(within(pago).getByLabelText('CLABE'), {
@@ -288,7 +288,7 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     });
     expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('Banco: BBVA México');
     fireEvent.submit(document.getElementById('company-form')!);
-    expect(await screen.findByText(/el último dígito no coincide/)).toBeInTheDocument();
+    expect(await screen.findByText(/último dígito no coincide/)).toBeInTheDocument();
     expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
   });
 
