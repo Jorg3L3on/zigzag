@@ -277,7 +277,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
                   aria-pressed={pressed}
                   onClick={() => toggleFilter(status)}
                   className={cn(
-                    'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                    'inline-flex h-11 shrink-0 items-center gap-1.5 lg:h-9 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                     pressed
                       ? 'border-primary/50 bg-primary/10 text-foreground'
                       : 'border-border bg-background text-muted-foreground hover:text-foreground',
@@ -373,7 +373,7 @@ const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
                     downloadFileName={`presupuesto_${item.id}.pdf`}
                     companyId={selectedCompany?.id}
                     variant="ghost"
-                    className="h-10 w-10"
+                    className="h-11 w-11"
                   />
                 </li>
               ))}
