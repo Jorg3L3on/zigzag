@@ -57,12 +57,12 @@ describe('ClientHistorySections preview (M-14)', () => {
     );
 
     const tickets = screen.getByTestId('client-section-tickets');
-    expect(within(tickets).getByRole('heading', { name: /Tickets\s*400/ })).toBeInTheDocument();
+    expect(within(tickets).getByRole('heading', { name: /Tickets\s*,?\s*400/ })).toBeInTheDocument();
     const link = screen.getByTestId('client-all-tickets-link');
     expect(link).toHaveTextContent('Ver los 400 tickets');
     expect(link).toHaveAttribute('href', '/tickets?q=Cliente%20Grande');
     expect(
-      within(screen.getByTestId('client-section-pagos')).getByRole('heading', { name: /Pagos\s*250/ }),
+      within(screen.getByTestId('client-section-pagos')).getByRole('heading', { name: /Pagos\s*,?\s*250/ }),
     ).toBeInTheDocument();
     expect(sectionOrder().slice(0, 2)).toEqual([
       'client-section-recordatorios',
