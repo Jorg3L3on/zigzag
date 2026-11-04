@@ -12,6 +12,7 @@ import {
   CloudCheck,
   CloudOff,
   Loader2,
+  LogIn,
   Plus,
   Receipt,
   UserPlus,
@@ -57,6 +58,8 @@ import {
   TripledPageHeader,
 } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
+import { getExpiredLoginPath } from '@/lib/login-redirect';
+import { probeSession } from '@/lib/session-probe';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   Dialog,
@@ -322,6 +325,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   const [clients, setClients] = React.useState<ComposerClientOption[]>([]);
   // The catalog came from the copy on this phone, not the server (ZIG-I35-2).
   const [catalogOffline, setCatalogOffline] = React.useState(false);
+  const [sessionClosed, setSessionClosed] = React.useState(false);
   const [clientQuery, setClientQuery] = React.useState('');
   const [debouncedClientQuery, setDebouncedClientQuery] = React.useState('');
   const [isClientsLoading, setIsClientsLoading] = React.useState(true);
@@ -805,7 +809,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
   };
 
   /** Guardar sin conexión (ZIG-I35-3): the document waits on this phone for signal. */
-  const saveOffline = async () => {
+  const saveOffline = async (reason?: 'session') => {
     if (!client || !companyId) return;
     setSaveState('saving');
     const document: ComposerDocumentPayload = {
@@ -823,6 +827,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     try {
       await enqueueComposerDocument(fieldJobStore, {
         companyId,
+        companyName: selectedCompany?.name,
         document,
         clientName: parts.name,
         clientTel: parts.phone,
@@ -837,11 +842,16 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     void requestPersistentStorage();
     notifyFieldJobsChanged();
     if (draftKey) clearTicketComposerDraft(draftKey);
-    vibrateSuccess();
-    toast.success(`${copy.noun} guardado sin conexión`, {
-      description: 'Se sube solo y toma su folio cuando haya señal.',
-      action: { label: 'Ver pendientes', onClick: () => router.push(pendingListHref(kind)) },
-    });
+    if (reason === 'session') {
+      // Signal is fine; the session is not (ZIG-I36-20): say so instead of "sin conexión".
+      setSessionClosed(true);
+    } else {
+      vibrateSuccess();
+      toast.success(`${copy.noun} guardado sin conexión`, {
+        description: 'Se sube solo y toma su folio cuando haya señal.',
+        action: { label: 'Ver pendientes', onClick: () => router.push(pendingListHref(kind)) },
+      });
+    }
     setSavedOfflineCount((count) => count + 1);
     if (pendingJobId) {
       // Revisar with no signal: the corrected copy waits in the same entry.
@@ -860,6 +870,12 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
     setRequestId(newClientRequestId());
     setSaveState('idle');
     window.scrollTo({ top: 0 });
+  };
+
+  /** The save did not get through with signal: a closed session says so, anything else is a weak signal. */
+  const keepOnPhoneAfterFailure = async () => {
+    const probe = await probeSession();
+    await saveOffline(probe.status === 'expired' ? 'session' : undefined);
   };
 
   const handleSave = async () => {
@@ -999,7 +1015,11 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       const content = buildToastErrorContent(result, copy.saveError);
       if (content.errorType === 'network') {
         // Says online but the request never made it: keep it on the phone with the same key.
-        await saveOffline();
+        await keepOnPhoneAfterFailure();
+        return;
+      }
+      if (content.errorType === 'auth' && (await probeSession()).status === 'expired') {
+        await saveOffline('session');
         return;
       }
       const mappedSummary = applyServerIssues(result.issues);
@@ -1009,8 +1029,8 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
       setSaveState('idle');
     } catch {
       if (!isEdit && !created) {
-        // The request died on the way (weak signal): same as no signal, same key.
-        await saveOffline();
+        // The request died on the way (weak signal, or a session the proxy sent to /login).
+        await keepOnPhoneAfterFailure();
         return;
       }
       toast.error(copy.saveError, {
@@ -1075,6 +1095,25 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
               : `${savedOfflineCount} guardados en este teléfono · Ver pendientes`}
           </Link>
         ) : null}
+      </div>
+    </div>
+  ) : null;
+
+  const sessionClosedNotice = sessionClosed ? (
+    <div
+      role="alert"
+      data-testid="composer-session-closed"
+      className="flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-3 text-sm"
+    >
+      <LogIn className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+      <div className="min-w-0 space-y-2">
+        <p>
+          <span className="font-semibold">Tu sesión se cerró.</span> Entra de nuevo; tu{' '}
+          {copy.noun.toLowerCase()} se queda guardado en este teléfono.
+        </p>
+        <Button asChild className="min-h-11 rounded-xl">
+          <a href={getExpiredLoginPath(pendingListHref(kind))}>Entrar</a>
+        </Button>
       </div>
     </div>
   ) : null;
@@ -1166,6 +1205,7 @@ export const DocumentComposer = ({ kind = 'ticket', edit }: DocumentComposerProp
         <CompanyProductionNotice />
 
         {offlineNotice}
+        {sessionClosedNotice}
 
         {ticketEdit?.finished ? (
           <div

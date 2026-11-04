@@ -93,7 +93,7 @@ describe('offline composer cache warm-up (ZIG-I35-2)', () => {
     ]);
   });
 
-  it('stores both composer pages without Vary, and their assets in the SW caches', async () => {
+  it('stores the composer pages, Hoy and the pending list without Vary, and their assets in the SW caches', async () => {
     const { caches, storage } = fakeCacheStorage();
     const fetchImpl = jest.fn(async (url: RequestInfo | URL) => {
       const path = String(url);
@@ -108,7 +108,12 @@ describe('offline composer cache warm-up (ZIG-I35-2)', () => {
       now: COMPOSER_WARM_INTERVAL_MS * 10,
     });
 
-    expect(stored).toEqual(['/tickets/create', '/presupuestos/create']);
+    expect(stored).toEqual([
+      '/tickets/create',
+      '/presupuestos/create',
+      '/dashboard',
+      '/tickets?pendientes=1',
+    ]);
     const pages = caches.get('pages')!;
     expect(pages.entries.get('/tickets/create')?.headers.get('vary')).toBeNull();
     expect([...caches.get('next-static-js-assets')!.entries.keys()].sort()).toEqual([
@@ -160,7 +165,7 @@ describe('offline composer cache warm-up (ZIG-I35-2)', () => {
     expect(fetchImpl.mock.calls.length).toBe(calls);
     expect(
       await warmComposerPages({ ...env, now: COMPOSER_WARM_INTERVAL_MS * 10 + COMPOSER_WARM_INTERVAL_MS + 1 }),
-    ).toHaveLength(2);
+    ).toHaveLength(4);
   });
 
   it('logout deletes the cached pages', async () => {

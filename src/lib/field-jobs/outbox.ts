@@ -141,6 +141,8 @@ export const listPendingOutboxEntries = async (
 
 export type EnqueueComposerDocumentInput = {
   companyId: number;
+  /** Shown to a user of another company while the document waits (ZIG-I36-21). */
+  companyName?: string;
   document: ComposerDocumentPayload;
   /** Client name and phone for Hoy and the lists while it is pending. */
   clientName: string;
@@ -183,6 +185,7 @@ export const enqueueComposerDocument = async (
     paid: composerDocumentPaid(document, total),
     finished: document.kind === 'ticket' && document.finish !== undefined,
     composer: document,
+    ...(input.companyName ? { company_name: input.companyName } : {}),
   };
   const localJobId = document.client_request_id;
   const existing = await store.getLocalJob(localJobId);

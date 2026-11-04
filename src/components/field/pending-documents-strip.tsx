@@ -26,6 +26,7 @@ import {
   requeueLocalJob,
   type LocalJob,
 } from '@/lib/field-jobs';
+import { FIELD_JOBS_CHANGED_EVENT } from '@/lib/field-jobs/events';
 import { cn } from '@/lib/utils';
 
 type DocumentKind = 'ticket' | 'presupuesto';
@@ -137,6 +138,65 @@ const PendingDocumentRow = ({
 };
 
 /**
+ * Documents saved on this phone for another company (ZIG-I36-21). They never
+ * upload under this session: they wait, kept, until that company signs in.
+ */
+const OtherCompanyDocuments = ({
+  kind,
+  companyId,
+}: {
+  kind: DocumentKind;
+  companyId: number | null;
+}) => {
+  const [jobs, setJobs] = React.useState<LocalJob[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const entries = await fieldJobStore.listOutboxEntries();
+        const found: LocalJob[] = [];
+        for (const entry of entries) {
+          if (entry.operation !== 'create_document' || entry.companyId === companyId) continue;
+          const job = await fieldJobStore.getLocalJob(entry.localJobId);
+          if (job && isUnsyncedDocument(job, kind)) found.push(job);
+        }
+        if (!cancelled) setJobs(found);
+      } catch {
+        if (!cancelled) setJobs([]);
+      }
+    };
+    void load();
+    const handleChanged = () => void load();
+    window.addEventListener(FIELD_JOBS_CHANGED_EVENT, handleChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(FIELD_JOBS_CHANGED_EVENT, handleChanged);
+    };
+  }, [kind, companyId]);
+
+  if (jobs.length === 0) return null;
+  return (
+    <ul
+      data-testid="pending-other-company"
+      className="mb-4 space-y-2 rounded-2xl border border-border bg-muted/40 p-4 text-sm"
+    >
+      {jobs.map((job) => (
+        <li key={job.localJobId}>
+          <p className="font-semibold [overflow-wrap:anywhere]">
+            {job.payload.client_name?.trim() || 'Cliente'}
+          </p>
+          <p className="text-muted-foreground">
+            Guardado para {job.payload.company_name?.trim() || 'otra empresa'}. Se envía cuando
+            entres con esa empresa.
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+/**
  * Tickets or presupuestos saved with no signal (ZIG-I35-4), above the list:
  * pending with no folio yet, or Revisar with the server's reason. Nothing shows
  * when there are none.
@@ -151,7 +211,9 @@ export const PendingDocumentsStrip = ({ kind }: { kind: DocumentKind }) => {
   const [discarding, setDiscarding] = React.useState<LocalJob | null>(null);
 
   const documents = store.jobs.filter((job) => isUnsyncedDocument(job, kind));
-  if (documents.length === 0) return null;
+  if (documents.length === 0) {
+    return <OtherCompanyDocuments kind={kind} companyId={companyId} />;
+  }
 
   const retry = async (job: LocalJob) => {
     await requeueLocalJob(fieldJobStore, job.localJobId);
@@ -167,62 +229,65 @@ export const PendingDocumentsStrip = ({ kind }: { kind: DocumentKind }) => {
   };
 
   return (
-    <section
-      aria-labelledby={`pending-${kind}-heading`}
-      data-testid="pending-documents"
-      className="mb-4 rounded-2xl border border-primary/25 bg-primary/5 p-4"
-    >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 id={`pending-${kind}-heading`} className="text-base font-semibold">
-          {COPY[kind].heading} · {documents.length}
-        </h2>
-        {isOnline ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="min-h-11 gap-1.5 rounded-xl text-primary"
-            disabled={sync.syncing}
-            onClick={() => void sync.flushNow()}
-          >
-            <RefreshCw className={cn('h-4 w-4', sync.syncing && 'animate-spin')} aria-hidden />
-            Subir ahora
-          </Button>
-        ) : (
-          <span className="text-caption text-muted-foreground">Se suben con señal</span>
-        )}
-      </div>
-      <ul className="divide-y divide-border/60">
-        {documents.map((job) => (
-          <PendingDocumentRow
-            key={job.localJobId}
-            job={job}
-            kind={kind}
-            onRetry={(item) => void retry(item)}
-            onDiscard={setDiscarding}
-          />
-        ))}
-      </ul>
-
-      <AlertDialog open={discarding != null} onOpenChange={(open) => !open && setDiscarding(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Descartar este {COPY[kind].noun}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Nunca se subió: se borra de este teléfono y no se puede recuperar.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">Conservar</AlertDialogCancel>
-            <AlertDialogAction
-              className="min-h-11 bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => void confirmDiscard()}
+    <>
+      <OtherCompanyDocuments kind={kind} companyId={companyId} />
+      <section
+        aria-labelledby={`pending-${kind}-heading`}
+        data-testid="pending-documents"
+        className="mb-4 rounded-2xl border border-primary/25 bg-primary/5 p-4"
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 id={`pending-${kind}-heading`} className="text-base font-semibold">
+            {COPY[kind].heading} · {documents.length}
+          </h2>
+          {isOnline ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="min-h-11 gap-1.5 rounded-xl text-primary"
+              disabled={sync.syncing}
+              onClick={() => void sync.flushNow()}
             >
-              Descartar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </section>
+              <RefreshCw className={cn('h-4 w-4', sync.syncing && 'animate-spin')} aria-hidden />
+              Subir ahora
+            </Button>
+          ) : (
+            <span className="text-caption text-muted-foreground">Se suben con señal</span>
+          )}
+        </div>
+        <ul className="divide-y divide-border/60">
+          {documents.map((job) => (
+            <PendingDocumentRow
+              key={job.localJobId}
+              job={job}
+              kind={kind}
+              onRetry={(item) => void retry(item)}
+              onDiscard={setDiscarding}
+            />
+          ))}
+        </ul>
+
+        <AlertDialog open={discarding != null} onOpenChange={(open) => !open && setDiscarding(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Descartar este {COPY[kind].noun}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Nunca se subió: se borra de este teléfono y no se puede recuperar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="min-h-11">Conservar</AlertDialogCancel>
+              <AlertDialogAction
+                className="min-h-11 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => void confirmDiscard()}
+              >
+                Descartar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </section>
+    </>
   );
 };

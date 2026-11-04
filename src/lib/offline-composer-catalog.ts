@@ -27,9 +27,8 @@ const warn = (what: string) => (error: unknown) => {
 export const saveComposerServices = (
   companyId: number,
   services: ServiceWithMaterials[],
-): void => {
-  void writeOfflineSnapshot('composer-services', companyId, services).catch(warn('services'));
-};
+): Promise<unknown> =>
+  writeOfflineSnapshot('composer-services', companyId, services).catch(warn('services'));
 
 export const readComposerServices = async (
   companyId: number,
