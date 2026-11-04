@@ -375,7 +375,10 @@ export function ClientList({ desktopActions }: ClientListProps = {}) {
   const filterChips = [
     {
       key: 'count',
-      label: `${filteredClients.length} de ${clients.length} clientes`,
+      // A search counts what matched («1 resultado»); otherwise «N de M clientes» (ZIG-I36-29, M-26).
+      label: debouncedSearch.trim()
+        ? `${filteredClients.length} ${filteredClients.length === 1 ? 'resultado' : 'resultados'}`
+        : `${filteredClients.length} de ${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}`,
       variant: 'secondary' as const,
     },
     ...(debouncedSearch
@@ -702,8 +705,13 @@ export function ClientList({ desktopActions }: ClientListProps = {}) {
               <ListTableCard
                 footer={
                   <ListFooter
-                    // Paged: «1–25 de N»; one page: «N de M» against every client.
-                    total={desktopPaged ? filteredClients.length : clients.length}
+                    // Paged or searching: «1–25 de N» / «N resultados» count the matches;
+                    // one page without a search: «N de M» against every client (ZIG-I36-29).
+                    total={
+                      desktopPaged || debouncedSearch.trim()
+                        ? filteredClients.length
+                        : clients.length
+                    }
                     shown={filteredClients.length}
                     filtered={Boolean(debouncedSearch.trim())}
                     noun="clientes"

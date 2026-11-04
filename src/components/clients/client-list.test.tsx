@@ -247,6 +247,65 @@ describe('ClientList', () => {
     });
   });
 
+  describe.each([
+    ['desktop footer', true],
+    ['phone chip', false],
+  ])('result count, %s (ZIG-I36-29, M-26)', (_name, desktop) => {
+    // DesktopSwitch mounts one tree: the footer from lg, the «N de M» chip below it.
+    const count = () =>
+      desktop ? screen.getByTestId('list-footer') : screen.getAllByText(/^\d+ (de \d+ clientes?|resultados?)$/)[0];
+    const searchBox = () => screen.getByRole('textbox', { name: /buscar clientes/i });
+
+    beforeEach(() => {
+      if (desktop) mockDesktopViewport();
+    });
+
+    it('unfiltered keeps its wording', async () => {
+      arrange({ result: { success: true, data: manyClients(3) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      expect(count()).toHaveTextContent(desktop ? /^3 clientes$/ : /^3 de 3 clientes$/);
+    });
+
+    it('a single client unfiltered keeps the singular', async () => {
+      arrange({ result: { success: true, data: manyClients(1) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      expect(count()).toHaveTextContent(desktop ? /^1 cliente$/ : /^1 de 1 cliente$/);
+    });
+
+    it('a search with one match reads «1 resultado», never the total', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(15) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      await user.type(searchBox(), 'Cliente 07');
+      await waitFor(() => expect(count()).toHaveTextContent(/^1 resultado$/));
+      expect(screen.queryByText(/1 de 15 clientes/)).not.toBeInTheDocument();
+      expect(screen.queryByText('15 resultados')).not.toBeInTheDocument();
+    });
+
+    it('a search with several matches reads «N resultados»', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(15) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      await user.type(searchBox(), 'Cliente 1');
+      await waitFor(() => expect(count()).toHaveTextContent(/^6 resultados$/));
+    });
+
+    it('a search with no match shows the empty state, not a total', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(3) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      await user.type(searchBox(), 'zzz');
+      expect(await screen.findByText(/No hay clientes que coincidan/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('list-footer')).not.toBeInTheDocument();
+      expect(screen.queryByText(/de 3 clientes/)).not.toBeInTheDocument();
+    });
+  });
+
   it('opens mobile filter sheet with correo, teléfono, and sort controls', async () => {
     const user = userEvent.setup();
     arrange({ result: { success: true, data: [makeClient()] } });

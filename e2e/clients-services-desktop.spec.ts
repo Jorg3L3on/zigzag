@@ -122,6 +122,21 @@ test.describe('Clientes y Servicios en escritorio (ZIG-I33-4)', () => {
     ).toHaveCount(0);
   });
 
+  test('clients at 1280: a search counts the matches, not the total (ZIG-I36-29)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openList(page, '/clients');
+    const rows = page.getByTestId('clients-row');
+    test.skip((await rows.count()) === 0, 'the e2e tenant has no clients');
+    const footer = page.getByTestId('list-footer');
+    const name = ((await rows.first().locator('td').nth(1).textContent()) ?? '').trim();
+
+    await page.getByPlaceholder(/Buscar/i).first().fill(name);
+    await expect.poll(async () => (await footer.textContent()) ?? '').toMatch(/^(\d+) resultados?$/);
+    const matches = await rows.count();
+    expect(matches).toBeGreaterThan(0);
+    await expect(footer).toHaveText(`${matches} ${matches === 1 ? 'resultado' : 'resultados'}`);
+  });
+
   test('services at 1280: shared table and footer with the noun', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openList(page, '/services');
@@ -143,7 +158,8 @@ test.describe('Clientes y Servicios en escritorio (ZIG-I33-4)', () => {
       await page.getByRole('button', { name: 'Página siguiente' }).click();
       await expect(footer).toContainText(new RegExp(`^26–\\d+ de ${paged[1]} servicios`));
     } else {
-      expect(text).toMatch(/^\d+ de \d+ servicios/);
+      // One page without a filter: «10 servicios» (ZIG-I36 M-26).
+      expect(text).toMatch(/^\d+ servicios?$/);
       expect(await rows.count()).toBeLessThanOrEqual(25);
       await expect(page.getByRole('navigation', { name: 'Paginación' })).toHaveCount(0);
     }
