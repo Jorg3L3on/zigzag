@@ -745,6 +745,7 @@ export async function updatePresupuesto(
           );
         if (servicesToSync.length > 0) {
           await insertServiceLines(tx, {
+            actor: context,
             companyId: effectiveCompanyId,
             ticketId,
             lines: servicesToSync,

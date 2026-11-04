@@ -10,6 +10,9 @@ import {
 } from '@/actions/presupuestos';
 import { service, servicesTickets, ticket, ticketLineMaterial } from '@/db/schema';
 import { db } from '@/lib/db';
+import { AuthorizationError } from '@/lib/errors';
+import { recordResourceAudit } from '@/lib/resource-audit';
+import { requireActionPermission } from '@/lib/security';
 import { recordTicketAudit } from '@/lib/ticket-audit';
 import { requireTicketRead, requireTicketWrite } from '@/lib/tickets-rbac-server';
 
@@ -56,6 +59,16 @@ jest.mock('@/lib/company-production-guard', () => ({
   assertCompanyProductionReady: jest.fn(),
   CompanyProductionBlockedError: class CompanyProductionBlockedError extends Error {},
 }));
+
+jest.mock('@/lib/security', () => ({ requireActionPermission: jest.fn() }));
+jest.mock('@/lib/resource-audit', () => ({ recordResourceAudit: jest.fn() }));
+
+const mockRequireServicesWrite = requireActionPermission as jest.MockedFunction<
+  typeof requireActionPermission
+>;
+const mockRecordResourceAudit = recordResourceAudit as jest.MockedFunction<
+  typeof recordResourceAudit
+>;
 
 const mockDb = db as unknown as {
   query: {
@@ -409,6 +422,64 @@ describe('createPresupuestoWithLines (ZIG-I5-3)', () => {
     expect(inserted[2].values).toEqual([
       { ticket_id: 400n, service_id: 91, quantity: 1, price: 3500 },
     ]);
+  });
+
+  it('refuses save_to_catalog without services.write and creates no catalog row (ZIG-I36-8)', async () => {
+    const inserted: Inserted[] = [];
+    mockTx(inserted);
+    mockRequireServicesWrite.mockRejectedValueOnce(
+      new AuthorizationError('Insufficient permissions'),
+    );
+
+    const result = await createPresupuestoWithLines({
+      ...validInput,
+      lines: [
+        {
+          kind: 'custom',
+          name: 'Instalación',
+          save_to_catalog: true,
+          quantity: 1,
+          price: 3500,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockRequireServicesWrite).toHaveBeenCalledWith('services.write', 10);
+    expect(inserted.map((entry) => entry.table)).not.toContain(service);
+    expect(mockRecordResourceAudit).not.toHaveBeenCalled();
+  });
+
+  it('writes a service audit row for a catalog Service saved from the composer (ZIG-I36-8)', async () => {
+    mockTx([]);
+    mockRequireServicesWrite.mockResolvedValueOnce({
+      context: authContext,
+      companyId: 10,
+    });
+
+    await createPresupuestoWithLines({
+      ...validInput,
+      lines: [
+        {
+          kind: 'custom',
+          name: 'Instalación',
+          save_to_catalog: true,
+          quantity: 1,
+          price: 3500,
+        },
+      ],
+    });
+
+    expect(mockRecordResourceAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        resourceType: 'service',
+        resourceId: 91,
+        targetCompanyId: 10,
+        action: 'created',
+        actor: authContext,
+      }),
+    );
   });
 
   it('saves each line materials with a catalog snapshot (ZIG-I10)', async () => {

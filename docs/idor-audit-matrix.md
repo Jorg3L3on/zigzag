@@ -44,7 +44,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
 | `clients.ts` | getClients, getClientsList, getClient, createClient, updateClient, deleteClient, bulkImportClients | ✅ | `clients-actions.test.ts` | #186 |
-| `services.ts` | getServices, getService, createService, updateService, deleteService, bulkImportServices, searchMaterials | ✅ | `services-actions.test.ts` | #202, ZIG-I10 |
+| `services.ts` | getServices, getService, createService, updateService, deleteService, bulkImportServices, searchMaterials, previewServiceCsvImport, commitServiceCsvImportChunk | ✅ | `services-actions.test.ts` | #202, ZIG-I10 |
 | `services.ts` materials (ZIG-I10) | createService / updateService `materials[]`: catalog Material ids are checked against the caller's company (`loadCatalogMaterials`), new names land in the caller's company, and ServiceMaterial rows are replaced only after the company-scoped Service update matched | ✅ | `services-actions.test.ts` (service default materials) | ZIG-I10 |
 
 ## Server Actions — Tickets (#187)
@@ -52,8 +52,7 @@ Removed duplicate CRUD REST for clients, services, tickets, ticket-services, use
 | Module | Exports | Status | Test file | Slice |
 | ------ | ------- | ------ | --------- | ----- |
 | `tickets.ts` | createTicket, getTickets, getTicketsList, getTicketsPaginated, getTicketById, updateTicket, deleteTicket, finishTicket, applyTicketPayment, getTicketAuditHistory | ✅ | `src/lib/tickets-actions.test.ts` | #187 |
-| `ticket-services.ts` | getTicketServices, createServiceTicket, updateServiceTicket, deleteServiceTicket | ✅ | `src/lib/ticket-services-actions.test.ts` | #187 |
-| Line materials (ZIG-I10) | `materials[]` on createTicketWithLines, createPresupuestoWithLines, updatePresupuesto, updateTicket, createServiceTicket, updateServiceTicket: catalog Material ids must be active rows of the caller's company (`loadCatalogMaterials` in `insertServiceLines`) | ✅ | `src/lib/service-lines-server.test.ts`, `src/lib/ticket-services-actions.test.ts`, `src/actions/presupuestos.test.ts` | ZIG-I10 |
+| Line materials (ZIG-I10) | `materials[]` on createTicketWithLines, createPresupuestoWithLines, updatePresupuesto, updateTicket, updateTicketLines: catalog Material ids must be active rows of the caller's company (`loadCatalogMaterials` in `insertServiceLines`) | ✅ | `src/lib/service-lines-server.test.ts`, `src/actions/presupuestos.test.ts` | ZIG-I10 |
 
 ## Pages — in-app PDF viewers (ZIG-I9)
 
@@ -91,10 +90,31 @@ Both pages load their data only through the tenant-scoped actions above (`getPre
 | ------ | ------- | ------ | --------- | ----- |
 | `dashboard.ts` | fetchDashboardMetrics (the raw loader lives in `src/lib/dashboard-metrics-loader.ts`, not an action) | ✅ | `src/lib/dashboard-actions.test.ts` | #190, ZIG-07 |
 | `dashboard-day-queue.ts` | getDashboardDayQueue | ✅ | `src/lib/dashboard-day-queue-actions.test.ts` | ZIG-I4-6 |
-| `client-service-schedules.ts` | list*, upsert, pause, resume, delete | ✅ | `src/lib/client-service-schedules-actions.test.ts` | #190 |
+| `client-service-schedules.ts` | listClientServiceSchedules, listClientServiceSchedulesForClient, listServiceScheduleFormCatalog, upsertClientServiceSchedule, pauseClientServiceSchedule, resumeClientServiceSchedule, snoozeClientServiceSchedule, deleteClientServiceSchedule, listClientServiceSchedulesPaginated, markClientServiceScheduleDone, bulkClientServiceSchedules, restoreClientServiceScheduleDates, getClientServiceScheduleHistory, listClientServiceScheduleServiceOptions | ✅ | `src/lib/client-service-schedules-actions.test.ts` | #190 |
 | `trash.ts` | getTrash, restoreClient, restoreService, restoreTicket | ✅ | `src/lib/trash-actions.test.ts` | #190 |
 | `notifications.ts` | getNotifications, getUnreadNotificationCount, markNotificationRead, markAllNotificationsRead | ✅ | `src/lib/notifications-actions.test.ts` | #190 |
 | `authz.ts` | getSessionPermissionMap | ⏭️ Exempt | — (session-scoped; filters permissions by caller company) | #190 |
+
+## Server Actions — Added by the pre-release audit (ZIG-I36-14)
+
+The gate (`npm run check:idor-coverage`) now fails when an exported `'use server'` action under `src/actions` is not named in a row of this file, so a new action cannot ship unlisted. 🟡 rows were probed live with foreign ids by ZIG-I36-5 (all denied) but have no jest cross-tenant test yet.
+
+| Module | Exports | Status | Test file / evidence | Slice |
+| ------ | ------- | ------ | -------------------- | ----- |
+| `presupuestos.ts` | createPresupuestoWithLines, updatePresupuesto, getPresupuestoById, getPresupuestosList, getPresupuestosPaginated, cancelPresupuesto, convertPresupuestoToTicket, extendPresupuestoVigencia, duplicatePresupuesto | ✅ | `src/actions/presupuestos.test.ts`, `src/actions/presupuestos-paginated.db.test.ts` | ZIG-I36-14 |
+| `tickets.ts` (new actions) | createTicketWithLines, updateTicketLines, recordReceiptShared, duplicateTicket | ✅ | `src/actions/create-ticket-with-lines.test.ts`, `src/actions/tickets-edit-lines.test.ts` | ZIG-I36-14 |
+| `client-detail.ts` | getClientDetail, updateClientNotes | 🟡 | ZIG-I36-5 live probe (CL006 on a foreign id) | ZIG-I36-14 |
+| `anotar.ts` | anotarCapture | ✅ | `src/actions/anotar.test.ts` | ZIG-I36-14 |
+| `dashboard-activity.ts` | fetchDashboardActivity (session revalidated with `requireActionAuth`; company taken from the session) | ✅ | `src/actions/dashboard-activity.test.ts` | ZIG-I36-9 |
+| `company-payment-info.ts` | getCompanyPaymentInfo | ✅ | `src/actions/company-payment-info.test.ts` | ZIG-I36-14 |
+| `cobranza.ts` | getCobranzaList, getCobranzaPaginated | ✅ | `src/actions/cobranza.test.ts`, `src/actions/cobranza.db.test.ts` | ZIG-I36-14 |
+| `push-subscriptions.ts` | savePushSubscription, removePushSubscription, hasPushSubscription (own subscriptions only) | ✅ | `src/actions/push-subscriptions.test.ts` | ZIG-I36-14 |
+| `team.ts` (password) | resetTeamMemberPassword | ✅ | `src/lib/team-actions.test.ts` | ZIG-I36-14 |
+| `users.ts` (session/password) | resetUserTemporaryPassword, completeForcedPasswordChange, signOutEverywhere | ✅ | `src/actions/users-password-reset.test.ts`, `src/actions/user-write-guard.test.ts`, `src/actions/sign-out-everywhere.test.ts` | ZIG-I36-14 |
+| `onboarding-status.ts` | fetchOnboardingStatus, dismissOnboardingChecklist (caller's company only) | 🟡 | `src/lib/onboarding-status.test.ts` (no cross-tenant case) | ZIG-I36-14 |
+| `experience-mode.ts` | loadExperienceModeForCompany | 🟡 | no cross-tenant test | ZIG-I36-14 |
+| `company-operator.ts` (fleet) | getOperatorCompanyFleet (system operator only) | 🟡 | `src/components/operator-console/operator-company-fleet.test.tsx` (UI only) | ZIG-I36-14 |
+| `operator-user-sessions.ts` | fetchOperatorUserSessions (system operator only) | 🟡 | no cross-tenant test | ZIG-I36-14 |
 
 ## Shared helpers
 
@@ -113,7 +133,7 @@ operators who select another tenant in the UI must pass that `companyId` into
 tenant mutations/exports. `requireTenantActionPermission` rejects system users
 who omit it (no silent master-company fallback). Covered in `security.test.ts`
 and the domain action suites listed for clients, services, tickets,
-ticket-services, and trash.
+and trash. (`ticket-services.ts` was removed in ZIG-I36-14: no page bound it.)
 
 ## Schema — `company_id` foreign keys
 

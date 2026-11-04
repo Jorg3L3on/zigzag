@@ -1095,6 +1095,13 @@ export async function updateTicket(
     const totalFromServices = hasServicesUpdate
       ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
       : undefined;
+    const paidSoFar = priorWritable.paid ?? 0;
+    if (
+      totalFromServices !== undefined &&
+      totalFromServices < paidSoFar - AMOUNT_TOLERANCE
+    ) {
+      throw new TotalBelowPaidError(paidSoFar);
+    }
 
     if (hasServicesUpdate) {
       await assertCatalogServicesBelongToCompany(
@@ -1132,6 +1139,7 @@ export async function updateTicket(
 
         if (servicesToSync.length) {
           await insertServiceLines(tx, {
+            actor: context,
             companyId: effectiveCompanyId,
             ticketId,
             lines: servicesToSync,
@@ -1215,6 +1223,13 @@ export async function updateTicket(
 
     return { success: true, data: full ?? updated };
   } catch (e) {
+    if (e instanceof TotalBelowPaidError) {
+      return {
+        success: false,
+        error: `El total no puede quedar abajo de lo ya pagado (${formatPesos(e.paid)})`,
+        errorType: 'validation',
+      };
+    }
     if (e instanceof TicketAlreadyPaidError) {
       return buildActionError('TC010', undefined, 'validation');
     }

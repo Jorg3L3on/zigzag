@@ -58,6 +58,7 @@ jest.mock('@/lib/company-production-guard', () => ({
 }));
 
 jest.mock('@/lib/ticket-financials', () => ({
+  assertTicketTotalWithinCap: jest.fn((total: number) => total),
   calculateTicketTotal: jest.fn((lines: Array<{ quantity: number; price: number }>) =>
     lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
   ),
@@ -776,6 +777,27 @@ describe('ticket actions — saldado lock', () => {
 
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe('TC010');
+    expect(result.errorType).toBe('validation');
+    expect(mockDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('updateTicket refuses services that drop the total below what is paid (ZIG-I36-11)', async () => {
+    mockDb.query.ticket.findFirst
+      .mockResolvedValueOnce({
+        id: 42n,
+        company_id: 10,
+        finished: true,
+        total: 200,
+        paid: 150,
+        deleted_at: null,
+      })
+      .mockResolvedValueOnce({ total: 200, paid: 150 });
+    const result = await updateTicket(42, {
+      services: [{ kind: 'custom', name: 'Solo esto', quantity: 1, price: 50 }],
+    } as never);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('El total no puede quedar abajo de lo ya pagado');
     expect(result.errorType).toBe('validation');
     expect(mockDb.transaction).not.toHaveBeenCalled();
   });

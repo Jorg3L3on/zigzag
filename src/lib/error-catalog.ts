@@ -77,7 +77,7 @@ export const ERROR_CATALOG = {
     code: 'CL006',
     module: 'clients',
     title: 'Cliente no encontrado',
-    message: 'El cliente solicitado no existe o ya no está disponible.',
+    message: 'No encontramos ese cliente. Puede que alguien lo haya borrado.',
     type: 'validation',
   },
   CL007: {
@@ -400,6 +400,13 @@ export const ERROR_CATALOG = {
     title: 'No se pudo eliminar el servicio',
     message: 'Intenta de nuevo en unos momentos.',
     type: 'server',
+  },
+  SV005: {
+    code: 'SV005',
+    module: 'services',
+    title: 'Servicio no encontrado',
+    message: 'No encontramos ese servicio. Puede que alguien lo haya borrado.',
+    type: 'validation',
   },
   TC001: {
     code: 'TC001',
