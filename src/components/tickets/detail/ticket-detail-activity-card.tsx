@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Activity, Receipt, Ticket } from 'lucide-react';
@@ -32,13 +32,15 @@ type TicketDetailActivityCardProps = {
 export const TicketDetailActivityCard = ({ entries }: TicketDetailActivityCardProps) => {
   // Ver todo opens the rest in place; there is no second Actividad card on desktop.
   const [expanded, setExpanded] = useState(false);
+  // The page mounts a second copy for narrow desktop (ZIG-I37-3); ids must not clash.
+  const headingId = `ticket-activity-card-heading-${useId()}`;
   const items = collapseActivity(entries, formatTicketActivityCardTitle);
   const recent = expanded ? items : items.slice(0, 4);
 
   return (
-    <TicketDetailSectionCard aria-labelledby="ticket-activity-card-heading" data-testid="ticket-activity-card">
+    <TicketDetailSectionCard aria-labelledby={headingId} data-testid="ticket-activity-card">
       <div className="flex items-baseline justify-between gap-3">
-        <TicketDetailRailLabel id="ticket-activity-card-heading">
+        <TicketDetailRailLabel id={headingId}>
           Actividad · {items.length}
         </TicketDetailRailLabel>
         {items.length > 4 ? (
