@@ -32,6 +32,79 @@ for (const width of MOBILE_WIDTHS) {
       await ensureTenantCompany(page);
     });
 
+    // Read only: picks the client of the newest card, saves nothing (ZIG-I37-1).
+    test('Más filtros: searchable Cliente, its chip and the Por cobrar count follow it', async ({ page }) => {
+      await page.goto('/tickets');
+      const cards = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).filter({ visible: true });
+      await expect(cards.first()).toBeVisible({ timeout: 30_000 });
+      const name = (await cards.first().getByTestId('ticket-card-name').innerText()).trim();
+      const dueChip = page.getByRole('group', { name: 'Filtro de cobro' }).getByRole('button', { name: /^Por cobrar/ });
+      const dueOf = async () => Number(/· (\d+)/.exec(await dueChip.innerText())?.[1] ?? 0);
+      const dueBefore = await dueOf();
+
+      const more = page.getByTestId('list-mobile-controls').getByRole('button', { name: /^Más filtros/ });
+      await more.click();
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByText('Cliente, trabajo, fechas y orden')).toBeVisible();
+      const select = sheet.getByRole('combobox', { name: 'Filtrar por cliente' });
+      await expect(select).toHaveText(/Todos los clientes/);
+      const box = await select.boundingBox();
+      expect(box!.height, 'touch height').toBeGreaterThanOrEqual(44);
+      await select.click();
+      const searchBox = page.getByRole('combobox', { name: 'Buscar cliente…' });
+      await expect(searchBox).toBeFocused();
+      await searchBox.fill(name);
+      const option = page.getByRole('option').filter({ hasText: name }).first();
+      await expect(option).toBeVisible({ timeout: 15_000 });
+      // The open list stays inside what the person sees.
+      const vv = await page.evaluate(() => ({
+        w: window.visualViewport?.width ?? window.innerWidth,
+        h: window.visualViewport?.height ?? window.innerHeight,
+      }));
+      const optionBox = (await option.boundingBox())!;
+      expect(optionBox.x).toBeGreaterThanOrEqual(0);
+      expect(optionBox.x + optionBox.width).toBeLessThanOrEqual(vv.w + 1);
+      expect(optionBox.y + optionBox.height).toBeLessThanOrEqual(vv.h + 1);
+      await expectNoPageOverflow(page, 'sheet with the client list open');
+      await option.getByRole('button').click();
+
+      await expect(page).toHaveURL(/[?&]cliente=\d+/);
+      await expect(select).toContainText(name);
+      await sheet.getByRole('button', { name: 'Listo' }).click();
+      await expect(sheet).toBeHidden();
+      // The sheet counter counts it (the trigger is hidden from the tree while the sheet is open).
+      await expect(more).toHaveAccessibleName(/Más filtros \(1 activos\)/);
+
+      const chip = page.getByRole('button', { name: `Quitar filtro Cliente: ${name}` });
+      await expect(chip).toBeVisible({ timeout: 15_000 });
+      await expect(chip).toContainText(`Cliente: ${name}`);
+      // A tap target like the rest of the phone controls: at least 44px tall.
+      expect((await chip.boundingBox())!.height, 'chip touch height').toBeGreaterThanOrEqual(44);
+      await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+      const names = await cards.evaluateAll((els) =>
+        els.map((el) => el.querySelector('[data-testid="ticket-card-name"]')?.textContent?.trim() ?? ''),
+      );
+      expect(new Set(names), 'only that client').toEqual(new Set([name]));
+      await expect.poll(dueOf, { timeout: 15_000 }).toBeLessThanOrEqual(dueBefore);
+      await expectNoPageOverflow(page, 'filtered list');
+
+      // The chip's × drops it.
+      await chip.click();
+      await expect(page).not.toHaveURL(/[?&]cliente=/);
+      await expect(chip).toHaveCount(0);
+      await expect.poll(dueOf, { timeout: 15_000 }).toBe(dueBefore);
+
+      // So does Limpiar todos los filtros in the sheet.
+      await more.click();
+      await sheet.getByRole('combobox', { name: 'Filtrar por cliente' }).click();
+      await page.getByRole('combobox', { name: 'Buscar cliente…' }).fill(name);
+      await page.getByRole('option').filter({ hasText: name }).first().getByRole('button').click();
+      await expect(page).toHaveURL(/[?&]cliente=\d+/);
+      await sheet.getByRole('button', { name: 'Limpiar todos los filtros activos' }).click();
+      await expect(page).not.toHaveURL(/[?&]cliente=/);
+      await expect(sheet.getByRole('combobox', { name: 'Filtrar por cliente' })).toHaveText(/Todos los clientes/);
+    });
+
     test('compact cards, Por cobrar header, chips and search', async ({ page }) => {
       const suffix = `${Date.now()}`.slice(-8);
       const clientName = `Corporativo Inmobiliario Torres del Caribe ${suffix} Torre B Piso 14 Zona Hotelera`;

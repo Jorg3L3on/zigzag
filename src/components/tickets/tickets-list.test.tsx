@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TicketsList from '@/components/tickets/tickets-list';
 import { getTicketsPaginated } from '@/actions/tickets';
+import { getClientsList } from '@/actions/clients';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -14,6 +15,10 @@ jest.setTimeout(30_000);
 
 jest.mock('@/actions/tickets', () => ({
   getTicketsPaginated: jest.fn(),
+}));
+
+jest.mock('@/actions/clients', () => ({
+  getClientsList: jest.fn(),
 }));
 
 // Stable router and search params, like Next's: the global mock hands out new
@@ -54,6 +59,7 @@ jest.mock('@/lib/offline-snapshot', () => ({
 const mockGetTicketsPaginated = getTicketsPaginated as jest.MockedFunction<
   typeof getTicketsPaginated
 >;
+const mockGetClientsList = getClientsList as jest.MockedFunction<typeof getClientsList>;
 const mockUseCompany = useCompany as jest.MockedFunction<typeof useCompany>;
 const mockUsePermissions = usePermissions as jest.MockedFunction<
   typeof usePermissions
@@ -122,9 +128,11 @@ const paginatedResult = (
 
 const arrange = ({
   canWrite = true,
+  canReadClients = false,
   result = paginatedResult([]),
 }: {
   canWrite?: boolean;
+  canReadClients?: boolean;
   result?: Awaited<ReturnType<typeof getTicketsPaginated>>;
 } = {}) => {
   mockUseCompany.mockReturnValue({
@@ -137,6 +145,7 @@ const arrange = ({
     loading: false,
     can: (permission?: string) =>
       !permission ||
+      (canReadClients && permission === 'clients.read') ||
       (canWrite
         ? ['tickets.read', 'tickets.write'].includes(permission)
         : permission === 'tickets.read'),
@@ -193,6 +202,7 @@ describe('TicketsList', () => {
     // No matchMedia is the phone, as in jsdom by default.
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined });
     (useSearchParams() as unknown as URLSearchParams).delete('orden');
+    (useSearchParams() as unknown as URLSearchParams).delete('cliente');
   });
 
   it('keeps the search input mounted while tickets reload', async () => {
@@ -509,6 +519,90 @@ describe('TicketsList', () => {
           expect.objectContaining({ statusFilter: 'all', sort: { column: 'saldo', direction: 'desc' } }),
         ),
       );
+    });
+    describe('Cliente filter (ZIG-I37-1)', () => {
+      const clients = [
+        { id: 7, name: 'Zoila Pérez', phone: '5550000007' },
+        { id: 3, name: 'Ana Torres', phone: '5550000003' },
+      ];
+
+      it('has no «Columnas» on Tickets', async () => {
+        mockDesktopViewport();
+        window.localStorage.setItem('zigzag:tickets-columns:v1', JSON.stringify(['total', 'balance']));
+        arrange({ result: paginatedResult([makeTicket()]) });
+
+        render(<TicketsList />);
+
+        expect(await screen.findByRole('table', { name: 'Tickets' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /columnas/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /Total/ })).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /Saldo/ })).toBeInTheDocument();
+        window.localStorage.removeItem('zigzag:tickets-columns:v1');
+      });
+
+      it('hides the filter without clients.read and never asks for clients', async () => {
+        mockDesktopViewport();
+        arrange({ result: paginatedResult([makeTicket()]) });
+
+        render(<TicketsList />);
+
+        expect(await screen.findByRole('table', { name: 'Tickets' })).toBeInTheDocument();
+        expect(screen.queryByRole('combobox', { name: 'Filtrar por cliente' })).not.toBeInTheDocument();
+        expect(mockGetClientsList).not.toHaveBeenCalled();
+      });
+
+      it('loads the clients once, sorted by name, and filters the server list by ?cliente=', async () => {
+        mockDesktopViewport();
+        arrange({ canReadClients: true, result: paginatedResult([makeTicket()]) });
+        mockGetClientsList.mockResolvedValue({ success: true, data: clients as never });
+        const router = useRouter();
+
+        render(<TicketsList />);
+        const trigger = await screen.findByRole('combobox', { name: 'Filtrar por cliente' });
+        expect(trigger).toHaveTextContent('Todos los clientes');
+        fireEvent.click(trigger);
+        const options = await screen.findAllByRole('option');
+        expect(options.map((option) => option.textContent)).toEqual([
+          expect.stringContaining('Ana Torres'),
+          expect.stringContaining('Zoila Pérez'),
+        ]);
+        fireEvent.click(within(options[1]).getByRole('button'));
+
+        await waitFor(() =>
+          expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+            expect.objectContaining({ page: 1, clientId: 7 }),
+          ),
+        );
+        expect(router.replace).toHaveBeenCalledWith('/tickets?cliente=7', { scroll: false });
+        expect(screen.getByRole('combobox', { name: 'Filtrar por cliente' })).toHaveTextContent('Zoila Pérez');
+        expect(mockGetClientsList).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+        await waitFor(() =>
+          expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+            expect.objectContaining({ clientId: undefined }),
+          ),
+        );
+        expect(mockGetClientsList).toHaveBeenCalledTimes(1);
+      });
+
+      it('ignores a ?cliente= that is not one of this company\'s clients', async () => {
+        mockDesktopViewport();
+        (useSearchParams() as unknown as URLSearchParams).set('cliente', '999');
+        arrange({ canReadClients: true, result: paginatedResult([makeTicket()]) });
+        mockGetClientsList.mockResolvedValue({ success: true, data: clients as never });
+
+        render(<TicketsList />);
+
+        await waitFor(() =>
+          expect(mockGetTicketsPaginated).toHaveBeenLastCalledWith(
+            expect.objectContaining({ clientId: undefined }),
+          ),
+        );
+        expect(screen.getByRole('combobox', { name: 'Filtrar por cliente' })).toHaveTextContent(
+          'Todos los clientes',
+        );
+      });
     });
   });
 });

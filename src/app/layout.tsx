@@ -11,7 +11,6 @@ import { NetworkStatusBanner } from '@/components/network-status-banner';
 import { PwaInstallBanner } from '@/components/pwa-install-banner';
 import { AppSerwistProvider } from '@/components/serwist-provider';
 import './globals.css';
-import { CompanyProvider } from '@/contexts/company-context';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -84,16 +83,14 @@ export default async function RootLayout({
         >
           <ThemeColorMeta />
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <CompanyProvider>
-              <Providers>
-                <AppSerwistProvider>
-                  <NetworkStatusBanner />
-                  <PwaInstallBanner />
-                  {children}
-                  <AppToaster />
-                </AppSerwistProvider>
-              </Providers>
-            </CompanyProvider>
+            <Providers>
+              <AppSerwistProvider>
+                <NetworkStatusBanner />
+                <PwaInstallBanner />
+                {children}
+                <AppToaster />
+              </AppSerwistProvider>
+            </Providers>
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

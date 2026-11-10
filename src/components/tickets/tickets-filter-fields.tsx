@@ -15,6 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from '@/components/ui/searchable-select';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page/filter-styles';
 import { cn } from '@/lib/utils';
 import { formatDateRangeLabel } from '@/components/tickets/tickets-list-filter-utils';
 import type { FinishedFilterValue } from '@/components/tickets/tickets-list-types';
@@ -153,6 +158,60 @@ export const TicketDateRangeFilter = ({
   return (
     <FilterField label="Fechas" layout={layout}>
       {calendar}
+    </FilterField>
+  );
+};
+
+type TicketClientFilterProps = {
+  layout: FilterFieldLayout;
+  /** The client id as a string, '' for all clients. */
+  value: string;
+  onChange: (value: string) => void;
+  options: SearchableSelectOption[];
+  isLoading?: boolean;
+};
+
+/**
+ * «Cliente» (ZIG-I37-1): one client's tickets, searchable because a tenant can have
+ * hundreds of clients. A pill on the desktop row, a full-width touch control in the sheet.
+ */
+export const TicketClientFilter = ({
+  layout,
+  value,
+  onChange,
+  options,
+  isLoading = false,
+}: TicketClientFilterProps) => {
+  const id = layout === 'sheet' ? 'ticket-filter-client-sheet' : 'ticket-filter-client';
+  const select = (
+    <SearchableSelect
+      id={id}
+      value={value}
+      onValueChange={onChange}
+      options={options}
+      isLoading={isLoading}
+      placeholder="Todos los clientes"
+      searchPlaceholder="Buscar cliente…"
+      emptyText="No hay clientes"
+      aria-label="Filtrar por cliente"
+      clearable
+      className={
+        layout === 'desktop'
+          ? cn(
+              DESKTOP_CONTROL_CLASS,
+              'w-56 gap-2',
+              value && FILTER_SELECTED_CLASS,
+            )
+          : 'h-12 w-full text-base'
+      }
+    />
+  );
+
+  // Desktop bar: «Todos los clientes» says what it is, like «Todas las fechas».
+  if (layout === 'desktop') return select;
+  return (
+    <FilterField label="Cliente" htmlFor={id} layout={layout}>
+      {select}
     </FilterField>
   );
 };
