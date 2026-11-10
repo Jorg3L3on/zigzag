@@ -120,7 +120,7 @@ const assertNotRateLimited = async (rateLimitIdentity: number) => {
 
 /** Resources of one kind for every allow-listed company the user may read. */
 const listCompanyResources = async (kind: ResourceKind, ctx: McpToolContext) => {
-  const agentUser = await resolveAgentUser(parseBearerToken(authorizationHeader(ctx)));
+  const agentUser = await resolveAgentUser(parseBearerToken(authorizationHeader(ctx)), ctx.http?.req);
   if (!agentUser.scopes.includes('read')) return { resources: [] };
   const companies = await listAgentCompanies(agentUser);
   const readable = await Promise.all(
@@ -158,6 +158,7 @@ const readCompanyResource = async (
       authorizationHeader(ctx),
       companyId,
       RESOURCE_KINDS[kind].permission,
+      { request: ctx.http?.req },
     );
     assertScope(agent, 'read');
     await assertNotRateLimited(agent.rateLimitIdentity);

@@ -31,6 +31,8 @@ import { resolveAgentUser } from '@/lib/server/resolve-agent-context';
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 
+// Grants are issued for http://localhost/api/mcp; the audience check reads it from the request.
+const MCP_REQUEST = new Request('http://localhost/api/mcp');
 describeWithLocalDb('payments scope on grants and keys (local Postgres)', () => {
   let fixture: McpDbFixture | null = null;
   const clientId = `jest-payments-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -64,11 +66,11 @@ describeWithLocalDb('payments scope on grants and keys (local Postgres)', () => 
 
   it('an existing grant without payments never gains it on refresh', async () => {
     const tokens = await grant(['read', 'write']);
-    expect((await resolveOAuthGrantUser(tokens.access_token))?.scopes).toEqual(['read', 'write']);
+    expect((await resolveOAuthGrantUser(tokens.access_token, MCP_REQUEST))?.scopes).toEqual(['read', 'write']);
 
     const refreshed = await refreshOAuthGrant({ refreshToken: tokens.refresh_token, clientId });
     expect(refreshed.scope).toBe('read write');
-    expect((await resolveOAuthGrantUser(refreshed.access_token))?.scopes).toEqual([
+    expect((await resolveOAuthGrantUser(refreshed.access_token, MCP_REQUEST))?.scopes).toEqual([
       'read',
       'write',
     ]);
@@ -78,7 +80,7 @@ describeWithLocalDb('payments scope on grants and keys (local Postgres)', () => 
     const tokens = await grant(['read', 'payments']);
     const refreshed = await refreshOAuthGrant({ refreshToken: tokens.refresh_token, clientId });
     expect(refreshed.scope).toBe('read payments');
-    expect((await resolveOAuthGrantUser(refreshed.access_token))?.scopes).toEqual([
+    expect((await resolveOAuthGrantUser(refreshed.access_token, MCP_REQUEST))?.scopes).toEqual([
       'read',
       'payments',
     ]);

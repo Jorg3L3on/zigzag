@@ -22,6 +22,16 @@ export const isAllowedDcrRedirectUri = (value: string): boolean => {
   return url.protocol === 'http:' && LOOPBACK_HOSTNAMES.has(url.hostname);
 };
 
+/** client_uri / logo_uri: https only (they end up as links and images). */
+export const isHttpsUrl = (value: string | undefined | null): value is string => {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 export const impersonatesKnownClient = (
   name: string | undefined | null,
   redirectUris: string[],
@@ -39,6 +49,8 @@ export type DcrPolicyError = {
 export const checkDcrMetadata = (input: {
   client_name?: string;
   redirect_uris: string[];
+  client_uri?: string;
+  logo_uri?: string;
 }): DcrPolicyError | null => {
   const rejected = input.redirect_uris.find((uri) => !isAllowedDcrRedirectUri(uri));
   if (rejected) {
@@ -47,6 +59,14 @@ export const checkDcrMetadata = (input: {
       description:
         'redirect_uris debe usar https:// (o http:// solo en 127.0.0.1, localhost o [::1])',
     };
+  }
+  for (const field of ['client_uri', 'logo_uri'] as const) {
+    if (input[field] != null && !isHttpsUrl(input[field])) {
+      return {
+        error: 'invalid_client_metadata',
+        description: `${field} debe usar https://`,
+      };
+    }
   }
   if (impersonatesKnownClient(input.client_name, input.redirect_uris)) {
     return {
