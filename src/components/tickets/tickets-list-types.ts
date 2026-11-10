@@ -12,6 +12,8 @@ export type TicketsFilterState = {
   finishedFilter: FinishedFilterValue;
   dateRange: DateRange | undefined;
   sorting: SortingState;
+  /** `?cliente=`: a client id as a string, '' for all clients (ZIG-I37-1). */
+  clientId?: string;
 };
 
 /** `?status=` of the tickets list; anything unknown means all (links in WhatsApp keep working). */
@@ -20,6 +22,12 @@ export const parseStatusFilter = (value: string | null): StatusFilterValue => {
     return value;
   }
   return 'all';
+};
+
+/** `?cliente=<id>`: a positive integer, anything else means all clients. */
+export const parseClientFilter = (value: string | null): string => {
+  const trimmed = value?.trim() ?? '';
+  return /^[1-9]\d{0,9}$/.test(trimmed) && Number(trimmed) <= 2147483647 ? trimmed : '';
 };
 
 export const parseFinishedFilter = (value: string | null): FinishedFilterValue => {

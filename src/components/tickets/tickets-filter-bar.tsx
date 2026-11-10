@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
 import type { SortingState } from '@tanstack/react-table';
 import type { DateRange } from 'react-day-picker';
 import {
+  TicketClientFilter,
   TicketDateRangeFilter,
   TicketFinishedFilter,
 } from '@/components/tickets/tickets-filter-fields';
+import type { SearchableSelectOption } from '@/components/ui/searchable-select';
 import type { TicketListCounts } from '@/actions/tickets';
 import type {
   FinishedFilterValue,
@@ -43,6 +44,16 @@ type TicketsFilterBarProps = {
   hasActiveFilters: boolean;
   onClearFilters: () => void;
   filterChips: ListFilterChip[];
+  /** «Cliente» (ZIG-I37-1); null hides it (no clients.read). */
+  clientFilter?: TicketClientFilterState | null;
+};
+
+/** The Cliente filter as both bars take it: value, its options and the setter. */
+export type TicketClientFilterState = {
+  value: string;
+  onChange: (value: string) => void;
+  options: SearchableSelectOption[];
+  isLoading?: boolean;
 };
 
 const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
@@ -188,6 +199,7 @@ export const TicketsFilterBar = ({
   hasActiveFilters,
   onClearFilters,
   filterChips,
+  clientFilter = null,
 }: TicketsFilterBarProps) => (
   <ListFilterBarShell
     searchValue={searchValue}
@@ -214,7 +226,7 @@ export const TicketsFilterBar = ({
       />
     }
     sheetFilterCount={activeFilterCount}
-    sheetDescription="Trabajo, fechas y orden"
+    sheetDescription={clientFilter ? 'Cliente, trabajo, fechas y orden' : 'Trabajo, fechas y orden'}
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros"
@@ -222,6 +234,7 @@ export const TicketsFilterBar = ({
     showDesktopClear={false}
     sheetContent={
       <>
+        {clientFilter ? <TicketClientFilter layout="sheet" {...clientFilter} /> : null}
         {renderTicketFilters(
           finishedFilter,
           onFinishedFilterChange,
@@ -257,14 +270,14 @@ type TicketsDesktopToolbarProps = {
   hasActiveFilters: boolean;
   /** Clears the filters and the search, never the order. */
   onClearFilters: () => void;
-  /** «Columnas», built by the list from its table. */
-  columnsMenu?: ReactNode;
+  /** «Cliente» (ZIG-I37-1); null hides it (no clients.read). */
+  clientFilter?: TicketClientFilterState | null;
 };
 
 /**
- * The desktop filter row (ZIG-I33-2): search, the dates and Terminado as pills,
- * Limpiar filtros while one is on, Columnas at the right. No sort select: the
- * column headers sort.
+ * The desktop filter row (ZIG-I33-2): search, the dates, Terminado and Cliente as
+ * pills, Limpiar filtros while one is on. No «Columnas»: every column always shows
+ * (ZIG-I37-1). No sort select: the column headers sort.
  */
 export const TicketsDesktopToolbar = ({
   searchValue,
@@ -275,7 +288,7 @@ export const TicketsDesktopToolbar = ({
   onDateRangeChange,
   hasActiveFilters,
   onClearFilters,
-  columnsMenu = null,
+  clientFilter = null,
 }: TicketsDesktopToolbarProps) => (
   <ListToolbar
     search={{
@@ -294,10 +307,10 @@ export const TicketsDesktopToolbar = ({
           options={FINISHED_OPTIONS}
           ariaLabel="Filtrar por trabajo terminado"
         />
+        {clientFilter ? <TicketClientFilter layout="desktop" {...clientFilter} /> : null}
       </>
     }
     hasActiveFilters={hasActiveFilters}
     onClear={onClearFilters}
-    trailing={columnsMenu}
   />
 );

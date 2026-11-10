@@ -792,6 +792,8 @@ export async function getTicketsPaginated(params: {
   finishedFilter?: TicketListFinishedFilter;
   dateFrom?: string;
   dateTo?: string;
+  /** `?cliente=`: one client's tickets, always inside the tenant (ZIG-I37-1). */
+  clientId?: number;
   sort?: TicketListSort;
 }): Promise<{
   success: boolean;
@@ -850,12 +852,20 @@ export async function getTicketsPaginated(params: {
       ? sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`
       : undefined;
 
+    // A client of another tenant matches nothing: the company condition still applies.
+    const clientId =
+      params.clientId != null && Number.isSafeInteger(params.clientId) && params.clientId > 0
+        ? params.clientId
+        : undefined;
+    const clientCondition = clientId != null ? eq(ticket.client_id, clientId) : undefined;
+
     const tenantConditions = [
       eq(ticket.company_id, effectiveCompanyId),
       isNull(ticket.deleted_at),
       eq(ticket.document_kind, 'ticket'),
     ];
     const searchAndDateConditions = [
+      ...(clientCondition ? [clientCondition] : []),
       ...(searchCondition ? [searchCondition] : []),
       ...(dateFromCondition ? [dateFromCondition] : []),
       ...(dateToCondition ? [dateToCondition] : []),
