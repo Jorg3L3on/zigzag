@@ -24,6 +24,9 @@ export type ListFilterChip = {
   key: string;
   label: string;
   variant?: "secondary";
+  /** Shows an × that drops this one filter («Cliente: Nombre», ZIG-I37-1). */
+  onRemove?: () => void;
+  removeAriaLabel?: string;
 };
 
 export type ListFilterBarShellProps = {

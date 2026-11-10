@@ -4,9 +4,9 @@ import Link from 'next/link';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -292,6 +292,9 @@ type TripledFilterChip = {
   key: string;
   label: ReactNode;
   variant?: 'secondary' | 'outline';
+  /** A removable chip is one button: tapping it (or its ×) drops that filter. */
+  onRemove?: () => void;
+  removeAriaLabel?: string;
 };
 
 type TripledFilterChipsProps = {
@@ -309,15 +312,31 @@ export const TripledFilterChips = ({
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      {chips.map((chip) => (
-        <Badge
-          key={chip.key}
-          variant={chip.variant ?? 'outline'}
-          className="max-w-full whitespace-normal rounded-full px-2.5 py-1 text-left leading-snug"
-        >
-          {chip.label}
-        </Badge>
-      ))}
+      {chips.map((chip) =>
+        chip.onRemove ? (
+          <button
+            key={chip.key}
+            type="button"
+            onClick={chip.onRemove}
+            aria-label={chip.removeAriaLabel}
+            className={cn(
+              badgeVariants({ variant: chip.variant ?? 'outline' }),
+              'min-h-9 max-w-full gap-1.5 whitespace-normal rounded-full py-1 pl-2.5 pr-2 text-left leading-snug outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring',
+            )}
+          >
+            <span className="min-w-0 [overflow-wrap:anywhere]">{chip.label}</span>
+            <X className="size-3.5 shrink-0 opacity-70" aria-hidden />
+          </button>
+        ) : (
+          <Badge
+            key={chip.key}
+            variant={chip.variant ?? 'outline'}
+            className="max-w-full whitespace-normal rounded-full px-2.5 py-1 text-left leading-snug"
+          >
+            {chip.label}
+          </Badge>
+        ),
+      )}
     </div>
   );
 };

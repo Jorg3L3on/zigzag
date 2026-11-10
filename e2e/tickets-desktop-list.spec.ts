@@ -139,4 +139,78 @@ test.describe('Tickets en escritorio, estándar de listas (ZIG-I33-2)', () => {
     const again = await ticketsTable(page);
     await expect(again.getByRole('columnheader', { name: /^Total/ })).toHaveAttribute('aria-sort', 'ascending');
   });
+
+  test('no «Columnas»; «Cliente» filters rows, tab counts and footer, lives in ?cliente= and survives a reload (ZIG-I37-1)', async ({
+    page,
+  }) => {
+    // An old hidden-columns choice is ignored: every column shows.
+    await page.goto('/tickets');
+    await page.evaluate(() =>
+      window.localStorage.setItem('zigzag:tickets-columns:v1', JSON.stringify(['total', 'balance', 'services'])),
+    );
+    await page.goto('/tickets?orden=total-desc');
+    const table = await ticketsTable(page);
+    await notBusy(table);
+    await expect(page.getByRole('button', { name: /^Columnas/ })).toHaveCount(0);
+    for (const header of ['Cliente', 'Fecha', 'Total', 'Saldo', 'Estado']) {
+      await expect(table.getByRole('columnheader', { name: new RegExp(`^${header}`) })).toBeVisible();
+    }
+
+    const views = page.getByRole('navigation', { name: 'Vistas de tickets' });
+    const todos = views.getByRole('button', { name: /^Todos/ });
+    const countOf = async () => Number(/(\d+) tickets?/.exec(await todos.innerText())?.[1] ?? Number.NaN);
+    await expect(todos).toContainText(/\d+ tickets?/, { timeout: 30_000 });
+    const allBefore = await countOf();
+
+    // The client of the first row, searched by name in the Cliente pill.
+    const name = (await table.locator('tbody tr').first().locator('td').nth(1).locator('p').first().getAttribute('title'))!;
+    expect(name).toBeTruthy();
+    const pill = page.getByRole('combobox', { name: 'Filtrar por cliente' });
+    await expect(pill).toHaveText(/Todos los clientes/);
+    await pill.click();
+    await page.getByRole('combobox', { name: 'Buscar cliente…' }).fill(name);
+    const option = page.getByRole('option').filter({ hasText: name }).first();
+    await expect(option).toBeVisible({ timeout: 15_000 });
+    await option.getByRole('button').click();
+
+    await expect(page).toHaveURL(/[?&]cliente=\d+/);
+    await expect(page).toHaveURL(/[?&]orden=total-desc/);
+    const clientId = new URL(page.url()).searchParams.get('cliente');
+    await expect(pill).toContainText(name);
+    await notBusy(table);
+    await expect(page.getByTestId('list-footer')).toContainText(/tickets?/);
+    await expect.poll(countOf, { timeout: 30_000 }).toBeLessThanOrEqual(allBefore);
+    const filteredAll = await countOf();
+    const names = await table.evaluate((el) =>
+      [...el.querySelectorAll('tbody tr')].map((tr) => tr.children[1]?.querySelector('p')?.getAttribute('title') ?? ''),
+    );
+    expect(names.length).toBeGreaterThan(0);
+    expect(new Set(names), 'only that client').toEqual(new Set([name]));
+    if (filteredAll <= 25) {
+      await expect(page.getByTestId('list-footer')).toContainText(String(filteredAll));
+    }
+
+    // A reload keeps the filter.
+    await page.reload();
+    const again = await ticketsTable(page);
+    await notBusy(again);
+    await expect(page.getByRole('combobox', { name: 'Filtrar por cliente' })).toContainText(name);
+    expect(new URL(page.url()).searchParams.get('cliente')).toBe(clientId);
+    await expect.poll(countOf, { timeout: 30_000 }).toBe(filteredAll);
+
+    // Limpiar filtros drops it and keeps the order.
+    await page.getByRole('button', { name: 'Limpiar filtros' }).click();
+    await expect(page).not.toHaveURL(/[?&]cliente=/);
+    await expect(page).toHaveURL(/[?&]orden=total-desc/);
+    await expect(page.getByRole('combobox', { name: 'Filtrar por cliente' })).toHaveText(/Todos los clientes/);
+    await expect.poll(countOf, { timeout: 30_000 }).toBe(allBefore);
+
+    await expectNoSeriousViolations(page, 'tickets-cliente-1280');
+    await page.evaluate(() => window.localStorage.removeItem('zigzag:tickets-columns:v1'));
+
+    // Presupuestos keeps its Columnas.
+    await page.goto('/presupuestos');
+    await expect(page.getByRole('navigation', { name: 'Vistas de presupuestos' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /^Columnas/ })).toBeVisible();
+  });
 });
