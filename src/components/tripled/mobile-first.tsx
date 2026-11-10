@@ -321,7 +321,7 @@ export const TripledFilterChips = ({
             aria-label={chip.removeAriaLabel}
             className={cn(
               badgeVariants({ variant: chip.variant ?? 'outline' }),
-              'min-h-9 max-w-full gap-1.5 whitespace-normal rounded-full py-1 pl-2.5 pr-2 text-left leading-snug outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring',
+              'min-h-11 max-w-full gap-1.5 whitespace-normal lg:min-h-9 rounded-full py-1 pl-2.5 pr-2 text-left leading-snug outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring',
             )}
           >
             <span className="min-w-0 [overflow-wrap:anywhere]">{chip.label}</span>

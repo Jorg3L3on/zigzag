@@ -78,6 +78,8 @@ for (const width of MOBILE_WIDTHS) {
       const chip = page.getByRole('button', { name: `Quitar filtro Cliente: ${name}` });
       await expect(chip).toBeVisible({ timeout: 15_000 });
       await expect(chip).toContainText(`Cliente: ${name}`);
+      // A tap target like the rest of the phone controls: at least 44px tall.
+      expect((await chip.boundingBox())!.height, 'chip touch height').toBeGreaterThanOrEqual(44);
       await expect(cards.first()).toBeVisible({ timeout: 15_000 });
       const names = await cards.evaluateAll((els) =>
         els.map((el) => el.querySelector('[data-testid="ticket-card-name"]')?.textContent?.trim() ?? ''),
