@@ -70,9 +70,10 @@ for (const width of MOBILE_WIDTHS) {
 
       await expect(page).toHaveURL(/[?&]cliente=\d+/);
       await expect(select).toContainText(name);
-      await expect(more).toHaveAccessibleName(/Más filtros \(1 activos\)/);
       await sheet.getByRole('button', { name: 'Listo' }).click();
       await expect(sheet).toBeHidden();
+      // The sheet counter counts it (the trigger is hidden from the tree while the sheet is open).
+      await expect(more).toHaveAccessibleName(/Más filtros \(1 activos\)/);
 
       const chip = page.getByRole('button', { name: `Quitar filtro Cliente: ${name}` });
       await expect(chip).toBeVisible({ timeout: 15_000 });

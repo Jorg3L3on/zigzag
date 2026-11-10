@@ -151,7 +151,7 @@ test.describe('Tickets en escritorio, estándar de listas (ZIG-I33-2)', () => {
     await page.goto('/tickets?orden=total-desc');
     const table = await ticketsTable(page);
     await notBusy(table);
-    await expect(page.getByRole('button', { name: /^Columnas/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /columnas/i })).toHaveCount(0);
     for (const header of ['Cliente', 'Fecha', 'Total', 'Saldo', 'Estado']) {
       await expect(table.getByRole('columnheader', { name: new RegExp(`^${header}`) })).toBeVisible();
     }
@@ -178,7 +178,6 @@ test.describe('Tickets en escritorio, estándar de listas (ZIG-I33-2)', () => {
     const clientId = new URL(page.url()).searchParams.get('cliente');
     await expect(pill).toContainText(name);
     await notBusy(table);
-    await expect(page.getByTestId('list-footer')).toContainText(/tickets?/);
     await expect.poll(countOf, { timeout: 30_000 }).toBeLessThanOrEqual(allBefore);
     const filteredAll = await countOf();
     const names = await table.evaluate((el) =>
@@ -186,9 +185,10 @@ test.describe('Tickets en escritorio, estándar de listas (ZIG-I33-2)', () => {
     );
     expect(names.length).toBeGreaterThan(0);
     expect(new Set(names), 'only that client').toEqual(new Set([name]));
-    if (filteredAll <= 25) {
-      await expect(page.getByTestId('list-footer')).toContainText(String(filteredAll));
-    }
+    // The footer counts the filtered list: «3 resultados» (ZIG-I36 M-26).
+    await expect(page.getByTestId('list-footer')).toContainText(
+      `${filteredAll} ${filteredAll === 1 ? 'resultado' : 'resultados'}`,
+    );
 
     // A reload keeps the filter.
     await page.reload();
@@ -211,6 +211,6 @@ test.describe('Tickets en escritorio, estándar de listas (ZIG-I33-2)', () => {
     // Presupuestos keeps its Columnas.
     await page.goto('/presupuestos');
     await expect(page.getByRole('navigation', { name: 'Vistas de presupuestos' })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /^Columnas/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /columnas/i })).toBeVisible();
   });
 });
