@@ -44,6 +44,8 @@ import {
 } from '@/lib/server/mcp-oauth/retention';
 import { resolveAgentUser } from '@/lib/server/resolve-agent-context';
 
+// Grants are issued for http://localhost/api/mcp; the audience check reads it from the request.
+const MCP_REQUEST = new Request('http://localhost/api/mcp');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 
@@ -135,14 +137,14 @@ describeWithLocalDb('MCP OAuth hardening (local Postgres)', () => {
       allowedCompanyIds: [fixture!.companyId],
       resource: 'http://localhost/api/mcp',
     });
-    expect(await resolveOAuthGrantUser(tokens.access_token)).not.toBeNull();
+    expect(await resolveOAuthGrantUser(tokens.access_token, MCP_REQUEST)).not.toBeNull();
     await expect(resolveAgentUser(fixture!.apiKeyToken)).resolves.toBeDefined();
 
     const result = await revokeAgentAccessForUser(fixture!.userId, 'password_changed');
     expect(result.apiKeys).toBeGreaterThanOrEqual(1);
     expect(result.grants).toBe(1);
 
-    expect(await resolveOAuthGrantUser(tokens.access_token)).toBeNull();
+    expect(await resolveOAuthGrantUser(tokens.access_token, MCP_REQUEST)).toBeNull();
     await expect(resolveAgentUser(fixture!.apiKeyToken)).rejects.toMatchObject({ status: 401 });
 
     const [grant] = await db

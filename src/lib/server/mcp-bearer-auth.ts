@@ -3,13 +3,13 @@ import { resolveAgentUser } from '@/lib/server/resolve-agent-context';
 
 /** Bearer verifier for MCP transport auth. Accepts API keys and OAuth access tokens. */
 export async function verifyMcpBearerToken(
-  _request: Request,
+  request: Request,
   bearerToken?: string,
 ): Promise<AuthInfo | undefined> {
   if (!bearerToken?.trim()) return undefined;
 
   try {
-    const agent = await resolveAgentUser(bearerToken);
+    const agent = await resolveAgentUser(bearerToken, request);
     return {
       token: bearerToken,
       clientId:

@@ -185,6 +185,7 @@ describe('runAgentCompanyTool', () => {
     expect(result.structuredContent).toEqual({ tickets: [{ id: '1' }] });
     expect(resolveAgentContext).toHaveBeenCalledWith('Bearer zz_x', 7, 'tickets.read', {
       onUser: expect.any(Function),
+      request: expect.any(Request),
     });
   });
 

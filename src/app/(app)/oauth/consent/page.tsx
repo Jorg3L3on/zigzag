@@ -4,7 +4,6 @@ import { auth } from '@/lib/auth';
 import { listSelectableCompaniesForUser } from '@/lib/mcp/domain';
 import { isTrustedCimdClient } from '@/lib/server/mcp-oauth/cimd';
 import { resolveOAuthClient } from '@/lib/server/mcp-oauth/clients';
-import { getMcpResourceUrl, normalizeMcpResourceUrl } from '@/lib/server/mcp-oauth/config';
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -54,9 +53,11 @@ export default async function OAuthConsentPage({ searchParams }: PageProps) {
   const verified = isTrustedCimdClient(clientId);
 
   const companies = await listSelectableCompaniesForUser(BigInt(session.user.id));
-  const resource = normalizeMcpResourceUrl(
-    String(params.resource ?? getMcpResourceUrl()),
-  );
+  // /authorize always sets resource. Without one the consent POST defaults to
+  // this server from its own request; guessing here (no request) could fall
+  // back to localhost and fail the audience check.
+  // The POST normalizes and checks it against its own request.
+  const resource = typeof params.resource === 'string' ? params.resource : undefined;
 
   return (
     <OAuthConsentForm

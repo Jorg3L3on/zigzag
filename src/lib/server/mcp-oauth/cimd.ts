@@ -58,8 +58,6 @@ export const validateRedirectUri = (
 
 export const CHATGPT_STABLE_CIMD_CLIENT_ID = 'https://chatgpt.com/oauth/client.json';
 
-export const CHATGPT_JWKS_URI = 'https://chatgpt.com/oauth/jwks.json';
-
 export const isChatGptCimdClientId = (clientId: string): boolean => {
   if (!isClientIdMetadataUrl(clientId) || !isTrustedCimdHost(clientId)) {
     return false;
@@ -70,20 +68,6 @@ export const isChatGptCimdClientId = (clientId: string): boolean => {
   } catch {
     return false;
   }
-};
-
-export const buildAllowedJwtClientIds = (
-  ...clientIds: Array<string | undefined | null>
-): string[] => {
-  const allowed = new Set<string>();
-  for (const clientId of clientIds) {
-    if (!clientId) continue;
-    allowed.add(clientId);
-    if (isChatGptCimdClientId(clientId)) {
-      allowed.add(CHATGPT_STABLE_CIMD_CLIENT_ID);
-    }
-  }
-  return [...allowed];
 };
 
 export const isPublicTokenAuthMethod = (method: string): boolean =>

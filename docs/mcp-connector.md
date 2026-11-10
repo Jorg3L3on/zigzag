@@ -76,13 +76,14 @@ Al crear una llave o autorizar OAuth, el usuario elige **qué compañías** pued
 - **Authorization Server Metadata:** `GET /.well-known/oauth-authorization-server`.
 - **DCR:** `POST /api/oauth/register` (máximo 10 registros por hora por IP; después `429 too_many_requests`). Los `redirect_uris` deben ser `https://` (o `http://` solo en `127.0.0.1`, `localhost` o `[::1]`): otro esquema responde `invalid_redirect_uri`. Un `client_name` que se haga pasar por ChatGPT, OpenAI, Grok, xAI, Claude, Anthropic o Cursor responde `invalid_client_metadata`. Los clientes DCR que nunca obtuvieron un token se borran a los 7 días.
 - **Consentimiento:** la pantalla muestra el host al que regresa el código, la insignia **Verificado** solo para clientes CIMD de un host de confianza (ChatGPT) y **Cliente no verificado** para el resto. La escritura es opt-in: la casilla empieza sin marcar y el servidor solo concede `write` cuando recibe `allow_write=true`.
-- **Token:** `POST /api/oauth/token` (máximo 60 llamadas por minuto por IP).
-- **CIMD:** soportado cuando `client_id` es una URL HTTPS con metadata JSON.
-- **Flujo:** authorization code + PKCE (`S256`) + parámetro `resource` (RFC 8707).
+- **Token:** `POST /api/oauth/token` (máximo 60 llamadas por minuto por IP). Solo lo canjea el mismo `client_id` que recibió el código (o ChatGPT entre sus URLs CIMD de confianza).
+- **CIMD:** soportado cuando `client_id` es una URL HTTPS con metadata JSON. Sus `redirect_uris` siguen las reglas de DCR (https o http de loopback; el resto se descarta) y `client_uri`/`logo_uri` solo si son https. Máximo 20 `client_id` CIMD nuevos por hora por IP.
+- **Flujo:** authorization code + PKCE (`S256`, obligatorio en cada canje; `client_assertion` / `private_key_jwt` se ignora) + parámetro `resource` (RFC 8707). Un `resource` que no sea este servidor MCP recibe `invalid_target`, y `/api/mcp` rechaza un access token emitido para otro `resource`.
+- **Consentimiento (POST):** solo desde la propia página (Origin igual al del servidor, o `Sec-Fetch-Site: same-origin`); otro origen recibe 403.
 - **Access token:** prefijo `zigzag_oauth_…`, dura 24 h; ChatGPT, Claude y Grok renuevan con el refresh token al recibir 401.
 - **Refresh token:** rota en cada uso y vale 90 días desde su emisión, nunca más allá de un año desde el consentimiento. Reusar un refresh token ya rotado revoca la conexión (`invalid_grant`). Un código de autorización es de un solo uso: presentarlo otra vez revoca lo que ya emitió.
 - **Revocación:** cambiar la contraseña, que un admin la restablezca o desactivar al usuario revoca todas sus llaves y conexiones OAuth. Las llaves vencen a los 365 días como máximo.
-- **CIMD y JWKS:** solo `https://` a nombres públicos (sin IPs, `localhost`, `.local` ni `.internal`), máximo 64 KiB, una redirección al mismo host; el documento CIMD se vuelve a pedir pasadas 24 h. Un `jti` de `private_key_jwt` sirve una sola vez y la aserción no puede durar más de 10 minutos.
+- **CIMD y JWKS:** solo `https://` a nombres públicos (sin IPs, `localhost`, `.local` ni `.internal`), máximo 64 KiB, una redirección al mismo host; el documento CIMD se vuelve a pedir pasadas 24 h.
 - **Retención:** los intentos al token endpoint (solo POST) se guardan 30 días.
 - **Token vencido a mitad de sesión:** si una tool falla con 401, el resultado de error lleva `_meta['mcp/www_authenticate']` con el challenge `Bearer error="invalid_token", …, resource_metadata="…"` para que el cliente vuelva a pedir autorización.
 - **Expiry:** columnas `timestamptz` (instante UTC); no usar `timestamp` naive.

@@ -13,6 +13,7 @@ import {
   OAUTH_GRANT_ABSOLUTE_TTL_MS,
   OAUTH_REFRESH_TOKEN_TTL_MS,
   OAUTH_TOKEN_LOOKUP_LENGTH,
+  getMcpResourceUrl,
   mcpResourcesMatch,
   normalizeMcpResourceUrl,
 } from '@/lib/server/mcp-oauth/config';
@@ -68,22 +69,6 @@ export const createAuthorizationCode = async (input: {
     expires_at: oauthExpiresAtFromNow(OAUTH_CODE_TTL_MS),
   });
   return code;
-};
-
-export const peekAuthorizationCode = async (code: string) => {
-  const codeHash = hashOAuthSecret(code);
-  const row = await db.query.mcpOAuthAuthorizationCode.findFirst({
-    where: eq(mcpOAuthAuthorizationCode.code_hash, codeHash),
-    columns: {
-      client_id: true,
-      redirect_uri: true,
-      used_at: true,
-      expires_at: true,
-    },
-  });
-  if (!row || row.used_at != null) return null;
-  if (isOAuthExpiryPast(row.expires_at)) return null;
-  return row;
 };
 
 /**
@@ -151,7 +136,6 @@ export const exchangeAuthorizationCode = async (input: {
   clientId: string;
   redirectUri: string;
   codeVerifier?: string | null;
-  clientAuthenticatedViaPrivateKeyJwt?: boolean;
   resource?: string | null;
   request?: Request;
 }) => {
@@ -177,24 +161,18 @@ export const exchangeAuthorizationCode = async (input: {
   if (row.redirect_uri !== input.redirectUri) {
     throw new OAuthInvalidGrantError('redirect');
   }
-  const clientMatches = await tokenClientIdMatchesCode(
-    input.clientId,
-    row.client_id,
-    row.redirect_uri,
-  );
-  if (!clientMatches) {
+  if (!tokenClientIdMatchesCode(input.clientId, row.client_id)) {
     throw new OAuthInvalidGrantError('client');
   }
   if (row.code_challenge_method !== 'S256') {
     throw new OAuthInvalidGrantError('pkce');
   }
 
+  // PKCE is mandatory: nothing else proves the caller started this flow.
   const pkceValid =
     isValidPkceVerifier(input.codeVerifier ?? undefined) &&
     verifyPkceS256(input.codeVerifier!, row.code_challenge);
-  const jwtValid = input.clientAuthenticatedViaPrivateKeyJwt === true;
-
-  if (!pkceValid && !jwtValid) {
+  if (!pkceValid) {
     throw new OAuthInvalidGrantError('pkce');
   }
 
@@ -380,7 +358,16 @@ export const revokeOAuthToken = async (token: string): Promise<void> => {
   }
 };
 
-export const resolveOAuthGrantUser = async (accessToken: string) => {
+/**
+ * `request` lets the RFC 8707 audience check derive the issuer the same way
+ * the 401 challenge and the metadata do (request origin, else NEXTAUTH_URL).
+ * Pass it on every MCP call: without it the issuer can fall back to localhost
+ * and no token would match (micasa MIC-I10-5).
+ */
+export const resolveOAuthGrantUser = async (
+  accessToken: string,
+  request?: Request,
+) => {
   if (accessToken.length <= OAUTH_TOKEN_LOOKUP_LENGTH) return null;
   const prefix = accessToken.slice(0, OAUTH_TOKEN_LOOKUP_LENGTH);
   const grant = await db.query.mcpOAuthGrant.findFirst({
@@ -396,6 +383,10 @@ export const resolveOAuthGrantUser = async (accessToken: string) => {
   }
   if (!verifyOAuthSecret(accessToken, grant.token_hash)) return null;
   if (grant.user.deleted_at != null) return null;
+  // RFC 8707 audience: the token is only valid for this MCP resource.
+  if (!mcpResourcesMatch(grant.resource, getMcpResourceUrl(request), request)) {
+    return null;
+  }
 
   db.update(mcpOAuthGrant)
     .set({ last_used_at: new Date() })

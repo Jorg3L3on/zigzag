@@ -228,7 +228,7 @@ export async function runAgentCompanyTool(
       getAuthorizationHeader(ctx),
       args.company_id,
       permission,
-      { onUser: activity.identify },
+      { onUser: activity.identify, request: ctx.http?.req },
     );
     activity.identify(agent);
     activity.company(agent.companyId);
@@ -257,7 +257,7 @@ export async function runAgentUserTool(
   const activity = startToolActivity(toolName);
   try {
     const token = parseBearerToken(getAuthorizationHeader(ctx));
-    const agentUser = await resolveAgentUser(token);
+    const agentUser = await resolveAgentUser(token, ctx.http?.req);
     activity.identify(agentUser);
 
     if ((opts.requireCompanies ?? true) && agentUser.allowedCompanyIds.length === 0) {
