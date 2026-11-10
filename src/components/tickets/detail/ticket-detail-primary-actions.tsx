@@ -10,8 +10,13 @@ import { useReceiptShare } from '@/components/tickets/use-receipt-share';
 import { useCompany } from '@/contexts/company-context';
 import { useCompanyPaymentInfo } from '@/hooks/use-company-payment-info';
 import { usePermissions } from '@/hooks/use-permissions';
-import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
-import { canCollectTicketPayment, canDownloadTicketInvoice } from '@/lib/tickets-rbac';
+import { getTicketBalanceDue, isTicketFullyPaid } from '@/lib/ticket-payment-status';
+import {
+  canAssignTicketServices,
+  canCollectTicketPayment,
+  canDownloadTicketInvoice,
+  canWriteTickets,
+} from '@/lib/tickets-rbac';
 import { cn } from '@/lib/utils';
 import { buildWhatsAppReceiptShare } from '@/lib/whatsapp-share';
 
@@ -36,6 +41,13 @@ type TicketDetailPrimaryActionsProps = {
  * there is a balance, Compartir recibo once settled. An unfinished ticket has
  * none here: the Finalizar panel owns it. The ⋯ menu sits in the app bar on
  * mobile and next to the button on desktop.
+ *
+ * Header from lg (ZIG-I37-4), per state:
+ * - En proceso: Terminar ticket · Editar · ⋯
+ * - Terminado con saldo: WhatsApp · PDF · Editar · ⋯ (no Cobrar: the «Saldo por
+ *   cobrar» card holds the only desktop Cobrar; md–lg keeps it here)
+ * - Pagado: Compartir recibo · WhatsApp · PDF · ⋯
+ * Every button is h-10, rounded-xl, text-sm; ⋯ is a 40px outline square.
  */
 export const TicketDetailPrimaryActions = ({
   ticketId,
@@ -61,7 +73,8 @@ export const TicketDetailPrimaryActions = ({
     total: total ?? 0,
   });
 
-  const canCollect = canCollectTicketPayment(can) && finished && getTicketBalanceDue(total, paid) > 0;
+  const hasBalance = finished && getTicketBalanceDue(total, paid) > 0;
+  const canCollect = canCollectTicketPayment(can) && hasBalance;
   const canPdf = canDownloadTicketInvoice(can);
   const canShare = canPdf && finished;
   const { selectedCompany } = useCompany();
@@ -88,18 +101,23 @@ export const TicketDetailPrimaryActions = ({
     card?.focus();
   };
 
-  const primary = !finished && placement === 'desktop' ? (
-    <Button
-      type="button"
-      className="h-10 gap-2 rounded-xl text-base font-semibold"
-      onClick={focusFinishCard}
-    >
+  const desktop = placement === 'desktop';
+  // Same size as the outline buttons next to it in the header (ZIG-I37-4).
+  const primaryClass = desktop
+    ? 'h-10 gap-2 rounded-xl text-sm font-semibold'
+    : 'h-12 w-full gap-2 rounded-xl text-base font-semibold md:h-10 md:w-auto';
+  // From lg a ticket with a balance has no primary in the header: Cobrar lives in
+  // the «Saldo por cobrar» card (only shown from lg), so md–lg still gets it here.
+  const balanceOnlyBelowLg = desktop && hasBalance ? 'lg:hidden' : undefined;
+
+  const primary = !finished && desktop ? (
+    <Button type="button" className={primaryClass} onClick={focusFinishCard}>
       Terminar ticket
     </Button>
   ) : canCollect ? (
     <Button
       type="button"
-      className="h-12 w-full gap-2 rounded-xl text-base font-semibold md:h-10 md:w-auto"
+      className={cn(primaryClass, balanceOnlyBelowLg)}
       onClick={() => collect?.openCollect()}
     >
       <Wallet className="h-4 w-4" aria-hidden />
@@ -108,7 +126,7 @@ export const TicketDetailPrimaryActions = ({
   ) : canShare ? (
     <Button
       type="button"
-      className="h-12 w-full gap-2 rounded-xl text-base font-semibold md:h-10 md:w-auto"
+      className={cn(primaryClass, balanceOnlyBelowLg)}
       disabled={sharing}
       onClick={() => void share(paid ?? 0)}
     >
@@ -118,14 +136,31 @@ export const TicketDetailPrimaryActions = ({
   ) : null;
 
   if (placement === 'desktop') {
+    // Same rules as TicketDetailActionsMenu: ⋯ renders when any of its items does.
+    const menuShows =
+      (canAssignTicketServices(can) && !isTicketFullyPaid(total, paid)) ||
+      canPdf ||
+      canWriteTickets(can);
+    const anythingFromLg =
+      !finished || (canShare && !hasBalance) || Boolean(whatsApp) || canPdf || menuShows;
+
     return (
-      <div className={cn('flex flex-wrap items-center gap-2', className)}>
+      <div
+        className={cn(
+          // One row, never shrunk, when it sits beside the title (header from 48rem of page).
+          'flex flex-wrap items-center gap-2 lg:@min-[48rem]:shrink-0 lg:@min-[48rem]:flex-nowrap',
+          // Nothing left from lg (missing permissions): no empty column, the title takes the row.
+          !anythingFromLg && 'lg:hidden',
+          className,
+        )}
+        data-testid="ticket-detail-header-actions"
+      >
         {primary}
         {whatsApp ? (
           <Button
             asChild
             variant="outline"
-            className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+            className="hidden h-10 gap-2 rounded-xl text-sm font-medium lg:inline-flex"
             data-testid="ticket-detail-whatsapp"
           >
             <a href={whatsApp.href} target="_blank" rel="noopener noreferrer">
@@ -138,7 +173,7 @@ export const TicketDetailPrimaryActions = ({
           <Button
             type="button"
             variant="outline"
-            className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+            className="hidden h-10 gap-2 rounded-xl text-sm font-medium lg:inline-flex"
             aria-label="Descargar PDF"
             disabled={downloading}
             onClick={() => void download()}
@@ -162,7 +197,7 @@ export const TicketDetailPrimaryActions = ({
           paymentsCount={paymentsCount}
           downloadFileName={downloadFileName}
           inlineFromLg
-          className="h-10 w-10 shrink-0 border border-input"
+          className="h-10 w-10 shrink-0 rounded-xl"
         />
       </div>
     );

@@ -16,7 +16,7 @@ import {
 const visible = (locator: Locator) => locator.filter({ visible: true }).first();
 
 const columnOf = async (page: Page, locator: Locator) => {
-  const asideBox = await page.locator('main aside[aria-label$="cliente y actividad"]').boundingBox();
+  const asideBox = await page.locator('main aside[data-testid="ticket-detail-money-column"]').boundingBox();
   const box = await locator.boundingBox();
   expect(box, 'element is rendered').not.toBeNull();
   if (!asideBox || asideBox.width === 0) return 'main';
@@ -72,5 +72,109 @@ test.describe('Ticket detail desktop columns @1280px (ZIG-I27-5)', () => {
     await expect(page.getByRole('heading', { name: /^Pagos/ }).filter({ visible: true })).toHaveCount(1);
     await expect(page.locator('#finalizar').filter({ visible: true })).toHaveCount(0);
     await expectOneActivityCard(page);
+  });
+});
+
+/**
+ * ZIG-I37-3 / ZIG-I37-4, read only: opens an existing ticket (E2E_TICKET_DETAIL_ID, or the
+ * first one in the list) and checks the layout. Saves nothing.
+ */
+const openSomeTicket = async (page: Page) => {
+  const id = process.env.E2E_TICKET_DETAIL_ID;
+  if (id) {
+    await page.goto(`/tickets/${id}`);
+  } else {
+    await page.goto('/tickets');
+    const href = await visible(page.locator('main a[href^="/tickets/"]').filter({ hasText: /\S/ }))
+      .evaluateAll((links) =>
+        links.map((a) => a.getAttribute('href') ?? '').find((h) => /^\/tickets\/\d+$/.test(h)),
+      )
+      .catch(() => undefined);
+    test.skip(!href, 'no ticket in this tenant');
+    await page.goto(href!);
+  }
+  await expect(page.getByTestId('ticket-detail-title').filter({ visible: true })).toBeVisible({
+    timeout: 30_000,
+  });
+};
+
+const box = async (locator: Locator) => {
+  const b = await locator.boundingBox();
+  expect(b, 'element is rendered').not.toBeNull();
+  return b!;
+};
+
+const setSidebar = async (page: Page, baseURL: string | undefined, open: boolean) => {
+  const url = new URL(baseURL ?? 'http://localhost:3000');
+  await page.context().addCookies([
+    { name: 'sidebar_state', value: String(open), domain: url.hostname, path: '/' },
+  ]);
+};
+
+test.describe('Ticket detail layout, read only (ZIG-I37-3, ZIG-I37-4)', () => {
+  test.setTimeout(120_000);
+
+  test.beforeEach(async ({ page }) => {
+    test.skip(!hasE2eCredentials, e2eCredentialsSkipReason);
+    await login(page);
+    await ensureTenantCompany(page);
+  });
+
+  test('1024 with the sidebar open: Actividad closes the page, buttons stay under the meta', async ({ page, baseURL }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await setSidebar(page, baseURL, true);
+    await openSomeTicket(page);
+
+    const activity = page.getByTestId('ticket-activity-card');
+    await expect(activity.filter({ visible: true })).toHaveCount(1);
+    const services = await box(visible(page.locator('main [aria-labelledby="ticket-services-heading"]')));
+    const activityBox = await box(visible(activity));
+    expect(activityBox.y).toBeGreaterThanOrEqual(services.y + services.height - 1);
+    expect(await columnOf(page, visible(activity))).toBe('main');
+    // One Actividad heading in the accessibility tree.
+    await expect(page.getByRole('heading', { name: /^Actividad/ })).toHaveCount(1);
+    await expect(
+      page.getByRole('complementary', { name: /y actividad/ }),
+      'the aside does not claim Actividad here',
+    ).toHaveCount(0);
+
+    const title = await box(visible(page.getByTestId('ticket-detail-title')));
+    const actions = page.getByTestId('ticket-detail-header-actions').filter({ visible: true });
+    if (await actions.count()) {
+      expect((await box(actions.first())).y).toBeGreaterThan(title.y + title.height - 1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('1440 with the sidebar folded: buttons right of the title, top-aligned, one row; Actividad in the aside', async ({ page, baseURL }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await setSidebar(page, baseURL, false);
+    await openSomeTicket(page);
+
+    const activity = visible(page.getByTestId('ticket-activity-card'));
+    expect(await columnOf(page, activity)).toBe('aside');
+    await expect(page.getByRole('heading', { name: /^Actividad/ })).toHaveCount(1);
+    await expect(page.getByRole('complementary', { name: /y actividad$/ })).toHaveCount(1);
+
+    const actions = page.getByTestId('ticket-detail-header-actions').filter({ visible: true });
+    test.skip((await actions.count()) === 0, 'no header actions for this user');
+    const actionsBox = await box(actions.first());
+    const title = await box(visible(page.getByTestId('ticket-detail-title')));
+    const header = await box(visible(page.getByTestId('ticket-detail-header')));
+    expect(actionsBox.x).toBeGreaterThanOrEqual(title.x + title.width - 1);
+    expect(Math.abs(actionsBox.y - header.y)).toBeLessThanOrEqual(4);
+    // One row: every button shares the first one's top.
+    const tops = await actions
+      .first()
+      .locator(':scope > :is(a, button)')
+      .filter({ visible: true })
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBe(1);
+    const heights = await actions
+      .first()
+      .locator(':scope > :is(a, button)')
+      .filter({ visible: true })
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+    expect(heights.every((h) => h === 40)).toBe(true);
   });
 });

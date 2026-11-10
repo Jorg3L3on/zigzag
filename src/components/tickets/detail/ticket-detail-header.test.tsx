@@ -47,4 +47,15 @@ describe('TicketDetailHeader (ZIG-I13-4)', () => {
     expect(screen.queryByText('Creado')).toBeNull();
     expect(screen.queryByText('Actualizado')).toBeNull();
   });
+
+  it('puts the actions beside the title from lg and a 48rem page, under the meta below (ZIG-I37-4)', () => {
+    render(<TicketDetailHeader {...base} actions={<button type="button">PDF</button>} />);
+
+    const header = screen.getByTestId('ticket-detail-header');
+    expect(header).toHaveClass('flex-col', 'lg:@min-[48rem]:flex-row', 'lg:@min-[48rem]:items-start');
+    // display: contents, so an empty cluster leaves no column and no gap.
+    const slot = screen.getByRole('button', { name: 'PDF' }).parentElement;
+    expect(slot).toHaveClass('hidden', 'md:contents');
+    expect(screen.getByRole('heading', { level: 1 }).closest('div.lg\\:\\@min-\\[48rem\\]\\:flex-1')).not.toBeNull();
+  });
 });
