@@ -86,10 +86,13 @@ export const filterTickets = (
 export const countActiveFilters = (
   filters: Pick<
     TicketsFilterState,
-    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange' | 'clientId'
   >,
 ): number => {
   let n = 0;
+  if (filters.clientId) {
+    n += 1;
+  }
   if (filters.searchValue.trim()) {
     n += 1;
   }
@@ -108,18 +111,28 @@ export const countActiveFilters = (
 export const hasActiveTicketFilters = (
   filters: Pick<
     TicketsFilterState,
-    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange' | 'clientId'
   >,
 ): boolean => countActiveFilters(filters) > 0;
+
+/** The chosen client's chip: its name and how to drop it (ZIG-I37-1). */
+export type TicketClientChip = { name: string; onRemove: () => void };
 
 export const buildTicketFilterChips = (
   totalCount: number,
   _filteredCount: number,
   filters: Pick<
     TicketsFilterState,
-    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange' | 'clientId'
   >,
-) => [
+  client?: TicketClientChip | null,
+): Array<{
+  key: string;
+  label: string;
+  variant?: 'secondary';
+  onRemove?: () => void;
+  removeAriaLabel?: string;
+}> => [
   {
     key: 'count',
     // «41 tickets» without a filter, «3 resultados» with one; never «1 de 1» (ZIG-I36 M-26).
@@ -128,6 +141,16 @@ export const buildTicketFilterChips = (
       : `${totalCount} ${totalCount === 1 ? 'ticket' : 'tickets'}`,
     variant: 'secondary' as const,
   },
+  ...(filters.clientId && client
+    ? [
+        {
+          key: 'client',
+          label: `Cliente: ${client.name}`,
+          onRemove: client.onRemove,
+          removeAriaLabel: `Quitar filtro Cliente: ${client.name}`,
+        },
+      ]
+    : []),
   ...(filters.statusFilter !== 'all'
     ? [
         {

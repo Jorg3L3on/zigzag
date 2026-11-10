@@ -41,7 +41,15 @@ const row = {
 
 describe('presupuesto view props (ZIG-I5-4 / ZIG-I5-5)', () => {
   it('maps the row for the review and detail pages', () => {
-    const props = buildPresupuestoViewProps(row);
+    // The status depends on today vs expires_at (2026-11-08): pin "today" inside
+    // the validity window so the fixture stays abierto after that date passes.
+    jest.useFakeTimers({ now: new Date('2026-10-20T12:00:00.000Z') });
+    let props: ReturnType<typeof buildPresupuestoViewProps>;
+    try {
+      props = buildPresupuestoViewProps(row);
+    } finally {
+      jest.useRealTimers();
+    }
     expect(props).toMatchObject({
       presupuestoId: '1057',
       clientName: 'Plaza Comercial Aurora',

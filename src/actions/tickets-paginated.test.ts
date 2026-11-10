@@ -187,6 +187,38 @@ describe('getTicketsPaginated summary (ZIG-I13-7)', () => {
     expect(phone.params).toContain(true);
   });
 
+  it('filters rows, tab counts and the phone chip by one client, inside the tenant (ZIG-I37-1)', async () => {
+    const { wheres } = await run({ companyId: 10, clientId: 7, statusFilter: 'due' });
+
+    // 0 list count, 1 tab counts + phone chip, 2 page rows: all carry the client and the tenant.
+    for (const where of wheres.slice(0, 3)) {
+      const query = sqlOf(where);
+      expect(query.sql).toMatch(/"client_id" = \$\d+/);
+      expect(query.params).toContain(7);
+      expect(query.sql).toContain('"company_id" = $');
+      expect(query.params).toContain(10);
+    }
+  });
+
+  it('a client id never widens the tenant: the company of the session still applies', async () => {
+    (requireTicketRead as jest.Mock).mockResolvedValue({ context: {}, companyId: 10 });
+    // 55 is a client of another company: the WHERE still says company 10, so it matches nothing.
+    const { wheres } = await run({ companyId: 99, clientId: 55 });
+    for (const where of wheres) {
+      const query = sqlOf(where);
+      expect(query.params).toContain(10);
+      expect(query.params).not.toContain(99);
+    }
+    expect(sqlOf(wheres[0]).sql).toMatch(/"company_id" = \$\d+ and .*"client_id" = \$\d+/);
+  });
+
+  it('ignores a client id that is not a positive integer', async () => {
+    for (const clientId of [0, -3, 1.5, Number.NaN]) {
+      const { wheres } = await run({ companyId: 10, clientId });
+      expect(sqlOf(wheres[0]).sql).not.toContain('"client_id"');
+    }
+  });
+
   it('the Por cobrar status filter is finished work only', async () => {
     const { wheres } = await run({ companyId: 10, statusFilter: 'due' });
     const list = sqlOf(wheres[0]);

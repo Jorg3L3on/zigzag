@@ -9,10 +9,11 @@ import {
 } from '@tanstack/react-table';
 import type { Ticket, TicketListCounts } from '@/actions/tickets';
 import { getTicketsPaginated } from '@/actions/tickets';
+import { getClientsList } from '@/actions/clients';
+import type { SearchableSelectOption } from '@/components/ui/searchable-select';
 import { DesktopSwitch } from '@/components/desktop-switch';
 import {
   LIST_PAGE_SIZE,
-  ListColumnsMenu,
   ListDesktopTitle,
   ListEmpty,
   ListError,
@@ -22,8 +23,6 @@ import {
   ListTable,
   ListTableCard,
   listFooterPagination,
-  useListHiddenColumns,
-  type ListColumnOption,
 } from '@/components/list-page';
 import {
   TicketCollectionTabs,
@@ -75,20 +74,16 @@ import type { DateRange } from 'react-day-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { parseFinishedFilter, parseStatusFilter } from '@/components/tickets/tickets-list-types';
+import {
+  parseClientFilter,
+  parseFinishedFilter,
+  parseStatusFilter,
+} from '@/components/tickets/tickets-list-types';
 
 type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
 
 /** The one description of the page, as the phone card header reads it (a4aec7d5). */
 const TICKETS_DESCRIPTION = 'Lista de todos los tickets registrados';
-
-/** Columnas (canvas ListaA): what a person can hide on the desktop table. */
-const TICKET_OPTIONAL_COLUMNS: ListColumnOption[] = [
-  { id: 'services', label: 'Trabajo' },
-  { id: 'ticket_date', label: 'Fecha' },
-  { id: 'total', label: 'Total' },
-  { id: 'balance', label: 'Saldo' },
-];
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
@@ -125,6 +120,15 @@ export default function TicketsList() {
     React.useState<FinishedFilterValue>(() =>
       parseFinishedFilter(searchParams.get('finished')),
     );
+  // `?cliente=<id>` (ZIG-I37-1): '' is every client.
+  const [clientFilter, setClientFilter] = React.useState<string>(() =>
+    parseClientFilter(searchParams.get('cliente')),
+  );
+  const canReadClients = permissions.can('clients.read');
+  const [clientOptions, setClientOptions] = React.useState<SearchableSelectOption[]>([]);
+  const [clientOptionsState, setClientOptionsState] = React.useState<
+    'loading' | 'ready' | 'error'
+  >('loading');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
   // `?orden=`, written by the column headers on desktop and the sort select on phones;
   // the server sorts the whole list, not the page (ZIG-I33-2).
@@ -148,7 +152,7 @@ export default function TicketsList() {
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, statusFilter, finishedFilter, dateRange, sortKey]);
+  }, [debouncedSearch, statusFilter, finishedFilter, clientFilter, dateRange, sortKey]);
 
   React.useEffect(() => {
     ticketsRef.current = tickets;
@@ -157,6 +161,7 @@ export default function TicketsList() {
   React.useEffect(() => {
     setStatusFilter(parseStatusFilter(searchParams.get('status')));
     setFinishedFilter(parseFinishedFilter(searchParams.get('finished')));
+    setClientFilter(parseClientFilter(searchParams.get('cliente')));
     const nextSorting = parseTicketSortParam(searchParams.get('orden'));
     setSorting((prev) =>
       encodeSortingState(prev) === encodeSortingState(nextSorting) ? prev : nextSorting,
@@ -175,6 +180,11 @@ export default function TicketsList() {
     } else {
       params.set('finished', finishedFilter);
     }
+    if (clientFilter) {
+      params.set('cliente', clientFilter);
+    } else {
+      params.delete('cliente');
+    }
     if (sortParam) {
       params.set('orden', sortParam);
     } else {
@@ -188,7 +198,51 @@ export default function TicketsList() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
       scroll: false,
     });
-  }, [statusFilter, finishedFilter, sortParam, pathname, router, searchParams]);
+  }, [statusFilter, finishedFilter, clientFilter, sortParam, pathname, router, searchParams]);
+
+  // The client options load once per company, shared by the desktop row and the sheet.
+  React.useEffect(() => {
+    if (!canReadClients || missingCompany || !selectedCompany?.id) {
+      setClientOptions([]);
+      setClientOptionsState('loading');
+      return;
+    }
+    let cancelled = false;
+    setClientOptionsState('loading');
+    void getClientsList({ companyId: selectedCompany.id })
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.success || !result.data) {
+          setClientOptionsState('error');
+          return;
+        }
+        const options = result.data
+          .map((row) => ({
+            value: String(row.id),
+            label: row.name,
+            title: row.name,
+            detail: row.phone ?? undefined,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+        setClientOptions(options);
+        setClientOptionsState('ready');
+      })
+      .catch((error) => {
+        if (!cancelled) setClientOptionsState('error');
+        console.warn('Unable to load clients for the tickets filter:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadClients, missingCompany, selectedCompany?.id]);
+
+  // An id that is not one of this tenant's clients (deleted, another company, typo) is ignored.
+  React.useEffect(() => {
+    if (clientOptionsState !== 'ready' || !clientFilter) return;
+    if (!clientOptions.some((option) => option.value === clientFilter)) {
+      setClientFilter('');
+    }
+  }, [clientOptionsState, clientOptions, clientFilter]);
 
   const fetchTickets = React.useCallback(
     async ({
@@ -252,6 +306,7 @@ export default function TicketsList() {
           finishedFilter,
           dateFrom,
           dateTo,
+          clientId: clientFilter && canReadClients ? Number(clientFilter) : undefined,
           sort: ticketListSortForServer(sorting),
         });
         if (result.success && result.data) {
@@ -319,6 +374,8 @@ export default function TicketsList() {
       debouncedSearch,
       statusFilter,
       finishedFilter,
+      clientFilter,
+      canReadClients,
       dateRange,
       sorting,
     ],
@@ -385,14 +442,14 @@ export default function TicketsList() {
 
   const filteredTickets = tickets;
 
-  const hiddenColumns = useListHiddenColumns('zigzag:tickets-columns:v1');
   const table = useReactTable({
     data: filteredTickets,
     columns,
     state: {
       sorting,
       pagination,
-      columnVisibility: { client_tel: false, ...hiddenColumns.visibility },
+      // Every column always shows: «Columnas» is gone from Tickets (ZIG-I37-1).
+      columnVisibility: { client_tel: false },
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -410,6 +467,7 @@ export default function TicketsList() {
     statusFilter,
     finishedFilter,
     dateRange,
+    clientId: canReadClients ? clientFilter : '',
   };
   const hasActiveFilters = hasActiveTicketFilters(filterState);
   const listState = resolveResourceListState({
@@ -420,17 +478,32 @@ export default function TicketsList() {
     hasActiveFilters,
   });
   const activeFilterCount = countActiveFilters(filterState);
+  const selectedClient = clientFilter
+    ? clientOptions.find((option) => option.value === clientFilter) ?? null
+    : null;
   const filterChips = buildTicketFilterChips(
     totalCount,
     filteredTickets.length,
     filterState,
+    selectedClient
+      ? { name: selectedClient.label, onRemove: () => setClientFilter('') }
+      : null,
   );
+  const clientFilterControl = canReadClients
+    ? {
+        value: clientFilter,
+        onChange: setClientFilter,
+        options: clientOptions,
+        isLoading: clientOptionsState === 'loading',
+      }
+    : null;
 
   const handleClearFilters = () => {
     setSearchValue('');
     setStatusFilter('all');
     setFinishedFilter('all');
     setDateRange(undefined);
+    setClientFilter('');
     // Limpiar never touches the order (ZIG-I33 §2).
   };
 
@@ -495,6 +568,7 @@ export default function TicketsList() {
           hasActiveFilters={hasActiveFilters}
           onClearFilters={handleClearFilters}
           filterChips={filterChips}
+          clientFilter={clientFilterControl}
         />
 
         {offlineBanner}
@@ -672,9 +746,7 @@ export default function TicketsList() {
             onDateRangeChange={setDateRange}
             hasActiveFilters={hasActiveFilters}
             onClearFilters={handleClearFilters}
-            columnsMenu={
-              <ListColumnsMenu table={table} options={TICKET_OPTIONAL_COLUMNS} onToggle={hiddenColumns.toggle} />
-            }
+            clientFilter={clientFilterControl}
           />
         </div>
         {offlineAlert}

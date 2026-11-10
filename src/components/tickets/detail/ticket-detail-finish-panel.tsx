@@ -24,6 +24,7 @@ import { FormattedCurrency } from '@/components/formatted-currency';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import { useInvoiceDeliveryMode } from '@/hooks/use-invoice-delivery-mode';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -84,6 +85,7 @@ export const TicketDetailFinishPanel = ({
   const paymentChoice = usePaymentChoice(total ?? 0);
   const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const deliveryMode = useInvoiceDeliveryMode();
 
   if (!canFinish) {
     return null;
@@ -99,6 +101,7 @@ export const TicketDetailFinishPanel = ({
       downloadFileName:
         downloadFileName ||
         `${clientName ?? 'ticket'}_${String(ticketId)}.pdf`,
+      mode: deliveryMode,
     });
 
   /** Saves the terminate and the payment, then delivers the recibo. The page is not refreshed here. */
@@ -139,7 +142,10 @@ export const TicketDetailFinishPanel = ({
     if (deliveryResult === 'shared') {
       toast.success('PDF compartido correctamente');
     } else if (deliveryResult === 'downloaded') {
-      toast.success('Recibo generado correctamente');
+      // Desktop names what happened, like every other Descargar (ZIG-I37-2).
+      toast.success(
+        deliveryMode === 'download' ? 'PDF descargado correctamente' : 'Recibo generado correctamente',
+      );
     } else {
       toast.success('Ticket finalizado correctamente');
     }

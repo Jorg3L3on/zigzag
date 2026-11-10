@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import type { PresupuestoTableItem } from '@/actions/presupuestos';
 import { ListRowMenu, type ListRowMenuItem } from '@/components/list-page';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import { useInvoiceDeliveryMode } from '@/hooks/use-invoice-delivery-mode';
 import { buildWhatsAppQuoteReminder } from '@/lib/whatsapp-share';
 
 export type PresupuestoRowHandlers = {
@@ -57,6 +58,7 @@ export const PresupuestoRowMenu = ({
 }: PresupuestoRowMenuProps) => {
   const router = useRouter();
   const [downloading, setDownloading] = React.useState(false);
+  const deliveryMode = useInvoiceDeliveryMode();
   const open = item.status === 'abierto' || item.status === 'vencido';
   const empty = !item.servicesSummary?.trim();
   // No folio means the R ticket is gone (deleted): nothing to open.
@@ -83,6 +85,7 @@ export const PresupuestoRowMenu = ({
         ticketId: item.id,
         companyId,
         downloadFileName: `presupuesto_${item.folio || item.id}.pdf`,
+        mode: deliveryMode,
       });
       if (result === 'downloaded') toast.success('PDF descargado');
       if (result === 'shared') toast.success('PDF compartido');

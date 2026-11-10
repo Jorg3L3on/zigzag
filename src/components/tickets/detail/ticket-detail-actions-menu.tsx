@@ -124,7 +124,7 @@ export const TicketDetailActionsMenu = ({
         <Button
           asChild
           variant="outline"
-          className="hidden h-10 gap-2 rounded-xl lg:inline-flex"
+          className="hidden h-10 gap-2 rounded-xl text-sm font-medium lg:inline-flex"
           data-testid="ticket-detail-inline-actions"
         >
           <Link href={`/tickets/${ticketId}/edit`} aria-label="Editar servicios">
@@ -137,9 +137,12 @@ export const TicketDetailActionsMenu = ({
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            // In the desktop header ⋯ matches the outline buttons next to it (ZIG-I37-4).
+            variant={inlineFromLg ? 'outline' : 'ghost'}
             size="icon"
-            className={className ?? 'h-11 w-11 shrink-0'}
+            // From lg Editar and PDF are buttons, so only Duplicar / Eliminar stay in ⋯:
+            // without them the menu would open empty, so ⋯ goes too (ZIG-I37-4).
+            className={cn(className ?? 'h-11 w-11 shrink-0', inlineFromLg && !canWrite && 'lg:hidden')}
             aria-label="Más acciones del ticket"
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />

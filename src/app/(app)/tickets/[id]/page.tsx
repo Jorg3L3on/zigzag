@@ -133,13 +133,26 @@ export default async function TicketDetailsPage({
       openBalances={ticket.client_open_balances ?? []}
     />
   );
+  const activityCard = <TicketDetailActivityCard entries={auditEntries} />;
+  // Actividad is in the aside only from 60rem of page (ZIG-I37-3), so the name says
+  // «y actividad» only there: the display:none variant drops out of the computed name.
+  const moneyColumnLabelId = `ticket-money-column-label-${String(ticket.id)}`;
   const moneyColumn = (
     <aside
-      aria-label={ticket.finished ? 'Cobro, cliente y actividad' : 'Terminar, cliente y actividad'}
+      aria-labelledby={moneyColumnLabelId}
+      data-testid="ticket-detail-money-column"
       // Narrow desktop (1024 with the sidebar): the money side comes first, not under the
       // whole document; from 60rem it is the sticky right column (canvas).
       className="flex min-w-0 flex-col gap-4 lg:order-first lg:gap-6 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1"
     >
+      <span id={moneyColumnLabelId} className="sr-only">
+        <span className="@min-[60rem]:hidden">
+          {ticket.finished ? 'Cobro y cliente' : 'Terminar y cliente'}
+        </span>
+        <span className="hidden @min-[60rem]:inline">
+          {ticket.finished ? 'Cobro, cliente y actividad' : 'Terminar, cliente y actividad'}
+        </span>
+      </span>
       {ticket.finished ? (
         <>
           <div className="lg:hidden">
@@ -158,7 +171,7 @@ export default async function TicketDetailsPage({
               }))}
             />
             {clientCard}
-            <TicketDetailActivityCard entries={auditEntries} />
+            <div className="hidden @min-[60rem]:block">{activityCard}</div>
           </div>
         </>
       ) : (
@@ -176,7 +189,7 @@ export default async function TicketDetailsPage({
           />
           <div className="hidden flex-col gap-4 lg:flex lg:gap-6 lg:@max-[60rem]:grid lg:@max-[60rem]:grid-cols-2 lg:@max-[60rem]:items-start lg:@max-[60rem]:gap-4">
             {clientCard}
-            <TicketDetailActivityCard entries={auditEntries} />
+            <div className="hidden @min-[60rem]:block">{activityCard}</div>
           </div>
         </>
       )}
@@ -274,8 +287,9 @@ export default async function TicketDetailsPage({
             {/* The right column is the money side (ZIG-I27-5): finish and collect while
                 En proceso, Pagos once finished. Each section renders once and the DOM
                 order is the phone order (finish panel above Servicios, Pagos between
-                Servicios and Actividad); from lg the aside is placed in column 2 across
-                both rows and stays sticky, and Actividad sits right under Servicios. */}
+                Servicios and Actividad); from 60rem the aside is placed in column 2 across
+                both rows and stays sticky with Actividad at its end; narrower, Actividad
+                closes the page (ZIG-I37-3). */}
             <div className="grid gap-4 md:gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_300px] @min-[60rem]:grid-rows-[auto_1fr] @min-[60rem]:items-start @min-[60rem]:gap-x-8 @min-[66rem]:grid-cols-[minmax(0,1fr)_320px] @min-[72rem]:grid-cols-[minmax(0,1fr)_340px]">
               {ticket.finished ? null : moneyColumn}
 
@@ -300,6 +314,12 @@ export default async function TicketDetailsPage({
                   updatedAt={ticket.updated_at}
                 />
               </div>
+
+              {/* Narrow desktop (one column, < 60rem of page): Actividad is the last block,
+                  under the document, not between Cobro | Cliente and Servicios (ZIG-I37-3).
+                  From 60rem the copy in the sticky aside shows instead; the other one is
+                  display:none, so Actividad is once in the accessibility tree. */}
+              <div className="hidden min-w-0 lg:@max-[60rem]:block">{activityCard}</div>
             </div>
           </div>
         </TripledDashboardShell>
