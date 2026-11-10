@@ -85,13 +85,14 @@ const openSomeTicket = async (page: Page) => {
     await page.goto(`/tickets/${id}`);
   } else {
     await page.goto('/tickets');
-    const href = await visible(page.locator('main a[href^="/tickets/"]').filter({ hasText: /\S/ }))
-      .evaluateAll((links) =>
-        links.map((a) => a.getAttribute('href') ?? '').find((h) => /^\/tickets\/\d+$/.test(h)),
-      )
-      .catch(() => undefined);
-    test.skip(!href, 'no ticket in this tenant');
-    await page.goto(href!);
+    const row = page.getByTestId('tickets-row').filter({ visible: true }).first();
+    const hasRow = await row
+      .waitFor({ timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!hasRow, 'no ticket in this tenant');
+    await row.click();
+    await page.waitForURL(/\/tickets\/\d+$/, { timeout: 30_000 });
   }
   await expect(page.getByTestId('ticket-detail-title').filter({ visible: true })).toBeVisible({
     timeout: 30_000,
@@ -127,14 +128,15 @@ test.describe('Ticket detail layout, read only (ZIG-I37-3, ZIG-I37-4)', () => {
 
     const activity = page.getByTestId('ticket-activity-card');
     await expect(activity.filter({ visible: true })).toHaveCount(1);
-    const services = await box(visible(page.locator('main [aria-labelledby="ticket-services-heading"]')));
+    const services = await box(visible(page.locator('main [aria-labelledby="ticket-document-heading"]')));
     const activityBox = await box(visible(activity));
     expect(activityBox.y).toBeGreaterThanOrEqual(services.y + services.height - 1);
-    expect(await columnOf(page, visible(activity))).toBe('main');
+    // One column here, so x says nothing: the shown card is outside the aside.
+    expect(await visible(activity).evaluate((el) => el.closest('aside') === null)).toBe(true);
     // One Actividad heading in the accessibility tree.
     await expect(page.getByRole('heading', { name: /^Actividad/ })).toHaveCount(1);
     await expect(
-      page.getByRole('complementary', { name: /y actividad/ }),
+      page.getByRole('complementary', { name: /actividad/i }),
       'the aside does not claim Actividad here',
     ).toHaveCount(0);
 
@@ -154,7 +156,7 @@ test.describe('Ticket detail layout, read only (ZIG-I37-3, ZIG-I37-4)', () => {
     const activity = visible(page.getByTestId('ticket-activity-card'));
     expect(await columnOf(page, activity)).toBe('aside');
     await expect(page.getByRole('heading', { name: /^Actividad/ })).toHaveCount(1);
-    await expect(page.getByRole('complementary', { name: /y actividad$/ })).toHaveCount(1);
+    await expect(page.getByRole('complementary', { name: /, cliente y actividad$/ })).toHaveCount(1);
 
     const actions = page.getByTestId('ticket-detail-header-actions').filter({ visible: true });
     test.skip((await actions.count()) === 0, 'no header actions for this user');

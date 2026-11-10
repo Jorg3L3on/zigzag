@@ -110,11 +110,13 @@ export const TicketDetailPrimaryActions = ({
   // the «Saldo por cobrar» card (only shown from lg), so md–lg still gets it here.
   const balanceOnlyBelowLg = desktop && hasBalance ? 'lg:hidden' : undefined;
 
-  const primary = !finished && desktop ? (
+  // Terminar points at the finish panel, which only renders for users who can write.
+  const canFinish = canWriteTickets(can);
+  const primary = !finished && desktop ? (canFinish ? (
     <Button type="button" className={primaryClass} onClick={focusFinishCard}>
       Terminar ticket
     </Button>
-  ) : canCollect ? (
+  ) : null) : canCollect ? (
     <Button
       type="button"
       className={cn(primaryClass, balanceOnlyBelowLg)}
@@ -136,13 +138,15 @@ export const TicketDetailPrimaryActions = ({
   ) : null;
 
   if (placement === 'desktop') {
-    // Same rules as TicketDetailActionsMenu: ⋯ renders when any of its items does.
-    const menuShows =
-      (canAssignTicketServices(can) && !isTicketFullyPaid(total, paid)) ||
-      canPdf ||
-      canWriteTickets(can);
+    // What TicketDetailActionsMenu shows from lg: Editar, and ⋯ only with Duplicar / Eliminar.
+    const editOrMenuFromLg =
+      (canAssignTicketServices(can) && !isTicketFullyPaid(total, paid)) || canWriteTickets(can);
     const anythingFromLg =
-      !finished || (canShare && !hasBalance) || Boolean(whatsApp) || canPdf || menuShows;
+      (!finished && canFinish) ||
+      (canShare && !hasBalance) ||
+      Boolean(whatsApp) ||
+      (canPdf && finished) ||
+      editOrMenuFromLg;
 
     return (
       <div

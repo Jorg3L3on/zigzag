@@ -107,6 +107,24 @@ describe('TicketDetailPrimaryActions (ZIG-I13-4)', () => {
     expect(screen.getByTestId('ticket-detail-header-actions')).toHaveClass('lg:@min-[48rem]:flex-nowrap');
   });
 
+  it('drops ⋯ from lg for a read-only user (its items are buttons there), PDF stays', () => {
+    allowed = (permission) => permission === 'tickets.read';
+    renderActions({ finished: true, total: 100, paid: 100 });
+
+    expect(screen.getByRole('button', { name: /más acciones del ticket/i })).toHaveClass('lg:hidden');
+    expect(screen.getByRole('button', { name: 'Descargar PDF' })).toHaveClass('lg:inline-flex');
+    expect(screen.queryByRole('link', { name: /editar/i })).toBeNull();
+    expect(screen.getByTestId('ticket-detail-header-actions')).not.toHaveClass('lg:hidden');
+  });
+
+  it('offers no Terminar ticket to a read-only user (the finish panel is not there for them)', () => {
+    allowed = (permission) => permission === 'tickets.read';
+    renderActions({ finished: false, total: 100, paid: 0 });
+
+    expect(screen.queryByRole('button', { name: 'Terminar ticket' })).toBeNull();
+    expect(screen.getByTestId('ticket-detail-header-actions')).toHaveClass('lg:hidden');
+  });
+
   it('hides the whole cluster from lg when no button is left there', () => {
     allowed = () => false;
     renderActions({ finished: true, total: 100, paid: 40 });

@@ -135,7 +135,7 @@ export default async function TicketDetailsPage({
   );
   const activityCard = <TicketDetailActivityCard entries={auditEntries} />;
   // Actividad is in the aside only from 60rem of page (ZIG-I37-3), so the name says
-  // «y actividad» only there: the hidden part drops out of the computed name.
+  // «y actividad» only there: the display:none variant drops out of the computed name.
   const moneyColumnLabelId = `ticket-money-column-label-${String(ticket.id)}`;
   const moneyColumn = (
     <aside
@@ -146,8 +146,12 @@ export default async function TicketDetailsPage({
       className="flex min-w-0 flex-col gap-4 lg:order-first lg:gap-6 @min-[60rem]:sticky @min-[60rem]:top-20 @min-[60rem]:col-start-2 @min-[60rem]:row-span-2 @min-[60rem]:row-start-1"
     >
       <span id={moneyColumnLabelId} className="sr-only">
-        {ticket.finished ? 'Cobro y cliente' : 'Terminar y cliente'}
-        <span className="hidden @min-[60rem]:inline"> y actividad</span>
+        <span className="@min-[60rem]:hidden">
+          {ticket.finished ? 'Cobro y cliente' : 'Terminar y cliente'}
+        </span>
+        <span className="hidden @min-[60rem]:inline">
+          {ticket.finished ? 'Cobro, cliente y actividad' : 'Terminar, cliente y actividad'}
+        </span>
       </span>
       {ticket.finished ? (
         <>
