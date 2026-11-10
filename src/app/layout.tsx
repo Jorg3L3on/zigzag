@@ -12,6 +12,11 @@ import { PwaInstallBanner } from '@/components/pwa-install-banner';
 import { AppSerwistProvider } from '@/components/serwist-provider';
 import './globals.css';
 import { CompanyProvider } from '@/contexts/company-context';
+import { cookies } from 'next/headers';
+import {
+  parseSelectedCompanyCookie,
+  SELECTED_COMPANY_COOKIE_NAME,
+} from '@/lib/selected-company-cookie';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -67,6 +72,11 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  // UI preference only (ZIG-I37-5): seeds the company picker so SSR matches
+  // the client. Never used to authorize; actions validate the tenant themselves.
+  const initialCompany = parseSelectedCompanyCookie(
+    (await cookies()).get(SELECTED_COMPANY_COOKIE_NAME)?.value,
+  );
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -84,7 +94,7 @@ export default async function RootLayout({
         >
           <ThemeColorMeta />
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <CompanyProvider>
+            <CompanyProvider initialCompany={initialCompany}>
               <Providers>
                 <AppSerwistProvider>
                   <NetworkStatusBanner />
