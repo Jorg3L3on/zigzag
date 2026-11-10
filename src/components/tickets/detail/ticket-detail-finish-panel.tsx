@@ -142,7 +142,10 @@ export const TicketDetailFinishPanel = ({
     if (deliveryResult === 'shared') {
       toast.success('PDF compartido correctamente');
     } else if (deliveryResult === 'downloaded') {
-      toast.success('Recibo generado correctamente');
+      // Desktop names what happened, like every other Descargar (ZIG-I37-2).
+      toast.success(
+        deliveryMode === 'download' ? 'PDF descargado correctamente' : 'Recibo generado correctamente',
+      );
     } else {
       toast.success('Ticket finalizado correctamente');
     }

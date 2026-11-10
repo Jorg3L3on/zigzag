@@ -5,6 +5,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-detail-finish-panel';
 import { TicketFinishReminders } from '@/components/tickets/detail/ticket-finish-reminders';
+import { toast } from 'sonner';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 
 const mockFinishTicket = jest.fn();
@@ -167,6 +168,8 @@ describe('TicketDetailFinishPanel reminders after saving (ZIG-I36-26)', () => {
     expect(fetchAndDeliverTicketInvoice).toHaveBeenLastCalledWith(
       expect.objectContaining({ ticketId: 5, mode: 'share-or-download' }),
     );
+    // A phone without file sharing that falls back to a download keeps its copy.
+    expect(toast.success).toHaveBeenLastCalledWith('Recibo generado correctamente');
 
     await user.click(screen.getByRole('button', { name: /cerrar/i }));
 
@@ -301,6 +304,7 @@ describe('TicketDetailFinishPanel desktop (ZIG-I28-3)', () => {
         expect.objectContaining({ ticketId: 5, downloadFileName: 't.pdf', mode: 'download' }),
       ),
     );
+    expect(toast.success).toHaveBeenLastCalledWith('PDF descargado correctamente');
   });
 
   it('stays disabled without services, with the warning and no invented folio', () => {
