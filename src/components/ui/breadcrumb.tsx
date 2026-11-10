@@ -1,4 +1,5 @@
 import * as React from "react"
+import Link from "next/link"
 import { Slot as SlotPrimitive } from "radix-ui"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
 
@@ -45,15 +46,21 @@ const BreadcrumbLink = React.forwardRef<
     asChild?: boolean
   }
 >(({ asChild, className, ...props }, ref) => {
-  const Comp = asChild ? SlotPrimitive.Slot : "a"
+  const classes = cn("inline-flex min-h-11 items-center transition-colors hover:text-foreground lg:min-h-0", className)
 
-  return (
-    <Comp
-      ref={ref}
-      className={cn("inline-flex min-h-11 items-center transition-colors hover:text-foreground lg:min-h-0", className)}
-      {...props}
-    />
-  )
+  if (asChild) {
+    return <SlotPrimitive.Slot ref={ref} className={classes} {...props} />
+  }
+
+  const { href, ...anchorProps } = props
+
+  // With an href, navigate on the client: a plain <a> reloads the whole app
+  // and the company picker used to reset on that reload (ZIG-I37-6).
+  if (href) {
+    return <Link ref={ref} href={href} className={classes} {...anchorProps} />
+  }
+
+  return <a ref={ref} className={classes} {...anchorProps} />
 })
 BreadcrumbLink.displayName = "BreadcrumbLink"
 

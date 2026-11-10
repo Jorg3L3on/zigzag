@@ -32,23 +32,37 @@ interface Team {
   is_system: boolean;
 }
 
-export function TeamSwitcher({ teams }: { teams: Team[] }) {
+export function TeamSwitcher({
+  teams,
+  teamsAuthoritative = true,
+}: {
+  teams: Team[];
+  /** False while `teams` is only the session seed (ZIG-I37-6). */
+  teamsAuthoritative?: boolean;
+}) {
   const { data: session } = useSession();
   const { isMobile } = useSidebar();
-  const { selectedCompany, setSelectedCompany } = useCompany();
+  const { selectedCompany, setSelectedCompany, selectionRestored } =
+    useCompany();
 
   React.useEffect(() => {
+    if (!selectionRestored) {
+      return;
+    }
     const nextCompany = resolveTeamSwitcherCompany({
       teams,
       selectedCompany,
       sessionCompanyId: session?.user?.company_id,
+      teamsAuthoritative,
     });
     if (!teamSwitcherCompanyNeedsUpdate(selectedCompany, nextCompany)) {
       return;
     }
     setSelectedCompany(nextCompany);
   }, [
+    selectionRestored,
     teams,
+    teamsAuthoritative,
     session?.user?.company_id,
     selectedCompany,
     setSelectedCompany,
@@ -61,7 +75,9 @@ export function TeamSwitcher({ teams }: { teams: Team[] }) {
     [setSelectedCompany],
   );
 
-  if (!teams.length) {
+  // A company seeded by the server cookie (ZIG-I37-5) shows right away,
+  // even before the sidebar knows any team.
+  if (!teams.length && !selectedCompany) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
