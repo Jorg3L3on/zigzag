@@ -24,6 +24,7 @@ import { FormattedCurrency } from '@/components/formatted-currency';
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import { useInvoiceDeliveryMode } from '@/hooks/use-invoice-delivery-mode';
 import {
   classifyClientError,
   getErrorMessageByType,
@@ -84,6 +85,7 @@ export const TicketDetailFinishPanel = ({
   const paymentChoice = usePaymentChoice(total ?? 0);
   const { payMode, chosenPaid, partialTooHigh, hasPayChoice } = paymentChoice;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const deliveryMode = useInvoiceDeliveryMode();
 
   if (!canFinish) {
     return null;
@@ -99,6 +101,7 @@ export const TicketDetailFinishPanel = ({
       downloadFileName:
         downloadFileName ||
         `${clientName ?? 'ticket'}_${String(ticketId)}.pdf`,
+      mode: deliveryMode,
     });
 
   /** Saves the terminate and the payment, then delivers the recibo. The page is not refreshed here. */

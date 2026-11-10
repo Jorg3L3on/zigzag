@@ -15,6 +15,7 @@ import {
 } from '@/components/tickets/ticket-list-collect-payment-dialog';
 import { usePermissions } from '@/hooks/use-permissions';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import { useInvoiceDeliveryMode } from '@/hooks/use-invoice-delivery-mode';
 import {
   canCollectTicketPayment,
   canDownloadTicketInvoice,
@@ -78,6 +79,7 @@ export const useTicketRowActions = (
   const canDownload = canDownloadTicketInvoice(can);
   const canCollect = canCollectTicketPayment(can);
   const [isDownloading, setIsDownloading] = useState(false);
+  const deliveryMode = useInvoiceDeliveryMode();
   const [collectOpen, setCollectOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -101,6 +103,7 @@ export const useTicketRowActions = (
         ticketId: ticket.id,
         companyId,
         downloadFileName: buildTicketPdfFileName(ticket),
+        mode: deliveryMode,
       });
 
       if (result === 'shared') {

@@ -5,6 +5,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TicketDetailFinishPanel } from '@/components/tickets/detail/ticket-detail-finish-panel';
 import { TicketFinishReminders } from '@/components/tickets/detail/ticket-finish-reminders';
+import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
 
 const mockFinishTicket = jest.fn();
 const mockToastError = jest.fn();
@@ -162,6 +163,10 @@ describe('TicketDetailFinishPanel reminders after saving (ZIG-I36-26)', () => {
     expect(mockFinishTicket).toHaveBeenCalledTimes(1);
     expect(mockFinishTicket).toHaveBeenCalledWith(5, 100, 100, 1);
     expect(mockRefresh).not.toHaveBeenCalled();
+    // Phone width: the recibo still goes through the share sheet first (ZIG-I37-2).
+    expect(fetchAndDeliverTicketInvoice).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ticketId: 5, mode: 'share-or-download' }),
+    );
 
     await user.click(screen.getByRole('button', { name: /cerrar/i }));
 
@@ -271,6 +276,31 @@ describe('TicketDetailFinishPanel desktop (ZIG-I28-3)', () => {
     expect(finish).toBeEnabled();
     finish.focus();
     expect(finish).toHaveFocus();
+  });
+
+  it('downloads the recibo after saving, without the share sheet (ZIG-I37-2)', async () => {
+    mockFinishTicket.mockResolvedValue({ success: true });
+    const user = userEvent.setup();
+    render(
+      <TicketDetailFinishPanel
+        ticketId={5}
+        clientId={2}
+        clientName="Cliente"
+        total={100}
+        ticketDate={new Date('2026-07-01')}
+        serviceLines={[{ serviceId: 1, serviceName: 'Servicio' }]}
+        downloadFileName="t.pdf"
+      />,
+    );
+
+    await user.click(screen.getByRole('radio', { name: 'Pagó todo' }));
+    await user.click(screen.getByRole('button', { name: /terminar y generar recibo/i }));
+
+    await waitFor(() =>
+      expect(fetchAndDeliverTicketInvoice).toHaveBeenLastCalledWith(
+        expect.objectContaining({ ticketId: 5, downloadFileName: 't.pdf', mode: 'download' }),
+      ),
+    );
   });
 
   it('stays disabled without services, with the warning and no invented folio', () => {

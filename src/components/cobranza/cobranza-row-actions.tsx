@@ -11,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { companyDay } from '@/lib/company-day';
 import type { CobranzaRow } from '@/lib/cobranza';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import { useInvoiceDeliveryMode } from '@/hooks/use-invoice-delivery-mode';
 import {
   canCollectTicketPayment,
   canDownloadTicketInvoice,
@@ -61,6 +62,7 @@ export const CobranzaRowActions = ({
   const { can } = usePermissions();
   const payment = useCompanyPaymentInfo();
   const [isDownloading, setIsDownloading] = React.useState(false);
+  const deliveryMode = useInvoiceDeliveryMode();
   const showCollect = canWrite && canCollectTicketPayment(can);
   const canDownload = canDownloadTicketInvoice(can);
   const share = buildWhatsAppBalanceShare({
@@ -81,6 +83,7 @@ export const CobranzaRowActions = ({
         ticketId: BigInt(row.id),
         companyId,
         downloadFileName: receiptFileName(row),
+        mode: deliveryMode,
       });
       if (result === 'shared') {
         toast.success('PDF compartido correctamente');
