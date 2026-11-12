@@ -11,13 +11,29 @@ describe('proxy request correlation', () => {
       '/',
       '/aviso-de-privacidad',
       '/terminos-y-condiciones',
-      '/docs/mcp-connector',
       '/ayuda',
       '/ayuda/crear-un-ticket',
       '/ayuda/asistentes',
     ]) {
       const request = new NextRequest(`http://localhost:3069${path}`);
       const response = proxy(request);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
+    }
+  });
+
+  it('never bounces guests on the retired /guides and /docs/mcp-connector addresses', () => {
+    // next.config redirects them to /ayuda before the proxy runs (ZIG-I40-6);
+    // if the proxy ever sees one, it must not send the guest to /login.
+    for (const path of [
+      '/guides',
+      '/guides/',
+      '/guides/guia-empresa.html',
+      '/guides/resumen-ejecutivo.html',
+      '/docs/mcp-connector',
+    ]) {
+      const response = proxy(new NextRequest(`http://localhost:3069${path}`));
 
       expect(response.status).toBe(200);
       expect(response.headers.get('location')).toBeNull();

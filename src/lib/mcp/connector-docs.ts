@@ -2,9 +2,9 @@ import { headers } from 'next/headers';
 import { getMcpResourceUrl } from '@/lib/server/mcp-oauth/config';
 
 /**
- * Shared by the public connector pages (/ayuda/asistentes and the legacy
- * /docs/mcp-connector): what each scope allows, and the connector URL on the
- * host the page was opened on.
+ * Used by the public connector page (/ayuda/asistentes; the old
+ * /docs/mcp-connector redirects there): what each scope allows, and the
+ * connector URL on the host the page was opened on.
  */
 
 /** Every scope a connection can hold; rows render only for scopes the server grants. */

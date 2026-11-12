@@ -25,8 +25,8 @@ describe('marketing SEO routes', () => {
 
     expect(result.rules).toEqual({
       userAgent: '*',
-      // /ayuda covers /ayuda/asistentes; the legacy guide stays allowed until it redirects.
-      allow: ['/', PRIVACY_PATH, TERMS_PATH, LEGACY_MCP_DOCS_PATH, AYUDA_PATH],
+      // /ayuda covers /ayuda/asistentes; /docs/mcp-connector now redirects (ZIG-I40-6).
+      allow: ['/', PRIVACY_PATH, TERMS_PATH, AYUDA_PATH],
       disallow: '/',
     });
     expect(result.sitemap).toBe('https://zigzag.example/sitemap.xml');

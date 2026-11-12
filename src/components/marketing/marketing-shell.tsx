@@ -4,11 +4,11 @@ import { LANDING_NAV_LINKS } from '@/components/marketing/marketing-landing-cont
 import { marketingFontVariables } from '@/components/marketing/marketing-fonts';
 import { MarketingLogo } from '@/components/marketing/marketing-logo';
 import {
+  AYUDA_PATH,
   MCP_DOCS_PATH,
   PRIVACY_PATH,
   TERMS_PATH,
 } from '@/lib/marketing-routes';
-import { ONBOARDING_GUIDE_PATHS } from '@/lib/onboarding-guides';
 
 type MarketingShellProps = {
   children: ReactNode;
@@ -91,9 +91,9 @@ export const MarketingShell = ({
           <nav aria-label="Pie de página">
             <ul className="flex flex-wrap gap-x-2 gap-y-1 text-[15px]">
               <li>
-                <a href={ONBOARDING_GUIDE_PATHS.index} className={FOOTER_LINK}>
+                <Link href={AYUDA_PATH} className={FOOTER_LINK}>
                   Guías
-                </a>
+                </Link>
               </li>
               <li>
                 <Link href={MCP_DOCS_PATH} className={FOOTER_LINK}>

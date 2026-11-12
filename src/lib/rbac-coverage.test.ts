@@ -134,8 +134,10 @@ describe('RBAC coverage', () => {
     const routes = read(path.join(root, 'src/lib/marketing-routes.ts'));
     expect(routes).toMatch(/MCP_DOCS_PATH = `\$\{AYUDA_PATH\}\/asistentes`/);
     expect(routes).toMatch(/PUBLIC_MARKETING_PREFIXES = \[`\$\{AYUDA_PATH\}\/`\]/);
-    // The old address stays public until a later ticket redirects it.
-    expect(routes).toMatch(/PUBLIC_MARKETING_PATHS = \[[^\]]*LEGACY_MCP_DOCS_PATH/);
+    // The old address redirects in next.config (ZIG-I40-6) and is no longer a public path.
+    expect(existsSync(path.join(root, 'src/app/docs/mcp-connector/page.tsx'))).toBe(false);
+    expect(routes).not.toMatch(/PUBLIC_MARKETING_PATHS = \[[^\]]*LEGACY_MCP_DOCS_PATH/);
+    expect(routes).toMatch(/source: LEGACY_MCP_DOCS_PATH, destination: MCP_DOCS_PATH/);
   });
 
   it('rate-limits the public OAuth endpoints that create state', () => {

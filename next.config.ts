@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import { withSerwist } from '@serwist/turbopack';
+import { LEGACY_REDIRECTS } from './src/lib/marketing-routes';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -30,16 +31,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // `/guides` serves public/guides/index.html without a directory URL base, so
-  // relative assets (guides.css, assets/logo.png) resolve to the site root and 404.
+  // Retired /guides pages and the old connector guide (ZIG-I40-6). Config
+  // redirects run before src/proxy.ts, so guests never reach the login bounce.
   async redirects() {
-    return [
-      {
-        source: '/guides',
-        destination: '/guides/index.html',
-        permanent: true,
-      },
-    ];
+    return LEGACY_REDIRECTS.map((redirect) => ({ ...redirect }));
   },
   async headers() {
     return [

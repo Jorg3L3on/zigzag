@@ -15,17 +15,42 @@ export const AYUDA_PATH = '/ayuda';
  */
 export const MCP_DOCS_PATH = `${AYUDA_PATH}/asistentes`;
 /**
- * The connector guide's old address. Stays public (clients and old links may
- * hold it) until a later ticket redirects it to MCP_DOCS_PATH; not in the sitemap.
+ * The connector guide's old address. next.config redirects it to MCP_DOCS_PATH
+ * (ZIG-I40-6); config redirects run before src/proxy.ts, so it needs no
+ * public-path entry.
  */
 export const LEGACY_MCP_DOCS_PATH = '/docs/mcp-connector';
+
+/** Root of the retired static guides (public/guides, ZIG-I40-6). */
+export const LEGACY_GUIDES_PATH = '/guides';
+
+/**
+ * Permanent redirects for retired public pages (ZIG-I40-6). next.config.ts
+ * imports this list, so this module must keep no `@/` imports. The old guides
+ * (index, guía para empresas, resumen ejecutivo and their assets) all land on
+ * the help centre; the resumen ejecutivo has no replacement page.
+ */
+export const LEGACY_REDIRECTS = [
+  { source: LEGACY_GUIDES_PATH, destination: AYUDA_PATH, permanent: true },
+  // Next strips the trailing slash first (/guides/ → /guides → /ayuda, two
+  // hops); the entry stays so the list names every old address.
+  { source: `${LEGACY_GUIDES_PATH}/`, destination: AYUDA_PATH, permanent: true },
+  { source: `${LEGACY_GUIDES_PATH}/index.html`, destination: AYUDA_PATH, permanent: true },
+  { source: `${LEGACY_GUIDES_PATH}/guia-empresa.html`, destination: AYUDA_PATH, permanent: true },
+  {
+    source: `${LEGACY_GUIDES_PATH}/resumen-ejecutivo.html`,
+    destination: AYUDA_PATH,
+    permanent: true,
+  },
+  { source: `${LEGACY_GUIDES_PATH}/:path*`, destination: AYUDA_PATH, permanent: true },
+  { source: LEGACY_MCP_DOCS_PATH, destination: MCP_DOCS_PATH, permanent: true },
+] as const;
 
 /** Exact public marketing paths that guests may open without auth. */
 export const PUBLIC_MARKETING_PATHS = [
   MARKETING_HOME_PATH,
   PRIVACY_PATH,
   TERMS_PATH,
-  LEGACY_MCP_DOCS_PATH,
   AYUDA_PATH,
 ] as const;
 
@@ -63,8 +88,7 @@ export const getMarketingSitemapEntries = (): Array<{
   path: PublicMarketingPath;
 }> => {
   const origin = getMarketingSiteOrigin();
-  // The legacy guide duplicates /ayuda/asistentes (listed with the help pages).
-  return PUBLIC_MARKETING_PATHS.filter((path) => path !== LEGACY_MCP_DOCS_PATH).map((path) => ({
+  return PUBLIC_MARKETING_PATHS.map((path) => ({
     path,
     url: path === '/' ? `${origin}/` : `${origin}${path}`,
   }));
