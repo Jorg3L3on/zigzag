@@ -247,8 +247,8 @@ const PeopleCard = ({ people, companyId }: { people: OperatorCompanyPerson[]; co
         <TableHeader>
           <TableRow>
             <TableHead className="border-t border-border/60">Persona</TableHead>
-            <TableHead className="w-36 border-t border-border/60">Rol</TableHead>
-            <TableHead className="w-40 border-t border-border/60">Último acceso</TableHead>
+            <TableHead className="hidden w-36 border-t border-border/60 sm:table-cell">Rol</TableHead>
+            <TableHead className="w-36 border-t border-border/60 sm:w-40">Último acceso</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -262,7 +262,7 @@ const PeopleCard = ({ people, companyId }: { people: OperatorCompanyPerson[]; co
                   </p>
                 </div>
               </TableCell>
-              <TableCell className="text-slate-700 dark:text-slate-300">{person.roleName ?? '—'}</TableCell>
+              <TableCell className="hidden text-slate-700 sm:table-cell dark:text-slate-300">{person.roleName ?? '—'}</TableCell>
               <TableCell>
                 {person.lastSignedInAt ? (
                   <span className="text-slate-700 dark:text-slate-300">{formatRelative(person.lastSignedInAt)}</span>
@@ -350,7 +350,7 @@ const ProfileCard = ({ summary, editHref }: { summary: CompanyOperatorSummary; e
 };
 
 const ResumenSkeleton = () => (
-  <div className="space-y-5" aria-busy="true" aria-label="Cargando resumen">
+  <div className="space-y-5" role="status" aria-busy="true" aria-label="Cargando resumen">
     <Skeleton className="h-[106px] w-full rounded-xl" />
     <Skeleton className="h-[74px] w-full rounded-xl" />
     <div className="flex flex-wrap gap-5">

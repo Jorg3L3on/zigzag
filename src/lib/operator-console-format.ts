@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { CompanyLifecycleStatus } from '@/db/schema';
 import type { ListStatusTone } from '@/components/list-page/list-status-pill';
@@ -12,12 +12,13 @@ export const LIFECYCLE_TONE: Record<CompanyLifecycleStatus, ListStatusTone> = {
   ARCHIVED: 'slate',
 };
 
-/** «hace 12 min», «ayer»… or «—» when there is no date. */
+/** «hace 12 minutos», «hace 4 horas», «hace 3 días»… or «—» when there is no date. */
 export const formatRelative = (iso: string | null | undefined): string => {
   if (!iso) return '—';
   const date = new Date(iso);
   if (!Number.isFinite(date.getTime())) return '—';
-  return formatDistanceToNow(date, { addSuffix: true, locale: es });
+  if (Date.now() - date.getTime() < 60 * 1000) return 'hace un momento';
+  return formatDistanceToNowStrict(date, { addSuffix: true, locale: es });
 };
 
 /** «el 8 nov» in the company calendar. */

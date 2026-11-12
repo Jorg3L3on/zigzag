@@ -158,7 +158,7 @@ const CompanyHeader = ({ tab }: { tab: OperatorCompanyTab }) => {
 
   if (!summary) {
     return (
-      <div className="flex items-center gap-4" aria-busy="true" aria-label="Cargando empresa">
+      <div className="flex items-center gap-4" role="status" aria-busy="true" aria-label="Cargando empresa">
         <Skeleton className="size-14 rounded-[14px]" />
         <div className="space-y-2">
           <Skeleton className="h-7 w-56" />
@@ -257,8 +257,12 @@ const CompanyHeader = ({ tab }: { tab: OperatorCompanyTab }) => {
                 >
                   Activar empresa
                 </Button>
-                <span id="operator-activate-hint" className="max-w-64 text-right text-caption text-muted-foreground">
-                  Activar se habilita con el perfil completo. Falta: {summary.profile.missingLabels.join(', ')}.
+                <span
+                  id="operator-activate-hint"
+                  className="text-right text-caption text-muted-foreground"
+                  title={`Falta: ${summary.profile.missingLabels.join(', ')}`}
+                >
+                  Se habilita con el perfil completo
                 </span>
               </span>
             </>
@@ -417,10 +421,12 @@ const ShellBody = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       <TripledPageHeader items={crumbs} />
-      <TripledDashboardShell contentClassName="gap-5">
-        <CompanyHeader tab={tab} />
-        <CompanyTabs tab={tab} />
-        <div className="min-w-0">{children}</div>
+      <TripledDashboardShell>
+        <div className="flex min-w-0 flex-col gap-5">
+          <CompanyHeader tab={tab} />
+          <CompanyTabs tab={tab} />
+          <div className="min-w-0">{children}</div>
+        </div>
       </TripledDashboardShell>
     </>
   );

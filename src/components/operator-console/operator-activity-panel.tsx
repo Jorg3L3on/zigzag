@@ -8,7 +8,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { ClipboardList, X } from 'lucide-react';
+import { ClipboardList, Search, X } from 'lucide-react';
 import { fetchOperatorCompanyUsage } from '@/actions/operator-company-usage';
 import { resetUserTemporaryPassword } from '@/actions/users';
 import { AUDIT_ACTION_FILTER_OPTIONS } from '@/components/audit/audit-filter-fields';
@@ -24,13 +24,13 @@ import {
   ListStatusPill,
   ListTable,
   ListTableCard,
-  ListToolbar,
 } from '@/components/list-page';
 import { useOperatorCompany } from '@/components/operator-console/operator-company-context';
 import { useOperatorActivityFeed } from '@/components/operator-console/use-operator-activity-feed';
 import { TripledMobileRecordCard } from '@/components/tripled';
 import { TemporaryPasswordDialog } from '@/components/users/temporary-password-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -418,55 +418,62 @@ export const OperatorActivityPanel = () => {
 
   const desktop = (
     <div className="space-y-5">
-      <ListToolbar
-        search={{
-          value: searchValue,
-          onChange: setSearchValue,
-          placeholder: 'Buscar en la actividad',
-          ariaLabel: 'Buscar en la actividad',
-        }}
-        filters={
-          <>
-            <ListFilterSelect
-              value={date}
-              allValue={'__none__' as ActivityDatePreset}
-              onChange={setDate}
-              options={ACTIVITY_DATE_OPTIONS}
-              ariaLabel="Fecha"
-            />
-            <ListFilterSelect value={person} allValue="all" onChange={setPerson} options={personOptions} ariaLabel="Persona" />
-            <ListFilterSelect
-              value={action}
-              allValue="all"
-              onChange={setAction}
-              options={AUDIT_ACTION_FILTER_OPTIONS}
-              ariaLabel="Acción"
-            />
-            <button
-              type="button"
-              aria-pressed={alertsOnly}
-              onClick={() => setAlertsOnly((value) => !value)}
-              className={cn(
-                'inline-flex h-11 items-center rounded-full border border-border bg-background px-4 text-base font-medium',
-                alertsOnly && FILTER_SELECTED_CLASS,
-              )}
-            >
-              Solo alertas
-            </button>
-          </>
-        }
-        hasActiveFilters={hasFilters}
-        onClear={clearFilters}
-        clearAriaLabel="Limpiar filtros de actividad"
-        trailing={
-          <Link
-            href={`/audit?target_company_id=${companyId}`}
-            className="ml-auto whitespace-nowrap text-sm font-medium text-primary hover:underline lg:text-[13px]"
-          >
-            Abrir en Auditoría
-          </Link>
-        }
-      />
+      {/* Own row (not ListToolbar): with four pills the shared toolbar squeezed the search to nothing at 1280. */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <label className="relative w-full max-w-[18.75rem] flex-[1_1_14rem]">
+          <span className="sr-only">Buscar en la actividad</span>
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Buscar en la actividad"
+            className="h-11 rounded-xl pl-10"
+          />
+        </label>
+        <ListFilterSelect
+          value={date}
+          allValue={'__none__' as ActivityDatePreset}
+          onChange={setDate}
+          options={ACTIVITY_DATE_OPTIONS}
+          ariaLabel="Fecha"
+          className="min-w-0"
+        />
+        <ListFilterSelect value={person} allValue="all" onChange={setPerson} options={personOptions} ariaLabel="Persona" className="min-w-0" />
+        <ListFilterSelect
+          value={action}
+          allValue="all"
+          onChange={setAction}
+          options={AUDIT_ACTION_FILTER_OPTIONS}
+          ariaLabel="Acción"
+          className="min-w-0"
+        />
+        <button
+          type="button"
+          aria-pressed={alertsOnly}
+          onClick={() => setAlertsOnly((value) => !value)}
+          className={cn(
+            'inline-flex h-11 items-center rounded-full border border-border bg-background px-4 text-base font-medium',
+            alertsOnly && FILTER_SELECTED_CLASS,
+          )}
+        >
+          Solo alertas
+        </button>
+        {hasFilters ? (
+          <Button type="button" variant="ghost" className="h-11" onClick={clearFilters} aria-label="Limpiar filtros de actividad">
+            Limpiar filtros
+          </Button>
+        ) : null}
+        <Link
+          href={`/audit?target_company_id=${companyId}`}
+          className="ml-auto whitespace-nowrap text-sm font-medium text-primary hover:underline lg:text-[13px]"
+        >
+          Abrir en Auditoría
+        </Link>
+      </div>
       {body ?? (
         <div className="flex flex-wrap items-start gap-5">
           <div className="min-w-0 flex-[3_1_35rem]">

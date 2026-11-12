@@ -98,7 +98,7 @@ export const createOperatorFleetColumns = ({
   {
     id: 'lifecycle',
     accessorKey: 'lifecycleLabel',
-    meta: { className: 'w-40' },
+    meta: { className: 'w-36' },
     header: ({ column }) => <ListSortableHeader column={column} label="Estado" />,
     cell: ({ row }) => {
       const sub = statusSubline(row.original);
@@ -115,7 +115,7 @@ export const createOperatorFleetColumns = ({
   {
     id: 'attention',
     accessorFn: attentionRank,
-    meta: { className: 'w-[18rem]' },
+    meta: { className: 'w-56 xl:w-72' },
     header: ({ column }) => <ListSortableHeader column={column} label="Atención" />,
     cell: ({ row }) => {
       const company = row.original;
@@ -145,7 +145,7 @@ export const createOperatorFleetColumns = ({
   {
     id: 'people',
     accessorKey: 'peopleCount',
-    meta: { align: 'right', className: 'w-24' },
+    meta: { align: 'right', className: 'w-28' },
     header: ({ column }) => (
       <ListSortableHeader column={column} label="Personas" align="right" />
     ),
@@ -154,7 +154,7 @@ export const createOperatorFleetColumns = ({
   {
     id: 'lastSignInAt',
     accessorFn: (row) => row.lastSignInAt ?? '',
-    meta: { className: 'w-36' },
+    meta: { className: 'w-32' },
     header: ({ column }) => <ListSortableHeader column={column} label="Último acceso" />,
     cell: ({ row }) => {
       const company = row.original;
@@ -179,7 +179,7 @@ export const createOperatorFleetColumns = ({
   {
     id: 'actions',
     enableSorting: false,
-    meta: { className: 'w-32' },
+    meta: { className: 'w-28' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div className="flex items-center justify-end gap-1">{renderActions(row.original)}</div>

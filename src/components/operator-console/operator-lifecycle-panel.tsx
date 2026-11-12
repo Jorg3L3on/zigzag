@@ -113,7 +113,7 @@ export const OperatorLifecyclePanel = () => {
   if (error) return <ListError description={error} onRetry={() => void load()} />;
   if (!summary || !data) {
     return (
-      <div className="space-y-5" aria-busy="true" aria-label="Cargando ciclo de vida">
+      <div className="space-y-5" role="status" aria-busy="true" aria-label="Cargando ciclo de vida">
         <Skeleton className="h-40 w-full rounded-xl" />
         <Skeleton className="h-48 w-full rounded-xl" />
       </div>

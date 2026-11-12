@@ -1,4 +1,4 @@
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import { company, role } from '@/db/schema';
 import {
   buildCompanyOperatorSummary,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/company-operator-facts-loader';
 import { normalizeCompanyLifecycleStatus } from '@/lib/company-lifecycle';
 import { db } from '@/lib/db';
+import { hideShadowedSharedRoles } from '@/lib/role-visibility';
 
 export const loadCompanyOperatorSummary = async (
   companyId: number,
@@ -28,11 +29,12 @@ export const loadCompanyOperatorSummary = async (
 
   const ids = [companyId];
   const [rolesRow, people, lastSignIn, alerts, statusSince, neverSignedIn] = await Promise.all([
-    db
-      .select({ total: count() })
-      .from(role)
-      .where(and(eq(role.company_id, companyId), isNull(role.deleted_at)))
-      .then((rows) => rows[0]),
+    // Roles the company can assign: its own and ZigZag's shared ones, as Acceso lists them.
+    db.query.role
+      .findMany({
+        where: and(isNull(role.deleted_at), or(eq(role.company_id, companyId), isNull(role.company_id))),
+      })
+      .then((rows) => ({ total: hideShadowedSharedRoles(rows).length })),
     loadPeopleCountByCompany(ids),
     loadLastSignInByCompany(ids),
     loadSecurityAlertsByCompany(ids, now),
