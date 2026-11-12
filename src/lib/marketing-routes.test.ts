@@ -1,4 +1,5 @@
 import {
+  AYUDA_PATH,
   getMarketingSitemapEntries,
   getMarketingSiteOrigin,
   isPublicMarketingPath,
@@ -17,14 +18,24 @@ describe('marketing-routes', () => {
     process.env.VERCEL_URL = originalVercelUrl;
   });
 
-  it('lists exactly the four public paths (marketing, legal and the MCP guide)', () => {
+  it('lists exactly the five public paths (marketing, legal, the MCP guide and help)', () => {
     expect(PUBLIC_MARKETING_PATHS).toEqual([
       '/',
       PRIVACY_PATH,
       TERMS_PATH,
       MCP_DOCS_PATH,
+      AYUDA_PATH,
     ]);
     expect(MCP_DOCS_PATH).toBe('/docs/mcp-connector');
+    expect(AYUDA_PATH).toBe('/ayuda');
+  });
+
+  it('treats every /ayuda/<slug> guide as public, but not look-alike paths', () => {
+    expect(isPublicMarketingPath('/ayuda')).toBe(true);
+    expect(isPublicMarketingPath('/ayuda/crear-un-ticket')).toBe(true);
+    expect(isPublicMarketingPath('/ayuda/asistentes')).toBe(true);
+    expect(isPublicMarketingPath('/ayudante')).toBe(false);
+    expect(isPublicMarketingPath('/tickets/ayuda')).toBe(false);
   });
 
   it('recognizes public marketing paths and rejects app routes', () => {
@@ -56,6 +67,7 @@ describe('marketing-routes', () => {
         path: MCP_DOCS_PATH,
         url: `https://zigzag.example${MCP_DOCS_PATH}`,
       },
+      { path: AYUDA_PATH, url: 'https://zigzag.example/ayuda' },
     ]);
   });
 });

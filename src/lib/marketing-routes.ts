@@ -8,6 +8,8 @@ export const PRIVACY_PATH = '/aviso-de-privacidad';
 export const TERMS_PATH = '/terminos-y-condiciones';
 /** Public guide for the MCP connector; OAuth metadata advertises it as service_documentation. */
 export const MCP_DOCS_PATH = '/docs/mcp-connector';
+/** Help centre (ZIG-I40): guide index; every guide lives under `/ayuda/<slug>`. */
+export const AYUDA_PATH = '/ayuda';
 
 /** Exact public marketing paths that guests may open without auth. */
 export const PUBLIC_MARKETING_PATHS = [
@@ -15,12 +17,19 @@ export const PUBLIC_MARKETING_PATHS = [
   PRIVACY_PATH,
   TERMS_PATH,
   MCP_DOCS_PATH,
+  AYUDA_PATH,
 ] as const;
 
 export type PublicMarketingPath = (typeof PUBLIC_MARKETING_PATHS)[number];
 
+/** Path prefixes whose whole subtree is public (the help guides). */
+export const PUBLIC_MARKETING_PREFIXES = [`${AYUDA_PATH}/`] as const;
+
 export const isPublicMarketingPath = (pathname: string): boolean => {
-  return (PUBLIC_MARKETING_PATHS as readonly string[]).includes(pathname);
+  return (
+    (PUBLIC_MARKETING_PATHS as readonly string[]).includes(pathname) ||
+    PUBLIC_MARKETING_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
 };
 
 /**
