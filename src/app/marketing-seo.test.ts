@@ -6,6 +6,7 @@ import sitemap from '@/app/sitemap';
 import { getWrittenGuides, guideHref } from '@/components/ayuda/guide-registry';
 import {
   AYUDA_PATH,
+  LEGACY_MCP_DOCS_PATH,
   MCP_DOCS_PATH,
   PRIVACY_PATH,
   TERMS_PATH,
@@ -24,13 +25,14 @@ describe('marketing SEO routes', () => {
 
     expect(result.rules).toEqual({
       userAgent: '*',
-      allow: ['/', PRIVACY_PATH, TERMS_PATH, MCP_DOCS_PATH, AYUDA_PATH],
+      // /ayuda covers /ayuda/asistentes; the legacy guide stays allowed until it redirects.
+      allow: ['/', PRIVACY_PATH, TERMS_PATH, LEGACY_MCP_DOCS_PATH, AYUDA_PATH],
       disallow: '/',
     });
     expect(result.sitemap).toBe('https://zigzag.example/sitemap.xml');
   });
 
-  it('emits sitemap entries for the five public URLs plus each written help guide', () => {
+  it('emits sitemap entries for the public URLs, each written help guide and the connector page', () => {
     process.env.NEXTAUTH_URL = 'https://zigzag.example';
     const entries = sitemap();
     const guideUrls = getWrittenGuides().map(
@@ -42,9 +44,12 @@ describe('marketing SEO routes', () => {
       'https://zigzag.example/',
       `https://zigzag.example${PRIVACY_PATH}`,
       `https://zigzag.example${TERMS_PATH}`,
-      `https://zigzag.example${MCP_DOCS_PATH}`,
       'https://zigzag.example/ayuda',
       ...guideUrls,
+      `https://zigzag.example${MCP_DOCS_PATH}`,
     ]);
+    expect(entries.map((entry) => entry.url)).not.toContain(
+      `https://zigzag.example${LEGACY_MCP_DOCS_PATH}`,
+    );
   });
 });

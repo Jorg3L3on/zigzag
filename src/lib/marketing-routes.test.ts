@@ -3,6 +3,7 @@ import {
   getMarketingSitemapEntries,
   getMarketingSiteOrigin,
   isPublicMarketingPath,
+  LEGACY_MCP_DOCS_PATH,
   MCP_DOCS_PATH,
   PRIVACY_PATH,
   PUBLIC_MARKETING_PATHS,
@@ -18,15 +19,16 @@ describe('marketing-routes', () => {
     process.env.VERCEL_URL = originalVercelUrl;
   });
 
-  it('lists exactly the five public paths (marketing, legal, the MCP guide and help)', () => {
+  it('lists exactly the five public paths (marketing, legal, the legacy MCP guide and help)', () => {
     expect(PUBLIC_MARKETING_PATHS).toEqual([
       '/',
       PRIVACY_PATH,
       TERMS_PATH,
-      MCP_DOCS_PATH,
+      LEGACY_MCP_DOCS_PATH,
       AYUDA_PATH,
     ]);
-    expect(MCP_DOCS_PATH).toBe('/docs/mcp-connector');
+    expect(MCP_DOCS_PATH).toBe('/ayuda/asistentes');
+    expect(LEGACY_MCP_DOCS_PATH).toBe('/docs/mcp-connector');
     expect(AYUDA_PATH).toBe('/ayuda');
   });
 
@@ -43,12 +45,13 @@ describe('marketing-routes', () => {
     expect(isPublicMarketingPath(PRIVACY_PATH)).toBe(true);
     expect(isPublicMarketingPath(TERMS_PATH)).toBe(true);
     expect(isPublicMarketingPath(MCP_DOCS_PATH)).toBe(true);
+    expect(isPublicMarketingPath(LEGACY_MCP_DOCS_PATH)).toBe(true);
     expect(isPublicMarketingPath('/dashboard')).toBe(false);
     expect(isPublicMarketingPath('/tickets')).toBe(false);
     expect(isPublicMarketingPath('/aviso-de-privacidad/extra')).toBe(false);
   });
 
-  it('builds sitemap entries from NEXTAUTH_URL', () => {
+  it('builds sitemap entries from NEXTAUTH_URL, without the legacy MCP guide', () => {
     process.env.NEXTAUTH_URL = 'https://zigzag.example';
     delete process.env.VERCEL_URL;
 
@@ -62,10 +65,6 @@ describe('marketing-routes', () => {
       {
         path: TERMS_PATH,
         url: `https://zigzag.example${TERMS_PATH}`,
-      },
-      {
-        path: MCP_DOCS_PATH,
-        url: `https://zigzag.example${MCP_DOCS_PATH}`,
       },
       { path: AYUDA_PATH, url: 'https://zigzag.example/ayuda' },
     ]);
