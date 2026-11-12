@@ -1,3 +1,5 @@
+import type { Part1PieceSpec } from '@/components/ayuda/pieces/part-1-pieces';
+import { GUIDES_PART_1_CONTENT } from '@/components/ayuda/guides/part-1';
 import { AYUDA_PATH, MCP_DOCS_PATH } from '@/lib/marketing-routes';
 
 /**
@@ -52,7 +54,8 @@ export type GuidePiece =
       /** What happens to the ticket for each option, read back under the chips. */
       explanations: Record<'full' | 'partial' | 'pending', string>;
     }
-  | { kind: 'save-bar'; countLabel: string; total: number; label: string };
+  | { kind: 'save-bar'; countLabel: string; total: number; label: string }
+  | Part1PieceSpec;
 
 export type GuideStep = {
   title: string;
@@ -219,6 +222,9 @@ export const GUIDES: Guide[] = [
     topic: 'equipo',
   },
 ];
+
+// ZIG-I40-3: tickets, cobro and presupuestos guides live in guides/part-1.ts.
+for (const guide of GUIDES) guide.content ??= GUIDES_PART_1_CONTENT[guide.slug];
 
 export type WrittenGuide = Guide & { content: GuideContent };
 

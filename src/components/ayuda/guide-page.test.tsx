@@ -98,8 +98,11 @@ describe('guide page: Crear un ticket (ZIG-I40-2)', () => {
     }
   });
 
-  it('without a next written guide, the button goes back to /ayuda', () => {
+  it('Sigue goes to the next written guide (ZIG-I40-3 wrote Mandar el recibo)', () => {
     renderGuide();
-    expect(screen.getByRole('link', { name: 'Ver todas las guías' })).toHaveAttribute('href', '/ayuda');
+    expect(screen.getByRole('link', { name: 'Sigue: Mandar el recibo por WhatsApp' })).toHaveAttribute(
+      'href',
+      '/ayuda/mandar-el-recibo-por-whatsapp',
+    );
   });
 });
