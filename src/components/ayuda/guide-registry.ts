@@ -82,7 +82,72 @@ export type Guide = {
 
 /** Registry order is the card order on /ayuda and the fallback "Sigue" order. */
 export const GUIDES: Guide[] = [
-  { slug: 'crear-un-ticket', group: 'Tickets', title: 'Crear un ticket', topic: 'tickets' },
+  {
+    slug: 'crear-un-ticket',
+    group: 'Tickets',
+    title: 'Crear un ticket',
+    topic: 'tickets',
+    // Copy checked against the composer, dock and PaymentChoice source (ZIG-I40-2).
+    content: {
+      description:
+        'Cómo crear un ticket en ZigZag en cinco pasos: cliente, servicios, cómo te pagó y Guardar.',
+      intro:
+        'Un ticket es un trabajo: a quién se lo hiciste, qué le hiciste y cuánto te pagó. Se hace igual en el teléfono y en la computadora.',
+      steps: [
+        {
+          title: 'Toca el botón +',
+          body: 'Está en medio de la barra de abajo. Tócalo y elige “Nuevo ticket”. En la computadora, en Tickets, es el botón azul “Nuevo ticket”.',
+          piece: { kind: 'bottom-dock' },
+        },
+        {
+          title: 'Elige al cliente',
+          body: 'Toca “Busca o elige un cliente”, escribe su nombre o su teléfono y tócalo en la lista. Si es nuevo, toca “Nuevo cliente”. Si te equivocas, toca “Cambiar”.',
+          piece: {
+            kind: 'client-card',
+            name: 'Hotel Riviera Dorada',
+            phone: '998 123 4567',
+            dateLabel: 'Hoy, 12 nov',
+          },
+        },
+        {
+          title: 'Agrega lo que hiciste',
+          body: 'Toca “Agregar servicio”, elige uno de tu lista de precios y toca “Agregar al ticket”. Repite por cada servicio. ZigZag hace la suma.',
+          piece: {
+            kind: 'services-list',
+            lines: [
+              { name: 'Mantenimiento preventivo A/C', amount: 850 },
+              { name: 'Recarga de gas refrigerante', amount: 1400 },
+            ],
+          },
+        },
+        {
+          title: 'Di cómo te pagó',
+          body: 'Si ya terminaste el trabajo, elige Todo, Una parte o Nada aún. Si no eliges nada, el ticket se guarda En proceso. Pruébalo aquí: toca una opción y mira qué pasa con el ticket.',
+          piece: {
+            kind: 'payment-choice',
+            initial: 'partial',
+            explanations: {
+              full: 'El ticket se termina al guardar y queda Pagado.',
+              partial:
+                'Escribes cuánto te pagó. El ticket se termina al guardar y lo que falta queda por cobrar en Cobranza.',
+              pending:
+                'El ticket se termina al guardar sin pago y queda Por cobrar en Cobranza hasta que te pague.',
+            },
+          },
+        },
+        {
+          title: 'Toca Guardar',
+          body: 'Listo: el ticket queda con su folio. Si elegiste cómo te pagó, el botón dice “Terminar” (en la computadora, “Guardar y terminar”) y al final te ofrece mandar el recibo.',
+          piece: { kind: 'save-bar', countLabel: '2 servicios', total: 2250, label: 'Guardar' },
+        },
+      ],
+      note: {
+        title: '¿No hay señal?',
+        body: 'Guárdalo igual. El ticket se queda en tu teléfono y se sube solo cuando vuelve la señal; hasta entonces no tiene folio.',
+      },
+      next: 'mandar-el-recibo-por-whatsapp',
+    },
+  },
   {
     slug: 'agregar-materiales-a-un-ticket',
     group: 'Tickets',
