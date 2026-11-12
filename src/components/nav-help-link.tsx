@@ -2,11 +2,11 @@
 
 import { BookOpen } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { EMPRESA_GUIDE_LINK, HELP_GUIDE_LABEL } from '@/lib/onboarding-guides';
+import { HELP_CENTER_LINK, HELP_GUIDE_LABEL } from '@/lib/onboarding-guides';
 
 /**
- * ¿Cómo se usa? in the Más sheet (ZIG-I18-12): one tap to the guide, no avatar
- * menu in between. System users keep their Guías submenu in the avatar menu.
+ * ¿Cómo se usa? in the Más sheet (ZIG-I18-12): one tap to the /ayuda help
+ * centre, no avatar menu in between. System users reach it from the avatar menu.
  */
 export const NavHelpLink = () => {
   const { data: session } = useSession();
@@ -14,7 +14,7 @@ export const NavHelpLink = () => {
 
   return (
     <a
-      href={EMPRESA_GUIDE_LINK.href}
+      href={HELP_CENTER_LINK.href}
       target="_blank"
       rel="noopener noreferrer"
       className="flex min-h-11 items-center gap-2 rounded-md px-2 text-base font-medium hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center"

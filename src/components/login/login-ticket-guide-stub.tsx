@@ -4,8 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion';
 import {
+  HELP_CENTER_LINK,
   openOnboardingGuide,
-  PUBLIC_ONBOARDING_GUIDE_LINKS,
   type OnboardingGuideLink,
 } from '@/lib/onboarding-guides';
 import { cn } from '@/lib/utils';
@@ -17,12 +17,12 @@ type LoginTicketGuideStubProps = {
 };
 
 /**
- * Perforated lower ticket stub for public onboarding guides.
+ * Perforated lower ticket stub that opens the /ayuda help centre (ZIG-I40-6).
  * Collapsed by default; unfolds via tear affordance (HTML prototype + PRD).
  */
 export const LoginTicketGuideStub = ({
   className,
-  guides = PUBLIC_ONBOARDING_GUIDE_LINKS,
+  guides = [HELP_CENTER_LINK],
   onOpenGuide = openOnboardingGuide,
 }: LoginTicketGuideStubProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -74,7 +74,7 @@ export const LoginTicketGuideStub = ({
           aria-controls={panelId}
           onClick={handleToggle}
         >
-          ¿Primera vez en ZigZag? Elige tu guía
+          ¿Primera vez en ZigZag? Mira cómo se usa
           <span className="ml-2 normal-case tracking-normal" aria-hidden>
             {isExpanded ? '▴' : '▾'}
           </span>
@@ -116,11 +116,6 @@ export const LoginTicketGuideStub = ({
                     <span className="mb-0.5 block text-sm font-semibold text-[color:var(--login-ink)]">
                       {guide.label}
                     </span>
-                    {guide.audienceLabel ? (
-                      <span className="login-guide-link-text mb-0.5 block text-sm font-medium">
-                        {guide.audienceLabel}
-                      </span>
-                    ) : null}
                     <span className="block text-sm leading-normal text-[color:var(--login-ink-muted)]">
                       {guide.description}
                     </span>

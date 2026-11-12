@@ -161,6 +161,7 @@ describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
   });
 
   it('renders the receipt rows, quote totals and the sticky rail from 1024px', async () => {
+    const user = userEvent.setup();
     mockDesktopWidth(true);
     renderLayout();
 
@@ -186,11 +187,11 @@ describe('Presupuesto desktop (ZIG-I28-5, ZIG-I29-1)', () => {
     expect(screen.getByText('Importe')).toBeTruthy();
     expect(screen.getAllByTestId('document-line-row')[0]).toHaveAttribute('data-layout', 'receipt');
     expect(screen.getByText('Con nitrógeno')).toBeTruthy();
-    // Compacto is the default since 4ce22ce; Detallado lists the materials.
+    // Compacto is the default since 4ce22ce; Detallado shows the material rows.
     expect(screen.getByRole('button', { name: 'Compacto' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Detallado' }));
-    expect(screen.getByRole('button', { name: 'Detallado' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Detallado' }));
     expect(screen.getByText('Gas R410A')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Detallado' })).toHaveAttribute('aria-pressed', 'true');
 
     const totals = screen.getByTestId('presupuesto-desktop-totals');
     expect(within(totals).getByText('Servicios')).toBeTruthy();

@@ -31,6 +31,14 @@ describe('McpClientSetupCards', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(URL);
   });
 
+  it('links the full guide to the help centre connector page', () => {
+    render(<McpClientSetupCards mcpUrl={URL} whoami={noWhoami} />);
+    expect(screen.getByRole('link', { name: 'Ayuda › Asistentes IA' })).toHaveAttribute(
+      'href',
+      '/ayuda/asistentes',
+    );
+  });
+
   it('shows the last whoami per client', () => {
     render(
       <McpClientSetupCards
