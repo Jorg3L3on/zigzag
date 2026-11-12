@@ -116,6 +116,12 @@ The gate (`npm run check:idor-coverage`) now fails when an exported `'use server
 | `experience-mode.ts` | loadExperienceModeForCompany | 🟡 | no cross-tenant test | ZIG-I36-14 |
 | `company-operator.ts` (fleet) | getOperatorCompanyFleet (system operator only) | 🟡 | `src/components/operator-console/operator-company-fleet.test.tsx` (UI only) | ZIG-I36-14 |
 | `operator-user-sessions.ts` | fetchOperatorUserSessions (system operator only) | 🟡 | no cross-tenant test | ZIG-I36-14 |
+| `operator-company-usage.ts` | fetchOperatorCompanyUsage (system operator only; `users.read` on the route's company) | 🟡 | no cross-tenant test | ZIG-I38-4 |
+| `operator-company-access.ts` | getOperatorCompanyAccess (system operator only; `users.read` on the company) | 🟡 | no cross-tenant test | ZIG-I38-6 |
+| `operator-company-access.ts` | operatorChangeMemberRole (system operator; member must belong to the company; then `updateUser` with its rank guard) | 🟡 | no cross-tenant test | ZIG-I38-6 |
+| `operator-company-access.ts` | operatorDeactivateMember (system operator; member must belong to the company; then `deleteUser`) | 🟡 | no cross-tenant test | ZIG-I38-6 |
+| `operator-company-access.ts` | operatorAddMember (system operator; `createUser` with the company id and its rank guard) | 🟡 | no cross-tenant test | ZIG-I38-6 |
+| `operator-company-lifecycle.ts` | getOperatorCompanyLifecycle (system operator only; `companies.read` on the company) | 🟡 | no cross-tenant test | ZIG-I38-7 |
 
 ## Shared helpers
 

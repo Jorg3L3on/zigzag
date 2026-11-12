@@ -119,3 +119,15 @@ export const ItemsDesktop = ({ data, total, loading, refreshing, error, retry }:
 ```
 
 Para el árbol de teléfono, envuelve: `<DesktopSwitch phone={<ItemsPhone … />} desktop={<ItemsDesktop … />} />`.
+
+## Consola operadora (ZIG-I38)
+
+La consola es **una flota y una página por empresa**, no una página apilada.
+
+- `/operator-console`: la flota. `ListDesktopTitle` «Consola operadora · N», `ListViewTabs` (Todas, Requieren atención, Activas, En configuración, Suspendidas, Archivadas) y la tabla Empresa · Estado · Atención · Personas · Último acceso · Abrir + ⋯. «Requieren atención» = alerta de seguridad, faltan datos del perfil, lista para activar o sin uso (activa sin inicios de sesión en 14 días). `?company=N` redirige a la empresa.
+- `/operator-console/[id]/(resumen|actividad|acceso|ciclo-de-vida)`: migas, encabezado con un solo botón azul por estado (Completar datos, Activar empresa, Operar como esta empresa, Restaurar acceso; ninguno en archivada) y ⋯ (Editar empresa, Exportar datos, Ver en Auditoría). Las pestañas son enlaces (`ListViewTabs` con `getHref`) con su línea de contexto.
+- Abrir una empresa **no** cambia la empresa activa de la app; solo «Operar como esta empresa» lo hace (cookie y `localStorage`) y abre su Inicio.
+- Un solo registro de empresa (`OperatorCompanyProvider`) que leen el encabezado y las pestañas; todo cambio de estado lo refresca.
+- Alerta de seguridad solo por ráfaga (5 o más inicios fallidos de una cuenta en 15 minutos) o permiso denegado, en los últimos 7 días (`src/lib/operator-sign-in-burst.ts`). Pendientes del perfil: solo los 12 datos, agrupados en Contacto, Dirección y Datos fiscales; el estado tiene su propia columna.
+- Actividad: frase por evento, «Cargar más» en el pie; si falla, el error queda en el pie y las filas se quedan. Ciclo de vida: suspender y archivar piden motivo (va a la auditoría); archivar pide escribir el nombre.
+- El teléfono (< 1024 px) conserva sus tarjetas sobre las mismas rutas.

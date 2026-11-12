@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OperatorCompanyFleet } from '@/components/operator-console/operator-company-fleet';
 
@@ -36,6 +36,10 @@ jest.mock('@/actions/company-operator', () => ({
     mockGetOperatorCompanyFleet(...args),
 }));
 
+jest.mock('@/actions/company-portability', () => ({
+  downloadCompanyExportJson: jest.fn(),
+}));
+
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
     isSystem: true,
@@ -48,6 +52,67 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+const profile = (missing: string[] = []) => ({
+  total: 12,
+  done: 12 - missing.length,
+  missing: missing.length,
+  missingLabels: missing,
+  groups: [],
+});
+
+const FLEET = [
+  {
+    id: 4,
+    name: 'ClimaTotal Demo',
+    email: 'demo@climatotal.test',
+    phone: '555',
+    logo: null,
+    is_system: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    lifecycle: 'ACTIVE',
+    lifecycleLabel: 'Activa',
+    allowsAuthentication: true,
+    profile: profile(),
+    peopleCount: 3,
+    lastSignInAt: new Date().toISOString(),
+    alert: null,
+    statusSince: null,
+    retentionEndsAt: null,
+    attention: [],
+    needsAttention: false,
+    editHref: '/companies/4/edit',
+  },
+  {
+    id: 9,
+    name: 'Clima Bajío',
+    email: 'admin@bajio.test',
+    phone: '477',
+    logo: null,
+    is_system: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    lifecycle: 'ACTIVE',
+    lifecycleLabel: 'Activa',
+    allowsAuthentication: true,
+    profile: profile(),
+    peopleCount: 4,
+    lastSignInAt: new Date().toISOString(),
+    alert: {
+      kind: 'sign_in_burst',
+      at: new Date().toISOString(),
+      account: 'luis@bajio.test',
+      count: 7,
+      label: '7 inicios fallidos en 15 min',
+    },
+    statusSince: null,
+    retentionEndsAt: null,
+    attention: [
+      { id: 'alert', label: 'Alerta de seguridad', detail: '7 inicios fallidos en 15 min', tone: 'red' },
+    ],
+    needsAttention: true,
+    editHref: '/companies/9/edit',
+  },
+];
+
 describe('OperatorCompanyFleet', () => {
   beforeEach(() => {
     mockViewport(false);
@@ -58,120 +123,74 @@ describe('OperatorCompanyFleet', () => {
       selectedCompany: null,
       setSelectedCompany: mockSetSelectedCompany,
     });
-    mockGetOperatorCompanyFleet.mockResolvedValue({
-      success: true,
-      data: [
-        {
-          id: 4,
-          name: 'ClimaTotal Demo',
-          email: 'demo@test.com',
-          phone: '555',
-          logo: null,
-          is_system: false,
-          lifecycle: 'ACTIVE',
-          lifecycleLabel: 'Activa',
-          allowsAuthentication: true,
-          productionReady: true,
-          missingCount: 0,
-          missingLabels: [],
-          readiness: {
-            lifecycle: 'ACTIVE',
-            profileReady: true,
-            productionReady: true,
-            missing: [],
-            missingLabels: [],
-          },
-          lastActivityAt: '2026-08-12T12:00:00.000Z',
-          lastIncidentAt: null,
-          lastIncidentLabel: null,
-          editHref: '/companies/4/edit',
-        },
-      ],
-    });
+    mockGetOperatorCompanyFleet.mockResolvedValue({ success: true, data: FLEET });
   });
 
-  it('renders fleet labels and selects a company', async () => {
+  it('renders the phone cards with the name as the link (no role=button card)', async () => {
     render(<OperatorCompanyFleet />);
 
-    await waitFor(() => {
-      expect(screen.getAllByText('ClimaTotal Demo').length).toBeGreaterThan(0);
-    });
-    expect(screen.getByText('Flota de empresas')).toBeInTheDocument();
-    expect(screen.getAllByText('Lista').length).toBeGreaterThan(0);
-
-    fireEvent.click(
-      screen.getAllByRole('button', {
-        name: /Seleccionar contexto ClimaTotal Demo/i,
-      })[0]!,
-    );
-
-    expect(mockSetSelectedCompany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 4,
-        name: 'ClimaTotal Demo',
-        is_system: false,
-      }),
+    const link = await screen.findByRole('link', { name: 'ClimaTotal Demo' });
+    expect(link).toHaveAttribute('href', '/operator-console/4/resumen');
+    expect(screen.queryByRole('button', { name: /Seleccionar contexto/ })).toBeNull();
+    expect(screen.getAllByRole('link', { name: /Nueva empresa/ })[0]).toHaveAttribute(
+      'href',
+      '/companies/new',
     );
   });
 
-  it('sends Nueva empresa to /companies/new on the phone', async () => {
-    render(<OperatorCompanyFleet />);
-
-    fireEvent.click(await screen.findByRole('button', { name: /Nueva empresa/ }));
-    expect(mockPush).toHaveBeenCalledWith('/companies/new');
-  });
-
-  describe('desktop (ZIG-I33-8)', () => {
+  describe('desktop (ZIG-I38-3)', () => {
     beforeEach(() => {
       mockViewport(true);
     });
 
-    it('links Nueva empresa to /companies/new beside an h2 with the count', async () => {
+    it('shows the title with the count, view tabs and the attention reason', async () => {
       render(<OperatorCompanyFleet />);
 
-      await screen.findByRole('table', { name: 'Flota de empresas' });
-      expect(screen.getByRole('heading', { level: 2, name: /Flota de empresas · 1/ })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Nueva empresa/ })).toHaveAttribute(
-        'href',
-        '/companies/new',
-      );
+      const table = await screen.findByRole('table', { name: 'Flota de empresas' });
+      expect(screen.getByRole('heading', { level: 1, name: /Consola operadora · 2/ })).toBeInTheDocument();
+      const views = screen.getByRole('navigation', { name: 'Vistas de la flota' });
+      expect(within(views).getByRole('button', { name: /Requieren atención/ })).toHaveTextContent('1 · 1 alerta');
+
+      const rows = within(table).getAllByTestId('operator-fleet-row');
+      expect(rows).toHaveLength(2);
+      expect(within(table).getByText('Alerta de seguridad')).toHaveAttribute('data-tone', 'red');
+      expect(within(table).getByText('Al día')).toBeInTheDocument();
     });
 
-    it('shows Seleccionar and a ⋯ menu with Editar, pills and header sort', async () => {
+    it('filters with «Requieren atención» and the footer counts the rows', async () => {
       const user = userEvent.setup();
       render(<OperatorCompanyFleet />);
 
       const table = await screen.findByRole('table', { name: 'Flota de empresas' });
-      const row = within(table).getByTestId('operator-fleet-row');
-      expect(within(row).getByText('Activa')).toHaveAttribute('data-tone', 'emerald');
-      expect(within(row).getByText('Lista')).toHaveAttribute('data-tone', 'emerald');
-      expect(
-        within(table).getByRole('columnheader', { name: /Empresa/ }),
-      ).toHaveAttribute('aria-sort', 'ascending');
-
-      await user.click(
-        within(row).getByRole('button', { name: 'Acciones de ClimaTotal Demo' }),
-      );
-      await user.click(await screen.findByRole('menuitem', { name: 'Editar' }));
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/companies/4/edit'));
-      expect(mockSetSelectedCompany).not.toHaveBeenCalled();
-
-      await user.click(
-        within(row).getByRole('button', { name: 'Seleccionar contexto ClimaTotal Demo' }),
-      );
-      expect(mockSetSelectedCompany).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }));
+      await user.click(screen.getByRole('button', { name: /Requieren atención/ }));
+      expect(within(table).getAllByTestId('operator-fleet-row')).toHaveLength(1);
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 de 2 empresas');
     });
 
-    it('selects the company from the row and counts the fleet in the footer', async () => {
+    it('opens a company without switching the app company and marks «Tu contexto»', async () => {
+      mockUseCompany.mockReturnValue({ selectedCompany: { id: 4 }, setSelectedCompany: mockSetSelectedCompany });
+      const user = userEvent.setup();
       render(<OperatorCompanyFleet />);
 
       const table = await screen.findByRole('table', { name: 'Flota de empresas' });
-      fireEvent.keyDown(within(table).getByTestId('operator-fleet-row'), { key: 'Enter' });
+      expect(within(table).getByText('Tu contexto')).toBeInTheDocument();
+      const abrir = within(table).getByRole('link', { name: 'Abrir ClimaTotal Demo' });
+      expect(abrir).toHaveAttribute('href', '/operator-console/4/resumen');
+      await user.click(within(table).getByRole('button', { name: 'Acciones de ClimaTotal Demo' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Editar' }));
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/companies/4/edit'));
+      expect(mockSetSelectedCompany).not.toHaveBeenCalled();
+    });
+
+    it('«Operar como esta empresa» switches the context and opens its Inicio', async () => {
+      const user = userEvent.setup();
+      render(<OperatorCompanyFleet />);
+
+      const table = await screen.findByRole('table', { name: 'Flota de empresas' });
+      await user.click(within(table).getByRole('button', { name: 'Acciones de ClimaTotal Demo' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Operar como esta empresa' }));
       expect(mockSetSelectedCompany).toHaveBeenCalledWith(expect.objectContaining({ id: 4 }));
-      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 empresa');
-      expect(screen.getByRole('combobox', { name: 'Filtrar por estado' })).toHaveTextContent(
-        'Todos los estados',
-      );
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
 
     it('shows the standard error with Reintentar', async () => {

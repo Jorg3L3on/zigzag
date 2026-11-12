@@ -35,5 +35,17 @@ export const operatorManagementHref = (
   companyId: number,
 ): string => operatorTenantHref(path, companyId);
 
-export const operatorConsoleCompanyHref = (companyId: number): string =>
-  `/operator-console?${OPERATOR_CONSOLE_COMPANY_QUERY_PARAM}=${companyId}`;
+export const OPERATOR_COMPANY_TABS = [
+  'resumen',
+  'actividad',
+  'acceso',
+  'ciclo-de-vida',
+] as const;
+
+export type OperatorCompanyTab = (typeof OPERATOR_COMPANY_TABS)[number];
+
+/** The company page in the operator console, one URL per tab (ZIG-I38). */
+export const operatorConsoleCompanyHref = (
+  companyId: number,
+  tab: OperatorCompanyTab = 'resumen',
+): string => `/operator-console/${companyId}/${tab}`;
