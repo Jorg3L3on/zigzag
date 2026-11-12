@@ -64,7 +64,7 @@ const FLEET = [
   {
     id: 4,
     name: 'ClimaTotal Demo',
-    email: 'demo@test.com',
+    email: 'demo@climatotal.test',
     phone: '555',
     logo: null,
     is_system: false,

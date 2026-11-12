@@ -29,7 +29,7 @@ describeDb('operator fleet loader (real Postgres, ZIG-I38-1)', () => {
       .values({
         name: `Fleet test ${suffix}`, phone: '5550000000', email: `fleet-${suffix}@test.local`,
         street: 'x', exterior_number: '1', neighborhood: 'x', city: 'x', state: 'x', country: 'MX',
-        postal_code: '00000', status: 'ACTIVE', settings: { rfc: 'XAXX010101000', default_currency: 'MXN' },
+        postal_code: '00000', status: 'ACTIVE', settings: { rfc: 'RFC-DE-PRUEBA', default_currency: 'MXN' },
       })
       .returning({ id: company.id });
     tenantId = tenant.id;
