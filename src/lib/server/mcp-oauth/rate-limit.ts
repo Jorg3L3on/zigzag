@@ -15,11 +15,20 @@ export const OAUTH_TOKEN_RATE_LIMIT: RateLimitOptions = {
 };
 
 /**
+ * New CIMD client_ids: 20 per hour per IP. Each one makes us fetch a URL the
+ * caller chose and store a client row (same limit as micasa).
+ */
+export const OAUTH_CIMD_RESOLVE_RATE_LIMIT: RateLimitOptions = {
+  limit: 20,
+  windowMs: 60 * 60 * 1000,
+};
+
+/**
  * Per-IP fixed window for the public OAuth endpoints. Returns the 429 to send,
  * or null when the call is within the limit.
  */
 export const enforceOAuthRateLimit = async (
-  bucket: 'register' | 'token',
+  bucket: 'register' | 'token' | 'cimd-resolve',
   request: Request,
   options: RateLimitOptions,
 ): Promise<Response | null> => {

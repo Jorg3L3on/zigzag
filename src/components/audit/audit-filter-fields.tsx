@@ -23,9 +23,36 @@ import {
   formatAuditResourceTypeLabel,
   formatAuditResultLabel,
 } from '@/lib/audit-labels';
+import { FILTER_SELECTED_CLASS } from '@/components/list-page';
 import { cn } from '@/lib/utils';
 
+/** desktop: the pills of the desktop filter row (only Empresa and Actor use it). */
 export type AuditFilterFieldLayout = 'desktop' | 'sheet';
+
+/** Options of the desktop `ListFilterSelect` pills (Auditoría and the console's Actividad). */
+export const AUDIT_RESOURCE_FILTER_OPTIONS = [
+  { value: 'all', label: 'Todos los recursos' },
+  ...AUDIT_RESOURCE_TYPES.map((type) => ({
+    value: type as string,
+    label: formatAuditResourceTypeLabel(type),
+  })),
+];
+
+export const AUDIT_ACTION_FILTER_OPTIONS = [
+  { value: 'all', label: 'Todas las acciones' },
+  ...AUDIT_ACTIONS.map((action) => ({
+    value: action as string,
+    label: formatAuditActionLabel(action),
+  })),
+];
+
+export const auditResultFilterOptions = (allLabel: string) => [
+  { value: 'all', label: allLabel },
+  ...AUDIT_RESULTS.map((result) => ({
+    value: result as string,
+    label: formatAuditResultLabel(result),
+  })),
+];
 
 type SharedFilterProps = {
   layout: AuditFilterFieldLayout;
@@ -36,6 +63,11 @@ const fieldWrapClass = (layout: AuditFilterFieldLayout) =>
 
 const triggerClass = (layout: AuditFilterFieldLayout) =>
   layout === 'sheet' ? 'h-11 w-full' : 'h-10 w-full';
+
+/** Empresa and Actor in the desktop filter row: pills, tinted once chosen (ZIG-I33 §2). */
+const pillWrapClass = 'shrink-0';
+const pillTriggerClass = (value: string) =>
+  cn('h-11 w-56 rounded-full px-4', value && FILTER_SELECTED_CLASS);
 
 type AuditCompanyFilterProps = SharedFilterProps & {
   value: string;
@@ -53,7 +85,7 @@ export const AuditCompanyFilter = ({
     layout === 'sheet' ? 'audit-filter-company-sheet' : 'audit-filter-company';
 
   return (
-    <div className={fieldWrapClass(layout)}>
+    <div className={layout === 'sheet' ? fieldWrapClass(layout) : pillWrapClass}>
       {layout === 'sheet' ? (
         <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Empresa objetivo
@@ -68,7 +100,7 @@ export const AuditCompanyFilter = ({
         searchPlaceholder="Buscar empresa…"
         emptyText="No hay empresas"
         aria-label="Filtrar por empresa objetivo"
-        className={triggerClass(layout)}
+        className={layout === 'sheet' ? triggerClass(layout) : pillTriggerClass(value)}
       />
     </div>
   );
@@ -90,7 +122,7 @@ export const AuditActorFilter = ({
     layout === 'sheet' ? 'audit-filter-actor-sheet' : 'audit-filter-actor';
 
   return (
-    <div className={fieldWrapClass(layout)}>
+    <div className={layout === 'sheet' ? fieldWrapClass(layout) : pillWrapClass}>
       {layout === 'sheet' ? (
         <label htmlFor={id} className="text-caption font-medium text-muted-foreground">
           Actor usuario
@@ -105,7 +137,7 @@ export const AuditActorFilter = ({
         searchPlaceholder="Buscar usuario…"
         emptyText="No hay usuarios"
         aria-label="Filtrar por actor usuario"
-        className={triggerClass(layout)}
+        className={layout === 'sheet' ? triggerClass(layout) : pillTriggerClass(value)}
       />
     </div>
   );

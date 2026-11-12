@@ -2,11 +2,10 @@ import type { CompanyLifecycleStatus } from '@/db/schema';
 import { operatorTenantHref } from '@/lib/operator-tenant-scope';
 
 export type OperatorPrimaryCtaKind =
-  | 'complete_go_live'
+  | 'complete_profile'
   | 'activate'
-  | 'open_dashboard'
-  | 'restore_access'
-  | 'edit_company';
+  | 'operate_as'
+  | 'restore_access';
 
 export type OperatorPrimaryCta = {
   kind: OperatorPrimaryCtaKind;
@@ -18,28 +17,32 @@ export type OperatorPrimaryCta = {
 export type OperatorPrimaryCtaInput = {
   companyId: number;
   lifecycle: CompanyLifecycleStatus;
-  productionReady: boolean;
+  /** Profile completeness only (ZIG-I38 E2): never the lifecycle status. */
+  profileReady: boolean;
   editHref: string;
 };
 
+/**
+ * One primary button per lifecycle state (ZIG-I38, audit E2/E7). Archived
+ * companies get none: «Exportar datos» stays as an outline action.
+ */
 export const resolveOperatorPrimaryCta = (
   input: OperatorPrimaryCtaInput,
-): OperatorPrimaryCta => {
-  const { companyId, lifecycle, productionReady, editHref } = input;
-  const scopedEditHref = operatorTenantHref(
-    editHref || `/companies/${companyId}/edit`,
-    companyId,
-  );
+): OperatorPrimaryCta | null => {
+  const { companyId, lifecycle, profileReady, editHref } = input;
 
-  if (lifecycle === 'SETUP' && !productionReady) {
+  if (lifecycle === 'SETUP' && !profileReady) {
     return {
-      kind: 'complete_go_live',
-      label: 'Completar go-live',
-      href: scopedEditHref,
+      kind: 'complete_profile',
+      label: 'Completar datos',
+      href: operatorTenantHref(
+        editHref || `/companies/${companyId}/edit`,
+        companyId,
+      ),
     };
   }
 
-  if (lifecycle === 'SETUP' && productionReady) {
+  if (lifecycle === 'SETUP') {
     return {
       kind: 'activate',
       label: 'Activar empresa',
@@ -49,9 +52,9 @@ export const resolveOperatorPrimaryCta = (
 
   if (lifecycle === 'ACTIVE') {
     return {
-      kind: 'open_dashboard',
-      label: 'Abrir dashboard',
-      href: operatorTenantHref('/dashboard', companyId),
+      kind: 'operate_as',
+      label: 'Operar como esta empresa',
+      href: '/dashboard',
     };
   }
 
@@ -63,9 +66,5 @@ export const resolveOperatorPrimaryCta = (
     };
   }
 
-  return {
-    kind: 'edit_company',
-    label: 'Editar empresa',
-    href: scopedEditHref,
-  };
+  return null;
 };

@@ -7,8 +7,13 @@ import {
   EmptyTicketFinishError,
   FinishPaidExceedsTotalError,
   finishTicketInTx,
+  paidAmountForChoice,
   TicketAlreadyFinishedError,
 } from '@/lib/documents/finish-ticket';
+import {
+  clientRequestBeforeInsert,
+  loadClientRequestDocument,
+} from '@/lib/documents/client-request';
 import {
   assertIsWorkTicketRow,
   assertTicketNotFullyPaid,
@@ -18,13 +23,15 @@ import {
   TicketAlreadyPaidError,
   TotalBelowPaidError,
 } from '@/lib/documents/update-document';
-import { normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
+import { sqlFoldedContains } from '@/lib/search-text';
+import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch, type FolioParts } from '@/lib/folio';
 import { revalidatePath } from 'next/cache';
-import { desc, eq, and, isNull, sql, count, ilike, or, inArray } from 'drizzle-orm';
+import { desc, eq, and, isNull, sql, count, ilike, or, inArray, ne, type SQL } from 'drizzle-orm';
 import {
   client,
   service,
   servicesTickets,
+  ticketLineMaterial,
   ticket,
   ticketAuditEvent,
   type Client,
@@ -87,7 +94,7 @@ const ticketServiceLineSchema = serviceLineInputSchema;
 /** Shell fields only — service lines attach via ticket-services actions (TCI-06). */
 const ticketSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre del cliente es obligatorio').max(100),
+  client_name: z.string().min(1, 'El nombre del cliente es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio').max(20),
   email: z
     .string()
@@ -127,6 +134,11 @@ export type Ticket = {
   converted_from_ticket_id?: bigint | null;
   /** "Compresor, Mano de obra": the work, for list cards (ZIG-I18-8). */
   services_summary?: string | null;
+  /** First two service names (desktop list). */
+  services_head?: string[];
+  services_count?: number;
+  /** Materials across the lines (list card and row). */
+  materials_count?: number;
 };
 
 /** Row from `getTicketById` with relations (matches Drizzle `with` query). */
@@ -146,6 +158,10 @@ export type TicketDetailData = TicketRow & {
   ticket_payments?: TicketPaymentRow[];
   /** Folio of the presupuesto this ticket came from; the recibo shows it (ZIG-I17-5). */
   source_presupuesto_folio?: FolioParts | null;
+  /** Active tickets for this client in the company (ZIG-I28-2). Null without a client. */
+  client_ticket_count?: number | null;
+  /** Other finished tickets of the client that still owe something (Cliente card subline). */
+  client_open_balances?: Array<{ id: string; folio: string; balance: number }>;
 };
 
 export type GetTicketByIdResult =
@@ -302,6 +318,19 @@ const createTicketWithLinesSchema = z.object({
   lines: z.array(composerLineSchema).min(1).max(50),
   /** What the composer showed; audit only. The server always recomputes the total. */
   client_total: z.number().finite().optional(),
+  /** One per composer draft (ZIG-I35-1): a replay returns the document it created. */
+  client_request_id: z.string().uuid().optional(),
+  /**
+   * Guardar y terminar in the same transaction (ZIG-I35): the offline outbox
+   * replays create + finish as one write, so there is never a half-saved ticket.
+   */
+  finish: z
+    .union([
+      z.literal('pendiente'),
+      z.literal('pagado'),
+      z.object({ parcial: z.number().finite().min(0) }),
+    ])
+    .optional(),
 });
 
 export type CreateTicketWithLinesInput = z.input<
@@ -317,7 +346,7 @@ export async function createTicketWithLines(
   input: CreateTicketWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number; folio?: string };
+  data?: { id: string; total: number; folio?: string; replayed?: boolean; finished?: boolean };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -325,13 +354,23 @@ export async function createTicketWithLines(
 }> {
   try {
     const validated = createTicketWithLinesSchema.parse(input);
-    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
 
+    // A replay returns what the first call saved, even if the catalog changed since.
+    const requestScope = validated.client_request_id
+      ? { companyId: effectiveCompanyId, userId: context.userId, key: validated.client_request_id }
+      : null;
+    if (requestScope) {
+      const replayed = await loadClientRequestDocument(requestScope);
+      if (replayed) return { success: true, data: replayed };
+    }
+
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     await assertCompanyProductionReady(effectiveCompanyId);
 
+    const finish = validated.finish;
     const created = await createDocumentWithLines(context, {
       companyId: effectiveCompanyId,
       kind: 'ticket',
@@ -340,18 +379,49 @@ export async function createTicketWithLines(
       workNotes: validated.work_notes,
       lines: validated.lines,
       clientTotal: validated.client_total,
+      ...(requestScope
+        ? {
+            audit: { extra: { client_request_id: requestScope.key } },
+            beforeInsert: clientRequestBeforeInsert(requestScope),
+          }
+        : {}),
+      afterInsert:
+        finish !== undefined
+          ? async (tx, row) => {
+              if (typeof finish === 'object' && finish.parcial > row.total + 0.005) {
+                throw new FinishPaidExceedsTotalError();
+              }
+              await finishTicketInTx(tx, context, {
+                ticketId: row.id,
+                companyId: effectiveCompanyId,
+                paid: (total) => paidAmountForChoice(finish, total),
+                prior: row,
+                clientTotal: validated.client_total,
+              });
+            }
+          : undefined,
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
     revalidatePath('/dashboard');
     revalidatePath('/tickets');
     revalidatePath(`/tickets/${String(created.id)}`);
+    if (finish !== undefined) revalidatePath('/cobranza');
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total, folio: created.folio },
+      data: {
+        id: String(created.id),
+        total: created.total,
+        folio: created.folio,
+        ...(created.replayed ? { replayed: true } : {}),
+        ...(finish !== undefined ? { finished: true } : {}),
+      },
     };
   } catch (error) {
+    if (error instanceof FinishPaidExceedsTotalError) {
+      return buildActionError('TC009', undefined, 'validation');
+    }
     if (error instanceof CompanyProductionBlockedError) {
       return handleServerActionError(error);
     }
@@ -600,15 +670,30 @@ export async function getTicketsList(
   }
 }
 
+/** Tab counts for the collections list, scoped to the current search and date range (ZIG-I28-4). */
+export type TicketListCounts = {
+  all: number;
+  due: number;
+  inProgress: number;
+  paid: number;
+};
+
 export interface PaginatedTicketsData {
-  items: Array<TicketRow & { services_summary: string | null }>;
+  items: Array<
+    TicketRow & {
+      services_summary: string | null;
+      /** First two service names, in order (canvas «A, B… +N»). */
+      services_head: string[];
+      services_count: number;
+      materials_count: number;
+    }
+  >;
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
-  /** Σ saldo of every ticket matching the filters, not just this page (ZIG-I13-7). */
-  balanceDue: number;
-  /** Tickets with a saldo under the search/date/finished filters, whatever the status chip (ZIG-I13-7). */
+  counts: TicketListCounts;
+  /** Phone Por cobrar chip: tickets with a saldo under the search/date/finished filters (ZIG-I13-7). */
   dueCount: number;
 }
 
@@ -635,7 +720,8 @@ const buildTicketPaymentStatusCondition = (
   }
 
   if (status === 'due') {
-    return TICKET_DUE_CONDITION;
+    // Por cobrar is finished work with a saldo (ZIG-I36-17); En proceso has none yet.
+    return sql`${ticket.finished} = true AND ${TICKET_DUE_CONDITION}`;
   }
 
   if (status === 'partial') {
@@ -645,9 +731,57 @@ const buildTicketPaymentStatusCondition = (
   return sql`(${total} <= 0.01) OR (${paid} <= 0.01 AND NOT (${total} > 0.01 AND ${paid} >= ${total} - 0.01))`;
 };
 
+/** The columns the tickets list sorts by on the server (ZIG-I33-2). */
+export type TicketListSortColumn =
+  | 'folio'
+  | 'cliente'
+  | 'telefono'
+  | 'fecha'
+  | 'total'
+  | 'saldo'
+  | 'estado';
+
+export type TicketListSort = { column: TicketListSortColumn; direction: 'asc' | 'desc' };
+
+/** Saldo as the list shows it: 0 once covered within a cent (getTicketBalanceDue). */
+const TICKET_BALANCE_SORT = sql`CASE WHEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) > 0.01 THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END`;
+
+/** Pagado 0, parcial 1, pendiente 2 (getTicketPaymentStatusSortRank). */
+const TICKET_PAYMENT_RANK_SORT = sql`CASE WHEN ${buildTicketPaymentStatusCondition('paid')} THEN 0 WHEN ${buildTicketPaymentStatusCondition('partial')} THEN 1 ELSE 2 END`;
+
+/** Whitelist: only these expressions reach ORDER BY; no text from the caller does. */
+const TICKET_SORT_EXPRESSIONS: Record<TicketListSortColumn, SQL> = {
+  folio: sql`${ticket.id}`,
+  cliente: sql`lower(${ticket.client_name})`,
+  telefono: sql`${ticket.client_tel}`,
+  fecha: sql`${ticket.ticket_date}`,
+  total: sql`${ticket.total}`,
+  saldo: TICKET_BALANCE_SORT,
+  estado: TICKET_PAYMENT_RANK_SORT,
+};
+
+/**
+ * ORDER BY for one page. Without a sort (or with an unknown column) the order of
+ * before ZIG-I33-2, newest created first. A sort ends with the newest created and
+ * the id, so equal values keep one order across pages.
+ */
+const ticketListOrderBy = (sort: TicketListSort | undefined): SQL[] => {
+  const column = sort?.column;
+  if (!column || !Object.prototype.hasOwnProperty.call(TICKET_SORT_EXPRESSIONS, column)) {
+    return [desc(ticket.created_at)];
+  }
+  const direction = sort.direction === 'asc' ? sql`asc` : sql`desc`;
+  return [
+    sql`${TICKET_SORT_EXPRESSIONS[column]} ${direction} nulls last`,
+    desc(ticket.created_at),
+    desc(ticket.id),
+  ];
+};
+
 /**
  * Server-side paginated + searchable ticket list, scoped to the company. Keeps
- * large ticket tables responsive instead of loading every row client-side.
+ * large ticket tables responsive instead of loading every row client-side. The
+ * sort runs over the whole list, not the page (ZIG-I33-2).
  */
 export async function getTicketsPaginated(params: {
   companyId?: number | null;
@@ -658,6 +792,9 @@ export async function getTicketsPaginated(params: {
   finishedFilter?: TicketListFinishedFilter;
   dateFrom?: string;
   dateTo?: string;
+  /** `?cliente=`: one client's tickets, always inside the tenant (ZIG-I37-1). */
+  clientId?: number;
+  sort?: TicketListSort;
 }): Promise<{
   success: boolean;
   data?: PaginatedTicketsData;
@@ -676,10 +813,10 @@ export async function getTicketsPaginated(params: {
     const folioSearch = search ? parseFolioSearch(search) : null;
     const searchCondition = search
       ? or(
-          ilike(ticket.client_name, `%${search}%`),
-          ilike(ticket.email, `%${search}%`),
-          ilike(ticket.document, `%${search}%`),
-          ilike(ticket.client_tel, `%${search}%`),
+          sqlFoldedContains(ticket.client_name, search),
+          sqlFoldedContains(ticket.email, search),
+          sqlFoldedContains(ticket.document, search),
+          sqlFoldedContains(ticket.client_tel, search),
           sql`CAST(${ticket.id} AS TEXT) LIKE ${`%${search}%`}`,
           // R-0012, r-12 or 0012: the stored prefix plus the padded number (ZIG-I17-6).
           sql`(${ticket.folio_prefix} || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
@@ -715,38 +852,71 @@ export async function getTicketsPaginated(params: {
       ? sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`
       : undefined;
 
-    const baseConditions = [
+    // A client of another tenant matches nothing: the company condition still applies.
+    const clientId =
+      params.clientId != null && Number.isSafeInteger(params.clientId) && params.clientId > 0
+        ? params.clientId
+        : undefined;
+    const clientCondition = clientId != null ? eq(ticket.client_id, clientId) : undefined;
+
+    const tenantConditions = [
       eq(ticket.company_id, effectiveCompanyId),
       isNull(ticket.deleted_at),
       eq(ticket.document_kind, 'ticket'),
+    ];
+    const searchAndDateConditions = [
+      ...(clientCondition ? [clientCondition] : []),
       ...(searchCondition ? [searchCondition] : []),
-      ...(finishedCondition ? [finishedCondition] : []),
       ...(dateFromCondition ? [dateFromCondition] : []),
       ...(dateToCondition ? [dateToCondition] : []),
     ];
+    // Tab counts ignore the view itself (status / finished) so the four numbers stay put.
+    const countScope = and(...tenantConditions, ...searchAndDateConditions);
     const whereCondition = and(
-      ...baseConditions,
+      ...tenantConditions,
+      ...searchAndDateConditions,
+      ...(finishedCondition ? [finishedCondition] : []),
       ...(paymentStatusCondition ? [paymentStatusCondition] : []),
     );
 
-    const [{ total, balanceDue }] = await db
-      .select({
-        total: count(),
-        balanceDue: sql<string>`COALESCE(SUM(CASE WHEN ${TICKET_DUE_CONDITION} THEN COALESCE(${ticket.total}, 0) - COALESCE(${ticket.paid}, 0) ELSE 0 END), 0)`,
-      })
+    // Por cobrar is finished work with a saldo: En proceso tickets have no saldo yet, and
+    // the tab must match the ?status=due&finished=yes view (PR #610 review: 26 vs 17).
+    const dueCondition = and(eq(ticket.finished, true), TICKET_DUE_CONDITION) ?? sql`false`;
+    const paidCondition = buildTicketPaymentStatusCondition('paid') ?? sql`false`;
+    // The phone chip counts the same thing: Por cobrar is finished work with a saldo
+    // on every screen (ZIG-I36-17).
+    const phoneDueCondition = and(
+      dueCondition,
+      ...(finishedCondition ? [finishedCondition] : []),
+    ) ?? sql`false`;
+
+    const [{ total }] = await db
+      .select({ total: count() })
       .from(ticket)
       .where(whereCondition);
-    const [{ dueCount }] = await db
-      .select({ dueCount: count() })
+    const [countRow] = await db
+      .select({
+        allCount: count(),
+        dueCount: sql<number>`count(*) FILTER (WHERE ${dueCondition})`,
+        phoneDueCount: sql<number>`count(*) FILTER (WHERE ${phoneDueCondition})`,
+        inProgressCount: sql<number>`count(*) FILTER (WHERE ${eq(ticket.finished, false)})`,
+        paidCount: sql<number>`count(*) FILTER (WHERE ${paidCondition})`,
+      })
       .from(ticket)
-      .where(and(...baseConditions, TICKET_DUE_CONDITION));
+      .where(countScope);
+    const counts: TicketListCounts = {
+      all: Number(countRow?.allCount ?? 0),
+      due: Number(countRow?.dueCount ?? 0),
+      inProgress: Number(countRow?.inProgressCount ?? 0),
+      paid: Number(countRow?.paidCount ?? 0),
+    };
 
     const totalCount = Number(total ?? 0);
     const items = await db
       .select()
       .from(ticket)
       .where(whereCondition)
-      .orderBy(desc(ticket.created_at))
+      .orderBy(...ticketListOrderBy(params.sort))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
 
@@ -757,6 +927,9 @@ export async function getTicketsPaginated(params: {
           .select({
             ticket_id: servicesTickets.ticket_id,
             summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+            // The first two names and how many there are: «A, B… +5» (canvas ListaA).
+            head: sql<string[] | null>`(array_agg(coalesce(${servicesTickets.name}, ${service.name}) order by ${servicesTickets.id}))[1:2]`,
+            lines: sql<number>`count(*)`,
           })
           .from(servicesTickets)
           .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
@@ -773,22 +946,53 @@ export async function getTicketsPaginated(params: {
           .groupBy(servicesTickets.ticket_id)
       : [];
     const summaryByTicket = new Map(
-      serviceLines.map((r) => [String(r.ticket_id), r.summary]),
+      serviceLines.map((r) => [String(r.ticket_id), r]),
+    );
+    // Materials of those lines, for «3 servicios · 6 materiales» (ZIG-I36-19).
+    const materialRows = pageIds.length
+      ? await db
+          .select({
+            ticket_id: servicesTickets.ticket_id,
+            materials: sql<number>`count(*)`,
+          })
+          .from(ticketLineMaterial)
+          .innerJoin(servicesTickets, eq(servicesTickets.id, ticketLineMaterial.services_tickets_id))
+          .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              isNull(ticket.deleted_at),
+              eq(ticket.document_kind, 'ticket'),
+              inArray(servicesTickets.ticket_id, pageIds),
+              isNull(servicesTickets.deleted_at),
+              isNull(ticketLineMaterial.deleted_at),
+            ),
+          )
+          .groupBy(servicesTickets.ticket_id)
+      : [];
+    const materialsByTicket = new Map(
+      materialRows.map((r) => [String(r.ticket_id), Number(r.materials)]),
     );
 
     return {
       success: true,
       data: {
-        items: items.map((row) => ({
-          ...row,
-          services_summary: summaryByTicket.get(String(row.id)) ?? null,
-        })),
+        items: items.map((row) => {
+          const work = summaryByTicket.get(String(row.id));
+          return {
+            ...row,
+            services_summary: work?.summary ?? null,
+            services_head: work?.head ?? [],
+            services_count: Number(work?.lines ?? 0),
+            materials_count: materialsByTicket.get(String(row.id)) ?? 0,
+          };
+        }),
         total: totalCount,
         page,
         pageSize,
         totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
-        balanceDue: roundMoney(Number(balanceDue ?? 0)),
-        dueCount: Number(dueCount ?? 0),
+        counts,
+        dueCount: Number(countRow?.phoneDueCount ?? 0),
       },
     };
   } catch (e) {
@@ -838,6 +1042,51 @@ export async function getTicketById(
       return buildActionError('TC008');
     }
 
+    let clientTicketCount: number | null = null;
+    let clientOpenBalances: Array<{ id: string; folio: string; balance: number }> = [];
+    if (ticketRow.client_id != null && ticketRow.company_id != null) {
+      const [countRow] = await db
+        .select({ value: count() })
+        .from(ticket)
+        .where(
+          and(
+            eq(ticket.company_id, ticketRow.company_id),
+            eq(ticket.client_id, ticketRow.client_id),
+            eq(ticket.document_kind, 'ticket'),
+            isNull(ticket.deleted_at),
+          ),
+        );
+      clientTicketCount = Number(countRow?.value ?? 0);
+      const owing = await db
+        .select({
+          id: ticket.id,
+          folio_number: ticket.folio_number,
+          folio_prefix: ticket.folio_prefix,
+          document_kind: ticket.document_kind,
+          total: ticket.total,
+          paid: ticket.paid,
+        })
+        .from(ticket)
+        .where(
+          and(
+            eq(ticket.company_id, ticketRow.company_id),
+            eq(ticket.client_id, ticketRow.client_id),
+            eq(ticket.document_kind, 'ticket'),
+            eq(ticket.finished, true),
+            isNull(ticket.deleted_at),
+            ne(ticket.id, ticketRow.id),
+            TICKET_DUE_CONDITION,
+          ),
+        )
+        .orderBy(desc(ticket.ticket_date))
+        .limit(20);
+      clientOpenBalances = owing.map((row) => ({
+        id: String(row.id),
+        folio: formatDocumentFolio(row),
+        balance: getTicketBalanceDue(row.total, row.paid),
+      }));
+    }
+
     let sourceFolio: FolioParts | null = null;
     if (ticketRow.converted_from_ticket_id != null) {
       const source = await db.query.ticket.findFirst({
@@ -849,7 +1098,12 @@ export async function getTicketById(
 
     return {
       success: true,
-      data: { ...ticketRow, source_presupuesto_folio: sourceFolio } as TicketDetailData,
+      data: {
+        ...ticketRow,
+        source_presupuesto_folio: sourceFolio,
+        client_ticket_count: clientTicketCount,
+        client_open_balances: clientOpenBalances,
+      } as TicketDetailData,
     };
   } catch (e) {
     return handleCodedServerActionError('tickets.get', 'TC003', e);
@@ -885,6 +1139,13 @@ export async function updateTicket(
     const totalFromServices = hasServicesUpdate
       ? assertTicketTotalWithinCap(calculateTicketTotal(servicesToSync))
       : undefined;
+    const paidSoFar = priorWritable.paid ?? 0;
+    if (
+      totalFromServices !== undefined &&
+      totalFromServices < paidSoFar - AMOUNT_TOLERANCE
+    ) {
+      throw new TotalBelowPaidError(paidSoFar);
+    }
 
     if (hasServicesUpdate) {
       await assertCatalogServicesBelongToCompany(
@@ -922,6 +1183,7 @@ export async function updateTicket(
 
         if (servicesToSync.length) {
           await insertServiceLines(tx, {
+            actor: context,
             companyId: effectiveCompanyId,
             ticketId,
             lines: servicesToSync,
@@ -1005,6 +1267,13 @@ export async function updateTicket(
 
     return { success: true, data: full ?? updated };
   } catch (e) {
+    if (e instanceof TotalBelowPaidError) {
+      return {
+        success: false,
+        error: `El total no puede quedar abajo de lo ya pagado (${formatPesos(e.paid)})`,
+        errorType: 'validation',
+      };
+    }
     if (e instanceof TicketAlreadyPaidError) {
       return buildActionError('TC010', undefined, 'validation');
     }

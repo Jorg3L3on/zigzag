@@ -98,7 +98,8 @@ const queue = (overrides: Partial<DashboardDayQueue> = {}): DashboardDayQueue =>
       balanceDue: 1600,
       paymentStatus: 'pending',
       daysOutstanding: 120,
-      agingBucket: '30+',
+      daysSinceLastPayment: null,
+      agingBucket: '90+',
     },
   ],
   recordatorios: [
@@ -168,6 +169,31 @@ describe('DashboardTuDia', () => {
 
     expect(tab(/Hoy/)).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Nada para hoy')).toBeInTheDocument();
+  });
+
+  it('names a Por cobrar row by client, then folio · hace N días · parcial (ZIG-I36-18)', () => {
+    const base = queue();
+    render(
+      <DashboardTuDia
+        initialQueue={{
+          ...base,
+          porCobrar: [
+            {
+              ...base.porCobrar[0],
+              folio: 'R-0007',
+              daysOutstanding: 75,
+              paymentStatus: 'partial',
+            },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(tab(/Por cobrar/));
+    const row = screen.getByText('Terminal de Autobuses del Caribe').closest('li') as HTMLElement;
+    expect(row).toHaveTextContent('R-0007 · hace 75 días · parcial');
+    expect(row).not.toHaveTextContent('#');
+    expect(within(row).getByText('Terminal de Autobuses del Caribe').className).toContain('line-clamp-2');
   });
 
   it('switches the one list when another tile is picked', () => {

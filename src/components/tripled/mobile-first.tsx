@@ -4,9 +4,9 @@ import Link from 'next/link';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -42,7 +42,9 @@ export const TripledDashboardShell = ({
     >
       <div
         className={cn(
-          'mx-auto w-full min-w-0 overflow-x-hidden',
+          // clip, not hidden: hidden makes a scroll container and turns lg:sticky
+          // asides (composer rail, document PDF) into plain blocks (ZIG-I24).
+          'mx-auto w-full min-w-0 overflow-x-clip',
           maxWidthClassName,
           contentClassName,
         )}
@@ -55,8 +57,8 @@ export const TripledDashboardShell = ({
 
 type TripledResourceCardProps = {
   title: string;
+  /** The one line under the title, every width (ZIG-I27-4). */
   description: string;
-  desktopDescription?: string;
   icon?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -68,12 +70,44 @@ type TripledResourceCardProps = {
    * creates things), so the list starts higher (ZIG-I13-7).
    */
   compactOnMobile?: boolean;
+  /**
+   * From lg, the desktop look of the other pages (ZIG-30); phones keep the card.
+   * page: no card, the header is the page title and the content a light panel.
+   * title: the same without the panel, for content that frames itself.
+   * section: a light card with a plain header, for pages with several cards.
+   */
+  desktop?: 'page' | 'title' | 'section';
 };
+
+const DESKTOP_CARD_CLASSES = {
+  page: {
+    card: 'lg:contents',
+    header: 'lg:border-b-0 lg:bg-none lg:bg-transparent lg:p-0 lg:pb-5',
+    description: 'lg:mt-1 lg:text-sm',
+    content: 'lg:rounded-xl lg:border lg:border-border/60 lg:bg-card lg:p-6',
+  },
+  title: {
+    card: 'lg:contents',
+    header: 'lg:border-b-0 lg:bg-none lg:bg-transparent lg:p-0 lg:pb-5',
+    description: 'lg:mt-1 lg:text-sm',
+    content: 'lg:bg-transparent lg:p-0',
+  },
+  section: {
+    // ! because the base Card's shadow-soft and hover-lift are plain classes that win otherwise.
+    card: 'lg:rounded-xl lg:shadow-none! lg:ring-0 lg:hover:transform-none! lg:hover:shadow-none!',
+    header: 'lg:border-b-0 lg:bg-none lg:px-6 lg:pb-0 lg:pt-5',
+    title: 'lg:text-lg',
+    description: 'lg:text-sm',
+    content: 'lg:px-6 lg:pb-6 lg:pt-4',
+  },
+} satisfies Record<
+  NonNullable<TripledResourceCardProps['desktop']>,
+  Partial<Record<'card' | 'header' | 'title' | 'description' | 'content', string>>
+>;
 
 export const TripledResourceCard = ({
   title,
   description,
-  desktopDescription,
   icon,
   action,
   children,
@@ -81,11 +115,17 @@ export const TripledResourceCard = ({
   headerClassName,
   contentClassName,
   compactOnMobile = false,
+  desktop,
 }: TripledResourceCardProps) => {
+  const desktopClasses: Partial<
+    Record<'card' | 'header' | 'title' | 'description' | 'content', string>
+  > = desktop ? DESKTOP_CARD_CLASSES[desktop] : {};
+
   return (
     <Card
       className={cn(
         'overflow-hidden border-border/60 bg-card shadow-none sm:rounded-2xl sm:shadow-xl sm:ring-1 sm:ring-black/5 sm:dark:ring-white/10',
+        desktopClasses.card,
         className,
       )}
     >
@@ -93,6 +133,7 @@ export const TripledResourceCard = ({
         className={cn(
           'space-y-0 border-b border-border/50 bg-card px-4 py-4 sm:bg-gradient-to-br sm:from-muted/35 sm:via-background sm:to-background sm:px-8 sm:py-6',
           compactOnMobile && 'max-sm:py-3',
+          desktopClasses.header,
           headerClassName,
         )}
       >
@@ -110,26 +151,30 @@ export const TripledResourceCard = ({
                 </span>
               ) : null}
               <div className="min-w-0">
-                <CardTitle className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">
+                <CardTitle
+                  className={cn(
+                    'text-balance text-xl font-semibold tracking-tight sm:text-2xl',
+                    desktopClasses.title,
+                  )}
+                >
                   {title}
                 </CardTitle>
                 <CardDescription
-                  className={cn('text-sm sm:text-base', compactOnMobile && 'max-sm:hidden')}
+                  className={cn(
+                    'text-sm sm:text-base',
+                    compactOnMobile && 'max-sm:hidden',
+                    desktopClasses.description,
+                  )}
                 >
                   {description}
                 </CardDescription>
               </div>
             </div>
-            {desktopDescription ? (
-              <CardDescription className="hidden text-base sm:block">
-                {desktopDescription}
-              </CardDescription>
-            ) : null}
           </div>
           {compactOnMobile && action ? <div className="contents max-sm:hidden">{action}</div> : action}
         </div>
       </CardHeader>
-      <CardContent className={cn('p-3 pt-4 sm:p-6 sm:pt-6', contentClassName)}>
+      <CardContent className={cn('p-3 pt-4 sm:p-6 sm:pt-6', desktopClasses.content, contentClassName)}>
         {children}
       </CardContent>
     </Card>
@@ -247,6 +292,9 @@ type TripledFilterChip = {
   key: string;
   label: ReactNode;
   variant?: 'secondary' | 'outline';
+  /** A removable chip is one button: tapping it (or its ×) drops that filter. */
+  onRemove?: () => void;
+  removeAriaLabel?: string;
 };
 
 type TripledFilterChipsProps = {
@@ -264,15 +312,31 @@ export const TripledFilterChips = ({
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      {chips.map((chip) => (
-        <Badge
-          key={chip.key}
-          variant={chip.variant ?? 'outline'}
-          className="max-w-full whitespace-normal rounded-full px-2.5 py-1 text-left leading-snug"
-        >
-          {chip.label}
-        </Badge>
-      ))}
+      {chips.map((chip) =>
+        chip.onRemove ? (
+          <button
+            key={chip.key}
+            type="button"
+            onClick={chip.onRemove}
+            aria-label={chip.removeAriaLabel}
+            className={cn(
+              badgeVariants({ variant: chip.variant ?? 'outline' }),
+              'min-h-11 max-w-full gap-1.5 whitespace-normal lg:min-h-9 rounded-full py-1 pl-2.5 pr-2 text-left leading-snug outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring',
+            )}
+          >
+            <span className="min-w-0 [overflow-wrap:anywhere]">{chip.label}</span>
+            <X className="size-3.5 shrink-0 opacity-70" aria-hidden />
+          </button>
+        ) : (
+          <Badge
+            key={chip.key}
+            variant={chip.variant ?? 'outline'}
+            className="max-w-full whitespace-normal rounded-full px-2.5 py-1 text-left leading-snug"
+          >
+            {chip.label}
+          </Badge>
+        ),
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { client, ticket, ticketPayment } from '@/db/schema';
@@ -78,6 +78,8 @@ export type ClientDetailData = {
   tickets: ClientDetailTicket[];
   presupuestos: ClientDetailPresupuesto[];
   payments: ClientDetailPayment[];
+  /** All payments of the client's work tickets; `payments` holds the newest ones. */
+  paymentCount: number;
   schedules: ClientServiceScheduleListItem[];
 };
 
@@ -153,6 +155,19 @@ export async function getClientDetail(id: number): Promise<{
             .limit(200)
         : [];
 
+    const [{ total: paymentCount } = { total: 0 }] =
+      ticketIds.length > 0
+        ? await db
+            .select({ total: count() })
+            .from(ticketPayment)
+            .where(
+              and(
+                inArray(ticketPayment.ticket_id, ticketIds),
+                eq(ticketPayment.company_id, ownerCompanyId),
+              ),
+            )
+        : [];
+
     const folioByTicketId = new Map(workTickets.map((t) => [t.id, formatDocumentFolio(t)]));
     const schedulesResult = await listClientServiceSchedulesForClient(
       id,
@@ -199,6 +214,7 @@ export async function getClientDetail(id: number): Promise<{
           amount: p.amount ?? 0,
           createdAt: p.created_at.toISOString(),
         })),
+        paymentCount,
         schedules: schedulesResult.success ? (schedulesResult.data ?? []) : [],
       },
     };

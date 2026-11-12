@@ -26,6 +26,7 @@ const presupuesto = (overrides: Partial<ReceiptPdfPayload> = {}): ReceiptPdfPayl
   docType: 'presupuesto',
   docTitle: 'PRESUPUESTO',
   folio: '001114',
+  sourcePresupuestoFolio: null,
   issueDate: '10 / 10 / 2026',
   validity: { days: 30, expiryDate: '09 / 11 / 2026' },
   recibo: null,
@@ -230,6 +231,24 @@ describe('renderReceiptPdf — recibo', () => {
     const { pages } = render('recibo-one-item', recibo({ items: [item(1)], itemCount: 1 }));
     expect(pageText(pages[0])).toContain('1 concepto');
     expect(pageText(pages[0])).not.toContain('1 conceptos');
+  });
+
+  it('keeps its own folio and names the source presupuesto under Estado (ZIG-I26-2)', () => {
+    const { pages } = render(
+      'recibo-converted',
+      recibo({ folio: 'R-0061', sourcePresupuestoFolio: 'P-0006' }),
+    );
+    expectInOrder(pages[0], [
+      'RECIBO',
+      'Folio R-0061',
+      'ESTADO',
+      'PENDIENTE DE PAGO',
+      '2 conceptos',
+      'Presupuesto P-0006',
+      'CONCEPTO',
+      'RECIBO R-0061 · Página 1 de 1',
+    ]);
+    expect(pageText(pages[0])).not.toContain('Folio P-0006');
   });
 });
 

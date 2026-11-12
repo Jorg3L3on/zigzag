@@ -148,10 +148,11 @@ export function ClientForm({
         });
 
         if (result.success) {
-          toast.success('Cliente actualizado correctamente');
+          toast.success('Cliente actualizado');
           onSuccess?.(result.data);
           if (!onSuccess) {
-            router.push('/clients');
+            // Back to that client's page, where the edit was started (M-35).
+            router.push(`/clients/${client.id}`);
             router.refresh();
           }
         } else {

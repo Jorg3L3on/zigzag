@@ -26,17 +26,29 @@ type TicketsMobileCardProps = {
   companyId?: number | null;
 };
 
-/** How a card names the payment state (same words as the detail's pill). */
+/** How a card names the payment state of a finished ticket (same words as the detail's pill). */
 const CARD_STATUS_LABEL: Record<TicketPaymentStatus, string> = {
   paid: 'Pagado',
   partial: 'Pago parcial',
-  pending: 'Pendiente de pago',
+  pending: 'Por cobrar',
 };
+
+/** Dot colors: owed money is amber, work still going is slate (ZIG-I36-17). */
+const CARD_DOT_CLASS: Record<TicketPaymentStatus | 'working', string> = {
+  paid: TICKET_PAYMENT_STATUS_ACCENT_CLASS.paid,
+  partial: TICKET_PAYMENT_STATUS_ACCENT_CLASS.partial,
+  pending: 'bg-amber-500 dark:bg-amber-400',
+  working: TICKET_PAYMENT_STATUS_ACCENT_CLASS.pending,
+};
+
+/** «6 materiales» / «1 material», or nothing. */
+const materialsLabel = (count: number | undefined): string | null =>
+  count && count > 0 ? `${count} ${count === 1 ? 'material' : 'materiales'}` : null;
 
 /**
  * Compact ticket card (ZIG-I13-7): the name in up to two lines with the ticket number,
  * the work done (one line), one meta line `status · date`
- * (the phone lives in ⋯ as Llamar, so a tap on the card never dials), a progress bar once something is paid,
+ * (no phone on the card, so a tap never dials), a progress bar once something is paid,
  * and Pagado / Saldo that wrap instead of truncating. The whole card opens the
  * ticket; ⋯ keeps Cobrar / Descargar / Eliminar.
  */
@@ -53,7 +65,11 @@ export const TicketsMobileCard = ({
   const status = getTicketPaymentStatus(ticket.total, ticket.paid);
   const paidAmount = ticket.paid ?? 0;
   const balance = getTicketBalanceDue(ticket.total, ticket.paid);
-  const partial = status === 'partial';
+  // An unfinished ticket is En proceso, never Por cobrar (ZIG-I36-17).
+  const working = !ticket.finished;
+  const statusLabel = working ? 'En proceso' : CARD_STATUS_LABEL[status];
+  const materials = materialsLabel(ticket.materials_count);
+  const partial = status === 'partial' && !working;
   const dateLabel = formatListDate(ticket.ticket_date);
 
   const handleNavigate = () => {
@@ -111,10 +127,11 @@ export const TicketsMobileCard = ({
 
       {ticket.services_summary ? (
         <p
-          className="line-clamp-1 text-sm text-foreground/80"
+          className="line-clamp-2 text-sm text-foreground/80"
           data-testid="ticket-card-services"
         >
           {ticket.services_summary}
+          {materials ? <span className="text-muted-foreground"> · {materials}</span> : null}
         </p>
       ) : null}
 
@@ -123,10 +140,10 @@ export const TicketsMobileCard = ({
         data-testid="ticket-card-meta"
       >
         <span
-          className={cn('size-2 shrink-0 rounded-full', TICKET_PAYMENT_STATUS_ACCENT_CLASS[status])}
+          className={cn('size-2 shrink-0 rounded-full', CARD_DOT_CLASS[working ? 'working' : status])}
           aria-hidden
         />
-        <span>{CARD_STATUS_LABEL[status]}</span>
+        <span>{statusLabel}</span>
         {dateLabel ? (
           <>
             <span aria-hidden>·</span>
@@ -148,13 +165,31 @@ export const TicketsMobileCard = ({
         data-testid="ticket-payment-summary"
         data-payment-status={status}
       >
-        {paidAmount > 0 && balance > 0 ? (
+        {paidAmount > 0 && balance > 0 && !working ? (
           <>
             <span className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
               Pagado {formatServiceCurrency(paidAmount)}
             </span>
             <span className="min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere]">
-              Saldo {formatServiceCurrency(balance)}
+              Faltan {formatServiceCurrency(balance)}
+            </span>
+          </>
+        ) : working && paidAmount > 0 ? (
+          <>
+            <span className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
+              Pagado {formatServiceCurrency(paidAmount)}
+            </span>
+            <span className="min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere]">
+              Total {ticket.total == null ? 'sin definir' : formatServiceCurrency(ticket.total)}
+            </span>
+          </>
+        ) : !working && balance > 0 ? (
+          <>
+            <span className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">
+              Total {formatServiceCurrency(ticket.total ?? 0)}
+            </span>
+            <span className="min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere]">
+              Faltan {formatServiceCurrency(balance)}
             </span>
           </>
         ) : (

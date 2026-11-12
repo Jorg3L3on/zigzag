@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { companyDay } from '@/lib/company-day';
 import {
   Banknote,
   CalendarClock,
@@ -54,6 +55,7 @@ import {
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { canReadServiceSchedules } from '@/lib/service-schedules-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
 import { formatTicketListAmount } from '@/lib/ticket-payment-status';
 import { canWriteTickets } from '@/lib/tickets-rbac';
 import { buildWhatsAppBalanceShare } from '@/lib/whatsapp-share';
@@ -92,15 +94,25 @@ const RowText = ({
   title,
   context,
   badge,
+  wrapTitle = false,
 }: {
   title: string;
   context: React.ReactNode;
   badge?: React.ReactNode;
+  /** Long client names take up to two lines, and the context wraps, instead of one cut line. */
+  wrapTitle?: boolean;
 }) => (
   <div className="min-w-0 flex-1 space-y-0.5">
-    <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+    <p
+      className={cn(
+        'text-sm font-semibold text-foreground',
+        wrapTitle ? 'line-clamp-2 [overflow-wrap:anywhere]' : 'truncate',
+      )}
+    >
+      {title}
+    </p>
     <div className="flex min-w-0 items-center gap-2 text-caption text-muted-foreground">
-      <span className="truncate">{context}</span>
+      <span className={wrapTitle ? '[overflow-wrap:anywhere]' : 'truncate'}>{context}</span>
       {badge}
     </div>
   </div>
@@ -142,11 +154,6 @@ const MoreMenu = ({ label, items }: { label: string; items: MoreItem[] }) => {
   );
 };
 
-const telHref = (phone: string | null | undefined) => {
-  const digits = phone?.replace(/[^\d+]/g, '');
-  return digits ? `tel:${digits}` : null;
-};
-
 type SendRequest = { job: FieldJobSnapshot; highlightId?: FieldSendOptionId };
 
 const TicketRow = ({
@@ -166,12 +173,13 @@ const TicketRow = ({
 }) => {
   const localOnly = Boolean(item.pendingSync && item.localJobId);
   const clientName = item.clientName?.trim() || 'Cliente sin nombre';
-  const context =
-    item.servicesSummary ??
-    (localOnly
-      ? 'Anotar trabajo'
-      : `#${item.id} · ${format(new Date(item.ticketDate), 'd MMM', { locale: es })}`);
-  const call = telHref(item.clientTel);
+  const composerDoc = localOnly && item.composerKind === 'ticket';
+  const context = composerDoc
+    ? `${item.servicesSummary ?? 'Ticket'} · Sin folio todavía`
+    : (item.servicesSummary ??
+      (localOnly
+        ? 'Anotar trabajo'
+        : `#${item.id} · ${format(new Date(item.ticketDate), 'd MMM', { locale: es })}`));
   const job = toFieldJobSnapshotFromDayTicket(item, {
     companyId,
     companyName,
@@ -197,7 +205,13 @@ const TicketRow = ({
           {formatTicketListAmount(item.total ?? 0)}
         </span>
       ) : null}
-      {localOnly ? null : (
+      {composerDoc ? (
+        <Button asChild size="sm" className={PRIMARY_PILL}>
+          <Link href={`/tickets/create?pendiente=${encodeURIComponent(item.localJobId ?? '')}`}>
+            {item.syncStatus === 'error' ? 'Revisar' : 'Abrir'}
+          </Link>
+        </Button>
+      ) : localOnly ? null : (
         <Button asChild size="sm" className={PRIMARY_PILL}>
           <Link
             href={
@@ -212,7 +226,6 @@ const TicketRow = ({
         label={`Más acciones para ${clientName}`}
         items={[
           { label: 'Enviar por WhatsApp…', onSelect: () => onSend({ job }) },
-          ...(call ? [{ label: 'Llamar', href: call }] : []),
         ]}
       />
     </li>
@@ -241,17 +254,19 @@ const CobroRow = ({
     balanceDue: row.balanceDue,
     companyName,
   });
-  const call = telHref(row.client_tel);
-  const status = row.paymentStatus === 'partial' ? 'parcial' : 'pendiente';
+  const age =
+    row.daysOutstanding <= 0
+      ? 'hoy'
+      : `hace ${row.daysOutstanding} ${row.daysOutstanding === 1 ? 'día' : 'días'}`;
+  const context = [row.folio, age, row.paymentStatus === 'partial' ? 'parcial' : null]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <li className={ROW_CLASS}>
-      <RowText
-        title={clientName}
-        context={`${row.folio} · ${row.daysOutstanding} d · ${status}`}
-      />
+      <RowText title={clientName} context={context} wrapTitle />
       <span className="shrink-0 text-sm font-semibold tabular-nums">
-        {formatTicketListAmount(row.balanceDue)}
+        {formatServiceCurrency(row.balanceDue)}
       </span>
       {canWrite ? (
         <Button
@@ -289,7 +304,6 @@ const CobroRow = ({
                 highlightId: 'recordar_saldo',
               }),
           },
-          ...(call ? [{ label: 'Llamar', href: call }] : []),
           { label: 'Ver ticket', href: `/tickets/${row.id}` },
         ]}
       />
@@ -304,7 +318,6 @@ const ScheduleRow = ({
   row: DayQueueScheduleRow;
   canWrite: boolean;
 }) => {
-  const call = telHref(row.clientPhone);
   return (
     <li className={ROW_CLASS}>
       <RowText title={row.clientName} context={row.serviceName} />
@@ -323,7 +336,6 @@ const ScheduleRow = ({
       <MoreMenu
         label={`Más acciones para ${row.clientName}`}
         items={[
-          ...(call ? [{ label: 'Llamar', href: call }] : []),
           { label: 'Ver recordatorios', href: '/service-schedules' },
         ]}
       />
@@ -427,7 +439,7 @@ export const DashboardTuDia = ({
     return null;
   }
 
-  const today = format(new Date(), "EEEE d 'de' MMMM", { locale: es });
+  const today = format(companyDay(new Date()).date, "EEEE d 'de' MMMM", { locale: es });
   const panelId = 'dashboard-tu-dia-panel';
 
   const renderRows = () => {
@@ -629,6 +641,10 @@ export const DashboardTuDia = ({
           total={collectRow.total}
           paid={collectRow.paid}
           companyId={collectRow.company_id}
+          folio={collectRow.folio}
+          clientName={collectRow.client_name}
+          clientTel={collectRow.client_tel}
+          companyName={companyName}
           onPaymentApplied={() => {
             setCollectRow(null);
             void load();

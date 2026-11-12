@@ -48,6 +48,8 @@ planner prefers index scans once a tenant grows past a few pages of heap.
 | `getTicketAuditHistory` | `actor` | Drizzle relational batch |
 | `queryAuditEvents` | none | Single `SELECT` + limit |
 | `fetchDashboardActivity` | actors | `inArray` batch per page (not per row) |
+| `listClientServiceSchedulesPaginated` | client, service | One aggregate (`count(*) FILTER` per view) + one page `SELECT` with joins |
+| `getClientServiceScheduleHistory` | tickets | Schedule row + two ticket `SELECT`s (`EXISTS` service line, `count(*) OVER ()`) |
 
 No list path issues a per-row query inside a loop. Detail endpoints
 (`getTicketById`) eager-load payments / services in the same relational query.
@@ -66,6 +68,9 @@ No list path issues a per-row query inside a loop. Detail endpoints
 | `audit.events` | `queryAuditEvents` | **60 ms** | Limit ≤ 100 |
 | `ticket.audit-history` | `getTicketAuditHistory` | **40 ms** | Per ticket |
 | `dashboard.metrics` | `loadDashboardMetricsForCompany` | **80 ms** | SQL aggregates + monthly `GROUP BY`; do not pull the full ticket roster |
+| `schedules.agenda-counts` | `listClientServiceSchedulesPaginated` counts | **60 ms** | One row of `count(*) FILTER` per agenda view (ZIG-I30); 1k schedules in the baseline |
+| `schedules.agenda-page` | `listClientServiceSchedulesPaginated` page | **60 ms** | Por atender, page size 25, `next_due_at` asc |
+| `schedules.history` | `getClientServiceScheduleHistory` | **40 ms** | One client's tickets with a line of the service, limit 10 |
 
 `npm run query:audit` exits non-zero if a budget is exceeded, or if a Seq Scan on
 a tenant table returns ≥ 200 rows (tiny Service/User catalogs may still Seq Scan

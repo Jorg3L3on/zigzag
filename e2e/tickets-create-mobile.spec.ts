@@ -8,13 +8,12 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
-  finishOnReview,
-  saveComposer,
+  saveAndFinishComposer,
 } from './helpers/ticket-composer';
 
 /**
  * ZIG-I2 end to end on Pixel 5: dock + → Nuevo ticket → composer (2 lines) →
- * Guardar ticket → creation review → Terminar y enviar → Descargar PDF,
+ * Guardar y terminar → ticket detail with Enviar recibo → Descargar PDF,
  * then the ticket shows in the Tickets tab. Plus a reduced-motion pass.
  */
 
@@ -63,7 +62,7 @@ test.describe('Ticket creation (mobile)', () => {
     await ensureTenantCompany(page);
   });
 
-  test('dock + → composer → review → recibo download → Tickets tab', async ({
+  test('dock + → composer → Guardar y terminar → recibo download → Tickets tab', async ({
     page,
   }) => {
     const suffix = Date.now().toString().slice(-8);
@@ -88,19 +87,18 @@ test.describe('Ticket creation (mobile)', () => {
     await addComposerLine(page, { quantity: 2, price: 175.5 }, 1);
     await expect(page.getByTestId('composer-total')).toHaveText('$12,951.00');
 
-    const ticketId = await saveComposer(page);
-    await expect(page.getByTestId('review-total')).toHaveText('$12,951.00');
+    // Guardar y terminar lands on the ticket itself (ZIG-I24-4).
+    const { ticketId } = await saveAndFinishComposer(page, { mode: 'full' });
+    await expect(page).toHaveURL(new RegExp(`/tickets/${ticketId}$`));
 
-    await finishOnReview(page, ticketId, { mode: 'full' });
-
+    await page.getByRole('button', { name: 'Más acciones del ticket' }).filter({ visible: true }).first().click();
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
-      page.getByRole('button', { name: /Descargar PDF/ }).click(),
+      page.getByRole('menuitem', { name: 'Descargar PDF' }).click(),
     ]);
     expect(download.suggestedFilename()).toMatch(/\.pdf$/);
+    await page.keyboard.press('Escape');
 
-    await page.getByRole('link', { name: 'Ver ticket' }).first().click();
-    await page.waitForURL(new RegExp(`/tickets/${ticketId}$`));
     await expect(
       page.getByTestId('ticket-status-pill').filter({ visible: true }).first(),
     ).toHaveText('Pagado', { timeout: 15_000 });
@@ -127,7 +125,7 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
     await ensureTenantCompany(page);
   });
 
-  test('no non-essential animation in the dock, composer and review', async ({
+  test('no non-essential animation in the dock, composer and ticket', async ({
     page,
   }) => {
     const hydrationErrors: string[] = [];
@@ -162,14 +160,14 @@ test.describe('Ticket creation (mobile, reduced motion)', () => {
     const firstId = (
       await page.locator('main').innerText()
     ).match(/#(\d{3,})/)?.[1];
-    test.skip(!firstId, 'No ticket to open the review screen with');
+    test.skip(!firstId, 'No ticket to open');
+    // The old review route lands on the ticket (ZIG-I24-4).
     await page.goto(`/tickets/${firstId}/listo`);
+    await page.waitForURL(new RegExp(`/tickets/${firstId}$`));
     // Hard navigation: Next may briefly hold a hidden streamed copy.
     await expect(
-      page.getByTestId('review-header').filter({ visible: true }).first(),
+      page.getByTestId('ticket-hero').filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 15_000 });
-    await expectSettledAtOnce(page, '[data-blur-fade]');
-    await expectSettledAtOnce(page, '[data-draw-check] circle');
     // Motion primitives keep SSR markup identical under reduced motion.
     expect(hydrationErrors).toEqual([]);
   });

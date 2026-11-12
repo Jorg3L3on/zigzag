@@ -12,6 +12,7 @@ import { ZigZagMark } from '@/components/brand/zigzag-mark';
 import { LoginForgotPassword } from '@/components/login/login-forgot-password';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
 import { getSafeAppRedirectPath } from '@/lib/login-redirect';
+import { logSupportCode } from '@/lib/support-code-log';
 import { rememberBrowserTimeZone } from '@/lib/time-greeting';
 
 export function LoginForm({
@@ -70,7 +71,8 @@ export function LoginForm({
       });
 
       if (result?.error) {
-        setError('Correo o contraseña incorrectos. Código: AU001');
+        logSupportCode('AU001');
+        setError('Correo o contraseña incorrectos.');
         return;
       }
 
@@ -94,7 +96,8 @@ export function LoginForm({
       router.refresh();
     } catch (e) {
       console.error(e);
-      setError('No se pudo iniciar sesión. Intenta de nuevo. Código: GN001');
+      logSupportCode('GN001');
+      setError('No se pudo iniciar sesión. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,7 @@
  * Pure helpers for schedule daily digests (idempotent in-app notifications).
  */
 
-import { format, startOfDay } from 'date-fns';
+import { companyDay } from '@/lib/company-day';
 
 export const SCHEDULE_DAILY_DIGEST_TYPE = 'schedule_daily_digest';
 
@@ -14,7 +14,7 @@ export type ScheduleDigestCounts = {
 export const scheduleDigestDedupeKey = (
   companyId: number,
   day: Date,
-): string => `schedule-digest:company:${companyId}:${format(startOfDay(day), 'yyyy-MM-dd')}`;
+): string => `schedule-digest:company:${companyId}:${companyDay(day).iso}`;
 
 export const buildScheduleDigestCopy = (
   counts: ScheduleDigestCounts,

@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils';
 
 const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'scroll'] as const;
 
+/** py-2 plus the h-11 action. Listo scrolls under the bar without this offset. */
+export const PWA_INSTALL_BANNER_OFFSET = '3.75rem';
+
 /**
  * True after the first tap, key or scroll. The banner's text is larger than the
  * dashboard greeting, so showing it on load made it the page's LCP element;
@@ -56,6 +59,31 @@ export const PwaInstallBanner = () => {
     }
   }, [visible]);
 
+  const bannerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const root = document.documentElement;
+    const node = bannerRef.current;
+    if (!visible || !node) {
+      root.style.removeProperty('--pwa-install-banner-offset');
+      return;
+    }
+    const applyOffset = () => {
+      const measured = node.offsetHeight;
+      root.style.setProperty(
+        '--pwa-install-banner-offset',
+        measured > 0 ? `${measured}px` : PWA_INSTALL_BANNER_OFFSET,
+      );
+    };
+    applyOffset();
+    const observer = new ResizeObserver(applyOffset);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--pwa-install-banner-offset');
+    };
+  }, [visible]);
+
   const handleInstall = React.useCallback(async () => {
     await promptInstall();
   }, [promptInstall]);
@@ -89,6 +117,7 @@ export const PwaInstallBanner = () => {
       role="region"
       aria-label="Instalar aplicación ZigZag"
       data-testid="pwa-install-banner"
+      ref={bannerRef}
       className={cn(
         'fixed inset-x-0 z-50 border-b border-primary/20 bg-primary/10 px-4 py-2 backdrop-blur',
         'top-[var(--network-status-banner-offset,0px)]',

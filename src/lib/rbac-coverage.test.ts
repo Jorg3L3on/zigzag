@@ -128,11 +128,16 @@ describe('RBAC coverage', () => {
 
   it('keeps the public MCP guide outside the app shell and listed as public', () => {
     // The OAuth metadata advertises it as service_documentation, so guests must reach it.
-    expect(existsSync(path.join(root, 'src/app/docs/mcp-connector/page.tsx'))).toBe(true);
+    expect(existsSync(path.join(root, 'src/app/ayuda/asistentes/page.tsx'))).toBe(true);
     expect(existsSync(path.join(root, 'src/app/(app)/docs'))).toBe(false);
-    expect(read(path.join(root, 'src/lib/marketing-routes.ts'))).toMatch(
-      /PUBLIC_MARKETING_PATHS = \[[^\]]*MCP_DOCS_PATH/,
-    );
+    expect(existsSync(path.join(root, 'src/app/(app)/ayuda'))).toBe(false);
+    const routes = read(path.join(root, 'src/lib/marketing-routes.ts'));
+    expect(routes).toMatch(/MCP_DOCS_PATH = `\$\{AYUDA_PATH\}\/asistentes`/);
+    expect(routes).toMatch(/PUBLIC_MARKETING_PREFIXES = \[`\$\{AYUDA_PATH\}\/`\]/);
+    // The old address redirects in next.config (ZIG-I40-6) and is no longer a public path.
+    expect(existsSync(path.join(root, 'src/app/docs/mcp-connector/page.tsx'))).toBe(false);
+    expect(routes).not.toMatch(/PUBLIC_MARKETING_PATHS = \[[^\]]*LEGACY_MCP_DOCS_PATH/);
+    expect(routes).toMatch(/source: LEGACY_MCP_DOCS_PATH, destination: MCP_DOCS_PATH/);
   });
 
   it('rate-limits the public OAuth endpoints that create state', () => {

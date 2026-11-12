@@ -16,153 +16,83 @@ import {
 
 import {
   DocumentSummaryRows,
-  summaryToggleLabelFor,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
 import { MoneyFigure } from '@/components/documents/money-figure';
 import { BlurFade } from '@/components/motion';
-import { REVIEW_SECTION_CLASS, type ReviewLine } from '@/components/tickets/review/document-review-parts';
+import { PresupuestoConditions } from '@/components/presupuestos/presupuesto-conditions';
+import {
+  PresupuestoDesktop,
+  type PresupuestoDesktopProps,
+} from '@/components/presupuestos/presupuesto-desktop';
+import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-status-pill';
+import { REVIEW_SECTION_CLASS } from '@/components/tickets/review/document-review-parts';
 import {
   TripledDashboardShell,
   TripledMobileAppBar,
   TripledMobileStickyActionBar,
 } from '@/components/tripled';
 import { Button } from '@/components/ui/button';
-import { collapseBlankLines } from '@/lib/collapse-blank-lines';
 import { formatLongDate } from '@/lib/format-long-date';
 import { materialDraftAmount } from '@/lib/material-drafts';
 import { describePresupuestoVigencia } from '@/lib/presupuesto-vigencia';
 import { reviewLineAmount } from '@/lib/review-lines';
-import { PRESUPUESTO_STATUS_LABEL, type PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
+import { DesktopSwitch } from '@/components/desktop-switch';
 
-const STATUS_PILL_CLASS: Record<PresupuestoStatus, string> = {
-  abierto: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-  vencido: 'bg-red-500/15 text-red-700 dark:text-red-300',
-  convertido: 'bg-slate-500/15 text-slate-700 dark:text-slate-300',
-  cancelado: 'bg-slate-500/10 text-muted-foreground',
-};
-
-export const PresupuestoStatusPill = ({
-  status,
-  className,
-}: {
-  status: PresupuestoStatus;
-  className?: string;
-}) => (
-  <span
-    data-testid="presupuesto-status"
-    className={cn(
-      'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-caption font-semibold',
-      STATUS_PILL_CLASS[status],
-      className,
-    )}
-  >
-    {PRESUPUESTO_STATUS_LABEL[status]}
-  </span>
-);
+export { PresupuestoStatusPill };
 
 const countLabel = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
-const conceptsToggleLabel = (concepts: number, materials: number) =>
-  summaryToggleLabelFor(concepts, 'concepto', 'conceptos', materials);
+/** Every concepto is listed (ZIG-I24), so the fold only opens the materials. */
+const materialsToggleLabel = (_concepts: number, materials: number) =>
+  materials === 1 ? 'Ver el material' : `Ver los ${materials} materiales`;
 
-/** Notes longer than this fold behind Ver todas. */
-const CONDITIONS_FOLD_CHARS = 160;
-
-const PresupuestoConditions = ({ notes }: { notes: string }) => {
-  const [expanded, setExpanded] = React.useState(false);
-  const text = collapseBlankLines(notes);
-  const foldable = text.length > CONDITIONS_FOLD_CHARS || text.split('\n').length > 3;
-  return (
-    <section aria-labelledby="presupuesto-conditions-heading" data-testid="presupuesto-conditions">
-      <h2 id="presupuesto-conditions-heading" className="mb-1.5 text-[15px] font-semibold">
-        Condiciones
-      </h2>
-      <p
-        className={cn(
-          'whitespace-pre-line text-caption leading-relaxed text-muted-foreground [overflow-wrap:anywhere]',
-          foldable && !expanded && 'line-clamp-3',
-        )}
-        data-testid="presupuesto-notes"
-      >
-        {text}
-      </p>
-      {foldable ? (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((value) => !value)}
-          className="mt-1 min-h-11 text-caption font-medium text-primary underline-offset-4 hover:underline"
-        >
-          {expanded ? 'Ver menos' : 'Ver todas'}
-        </button>
-      ) : null}
-    </section>
-  );
-};
-
-export type PresupuestoDetailLayoutProps = {
-  presupuestoId: string;
-  folio?: string | null;
-  clientId: number | null;
-  clientName: string | null;
-  ticketDate: string | null;
-  expiresAt: string | null;
-  workNotes: string | null;
-  total: number;
-  lines: ReviewLine[];
-  status: PresupuestoStatus;
-  convertedToTicketId: string | null;
-  editHref: string | null;
-  canWrite: boolean;
-  canInvoice: boolean;
-  /** Abierto or Vencido: can still be edited, converted or cancelled. */
-  isMutable: boolean;
-  mutating: boolean;
-  sharing: boolean;
-  downloading: boolean;
-  duplicating: boolean;
-  onShare: () => void;
-  onDownload: () => void;
-  onConvert: () => void;
-  onCancel: () => void;
-  onDuplicate: () => void;
-};
+export type PresupuestoDetailLayoutProps = PresupuestoDesktopProps;
 
 /**
  * Presupuesto detail as drawn in the canvas (ZIG-I13-5): the total with its
  * validity, "¿Lo aceptó el cliente?" with Convertir a ticket near the top,
  * Condiciones, a Conceptos summary and an Editar / Duplicar / Cancelar row.
- * Sharing is the icon in the app bar.
+ * Sharing is the icon in the app bar. From 1024px the desktop document
+ * replaces this tree (ZIG-I28-5); phones keep it.
  */
-export const PresupuestoDetailLayout = ({
-  presupuestoId,
-  folio = null,
-  clientId,
-  clientName,
-  ticketDate,
-  expiresAt,
-  workNotes,
-  total,
-  lines,
-  status,
-  convertedToTicketId,
-  editHref,
-  canWrite,
-  canInvoice,
-  isMutable,
-  mutating,
-  sharing,
-  downloading,
-  duplicating,
-  onShare,
-  onDownload,
-  onConvert,
-  onCancel,
-  onDuplicate,
-}: PresupuestoDetailLayoutProps) => {
+export const PresupuestoDetailLayout = (props: PresupuestoDetailLayoutProps) => {
+  const {
+    presupuestoId,
+    folio = null,
+    clientId,
+    clientName,
+    clientTel = null,
+    clientPhone = null,
+    clientEmail = null,
+    clientAddress = null,
+    companyName = null,
+    ticketDate,
+    expiresAt,
+    workNotes,
+    total,
+    lines,
+    status,
+    convertedToTicketId,
+    editHref,
+    canWrite,
+    canInvoice,
+    isMutable,
+    mutating,
+    sharing,
+    downloading,
+    duplicating,
+    activity = [],
+    createdAt = null,
+    updatedAt = null,
+    onShare,
+    onDownload,
+    onConvert,
+    onCancel,
+    onDuplicate,
+  } = props;
   const issued = formatLongDate(ticketDate);
   const vigencia = describePresupuestoVigencia({ expiresAt, status });
   const materialsCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
@@ -178,7 +108,10 @@ export const PresupuestoDetailLayout = ({
       lines.map((line) => ({
         id: line.id,
         name: line.name,
+        description: line.description,
+        serviceId: line.serviceId,
         quantity: line.quantity,
+        price: line.price,
         amount: reviewLineAmount(line),
         materials: (line.materials ?? []).map((item) => ({
           id: item.id,
@@ -199,18 +132,18 @@ export const PresupuestoDetailLayout = ({
   const shareButton = canShare ? (
     <Button
       type="button"
-      variant="ghost"
-      size="icon"
-      className="h-11 w-11 shrink-0"
+      variant="outline"
+      className="h-11 shrink-0 gap-1.5 rounded-xl px-2.5 text-sm font-semibold"
       aria-label="Compartir presupuesto"
       disabled={sharing}
       onClick={onShare}
     >
       {sharing ? (
-        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
       ) : (
-        <Share2 className="h-5 w-5" aria-hidden />
+        <Share2 className="h-4 w-4" aria-hidden />
       )}
+      Compartir
     </Button>
   ) : null;
 
@@ -255,11 +188,12 @@ export const PresupuestoDetailLayout = ({
   ) : null;
   const actionCount = Number(showEdit) + Number(canWrite) + Number(showCancel);
 
-  return (
+  const phone = (
     <>
       <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="space-y-3 md:space-y-4">
         <TripledMobileAppBar
-          title={`Presupuesto ${folio || `#${presupuestoId}`}`}
+          // The folio alone, so the title never cuts beside the status pill (M-24).
+          title={folio || `#${presupuestoId}`}
           backHref="/presupuestos"
           backLabel="Volver a presupuestos"
           endSlot={
@@ -355,7 +289,7 @@ export const PresupuestoDetailLayout = ({
           >
             <span className="flex items-center gap-2">
               <Ticket className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Convertido en ticket
+              Aceptado · convertido en ticket
             </span>
             <Link
               href={`/tickets/${convertedToTicketId}`}
@@ -388,8 +322,9 @@ export const PresupuestoDetailLayout = ({
             </h2>
             <DocumentSummaryRows
               lines={rows}
+              initialVisible={rows.length}
               label="Servicios del presupuesto"
-              toggleLabel={conceptsToggleLabel}
+              toggleLabel={materialsToggleLabel}
             />
           </section>
         </BlurFade>
@@ -441,4 +376,7 @@ export const PresupuestoDetailLayout = ({
       ) : null}
     </>
   );
+
+  // The desktop document from lg; never the phone page first on a desktop reload (ZIG-28).
+  return <DesktopSwitch phone={phone} desktop={<PresupuestoDesktop {...props} />} />;
 };

@@ -89,7 +89,7 @@ export const TICKET_PAYMENT_STATUS_LABEL: Record<TicketPaymentStatus, string> =
   {
     paid: 'Pagado',
     partial: 'Pago parcial',
-    pending: 'Pendiente',
+    pending: 'Por cobrar',
   };
 
 /** Shared accent colors for payment status indicators (dot / bar). */

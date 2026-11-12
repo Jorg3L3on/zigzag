@@ -6,10 +6,11 @@ import {
 } from '@/components/users/users-sort-presets';
 import {
   ButtonFilterGroup,
-  ListFilterBarShell,
+  ListFilterSelect,
+  ListToolbar,
   MobileSortSelect,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 export type VerificationFilter = 'all' | 'verified' | 'unverified';
 export type CompanyAssignmentFilter = 'all' | 'assigned' | 'unassigned';
@@ -18,6 +19,12 @@ const VERIFICATION_OPTIONS = [
   { value: 'all' as const, label: 'Todos' },
   { value: 'verified' as const, label: 'Verificados' },
   { value: 'unverified' as const, label: 'Sin verificar' },
+];
+
+/** A pill shows only its value, so «Todos» says what it is about. */
+const VERIFICATION_PILL_OPTIONS = [
+  { value: 'all' as const, label: 'Todos los correos' },
+  ...VERIFICATION_OPTIONS.slice(1),
 ];
 
 const COMPANY_OPTIONS = [
@@ -41,37 +48,7 @@ type UsersFilterBarProps = {
   filterChips: ListFilterChip[];
 };
 
-const renderFilters = (
-  verificationFilter: VerificationFilter,
-  onVerificationFilterChange: (value: VerificationFilter) => void,
-  companyAssignmentFilter: CompanyAssignmentFilter,
-  onCompanyAssignmentFilterChange: (value: CompanyAssignmentFilter) => void,
-  layout: 'desktop' | 'sheet',
-) => (
-  <>
-    <ButtonFilterGroup
-      label="Verificación"
-      options={VERIFICATION_OPTIONS}
-      value={verificationFilter}
-      onChange={onVerificationFilterChange}
-      layout={layout}
-      getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar correo: ${optionLabel.toLowerCase()}`
-      }
-    />
-    <ButtonFilterGroup
-      label="Empresa"
-      options={COMPANY_OPTIONS}
-      value={companyAssignmentFilter}
-      onChange={onCompanyAssignmentFilterChange}
-      layout={layout}
-      getOptionAriaLabel={(_label, optionLabel) =>
-        `Filtrar ${optionLabel.toLowerCase()}`
-      }
-    />
-  </>
-);
-
+/** Search and filters: pills from lg, the labelled groups and the sort in the phone sheet. */
 export const UsersFilterBar = ({
   searchValue,
   onSearchChange,
@@ -86,26 +63,59 @@ export const UsersFilterBar = ({
   onClearFilters,
   filterChips,
 }: UsersFilterBarProps) => (
-  <ListFilterBarShell
-    searchValue={searchValue}
-    onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar por nombre, correo, empresa, rol o ID..."
-    searchAriaLabel="Buscar usuarios"
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por nombre, correo, empresa, rol o ID...',
+      ariaLabel: 'Buscar usuarios',
+    }}
+    filters={
+      <>
+        <ListFilterSelect
+          value={verificationFilter}
+          allValue="all"
+          onChange={onVerificationFilterChange}
+          options={VERIFICATION_PILL_OPTIONS}
+          ariaLabel="Filtrar por verificación del correo"
+        />
+        <ListFilterSelect
+          value={companyAssignmentFilter}
+          allValue="all"
+          onChange={onCompanyAssignmentFilterChange}
+          options={COMPANY_OPTIONS}
+          ariaLabel="Filtrar por empresa"
+        />
+      </>
+    }
+    hasActiveFilters={hasActiveFilters}
+    onClear={onClearFilters}
+    clearAriaLabel="Limpiar filtros de usuarios"
     sheetFilterCount={sheetFilterCount}
     sheetDescription="Verificación, empresa y orden de la lista."
-    hasActiveFilters={hasActiveFilters}
-    onClearFilters={onClearFilters}
-    clearFiltersAriaLabel="Limpiar filtros de usuarios"
     filterChips={filterChips}
     sheetContent={
       <>
-        {renderFilters(
-          verificationFilter,
-          onVerificationFilterChange,
-          companyAssignmentFilter,
-          onCompanyAssignmentFilterChange,
-          'sheet',
-        )}
+        <ButtonFilterGroup
+          label="Verificación"
+          options={VERIFICATION_OPTIONS}
+          value={verificationFilter}
+          onChange={onVerificationFilterChange}
+          layout="sheet"
+          getOptionAriaLabel={(_label, optionLabel) =>
+            `Filtrar correo: ${optionLabel.toLowerCase()}`
+          }
+        />
+        <ButtonFilterGroup
+          label="Empresa"
+          options={COMPANY_OPTIONS}
+          value={companyAssignmentFilter}
+          onChange={onCompanyAssignmentFilterChange}
+          layout="sheet"
+          getOptionAriaLabel={(_label, optionLabel) =>
+            `Filtrar ${optionLabel.toLowerCase()}`
+          }
+        />
         <MobileSortSelect
           sorting={sorting}
           onSortingChange={onSortingChange}
@@ -118,12 +128,5 @@ export const UsersFilterBar = ({
         />
       </>
     }
-    desktopContent={renderFilters(
-      verificationFilter,
-      onVerificationFilterChange,
-      companyAssignmentFilter,
-      onCompanyAssignmentFilterChange,
-      'desktop',
-    )}
   />
 );

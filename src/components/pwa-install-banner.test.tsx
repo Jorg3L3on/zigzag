@@ -28,6 +28,9 @@ describe('PwaInstallBanner', () => {
     });
 
     expect(screen.getByTestId('pwa-install-banner')).toBeInTheDocument();
+    expect(document.documentElement.style.getPropertyValue('--pwa-install-banner-offset')).toBe(
+      '3.75rem',
+    );
   });
 
   it('stays away from Mi cuenta, which has its own install card (ZIG-I21-4)', () => {

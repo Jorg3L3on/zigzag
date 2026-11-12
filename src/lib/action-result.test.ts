@@ -43,6 +43,7 @@ describe('presentActionError', () => {
     );
 
     expect(content.title).toBe('Cliente no encontrado');
-    expect(content.description).toContain('CL006');
+    expect(content.description).toBe('No se pudo restaurar.');
+    expect(content.description).not.toMatch(/CL006|Código/);
   });
 });

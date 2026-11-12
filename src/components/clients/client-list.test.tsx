@@ -127,6 +127,28 @@ const mockMobileViewport = () => {
   });
 };
 
+/** From lg (ZIG-I33): DesktopSwitch mounts only the desktop tree. */
+const mockDesktopViewport = () => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: query.includes('min-width: 1024px'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
+
+const manyClients = (count: number) =>
+  Array.from({ length: count }, (_, index) =>
+    makeClient({ id: index + 1, name: `Cliente ${String(index + 1).padStart(2, '0')}` }),
+  );
+
 describe('ClientList', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -134,15 +156,15 @@ describe('ClientList', () => {
     mockWriteOfflineSnapshot.mockResolvedValue({} as never);
   });
 
-  it('cards offer Llamar and Anotar trabajo, and delete only from the menu with a named confirm (ZIG-I18-14)', async () => {
+  it('cards offer Anotar trabajo, no Llamar, and delete only from the menu with a named confirm (ZIG-I18-14, ZIG-27)', async () => {
     const user = userEvent.setup();
     arrange({ canAnotar: true, result: { success: true, data: [makeClient({ name: 'Sra. López' })] } });
 
     render(<ClientList />);
 
     await screen.findAllByText('Sra. López');
-    const call = screen.getByRole('link', { name: 'Llamar' });
-    expect(call).toHaveAttribute('href', expect.stringMatching(/^tel:/));
+    expect(screen.queryByRole('link', { name: 'Llamar' })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
     expect(screen.getByRole('link', { name: 'Anotar trabajo' })).toHaveAttribute(
       'href',
       '/anotar?clientId=10',
@@ -154,7 +176,7 @@ describe('ClientList', () => {
     expect(screen.queryByText('¿Estás seguro?')).not.toBeInTheDocument();
   });
 
-  it('hides Llamar without a phone and Anotar trabajo without permission (ZIG-I18-14)', async () => {
+  it('hides Anotar trabajo without permission (ZIG-I18-14)', async () => {
     arrange({ result: { success: true, data: [makeClient({ phone: null })] } });
 
     render(<ClientList />);
@@ -222,6 +244,65 @@ describe('ClientList', () => {
         selectedCompany.id,
         expect.arrayContaining([expect.objectContaining({ name: 'Cliente Alfa' })]),
       );
+    });
+  });
+
+  describe.each([
+    ['desktop footer', true],
+    ['phone chip', false],
+  ])('result count, %s (ZIG-I36-29, M-26)', (_name, desktop) => {
+    // DesktopSwitch mounts one tree: the footer from lg, the «N de M» chip below it.
+    const count = () =>
+      desktop ? screen.getByTestId('list-footer') : screen.getAllByText(/^\d+ (de \d+ clientes?|resultados?)$/)[0];
+    const searchBox = () => screen.getByRole('textbox', { name: /buscar clientes/i });
+
+    beforeEach(() => {
+      if (desktop) mockDesktopViewport();
+    });
+
+    it('unfiltered keeps its wording', async () => {
+      arrange({ result: { success: true, data: manyClients(3) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      expect(count()).toHaveTextContent(desktop ? /^3 clientes$/ : /^3 de 3 clientes$/);
+    });
+
+    it('a single client unfiltered keeps the singular', async () => {
+      arrange({ result: { success: true, data: manyClients(1) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      expect(count()).toHaveTextContent(desktop ? /^1 cliente$/ : /^1 de 1 cliente$/);
+    });
+
+    it('a search with one match reads «1 resultado», never the total', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(15) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      await user.type(searchBox(), 'Cliente 07');
+      await waitFor(() => expect(count()).toHaveTextContent(/^1 resultado$/));
+      expect(screen.queryByText(/1 de 15 clientes/)).not.toBeInTheDocument();
+      expect(screen.queryByText('15 resultados')).not.toBeInTheDocument();
+    });
+
+    it('a search with several matches reads «N resultados»', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(15) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      await user.type(searchBox(), 'Cliente 1');
+      await waitFor(() => expect(count()).toHaveTextContent(/^6 resultados$/));
+    });
+
+    it('a search with no match shows the empty state, not a total', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(3) } });
+      render(<ClientList />);
+      await screen.findAllByText('Cliente 01');
+      await user.type(searchBox(), 'zzz');
+      expect(await screen.findByText(/No hay clientes que coincidan/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('list-footer')).not.toBeInTheDocument();
+      expect(screen.queryByText(/de 3 clientes/)).not.toBeInTheDocument();
     });
   });
 
@@ -317,10 +398,10 @@ describe('ClientList', () => {
       },
     });
     mockReadOfflineSnapshot.mockResolvedValue({
-      key: 'clients:v1:company:1',
+      key: 'clients:v2:company:1',
       resource: 'clients',
       companyKey: 'company:1',
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: snapshotUpdatedAt,
       data: [makeClient({ name: 'Cliente Snapshot' })],
     });
@@ -334,5 +415,78 @@ describe('ClientList', () => {
     expect(
       screen.queryByRole('button', { name: /Editar Cliente Snapshot/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('pages the phone cards by 12 and shows no table (ZIG-I33)', async () => {
+    mockMobileViewport();
+    arrange({ result: { success: true, data: manyClients(30) } });
+
+    render(<ClientList />);
+
+    expect(await screen.findByText('Cliente 01')).toBeInTheDocument();
+    expect(screen.getByText('Cliente 12')).toBeInTheDocument();
+    expect(screen.queryByText('Cliente 13')).not.toBeInTheDocument();
+    expect(screen.getByText(/Página 1 de\s+3/)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  describe('from lg (ZIG-I33)', () => {
+    beforeEach(() => {
+      mockDesktopViewport();
+    });
+
+    it('draws only the table, 25 a page with the shared footer and pager', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(30) } });
+
+      render(<ClientList />);
+
+      const table = await screen.findByRole('table', { name: 'Clientes' });
+      expect(screen.queryByTestId('clients-pull-to-refresh')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Más acciones de/ })).not.toBeInTheDocument();
+      expect(screen.getAllByTestId('clients-row')).toHaveLength(25);
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1–25 de 30 clientes');
+      expect(table.querySelector('thead')).toHaveClass('sticky', 'top-16');
+
+      await user.click(screen.getByRole('button', { name: 'Página 2' }));
+
+      expect(screen.getAllByTestId('clients-row')).toHaveLength(5);
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('26–30 de 30 clientes');
+      expect(screen.getByText('Cliente 30')).toBeInTheDocument();
+    });
+
+    it('sorts by header click with aria-sort on the th', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: manyClients(3) } });
+
+      render(<ClientList />);
+
+      await screen.findByRole('table', { name: 'Clientes' });
+      const nameHeader = screen.getByRole('columnheader', { name: /Nombre/ });
+      expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+      expect(screen.getByRole('button', { name: /Nombre/ })).not.toHaveAttribute('aria-sort');
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('3 clientes');
+      expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /Nombre/ }));
+
+      expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+      expect(screen.getAllByTestId('clients-row')[0]).toHaveTextContent('Cliente 03');
+    });
+
+    it('shows the shared empty and no-results states', async () => {
+      const user = userEvent.setup();
+      arrange({ result: { success: true, data: [makeClient()] } });
+
+      render(<ClientList />);
+
+      await screen.findByRole('table', { name: 'Clientes' });
+      await user.type(screen.getByRole('textbox', { name: /buscar clientes/i }), 'inexistente');
+
+      expect(await screen.findByText('Sin resultados')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /^Limpiar filtros$/ }));
+      expect(await screen.findByRole('table', { name: 'Clientes' })).toBeInTheDocument();
+    });
   });
 });

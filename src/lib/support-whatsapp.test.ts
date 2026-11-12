@@ -1,4 +1,4 @@
-import { buildSupportWhatsAppHref } from '@/lib/support-whatsapp';
+import { buildHelpWhatsAppHref, buildSupportWhatsAppHref } from '@/lib/support-whatsapp';
 
 describe('buildSupportWhatsAppHref (ZIG-I18-11)', () => {
   it('is hidden when the number is not configured or unusable', () => {
@@ -17,5 +17,15 @@ describe('buildSupportWhatsAppHref (ZIG-I18-11)', () => {
 
   it('reads a bare ten-digit number as Mexico', () => {
     expect(buildSupportWhatsAppHref('9983457712')).toMatch(/^https:\/\/wa\.me\/529983457712\?/);
+  });
+});
+
+describe('buildHelpWhatsAppHref (ZIG-I40-1)', () => {
+  it('is null without a usable number and a wa.me help link with one', () => {
+    expect(buildHelpWhatsAppHref(undefined)).toBeNull();
+    expect(buildHelpWhatsAppHref('123')).toBeNull();
+    const href = buildHelpWhatsAppHref('9983457712');
+    expect(href).toMatch(/^https:\/\/wa\.me\/529983457712\?text=/);
+    expect(decodeURIComponent(href!.split('text=')[1])).toContain('cómo usar ZigZag');
   });
 });

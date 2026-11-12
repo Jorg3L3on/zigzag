@@ -67,7 +67,11 @@ const isApiKeyToken = (token: string): boolean =>
 const isOAuthAccessToken = (token: string): boolean =>
   token.startsWith(OAUTH_ACCESS_TOKEN_PREFIX);
 
-export async function resolveAgentUser(token: string): Promise<{
+/** `request` feeds the OAuth audience check (see resolveOAuthGrantUser). */
+export async function resolveAgentUser(
+  token: string,
+  request?: Request,
+): Promise<{
   userId: bigint;
   scopes: AgentScope[];
   allowedCompanyIds: number[];
@@ -77,7 +81,7 @@ export async function resolveAgentUser(token: string): Promise<{
   rateLimitIdentity: number;
 }> {
   if (isOAuthAccessToken(token)) {
-    const oauthUser = await resolveOAuthGrantUser(token);
+    const oauthUser = await resolveOAuthGrantUser(token, request);
     if (!oauthUser) throw unauthorized('Token OAuth inválido o expirado');
     return {
       userId: oauthUser.userId,
@@ -227,10 +231,12 @@ export async function resolveAgentContext(
   opts: {
     /** Called once the token is resolved, before the company checks run. */
     onUser?: (agentUser: Awaited<ReturnType<typeof resolveAgentUser>>) => void;
+    /** The MCP HTTP request, for the OAuth audience check. */
+    request?: Request;
   } = {},
 ): Promise<AgentContext> {
   const token = parseBearerToken(authorizationHeader);
-  const agentUser = await resolveAgentUser(token);
+  const agentUser = await resolveAgentUser(token, opts.request);
   opts.onUser?.(agentUser);
   await assertAgentCompanyAccess(agentUser, companyId, permission);
   return { ...agentUser, companyId };

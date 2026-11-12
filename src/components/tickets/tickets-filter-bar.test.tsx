@@ -1,7 +1,16 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
+import {
+  TicketCollectionTabs,
+  TicketsDesktopToolbar,
+  TicketsFilterBar,
+} from '@/components/tickets/tickets-filter-bar';
 import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
+
+const CLIENT_OPTIONS = [
+  { value: '3', label: 'Ana Torres', title: 'Ana Torres', detail: '555 000 0003' },
+  { value: '7', label: 'Zoila Pérez', title: 'Zoila Pérez', detail: '555 000 0007' },
+];
 
 const baseProps = {
   searchValue: '',
@@ -54,22 +63,6 @@ describe('TicketsFilterBar', () => {
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
   });
 
-  it('calls onClearFilters from the desktop clear button', async () => {
-    const user = userEvent.setup();
-    const onClearFilters = jest.fn();
-
-    render(
-      <TicketsFilterBar
-        {...baseProps}
-        hasActiveFilters
-        onClearFilters={onClearFilters}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /limpiar filtros/i }));
-    expect(onClearFilters).toHaveBeenCalledTimes(1);
-  });
-
   it('does not render Con PDF / Sin PDF filter controls', async () => {
     const user = userEvent.setup();
     render(<TicketsFilterBar {...baseProps} />);
@@ -77,8 +70,23 @@ describe('TicketsFilterBar', () => {
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Con PDF')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /más filtros/i }));
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
     expect(screen.queryByLabelText(/filtrar por pdf/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps a single payment filter: the Por cobrar chips (ZIG-24)', async () => {
+    const user = userEvent.setup();
+    render(<TicketsFilterBar {...baseProps} />);
+
+    expect(screen.queryByLabelText('Filtrar por pagado')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Por cobrar' }).length).toBeGreaterThan(0);
+
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
+    expect(screen.queryByLabelText('Filtrar por pagado')).not.toBeInTheDocument();
   });
 
   it('shows the phone sort beside Más filtros (ZIG-I18-9)', () => {
@@ -89,5 +97,235 @@ describe('TicketsFilterBar', () => {
     expect(
       within(controls).getByRole('combobox', { name: /ordenar lista de tickets/i }),
     ).toHaveTextContent('Más recientes');
+  });
+
+  it('keeps Trabajo, the dates and the order in the phone sheet (ZIG-I28-4)', async () => {
+    const user = userEvent.setup();
+    render(<TicketsFilterBar {...baseProps} />);
+
+    expect(screen.queryByRole('combobox', { name: 'Trabajo' })).not.toBeInTheDocument();
+    expect(screen.getByText('Cobro')).toBeInTheDocument();
+    // The phone bar has no desktop pieces since ZIG-I33-2.
+    expect(screen.queryByRole('navigation', { name: 'Vistas de tickets' })).not.toBeInTheDocument();
+
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
+    expect(screen.getByRole('combobox', { name: 'Trabajo' })).toBeInTheDocument();
+    expect(screen.getByText('Fechas', { exact: true })).toBeInTheDocument();
+  });
+
+  it('tints the chosen chip instead of the solid page-action style (ZIG-I27-3)', () => {
+    render(<TicketsFilterBar {...baseProps} statusFilter="due" dueCount={4} />);
+
+    const group = screen.getByRole('group', { name: 'Filtro de cobro' });
+    const chosen = within(group).getByRole('button', { name: 'Por cobrar · 4' });
+    expect(chosen).toHaveAttribute('aria-pressed', 'true');
+    expect(chosen.className).toContain('bg-primary/10');
+    expect(chosen.className).not.toMatch(/\bbg-foreground\b/);
+  });
+
+  it('puts Cliente first in the sheet and shows a removable chip (ZIG-I37-1)', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn();
+    const onRemove = jest.fn();
+    render(
+      <TicketsFilterBar
+        {...baseProps}
+        activeFilterCount={1}
+        hasActiveFilters
+        clientFilter={{ value: '7', onChange, options: CLIENT_OPTIONS }}
+        filterChips={[
+          { key: 'count', label: '2 resultados', variant: 'secondary' },
+          {
+            key: 'client',
+            label: 'Cliente: Zoila Pérez',
+            onRemove,
+            removeAriaLabel: 'Quitar filtro Cliente: Zoila Pérez',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Quitar filtro Cliente: Zoila Pérez' }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', {
+        name: /más filtros \(1 activos\)/i,
+      }),
+    );
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByText('Cliente, trabajo, fechas y orden')).toBeInTheDocument();
+    const select = within(sheet).getByRole('combobox', { name: 'Filtrar por cliente' });
+    expect(select).toHaveTextContent('Zoila Pérez');
+    expect(select.className).toContain('h-12');
+    // Cliente comes before Trabajo in the sheet.
+    const trabajo = within(sheet).getByRole('combobox', { name: 'Trabajo' });
+    expect(select.compareDocumentPosition(trabajo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.click(select);
+    await user.click(screen.getByRole('button', { name: /Ana Torres/ }));
+    expect(onChange).toHaveBeenCalledWith('3');
+  });
+
+  it('keeps the old sheet without clients.read', async () => {
+    const user = userEvent.setup();
+    render(<TicketsFilterBar {...baseProps} />);
+    await user.click(
+      within(screen.getByTestId('list-mobile-controls')).getByRole('button', { name: /más filtros/i }),
+    );
+    expect(screen.getByText('Trabajo, fechas y orden')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por cliente' })).not.toBeInTheDocument();
+  });
+
+  it('never shows a Por cobrar total (ZIG-I27-3)', () => {
+    render(<TicketsFilterBar {...baseProps} dueCount={4} />);
+
+    expect(screen.queryByTestId('tickets-balance-due')).not.toBeInTheDocument();
+  });
+
+});
+
+const toolbarProps = {
+  searchValue: '',
+  onSearchChange: jest.fn(),
+  finishedFilter: 'all' as const,
+  onFinishedFilterChange: jest.fn(),
+  dateRange: undefined,
+  onDateRangeChange: jest.fn(),
+  hasActiveFilters: false,
+  onClearFilters: jest.fn(),
+};
+
+describe('TicketsDesktopToolbar (ZIG-I33-2)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('is one row: search, dates and the Terminado pill, with no Columnas, order select or CSV', () => {
+    render(<TicketsDesktopToolbar {...toolbarProps} />);
+
+    expect(screen.getByRole('textbox', { name: 'Buscar por cliente, folio o teléfono' })).toHaveAttribute(
+      'placeholder',
+      'Buscar por cliente, folio o teléfono',
+    );
+    // Canvas ListaA: «Todas las fechas» with no label above it.
+    expect(screen.getByRole('button', { name: 'Filtrar por rango de fechas del ticket' })).toHaveTextContent(
+      'Todas las fechas',
+    );
+    expect(screen.queryByText('Fechas', { exact: true })).not.toBeInTheDocument();
+    const terminado = screen.getByRole('combobox', { name: 'Filtrar por trabajo terminado' });
+    expect(terminado).toHaveTextContent('Todos los trabajos');
+    expect(terminado.className).toContain('rounded-full');
+    expect(terminado.className).not.toContain('bg-primary/10');
+    // Same height and text as the date pill from lg (SelectTrigger's lg:h-9 must lose).
+    const dates = screen.getByRole('button', { name: 'Filtrar por rango de fechas del ticket' });
+    for (const pill of [terminado, dates]) {
+      expect(pill).toHaveClass('h-11', 'px-4', 'text-base');
+      expect(pill).not.toHaveClass('lg:h-9');
+    }
+    expect(terminado).toHaveClass('lg:h-11');
+    // ZIG-I37-1: every column always shows on Tickets.
+    expect(screen.queryByRole('button', { name: /columnas/i })).not.toBeInTheDocument();
+    // No clients.read, no Cliente filter.
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por cliente' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /ordenar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Más filtros' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /csv|exportar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument();
+  });
+
+  it('tints a chosen Terminado and clears with a neutral button', async () => {
+    const user = userEvent.setup();
+    const onClearFilters = jest.fn();
+    render(
+      <TicketsDesktopToolbar
+        {...toolbarProps}
+        finishedFilter="no"
+        hasActiveFilters
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    const terminado = screen.getByRole('combobox', { name: 'Filtrar por trabajo terminado' });
+    expect(terminado).toHaveTextContent('En proceso');
+    expect(terminado.className).toContain('bg-primary/10');
+    const clear = screen.getByRole('button', { name: 'Limpiar filtros' });
+    expect(clear.className).not.toContain('text-destructive');
+    await user.click(clear);
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it('adds a searchable Cliente pill, tinted once chosen (ZIG-I37-1)', async () => {
+    const user = userEvent.setup();
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <TicketsDesktopToolbar
+        {...toolbarProps}
+        clientFilter={{ value: '', onChange, options: CLIENT_OPTIONS }}
+      />,
+    );
+
+    const pill = screen.getByRole('combobox', { name: 'Filtrar por cliente' });
+    expect(pill).toHaveTextContent('Todos los clientes');
+    expect(pill.className).toContain('rounded-full');
+    expect(pill.className).not.toContain('bg-primary/10');
+    await user.click(pill);
+    await user.type(screen.getByRole('combobox', { name: 'Buscar cliente…' }), 'torr');
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /Ana Torres/ }));
+    expect(onChange).toHaveBeenCalledWith('3');
+
+    rerender(
+      <TicketsDesktopToolbar
+        {...toolbarProps}
+        hasActiveFilters
+        clientFilter={{ value: '3', onChange, options: CLIENT_OPTIONS }}
+      />,
+    );
+    const chosen = screen.getByRole('combobox', { name: 'Filtrar por cliente' });
+    expect(chosen).toHaveTextContent('Ana Torres');
+    expect(chosen.className).toContain('bg-primary/10');
+  });
+});
+
+describe('TicketCollectionTabs', () => {
+  it('tints the selected collection tab and never shows money (ZIG-I28-4)', async () => {
+    const user = userEvent.setup();
+    const onStatusFilterChange = jest.fn();
+    const onFinishedFilterChange = jest.fn();
+    render(
+      <TicketCollectionTabs
+        statusFilter="due"
+        finishedFilter="yes"
+        counts={{ all: 8, due: 3, inProgress: 2, paid: 1 }}
+        onStatusFilterChange={onStatusFilterChange}
+        onFinishedFilterChange={onFinishedFilterChange}
+      />,
+    );
+
+    const views = screen.getByRole('navigation', { name: 'Vistas de tickets' });
+    expect(views).not.toHaveTextContent('$');
+    // Canvas ListaA: «Por cobrar» over «3 tickets», chosen = underline, not solid blue.
+    const due = within(views).getByRole('button', { name: 'Por cobrar 3 tickets' });
+    expect(due).toHaveAttribute('aria-pressed', 'true');
+    expect(due.className).toContain('border-primary');
+    expect(due.className).not.toMatch(/(?:^|\s)bg-primary(?:\s|$)/);
+    expect(within(views).getByRole('button', { name: 'En proceso 2 tickets' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+
+    await user.click(within(views).getByRole('button', { name: 'En proceso 2 tickets' }));
+    expect(onStatusFilterChange).toHaveBeenCalledWith('all');
+    expect(onFinishedFilterChange).toHaveBeenCalledWith('no');
+
+    await user.click(within(views).getByRole('button', { name: 'Pagados 1 ticket' }));
+    expect(onStatusFilterChange).toHaveBeenCalledWith('paid');
+    expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
+
+    await user.click(within(views).getByRole('button', { name: 'Todos 8 tickets' }));
+    expect(onStatusFilterChange).toHaveBeenCalledWith('all');
+    expect(onFinishedFilterChange).toHaveBeenCalledWith('all');
   });
 });

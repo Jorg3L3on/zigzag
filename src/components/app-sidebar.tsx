@@ -37,6 +37,7 @@ import {
   getLongestMatchingHref,
   NAV_MAIN_ITEMS,
   NAV_SYSTEM_ITEMS,
+  getVisibleNavMainItems,
 } from '@/lib/nav-items';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -51,6 +52,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { can, loading: permissionsLoading, isSystem } = usePermissions();
   const { isMobile } = useSidebar();
   const [companies, setCompanies] = React.useState<SidebarCompanyBrand[]>([]);
+  // False while `companies` is only the session seed: the switcher must not
+  // replace the chosen company until the real list arrives (ZIG-I37-6).
+  const [companiesAuthoritative, setCompaniesAuthoritative] =
+    React.useState(false);
 
   // Seed brand from the JWT session so tenant users never sit on "Ninguna empresa"
   // while permissions resolve (tenant roles intentionally lack companies.read).
@@ -74,7 +79,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       canManageCompany: can(PERMISSIONS.company.manage),
     });
 
-    if (mode === 'wait' || mode === 'session') {
+    if (mode === 'wait') {
+      return;
+    }
+    if (mode === 'session') {
+      // No list to load: the session company is the whole truth.
+      setCompaniesAuthoritative(true);
       return;
     }
 
@@ -96,6 +106,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 is_system: row.is_system,
               })),
             );
+            setCompaniesAuthoritative(true);
             return;
           }
 
@@ -122,6 +133,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               is_system: result.data.is_system,
             },
           ]);
+          setCompaniesAuthoritative(true);
         }
         // Keep session seed on failure — do not toast CO001 for tenant self-load.
       } catch (error) {
@@ -154,17 +166,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 
   const visibleNavMain = React.useMemo(
-    () =>
-      data.navMain
-        .map((item) => ({
-          ...item,
-          items: item.items?.filter((sub) => canAccess(sub.requiredPermission)),
-        }))
-        .filter((item) => isMobile || !item.mobileOnly)
-        .filter(
-          (item) =>
-            canAccess(item.requiredPermission) || Boolean(item.items?.length),
-        ),
+    () => getVisibleNavMainItems(data.navMain, { can: canAccess, isMobile }),
     [canAccess, isMobile],
   );
 
@@ -198,7 +200,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const allSidebarHrefs = React.useMemo(
     () => [
       ...data.navMain.flatMap((item) => [
-        item.url,
+        item.activeUrl ?? item.url,
         ...(item.items?.map((s) => s.url) ?? []),
       ]),
       ...data.system.map((s) => s.url),
@@ -229,7 +231,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
       return {
         ...item,
-        isActive: globalLongest === item.url,
+        isActive: globalLongest === (item.activeUrl ?? item.url),
       };
     });
   }, [pathname, globalLongest, visibleNavMain]);
@@ -244,7 +246,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50">
       <SidebarHeader className="bg-gradient-to-r from-primary/5 to-transparent">
-        <TeamSwitcher teams={teams} />
+        <TeamSwitcher teams={teams} teamsAuthoritative={companiesAuthoritative} />
       </SidebarHeader>
       <SidebarContent>
         <TripledMotionDiv variants={tripledFadeInUp} initial="hidden" animate="visible">

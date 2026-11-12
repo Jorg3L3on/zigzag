@@ -71,6 +71,15 @@ jest.mock('@/actions/tickets', () => ({
   createTicketWithLines: (...args: unknown[]) => mockCreateTicketWithLines(...args),
 }));
 
+jest.mock('@/hooks/use-permissions', () => ({
+  usePermissions: () => ({ can: () => true }),
+}));
+
+jest.mock('@/actions/client-service-schedules', () => ({
+  listClientServiceSchedulesForClient: jest.fn(async () => ({ success: true, data: [] })),
+  upsertClientServiceSchedule: jest.fn(),
+}));
+
 jest.mock('@/actions/presupuestos', () => ({
   createPresupuestoWithLines: (...args: unknown[]) =>
     mockCreatePresupuestoWithLines(...args),
@@ -130,7 +139,7 @@ const addLine = async (
   const qty = within(sheet).getByRole('spinbutton', { name: 'Cantidad del servicio' });
   await user.clear(qty);
   await user.type(qty, quantity);
-  await user.click(within(sheet).getByRole('button', { name: 'Agregar al ticket' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Agregar al presupuesto' }));
   await waitFor(() =>
     expect(screen.queryByRole('dialog', { name: 'Agregar servicio' })).toBeNull(),
   );
@@ -213,7 +222,7 @@ describe('PresupuestoComposer (ZIG-I5-3)', () => {
     expect(payload.expires_at.getTime()).toBe(
       addDays(startOfDay(new Date()), 7).getTime(),
     );
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/presupuestos/400/listo'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/presupuestos/400'));
     expect(window.localStorage.getItem(buildPresupuestoComposerDraftKey(10))).toBeNull();
   });
 

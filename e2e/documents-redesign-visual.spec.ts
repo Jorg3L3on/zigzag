@@ -8,14 +8,14 @@ import {
 import {
   addCustomComposerLine,
   createClientInComposer,
-  finishOnReview,
+  chooseComposerPayment,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 /**
  * ZIG-I13-8 visual baselines of the redesigned document screens at 390px (the
- * canvas size), light and dark: composer, line sheet, listo, ticket detail,
+ * canvas size), light and dark: composer, line sheet, composer with payment, ticket detail,
  * presupuesto detail, the finalized-ticket editor with its banner, the delete
  * sheet and the tickets list. A fixture ticket (finalized, half paid, recibo
  * shared) and presupuesto are created through the UI on every run; names,
@@ -41,7 +41,6 @@ const dynamicRegions = (page: Page) => [
   page.getByTestId('review-summary'),
   page.getByTestId('presupuesto-counts'),
   page.getByTestId('presupuesto-expires'),
-  page.getByTestId('tickets-balance-due'),
   page.getByTestId('delete-ticket-summary'),
   page.locator('h1'),
   page.locator('time'),
@@ -93,19 +92,17 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await addCustomComposerLine(page, { name: 'Mantenimiento correctivo de unidad manejadora', quantity: '2', price: '4200', materials: 2 });
       await addCustomComposerLine(page, { name: 'Recarga de gas refrigerante', quantity: '3', price: '980' });
       await shot(page, 'composer');
-      await page.getByTestId('composer-line-row').first().click();
+      await page.getByTestId('composer-line-row').first().click({ position: { x: 12, y: 12 } });
       await expect(page.getByRole('dialog', { name: 'Editar servicio' })).toBeVisible();
       await shot(page, 'line-sheet');
       await page.getByRole('dialog', { name: 'Editar servicio' }).getByRole('button', { name: 'Cancelar' }).click();
       await expect(page.getByRole('dialog', { name: 'Editar servicio' })).toBeHidden();
 
-      // Listo, then finalize half paid with the recibo shared.
-      const ticketId = await saveComposer(page);
-      await expect(page.getByRole('heading', { name: '¿Cómo pagó el cliente?' })).toBeVisible({ timeout: 15_000 });
-      await page.getByRole('radio', { name: 'Una parte' }).click();
-      await page.getByLabel('Cuánto pagó').fill('3000');
-      await shot(page, 'listo');
-      await finishOnReview(page, ticketId, { mode: 'partial', amount: 3000 });
+      // Finish half paid from the composer (ZIG-I24-4), recibo sent from the detail prompt.
+      await chooseComposerPayment(page, { mode: 'partial', amount: 3000 });
+      await page.getByRole('heading', { name: /¿Cómo pagó el cliente\?/ }).scrollIntoViewIfNeeded();
+      await shot(page, 'composer-payment');
+      const { ticketId } = await saveAndFinishComposer(page, { mode: 'partial', amount: 3000 });
 
       // Ticket detail.
       await page.goto(`/tickets/${ticketId}`);
@@ -130,7 +127,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       // The list, filtered to the fixture.
       await page.goto('/tickets');
       await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
-      await expect(page.getByText('1 de 1 tickets')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText('1 resultado')).toBeVisible({ timeout: 20_000 });
       await shot(page, 'tickets-list');
 
       // Presupuesto detail.
@@ -146,7 +143,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         .getByRole('textbox', { name: /Notas/ })
         .fill('• 60% de anticipo, 40% contra entrega.\n• Entrega de 6 a 8 semanas después del anticipo.\n• Precios en MXN más IVA.');
       await page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).filter({ visible: true }).first().click();
-      await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+      await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
       const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1] as string;
       await page.goto(`/presupuestos/${presupuestoId}`);
       await expect(page.getByTestId('presupuesto-accept').filter({ visible: true }).first()).toBeVisible({ timeout: 15_000 });

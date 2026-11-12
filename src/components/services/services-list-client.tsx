@@ -1,22 +1,16 @@
 'use client';
 
+import { matchesSearchText } from '@/lib/search-text';
 import React, { useMemo, useState } from 'react';
 import {
-  flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -30,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { getServiceUsage, type ServiceUsage } from '@/actions/service-usage';
 import {
   deleteService,
   getServices,
@@ -56,8 +51,41 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { canWriteServices } from '@/lib/services-rbac';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
 import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+} from '@/components/list-page';
 
-export function ServicesListClient() {
+type ServicesListClientProps = {
+  /** Importar CSV and Nuevo servicio, beside the desktop title (ZIG-30). */
+  desktopActions?: React.ReactNode;
+};
+
+/** «Lo usan 1 ticket abierto y 1 presupuesto. Esos se quedan como están.» (M-36) */
+export const describeServiceUsage = (usage: ServiceUsage | null): string => {
+  const parts: string[] = [];
+  if (usage && usage.openTickets > 0) {
+    parts.push(`${usage.openTickets} ${usage.openTickets === 1 ? 'ticket abierto' : 'tickets abiertos'}`);
+  }
+  if (usage && usage.openPresupuestos > 0) {
+    parts.push(`${usage.openPresupuestos} ${usage.openPresupuestos === 1 ? 'presupuesto' : 'presupuestos'}`);
+  }
+  if (parts.length === 0) return 'Los tickets y presupuestos que ya lo tienen se quedan como están.';
+  const verb = usage && usage.openTickets + usage.openPresupuestos === 1 ? 'Lo usa' : 'Lo usan';
+  return `${verb} ${parts.join(' y ')}. Esos se quedan como están.`;
+};
+
+export function ServicesListClient({ desktopActions }: ServicesListClientProps = {}) {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const canWrite = canWriteServices(permissions.can);
@@ -71,10 +99,16 @@ export function ServicesListClient() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<number | null>(null);
+  const [serviceUsage, setServiceUsage] = useState<ServiceUsage | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>('active');
   const [sorting, setSorting] = useState<SortingState>(DEFAULT_SERVICE_SORTING);
+  // Desktop pages the catalog by 25 in the browser; the phone keeps one long list.
+  const [desktopPagination, setDesktopPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: LIST_PAGE_SIZE,
+  });
   const router = useRouter();
   const searchParams = useSearchParams();
   const importedFlag = searchParams.get('imported');
@@ -82,7 +116,7 @@ export function ServicesListClient() {
   React.useEffect(() => {
     const timeoutId = window.setTimeout(
       () => setDebouncedSearch(searchValue.trim()),
-      250,
+      300,
     );
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
@@ -155,49 +189,51 @@ export function ServicesListClient() {
   }, [importedFlag, fetchServices, router]);
 
   const filteredServices = useMemo(() => {
-    const search = debouncedSearch.toLowerCase();
-    return services.filter((service) => {
-      return (
-        service.name.toLowerCase().includes(search) ||
-        service.description.toLowerCase().includes(search)
-      );
-    });
+    return services.filter((service) =>
+      matchesSearchText([service.name, service.description], debouncedSearch.trim()),
+    );
   }, [services, debouncedSearch]);
 
-  const openDeleteDialog = React.useCallback((id: number) => {
-    setServiceToDelete(id);
-    setDeleteDialogOpen(true);
-  }, []);
+  React.useEffect(() => {
+    setDesktopPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, statusFilter]);
+
+  const openDeleteDialog = React.useCallback(
+    (id: number) => {
+      setServiceToDelete(id);
+      setServiceUsage(null);
+      setDeleteDialogOpen(true);
+      // What still uses it, so the dialog says what happens (M-36). Without it, the plain text stays.
+      void getServiceUsage(id, selectedCompany?.id ?? null)
+        .then((result) => {
+          if (result.success && result.data) setServiceUsage(result.data);
+        })
+        .catch(() => undefined);
+    },
+    [selectedCompany?.id],
+  );
 
   const columns = useMemo(
     () =>
       createServicesColumns({
         renderActions: (service) =>
           canWrite ? (
-            <>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Editar ${service.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/services/${service.id}/edit`);
-              }}
-            >
-              <Pencil className="h-4 w-4"  data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Eliminar ${service.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                openDeleteDialog(service.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-            </Button>
-            </>
+            <ListRowMenu
+              label={`Acciones de ${service.name}`}
+              items={[
+                {
+                  label: 'Editar servicio',
+                  icon: <Pencil className="size-4" aria-hidden />,
+                  onSelect: () => router.push(`/services/${service.id}/edit`),
+                },
+                {
+                  label: 'Eliminar servicio',
+                  icon: <Trash2 className="size-4" aria-hidden />,
+                  onSelect: () => openDeleteDialog(service.id),
+                  destructive: true,
+                },
+              ]}
+            />
           ) : null,
       }),
     [router, openDeleteDialog, canWrite],
@@ -211,6 +247,17 @@ export function ServicesListClient() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+  // Same rows and order, in pages: only one of the two trees is mounted.
+  const desktopTable = useReactTable({
+    data: filteredServices,
+    columns,
+    state: { sorting, pagination: desktopPagination },
+    onSortingChange: setSorting,
+    onPaginationChange: setDesktopPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
   const isBusy = loading || loadingServices;
   const hasActiveFilters = debouncedSearch !== '' || statusFilter !== 'active';
@@ -222,6 +269,15 @@ export function ServicesListClient() {
     visibleCount: filteredServices.length,
     hasActiveFilters,
   });
+  // Desktop keeps the rows while it refreshes (dimmed); the skeleton is the first load only.
+  const desktopListState = resolveResourceListState({
+    isLoading: loadingServices && services.length === 0,
+    loadError,
+    totalCount: services.length,
+    visibleCount: filteredServices.length,
+    hasActiveFilters,
+  });
+  const desktopPaged = desktopTable.getPageCount() > 1;
   const activeStatusLabel =
     statusFilter === 'active'
       ? 'Activos'
@@ -266,6 +322,12 @@ export function ServicesListClient() {
 
   return (
     <>
+      <ListDesktopTitle
+        title="Servicios"
+        count={loadingServices && services.length === 0 ? null : services.length}
+        description="Catálogo de servicios y precios que usas en tickets y presupuestos."
+        actions={desktopActions}
+      />
       <div className="space-y-4">
         <ServicesFilterBar
           searchValue={searchValue}
@@ -281,239 +343,250 @@ export function ServicesListClient() {
         />
       </div>
 
-      {listState.kind === 'loading' ? (
-        <TripledListLoadingState
-          label="Cargando lista de servicios"
-          desktopColumns={4}
-          desktopRows={5}
-        />
-      ) : listState.kind === 'error' ? (
-        <TripledEmptyState
-          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
-          title="Error de carga"
-          description={listState.message}
-          role="alert"
-          action={
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                void fetchServices();
-              }}
-            >
-              Reintentar
-            </Button>
-          }
-        />
-      ) : listState.kind === 'empty' ? (
-        <TripledEmptyState
-          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
-          title="Sin servicios"
-          description={
-            canWrite
-              ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
-              : 'No hay servicios registrados en este catálogo todavía.'
-          }
-          action={
-            canWrite ? (
-              <Button
-                type="button"
-                onClick={() => router.push('/services/new')}
-              >
-                <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                Nuevo servicio
-              </Button>
-            ) : null
-          }
-        />
-      ) : listState.kind === 'filtered-empty' ? (
-        <TripledEmptyState
-          icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
-          title="Sin resultados"
-          description="No encontramos servicios con esa búsqueda o esos filtros."
-          action={
-            <Button type="button" variant="outline" onClick={handleClearFilters}>
-              Limpiar filtros
-            </Button>
-          }
-        />
-      ) : (
-        <>
-          <div className="space-y-3 md:hidden">
-            {table.getRowModel().rows.map((row) => {
-              const service = row.original;
-              return (
-                <TripledMobileRecordCard
-                  key={row.id}
-                  role="button"
-                  tabIndex={canWrite ? 0 : -1}
-                  aria-label={
-                    canWrite
-                      ? `Editar servicio ${service.name}`
-                      : `Servicio ${service.name}`
-                  }
-                  interactive={canWrite}
-                  className={
-                    canWrite
-                      ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                      : undefined
-                  }
-                  onClick={() => {
-                    if (canWrite) {
-                      router.push(`/services/${service.id}/edit`);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      canWrite &&
-                      (event.key === 'Enter' || event.key === ' ')
-                    ) {
-                      event.preventDefault();
-                      router.push(`/services/${service.id}/edit`);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <dl className="min-w-0 space-y-2">
-                      <div>
-                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
-                          Nombre
-                        </dt>
-                        <dd className="font-medium">{service.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
-                          Descripción
-                        </dt>
-                        <dd className="line-clamp-2 text-sm text-muted-foreground">
-                          {service.description}
-                        </dd>
-                        {serviceMaterialCount(service) > 0 ? (
-                          <dd
-                            className="mt-1 text-caption text-muted-foreground"
-                            data-testid="service-card-materials"
-                          >
-                            {formatMaterialCount(serviceMaterialCount(service))}
-                          </dd>
-                        ) : null}
-                      </div>
-                      <div>
-                        <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
-                          Precio
-                        </dt>
-                        <dd className="font-semibold tabular-nums">
-                          <FormattedCurrency amount={service.price} />
-                        </dd>
-                      </div>
-                    </dl>
-                    <span
-                      className={`inline-flex shrink-0 rounded-full px-2 py-1 text-caption font-medium ${
-                        service.deleted_at
-                          ? 'bg-destructive/10 text-destructive'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
-                      }`}
-                    >
-                      {service.deleted_at ? 'Eliminado' : 'Activo'}
-                    </span>
-                  </div>
-
-                  {canWrite ? (
-                    <div className="mt-4 flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Editar ${service.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        router.push(`/services/${service.id}/edit`);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4"  data-icon="inline-start" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Eliminar ${service.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openDeleteDialog(service.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-                    </Button>
-                    </div>
-                  ) : null}
-                </TripledMobileRecordCard>
-              );
-            })}
-          </div>
-
-          <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-            <Table
-              className={
-                '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-              }
-            >
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className={header.id === 'price' ? 'text-right' : undefined}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={canWrite ? 'cursor-pointer' : undefined}
-                    tabIndex={canWrite ? 0 : -1}
+      {/* One tree from lg (ZIG-I33): below it the phone cards, from it the table. */}
+      <DesktopSwitch
+        phone={
+          <>
+            {listState.kind === 'loading' ? (
+              <TripledListLoadingState
+                label="Cargando lista de servicios"
+                desktopColumns={4}
+                desktopRows={5}
+              />
+            ) : listState.kind === 'error' ? (
+              <TripledEmptyState
+                icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
+                title="Error de carga"
+                description={listState.message}
+                role="alert"
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
-                      if (canWrite) {
-                        router.push(`/services/${row.original.id}/edit`);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        canWrite &&
-                        (event.key === 'Enter' || event.key === ' ')
-                      ) {
-                        event.preventDefault();
-                        router.push(`/services/${row.original.id}/edit`);
-                      }
+                      void fetchServices();
                     }}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cell.column.id === 'price' ? 'text-right' : undefined}
+                    Reintentar
+                  </Button>
+                }
+              />
+            ) : listState.kind === 'empty' ? (
+              <TripledEmptyState
+                icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
+                title="Sin servicios"
+                description={
+                  canWrite
+                    ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
+                    : 'No hay servicios registrados en este catálogo todavía.'
+                }
+                action={
+                  canWrite ? (
+                    <Button
+                      type="button"
+                      onClick={() => router.push('/services/new')}
+                    >
+                      <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                      Nuevo servicio
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : listState.kind === 'filtered-empty' ? (
+              <TripledEmptyState
+                icon={<Plus className="h-4 w-4"  data-icon="inline-start" />}
+                title="Sin resultados"
+                description="No encontramos servicios con esa búsqueda o esos filtros."
+                action={
+                  <Button type="button" variant="outline" onClick={handleClearFilters}>
+                    Limpiar filtros
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {table.getRowModel().rows.map((row) => {
+                    const service = row.original;
+                    return (
+                      <TripledMobileRecordCard
+                        key={row.id}
+                        role="button"
+                        tabIndex={canWrite ? 0 : -1}
+                        aria-label={
+                          canWrite
+                            ? `Editar servicio ${service.name}`
+                            : `Servicio ${service.name}`
+                        }
+                        interactive={canWrite}
+                        className={
+                          canWrite
+                            ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (canWrite) {
+                            router.push(`/services/${service.id}/edit`);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            canWrite &&
+                            (event.key === 'Enter' || event.key === ' ')
+                          ) {
+                            event.preventDefault();
+                            router.push(`/services/${service.id}/edit`);
+                          }
+                        }}
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        <div className="flex items-start justify-between gap-3">
+                          <dl className="min-w-0 space-y-2">
+                            <div>
+                              <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                                Nombre
+                              </dt>
+                              <dd className="line-clamp-2 font-medium [overflow-wrap:anywhere]" title={service.name}>
+                                {service.name}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                                Descripción
+                              </dt>
+                              <dd className="line-clamp-2 text-sm text-muted-foreground">
+                                {service.description}
+                              </dd>
+                              {serviceMaterialCount(service) > 0 ? (
+                                <dd
+                                  className="mt-1 text-caption text-muted-foreground"
+                                  data-testid="service-card-materials"
+                                >
+                                  {formatMaterialCount(serviceMaterialCount(service))}
+                                </dd>
+                              ) : null}
+                            </div>
+                            <div>
+                              <dt className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
+                                Precio
+                              </dt>
+                              <dd className="font-semibold tabular-nums">
+                                <FormattedCurrency amount={service.price} />
+                              </dd>
+                            </div>
+                          </dl>
+                          <span
+                            className={`inline-flex shrink-0 rounded-full px-2 py-1 text-caption font-medium ${
+                              service.deleted_at
+                                ? 'bg-destructive/10 text-destructive'
+                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
+                            }`}
+                          >
+                            {service.deleted_at ? 'Eliminado' : 'Activo'}
+                          </span>
+                        </div>
+
+                        {canWrite ? (
+                          <div className="mt-4 flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Editar ${service.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              router.push(`/services/${service.id}/edit`);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4"  data-icon="inline-start" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Eliminar ${service.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openDeleteDialog(service.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
+                          </Button>
+                          </div>
+                        ) : null}
+                      </TripledMobileRecordCard>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        }
+        desktop={
+          <div className="mt-4">
+            {desktopListState.kind === 'loading' ? (
+              <ListLoading label="Cargando lista de servicios" columns={5} />
+            ) : desktopListState.kind === 'error' ? (
+              <ListError
+                description={desktopListState.message}
+                onRetry={() => {
+                  void fetchServices();
+                }}
+              />
+            ) : desktopListState.kind === 'filtered-empty' ? (
+              <ListNoResults
+                description="No encontramos servicios con esa búsqueda o esos filtros."
+                onClear={handleClearFilters}
+              />
+            ) : desktopListState.kind === 'empty' ? (
+              <ListEmpty
+                title="Sin servicios"
+                description={
+                  canWrite
+                    ? 'Agrega el primer servicio para completar el catálogo de esta empresa.'
+                    : 'No hay servicios registrados en este catálogo todavía.'
+                }
+                action={
+                  canWrite ? (
+                    <Button type="button" onClick={() => router.push('/services/new')}>
+                      <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
+                      Nuevo servicio
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : (
+              <ListTableCard
+                footer={
+                  <ListFooter
+                    // Paged: «1–25 de N»; one page: «N de M» against the whole catalog.
+                    total={desktopPaged ? filteredServices.length : services.length}
+                    shown={filteredServices.length}
+                    noun="servicios"
+                    pagination={listFooterPagination(desktopTable, { pageSizes: false })}
+                  />
+                }
+              >
+                <ListTable
+                  table={desktopTable}
+                  ariaLabel="Servicios"
+                  busy={isBusy}
+                  // No detail page: the row opens the edit form, for writers only.
+                  getRowHref={
+                    canWrite ? (row) => `/services/${row.original.id}/edit` : undefined
+                  }
+                  rowTestId="services-row"
+                />
+              </ListTableCard>
+            )}
           </div>
-        </>
-      )}
+        }
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción ocultará el servicio de la lista activa. Podrás verlo en
-              el filtro de eliminados.
+              {describeServiceUsage(serviceUsage)} Ya no saldrá para tickets
+              nuevos; lo verás en el filtro de eliminados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

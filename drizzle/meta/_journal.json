@@ -253,6 +253,13 @@
       "when": 1782550400000,
       "tag": "0036_mcp_oauth_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1782636800000,
+      "tag": "0037_ticket_client_name_text",
+      "breakpoints": true
     }
   ]
 }

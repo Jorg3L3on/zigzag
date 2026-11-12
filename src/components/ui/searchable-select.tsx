@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesSearchText } from '@/lib/search-text';
 import * as React from 'react';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,8 @@ export type SearchableSelectProps = {
   /** When set, search is owned by the parent (e.g. debounced server query). */
   onSearchChange?: (query: string) => void;
   isLoading?: boolean;
+  /** A line under the options, e.g. "Escribe para buscar entre los 1 000 clientes". */
+  footerHint?: string;
 };
 
 export const SearchableSelect = ({
@@ -51,7 +54,10 @@ export const SearchableSelect = ({
   className,
   onSearchChange,
   isLoading = false,
+  footerHint,
 }: SearchableSelectProps) => {
+  const listId = React.useId();
+  const [activeIndex, setActiveIndex] = React.useState(0);
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -63,14 +69,47 @@ export const SearchableSelect = ({
     if (externalSearch) {
       return options;
     }
-    const term = search.trim().toLowerCase();
+    const term = search.trim();
     if (!term) {
       return options;
     }
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(term),
-    );
+    return options.filter((option) => matchesSearchText([option.label], term));
   }, [externalSearch, options, search]);
+
+  // Arrow keys move through the options; a running search dims the old list and
+  // nothing in it can be picked until the new one arrives (ZIG-I36 M-15, M-21).
+  const pickable = !isLoading;
+  const optionId = (index: number) => `${listId}-option-${index}`;
+
+  React.useEffect(() => {
+    setActiveIndex(0);
+  }, [filteredOptions, open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    document.getElementById(optionId(activeIndex))?.scrollIntoView?.({ block: 'nearest' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, open]);
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const last = filteredOptions.length - 1;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (last < 0) return;
+      setActiveIndex((current) => {
+        if (event.key === 'ArrowDown') return current >= last ? 0 : current + 1;
+        return current <= 0 ? last : current - 1;
+      });
+    } else if (event.key === 'Home' || event.key === 'End') {
+      if (last < 0) return;
+      event.preventDefault();
+      setActiveIndex(event.key === 'Home' ? 0 : last);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const option = filteredOptions[activeIndex];
+      if (pickable && option) handleSelect(option.value);
+    }
+  };
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -118,6 +157,8 @@ export const SearchableSelect = ({
           id={id}
           variant="outline"
           role="combobox"
+          aria-haspopup="listbox"
+          aria-controls={open ? listId : undefined}
           aria-expanded={open}
           aria-label={ariaLabel}
           disabled={disabled}
@@ -161,37 +202,67 @@ export const SearchableSelect = ({
             ref={searchInputRef}
             value={search}
             onChange={(event) => handleSearchChange(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
             className="h-8"
             aria-busy={isLoading}
+            role="combobox"
+            aria-expanded
+            aria-autocomplete="list"
+            aria-controls={listId}
+            aria-activedescendant={
+              pickable && filteredOptions[activeIndex] ? optionId(activeIndex) : undefined
+            }
           />
         </div>
         <ul
+          id={listId}
           className="max-h-[min(15rem,50vh)] overflow-y-auto overscroll-contain p-1"
           role="listbox"
           aria-label={ariaLabel}
+          aria-busy={isLoading}
         >
           {isLoading ? (
-            <li className="px-2 py-3 text-center text-sm text-muted-foreground">
+            <li
+              role="presentation"
+              className="px-2 py-3 text-center text-sm text-muted-foreground"
+            >
               Buscando…
             </li>
-          ) : filteredOptions.length === 0 ? (
-            <li className="px-2 py-3 text-center text-sm text-muted-foreground">
-              {emptyText}
-            </li>
+          ) : null}
+          {filteredOptions.length === 0 ? (
+            isLoading ? null : (
+              <li className="px-2 py-3 text-center text-sm text-muted-foreground">
+                {emptyText}
+              </li>
+            )
           ) : (
-            filteredOptions.map((option) => {
+            filteredOptions.map((option, index) => {
               const isSelected = option.value === value;
+              const isActive = pickable && index === activeIndex;
               return (
-                <li key={option.value} role="option" aria-selected={isSelected}>
+                <li
+                  key={option.value}
+                  id={optionId(index)}
+                  role="option"
+                  aria-selected={isSelected}
+                  aria-disabled={pickable ? undefined : true}
+                  data-active={isActive ? 'true' : undefined}
+                  className={cn(!pickable && 'pointer-events-none opacity-50')}
+                >
                   <button
                     type="button"
+                    tabIndex={-1}
+                    disabled={!pickable}
                     className={cn(
                       'flex min-h-11 w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground',
                       isSelected && 'bg-accent/60',
+                      isActive && 'bg-accent text-accent-foreground ring-2 ring-inset ring-ring',
                     )}
-                    onClick={() => handleSelect(option.value)}
+                    onClick={() => {
+                      if (pickable) handleSelect(option.value);
+                    }}
                   >
                     <Check
                       className={cn(
@@ -218,6 +289,11 @@ export const SearchableSelect = ({
             })
           )}
         </ul>
+        {footerHint && !isLoading && filteredOptions.length > 0 ? (
+          <p className="border-t px-3 py-2 text-center text-sm text-muted-foreground">
+            {footerHint}
+          </p>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

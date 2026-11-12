@@ -9,6 +9,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { company } from '@/db/schema';
 import { db } from '@/lib/db';
 import { getCompanyPaymentInfo } from '@/lib/company-payment-info';
+import { companyPaymentInfoSchema } from '@/lib/mcp/schemas';
 import { resolveFolioPrefix } from '@/lib/folio';
 import { logger } from '@/lib/logger';
 import { listAgentCompanies } from '@/lib/mcp/domain';
@@ -75,7 +76,10 @@ export const getCompanyProfile = async (companyId: number) => {
       postal_code: row.postal_code,
       country: row.country,
     },
-    payment_info: getCompanyPaymentInfo(row.settings),
+    payment_info: (() => {
+      const info = getCompanyPaymentInfo(row.settings);
+      return info ? companyPaymentInfoSchema.parse(info) : null;
+    })(),
     folio_prefixes: {
       ticket: resolveFolioPrefix('ticket', row.settings),
       presupuesto: resolveFolioPrefix('presupuesto', row.settings),
@@ -116,7 +120,7 @@ const assertNotRateLimited = async (rateLimitIdentity: number) => {
 
 /** Resources of one kind for every allow-listed company the user may read. */
 const listCompanyResources = async (kind: ResourceKind, ctx: McpToolContext) => {
-  const agentUser = await resolveAgentUser(parseBearerToken(authorizationHeader(ctx)));
+  const agentUser = await resolveAgentUser(parseBearerToken(authorizationHeader(ctx)), ctx.http?.req);
   if (!agentUser.scopes.includes('read')) return { resources: [] };
   const companies = await listAgentCompanies(agentUser);
   const readable = await Promise.all(
@@ -154,6 +158,7 @@ const readCompanyResource = async (
       authorizationHeader(ctx),
       companyId,
       RESOURCE_KINDS[kind].permission,
+      { request: ctx.http?.req },
     );
     assertScope(agent, 'read');
     await assertNotRateLimited(agent.rateLimitIdentity);

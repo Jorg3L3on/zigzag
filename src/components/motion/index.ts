@@ -7,3 +7,4 @@ export {
   type BottomSheetProps,
 } from './bottom-sheet';
 export { NumberTicker, type NumberTickerProps } from './number-ticker';
+export { SidePanel, type SidePanelProps } from './side-panel';

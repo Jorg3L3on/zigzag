@@ -2,21 +2,24 @@ import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
 
 import {
+  CompanyHubDesktopHeader,
   CompanyHubMobileAppBar,
   CompanyHubPageHeader,
 } from '@/components/companies/company-hub-header';
+import { CompanyHubSideNav } from '@/components/companies/company-hub-side-nav';
 import { CompanyHubTabs } from '@/components/companies/company-hub-tabs';
 import { TripledDashboardShell } from '@/components/tripled';
 import { getCompanyHubSummary } from '@/lib/company-hub-summary';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
 import { requireActionAuth } from '@/lib/security';
-import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Mi empresa hub (ZIG-I3): Datos · Equipo · Roles. The layout only decides
- * which tabs to show; each page enforces its own permission.
+ * which tabs to show; each page enforces its own permission. From lg
+ * (1024) a side nav replaces the tabs (ZIG-I32-1); below it phones and
+ * tablets keep the segmented tabs (and phones the app bar).
  */
 export default async function CompanyHubLayout({
   children,
@@ -38,38 +41,27 @@ export default async function CompanyHubLayout({
     redirect('/forbidden');
   }
 
-  const readinessLabel = summary.productionReady
-    ? 'Lista para operar'
-    : 'Configuración pendiente';
-
   return (
     <>
       <CompanyHubPageHeader />
       <TripledDashboardShell>
         <CompanyHubMobileAppBar companyName={summary.companyName} />
         <div className="flex flex-col gap-4 sm:gap-6">
-          <div className="hidden flex-wrap items-end justify-between gap-4 md:flex">
-            <div className="flex min-w-0 flex-col gap-1">
-              <h1 className="truncate text-2xl font-bold tracking-tight">
-                {summary.companyName}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Datos de la empresa, equipo y roles en un solo lugar.
-              </p>
-            </div>
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span
-                aria-hidden
-                className={cn(
-                  'size-2.5 rounded-full',
-                  summary.productionReady ? 'bg-emerald-600' : 'bg-amber-500',
-                )}
-              />
-              {readinessLabel}
-            </p>
+          <CompanyHubDesktopHeader
+            companyName={summary.companyName}
+            logo={summary.logo}
+            contact={summary.contact}
+            productionReady={summary.productionReady}
+          />
+          <CompanyHubTabs visibleTabs={summary.tabs} />
+          <div className="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+            <CompanyHubSideNav
+              visibleTabs={summary.tabs}
+              counts={summary.counts}
+              className="hidden lg:flex"
+            />
+            <div className="min-w-0">{children}</div>
           </div>
-          <CompanyHubTabs visibleTabs={summary.tabs} counts={summary.counts} />
-          {children}
         </div>
       </TripledDashboardShell>
     </>

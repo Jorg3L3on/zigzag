@@ -1,6 +1,6 @@
-import { formatDisplayFolio } from '@/lib/folio';
+import { formatDocumentFolio } from '@/lib/folio';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { getTicketById } from '@/actions/tickets';
 import { DocumentPdfViewer } from '@/components/pdf/document-pdf-viewer';
@@ -28,19 +28,16 @@ export const generateMetadata = async ({
 };
 
 /**
- * In-app PDF viewer for a ticket recibo (ZIG-I9-1). Back goes to the creation
- * review when reached from it (?from=listo), otherwise to the ticket detail.
+ * In-app PDF viewer for a ticket recibo (ZIG-I9-1). Back goes to the ticket
+ * detail (the listo review is gone since ZIG-I24-4).
  */
 export default async function TicketReciboPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string | string[] }>;
 }) {
   await requirePagePermission('tickets.read');
   const { id } = await params;
-  const { from } = await searchParams;
   const numericId = Number(id);
   if (!Number.isSafeInteger(numericId) || numericId <= 0) notFound();
 
@@ -48,18 +45,19 @@ export default async function TicketReciboPage({
   if (!result.success || !result.data) notFound();
 
   const ticket = result.data;
-  // Quotes have /presupuestos/[id]/pdf; an unfinished ticket has no recibo yet.
-  if (isPresupuestoTicket(ticket.document_kind) || !ticket.finished) notFound();
+  // Quotes have /presupuestos/[id]/pdf.
+  if (isPresupuestoTicket(ticket.document_kind)) notFound();
+  // Jorge 2026-10-22: an unfinished ticket has no recibo page; send them to the ticket.
+  if (!ticket.finished) redirect(`/tickets/${String(ticket.id)}`);
 
   const ticketId = String(ticket.id);
-  const folio = formatDisplayFolio(ticket);
+  const folio = formatDocumentFolio(ticket);
   const total = Number(ticket.total) || 0;
   const paid = Number(ticket.paid) || 0;
   const lines = ticket.services_tickets.map(buildReviewLine);
   const dateLabel = formatLongDate(
     ticket.ticket_date ? new Date(ticket.ticket_date).toISOString() : null,
   );
-  const fromReview = from === 'listo';
 
   return (
     <DocumentPdfViewer
@@ -67,8 +65,8 @@ export default async function TicketReciboPage({
       kind="recibo"
       title={`Recibo ${folio}`}
       subtitle={`Trabajo terminado · ${TICKET_PAYMENT_STATUS_LABEL[getTicketPaymentStatus(total, paid)]}`}
-      backHref={fromReview ? `/tickets/${ticketId}/listo` : `/tickets/${ticketId}`}
-      backLabel={fromReview ? 'Volver al resumen del ticket' : 'Volver al ticket'}
+      backHref={`/tickets/${ticketId}`}
+      backLabel="Volver al ticket"
       downloadFileName={buildTicketPdfFileName(ticket)}
       summary={
         <ReciboSummary
@@ -79,6 +77,7 @@ export default async function TicketReciboPage({
           lines={lines}
           total={total}
           paid={paid}
+          notes={ticket.work_notes}
         />
       }
       whatsApp={{

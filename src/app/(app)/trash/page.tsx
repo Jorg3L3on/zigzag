@@ -20,8 +20,7 @@ export default async function TrashPage() {
       <TripledDashboardShell>
         <TripledResourceCard
           title="Papelera"
-          description="Restaura registros eliminados de tu empresa."
-          desktopDescription="Clientes, servicios y tickets eliminados que puedes restaurar."
+          description="Clientes, servicios y tickets eliminados que puedes restaurar."
           icon={<Trash2 className="size-5" aria-hidden />}
         >
           <TrashView />

@@ -42,7 +42,7 @@ export const ROLE_MATRIX_MODULES: RoleMatrixModule[] = [
   {
     key: 'services',
     label: 'Servicios',
-    hint: 'Catálogo y precios',
+    hint: 'Catálogo, precios y materiales',
     read: PERMISSIONS.services.read,
     write: PERMISSIONS.services.write,
     writeLabel: 'Editar',
@@ -50,7 +50,7 @@ export const ROLE_MATRIX_MODULES: RoleMatrixModule[] = [
   {
     key: 'users',
     label: 'Equipo',
-    hint: 'Usuarios de la empresa',
+    hint: 'Personas de la empresa',
     read: PERMISSIONS.users.read,
     write: PERMISSIONS.users.write,
     writeLabel: 'Editar',

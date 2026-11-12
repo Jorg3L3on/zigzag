@@ -6,7 +6,9 @@ type TicketDetailSectionCardProps = {
   children: ReactNode;
   className?: string;
   id?: string;
+  tabIndex?: number;
   'aria-labelledby'?: string;
+  'data-testid'?: string;
 };
 
 /** Quiet section surface shared by ticket detail workspace blocks. */
@@ -14,12 +16,16 @@ export const TicketDetailSectionCard = ({
   children,
   className,
   id,
+  tabIndex,
   'aria-labelledby': ariaLabelledBy,
+  'data-testid': testId,
 }: TicketDetailSectionCardProps) => {
   return (
     <section
       id={id}
+      tabIndex={tabIndex}
       aria-labelledby={ariaLabelledBy}
+      data-testid={testId}
       className={cn(
         DASHBOARD_CARD_CLASS,
         'rounded-xl border p-4 sm:p-5',
@@ -72,3 +78,21 @@ export const TicketDetailSectionHeading = ({
     </div>
   );
 };
+
+/** The small uppercase label that heads each card of the desktop column (canvas). */
+export const TICKET_RAIL_LABEL_CLASS =
+  'text-caption lg:text-[11px]/[inherit] font-semibold uppercase tracking-[0.08em] text-muted-foreground';
+
+export const TicketDetailRailLabel = ({
+  id,
+  children,
+  className,
+}: {
+  id?: string;
+  children: ReactNode;
+  className?: string;
+}) => (
+  <h2 id={id} className={cn(TICKET_RAIL_LABEL_CLASS, className)}>
+    {children}
+  </h2>
+);

@@ -46,6 +46,7 @@ export default async function EditTicketPage({
     <TicketEditComposer
       edit={{
         id: state.id,
+        folio: state.folio,
         client: state.client,
         ticketDate: state.ticketDate,
         expiresAt: state.expiresAt,

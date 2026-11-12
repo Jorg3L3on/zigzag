@@ -15,11 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import {
-  COMPANY_HUB_PATH,
-  COMPANY_HUB_ROLES_PATH,
-  COMPANY_HUB_TEAM_PATH,
-} from '@/lib/company-hub';
+import { COMPANY_HUB_PATH, getCompanyHubEntryHref } from '@/lib/company-hub';
 import { PERMISSIONS } from '@/lib/permissions';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 
@@ -33,6 +29,11 @@ export type NavItemDefinition = {
   mobileTab?: boolean;
   /** When true, item only shows in the mobile Más sheet (desktop sidebar IA unchanged). */
   mobileOnly?: boolean;
+  /**
+   * Prefix that marks the item active when it differs from `url` (ZIG-34:
+   * Mi empresa may link to /company/equipo but lights up under /company).
+   */
+  activeUrl?: string;
   items?: {
     title: string;
     url: string;
@@ -84,27 +85,13 @@ export const NAV_MAIN_ITEMS: NavItemDefinition[] = [
     requiredPermission: PERMISSIONS.clients.read,
   },
   {
+    // One link (ZIG-34): the hub has its own Datos · Equipo · Roles nav. The
+    // sidebar resolves the target and visibility from the hub tabs' permissions
+    // (getVisibleNavMainItems), so `requiredPermission` is the Datos one only.
     title: 'Mi empresa',
     url: COMPANY_HUB_PATH,
     icon: Building,
     requiredPermission: PERMISSIONS.company.manage,
-    items: [
-      {
-        title: 'Datos',
-        url: COMPANY_HUB_PATH,
-        requiredPermission: PERMISSIONS.company.manage,
-      },
-      {
-        title: 'Equipo',
-        url: COMPANY_HUB_TEAM_PATH,
-        requiredPermission: PERMISSIONS.users.read,
-      },
-      {
-        title: 'Roles',
-        url: COMPANY_HUB_ROLES_PATH,
-        requiredPermission: PERMISSIONS.roles.read,
-      },
-    ],
   },
   {
     title: 'Anotar trabajo',
@@ -252,6 +239,32 @@ export const filterSystemNavItems = (
   items.filter((item) =>
     item.systemOnly ? isSystemUser : can(item.requiredPermission),
   );
+
+/**
+ * Plataforma items the user may see, with sub-items filtered by permission.
+ * Mi empresa links to the first hub tab the user can open (Datos → Equipo →
+ * Roles) and keeps `/company` as its active prefix; it is hidden when the
+ * user can open none (ZIG-34).
+ */
+export const getVisibleNavMainItems = (
+  items: NavItemDefinition[],
+  { can, isMobile }: { can: (permission?: string) => boolean; isMobile: boolean },
+): NavItemDefinition[] =>
+  items
+    .filter((item) => isMobile || !item.mobileOnly)
+    .flatMap((item) => {
+      if (item.url === COMPANY_HUB_PATH && !item.items) {
+        const entryHref = getCompanyHubEntryHref(can);
+        return entryHref
+          ? [{ ...item, url: entryHref, activeUrl: COMPANY_HUB_PATH }]
+          : [];
+      }
+      const subItems = item.items?.filter((sub) => can(sub.requiredPermission));
+      const resolved = subItems ? { ...item, items: subItems } : item;
+      return can(item.requiredPermission) || Boolean(subItems?.length)
+        ? [resolved]
+        : [];
+    });
 
 export const getLongestMatchingHref = (
   pathname: string,

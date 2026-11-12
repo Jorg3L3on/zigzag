@@ -12,6 +12,9 @@ import type { ActionAuthContext } from '@/lib/authz-context';
 
 export type CompanyHubSummary = {
   companyName: string;
+  /** Desktop header (ZIG-I32-1): logo or initial, then email · phone · RFC. */
+  logo: string | null;
+  contact: string[];
   productionReady: boolean;
   /** Tabs the caller may open, in display order. */
   tabs: CompanyHubTabKey[];
@@ -73,6 +76,14 @@ export async function getCompanyHubSummary(
 
   return {
     companyName: companyRow.name,
+    logo: companyRow.logo,
+    contact: [
+      companyRow.email,
+      companyRow.phone,
+      companyRow.settings?.rfc ? `RFC ${companyRow.settings.rfc}` : '',
+    ]
+      .map((part) => part?.trim() ?? '')
+      .filter(Boolean),
     productionReady: assessCompanyReadiness(companyRow).productionReady,
     tabs,
     counts,

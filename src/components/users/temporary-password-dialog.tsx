@@ -29,6 +29,11 @@ type TemporaryPasswordDialogProps = {
   onReset: () => Promise<ResetResult>;
   onOpenChange: (open: boolean) => void;
   onDone?: () => void;
+  /**
+   * The action's name. Defaults to «Dar contraseña temporal»; Mi empresa on
+   * desktop says «Restablecer contraseña», like its row action (ZIG-I32).
+   */
+  actionLabel?: string;
 };
 
 /**
@@ -41,7 +46,9 @@ export const TemporaryPasswordDialog = ({
   onReset,
   onOpenChange,
   onDone,
+  actionLabel = 'Dar contraseña temporal',
 }: TemporaryPasswordDialogProps) => {
+  const isReset = actionLabel !== 'Dar contraseña temporal';
   const [pending, setPending] = useState(false);
   const [password, setPassword] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +133,11 @@ export const TemporaryPasswordDialog = ({
         ) : (
           <>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Dar contraseña temporal a {target?.name}?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isReset
+                  ? `${actionLabel} de ${target?.name}`
+                  : `¿Dar contraseña temporal a ${target?.name}?`}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 Se cierra su sesión ahora y la contraseña actual deja de servir. Al
                 entrar con la temporal tendrá que elegir una nueva.
@@ -151,7 +162,7 @@ export const TemporaryPasswordDialog = ({
                 }}
               >
                 <KeyRound className="mr-2 size-5" aria-hidden />
-                {pending ? 'Generando…' : 'Dar contraseña temporal'}
+                {pending ? 'Generando…' : actionLabel}
               </AlertDialogAction>
             </AlertDialogFooter>
           </>

@@ -3,8 +3,15 @@
 import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 
+import { DocumentLineRow } from '@/components/documents/document-line-row';
+import { DocumentLinesDensitySwitch } from '@/components/documents/document-lines-density-switch';
+import {
+  LineMaterialsBreakdown,
+  LineMaterialsDisclosure,
+  type LineServicePart,
+} from '@/components/documents/line-materials-disclosure';
 import { formatServiceCurrency } from '@/components/tickets/ticket-services-utils';
-import { formatMaterialQuantity } from '@/lib/material-drafts';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import { roundMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +28,12 @@ export type DocumentSummaryLine = {
   id: number | string;
   name: string;
   quantity: number;
+  /** Unit price. The desktop grid prints quantity × price in Importe. */
+  price?: number;
+  /** Shown under the name on the desktop grid. */
+  description?: string;
+  /** Null prints Fuera de catálogo on the desktop grid. */
+  serviceId?: number | null;
   /** The line's amount, materials included. */
   amount: number;
   materials?: ReadonlyArray<DocumentSummaryMaterial>;
@@ -39,7 +52,9 @@ type DocumentSummaryRowsProps = {
 
 /**
  * "Ver el servicio" when there is one item, otherwise "Ver los N servicios".
- * Zero materials are omitted. One material stays numbered: "y 1 material".
+ * Zero materials are omitted; one reads "y el material" (ZIG-17). With several
+ * materials "los" distributes over both plurals ("Ver los 3 servicios y 2
+ * materiales") but not over a singular, so one item gets "y los M materiales".
  */
 export const summaryToggleLabelFor = (
   count: number,
@@ -49,12 +64,19 @@ export const summaryToggleLabelFor = (
 ) => {
   const items = count === 1 ? `el ${one}` : `los ${count} ${many}`;
   if (materials === 0) return `Ver ${items}`;
-  const materialsText = materials === 1 ? '1 material' : `${materials} materiales`;
+  if (materials === 1) return `Ver ${items} y el material`;
+  const materialsText = count === 1 ? `los ${materials} materiales` : `${materials} materiales`;
   return `Ver ${items} y ${materialsText}`;
 };
 
 export const summaryToggleLabel = (services: number, materials: number) =>
   summaryToggleLabelFor(services, 'servicio', 'servicios', materials);
+
+/** The service part of a summary line: its amount less its materials. */
+const summaryService = (line: DocumentSummaryLine): LineServicePart => ({
+  quantity: line.quantity,
+  amount: roundMoney(line.amount - (line.materials ?? []).reduce((sum, item) => sum + item.amount, 0)),
+});
 
 /**
  * Recibo-style compact rows `2 × Name … $amount` (ZIG-I13-1). The name
@@ -68,11 +90,39 @@ export const DocumentSummaryRows = ({
   toggleLabel = summaryToggleLabel,
   className,
 }: DocumentSummaryRowsProps) => {
+  const isDesktop = useIsDesktop();
   const [expanded, setExpanded] = React.useState(false);
   const listId = React.useId();
   const materialsCount = lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0);
   const collapsible = lines.length > initialVisible || materialsCount > 0;
   const visible = expanded || !collapsible ? lines : lines.slice(0, initialVisible);
+
+  if (isDesktop) {
+    return (
+      <div className={className} data-testid="document-summary-rows" data-layout="receipt">
+        <div className="mb-3 flex justify-end">
+          <DocumentLinesDensitySwitch />
+        </div>
+        <ul id={listId} aria-label={label} className="divide-y divide-border/60">
+          {lines.map((line, index) => (
+            <li key={line.id}>
+              <DocumentLineRow
+                layout="receipt"
+                index={index + 1}
+                name={line.name}
+                description={line.description}
+                serviceId={line.serviceId}
+                quantity={line.quantity}
+                price={line.price ?? 0}
+                amount={line.amount}
+                materials={line.materials}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div className={className} data-testid="document-summary-rows">
@@ -90,29 +140,21 @@ export const DocumentSummaryRows = ({
                 {formatServiceCurrency(line.amount)}
               </span>
             </div>
+            {!expanded && line.materials && line.materials.length > 0 ? (
+              <LineMaterialsDisclosure
+                materials={line.materials}
+                lineName={line.name}
+                service={summaryService(line)}
+                className="mt-0.5"
+              />
+            ) : null}
             {expanded && line.materials && line.materials.length > 0 ? (
-              <ul
-                aria-label={`Materiales de ${line.name}`}
-                className="mt-1 space-y-1 border-l-2 border-border/60 pl-3"
-              >
-                {line.materials.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground"
-                  >
-                    <span className="min-w-0 truncate" title={item.name}>
-                      {item.name}{' '}
-                      <span className="tabular-nums">
-                        {formatMaterialQuantity(item.quantity, item.unit)} ×{' '}
-                        {formatServiceCurrency(item.price)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatServiceCurrency(item.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <LineMaterialsBreakdown
+                materials={line.materials}
+                lineName={line.name}
+                service={summaryService(line)}
+                className="mt-1"
+              />
             ) : null}
           </li>
         ))}

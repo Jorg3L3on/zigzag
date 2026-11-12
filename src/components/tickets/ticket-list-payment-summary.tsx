@@ -41,7 +41,9 @@ export const TicketListPaymentSummary = ({
         </span>
       </div>
       <TicketPaymentProgressBar total={total} paid={paid} />
-      <p className="truncate text-caption leading-snug text-muted-foreground tabular-nums">
+      {/* Wraps at "de" instead of ellipsizing money, so a large total never widens the
+          Estado column past its minimum (ZIG-I27-2). */}
+      <p className="text-caption leading-snug text-muted-foreground tabular-nums">
         <span>{formatTicketListAmount(paid ?? 0)}</span>
         <span className="font-normal text-muted-foreground/80"> de </span>
         <span>{formatTicketListAmount(total)}</span>

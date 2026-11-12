@@ -5,14 +5,14 @@ import { expectLayoutIntact } from './helpers/layout';
 import {
   addCustomComposerLine,
   createClientInComposer,
-  finishOnReview,
+  chooseComposerPayment,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 /**
  * ZIG-I13-8: the redesign is mobile first, but desktop shares the components. One
- * pass at 1280px over the composer, listo, detail, editor and list: the same lines
+ * pass at 1280px over the composer, detail, editor and list: the same lines
  * and totals, no overflow, no serious axe violations. Saves data: scratch DB or CI.
  */
 test.describe('Documents desktop @1280px', () => {
@@ -25,7 +25,7 @@ test.describe('Documents desktop @1280px', () => {
     await ensureTenantCompany(page);
   });
 
-  test('composer, listo, detail, editor and list keep their structure on desktop', async ({ page }) => {
+  test('composer, detail, editor and list keep their structure on desktop', async ({ page }) => {
     const suffix = `${Date.now()}`.slice(-8);
     const clientName = `Cliente escritorio ${suffix}`;
     const check = async (label: string, { axe = true } = {}) => {
@@ -58,17 +58,17 @@ test.describe('Documents desktop @1280px', () => {
     await expect(rows).toHaveCount(2);
     await check('composer');
 
-    const ticketId = await saveComposer(page);
-    await check('listo');
-    await finishOnReview(page, ticketId, { mode: 'partial', amount: 3000 });
+    // Finish from the composer (ZIG-I24-4): the payment sits under Notas.
+    await chooseComposerPayment(page, { mode: 'partial', amount: 3000 });
+    await check('composer with payment');
+    const { ticketId } = await saveAndFinishComposer(page, { mode: 'partial', amount: 3000 });
 
     await page.goto(`/tickets/${ticketId}`);
-    await expect(page.getByTestId('ticket-hero').filter({ visible: true }).first()).toContainText(
-      'Saldo por cobrar',
-      {
-        timeout: 15_000,
-      },
-    );
+    const collect = page.getByTestId('ticket-collect-card').filter({ visible: true }).first();
+    await expect(collect).toContainText('Saldo por cobrar', { timeout: 15_000 });
+    await expect(page.getByTestId('ticket-hero').filter({ visible: true })).toHaveCount(0);
+    await expect(page.getByText('P. unitario').first()).toBeVisible();
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
     await check('detail');
 
     await page.goto(`/tickets/${ticketId}/edit`);
@@ -79,12 +79,11 @@ test.describe('Documents desktop @1280px', () => {
     await check('editor');
 
     await page.goto('/tickets');
-    await page.getByPlaceholder('Cliente, número de ticket o teléfono').fill(suffix);
-    await expect(page.getByText('1 de 1 tickets')).toBeVisible({
+    await page.getByPlaceholder('Buscar por cliente, folio o teléfono').fill(suffix);
+    // A search with one match reads «1 resultado» (ZIG-I36 M-26).
+    await expect(page.getByText(/^1 resultado$/).filter({ visible: true })).toBeVisible({
       timeout: 20_000,
     });
-    // The tickets table puts aria-sort on its sort buttons (shared by every list table, not part of
-    // this redesign): layout only here.
-    await check('list', { axe: false });
+    await check('list');
   });
 });

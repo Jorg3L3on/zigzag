@@ -31,4 +31,12 @@ describe('schedule-digest', () => {
       'schedule-digest:company:9:2026-08-12',
     );
   });
+
+  it('keys the overdue digest on the Mexico City day at 23:00 (ZIG-25)', () => {
+    const evening = new Date('2026-10-23T23:00:00-06:00');
+    expect(evening.toISOString().slice(0, 10)).toBe('2026-10-24');
+    expect(scheduleDigestDedupeKey(9, evening)).toBe(
+      'schedule-digest:company:9:2026-10-23',
+    );
+  });
 });

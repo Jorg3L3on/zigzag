@@ -15,6 +15,8 @@ import {
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
 import { countActiveUsersWithRole, roleChangeKeepsAdmins } from '@/lib/team-guards';
 
+// The grant rule has its own tests (src/actions/user-write-guard.test.ts).
+jest.mock('@/lib/role-rank', () => ({ guardRoleGrant: jest.fn(async () => null) }));
 jest.mock('@/lib/db', () => ({
   db: {
     select: jest.fn(),

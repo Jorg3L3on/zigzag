@@ -38,7 +38,7 @@ import {
   type ReceiptPdfItem,
   type ReceiptPdfPayload,
 } from './payload';
-import { formatPaymentInfoLine } from '@/lib/company-payment-info';
+import { formatPaymentInfoLine, paymentPdfHeading } from '@/lib/company-payment-info';
 
 /**
  * Bump when the drawing code changes what a PDF looks like: it is part of the
@@ -371,7 +371,15 @@ export function renderReceiptPdf(
             : ['Saldo pendiente'],
     },
     payload.recibo
-      ? { label: 'Estado', primary: null, pill: payload.recibo.statusLabel, secondary: [countLabel] }
+      ? {
+          label: 'Estado',
+          primary: null,
+          pill: payload.recibo.statusLabel,
+          // A converted ticket names the presupuesto it came from (ZIG-I26-2).
+          secondary: payload.sourcePresupuestoFolio
+            ? [countLabel, `Presupuesto ${payload.sourcePresupuestoFolio}`]
+            : [countLabel],
+        }
       : {
           label: 'Conceptos',
           primary: String(payload.itemCount),
@@ -1027,9 +1035,10 @@ export function renderReceiptPdf(
   const drawFooter = () => {
     pen.fillRect(CONTENT_LEFT, footerTop, CONTENT_WIDTH, FOOTER.border, COLORS.ink);
     let groupTop = footerTop + FOOTER.border + FOOTER.paddingTop;
-    if (paymentLines.length > 0) {
+    const payment = payload.payment;
+    if (payment && paymentLines.length > 0) {
       pen.text(
-        'PARA PAGAR POR TRANSFERENCIA',
+        paymentPdfHeading(payment),
         CONTENT_LEFT,
         baselineFrom(groupTop, LABEL.size, FOOTER_LABEL_LINE),
         S.label,

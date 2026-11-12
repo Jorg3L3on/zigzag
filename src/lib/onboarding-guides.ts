@@ -1,10 +1,4 @@
-export const GUIDE_VERSION = '2026.07';
-
-export const ONBOARDING_GUIDE_PATHS = {
-  resumenEjecutivo: '/guides/resumen-ejecutivo.html',
-  empresa: '/guides/guia-empresa.html',
-  index: '/guides/index.html',
-} as const;
+import { AYUDA_PATH } from '@/lib/marketing-routes';
 
 /** How the in-app help reads for a tradesperson (ZIG-I18-12). */
 export const HELP_GUIDE_LABEL = '¿Cómo se usa?';
@@ -13,56 +7,33 @@ export type OnboardingGuideLink = {
   href: string;
   label: string;
   description: string;
-  audience?: 'investor' | 'operator';
-  audienceLabel?: string;
 };
 
-export const EXECUTIVE_SUMMARY_LINK: OnboardingGuideLink = {
-  href: ONBOARDING_GUIDE_PATHS.resumenEjecutivo,
-  label: 'Resumen ejecutivo',
-  description: 'Visión del producto para inversores y socios estratégicos.',
-  audience: 'investor',
-  audienceLabel: 'Evalúo invertir o asociarme',
+/**
+ * The one help link (ZIG-I40-6): the /ayuda help centre replaced the static
+ * /guides pages, and the executive summary was retired with them.
+ */
+export const HELP_CENTER_LINK: OnboardingGuideLink = {
+  href: AYUDA_PATH,
+  label: 'Centro de ayuda',
+  description: 'Guías cortas: tickets, cobro, presupuestos, clientes y equipo.',
 };
-
-export const EMPRESA_GUIDE_LINK: OnboardingGuideLink = {
-  href: ONBOARDING_GUIDE_PATHS.empresa,
-  label: 'Guía para empresas',
-  description: 'Tickets, clientes, servicios, PDF y recordatorios.',
-  audience: 'operator',
-  audienceLabel: 'Opero una empresa',
-};
-
-/** Shown on the public login page (investors and tenant operators only). */
-export const PUBLIC_ONBOARDING_GUIDE_LINKS: OnboardingGuideLink[] = [
-  EXECUTIVE_SUMMARY_LINK,
-  EMPRESA_GUIDE_LINK,
-];
-
-/** In-app guides menu for authenticated users. */
-export const getOnboardingGuidesForUser = (
-  isSystemUser: boolean,
-): OnboardingGuideLink[] =>
-  isSystemUser
-    ? [EXECUTIVE_SUMMARY_LINK, EMPRESA_GUIDE_LINK]
-    : [EMPRESA_GUIDE_LINK];
-
-export const getGuidesMenuHref = (isSystemUser: boolean): string =>
-  isSystemUser ? ONBOARDING_GUIDE_PATHS.index : ONBOARDING_GUIDE_PATHS.empresa;
 
 export const openOnboardingGuide = (href: string) => {
   window.open(href, '_blank', 'noopener,noreferrer');
 };
 
-/** Deep links into the operator guide for in-app empty states. */
+const ayudaGuide = (slug: string) => `${AYUDA_PATH}/${slug}`;
+
+/** Links from the onboarding checklist into the matching /ayuda guide. */
 export const OPERATOR_GUIDE_ANCHORS = {
-  miEmpresa: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-3`,
-  clientes: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-5`,
-  servicios: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-4`,
-  crearTicket: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-7`,
-  agregarServicios: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-8`,
-  facturaPdf: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-10`,
-  recordatorios: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-11`,
-  roles: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-12`,
-  mobile: `${ONBOARDING_GUIDE_PATHS.empresa}#paso-13`,
+  miEmpresa: AYUDA_PATH,
+  clientes: ayudaGuide('guardar-un-cliente'),
+  servicios: ayudaGuide('armar-mi-lista-de-precios'),
+  crearTicket: ayudaGuide('crear-un-ticket'),
+  agregarServicios: ayudaGuide('crear-un-ticket'),
+  facturaPdf: ayudaGuide('mandar-el-recibo-por-whatsapp'),
+  recordatorios: ayudaGuide('programar-un-mantenimiento'),
+  roles: ayudaGuide('invitar-a-mi-equipo'),
+  mobile: ayudaGuide('instalar-zigzag-en-mi-telefono'),
 } as const;

@@ -1,5 +1,4 @@
 import type { Table as ReactTable } from '@tanstack/react-table';
-import type { Ticket } from '@/actions/tickets';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -10,29 +9,35 @@ import {
 } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-type TicketsListPaginationProps = {
-  table: ReactTable<Ticket>;
+type TicketsListPaginationProps<TData> = {
+  table: ReactTable<TData>;
 };
 
-export const TicketsListPagination = ({ table }: TicketsListPaginationProps) => (
+const PageSizeSelect = <TData,>({ table }: { table: ReactTable<TData> }) => (
+  <Select
+    value={String(table.getState().pagination.pageSize)}
+    onValueChange={(value) => {
+      table.setPageSize(Number(value));
+    }}
+  >
+    <SelectTrigger className="h-11 w-[5rem]" aria-label="Filas por página">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="10">10</SelectItem>
+      <SelectItem value="25">25</SelectItem>
+      <SelectItem value="50">50</SelectItem>
+    </SelectContent>
+  </Select>
+);
+
+/** The phone pager (rows per page, ‹ n / N ›); desktop lists use `ListFooter`. */
+export const TicketsListPagination = <TData,>({ table }: TicketsListPaginationProps<TData>) => {
+  return (
   <div className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-border/60 bg-muted/20 px-3 py-4 sm:flex-row sm:items-center sm:px-4">
     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
       <span className="min-w-0">Filas por página</span>
-      <Select
-        value={String(table.getState().pagination.pageSize)}
-        onValueChange={(value) => {
-          table.setPageSize(Number(value));
-        }}
-      >
-        <SelectTrigger className="h-11 w-[5rem]" aria-label="Filas por página">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="10">10</SelectItem>
-          <SelectItem value="25">25</SelectItem>
-          <SelectItem value="50">50</SelectItem>
-        </SelectContent>
-      </Select>
+      <PageSizeSelect table={table} />
     </div>
     <div className="flex items-center justify-center gap-2">
       <Button
@@ -62,4 +67,5 @@ export const TicketsListPagination = ({ table }: TicketsListPaginationProps) => 
       </Button>
     </div>
   </div>
-);
+  );
+};

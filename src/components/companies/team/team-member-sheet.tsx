@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useForm, type Control } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -17,14 +17,19 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/ui/password-input';
 import type { ActionErrorType } from '@/lib/errors';
 import { classifyClientError, getErrorMessageByType } from '@/lib/network-awareness';
-import type { TeamMember, TeamRoleOption } from '@/lib/team-members';
+import {
+  teamRolePickerOptions,
+  type TeamMember,
+  type TeamRoleOption,
+} from '@/lib/team-members';
 import { TeamRolePicker } from './team-role-picker';
 import { TeamSheet } from './team-sheet';
-
-const PASSWORD_MIN_LENGTH = 8;
+import {
+  TeamTemporaryPasswordBox,
+  type CreatedTeamMember,
+} from './team-temporary-password-box';
 
 const memberSchema = z
   .object({
@@ -32,72 +37,15 @@ const memberSchema = z
     name: z.string().trim().min(1, 'El nombre es requerido'),
     email: z.string().trim().email('El correo electrónico no es válido'),
     role_id: z.number().optional(),
-    password: z.string(),
-    confirmPassword: z.string(),
   })
   .superRefine((data, ctx) => {
     // Editing only touches name and email.
-    if (data.mode === 'edit') {
-      return;
-    }
-    if (!data.role_id) {
+    if (data.mode === 'add' && !data.role_id) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Elige un rol', path: ['role_id'] });
-    }
-    if (data.password.length < PASSWORD_MIN_LENGTH) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`,
-        path: ['password'],
-      });
-    }
-    if (data.password !== data.confirmPassword) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Las contraseñas no coinciden',
-        path: ['confirmPassword'],
-      });
     }
   });
 
 type MemberValues = z.infer<typeof memberSchema>;
-
-/**
- * v1 onboarding (ZIG-I3-3, option C): the admin sets the first password and
- * shares it. Email invitations will replace this block.
- */
-const TeamPasswordFields = ({ control }: { control: Control<MemberValues> }) => (
-  <div className="space-y-4">
-    <FormField
-      control={control}
-      name="password"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Contraseña inicial</FormLabel>
-          <FormControl>
-            <PasswordInput {...field} autoComplete="new-password" />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-    <FormField
-      control={control}
-      name="confirmPassword"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Confirmar contraseña</FormLabel>
-          <FormControl>
-            <PasswordInput {...field} autoComplete="new-password" />
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-    <p className="text-caption text-muted-foreground">
-      Compártela con la persona por un medio seguro; podrá cambiarla en Mi cuenta.
-    </p>
-  </div>
-);
 
 export const showTeamActionError = (
   result: { error?: string; errorType?: ActionErrorType },
@@ -113,17 +61,27 @@ type TeamMemberSheetProps = {
   roles: TeamRoleOption[];
   /** Edit mode when set; add mode otherwise. */
   member?: TeamMember | null;
+  /** For the WhatsApp text of a new person. */
+  companyName: string;
   onSaved: () => void;
 };
+
+/**
+ * Phones (ZIG-I3-4): add or edit a person in a bottom sheet. Adding makes a
+ * temporary password on the server, shown once (ZIG-I32), like the desktop
+ * `TeamMemberPanel`.
+ */
 
 export const TeamMemberSheet = ({
   open,
   onOpenChange,
   roles,
   member,
+  companyName,
   onSaved,
 }: TeamMemberSheetProps) => {
   const isEdit = Boolean(member);
+  const [created, setCreated] = useState<CreatedTeamMember | null>(null);
   const form = useForm<MemberValues>({
     resolver: zodResolver(memberSchema),
     defaultValues: {
@@ -131,8 +89,6 @@ export const TeamMemberSheet = ({
       name: '',
       email: '',
       role_id: undefined,
-      password: '',
-      confirmPassword: '',
     },
   });
 
@@ -140,13 +96,12 @@ export const TeamMemberSheet = ({
     if (!open) {
       return;
     }
+    setCreated(null);
     form.reset({
       mode: member ? 'edit' : 'add',
       name: member?.name ?? '',
       email: member?.email ?? '',
       role_id: undefined,
-      password: '',
-      confirmPassword: '',
     });
   }, [form, member, open]);
 
@@ -157,24 +112,29 @@ export const TeamMemberSheet = ({
         email: values.email.trim(),
       });
       if (!result.success) {
-        showTeamActionError(result, 'No se pudo actualizar el usuario');
+        showTeamActionError(result, 'No se pudo actualizar a la persona');
         return;
       }
-      toast.success('Usuario actualizado');
-    } else {
-      const result = await addTeamMember({
-        name: values.name.trim(),
-        email: values.email.trim(),
-        role_id: values.role_id ?? 0,
-        password: values.password,
-      });
-      if (!result.success) {
-        showTeamActionError(result, 'No se pudo agregar el usuario');
-        return;
-      }
-      toast.success('Usuario agregado al equipo');
+      toast.success('Persona actualizada');
+      onOpenChange(false);
+      onSaved();
+      return;
     }
-    onOpenChange(false);
+
+    const result = await addTeamMember({
+      name: values.name.trim(),
+      email: values.email.trim(),
+      role_id: values.role_id ?? 0,
+    });
+    if (!result.success || !result.data) {
+      showTeamActionError(result, 'No se pudo agregar a la persona');
+      return;
+    }
+    setCreated({
+      name: values.name.trim(),
+      email: values.email.trim(),
+      password: result.data.temporaryPassword,
+    });
     onSaved();
   };
 
@@ -184,11 +144,11 @@ export const TeamMemberSheet = ({
     <TeamSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? 'Editar usuario' : 'Agregar usuario'}
+      title={isEdit ? 'Editar persona' : 'Agregar persona'}
       description={
         isEdit
           ? 'Actualiza el nombre o el correo de esta persona.'
-          : 'La persona entrará con este correo y la contraseña que definas.'
+          : 'Entra con su correo y una contraseña temporal que tú le pasas.'
       }
     >
       <Form {...form}>
@@ -197,73 +157,83 @@ export const TeamMemberSheet = ({
           className="space-y-4"
           noValidate
         >
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
-                <FormControl>
-                  <Input {...field} autoComplete="name" placeholder="Nombre y apellido" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+          <fieldset disabled={Boolean(created)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre</FormLabel>
+                  <FormControl>
+                    <Input {...field} autoComplete="name" placeholder="Nombre y apellido" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Correo electrónico</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="persona@empresa.com"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {isEdit ? null : (
+              <>
+                <FormField
+                  control={form.control}
+                  name="role_id"
+                  render={({ field, fieldState }) => (
+                    <TeamRolePicker
+                      name="team-member-role"
+                      roles={teamRolePickerOptions(roles)}
+                      value={field.value ?? null}
+                      onChange={field.onChange}
+                      error={fieldState.error?.message}
+                    />
+                  )}
+                />
+              </>
             )}
-          />
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Correo electrónico</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    placeholder="persona@empresa.com"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          </fieldset>
           {isEdit ? null : (
-            <>
-              <FormField
-                control={form.control}
-                name="role_id"
-                render={({ field, fieldState }) => (
-                  <TeamRolePicker
-                    name="team-member-role"
-                    roles={roles}
-                    value={field.value ?? null}
-                    onChange={field.onChange}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-              <TeamPasswordFields control={form.control} />
-            </>
+            <TeamTemporaryPasswordBox created={created} companyName={companyName} />
           )}
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
+          {created ? (
+            <Button type="button" className="min-h-11 w-full" onClick={() => onOpenChange(false)}>
+              Listo
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="min-h-11">
-              {isSubmitting
-                ? 'Guardando…'
-                : isEdit
-                  ? 'Guardar cambios'
-                  : 'Agregar usuario'}
-            </Button>
-          </div>
+          ) : (
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="min-h-11">
+                {isSubmitting
+                  ? 'Guardando…'
+                  : isEdit
+                    ? 'Guardar cambios'
+                    : 'Agregar'}
+              </Button>
+            </div>
+          )}
         </form>
       </Form>
     </TeamSheet>

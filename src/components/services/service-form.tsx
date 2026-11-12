@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { logSupportCode } from '@/lib/support-code-log';
 import type { Service } from '@/db/schema';
 import { createService, updateService } from '@/actions/services';
 import { ServiceMaterialsField } from '@/components/services/service-materials-field';
@@ -95,7 +96,8 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
 
   const handleSubmit = async (data: ServiceFormValues) => {
     if (!selectedCompany?.id) {
-      toast.error('Selecciona una empresa para continuar. Código: CO006');
+      logSupportCode('CO006');
+      toast.error('Selecciona una empresa para continuar.');
       return;
     }
 
@@ -215,13 +217,14 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
           render={({ field }) => (
             <FormItem className="space-y-3">
               <FormLabel className="text-sm font-medium text-foreground">
-                Precio base
+                Precio
               </FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
+                {/* FormControl wraps the input itself so the label names it (ZIG-I36 M-32). */}
+                <FormControl>
                   <Input
                     type="number"
                     step="0.01"
@@ -230,8 +233,8 @@ export function ServiceForm({ service, onSuccess, onCancel }: ServiceFormProps) 
                     className="h-12 border-2 pl-8 focus:border-primary transition-colors"
                     {...field}
                   />
-                </div>
-              </FormControl>
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}

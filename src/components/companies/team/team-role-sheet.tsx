@@ -5,7 +5,11 @@ import { toast } from 'sonner';
 
 import { changeTeamMemberRole } from '@/actions/team';
 import { Button } from '@/components/ui/button';
-import type { TeamMember, TeamRoleOption } from '@/lib/team-members';
+import {
+  teamRolePickerOptions,
+  type TeamMember,
+  type TeamRoleOption,
+} from '@/lib/team-members';
 import { showTeamActionError } from './team-member-sheet';
 import { TeamRolePicker } from './team-role-picker';
 import { TeamSheet } from './team-sheet';
@@ -61,7 +65,7 @@ export const TeamRoleSheet = ({
         <TeamRolePicker
           name="team-change-role"
           legend="Nuevo rol"
-          roles={roles}
+          roles={teamRolePickerOptions(roles)}
           value={roleId}
           onChange={setRoleId}
         />

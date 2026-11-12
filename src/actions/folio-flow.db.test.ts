@@ -39,7 +39,7 @@ jest.mock('@/lib/company-production-guard', () => ({
 import { convertPresupuestoToTicket, createPresupuestoWithLines } from '@/actions/presupuestos';
 import { createTicketWithLines } from '@/actions/tickets';
 import { db } from '@/lib/db';
-import { formatDisplayFolio } from '@/lib/folio';
+import { formatDocumentFolio, formatSourcePresupuestoFolio } from '@/lib/folio';
 
 const enabled = process.env.FOLIO_DB_TEST === '1';
 const describeDb = enabled ? describe : describe.skip;
@@ -88,7 +88,7 @@ describeDb('folio flow in a fresh company (real actions, real Postgres)', () => 
     await db.delete(company).where(eq(company.id, companyId));
   });
 
-  it('numbers presupuestos and tickets from 1 and keeps the P folio on a converted recibo', async () => {
+  it('numbers presupuestos and tickets from 1; a converted recibo keeps its own R folio', async () => {
     const base = { company_id: companyId, client_id: clientId, ticket_date: new Date(), lines };
 
     const first = await createPresupuestoWithLines({ ...base, expires_at: null } as never);
@@ -109,7 +109,8 @@ describeDb('folio flow in a fresh company (real actions, real Postgres)', () => 
       where: eq(ticket.id, BigInt(first.data!.id)),
       columns: { folio_number: true, folio_prefix: true },
     });
-    expect(formatDisplayFolio({ ...work!, source_presupuesto_folio: source })).toBe('P-0001');
+    expect(formatDocumentFolio(work!)).toBe('R-0001');
+    expect(formatSourcePresupuestoFolio(source)).toBe('P-0001');
 
     const plain = await createTicketWithLines({ ...base } as never);
     expect(plain.data?.folio).toBe('R-0002');

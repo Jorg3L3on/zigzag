@@ -10,6 +10,7 @@ export type ErrorModule =
   | 'permissions'
   | 'roles'
   | 'services'
+  | 'service-schedules'
   | 'ticket-services'
   | 'tickets'
   | 'users';
@@ -76,7 +77,7 @@ export const ERROR_CATALOG = {
     code: 'CL006',
     module: 'clients',
     title: 'Cliente no encontrado',
-    message: 'El cliente solicitado no existe o ya no está disponible.',
+    message: 'No encontramos ese cliente. Puede que alguien lo haya borrado.',
     type: 'validation',
   },
   CL007: {
@@ -330,6 +331,48 @@ export const ERROR_CATALOG = {
     message: 'Nadie más podría gestionar el equipo o los roles. Deja Equipo y Roles en Editar, o da ese permiso a otro rol con personas asignadas.',
     type: 'validation',
   },
+  RL007: {
+    code: 'RL007',
+    module: 'roles',
+    title: 'No puedes dar permisos que tú no tienes',
+    message: 'Un rol solo puede tener permisos que también tiene el tuyo. Pide a alguien con esos permisos que lo cambie.',
+    type: 'validation',
+  },
+  SS001: {
+    code: 'SS001',
+    module: 'service-schedules',
+    title: 'Recordatorio no encontrado',
+    message: 'El recordatorio no existe o ya no está disponible.',
+    type: 'validation',
+  },
+  SS002: {
+    code: 'SS002',
+    module: 'service-schedules',
+    title: 'Fecha no válida',
+    message: 'Elige una fecha dentro del rango permitido e intenta de nuevo.',
+    type: 'validation',
+  },
+  SS003: {
+    code: 'SS003',
+    module: 'service-schedules',
+    title: 'El recordatorio está pausado',
+    message: 'Reanuda el recordatorio antes de posponerlo o marcarlo como hecho.',
+    type: 'validation',
+  },
+  SS004: {
+    code: 'SS004',
+    module: 'service-schedules',
+    title: 'Selección no válida',
+    message: 'Elige entre 1 y 50 recordatorios e intenta de nuevo.',
+    type: 'validation',
+  },
+  SS005: {
+    code: 'SS005',
+    module: 'service-schedules',
+    title: 'No se pudo actualizar el recordatorio',
+    message: 'Intenta de nuevo en unos momentos.',
+    type: 'server',
+  },
   SV001: {
     code: 'SV001',
     module: 'services',
@@ -357,6 +400,13 @@ export const ERROR_CATALOG = {
     title: 'No se pudo eliminar el servicio',
     message: 'Intenta de nuevo en unos momentos.',
     type: 'server',
+  },
+  SV005: {
+    code: 'SV005',
+    module: 'services',
+    title: 'Servicio no encontrado',
+    message: 'No encontramos ese servicio. Puede que alguien lo haya borrado.',
+    type: 'validation',
   },
   TC001: {
     code: 'TC001',
@@ -434,6 +484,13 @@ export const ERROR_CATALOG = {
     module: 'tickets',
     title: 'El total es demasiado grande',
     message: 'El total no puede pasar de $9,999,999,999.99.',
+    type: 'validation',
+  },
+  TC012: {
+    code: 'TC012',
+    module: 'tickets',
+    title: 'Presupuesto cerrado',
+    message: 'Este presupuesto ya fue aceptado o cancelado; su vigencia ya no cambia.',
     type: 'validation',
   },
   TS001: {
@@ -532,6 +589,20 @@ export const ERROR_CATALOG = {
     module: 'users',
     title: 'No puedes darte una contraseña temporal',
     message: 'Para cambiar tu contraseña usa Mi cuenta. Si la olvidaste, pide a otra persona administradora que lo haga.',
+    type: 'validation',
+  },
+  US009: {
+    code: 'US009',
+    module: 'users',
+    title: 'No puedes cambiar tu propio rol',
+    message: 'Pide a otra persona administradora que lo cambie.',
+    type: 'validation',
+  },
+  US010: {
+    code: 'US010',
+    module: 'users',
+    title: 'Esta persona tiene más permisos que tú',
+    message: 'Solo alguien con al menos sus mismos permisos puede darle una contraseña temporal.',
     type: 'validation',
   },
 } as const satisfies Record<string, ErrorCatalogEntry>;

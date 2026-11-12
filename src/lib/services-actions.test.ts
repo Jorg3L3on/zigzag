@@ -11,6 +11,7 @@ import {
 } from '@/actions/services';
 import { material, service, serviceMaterial } from '@/db/schema';
 import { db } from '@/lib/db';
+import { recordResourceAudit } from '@/lib/resource-audit';
 import {
   requireActionAuth,
   requireActionPermission,
@@ -119,8 +120,10 @@ describe('cross-tenant IDOR — service actions', () => {
 
     const result = await deleteService(IDOR_RESOURCES_A.serviceId);
 
-    expect(result.success).toBe(true);
-    expect(mockDb.update).toHaveBeenCalled();
+    // Nothing matched: report it instead of "Guardado" (ZIG-I36-13).
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe('SV005');
+    expect(recordResourceAudit).not.toHaveBeenCalled();
   });
 
   it('bulkImportServices denies when permission check fails cross-tenant', async () => {
@@ -382,9 +385,38 @@ describe('service default materials (ZIG-I10)', () => {
       materials: [{ name: 'Tubo', quantity: 1, price: 10 }],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe('SV005');
     expect(writes.some((write) => write.table === serviceMaterial)).toBe(false);
     expect(writes.some((write) => write.table === material)).toBe(false);
+  });
+
+  it('updateService writes only whitelisted columns (ZIG-I36-12)', async () => {
+    mockDb.query.service.findFirst.mockResolvedValue({ id: IDOR_RESOURCES_A.serviceId });
+    const writes = runTransactionWith([]);
+
+    const result = await updateService({
+      id: IDOR_RESOURCES_A.serviceId,
+      name: 'Nuevo nombre',
+      deleted_at: new Date(),
+      company_id: 999,
+    } as never);
+
+    expect(result.success).toBe(true);
+    const update = writes.find((write) => write.kind === 'update' && write.table === service);
+    expect(Object.keys(update?.values as object).sort()).toEqual(['name', 'updated_at']);
+  });
+
+  it('updateService refuses a deleted service (ZIG-I36-12)', async () => {
+    // The deleted_at IS NULL lookup finds nothing.
+    mockDb.query.service.findFirst.mockResolvedValue(undefined);
+    const writes = runTransactionWith([]);
+
+    const result = await updateService({ id: IDOR_RESOURCES_A.serviceId, name: 'Revivir' });
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).toBe('SV005');
+    expect(writes).toEqual([]);
   });
 
   it('updateService replaces the material set of its own service', async () => {

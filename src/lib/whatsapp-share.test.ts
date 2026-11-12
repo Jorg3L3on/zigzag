@@ -4,8 +4,11 @@ import {
   buildWhatsAppDayVisitShare,
   buildWhatsAppHref,
   buildWhatsAppOfflineReceiptShare,
+  buildWhatsAppQuoteReminderMessage,
   buildWhatsAppQuoteShare,
   buildWhatsAppReceiptShare,
+  buildWhatsAppStatementMessage,
+  buildWhatsAppStatementShare,
   buildWhatsAppVisitShare,
   buildOfflineReceiptText,
   normalizePhoneForWhatsApp,
@@ -202,5 +205,114 @@ describe('whatsapp-share', () => {
         'transferencia',
       );
     });
+  });
+
+  describe('estado de cuenta (ZIG-I31-1)', () => {
+    const payment = {
+      bank: 'BBVA',
+      holder: 'Juan Pérez',
+      clabe: '002010077777777771',
+      note: null,
+    };
+    const tickets = [
+      { ticketId: 16, folio: 'R-0016', date: new Date('2026-01-02T18:00:00Z'), balanceDue: 1210 },
+      { ticketId: 36, folio: 'R-0036', date: new Date('2026-03-15T18:00:00Z'), balanceDue: 1600 },
+    ];
+
+    it('lists every ticket with folio, date and saldo, then the total and the transfer data', () => {
+      const message = buildWhatsAppStatementMessage({
+        clientName: 'Museo de Arte Contemporáneo',
+        tickets,
+        companyName: 'ClimaTotal Demo',
+        payment,
+      });
+      expect(message).toBe(
+        [
+          'Hola, te escribe ClimaTotal Demo. Tienes 2 tickets con saldo pendiente:',
+          '• R-0016 (2 ene 2026): $1,210.00',
+          '• R-0036 (15 mar 2026): $1,600.00',
+          'Total pendiente: $2,810.00.',
+          'Cuando puedas, por favor confirma el pago. ¡Gracias!',
+          '',
+          'Para pagar por transferencia:',
+          'Banco BBVA · Titular Juan Pérez · CLABE 002010077777777771',
+        ].join('\n'),
+      );
+    });
+
+    it('uses the company day for the date and #id without a folio', () => {
+      const message = buildWhatsAppStatementMessage({
+        clientName: 'Ana',
+        // 02:00 UTC on the 3rd is still the 2nd in Mexico City.
+        tickets: [
+          { ticketId: 7, date: new Date('2026-01-03T02:00:00Z'), balanceDue: 100.5 },
+          { ticketId: 8, date: null, balanceDue: 50 },
+        ],
+      });
+      expect(message).toContain('• #7 (2 ene 2026): $100.50');
+      expect(message).toContain('• #8: $50.00');
+      expect(message).toContain('Total pendiente: $150.50.');
+      expect(message.startsWith('Hola, te escribimos de ZigZag.')).toBe(true);
+    });
+
+    it('delegates to the per-ticket reminder with one ticket', () => {
+      const input = {
+        clientName: 'Leon',
+        companyName: 'ClimaTotal',
+        payment,
+      };
+      expect(
+        buildWhatsAppStatementMessage({ ...input, tickets: [tickets[0]] }),
+      ).toBe(
+        buildWhatsAppBalanceShare({
+          ...input,
+          phone: '9613151559',
+          ticketId: 16,
+          folio: 'R-0016',
+          balanceDue: 1210,
+        })!.message,
+      );
+    });
+
+    it('needs a phone and at least one ticket for the wa.me link', () => {
+      expect(
+        buildWhatsAppStatementShare({ phone: null, clientName: 'Ana', tickets }),
+      ).toBeNull();
+      expect(
+        buildWhatsAppStatementShare({ phone: '9613151559', clientName: 'Ana', tickets: [] }),
+      ).toBeNull();
+      expect(
+        buildWhatsAppStatementShare({ phone: '9613151559', clientName: 'Ana', tickets })!.href,
+      ).toMatch(/^https:\/\/wa\.me\/9613151559\?text=/);
+    });
+  });
+});
+
+describe('buildWhatsAppQuoteReminderMessage (ZIG-I29-1)', () => {
+  const base = {
+    clientName: 'Residencial Las Palmas',
+    ticketId: 4,
+    folio: 'P-0004',
+    total: 5120,
+    servicesSummary: 'Instalación mini-split',
+    companyName: 'ClimaTotal Demo',
+    now: new Date('2026-10-25T15:00:00'),
+  };
+
+  it('reminds an open quote with its date', () => {
+    expect(
+      buildWhatsAppQuoteReminderMessage({ ...base, validUntil: '2026-10-25T12:00:00' }),
+    ).toBe(
+      'Hola, te escribe ClimaTotal Demo. Te recordamos el presupuesto P-0004 por $5,120 para Instalación mini-split. Es válido hasta el 25 de octubre de 2026. ¿Te confirmamos?',
+    );
+  });
+
+  it('offers to update an expired one, and asks plainly without a date', () => {
+    expect(
+      buildWhatsAppQuoteReminderMessage({ ...base, validUntil: '2026-10-20T12:00:00' }),
+    ).toContain('Venció el 20 de octubre de 2026; si te sigue interesando, lo actualizamos.');
+    expect(buildWhatsAppQuoteReminderMessage({ ...base, validUntil: null })).toMatch(
+      /Instalación mini-split\. ¿Te confirmamos\?$/,
+    );
   });
 });

@@ -6,10 +6,11 @@ import {
 } from '@/components/clients/clients-sort-presets';
 import {
   ButtonFilterGroup,
-  ListFilterBarShell,
+  ListFilterSelect,
+  ListToolbar,
   MobileSortSelect,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 export type ContactFilter = 'all' | 'with' | 'without';
 
@@ -21,6 +22,19 @@ const EMAIL_FILTER_OPTIONS = [
 
 const PHONE_FILTER_OPTIONS = [
   { value: 'all' as const, label: 'Todos' },
+  { value: 'with' as const, label: 'Con teléfono' },
+  { value: 'without' as const, label: 'Sin teléfono' },
+];
+
+/** The desktop pills say what they filter, since they have no label above (ZIG-30). */
+const EMAIL_SELECT_OPTIONS = [
+  { value: 'all' as const, label: 'Con y sin correo' },
+  { value: 'with' as const, label: 'Con correo' },
+  { value: 'without' as const, label: 'Sin correo' },
+];
+
+const PHONE_SELECT_OPTIONS = [
+  { value: 'all' as const, label: 'Con y sin teléfono' },
   { value: 'with' as const, label: 'Con teléfono' },
   { value: 'without' as const, label: 'Sin teléfono' },
 ];
@@ -85,16 +99,20 @@ export const ClientsFilterBar = ({
   onClearFilters,
   filterChips,
 }: ClientsFilterBarProps) => (
-  <ListFilterBarShell
-    searchValue={searchValue}
-    onSearchChange={onSearchChange}
-    searchPlaceholder="Buscar por nombre, teléfono, correo o documento..."
-    searchAriaLabel="Buscar clientes"
+  // One bar for both layouts: the phone sheet, chips and sort below lg, the pills
+  // and Limpiar filtros on the search row from lg (ZIG-I33 §2).
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por nombre, teléfono, correo o documento...',
+      ariaLabel: 'Buscar clientes',
+    }}
     sheetFilterCount={sheetFilterCount}
     sheetDescription="Correo, teléfono y orden de la lista."
     hasActiveFilters={hasActiveFilters}
-    onClearFilters={onClearFilters}
-    clearFiltersAriaLabel="Limpiar filtros de clientes"
+    onClear={onClearFilters}
+    clearAriaLabel="Limpiar filtros de clientes"
     filterChips={filterChips}
     sheetContent={
       <>
@@ -117,12 +135,23 @@ export const ClientsFilterBar = ({
         />
       </>
     }
-    desktopContent={renderContactFilters(
-      emailFilter,
-      onEmailFilterChange,
-      phoneFilter,
-      onPhoneFilterChange,
-      'desktop',
-    )}
+    filters={
+      <>
+        <ListFilterSelect
+          value={emailFilter}
+          allValue="all"
+          onChange={onEmailFilterChange}
+          options={EMAIL_SELECT_OPTIONS}
+          ariaLabel="Filtrar clientes por correo"
+        />
+        <ListFilterSelect
+          value={phoneFilter}
+          allValue="all"
+          onChange={onPhoneFilterChange}
+          options={PHONE_SELECT_OPTIONS}
+          ariaLabel="Filtrar clientes por teléfono"
+        />
+      </>
+    }
   />
 );

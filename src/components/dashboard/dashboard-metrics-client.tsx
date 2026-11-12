@@ -37,6 +37,7 @@ import {
 } from '@/lib/dashboard-composition';
 import type { ExperienceMode } from '@/lib/experience-mode';
 import { getExpiredLoginPath } from '@/lib/login-redirect';
+import { probeSession } from '@/lib/session-probe';
 import { resolveDashboardPersona } from '@/lib/dashboard-persona';
 import type { DashboardKpiKey } from '@/lib/dashboard-kpi';
 import { useCompany } from '@/contexts/company-context';
@@ -142,12 +143,19 @@ export const DashboardMetricsClient = ({
       return;
     }
     if (!session?.user?.company_id) {
-      const callbackPath =
-        typeof window === 'undefined'
-          ? undefined
-          : `${window.location.pathname}${window.location.search}`;
-      router.replace(getExpiredLoginPath(callbackPath));
-      return;
+      // With no signal useSession cannot reach the server and looks signed out.
+      // Only a server that answers "no session" sends the user to sign in again
+      // (ZIG-I36-15); otherwise Hoy stays as it was loaded.
+      let cancelled = false;
+      void probeSession().then((probe) => {
+        if (cancelled || probe.status !== 'expired') return;
+        const callbackPath = `${window.location.pathname}${window.location.search}`;
+        router.replace(getExpiredLoginPath(callbackPath));
+      });
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
     }
 
     const isSystem = session.user.company_is_system;

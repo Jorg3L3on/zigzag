@@ -10,33 +10,29 @@ import {
   type PresupuestoListItem,
 } from '@/actions/presupuestos';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PDFDownloadButton } from '@/components/pdf-download-button';
+import { PresupuestoStatusPill } from '@/components/presupuestos/presupuesto-detail-layout';
 import { FormattedCurrency } from '@/components/formatted-currency';
 import {
   TripledEmptyState,
   TripledListLoadingState,
 } from '@/components/tripled';
-import { ListFilterBarShell } from '@/components/list-filter';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import { ListFilterBarShell, ListLoading } from '@/components/list-page';
+import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table';
+import { SystemCompanyContextEmptyState } from '@/components/system-company-context-empty-state';
 import { useCompany } from '@/contexts/company-context';
+import { useDesktopViewport } from '@/hooks/use-desktop';
 import { usePermissions } from '@/hooks/use-permissions';
 import { getErrorDisplayMessage } from '@/lib/network-awareness';
 import { filterPresupuestosBySearch } from '@/lib/presupuestos-search';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
-import { canWriteTickets } from '@/lib/tickets-rbac';
+import { canDownloadTicketInvoice, canWriteTickets } from '@/lib/tickets-rbac';
 import type { PresupuestoStatus } from '@/lib/ticket-document-kind';
 import { cn } from '@/lib/utils';
 
-const statusVariant = (
-  status: PresupuestoListItem['status'],
-): 'default' | 'secondary' | 'destructive' | 'outline' => {
-  if (status === 'cancelado') return 'outline';
-  if (status === 'vencido') return 'destructive';
-  if (status === 'convertido') return 'secondary';
-  return 'default';
-};
-
-const shortDate = (value: string): string => {
+/** The phone card's «8 oct 26» (unchanged by ZIG-I33); the desktop table uses ListShortDate. */
+const phoneCardDate = (value: string): string => {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? ''
@@ -46,7 +42,7 @@ const shortDate = (value: string): string => {
 const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
   { status: 'abierto', label: 'Abiertos' },
   { status: 'vencido', label: 'Vencidos' },
-  { status: 'convertido', label: 'Convertidos' },
+  { status: 'convertido', label: 'Aceptados' },
   { status: 'cancelado', label: 'Cancelados' },
 ];
 
@@ -54,11 +50,44 @@ const STATUS_FILTERS: Array<{ status: PresupuestoStatus; label: string }> = [
 export const DEFAULT_PRESUPUESTO_FILTER: PresupuestoStatus[] = ['abierto', 'vencido'];
 
 /**
- * Presupuestos list (ZIG-I5-5): status chips (multi-select) over tappable rows
+ * Presupuestos list. Below lg the cards of ZIG-I5-5 (unchanged); from lg the
+ * table with views and server counts (ZIG-I29-3, ZIG-I33-2). DesktopSwitch keeps
+ * one tree, and only the tree that owns the width loads, never both while it hydrates.
+ */
+export const PresupuestosList = () => {
+  const { selectedCompany } = useCompany();
+  const { can, isSystem, loading: permissionsLoading } = usePermissions();
+  const isDesktop = useDesktopViewport();
+  const missingCompany = needsSelectedCompanyContext(isSystem, selectedCompany?.id);
+
+  return (
+    <DesktopSwitch
+      phone={<PresupuestosPhoneList enabled={isDesktop === false} />}
+      desktop={
+        permissionsLoading ? (
+          <ListLoading label="Cargando presupuestos…" columns={7} />
+        ) : missingCompany ? (
+          <SystemCompanyContextEmptyState resourceLabel="presupuestos" />
+        ) : (
+          <PresupuestosTable
+            companyId={selectedCompany?.id ?? null}
+            companyName={selectedCompany?.name ?? null}
+            canWrite={canWriteTickets(can)}
+            canInvoice={canDownloadTicketInvoice(can)}
+            enabled={isDesktop === true}
+          />
+        )
+      }
+    />
+  );
+};
+
+/**
+ * Phone presupuestos (ZIG-I5-5): status chips (multi-select) over tappable rows
  * that open /presupuestos/[id]; PDF stays as a row action. Convertir and
  * Cancelar live on the detail page behind confirmations.
  */
-export const PresupuestosList = () => {
+const PresupuestosPhoneList = ({ enabled }: { enabled: boolean }) => {
   const { selectedCompany } = useCompany();
   const { can, isSystem, loading: permissionsLoading } = usePermissions();
   const canWrite = canWriteTickets(can);
@@ -84,7 +113,7 @@ export const PresupuestosList = () => {
   }, [searchValue]);
 
   const load = React.useCallback(async () => {
-    if (permissionsLoading) return;
+    if (permissionsLoading || !enabled) return;
     if (missingCompany) {
       setLoading(false);
       setItems([]);
@@ -109,7 +138,7 @@ export const PresupuestosList = () => {
     } finally {
       setLoading(false);
     }
-  }, [missingCompany, permissionsLoading, selectedCompany?.id]);
+  }, [enabled, missingCompany, permissionsLoading, selectedCompany?.id]);
 
   React.useEffect(() => {
     void load();
@@ -248,7 +277,7 @@ export const PresupuestosList = () => {
                   aria-pressed={pressed}
                   onClick={() => toggleFilter(status)}
                   className={cn(
-                    'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                    'inline-flex h-11 shrink-0 items-center gap-1.5 lg:h-9 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                     pressed
                       ? 'border-primary/50 bg-primary/10 text-foreground'
                       : 'border-border bg-background text-muted-foreground hover:text-foreground',
@@ -313,17 +342,14 @@ export const PresupuestosList = () => {
                         </span>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
-                        <Badge
-                          variant={statusVariant(item.status)}
-                          className="h-5 px-1.5 text-caption shadow-none"
-                        >
-                          {item.statusLabel}
-                        </Badge>
+                        {/* The detail's soft pill: the Badge lost its white text to tailwind-merge
+                            (it reads text-caption as a color), leaving grey on solid blue. */}
+                        <PresupuestoStatusPill status={item.status} className="px-2 py-0.5" />
                         <span>{item.folio}</span>
                         {item.ticketDate ? (
                           <>
                             <span aria-hidden>·</span>
-                            <span>{shortDate(item.ticketDate)}</span>
+                            <span>{phoneCardDate(item.ticketDate)}</span>
                           </>
                         ) : null}
                         {item.expiresAt ? (
@@ -331,7 +357,7 @@ export const PresupuestosList = () => {
                             <span aria-hidden>·</span>
                             <span className="inline-flex items-center gap-1">
                               <CalendarClock className="h-3 w-3" aria-hidden />
-                              Vence {shortDate(item.expiresAt)}
+                              Vence {phoneCardDate(item.expiresAt)}
                             </span>
                           </>
                         ) : null}
@@ -347,7 +373,7 @@ export const PresupuestosList = () => {
                     downloadFileName={`presupuesto_${item.id}.pdf`}
                     companyId={selectedCompany?.id}
                     variant="ghost"
-                    className="h-10 w-10"
+                    className="h-11 w-11"
                   />
                 </li>
               ))}

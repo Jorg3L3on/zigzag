@@ -40,3 +40,50 @@ describe('settings.tagline (Lema o giro)', () => {
     expect(normalizeCompanySettingsForDb({ rfc: 'X' })).toEqual({ rfc: 'X' });
   });
 });
+
+describe('payment kind (ZIG-23)', () => {
+  it('validates only the active method and omits payment_kind when it was not chosen', () => {
+    expect(companySettingsSchema.safeParse({ payment_clabe: '002010077777777772' }).success).toBe(
+      false,
+    );
+    expect(
+      companySettingsSchema.safeParse({
+        payment_kind: 'card',
+        payment_card: '4111111111111112',
+        payment_clabe: 'not-digits',
+      }).success,
+    ).toBe(false);
+    expect(
+      companySettingsSchema.safeParse({
+        payment_kind: 'card',
+        payment_card: '4111111111111111',
+      }).success,
+    ).toBe(true);
+    expect(
+      companySettingsSchema.safeParse({
+        payment_kind: 'account',
+        payment_account: '123456789',
+      }).success,
+    ).toBe(false);
+    expect(
+      companySettingsSchema.safeParse({
+        payment_kind: 'clabe',
+        payment_card: 'no es tarjeta',
+        payment_clabe: '002010077777777771',
+      }).success,
+    ).toBe(true);
+
+    expect(normalizeCompanySettingsForDb({ payment_clabe: '0020 1007 7777 7777 71' })).toEqual({
+      payment_clabe: '002010077777777771',
+    });
+    expect(
+      normalizeCompanySettingsForDb({
+        payment_kind: 'card',
+        payment_card: '4111 1111 1111 1111',
+      }),
+    ).toEqual({
+      payment_kind: 'card',
+      payment_card: '4111111111111111',
+    });
+  });
+});

@@ -96,7 +96,10 @@ export async function downloadCompanyExportJson(companyId: number): Promise<{
   };
 }
 
-export async function offboardCompany(companyId: number): Promise<{
+export async function offboardCompany(
+  companyId: number,
+  reason?: string | null,
+): Promise<{
   success: boolean;
   data?: CompanyOffboardingResult;
   error?: string;
@@ -141,10 +144,16 @@ export async function offboardCompany(companyId: number): Promise<{
         ...sanitizeCompanyForAudit(updated),
         offboarding: summary,
       },
+      // The operator's reason (ZIG-I38-7), shown in Ciclo de vida's history.
+      extra: {
+        reason:
+          typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 500) : null,
+      },
     });
 
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}/edit`);
+    revalidatePath('/operator-console');
 
     return {
       success: true,

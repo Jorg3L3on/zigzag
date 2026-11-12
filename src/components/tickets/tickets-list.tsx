@@ -3,25 +3,47 @@
 import * as React from 'react';
 import {
   getCoreRowModel,
-  getSortedRowModel,
   useReactTable,
   type PaginationState,
   type SortingState,
 } from '@tanstack/react-table';
-import type { Ticket } from '@/actions/tickets';
+import type { Ticket, TicketListCounts } from '@/actions/tickets';
 import { getTicketsPaginated } from '@/actions/tickets';
-import { TicketsFilterBar } from '@/components/tickets/tickets-filter-bar';
+import { getClientsList } from '@/actions/clients';
+import type { SearchableSelectOption } from '@/components/ui/searchable-select';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  LIST_PAGE_SIZE,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+} from '@/components/list-page';
+import {
+  TicketCollectionTabs,
+  TicketsDesktopToolbar,
+  TicketsFilterBar,
+} from '@/components/tickets/tickets-filter-bar';
 import {
   buildTicketFilterChips,
   countActiveFilters,
   hasActiveTicketFilters,
 } from '@/components/tickets/tickets-list-filter-utils';
 import { TicketsListPagination } from '@/components/tickets/tickets-list-pagination';
-import { TicketsListTable } from '@/components/tickets/tickets-list-table';
 import { TicketsMobileCard } from '@/components/tickets/tickets-mobile-card';
 import { createTicketsColumns } from '@/components/tickets/tickets-columns';
 import { MobilePullToRefresh } from '@/components/mobile-pull-to-refresh';
-import { DEFAULT_TICKET_SORTING } from '@/components/tickets/tickets-sort-presets';
+import {
+  encodeSortingState,
+  parseTicketSortParam,
+  ticketListSortForServer,
+  ticketSortParam,
+} from '@/components/tickets/tickets-sort-presets';
 import type {
   FinishedFilterValue,
   StatusFilterValue,
@@ -35,7 +57,7 @@ import {
 import { useCompany } from '@/contexts/company-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { classifyClientError, presentActionError } from '@/lib/network-awareness';
-import { endOfDay, startOfDay } from 'date-fns';
+import { companyDayRangeIso } from '@/lib/company-day';
 import {
   formatOfflineSnapshotBanner,
   readOfflineSnapshot,
@@ -43,18 +65,25 @@ import {
 } from '@/lib/offline-snapshot';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { needsSelectedCompanyContext } from '@/lib/system-company-context';
+import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
 import { canWriteTickets } from '@/lib/tickets-rbac';
-import { getTicketBalanceDue } from '@/lib/ticket-payment-status';
-import { Ticket as TicketIcon } from 'lucide-react';
+import { Ticket as TicketIcon, Plus } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { parseFinishedFilter, parseStatusFilter } from '@/components/tickets/tickets-list-types';
+import {
+  parseClientFilter,
+  parseFinishedFilter,
+  parseStatusFilter,
+} from '@/components/tickets/tickets-list-types';
 
 type FetchTicketsOutcome = { ok: true } | { ok: false; message: string };
 
-const DEFAULT_PAGE_SIZE = 25;
+/** The one description of the page, as the phone card header reads it (a4aec7d5). */
+const TICKETS_DESCRIPTION = 'Lista de todos los tickets registrados';
 
 export default function TicketsList() {
   const { selectedCompany } = useCompany();
@@ -69,19 +98,21 @@ export default function TicketsList() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = React.useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
-  // Σ saldo and Por cobrar count for the current filters, computed by the server (ZIG-I13-7).
-  const [balanceDue, setBalanceDue] = React.useState(0);
+  const [counts, setCounts] = React.useState<TicketListCounts | null>(null);
+  // Por cobrar count for the phone chip, under the ?finished filter as in sandbox (ZIG-I13-7).
   const [dueCount, setDueCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   // The full-page skeleton only covers the first load (and SSR). Once the
   // filter bar has mounted it must stay mounted so typing keeps its focus.
   const [hasLoadedOnce, setHasLoadedOnce] = React.useState(false);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+  // `?q=` pre-fills the search (the client page links its full list this way).
+  const initialSearch = searchParams.get('q')?.trim() ?? '';
+  const [debouncedSearch, setDebouncedSearch] = React.useState(initialSearch);
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = React.useState<string | null>(
     null,
   );
-  const [searchValue, setSearchValue] = React.useState('');
+  const [searchValue, setSearchValue] = React.useState(initialSearch);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilterValue>(() =>
     parseStatusFilter(searchParams.get('status')),
   );
@@ -89,12 +120,26 @@ export default function TicketsList() {
     React.useState<FinishedFilterValue>(() =>
       parseFinishedFilter(searchParams.get('finished')),
     );
+  // `?cliente=<id>` (ZIG-I37-1): '' is every client.
+  const [clientFilter, setClientFilter] = React.useState<string>(() =>
+    parseClientFilter(searchParams.get('cliente')),
+  );
+  const canReadClients = permissions.can('clients.read');
+  const [clientOptions, setClientOptions] = React.useState<SearchableSelectOption[]>([]);
+  const [clientOptionsState, setClientOptionsState] = React.useState<
+    'loading' | 'ready' | 'error'
+  >('loading');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
-  const [sorting, setSorting] =
-    React.useState<SortingState>(DEFAULT_TICKET_SORTING);
+  // `?orden=`, written by the column headers on desktop and the sort select on phones;
+  // the server sorts the whole list, not the page (ZIG-I33-2).
+  const [sorting, setSorting] = React.useState<SortingState>(() =>
+    parseTicketSortParam(searchParams.get('orden')),
+  );
+  const sortKey = encodeSortingState(sorting);
+  const sortParam = ticketSortParam(sorting);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize: LIST_PAGE_SIZE,
   });
   const ticketsRef = React.useRef<Ticket[]>([]);
 
@@ -107,7 +152,7 @@ export default function TicketsList() {
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, statusFilter, finishedFilter, dateRange]);
+  }, [debouncedSearch, statusFilter, finishedFilter, clientFilter, dateRange, sortKey]);
 
   React.useEffect(() => {
     ticketsRef.current = tickets;
@@ -116,6 +161,11 @@ export default function TicketsList() {
   React.useEffect(() => {
     setStatusFilter(parseStatusFilter(searchParams.get('status')));
     setFinishedFilter(parseFinishedFilter(searchParams.get('finished')));
+    setClientFilter(parseClientFilter(searchParams.get('cliente')));
+    const nextSorting = parseTicketSortParam(searchParams.get('orden'));
+    setSorting((prev) =>
+      encodeSortingState(prev) === encodeSortingState(nextSorting) ? prev : nextSorting,
+    );
   }, [searchParams]);
 
   React.useEffect(() => {
@@ -130,6 +180,16 @@ export default function TicketsList() {
     } else {
       params.set('finished', finishedFilter);
     }
+    if (clientFilter) {
+      params.set('cliente', clientFilter);
+    } else {
+      params.delete('cliente');
+    }
+    if (sortParam) {
+      params.set('orden', sortParam);
+    } else {
+      params.delete('orden');
+    }
     const nextQuery = params.toString();
     const currentQuery = searchParams.toString();
     if (nextQuery === currentQuery) {
@@ -138,7 +198,51 @@ export default function TicketsList() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
       scroll: false,
     });
-  }, [statusFilter, finishedFilter, pathname, router, searchParams]);
+  }, [statusFilter, finishedFilter, clientFilter, sortParam, pathname, router, searchParams]);
+
+  // The client options load once per company, shared by the desktop row and the sheet.
+  React.useEffect(() => {
+    if (!canReadClients || missingCompany || !selectedCompany?.id) {
+      setClientOptions([]);
+      setClientOptionsState('loading');
+      return;
+    }
+    let cancelled = false;
+    setClientOptionsState('loading');
+    void getClientsList({ companyId: selectedCompany.id })
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.success || !result.data) {
+          setClientOptionsState('error');
+          return;
+        }
+        const options = result.data
+          .map((row) => ({
+            value: String(row.id),
+            label: row.name,
+            title: row.name,
+            detail: row.phone ?? undefined,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+        setClientOptions(options);
+        setClientOptionsState('ready');
+      })
+      .catch((error) => {
+        if (!cancelled) setClientOptionsState('error');
+        console.warn('Unable to load clients for the tickets filter:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadClients, missingCompany, selectedCompany?.id]);
+
+  // An id that is not one of this tenant's clients (deleted, another company, typo) is ignored.
+  React.useEffect(() => {
+    if (clientOptionsState !== 'ready' || !clientFilter) return;
+    if (!clientOptions.some((option) => option.value === clientFilter)) {
+      setClientFilter('');
+    }
+  }, [clientOptionsState, clientOptions, clientFilter]);
 
   const fetchTickets = React.useCallback(
     async ({
@@ -174,14 +278,8 @@ export default function TicketsList() {
           setTickets(snapshot.data);
           ticketsRef.current = snapshot.data;
           setTotalCount(snapshot.data.length);
-          // Offline: only what was cached, summed here.
-          setBalanceDue(
-            snapshot.data.reduce(
-              (sum, row) => sum + getTicketBalanceDue(row.total, row.paid),
-              0,
-            ),
-          );
           setDueCount(null);
+          setCounts(null);
           setSnapshotUpdatedAt(snapshot.updatedAt);
           setLoadError(null);
           return true;
@@ -191,12 +289,12 @@ export default function TicketsList() {
         }
       };
 
-      const dateFrom = dateRange?.from
-        ? startOfDay(dateRange.from).toISOString()
+      // The picked day is the company's day, the one the list prints (ZIG-I36-24).
+      const pickedRange = dateRange?.from
+        ? companyDayRangeIso(dateRange.from, dateRange.to ?? dateRange.from)
         : undefined;
-      const dateTo = dateRange?.from
-        ? endOfDay(dateRange.to ?? dateRange.from).toISOString()
-        : undefined;
+      const dateFrom = pickedRange?.from;
+      const dateTo = pickedRange?.to;
 
       try {
         const result = await getTicketsPaginated({
@@ -208,14 +306,16 @@ export default function TicketsList() {
           finishedFilter,
           dateFrom,
           dateTo,
+          clientId: clientFilter && canReadClients ? Number(clientFilter) : undefined,
+          sort: ticketListSortForServer(sorting),
         });
         if (result.success && result.data) {
           const pageItems = result.data.items as Ticket[];
           setTickets(pageItems);
           ticketsRef.current = pageItems;
           setTotalCount(result.data.total);
-          setBalanceDue(result.data.balanceDue ?? 0);
           setDueCount(result.data.dueCount ?? null);
+          setCounts(result.data.counts ?? null);
           setSnapshotUpdatedAt(null);
           setLoadError(null);
           void writeOfflineSnapshot('tickets', selectedCompany.id, pageItems).catch(
@@ -274,7 +374,10 @@ export default function TicketsList() {
       debouncedSearch,
       statusFilter,
       finishedFilter,
+      clientFilter,
+      canReadClients,
       dateRange,
+      sorting,
     ],
   );
 
@@ -342,12 +445,20 @@ export default function TicketsList() {
   const table = useReactTable({
     data: filteredTickets,
     columns,
-    state: { sorting, pagination, columnVisibility: { balance: false } },
+    state: {
+      sorting,
+      pagination,
+      // Every column always shows: «Columnas» is gone from Tickets (ZIG-I37-1).
+      columnVisibility: { client_tel: false },
+    },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    // The rows come sorted and paged from the server.
+    manualSorting: true,
     manualPagination: true,
+    enableMultiSort: false,
+    enableSortingRemoval: false,
     pageCount: Math.max(1, Math.ceil(totalCount / pagination.pageSize)),
   });
 
@@ -356,6 +467,7 @@ export default function TicketsList() {
     statusFilter,
     finishedFilter,
     dateRange,
+    clientId: canReadClients ? clientFilter : '',
   };
   const hasActiveFilters = hasActiveTicketFilters(filterState);
   const listState = resolveResourceListState({
@@ -366,18 +478,33 @@ export default function TicketsList() {
     hasActiveFilters,
   });
   const activeFilterCount = countActiveFilters(filterState);
+  const selectedClient = clientFilter
+    ? clientOptions.find((option) => option.value === clientFilter) ?? null
+    : null;
   const filterChips = buildTicketFilterChips(
     totalCount,
     filteredTickets.length,
     filterState,
+    selectedClient
+      ? { name: selectedClient.label, onRemove: () => setClientFilter('') }
+      : null,
   );
+  const clientFilterControl = canReadClients
+    ? {
+        value: clientFilter,
+        onChange: setClientFilter,
+        options: clientOptions,
+        isLoading: clientOptionsState === 'loading',
+      }
+    : null;
 
   const handleClearFilters = () => {
     setSearchValue('');
     setStatusFilter('all');
     setFinishedFilter('all');
     setDateRange(undefined);
-    setSorting(DEFAULT_TICKET_SORTING);
+    setClientFilter('');
+    // Limpiar never touches the order (ZIG-I33 §2).
   };
 
   const handlePullToRefresh = React.useCallback(async () => {
@@ -398,122 +525,235 @@ export default function TicketsList() {
     return <SystemCompanyContextEmptyState resourceLabel="tickets" />;
   }
 
+  const offlineBanner = snapshotUpdatedAt ? (
+    <div
+      role="status"
+      className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
+    >
+      {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. Un ticket nuevo se guarda
+      en este teléfono y se sube con señal.
+    </div>
+  ) : null;
+  // Desktop: the shared Alert, like Clientes (ZIG-I33 §8); phones keep the banner above.
+  const offlineAlert = snapshotUpdatedAt ? (
+    <Alert
+      role="status"
+      className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100"
+    >
+      <AlertDescription>
+        {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. Un ticket nuevo se guarda en este equipo y se sube con señal.
+      </AlertDescription>
+    </Alert>
+  ) : null;
+
+  // Phones (below lg): the cards of ZIG-I13-7, unchanged by ZIG-I33.
+  const phone =
+    loading && !hasLoadedOnce ? (
+      <TicketsListSkeleton />
+    ) : (
+      <div className="space-y-4">
+        <TicketsFilterBar
+          dueCount={dueCount}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          finishedFilter={finishedFilter}
+          onFinishedFilterChange={setFinishedFilter}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          activeFilterCount={activeFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          filterChips={filterChips}
+          clientFilter={clientFilterControl}
+        />
+
+        {offlineBanner}
+
+        <MobilePullToRefresh
+          label="Desliza para actualizar tickets"
+          onRefresh={handlePullToRefresh}
+          testId="tickets-pull-to-refresh"
+        >
+          {listState.kind === 'loading' ? (
+            <TripledListLoadingState
+              label="Cargando tickets"
+              desktopColumns={7}
+              desktopRows={8}
+              mobileCards={4}
+            />
+          ) : listState.kind === 'error' ? (
+            <TripledEmptyState
+              icon={<TicketIcon className="h-4 w-4" />}
+              title="Error de carga"
+              description={listState.message}
+              role="alert"
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void fetchTickets();
+                  }}
+                >
+                  Reintentar
+                </Button>
+              }
+            />
+          ) : listState.kind === 'empty' ? (
+            <TripledEmptyState
+              icon={<TicketIcon className="h-4 w-4" />}
+              title="Sin tickets"
+              description={
+                canWrite
+                  ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
+                  : 'No hay tickets registrados aún.'
+              }
+              action={
+                canWrite ? (
+                  <Button
+                    type="button"
+                    onClick={() => router.push('/tickets/create')}
+                  >
+                    Crear ticket
+                  </Button>
+                ) : null
+              }
+            />
+          ) : listState.kind === 'filtered-empty' ? (
+            <TripledEmptyState
+              icon={<TicketIcon className="h-4 w-4" />}
+              title="Sin resultados"
+              description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
+              action={
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  Limpiar filtros
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                {visibleRows.map((row) => (
+                  <TicketsMobileCard
+                    key={row.id}
+                    ticket={row.original}
+                    canWrite={canWrite}
+                    onDelete={handleDelete}
+                    onDeleteFailed={handleDeleteFailed}
+                    onPaymentApplied={handlePaymentApplied}
+                    companyId={selectedCompany?.id}
+                  />
+                ))}
+              </div>
+              <TicketsListPagination table={table} />
+            </>
+          )}
+        </MobilePullToRefresh>
+      </div>
+    );
+
+  // From lg (ZIG-I33-2): a refresh keeps the rows, dimmed; the skeleton is the first load only.
+  let desktopBody: React.ReactNode;
   if (loading && !hasLoadedOnce) {
-    return <TicketsListSkeleton />;
+    desktopBody = <ListLoading label="Cargando tickets" columns={7} />;
+  } else if (loadError) {
+    desktopBody = <ListError description={loadError} onRetry={() => void fetchTickets()} />;
+  } else if (filteredTickets.length === 0 && totalCount === 0) {
+    desktopBody = hasActiveFilters ? (
+      <ListNoResults
+        description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
+        onClear={handleClearFilters}
+      />
+    ) : (
+      <ListEmpty
+        title="Sin tickets"
+        description={
+          canWrite
+            ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
+            : 'No hay tickets registrados aún.'
+        }
+        action={
+          canWrite ? (
+            <Button asChild>
+              <Link href="/tickets/create">Crear ticket</Link>
+            </Button>
+          ) : undefined
+        }
+      />
+    );
+  } else {
+    desktopBody = (
+      // Columns follow the list's width, not the viewport (the sidebar takes 256px).
+      <ListTableCard
+        className="@container"
+        footer={
+          <ListFooter
+            total={totalCount}
+            noun="tickets"
+            filtered={hasActiveFilters}
+            shown={filteredTickets.length}
+            pagination={listFooterPagination(table)}
+          />
+        }
+      >
+        <ListTable
+          table={table}
+          ariaLabel="Tickets"
+          busy={loading}
+          getRowHref={(row) => hrefForTicketListRow(row.original, canWrite)}
+          rowTestId="tickets-row"
+        />
+      </ListTableCard>
+    );
   }
 
-  return (
-    <div className="space-y-4">
-      <TicketsFilterBar
-        dueCount={dueCount}
-        balanceDue={balanceDue}
-        searchValue={searchValue}
-        onSearchChange={setSearchValue}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        finishedFilter={finishedFilter}
-        onFinishedFilterChange={setFinishedFilter}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        activeFilterCount={activeFilterCount}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={handleClearFilters}
-        filterChips={filterChips}
+  const desktop = (
+    <>
+      <ListDesktopTitle
+        title="Tickets"
+        // No count in the title: it lives in the tabs, so it never disagrees with the rows (M-33).
+        count={null}
+        description={TICKETS_DESCRIPTION}
+        actions={
+          canWrite ? (
+            <Button asChild>
+              <Link href="/tickets/create">
+                <Plus className="h-4 w-4 shrink-0" aria-hidden data-icon="inline-start" />
+                Nuevo ticket
+              </Link>
+            </Button>
+          ) : null
+        }
       />
-
-      {snapshotUpdatedAt ? (
-        <div
-          role="status"
-          className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
-        >
-          {formatOfflineSnapshotBanner(snapshotUpdatedAt)}. No se puede guardar
-          sin conexión.
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3">
+          <TicketCollectionTabs
+            statusFilter={statusFilter}
+            finishedFilter={finishedFilter}
+            counts={counts}
+            onStatusFilterChange={setStatusFilter}
+            onFinishedFilterChange={setFinishedFilter}
+          />
+          <TicketsDesktopToolbar
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            finishedFilter={finishedFilter}
+            onFinishedFilterChange={setFinishedFilter}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={handleClearFilters}
+            clientFilter={clientFilterControl}
+          />
         </div>
-      ) : null}
-
-      <MobilePullToRefresh
-        label="Desliza para actualizar tickets"
-        onRefresh={handlePullToRefresh}
-        testId="tickets-pull-to-refresh"
-      >
-        {listState.kind === 'loading' ? (
-          <TripledListLoadingState
-            label="Cargando tickets"
-            desktopColumns={7}
-            desktopRows={8}
-            mobileCards={4}
-          />
-        ) : listState.kind === 'error' ? (
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Error de carga"
-            description={listState.message}
-            role="alert"
-            action={
-              <Button
-                variant="outline"
-                onClick={() => {
-                  void fetchTickets();
-                }}
-              >
-                Reintentar
-              </Button>
-            }
-          />
-        ) : listState.kind === 'empty' ? (
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Sin tickets"
-            description={
-              canWrite
-                ? 'Crea el primer ticket para empezar a registrar servicios, pagos y comprobantes.'
-                : 'No hay tickets registrados aún.'
-            }
-            action={
-              canWrite ? (
-                <Button
-                  type="button"
-                  onClick={() => router.push('/tickets/create')}
-                >
-                  Crear ticket
-                </Button>
-              ) : null
-            }
-          />
-        ) : listState.kind === 'filtered-empty' ? (
-          <TripledEmptyState
-            icon={<TicketIcon className="h-4 w-4" />}
-            title="Sin resultados"
-            description="No hay tickets que coincidan con la búsqueda o los filtros seleccionados."
-            action={
-              <Button type="button" variant="outline" onClick={handleClearFilters}>
-                Limpiar filtros
-              </Button>
-            }
-          />
-        ) : (
-          <>
-            <div className="space-y-2.5 md:hidden">
-              {visibleRows.map((row) => (
-                <TicketsMobileCard
-                  key={row.id}
-                  ticket={row.original}
-                  canWrite={canWrite}
-                  onDelete={handleDelete}
-                  onDeleteFailed={handleDeleteFailed}
-                  onPaymentApplied={handlePaymentApplied}
-                  companyId={selectedCompany?.id}
-                />
-              ))}
-            </div>
-
-            <TicketsListTable table={table} canWrite={canWrite} />
-            <TicketsListPagination table={table} />
-          </>
-        )}
-      </MobilePullToRefresh>
-    </div>
+        {offlineAlert}
+        {desktopBody}
+      </div>
+    </>
   );
+
+  return <DesktopSwitch phone={phone} desktop={desktop} />;
 }

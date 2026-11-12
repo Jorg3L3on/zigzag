@@ -1,27 +1,35 @@
 import type { SortingState } from '@tanstack/react-table';
 import type { DateRange } from 'react-day-picker';
 import {
+  TicketClientFilter,
   TicketDateRangeFilter,
   TicketFinishedFilter,
-  TicketStatusFilter,
 } from '@/components/tickets/tickets-filter-fields';
+import type { SearchableSelectOption } from '@/components/ui/searchable-select';
+import type { TicketListCounts } from '@/actions/tickets';
 import type {
   FinishedFilterValue,
   StatusFilterValue,
+  TicketCollectionView,
+} from '@/components/tickets/tickets-list-types';
+import {
+  filtersForTicketCollectionView,
+  ticketCollectionView,
 } from '@/components/tickets/tickets-list-types';
 import { TicketsSortControls } from '@/components/tickets/tickets-sort-controls';
-import { MoneyFigure } from '@/components/documents/money-figure';
 import { cn } from '@/lib/utils';
 import {
+  FILTER_SELECTED_CLASS,
   ListFilterBarShell,
+  ListFilterSelect,
+  ListToolbar,
+  ListViewTabs,
   type ListFilterChip,
-} from '@/components/list-filter';
+} from '@/components/list-page';
 
 type TicketsFilterBarProps = {
   /** Tickets with a saldo under the search/date/finished filters (Por cobrar chip). */
   dueCount?: number | null;
-  /** Σ saldo of the tickets matching the filters, shown as "Por cobrar". */
-  balanceDue?: number | null;
   searchValue: string;
   onSearchChange: (value: string) => void;
   statusFilter: StatusFilterValue;
@@ -36,6 +44,16 @@ type TicketsFilterBarProps = {
   hasActiveFilters: boolean;
   onClearFilters: () => void;
   filterChips: ListFilterChip[];
+  /** «Cliente» (ZIG-I37-1); null hides it (no clients.read). */
+  clientFilter?: TicketClientFilterState | null;
+};
+
+/** The Cliente filter as both bars take it: value, its options and the setter. */
+export type TicketClientFilterState = {
+  value: string;
+  onChange: (value: string) => void;
+  options: SearchableSelectOption[];
+  isLoading?: boolean;
 };
 
 const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
@@ -44,7 +62,23 @@ const QUICK_FILTERS: Array<{ value: StatusFilterValue; label: string }> = [
   { value: 'paid', label: 'Pagados' },
 ];
 
-/** Todos / Por cobrar / Pagados over the existing payment status filter (ZIG-I13-7). */
+const COLLECTION_VIEWS: Array<{
+  id: TicketCollectionView;
+  label: string;
+  countKey: keyof TicketListCounts;
+  /** The canvas dot; the estado pill tones of the rows in that view (ZIG-I33 §6). */
+  dot: string | null;
+}> = [
+  { id: 'all', label: 'Todos', countKey: 'all', dot: null },
+  { id: 'due', label: 'Por cobrar', countKey: 'due', dot: 'bg-amber-500' },
+  { id: 'inProgress', label: 'En proceso', countKey: 'inProgress', dot: 'bg-slate-500' },
+  { id: 'paid', label: 'Pagados', countKey: 'paid', dot: 'bg-emerald-500' },
+];
+
+/**
+ * Todos / Por cobrar / Pagados over the existing payment status filter (ZIG-I13-7). The
+ * chosen chip is a state, tinted, never the solid blue of the page action (ZIG-I27-3).
+ */
 const TicketQuickFilters = ({
   value,
   onChange,
@@ -54,33 +88,77 @@ const TicketQuickFilters = ({
   onChange: (value: StatusFilterValue) => void;
   dueCount: number | null;
 }) => (
-  <div role="group" aria-label="Filtro de cobro" className="flex flex-wrap gap-2">
-    {QUICK_FILTERS.map((option) => {
-      const pressed = value === option.value;
-      return (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={pressed}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'min-h-11 rounded-full border px-4 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-            pressed
-              ? 'border-foreground bg-foreground font-semibold text-background'
-              : 'border-border text-muted-foreground hover:bg-muted/50',
-          )}
-        >
-          {option.label}
-          {option.value === 'due' && dueCount != null && dueCount > 0 ? ` · ${dueCount}` : ''}
-        </button>
-      );
-    })}
+  <div className="flex flex-col gap-1.5">
+    <span className="hidden text-caption font-medium text-muted-foreground lg:block" aria-hidden>
+      Cobro
+    </span>
+    <div role="group" aria-label="Filtro de cobro" className="flex flex-wrap gap-2">
+      {QUICK_FILTERS.map((option) => {
+        const pressed = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={pressed}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              'min-h-11 rounded-full border px-4 text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+              pressed
+                ? FILTER_SELECTED_CLASS
+                : 'border-border text-muted-foreground hover:bg-muted/50',
+            )}
+          >
+            {option.label}
+            {option.value === 'due' && dueCount != null && dueCount > 0 ? ` · ${dueCount}` : ''}
+          </button>
+        );
+      })}
+    </div>
   </div>
 );
 
+/** Todos / Por cobrar / En proceso / Pagados over the list, with counts (desktop). */
+export const TicketCollectionTabs = ({
+  statusFilter,
+  finishedFilter,
+  counts,
+  onStatusFilterChange,
+  onFinishedFilterChange,
+}: {
+  statusFilter: StatusFilterValue;
+  finishedFilter: FinishedFilterValue;
+  counts: TicketListCounts | null;
+  onStatusFilterChange: (value: StatusFilterValue) => void;
+  onFinishedFilterChange: (value: FinishedFilterValue) => void;
+}) => {
+  const active = ticketCollectionView(statusFilter, finishedFilter);
+
+  const handleSelect = (view: TicketCollectionView) => {
+    const next = filtersForTicketCollectionView(view);
+    onStatusFilterChange(next.status);
+    onFinishedFilterChange(next.finished);
+  };
+
+  return (
+    <ListViewTabs
+      label="Vistas de tickets"
+      tabs={COLLECTION_VIEWS.map((view) => {
+        const count = counts ? counts[view.countKey] : null;
+        return {
+          id: view.id,
+          label: view.label,
+          count,
+          dot: view.dot,
+          caption: count == null ? null : `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
+        };
+      })}
+      isSelected={(id) => active === id}
+      onSelect={handleSelect}
+    />
+  );
+};
+
 const renderTicketFilters = (
-  statusFilter: StatusFilterValue,
-  onStatusFilterChange: (value: StatusFilterValue) => void,
   finishedFilter: FinishedFilterValue,
   onFinishedFilterChange: (value: FinishedFilterValue) => void,
   dateRange: DateRange | undefined,
@@ -88,11 +166,6 @@ const renderTicketFilters = (
   layout: 'desktop' | 'sheet',
 ) => (
   <>
-    <TicketStatusFilter
-      layout={layout}
-      value={statusFilter}
-      onChange={onStatusFilterChange}
-    />
     <TicketFinishedFilter
       layout={layout}
       value={finishedFilter}
@@ -106,9 +179,12 @@ const renderTicketFilters = (
   </>
 );
 
+/**
+ * The phone filter bar (unchanged by ZIG-I33): search, the Cobro chips, the short
+ * sort and Más filtros with the full sheet. Desktop uses `TicketsDesktopToolbar`.
+ */
 export const TicketsFilterBar = ({
   dueCount = null,
-  balanceDue = null,
   searchValue,
   onSearchChange,
   statusFilter,
@@ -123,6 +199,7 @@ export const TicketsFilterBar = ({
   hasActiveFilters,
   onClearFilters,
   filterChips,
+  clientFilter = null,
 }: TicketsFilterBarProps) => (
   <ListFilterBarShell
     searchValue={searchValue}
@@ -137,17 +214,6 @@ export const TicketsFilterBar = ({
         dueCount={dueCount}
       />
     }
-    chipsTrailing={
-      balanceDue == null ? undefined : (
-        <p
-          className="flex shrink-0 items-baseline gap-1.5 pt-1 text-caption text-muted-foreground"
-          data-testid="tickets-balance-due"
-        >
-          <span>Por cobrar</span>
-          <MoneyFigure amount={balanceDue} size="md" className="text-[15px] text-foreground" />
-        </p>
-      )
-    }
     moreFiltersLabel="Más filtros"
     mobileSort={
       <TicketsSortControls
@@ -160,16 +226,16 @@ export const TicketsFilterBar = ({
       />
     }
     sheetFilterCount={activeFilterCount}
-    sheetDescription="Cobro, terminado, fechas y orden de la lista."
+    sheetDescription={clientFilter ? 'Cliente, trabajo, fechas y orden' : 'Trabajo, fechas y orden'}
     hasActiveFilters={hasActiveFilters}
     onClearFilters={onClearFilters}
     clearFiltersAriaLabel="Limpiar filtros"
     filterChips={filterChips}
+    showDesktopClear={false}
     sheetContent={
       <>
+        {clientFilter ? <TicketClientFilter layout="sheet" {...clientFilter} /> : null}
         {renderTicketFilters(
-          statusFilter,
-          onStatusFilterChange,
           finishedFilter,
           onFinishedFilterChange,
           dateRange,
@@ -184,18 +250,67 @@ export const TicketsFilterBar = ({
         />
       </>
     }
-    desktopContent={
-      <div className="flex flex-wrap items-center gap-3">
-        {renderTicketFilters(
-          statusFilter,
-          onStatusFilterChange,
-          finishedFilter,
-          onFinishedFilterChange,
-          dateRange,
-          onDateRangeChange,
-          'desktop',
-        )}
-      </div>
+    desktopContent={null}
+  />
+);
+
+const FINISHED_OPTIONS: ReadonlyArray<{ value: FinishedFilterValue; label: string }> = [
+  { value: 'all', label: 'Todos los trabajos' },
+  { value: 'yes', label: 'Terminados' },
+  { value: 'no', label: 'En proceso' },
+];
+
+type TicketsDesktopToolbarProps = {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  finishedFilter: FinishedFilterValue;
+  onFinishedFilterChange: (value: FinishedFilterValue) => void;
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (value: DateRange | undefined) => void;
+  hasActiveFilters: boolean;
+  /** Clears the filters and the search, never the order. */
+  onClearFilters: () => void;
+  /** «Cliente» (ZIG-I37-1); null hides it (no clients.read). */
+  clientFilter?: TicketClientFilterState | null;
+};
+
+/**
+ * The desktop filter row (ZIG-I33-2): search, the dates, Terminado and Cliente as
+ * pills, Limpiar filtros while one is on. No «Columnas»: every column always shows
+ * (ZIG-I37-1). No sort select: the column headers sort.
+ */
+export const TicketsDesktopToolbar = ({
+  searchValue,
+  onSearchChange,
+  finishedFilter,
+  onFinishedFilterChange,
+  dateRange,
+  onDateRangeChange,
+  hasActiveFilters,
+  onClearFilters,
+  clientFilter = null,
+}: TicketsDesktopToolbarProps) => (
+  <ListToolbar
+    search={{
+      value: searchValue,
+      onChange: onSearchChange,
+      placeholder: 'Buscar por cliente, folio o teléfono',
+      ariaLabel: 'Buscar por cliente, folio o teléfono',
+    }}
+    filters={
+      <>
+        <TicketDateRangeFilter layout="desktop" value={dateRange} onChange={onDateRangeChange} />
+        <ListFilterSelect
+          value={finishedFilter}
+          allValue="all"
+          onChange={onFinishedFilterChange}
+          options={FINISHED_OPTIONS}
+          ariaLabel="Filtrar por trabajo terminado"
+        />
+        {clientFilter ? <TicketClientFilter layout="desktop" {...clientFilter} /> : null}
+      </>
     }
+    hasActiveFilters={hasActiveFilters}
+    onClear={onClearFilters}
   />
 );

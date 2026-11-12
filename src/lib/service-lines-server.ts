@@ -6,7 +6,10 @@ import {
   ticketLineMaterial,
 } from '@/db/schema';
 import type { db } from '@/lib/db';
+import type { ActionAuthContext } from '@/lib/authz-context';
 import { AuthorizationError } from '@/lib/errors';
+import type { AuditWriter } from '@/lib/audit';
+import { recordResourceAudit } from '@/lib/resource-audit';
 import { roundMoney } from '@/lib/money';
 import {
   isCustomMaterialLine,
@@ -147,10 +150,12 @@ export async function buildLineMaterialValues(
 ): Promise<{
   values: TicketLineMaterialInsert[];
   createdMaterialIds: number[];
+  createdMaterials: CatalogMaterial[];
 }> {
   const values: TicketLineMaterialInsert[] = [];
   const createdMaterialIds: number[] = [];
-  if (input.materials.length === 0) return { values, createdMaterialIds };
+  const createdMaterials: CatalogMaterial[] = [];
+  if (input.materials.length === 0) return { values, createdMaterialIds, createdMaterials };
 
   const tx = requireSelect(executor);
   const catalog = await loadCatalogMaterials(
@@ -182,7 +187,10 @@ export async function buildLineMaterialValues(
         unit: item.unit,
         price,
       });
-      if (created) createdMaterialIds.push(row.id);
+      if (created) {
+        createdMaterialIds.push(row.id);
+        createdMaterials.push(row);
+      }
       values.push({
         services_tickets_id: input.servicesTicketsId,
         material_id: row.id,
@@ -204,7 +212,7 @@ export async function buildLineMaterialValues(
       sort_order: index,
     });
   }
-  return { values, createdMaterialIds };
+  return { values, createdMaterialIds, createdMaterials };
 }
 
 /** buildLineMaterialValues + insert. Returns the inserted rows. */
@@ -218,17 +226,16 @@ export async function insertLineMaterials(
 ): Promise<{
   rows: TicketLineMaterialRowInserted[];
   createdMaterialIds: number[];
+  createdMaterials: CatalogMaterial[];
 }> {
-  const { values, createdMaterialIds } = await buildLineMaterialValues(
-    executor,
-    input,
-  );
-  if (values.length === 0) return { rows: [], createdMaterialIds };
+  const { values, createdMaterialIds, createdMaterials } =
+    await buildLineMaterialValues(executor, input);
+  if (values.length === 0) return { rows: [], createdMaterialIds, createdMaterials };
   const rows = await executor
     .insert(ticketLineMaterial)
     .values(values)
     .returning();
-  return { rows, createdMaterialIds };
+  return { rows, createdMaterialIds, createdMaterials };
 }
 
 export const parseServiceLines = (
@@ -284,9 +291,11 @@ export async function buildServiceLineValues(
 ): Promise<{
   values: ServicesTicketsInsert[];
   createdServiceIds: number[];
+  createdServices: Array<typeof service.$inferSelect>;
 }> {
   const values: ServicesTicketsInsert[] = [];
   const createdServiceIds: number[] = [];
+  const createdServices: Array<typeof service.$inferSelect> = [];
 
   for (const line of input.lines) {
     const price = roundMoney(line.price);
@@ -311,8 +320,9 @@ export async function buildServiceLineValues(
           description: line.description ?? line.name,
           price,
         })
-        .returning({ id: service.id });
+        .returning();
       createdServiceIds.push(created.id);
+      createdServices.push(created);
       values.push({
         ticket_id: input.ticketId,
         service_id: created.id,
@@ -332,18 +342,94 @@ export async function buildServiceLineValues(
     });
   }
 
-  return { values, createdServiceIds };
+  return { values, createdServiceIds, createdServices };
 }
 
 export type InsertedServiceLine = ServicesTicketsRowInserted & {
   materials: TicketLineMaterialRowInserted[];
 };
 
+/** True when a line asks to create a catalog Service or Material ("guardar en catálogo"). */
+export const linesSaveToCatalog = (lines: ParsedServiceLine[]): boolean =>
+  lines.some(
+    (line) =>
+      (isCustomServiceLine(line) && line.save_to_catalog) ||
+      line.materials.some((item) => isCustomMaterialLine(item) && item.save_to_catalog),
+  );
+
+/**
+ * Writing the catalog from a composer line needs services.write, the same as
+ * createService; tickets.write alone only gets inline lines (ZIG-I36-8).
+ */
+export async function assertCanSaveToCatalog(
+  lines: ParsedServiceLine[],
+  companyId: number,
+): Promise<void> {
+  if (!linesSaveToCatalog(lines)) return;
+  // Loaded on demand: this module is imported by the pure line helpers and their
+  // tests, which must not pull in the auth stack.
+  const { requireActionPermission } = await import('@/lib/security');
+  await requireActionPermission('services.write', companyId);
+}
+
+const recordCatalogRowsCreated = async (
+  tx: AuditWriter,
+  input: {
+    actor: ActionAuthContext;
+    companyId: number;
+    services: ReadonlyArray<{ id: number }>;
+    materials: ReadonlyArray<{ id: number }>;
+  },
+): Promise<void> => {
+  const rows = [
+    ...input.services.map((row) => ({ resourceType: 'service' as const, row })),
+    ...input.materials.map((row) => ({ resourceType: 'material' as const, row })),
+  ];
+  for (const { resourceType, row } of rows) {
+    await recordResourceAudit(tx, {
+      actor: input.actor,
+      resourceType,
+      resourceId: row.id,
+      targetCompanyId: input.companyId,
+      action: 'created',
+      after: row,
+      source: 'action',
+      extra: { via: 'composer' },
+    });
+  }
+};
+
 /**
  * buildServiceLineValues + insert, then each line's materials (ZIG-I10).
- * Returns the inserted rows with their materials.
+ * Returns the inserted rows with their materials. Lines that save to the
+ * catalog need services.write and leave a service/material audit row.
  */
 export async function insertServiceLines(
+  tx: ServiceLineExecutor,
+  input: {
+    actor: ActionAuthContext;
+    companyId: number;
+    ticketId: bigint;
+    lines: ParsedServiceLine[];
+  },
+): Promise<{
+  rows: InsertedServiceLine[];
+  createdServiceIds: number[];
+  createdMaterialIds: number[];
+}> {
+  await assertCanSaveToCatalog(input.lines, input.companyId);
+  const { createdServices, createdMaterials, ...result } =
+    await insertServiceLinesUnchecked(tx, input);
+  await recordCatalogRowsCreated(tx, {
+    actor: input.actor,
+    companyId: input.companyId,
+    services: createdServices,
+    materials: createdMaterials,
+  });
+  return result;
+}
+
+async function insertServiceLinesUnchecked(
   tx: ServiceLineExecutor,
   input: {
     companyId: number;
@@ -354,11 +440,14 @@ export async function insertServiceLines(
   rows: InsertedServiceLine[];
   createdServiceIds: number[];
   createdMaterialIds: number[];
+  createdServices: Array<typeof service.$inferSelect>;
+  createdMaterials: CatalogMaterial[];
 }> {
-  const { values, createdServiceIds } = await buildServiceLineValues(tx, input);
+  const { values, createdServiceIds, createdServices } = await buildServiceLineValues(tx, input);
   const createdMaterialIds: number[] = [];
+  const createdMaterials: CatalogMaterial[] = [];
   if (values.length === 0) {
-    return { rows: [], createdServiceIds, createdMaterialIds };
+    return { rows: [], createdServiceIds, createdMaterialIds, createdServices, createdMaterials };
   }
   const hasMaterials = input.lines.some((line) => line.materials.length > 0);
   if (!hasMaterials) {
@@ -367,6 +456,8 @@ export async function insertServiceLines(
       rows: inserted.map((row) => ({ ...row, materials: [] })),
       createdServiceIds,
       createdMaterialIds,
+      createdServices,
+      createdMaterials,
     };
   }
   // One insert per line so each material set lands on its own line id
@@ -380,9 +471,10 @@ export async function insertServiceLines(
       materials: input.lines[index].materials,
     });
     createdMaterialIds.push(...result.createdMaterialIds);
+    createdMaterials.push(...result.createdMaterials);
     rows.push({ ...row, materials: result.rows });
   }
-  return { rows, createdServiceIds, createdMaterialIds };
+  return { rows, createdServiceIds, createdMaterialIds, createdServices, createdMaterials };
 }
 
 /** Copies material rows onto a new line, verbatim (presupuesto → ticket). */

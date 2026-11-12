@@ -18,6 +18,7 @@ export default function ForbiddenPage() {
       <TripledDashboardShell maxWidthClassName="max-w-2xl">
         <TripledMobileAppBar title="Acceso denegado" className="mb-3" />
         <TripledResourceCard
+          desktop="page"
           title="No tienes acceso"
           description="El acceso a esta sección depende de los permisos asignados a tu rol."
           icon={<ShieldAlert className="size-5" aria-hidden />}

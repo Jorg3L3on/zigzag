@@ -108,14 +108,38 @@ describe('ticket PDF data', () => {
 
   it('builds a filesystem-safe PDF filename', () => {
     expect(buildTicketPdfFileName(baseTicket)).toBe(
-      'Acme Corp_2026-03-15_42.pdf',
+      'Recibo 42 · Acme Corp.pdf',
     );
+  });
+
+  it('uses the Mexico City day in the issue date and the file name at 23:00 (ZIG-19)', () => {
+    const evening = new Date('2026-10-23T23:00:00-06:00');
+    expect(evening.toISOString().slice(0, 10)).toBe('2026-10-24');
+    const ticket = { ...baseTicket, ticket_date: evening };
+    expect(buildInvoiceDataFromTicketDetail(ticket).issueDate).toBe('23/10/2026');
+    expect(buildTicketPdfFileName(ticket)).toBe('Recibo 42 · Acme Corp.pdf');
   });
 
   it('prefixes presupuesto file names (ZIG-I5-4)', () => {
     expect(
       buildTicketPdfFileName({ ...baseTicket, document_kind: 'presupuesto' }),
-    ).toBe('presupuesto_Acme Corp_2026-03-15_42.pdf');
+    ).toBe('Presupuesto 42 · Acme Corp.pdf');
+  });
+
+  it('keeps ñ and accents and caps the name at 60 characters (ZIG-I36 M-20)', () => {
+    expect(
+      buildTicketPdfFileName({ ...baseTicket, client_name: 'Peña & Muñoz Ñandú' }),
+    ).toBe('Recibo 42 · Peña & Muñoz Ñandú.pdf');
+
+    const long = buildTicketPdfFileName({
+      ...baseTicket,
+      folio_number: 43,
+      folio_prefix: 'R',
+      client_name: 'Bodega de Abarrotes y Distribuciones del Centro de la Ciudad de México SA de CV',
+    });
+    expect(long.length).toBeLessThanOrEqual(60);
+    expect(long.startsWith('Recibo R-0043 · Bodega de Abarrotes y Distri')).toBe(true);
+    expect(long.endsWith('….pdf')).toBe(true);
   });
 
   it('falls back when client name has unsafe characters', () => {
@@ -124,6 +148,6 @@ describe('ticket PDF data', () => {
       client_name: '***',
     });
 
-    expect(fileName).toBe('ticket_2026-03-15_42.pdf');
+    expect(fileName).toBe('Recibo 42.pdf');
   });
 });

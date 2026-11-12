@@ -128,7 +128,8 @@ describe('company-onboarding-checklist', () => {
     expect(snapshot.steps[3]?.complete).toBe(false);
     expect(snapshot.steps[4]?.href).toBe('/company/equipo');
     expect(snapshot.steps[5]?.secondaryHref).toBe('/service-schedules');
-    expect(snapshot.steps[0]?.guideHref).toContain('#paso-3');
+    expect(snapshot.steps[0]?.guideHref).toBe('/ayuda');
+    expect(snapshot.steps[3]?.guideHref).toBe('/ayuda/crear-un-ticket');
   });
 
   it('marks the first ticket step incomplete without services sold or payment', () => {

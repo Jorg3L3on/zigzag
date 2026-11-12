@@ -17,7 +17,7 @@ import {
   SheetPortal,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { focusInitialOverlayTarget } from '@/lib/overlay-focus';
+import { createOverlayOpenerMemory, focusInitialOverlayTarget } from '@/lib/overlay-focus';
 import { cn } from '@/lib/utils';
 
 const SHEET_SPRING: Transition = {
@@ -120,6 +120,9 @@ export const BottomSheet = ({
 }: BottomSheetProps) => {
   const reduceMotion = useReducedMotion();
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const [opener] = React.useState(createOverlayOpenerMemory);
+  // The control that opened the sheet gets focus back on close (ZIG-I36 M-15).
+  if (open) opener.remember();
   const [snapIndex, setSnapIndex] = React.useState(initialSnap);
   const transition = reduceMotion ? INSTANT : SHEET_SPRING;
 
@@ -177,6 +180,7 @@ export const BottomSheet = ({
               onOpenAutoFocus={(event) =>
                 focusInitialOverlayTarget(event, contentRef.current)
               }
+              onCloseAutoFocus={opener.restore}
               // A tap on a toast (Deshacer after quitting a material) is outside
               // the sheet but must not dismiss it (ZIG-I13-2).
               onInteractOutside={(event) => {

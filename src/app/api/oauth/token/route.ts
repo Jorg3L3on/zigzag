@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
   assertRedirectUriAllowed,
+  isUnknownCimdClientId,
   resolveOAuthClient,
   verifyClientSecret,
 } from '@/lib/server/mcp-oauth/clients';
@@ -13,7 +14,6 @@ import {
 } from '@/lib/server/mcp-oauth/cors';
 import {
   exchangeAuthorizationCode,
-  peekAuthorizationCode,
   refreshOAuthGrant,
 } from '@/lib/server/mcp-oauth/grants';
 import {
@@ -26,6 +26,7 @@ import {
 } from '@/lib/server/mcp-oauth/oauth-token-log';
 import {
   enforceOAuthRateLimit,
+  OAUTH_CIMD_RESOLVE_RATE_LIMIT,
   OAUTH_TOKEN_RATE_LIMIT,
 } from '@/lib/server/mcp-oauth/rate-limit';
 import {
@@ -146,6 +147,16 @@ export async function POST(request: NextRequest) {
       input.grant_type === 'authorization_code' && input.client_assertion?.trim(),
     );
 
+    if (await isUnknownCimdClientId(input.client_id)) {
+      const limited = await enforceOAuthRateLimit(
+        'cimd-resolve',
+        request,
+        OAUTH_CIMD_RESOLVE_RATE_LIMIT,
+      );
+      if (limited) {
+        return returnWithAttempt(attemptId, 'rate_limited', 429, limited);
+      }
+    }
     const client = await resolveOAuthClient(input.client_id);
     if (!client) {
       logOAuthTokenFailure({
@@ -183,14 +194,10 @@ export async function POST(request: NextRequest) {
     const resourceParam = input.resource?.trim() || null;
 
     if (input.grant_type === 'authorization_code') {
-      const codePeek = await peekAuthorizationCode(input.code);
-      const authResult = await resolveAuthorizationCodeAuth({
-        client,
+      // client_assertion (private_key_jwt) is accepted in the body but ignored:
+      // PKCE is the only proof (ZIG-38).
+      const authResult = resolveAuthorizationCodeAuth({
         codeVerifier: input.code_verifier,
-        clientAssertion: input.client_assertion,
-        clientAssertionType: input.client_assertion_type,
-        codeClientId: codePeek?.client_id,
-        request,
       });
 
       if (!authResult.ok) {
@@ -227,8 +234,6 @@ export async function POST(request: NextRequest) {
         clientId: input.client_id,
         redirectUri: input.redirect_uri,
         codeVerifier: authResult.codeVerifier,
-        clientAuthenticatedViaPrivateKeyJwt:
-          authResult.clientAuthenticatedViaPrivateKeyJwt,
         resource: resourceParam,
         request,
       });

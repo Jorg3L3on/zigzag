@@ -30,6 +30,9 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
+    /* The band behind desktop list headers (ZIG-I33): slate-50, opaque so the
+       sticky header covers the rows scrolling under it. */
+    --list-head: 210 40% 98%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -62,11 +65,14 @@
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    /* Read as text (7.3:1 on --background, 5.3:1 on --accent) and as a solid
+       button with a dark label (6.5:1), like --primary here (ZIG-I26-1). */
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 222.2 47.4% 11.2%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
+    --list-head: 217.2 32.6% 17.5%;
 
     --sidebar-background: 222.2 47% 7.5%;
     --sidebar-foreground: 210 40% 98%;
@@ -118,8 +124,10 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    /* Set by NetworkStatusBanner when offline/recovered banner is visible */
-    padding-top: var(--network-status-banner-offset, 0px);
+    /* NetworkStatusBanner and PwaInstallBanner set these while their fixed bars are up. */
+    padding-top: calc(
+      var(--network-status-banner-offset, 0px) + var(--pwa-install-banner-offset, 0px)
+    );
   }
 
   /* Native date inputs: keep chrome readable and sized in dark mode / mobile. */
@@ -253,271 +261,65 @@ html[data-display-mode='standalone'] body {
   }
 }
 
-/* Marketing landing surface — scoped brand tokens + motion */
+/* Marketing surface, "Papel y tinta" (ZIG-I39): paper ground, ink type,
+   orange logo gradient. App pieces shown on it keep the app blue. */
 .marketing-surface {
-  --mkt-mist: #e6eef7;
-  --mkt-ink: #07182a;
-  --mkt-muted: #486074;
-  --mkt-signal: #1a6aef;
-  --mkt-signal-deep: #134fba;
-  --mkt-line: rgba(7, 24, 42, 0.1);
-  --mkt-line-strong: rgba(7, 24, 42, 0.18);
-  --mkt-teal: #0f766e;
-  --mkt-foam: #f4f8fc;
+  --pt-ground: #f4efe6;
+  --pt-paper: #fffdf8;
+  --pt-ink: #17140f;
+  --pt-body: #403a30;
+  --pt-muted: #6a6257;
+  --pt-accent: #b5361c;
+  --pt-pale: #e7dfd0;
+  --pt-line: rgba(23, 20, 15, 0.12);
+  --pt-line-strong: rgba(23, 20, 15, 0.22);
+  --pt-orange-from: #ffb224;
+  --pt-orange-to: #e8482e;
+  --pt-button-to: #f2702a;
+  --pt-app-blue: #2563eb;
   color-scheme: light;
 }
 
-.marketing-zigzag-grid {
-  background-image:
-    linear-gradient(
-      135deg,
-      transparent 48%,
-      rgba(26, 106, 239, 0.07) 48%,
-      rgba(26, 106, 239, 0.07) 52%,
-      transparent 52%
-    ),
-    linear-gradient(
-      45deg,
-      transparent 48%,
-      rgba(7, 24, 42, 0.035) 48%,
-      rgba(7, 24, 42, 0.035) 52%,
-      transparent 52%
-    );
-  background-size: 26px 26px;
+.marketing-surface :is(a, button, input, select, summary, textarea):focus-visible {
+  outline: 3px solid var(--pt-app-blue);
+  outline-offset: 3px;
 }
 
-.marketing-grain {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  mix-blend-mode: multiply;
-  opacity: 0.28;
+.marketing-surface .zz-btn {
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
 }
 
-.marketing-mesh {
-  background:
-    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(26, 106, 239, 0.16), transparent 58%),
-    radial-gradient(ellipse 45% 40% at 88% 12%, rgba(15, 118, 110, 0.12), transparent 55%),
-    radial-gradient(ellipse 50% 45% at 70% 78%, rgba(26, 106, 239, 0.08), transparent 60%);
+.marketing-surface .zz-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
-.marketing-marquee-track {
-  display: flex;
-  width: max-content;
-  gap: 2.5rem;
-}
+@media (prefers-reduced-motion: reduce) {
+  .marketing-surface .zz-btn {
+    transition: none;
+  }
 
-@media (prefers-reduced-motion: no-preference) {
-  .marketing-marquee-track {
-    animation: marketing-marquee 28s linear infinite;
+  .marketing-surface .zz-btn:hover {
+    transform: none;
   }
 }
 
-@keyframes marketing-marquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
+/* Torn-receipt edge: zigzag teeth on top and bottom (28px; -sm is 14px). */
+.zz-edge-y,
+.zz-edge-y-sm {
+  --zz-tooth: 28px;
+  -webkit-mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--zz-tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--zz-tooth) 51% repeat-x;
+  mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--zz-tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--zz-tooth) 51% repeat-x;
 }
 
-.marketing-cta-shine {
-  position: relative;
-  overflow: hidden;
-}
-
-.marketing-cta-shine::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-120%);
-  background: linear-gradient(
-    105deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.28) 50%,
-    transparent 65%
-  );
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .marketing-cta-shine:hover::after {
-    animation: marketing-shine 0.85s ease;
-  }
-}
-
-@keyframes marketing-shine {
-  to {
-    transform: translateX(120%);
-  }
-}
-
-.marketing-hero {
-  /* Shorter mobile first viewport keeps brand + CTAs above the fold */
-  min-height: min(88dvh, 48rem);
-}
-
-@media (min-width: 768px) {
-  .marketing-hero {
-    min-height: min(100dvh, 58rem);
-  }
-}
-
-.marketing-hero-copy {
-  display: flex;
-  /* Sit copy under the horizontal cut; keep brand + CTAs in the first viewport */
-  align-items: flex-start;
-  min-height: min(88dvh, 48rem);
-  padding-top: clamp(6.5rem, 34svh, 9.5rem);
-  padding-bottom: 1.5rem;
-}
-
-@media (min-width: 640px) {
-  .marketing-hero-copy {
-    padding-bottom: 2rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .marketing-hero-copy {
-    align-items: center;
-    min-height: min(100dvh, 58rem);
-    /* Cap at ~pt-24 so hero content does not float mid-viewport */
-    padding-top: 5.5rem;
-    padding-bottom: 5.5rem;
-  }
-}
-
-.marketing-brand {
-  width: max-content;
-  max-width: 100%;
-  white-space: nowrap;
-  font-family: var(--font-marketing-display), ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(2.2rem, 7.6vw, 6.25rem);
-  font-weight: 800;
-  line-height: 0.88;
-  letter-spacing: -0.045em;
-  color: var(--mkt-ink);
-}
-
-.marketing-hero-scrim-mobile {
-  /* Opaque mist locks under the ~40% zigzag cut; product stays crisp above */
-  background: linear-gradient(
-    180deg,
-    rgba(230, 238, 247, 0.04) 0%,
-    rgba(230, 238, 247, 0.1) 24%,
-    rgba(230, 238, 247, 0.48) 36%,
-    rgba(230, 238, 247, 0.9) 44%,
-    var(--mkt-mist) 50%
-  );
-}
-
-.marketing-hero-copy-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  max-width: 36rem;
-}
-
-@media (min-width: 640px) {
-  .marketing-hero-copy-stack {
-    gap: 0.95rem;
-  }
-}
-
-.marketing-display {
-  font-family: var(--font-marketing-display), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Zigzag-edged mist panel — desktop hero signature cut */
-.marketing-hero-cut {
-  clip-path: polygon(
-    0% 0%,
-    62% 0%,
-    56% 5%,
-    62% 10%,
-    56% 15%,
-    62% 20%,
-    56% 25%,
-    62% 30%,
-    56% 35%,
-    62% 40%,
-    56% 45%,
-    62% 50%,
-    56% 55%,
-    62% 60%,
-    56% 65%,
-    62% 70%,
-    56% 75%,
-    62% 80%,
-    56% 85%,
-    62% 90%,
-    56% 95%,
-    62% 100%,
-    0% 100%
-  );
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .marketing-hero-cut {
-    animation: marketing-cut-reveal 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-}
-
-@keyframes marketing-cut-reveal {
-  from {
-    clip-path: polygon(
-      0% 0%,
-      100% 0%,
-      100% 5%,
-      100% 10%,
-      100% 15%,
-      100% 20%,
-      100% 25%,
-      100% 30%,
-      100% 35%,
-      100% 40%,
-      100% 45%,
-      100% 50%,
-      100% 55%,
-      100% 60%,
-      100% 65%,
-      100% 70%,
-      100% 75%,
-      100% 80%,
-      100% 85%,
-      100% 90%,
-      100% 95%,
-      100% 100%,
-      0% 100%
-    );
-  }
-  to {
-    clip-path: polygon(
-      0% 0%,
-      62% 0%,
-      56% 5%,
-      62% 10%,
-      56% 15%,
-      62% 20%,
-      56% 25%,
-      62% 30%,
-      56% 35%,
-      62% 40%,
-      56% 45%,
-      62% 50%,
-      56% 55%,
-      62% 60%,
-      56% 65%,
-      62% 70%,
-      56% 75%,
-      62% 80%,
-      56% 85%,
-      62% 90%,
-      56% 95%,
-      62% 100%,
-      0% 100%
-    );
-  }
+.zz-edge-y-sm {
+  --zz-tooth: 14px;
 }
 
 /* Login ticket surface — aligned to marketing mist/ink/signal */

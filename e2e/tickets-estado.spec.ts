@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { waitForSettledLayout } from './helpers/layout';
 import {
   e2eCredentialsSkipReason,
   ensureTenantCompany,
@@ -15,73 +16,47 @@ test.describe('Tickets list Estado column', () => {
     await ensureTenantCompany(page);
   });
 
-  test('shows compact payment status with bar and no visible percent', async ({
+  test('shows a one-line estado chip, Trabajo and Saldo (ZIG-I28-4)', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
+    // Client names win: at 1440 Trabajo stays hidden and Cliente keeps at least its
+    // 1280 width; Trabajo shows once the list is 75rem wide (1536 with the sidebar open).
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/tickets');
-    await expect(page.getByPlaceholder('Cliente, número de ticket o teléfono')).toBeVisible({
+    await waitForSettledLayout(page);
+    await expect(page.getByPlaceholder('Buscar por cliente, folio o teléfono')).toBeVisible({
       timeout: 15_000,
     });
-
     const table = page.locator('table').first();
     await expect(table).toBeVisible({ timeout: 15_000 });
-    await expect(
-      table.getByRole('columnheader', { name: /Estado/i }),
-    ).toBeVisible();
+    await expect(table.getByRole('columnheader', { name: /Trabajo/i })).toBeHidden();
+    const clienteWidth = async () =>
+      (await table.getByRole('columnheader', { name: /Cliente/i }).boundingBox())!.width;
+    expect(await clienteWidth(), 'Cliente @1440').toBeGreaterThanOrEqual(332);
 
-    const summaries = table.getByTestId('ticket-payment-summary');
-    await expect(summaries.first()).toBeVisible({ timeout: 15_000 });
-    const count = await summaries.count();
-    expect(count).toBeGreaterThan(0);
+    await page.setViewportSize({ width: 1536, height: 900 });
+    await expect(table.getByRole('columnheader', { name: /Trabajo/i })).toBeVisible();
+    expect(await clienteWidth(), 'Cliente @1536').toBeGreaterThanOrEqual(332);
+    await expect(table.getByRole('columnheader', { name: /Saldo/i })).toBeVisible();
+    await expect(table.getByRole('columnheader', { name: /Estado/i })).toBeVisible();
+    await expect(table.getByTestId('ticket-payment-summary')).toHaveCount(0);
 
+    const chips = table.getByTestId('ticket-list-estado');
+    await expect(chips.first()).toBeVisible({ timeout: 15_000 });
+    const count = await chips.count();
     for (let i = 0; i < count; i += 1) {
-      const summary = summaries.nth(i);
-      const status = await summary.getAttribute('data-payment-status');
-      expect(['paid', 'partial', 'pending']).toContain(status);
-
-      await expect(summary.getByRole('progressbar')).toBeVisible();
-      await expect(summary.getByText(/\b\d+%/)).toHaveCount(0);
-      await expect(summary.getByText(/\bde\b/)).toBeVisible();
+      const label = (await chips.nth(i).innerText()).trim();
+      expect(['Pagado', 'Pago parcial', 'Por cobrar', 'En proceso']).toContain(label);
     }
 
-    const partial = table.locator(
-      '[data-testid="ticket-payment-summary"][data-payment-status="partial"]',
-    );
-    const pending = table.locator(
-      '[data-testid="ticket-payment-summary"][data-payment-status="pending"]',
-    );
-    const paid = table.locator(
-      '[data-testid="ticket-payment-summary"][data-payment-status="paid"]',
-    );
-
-    // Prefer asserting against whatever statuses exist in seed data.
-    if ((await partial.count()) > 0) {
-      const cell = partial.first();
-      await expect(cell.getByText('Pago parcial')).toBeVisible();
-      const bar = cell.getByRole('progressbar');
-      const value = Number(await bar.getAttribute('aria-valuenow'));
-      expect(value).toBeGreaterThan(0);
-      expect(value).toBeLessThan(100);
-    }
-
-    if ((await pending.count()) > 0) {
-      const cell = pending.first();
-      await expect(cell.getByText('Pendiente')).toBeVisible();
-      await expect(cell.getByRole('progressbar')).toHaveAttribute(
-        'aria-valuenow',
-        '0',
-      );
-    }
-
-    if ((await paid.count()) > 0) {
-      const cell = paid.first();
-      await expect(cell.getByText('Pagado')).toBeVisible();
-      await expect(cell.getByRole('progressbar')).toHaveAttribute(
-        'aria-valuenow',
-        '100',
-      );
-    }
+    const views = page.getByRole('navigation', { name: 'Vistas de tickets' });
+    await views.getByRole('button', { name: /^Por cobrar/ }).click();
+    await expect(page).toHaveURL(/status=due/);
+    await views.getByRole('button', { name: /^En proceso/ }).click();
+    await expect(page).toHaveURL(/finished=no/);
+    await views.getByRole('button', { name: /^Todos/ }).click();
+    await expect(page).not.toHaveURL(/status=due/);
+    await expect(page).not.toHaveURL(/finished=no/);
   });
 
   test('mobile cards show Pagado and Saldo once something is paid, Total otherwise (ZIG-I13-7)', async ({
@@ -106,9 +81,11 @@ test.describe('Tickets list Estado column', () => {
       const status = await summary.getAttribute('data-payment-status');
       if (status === 'partial') {
         await expect(summary.getByText(/^Pagado /)).toBeVisible();
-        await expect(summary.getByText(/^Saldo /)).toBeVisible();
+        // Finished: «Faltan $X»; an advance on unfinished work: «Total $X» (ZIG-I36-17).
+        await expect(summary.getByText(/^(Faltan|Total) /)).toBeVisible();
       } else {
-        await expect(summary.getByText('Total')).toBeVisible();
+        // exact: «Sin total» (a ticket without services) also contains the word.
+        await expect(summary.getByText('Total', { exact: true })).toBeVisible();
         await expect(summary.getByText(/^Saldo /)).toHaveCount(0);
       }
     }

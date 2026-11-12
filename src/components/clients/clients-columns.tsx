@@ -1,76 +1,42 @@
 'use client';
 
 import type { Client } from '@/actions/clients';
-import type { Column, ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ClientPhoneLink } from '@/components/client-phone-link';
-import { FormattedDate } from '@/components/formatted-date';
-import { cn } from '@/lib/utils';
+import { ListShortDate, ListSortableHeader } from '@/components/list-page';
 import { formatClientAddressOneLine } from '@/lib/client-address';
-
-function ClientSortableHeader<TData>({
-  column,
-  label,
-  className,
-}: {
-  column: Column<TData>;
-  label: string;
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
-      )}
-    </Button>
-  );
-}
 
 export type ClientsColumnsOptions = {
   renderActions: (row: Client) => ReactNode;
 };
 
+/**
+ * The desktop table (from lg). Fixed widths for the short columns; Nombre and,
+ * from xl, Dirección share the rest on one line each (ZIG-30). Sorting is by header
+ * only; `ListTable` puts `aria-sort` on the th (ZIG-I33).
+ */
 export const createClientsColumns = ({
   renderActions,
 }: ClientsColumnsOptions): ColumnDef<Client>[] => [
   {
     id: 'id',
     accessorFn: (row) => row.id,
+    meta: { className: 'w-[68px]' },
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="ID" />
+      <ListSortableHeader column={column} label="ID" />
     ),
     cell: ({ row }) => (
-      <span className="tabular-nums">{row.original.id}</span>
+      <span className="tabular-nums text-muted-foreground">{row.original.id}</span>
     ),
   },
   {
     id: 'name',
     accessorKey: 'name',
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="Nombre" />
+      <ListSortableHeader column={column} label="Nombre" />
     ),
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[14rem] font-medium">
+      <span className="block truncate font-medium" title={row.original.name}>
         {row.original.name}
       </span>
     ),
@@ -83,17 +49,14 @@ export const createClientsColumns = ({
   {
     id: 'phone',
     accessorFn: (row) => row.phone ?? '',
+    meta: { className: 'w-[136px]' },
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="Teléfono" />
+      <ListSortableHeader column={column} label="Teléfono" />
     ),
     cell: ({ row }) => (
-      <ClientPhoneLink
-        phone={row.original.phone}
-        className="line-clamp-1 max-w-[10rem] tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        textClassName="line-clamp-1 max-w-[10rem] tabular-nums"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-      />
+      <span className="block truncate tabular-nums">
+        {row.original.phone?.trim() || '—'}
+      </span>
     ),
     sortingFn: (a, b) => {
       const na = a.original.phone ?? '';
@@ -104,11 +67,12 @@ export const createClientsColumns = ({
   {
     id: 'email',
     accessorFn: (row) => row.email ?? '',
+    meta: { className: 'w-[200px] xl:w-[240px]' },
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="Correo" />
+      <ListSortableHeader column={column} label="Correo" />
     ),
     cell: ({ row }) => (
-      <span className="line-clamp-1 max-w-[14rem]">
+      <span className="block truncate" title={row.original.email ?? undefined}>
         {row.original.email?.trim() ? row.original.email : '—'}
       </span>
     ),
@@ -121,14 +85,19 @@ export const createClientsColumns = ({
   {
     id: 'address',
     accessorFn: (row) => formatClientAddressOneLine(row),
+    // Below 1280px the address gives its room to Nombre (ZIG-I27-2).
+    meta: { className: 'hidden xl:table-cell' },
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="Dirección" />
+      <ListSortableHeader column={column} label="Dirección" />
     ),
-    cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-[16rem] text-muted-foreground">
-        {formatClientAddressOneLine(row.original) || '—'}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const address = formatClientAddressOneLine(row.original);
+      return (
+        <span className="block truncate text-muted-foreground" title={address || undefined}>
+          {address || '—'}
+        </span>
+      );
+    },
     sortingFn: (a, b) => {
       const na = formatClientAddressOneLine(a.original).toLocaleLowerCase();
       const nb = formatClientAddressOneLine(b.original).toLocaleLowerCase();
@@ -138,10 +107,11 @@ export const createClientsColumns = ({
   {
     id: 'created_at',
     accessorFn: (row) => row.created_at?.getTime() ?? 0,
+    meta: { className: 'w-[104px]' },
     header: ({ column }) => (
-      <ClientSortableHeader column={column} label="Alta" />
+      <ListSortableHeader column={column} label="Alta" />
     ),
-    cell: ({ row }) => <FormattedDate date={row.original.created_at} />,
+    cell: ({ row }) => <ListShortDate date={row.original.created_at} />,
     sortingFn: (rowA, rowB) => {
       const ta = rowA.original.created_at?.getTime() ?? 0;
       const tb = rowB.original.created_at?.getTime() ?? 0;
@@ -151,6 +121,7 @@ export const createClientsColumns = ({
   {
     id: 'actions',
     enableSorting: false,
+    meta: { className: 'w-[56px]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div

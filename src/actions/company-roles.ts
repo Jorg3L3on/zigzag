@@ -7,6 +7,7 @@ import { permission, role, rolePermission, user } from '@/db/schema';
 import { createRole, deleteRole, updateRole } from '@/actions/roles';
 import { isProtectedBootstrapAdminRole } from '@/lib/company-bootstrap';
 import { db } from '@/lib/db';
+import { guardRoleGrant } from '@/lib/role-rank';
 import {
   buildActionError,
   handleCodedServerActionError,
@@ -302,6 +303,16 @@ export async function saveCompanyRole(input: {
     }
 
     if (forkFromGlobal && input.id) {
+      // The fork moves this company's people onto the copy (role_id), so the
+      // same grant rule as createRole / updateRole applies here (ZIG-I32 review).
+      const grantBlocked = await guardRoleGrant({
+        actor: context,
+        permissionIds,
+        currentRoleId: input.id,
+      });
+      if (grantBlocked) {
+        return buildActionError(grantBlocked);
+      }
       return await forkGlobalRole({
         context,
         companyId,

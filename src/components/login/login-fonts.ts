@@ -1,15 +1,15 @@
-import { Figtree, IBM_Plex_Mono, Syne } from 'next/font/google';
+import { Bricolage_Grotesque, Geist, IBM_Plex_Mono } from 'next/font/google';
 
-/** Display face aligned with marketing Syne. */
-export const loginDisplay = Syne({
+/** Display face aligned with the marketing "Papel y tinta" display (Bricolage Grotesque). */
+export const loginDisplay = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-login-display',
   weight: ['600', '700', '800'],
   display: 'swap',
 });
 
-/** Body face aligned with marketing Figtree. */
-export const loginSans = Figtree({
+/** Body face aligned with the marketing text face (Geist). */
+export const loginSans = Geist({
   subsets: ['latin'],
   variable: '--font-login-sans',
   weight: ['400', '500', '600', '700'],

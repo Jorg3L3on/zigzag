@@ -1,52 +1,72 @@
-import { buildOperatorAttentionSignals } from '@/lib/operator-attention';
+import { resolveOperatorAttention } from '@/lib/operator-attention';
 
-describe('buildOperatorAttentionSignals', () => {
-  const now = new Date('2026-08-13T12:00:00.000Z');
+const now = new Date('2026-11-11T12:00:00.000Z');
+const daysAgo = (days: number) =>
+  new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  it('returns empty when the tenant is healthy', () => {
+describe('resolveOperatorAttention (ZIG-I38)', () => {
+  it('says nothing for an active, complete, recently used company', () => {
     expect(
-      buildOperatorAttentionSignals({
-        productionReady: true,
-        missingCount: 0,
-        missingLabels: [],
-        allowsAuthentication: true,
-        lastIncidentAt: null,
-        lastIncidentLabel: null,
-        now,
+      resolveOperatorAttention({
+        lifecycle: 'ACTIVE', profileMissing: 0, alert: null, lastSignInAt: daysAgo(1), now,
       }),
     ).toEqual([]);
   });
 
-  it('surfaces readiness, recent incidents, and auth blocks', () => {
-    const signals = buildOperatorAttentionSignals({
-      productionReady: false,
-      missingCount: 2,
-      missingLabels: ['RFC en configuración', 'Moneda por defecto'],
-      allowsAuthentication: false,
-      lastIncidentAt: '2026-08-12T12:00:00.000Z',
-      lastIncidentLabel: 'Inicio de sesión fallido',
-      now,
-    });
-
-    expect(signals.map((s) => s.id)).toEqual([
-      'readiness',
-      'incident',
-      'auth_blocked',
-    ]);
-    expect(signals[0]?.label).toContain('2 pendientes');
-    expect(signals[1]?.label).toContain('Inicio de sesión fallido');
+  it('flags missing profile data', () => {
+    expect(
+      resolveOperatorAttention({
+        lifecycle: 'SETUP', profileMissing: 2, alert: null, lastSignInAt: null, now,
+      }).map((reason) => reason.label),
+    ).toEqual(['Faltan 2 datos']);
   });
 
-  it('ignores incidents outside the window', () => {
-    const signals = buildOperatorAttentionSignals({
-      productionReady: true,
-      missingCount: 0,
-      missingLabels: [],
-      allowsAuthentication: true,
-      lastIncidentAt: '2026-01-01T12:00:00.000Z',
-      lastIncidentLabel: 'Permiso denegado',
+  it('flags a setup company with a complete profile as ready to activate', () => {
+    expect(
+      resolveOperatorAttention({
+        lifecycle: 'SETUP', profileMissing: 0, alert: null, lastSignInAt: null, now,
+      }).map((reason) => reason.id),
+    ).toEqual(['ready_to_activate']);
+  });
+
+  it('flags an active company nobody used in 14 days', () => {
+    expect(
+      resolveOperatorAttention({
+        lifecycle: 'ACTIVE', profileMissing: 0, alert: null, lastSignInAt: daysAgo(16), now,
+      }).map((reason) => reason.id),
+    ).toEqual(['unused']);
+  });
+
+  it('does not flag a company created this week as unused', () => {
+    expect(
+      resolveOperatorAttention({
+        lifecycle: 'ACTIVE', profileMissing: 0, alert: null, lastSignInAt: null,
+        createdAt: daysAgo(3), now,
+      }),
+    ).toEqual([]);
+  });
+
+  it('never flags suspended (complete) or archived companies for pending data', () => {
+    expect(
+      resolveOperatorAttention({
+        lifecycle: 'SUSPENDED', profileMissing: 0, alert: null, lastSignInAt: null, now,
+      }),
+    ).toEqual([]);
+    expect(
+      resolveOperatorAttention({
+        lifecycle: 'ARCHIVED', profileMissing: 3, alert: null, lastSignInAt: null, now,
+      }),
+    ).toEqual([]);
+  });
+
+  it('puts the security alert first', () => {
+    const reasons = resolveOperatorAttention({
+      lifecycle: 'ACTIVE',
+      profileMissing: 1,
+      alert: { kind: 'sign_in_burst', at: daysAgo(0), account: 'a@x.test', count: 6, label: '6 inicios fallidos en 15 min' },
+      lastSignInAt: daysAgo(1),
       now,
     });
-    expect(signals).toEqual([]);
+    expect(reasons.map((reason) => reason.id)).toEqual(['alert', 'missing_profile']);
   });
 });

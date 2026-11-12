@@ -1,8 +1,8 @@
 'use client';
 
+import { matchesSearchText } from '@/lib/search-text';
 import React from 'react';
 import {
-  flexRender,
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
@@ -11,23 +11,8 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { MoreVertical, PenLine, Phone, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { PenLine, Plus, Pencil, Trash2, UserPlus, Users, X } from 'lucide-react';
 import Link from 'next/link';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { buildTelHref } from '@/lib/phone-links';
 import { PERMISSIONS } from '@/lib/permissions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -72,13 +57,36 @@ import { SystemCompanyContextEmptyState } from '@/components/system-company-cont
 import { formatClientAddressOneLine } from '@/lib/client-address';
 import { resolveResourceListState } from '@/lib/resource-list-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DesktopSwitch } from '@/components/desktop-switch';
+import {
+  LIST_PAGE_SIZE,
+  ListCardMenu,
+  ListDesktopTitle,
+  ListEmpty,
+  ListError,
+  ListFooter,
+  ListLoading,
+  ListNoResults,
+  ListRowMenu,
+  ListTable,
+  ListTableCard,
+  listFooterPagination,
+} from '@/components/list-page';
+
+/** The phone pages its cards by 12, as before ZIG-I33; desktop pages by 25. */
+const PHONE_PAGE_SIZE = 12;
 
 type FetchClientsOutcome = { ok: true } | { ok: false; message: string };
 
 const hasMeaningfulText = (value: string | null | undefined): boolean =>
   Boolean(value && value.trim().length > 0);
 
-export function ClientList() {
+type ClientListProps = {
+  /** Importar CSV and Nuevo cliente, beside the desktop title (ZIG-30). */
+  desktopActions?: React.ReactNode;
+};
+
+export function ClientList({ desktopActions }: ClientListProps = {}) {
   const { selectedCompany } = useCompany();
   const permissions = usePermissions();
   const canWrite = canWriteClients(permissions.can);
@@ -104,7 +112,11 @@ export function ClientList() {
     React.useState<SortingState>(DEFAULT_CLIENT_SORTING);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 12,
+    pageSize: PHONE_PAGE_SIZE,
+  });
+  const [desktopPagination, setDesktopPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: LIST_PAGE_SIZE,
   });
   const clientsRef = React.useRef<Client[]>([]);
 
@@ -210,17 +222,16 @@ export function ClientList() {
   }, [fetchClients]);
 
   const filteredClients = React.useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
+    const q = debouncedSearch.trim();
     return clients.filter((clientRow) => {
       const formattedAddress = formatClientAddressOneLine(clientRow);
       const matchesSearch =
         !q ||
         clientRow.id.toString().includes(q) ||
-        clientRow.name.toLowerCase().includes(q) ||
-        (clientRow.email ?? '').toLowerCase().includes(q) ||
-        (clientRow.phone ?? '').toLowerCase().includes(q) ||
-        (clientRow.document ?? '').toLowerCase().includes(q) ||
-        formattedAddress.toLowerCase().includes(q);
+        matchesSearchText(
+          [clientRow.name, clientRow.email, clientRow.phone, clientRow.document, formattedAddress],
+          q,
+        );
 
       if (!matchesSearch) {
         return false;
@@ -246,6 +257,7 @@ export function ClientList() {
 
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setDesktopPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [debouncedSearch, emailFilter, phoneFilter]);
 
   const openDeleteDialog = React.useCallback((id: number) => {
@@ -258,30 +270,22 @@ export function ClientList() {
       createClientsColumns({
         renderActions: (clientRow) =>
           canWrite && snapshotUpdatedAt == null ? (
-            <>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Editar ${clientRow.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/clients/${clientRow.id}/edit`);
-              }}
-            >
-              <Pencil className="h-4 w-4"  data-icon="inline-start" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Eliminar ${clientRow.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                openDeleteDialog(clientRow.id);
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive"  data-icon="inline-start" />
-            </Button>
-            </>
+            <ListRowMenu
+              label={`Acciones de ${clientRow.name}`}
+              items={[
+                {
+                  label: 'Editar cliente',
+                  icon: <Pencil className="size-4" aria-hidden />,
+                  onSelect: () => router.push(`/clients/${clientRow.id}/edit`),
+                },
+                {
+                  label: 'Eliminar cliente',
+                  icon: <Trash2 className="size-4" aria-hidden />,
+                  onSelect: () => openDeleteDialog(clientRow.id),
+                  destructive: true,
+                },
+              ]}
+            />
           ) : null,
       }),
     [router, openDeleteDialog, canWrite, snapshotUpdatedAt],
@@ -293,6 +297,17 @@ export function ClientList() {
     state: { sorting, pagination },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+  // Same rows and order, its own pages: only one of the two trees is mounted.
+  const desktopTable = useReactTable({
+    data: filteredClients,
+    columns,
+    state: { sorting, pagination: desktopPagination },
+    onSortingChange: setSorting,
+    onPaginationChange: setDesktopPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -360,7 +375,10 @@ export function ClientList() {
   const filterChips = [
     {
       key: 'count',
-      label: `${filteredClients.length} de ${clients.length} clientes`,
+      // A search counts what matched («1 resultado»); otherwise «N de M clientes» (ZIG-I36-29, M-26).
+      label: debouncedSearch.trim()
+        ? `${filteredClients.length} ${filteredClients.length === 1 ? 'resultado' : 'resultados'}`
+        : `${filteredClients.length} de ${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}`,
       variant: 'secondary' as const,
     },
     ...(debouncedSearch
@@ -401,8 +419,24 @@ export function ClientList() {
     hasActiveFilters,
   });
 
+  // Desktop keeps the rows while it refreshes (dimmed); the skeleton is the first load only.
+  const desktopListState = resolveResourceListState({
+    isLoading: loadingClients && clients.length === 0,
+    loadError,
+    totalCount: clients.length,
+    visibleCount: filteredClients.length,
+    hasActiveFilters,
+  });
+  const desktopPaged = desktopTable.getPageCount() > 1;
+
   return (
     <>
+      <ListDesktopTitle
+        title="Clientes"
+        count={loadingClients && clients.length === 0 ? null : clients.length}
+        description="Catálogo de clientes y datos de contacto."
+        actions={desktopActions}
+      />
       <div className="space-y-4">
         <ClientsFilterBar
           searchValue={searchValue}
@@ -431,287 +465,274 @@ export function ClientList() {
         ) : null}
       </div>
 
-      <MobilePullToRefresh
-        label="Desliza para actualizar clientes"
-        onRefresh={handlePullToRefresh}
-        disabled={isBusy}
-        testId="clients-pull-to-refresh"
-      >
-        {listState.kind === 'loading' ? (
-          <TripledListLoadingState
-            label="Cargando lista de clientes"
-            desktopColumns={5}
-            desktopRows={6}
-            mobileCards={4}
-          />
-        ) : listState.kind === 'error' ? (
-            <TripledEmptyState
-              icon={<Users className="h-4 w-4" />}
-              title="Error de carga"
-              description={listState.message}
-              role="alert"
-              action={
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    void fetchClients();
-                  }}
-                >
-                  Reintentar
-                </Button>
-              }
-            />
-        ) : listState.kind === 'filtered-empty' ? (
-          <TripledEmptyState
-            icon={<Users className="h-4 w-4" />}
-            title="Sin resultados"
-            description="No hay clientes que coincidan con la búsqueda o los filtros seleccionados."
-            action={
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClearFilters}
-                aria-label="Limpiar filtros de clientes"
-              >
-                <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                Limpiar filtros
-              </Button>
-            }
-          />
-        ) : listState.kind === 'empty' ? (
-          <TripledEmptyState
-            icon={<UserPlus className="h-4 w-4" />}
-            title="Sin clientes"
-            description={
-              effectiveCanWrite
-                ? 'Agrega el primer cliente para registrar sus datos de contacto y crear tickets con mayor rapidez.'
-                : 'No hay clientes registrados para esta empresa todavía.'
-            }
-            action={
-              effectiveCanWrite ? (
-                <Button
-                  type="button"
-                  onClick={() => router.push('/clients/new')}
-                >
-                  <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                  Nuevo cliente
-                </Button>
-              ) : null
-            }
-          />
-        ) : (
-          <>
-          <div className="space-y-3 md:hidden">
-            {table.getRowModel().rows.map((row) => {
-              const clientRow = row.original;
-              const formattedAddress = formatClientAddressOneLine(clientRow);
-              return (
-                <TripledMobileRecordCard
-                  key={row.id}
-                  role="button"
-                  tabIndex={canOpenDetail ? 0 : -1}
-                  aria-label={
-                    canOpenDetail
-                      ? `Abrir cliente ${clientRow.name}`
-                      : `Cliente ${clientRow.name}`
+      {/* One tree from lg (ZIG-I33): below it the phone cards, from it the table. */}
+      <DesktopSwitch
+        phone={
+          <MobilePullToRefresh
+            label="Desliza para actualizar clientes"
+            onRefresh={handlePullToRefresh}
+            disabled={isBusy}
+            testId="clients-pull-to-refresh"
+          >
+            {listState.kind === 'loading' ? (
+              <TripledListLoadingState
+                label="Cargando lista de clientes"
+                desktopColumns={5}
+                desktopRows={6}
+                mobileCards={4}
+              />
+            ) : listState.kind === 'error' ? (
+                <TripledEmptyState
+                  icon={<Users className="h-4 w-4" />}
+                  title="Error de carga"
+                  description={listState.message}
+                  role="alert"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        void fetchClients();
+                      }}
+                    >
+                      Reintentar
+                    </Button>
                   }
-                  interactive={canOpenDetail}
-                  className={
-                    canOpenDetail
-                      ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-                      : undefined
-                  }
-                  onClick={() => {
-                    if (canOpenDetail) {
-                      router.push(`/clients/${clientRow.id}`);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      canOpenDetail &&
-                      (event.key === 'Enter' || event.key === ' ')
-                    ) {
-                      event.preventDefault();
-                      router.push(`/clients/${clientRow.id}`);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-semibold text-foreground">
-                      {clientRow.name}
-                    </h3>
-                    {effectiveCanWrite ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="-mr-2 -mt-2 size-11 shrink-0"
-                            aria-label={`Más acciones de ${clientRow.name}`}
-                            onClick={(event) => event.stopPropagation()}
-                            onKeyDown={(event) => event.stopPropagation()}
-                          >
-                            <MoreVertical className="h-5 w-5" aria-hidden data-icon="inline-start" />
+                />
+            ) : listState.kind === 'filtered-empty' ? (
+              <TripledEmptyState
+                icon={<Users className="h-4 w-4" />}
+                title="Sin resultados"
+                description="No hay clientes que coincidan con la búsqueda o los filtros seleccionados."
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClearFilters}
+                    aria-label="Limpiar filtros de clientes"
+                  >
+                    <X className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                    Limpiar filtros
+                  </Button>
+                }
+              />
+            ) : listState.kind === 'empty' ? (
+              <TripledEmptyState
+                icon={<UserPlus className="h-4 w-4" />}
+                title="Sin clientes"
+                description={
+                  effectiveCanWrite
+                    ? 'Agrega el primer cliente para registrar sus datos de contacto y crear tickets con mayor rapidez.'
+                    : 'No hay clientes registrados para esta empresa todavía.'
+                }
+                action={
+                  effectiveCanWrite ? (
+                    <Button
+                      type="button"
+                      onClick={() => router.push('/clients/new')}
+                    >
+                      <Plus className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                      Nuevo cliente
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : (
+              <>
+              <div className="space-y-3">
+                {table.getRowModel().rows.map((row) => {
+                  const clientRow = row.original;
+                  const formattedAddress = formatClientAddressOneLine(clientRow);
+                  return (
+                    <TripledMobileRecordCard
+                      key={row.id}
+                      role="button"
+                      tabIndex={canOpenDetail ? 0 : -1}
+                      aria-label={
+                        canOpenDetail
+                          ? `Abrir cliente ${clientRow.name}`
+                          : `Cliente ${clientRow.name}`
+                      }
+                      interactive={canOpenDetail}
+                      className={
+                        canOpenDetail
+                          ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (canOpenDetail) {
+                          router.push(`/clients/${clientRow.id}`);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          canOpenDetail &&
+                          (event.key === 'Enter' || event.key === ' ')
+                        ) {
+                          event.preventDefault();
+                          router.push(`/clients/${clientRow.id}`);
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-base font-semibold text-foreground">
+                          {clientRow.name}
+                        </h3>
+                        {effectiveCanWrite ? (
+                          <ListCardMenu
+                            label={`Más acciones de ${clientRow.name}`}
+                            triggerClassName="-mr-2 -mt-2 size-11 shrink-0"
+                            iconClassName="h-5 w-5"
+                            itemClassName="min-h-11"
+                            items={[
+                              {
+                                label: 'Editar cliente',
+                                icon: <Pencil className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />,
+                                onSelect: () => router.push(`/clients/${clientRow.id}/edit`),
+                              },
+                              {
+                                label: 'Eliminar cliente',
+                                icon: <Trash2 className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />,
+                                onSelect: () => openDeleteDialog(clientRow.id),
+                                destructive: true,
+                              },
+                            ]}
+                          />
+                        ) : null}
+                      </div>
+
+                      <dl className="mt-3 space-y-2 text-sm">
+                        <div className="grid grid-cols-[88px_1fr] gap-2">
+                          <dt className="text-muted-foreground">Teléfono</dt>
+                          <dd className="truncate">
+                            <span className="tabular-nums">{clientRow.phone?.trim() || '—'}</span>
+                          </dd>
+                        </div>
+                        <div className="grid grid-cols-[88px_1fr] gap-2">
+                          <dt className="text-muted-foreground">Correo</dt>
+                          <dd className="truncate">{clientRow.email || '—'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[88px_1fr] gap-2">
+                          <dt className="text-muted-foreground">Dirección</dt>
+                          <dd className="line-clamp-2">{formattedAddress || '—'}</dd>
+                        </div>
+                      </dl>
+
+                      {canAnotar ? (
+                        <div
+                          className="mt-3 flex gap-2"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          <Button asChild className="min-h-11 flex-1 text-base">
+                            <Link href={`/anotar?clientId=${clientRow.id}`}>
+                              <PenLine className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
+                              Anotar trabajo
+                            </Link>
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                          <DropdownMenuItem
-                            className="min-h-11"
-                            onSelect={() => router.push(`/clients/${clientRow.id}/edit`)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                            Editar cliente
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="min-h-11 text-destructive focus:text-destructive"
-                            onSelect={() => openDeleteDialog(clientRow.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                            Eliminar cliente
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : null}
-                  </div>
+                        </div>
+                      ) : null}
+                    </TripledMobileRecordCard>
+                  );
+                })}
+              </div>
 
-                  <dl className="mt-3 space-y-2 text-sm">
-                    <div className="grid grid-cols-[88px_1fr] gap-2">
-                      <dt className="text-muted-foreground">Teléfono</dt>
-                      <dd className="truncate">
-                        <span className="tabular-nums">{clientRow.phone?.trim() || '—'}</span>
-                      </dd>
-                    </div>
-                    <div className="grid grid-cols-[88px_1fr] gap-2">
-                      <dt className="text-muted-foreground">Correo</dt>
-                      <dd className="truncate">{clientRow.email || '—'}</dd>
-                    </div>
-                    <div className="grid grid-cols-[88px_1fr] gap-2">
-                      <dt className="text-muted-foreground">Dirección</dt>
-                      <dd className="line-clamp-2">{formattedAddress || '—'}</dd>
-                    </div>
-                  </dl>
-
-                  <div
-                    className="mt-3 flex gap-2"
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => event.stopPropagation()}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                <p className="text-caption text-muted-foreground">
+                  Página {table.getState().pagination.pageIndex + 1} de{' '}
+                  {table.getPageCount()}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage() || isBusy}
                   >
-                    {buildTelHref(clientRow.phone) ? (
-                      <Button asChild variant="outline" className="min-h-11 flex-1 text-base">
-                        <a href={buildTelHref(clientRow.phone) ?? undefined}>
-                          <Phone className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                          Llamar
-                        </a>
-                      </Button>
-                    ) : null}
-                    {canAnotar ? (
-                      <Button asChild className="min-h-11 flex-1 text-base">
-                        <Link href={`/anotar?clientId=${clientRow.id}`}>
-                          <PenLine className="mr-2 h-4 w-4" aria-hidden data-icon="inline-start" />
-                          Anotar trabajo
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </div>
-                </TripledMobileRecordCard>
-              );
-            })}
-          </div>
-
-          <div className="hidden overflow-hidden rounded-xl border border-border/70 shadow-sm md:block">
-            <Table
-              className={
-                '[&_td]:py-2.5 [&_th]:h-10 [&_th]:py-2 [&_th]:align-middle [&_tr]:border-border/60'
-              }
-            >
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        className={
-                          header.column.id === 'actions' ? 'text-right' : undefined
-                        }
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={canOpenDetail ? 'cursor-pointer' : undefined}
-                    tabIndex={canOpenDetail ? 0 : -1}
-                    onClick={() => {
-                      if (canOpenDetail) {
-                        router.push(`/clients/${row.original.id}`);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        canOpenDetail &&
-                        (event.key === 'Enter' || event.key === ' ')
-                      ) {
-                        event.preventDefault();
-                        router.push(`/clients/${row.original.id}`);
-                      }
-                    }}
+                    Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage() || isBusy}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={
-                          cell.column.id === 'actions' ? 'text-right' : undefined
-                        }
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <p className="text-caption text-muted-foreground">
-              Página {table.getState().pagination.pageIndex + 1} de{' '}
-              {table.getPageCount()}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage() || isBusy}
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+              </>
+            )}
+          </MobilePullToRefresh>
+        }
+        desktop={
+          <div className="mt-4">
+            {desktopListState.kind === 'loading' ? (
+              <ListLoading label="Cargando lista de clientes" columns={6} />
+            ) : desktopListState.kind === 'error' ? (
+              <ListError
+                description={desktopListState.message}
+                onRetry={() => {
+                  void fetchClients();
+                }}
+              />
+            ) : desktopListState.kind === 'filtered-empty' ? (
+              <ListNoResults
+                description="No hay clientes que coincidan con la búsqueda o los filtros seleccionados."
+                onClear={handleClearFilters}
+              />
+            ) : desktopListState.kind === 'empty' ? (
+              <ListEmpty
+                icon={<UserPlus className="h-4 w-4 text-muted-foreground" aria-hidden />}
+                title="Sin clientes"
+                description={
+                  effectiveCanWrite
+                    ? 'Agrega el primer cliente para registrar sus datos de contacto y crear tickets con mayor rapidez.'
+                    : 'No hay clientes registrados para esta empresa todavía.'
+                }
+                action={
+                  effectiveCanWrite ? (
+                    <Button type="button" onClick={() => router.push('/clients/new')}>
+                      <Plus className="h-4 w-4" aria-hidden data-icon="inline-start" />
+                      Nuevo cliente
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : (
+              <ListTableCard
+                footer={
+                  <ListFooter
+                    // Paged or searching: «1–25 de N» / «N resultados» count the matches;
+                    // one page without a search: «N de M» against every client (ZIG-I36-29).
+                    total={
+                      desktopPaged || debouncedSearch.trim()
+                        ? filteredClients.length
+                        : clients.length
+                    }
+                    shown={filteredClients.length}
+                    filtered={Boolean(debouncedSearch.trim())}
+                    noun="clientes"
+                    pagination={listFooterPagination(desktopTable, { pageSizes: false })}
+                  />
+                }
               >
-                Anterior
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage() || isBusy}
-              >
-                Siguiente
-              </Button>
-            </div>
+                <ListTable
+                  table={desktopTable}
+                  ariaLabel="Clientes"
+                  busy={isBusy}
+                  getRowHref={
+                    canOpenDetail ? (row) => `/clients/${row.original.id}` : undefined
+                  }
+                  rowTestId="clients-row"
+                />
+              </ListTableCard>
+            )}
           </div>
-          </>
-        )}
-      </MobilePullToRefresh>
+        }
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

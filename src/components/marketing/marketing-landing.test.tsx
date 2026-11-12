@@ -1,50 +1,53 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MarketingLanding } from '@/components/marketing/marketing-landing';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import {
-  LANDING_HERO,
-  LANDING_PROBLEM,
-} from '@/components/marketing/marketing-landing-content';
-import { PRIVACY_PATH, TERMS_PATH } from '@/lib/marketing-routes';
-import { ONBOARDING_GUIDE_PATHS } from '@/lib/onboarding-guides';
+import { AYUDA_PATH, PRIVACY_PATH, TERMS_PATH } from '@/lib/marketing-routes';
 
 describe('MarketingLanding', () => {
-  it('renders key sections, CTAs, and footer legal links', () => {
-    render(
+  it('renders the Papel y tinta sections in canvas order, CTAs and footer links', () => {
+    const { container } = render(
       <MarketingShell showSectionNav>
         <MarketingLanding />
       </MarketingShell>,
     );
 
-    expect(
-      screen.getByRole('heading', { level: 1, name: LANDING_HERO.headline }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: LANDING_PROBLEM.title }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Cómo funciona' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Capacidades' }),
-    ).toBeInTheDocument();
-    expect(document.getElementById('como-funciona')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Haz el trabajo.Manda el recibo.Cobra completo.',
+    );
 
-    const loginLinks = screen.getAllByRole('link', { name: 'Iniciar sesión' });
-    expect(loginLinks.length).toBeGreaterThanOrEqual(2);
-    expect(loginLinks[0]).toHaveAttribute('href', '/login');
+    const ids = ['como-funciona', 'funciones', 'asistentes', 'preguntas', 'acceso'];
+    for (const id of ids) {
+      expect(document.getElementById(id)).toBeTruthy();
+    }
+    const sectionIds = Array.from(container.querySelectorAll('main section[id]')).map(
+      (section) => section.id,
+    );
+    expect(sectionIds.filter((id) => ids.includes(id))).toEqual(ids);
 
-    const howLinks = screen.getAllByRole('link', { name: 'Ver cómo funciona' });
-    expect(howLinks[0]).toHaveAttribute('href', '#como-funciona');
+    const sections = Array.from(container.querySelectorAll('main > section'));
+    expect(sections).toHaveLength(9);
+    expect(sections[0]).toHaveAttribute('aria-labelledby', 'landing-hero-title');
+    expect(sections[8]).toHaveAttribute('id', 'acceso');
 
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    expect(within(nav).getByRole('link', { name: 'Entrar' })).toHaveAttribute(
+      'href',
+      '/login',
+    );
     expect(
-      screen.getByRole('link', { name: 'Aviso de privacidad' }),
+      within(nav).getByRole('link', { name: 'Pedir acceso' }),
+    ).toHaveAttribute('href', '#acceso');
+
+    const footer = screen.getByRole('navigation', { name: 'Pie de página' });
+    expect(
+      within(footer).getByRole('link', { name: 'Aviso de privacidad' }),
     ).toHaveAttribute('href', PRIVACY_PATH);
     expect(
-      screen.getByRole('link', { name: 'Términos y condiciones' }),
+      within(footer).getByRole('link', { name: 'Términos y condiciones' }),
     ).toHaveAttribute('href', TERMS_PATH);
-    expect(
-      screen.getByRole('link', { name: 'Guías de producto' }),
-    ).toHaveAttribute('href', ONBOARDING_GUIDE_PATHS.index);
+    expect(within(footer).getByRole('link', { name: 'Guías' })).toHaveAttribute(
+      'href',
+      AYUDA_PATH,
+    );
   });
 });

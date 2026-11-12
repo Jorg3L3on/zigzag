@@ -4,41 +4,45 @@ import {
   type CompanyReadinessAssessment,
 } from '@/lib/company-readiness';
 import {
-  companyAllowsAuthentication,
-  companyLifecycleLabel,
-  normalizeCompanyLifecycleStatus,
-} from '@/lib/company-lifecycle';
+  buildOperatorFleetRow,
+  type OperatorFleetFacts,
+  type OperatorFleetRow,
+} from '@/lib/company-operator-fleet';
 
-export type CompanyOperatorSummary = {
+/**
+ * The company record the console page shares between header and tabs
+ * (ZIG-I38): the fleet row plus what only the page needs.
+ */
+export type CompanyOperatorSummary = OperatorFleetRow & {
   companyId: number;
-  name: string;
-  email: string;
-  phone: string;
-  lifecycle: ReturnType<typeof normalizeCompanyLifecycleStatus>;
-  lifecycleLabel: string;
-  allowsAuthentication: boolean;
   readiness: CompanyReadinessAssessment;
   roleCount: number;
-  editHref: string;
+  /** People who never signed in; a pending item in Resumen. */
+  neverSignedInCount: number;
+  /** Resumen's pending count: alert + missing profile + people never in. */
+  pendingCount: number;
 };
 
 export const buildCompanyOperatorSummary = (
   companyRow: Company,
   roleCount: number,
+  facts?: OperatorFleetFacts,
+  now: Date = new Date(),
+  neverSignedInCount = 0,
 ): CompanyOperatorSummary => {
-  const lifecycle = normalizeCompanyLifecycleStatus(companyRow.status);
-  const readiness = assessCompanyReadiness(companyRow);
-
+  const row = buildOperatorFleetRow(companyRow, facts, now);
+  const archived = row.lifecycle === 'ARCHIVED';
+  const pendingCount = archived
+    ? 0
+    : (row.alert ? 1 : 0) +
+      (row.profile.missing > 0 ? 1 : 0) +
+      neverSignedInCount;
   return {
+    ...row,
     companyId: companyRow.id,
-    name: companyRow.name,
-    email: companyRow.email,
-    phone: companyRow.phone,
-    lifecycle,
-    lifecycleLabel: companyLifecycleLabel(companyRow.status),
-    allowsAuthentication: companyAllowsAuthentication(companyRow.status),
-    readiness,
+    readiness: assessCompanyReadiness(companyRow),
     roleCount,
-    editHref: `/companies/${companyRow.id}/edit`,
+    neverSignedInCount,
+    pendingCount,
   };
 };

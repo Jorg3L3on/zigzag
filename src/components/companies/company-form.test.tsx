@@ -2,9 +2,19 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { CompanyForm } from '@/components/companies/company-form';
 import { updateCompany, updateOwnCompany } from '@/actions/companies';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsDesktop } from '@/hooks/use-desktop';
 import type { Company } from '@/db/schema';
 
 jest.mock('@/hooks/use-mobile', () => ({ useIsMobile: jest.fn(() => true) }));
+jest.mock('@/hooks/use-desktop', () => {
+  const useIsDesktop = jest.fn(() => false);
+  // DesktopSwitch follows the same mocked width (ZIG-28).
+  return {
+    ...jest.requireActual('@/hooks/use-desktop'),
+    useIsDesktop,
+    useDesktopViewport: () => useIsDesktop(),
+  };
+});
 
 jest.mock('@/actions/companies', () => ({
   createCompany: jest.fn(),
@@ -16,9 +26,14 @@ jest.mock('@/components/companies/company-logo-upload', () => ({
   CompanyLogoUpload: () => <div data-testid="logo-upload" />,
 }));
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+}));
+
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
 const mockUseIsMobile = useIsMobile as jest.MockedFunction<typeof useIsMobile>;
+const mockUseIsDesktop = useIsDesktop as jest.MockedFunction<typeof useIsDesktop>;
 const mockUpdateOwnCompany = updateOwnCompany as jest.MockedFunction<
   typeof updateOwnCompany
 >;
@@ -49,6 +64,7 @@ const company = {
 } as unknown as Company;
 
 const section = (key: string) => screen.getByTestId(`company-form-section-${key}`);
+const desktopCard = (id: string) => screen.getByTestId(`company-datos-${id}`);
 
 describe('CompanyForm sections (ZIG-I3-2)', () => {
   beforeAll(() => {
@@ -60,6 +76,7 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     jest.clearAllMocks();
     window.localStorage.clear();
     mockUseIsMobile.mockReturnValue(true);
+    mockUseIsDesktop.mockReturnValue(false);
     mockUpdateOwnCompany.mockResolvedValue({ success: true });
   });
 
@@ -101,6 +118,15 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
   });
 
+  it('does not offer Estado de la empresa to the owner on phones; the operator keeps it', () => {
+    const { unmount } = render(<CompanyForm company={company} mode="self" />);
+    expect(screen.queryByLabelText('Estado de la empresa')).toBeNull();
+    unmount();
+
+    render(<CompanyForm company={company} />);
+    expect(screen.getByLabelText('Estado de la empresa')).toBeInTheDocument();
+  });
+
   it('remembers which sections were open', () => {
     const { unmount } = render(<CompanyForm company={company} mode="self" />);
     fireEvent.click(within(section('configuracion')).getByRole('button', { name: /Configuración/ }));
@@ -121,29 +147,22 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeVisible();
   });
 
-  it('shows every section open on desktop even in self mode', () => {
+  it('keeps typed values when the viewport switches between phone and desktop', () => {
     mockUseIsMobile.mockReturnValue(false);
-    render(<CompanyForm company={company} mode="self" />);
-
-    expect(within(section('direccion')).getByLabelText('Calle')).toBeVisible();
-    expect(within(section('configuracion')).getByLabelText('RFC')).toBeVisible();
-  });
-
-  it('keeps the same field nodes when hydration switches to mobile (no remount)', () => {
-    mockUseIsMobile.mockReturnValue(false);
+    mockUseIsDesktop.mockReturnValue(true);
     const { rerender } = render(<CompanyForm company={company} mode="self" />);
-    const rfcBefore = within(section('configuracion')).getByLabelText('RFC');
+    fireEvent.change(within(desktopCard('documentos')).getByLabelText('RFC'), {
+      target: { value: 'XAXX010101000' },
+    });
 
     mockUseIsMobile.mockReturnValue(true);
+    mockUseIsDesktop.mockReturnValue(false);
     rerender(<CompanyForm company={company} mode="self" />);
 
-    const rfcAfter = within(section('configuracion')).getByLabelText('RFC');
-    expect(rfcAfter).toBe(rfcBefore);
-    expect(rfcAfter).not.toBeVisible();
+    expect(within(section('configuracion')).getByLabelText('RFC')).toHaveValue('XAXX010101000');
   });
 
   it('edits Lema o giro with a counter, saves it and rejects 61 characters', async () => {
-    mockUseIsMobile.mockReturnValue(false);
     render(<CompanyForm company={company} mode="self" />);
 
     const input = within(section('configuracion')).getByLabelText('Lema o giro');
@@ -188,7 +207,6 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
   });
 
   it('saves banco, titular y CLABE from Para pagar por transferencia and rejects a bad CLABE', async () => {
-    mockUseIsMobile.mockReturnValue(false);
     mockUpdateOwnCompany.mockResolvedValue({ success: true } as Awaited<ReturnType<typeof updateOwnCompany>>);
     render(<CompanyForm company={company} mode="self" />);
 
@@ -200,7 +218,7 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
       target: { value: '0020 1007 7777 7777 72' },
     });
     fireEvent.submit(document.getElementById('company-form')!);
-    expect(await screen.findByText(/el último dígito no coincide/)).toBeInTheDocument();
+    expect(await screen.findByText(/último dígito no coincide/)).toBeInTheDocument();
     expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
 
     fireEvent.change(within(pago).getByLabelText('CLABE'), {
@@ -218,6 +236,201 @@ describe('CompanyForm sections (ZIG-I3-2)', () => {
         payment_clabe: '0020 1007 7777 7777 71',
         payment_note: 'Manda tu comprobante por WhatsApp',
       },
+    });
+  });
+
+  it('names the CLABE bank, fills an empty Banco and warns softly on a different one (ZIG-36)', async () => {
+    mockUpdateOwnCompany.mockResolvedValue({ success: true } as Awaited<ReturnType<typeof updateOwnCompany>>);
+    render(<CompanyForm company={company} mode="self" />);
+    const pago = section('pago');
+    fireEvent.click(within(pago).getByRole('button', { name: /Para pagar por transferencia/ }));
+    const clabe = within(pago).getByLabelText('CLABE');
+
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+    fireEvent.change(clabe, { target: { value: '01' } });
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+    fireEvent.change(clabe, { target: { value: '012 180' } });
+    expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('Banco: BBVA México');
+    fireEvent.change(clabe, { target: { value: '999 180' } });
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+
+    // Synthetic fixture: prefix 012, zeros, matching check digit.
+    fireEvent.change(clabe, { target: { value: '012 180 00000000000 2' } });
+    expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('BBVA México');
+    expect(within(pago).getByTestId('clabe-bank-hint')).not.toHaveTextContent('Banco:');
+
+    fireEvent.click(within(pago).getByRole('button', { name: 'Usar BBVA México' }));
+    expect(within(pago).getByLabelText('Banco')).toHaveValue('BBVA México');
+    expect(within(pago).queryByRole('button', { name: /^Usar / })).toBeNull();
+    expect(within(pago).queryByTestId('clabe-bank-mismatch')).toBeNull();
+
+    fireEvent.change(within(pago).getByLabelText('Banco'), { target: { value: 'Bancomer' } });
+    expect(within(pago).queryByTestId('clabe-bank-mismatch')).toBeNull();
+    fireEvent.change(within(pago).getByLabelText('Banco'), { target: { value: 'Banorte' } });
+    expect(within(pago).getByTestId('clabe-bank-mismatch')).toHaveTextContent(
+      'Esta CLABE parece de BBVA México',
+    );
+
+    // A warning, never a blocker.
+    fireEvent.submit(document.getElementById('company-form')!);
+    await waitFor(() => expect(mockUpdateOwnCompany).toHaveBeenCalled());
+    expect(mockUpdateOwnCompany.mock.calls[0][0]).toMatchObject({
+      settings: { payment_bank: 'Banorte', payment_clabe: '012 180 00000000000 2' },
+    });
+  });
+
+  it('lets the CLABE error win over the bank hint (ZIG-36)', async () => {
+    render(<CompanyForm company={company} mode="self" />);
+    const pago = section('pago');
+
+    fireEvent.change(within(pago).getByLabelText('CLABE'), {
+      target: { value: '012 180 00000000000 3' },
+    });
+    expect(within(pago).getByTestId('clabe-bank-hint')).toHaveTextContent('Banco: BBVA México');
+    fireEvent.submit(document.getElementById('company-form')!);
+    expect(await screen.findByText(/último dígito no coincide/)).toBeInTheDocument();
+    expect(within(pago).queryByTestId('clabe-bank-hint')).toBeNull();
+  });
+
+  it('warns on a card and never asks for vencimiento or CVV (ZIG-23)', async () => {
+    render(
+      <CompanyForm
+        company={{
+          ...company,
+          settings: { ...company.settings, payment_kind: 'card' },
+        }}
+        mode="self"
+      />,
+    );
+
+    const pago = section('pago');
+    expect(within(pago).getByTestId('card-payment-warning')).toHaveTextContent(/CONDUSEF/);
+    expect(within(pago).getByLabelText('Número de tarjeta')).toBeInTheDocument();
+    expect(within(pago).queryByLabelText('CLABE')).not.toBeInTheDocument();
+    expect(within(pago).queryByLabelText(/vencimiento/i)).not.toBeInTheDocument();
+    expect(within(pago).queryByLabelText(/cvv/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/vencimiento/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/cvv/i)).not.toBeInTheDocument();
+  });
+
+  describe('lg+ Datos cards (ZIG-I32-1)', () => {
+    beforeEach(() => {
+      mockUseIsMobile.mockReturnValue(false);
+      mockUseIsDesktop.mockReturnValue(true);
+    });
+
+    it('keeps the tablet layout from 768 to 1023 (flat sections, inline Guardar)', () => {
+      mockUseIsDesktop.mockReturnValue(false);
+      render(<CompanyForm company={company} mode="self" />);
+
+      expect(screen.queryByTestId('company-datos-perfil')).toBeNull();
+      expect(within(section('direccion')).getByLabelText('Calle')).toBeVisible();
+    });
+
+    it('shows the five sections as anchored cards, without Estado de la empresa', () => {
+      render(
+        <CompanyForm
+          company={company}
+          mode="self"
+          nextFolioNumbers={{ presupuesto: 7, ticket: 62 }}
+        />,
+      );
+
+      for (const id of ['perfil', 'direccion', 'documentos', 'pagos', 'inicio']) {
+        expect(desktopCard(id)).toHaveAttribute('id', id);
+      }
+      expect(screen.queryByLabelText('Estado de la empresa')).toBeNull();
+      expect(within(desktopCard('perfil')).getByLabelText('Lema o giro')).toBeInTheDocument();
+      expect(screen.getByTestId('company-next-folio-presupuesto')).toHaveTextContent('P-0007');
+      expect(screen.getByTestId('company-next-folio-ticket')).toHaveTextContent('R-0062');
+      expect(screen.getByRole('radio', { name: /Automático/ })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'CLABE' })).toBeChecked();
+      expect(screen.queryByTestId('form-changes-bar')).toBeNull();
+      expect(screen.queryByTestId('mobile-sticky-action-bar')).toBeNull();
+    });
+
+    it('updates the preview and the changes bar as the tagline is typed; Descartar restores', () => {
+      render(<CompanyForm company={company} mode="self" />);
+
+      fireEvent.change(within(desktopCard('perfil')).getByLabelText('Lema o giro'), {
+        target: { value: 'Plomería y gas' },
+      });
+
+      expect(screen.getByTestId('receipt-preview-tagline')).toHaveTextContent('Plomería y gas');
+      expect(screen.getByTestId('form-changes-bar')).toHaveTextContent(
+        'Cambios sin guardar · Lema o giro',
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
+      expect(screen.queryByTestId('form-changes-bar')).toBeNull();
+      expect(within(desktopCard('perfil')).getByLabelText('Lema o giro')).toHaveValue(
+        'Climatización · Servicio técnico',
+      );
+      expect(screen.getByTestId('receipt-preview-tagline')).toHaveTextContent(
+        'Climatización · Servicio técnico',
+      );
+    });
+
+    it('saves once from the bar, keeps the status and closes the bar', async () => {
+      mockUpdateOwnCompany.mockResolvedValue({ success: true } as Awaited<
+        ReturnType<typeof updateOwnCompany>
+      >);
+      render(<CompanyForm company={company} mode="self" />);
+
+      fireEvent.change(within(desktopCard('direccion')).getByLabelText('Colonia'), {
+        target: { value: 'Itzimná' },
+      });
+      fireEvent.click(screen.getByRole('radio', { name: /Oficina/ }));
+      expect(screen.getByTestId('form-changes-bar')).toHaveTextContent('Colonia, Inicio');
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      await waitFor(() => expect(mockUpdateOwnCompany).toHaveBeenCalledTimes(1));
+      expect(mockUpdateOwnCompany.mock.calls[0][0]).toMatchObject({
+        status: 'ACTIVE',
+        neighborhood: 'Itzimná',
+        settings: { experience_mode: 'office' },
+      });
+      await waitFor(() => expect(screen.queryByTestId('form-changes-bar')).toBeNull());
+    });
+
+    it('switches the payment number by method chip and shows it in the WhatsApp preview', () => {
+      render(<CompanyForm company={company} mode="self" />);
+      const pagos = desktopCard('pagos');
+
+      fireEvent.change(within(pagos).getByLabelText('Banco'), { target: { value: 'BBVA' } });
+      fireEvent.click(within(pagos).getByRole('radio', { name: 'Cuenta' }));
+      expect(within(pagos).getByLabelText('Número de cuenta')).toBeInTheDocument();
+      expect(within(pagos).queryByRole('textbox', { name: 'CLABE' })).toBeNull();
+      expect(screen.getByTestId('receipt-preview-whatsapp')).toHaveTextContent(
+        'Para pagar a la cuenta:',
+      );
+      expect(screen.getByTestId('receipt-preview-whatsapp')).toHaveTextContent('Banco BBVA');
+    });
+
+    it('shows the CLABE bank hint in the Pagos card (ZIG-36)', () => {
+      render(<CompanyForm company={company} mode="self" />);
+      const pagos = desktopCard('pagos');
+
+      fireEvent.change(within(pagos).getByRole('textbox', { name: 'CLABE' }), {
+        target: { value: '012180000000000002' },
+      });
+      fireEvent.click(within(pagos).getByRole('button', { name: 'Usar BBVA México' }));
+      expect(within(pagos).getByLabelText('Banco')).toHaveValue('BBVA México');
+      fireEvent.change(within(pagos).getByLabelText('Banco'), { target: { value: 'HSBC' } });
+      expect(within(pagos).getByTestId('clabe-bank-mismatch')).toBeInTheDocument();
+      fireEvent.click(within(pagos).getByRole('radio', { name: 'Tarjeta' }));
+      expect(within(pagos).queryByTestId('clabe-bank-hint')).toBeNull();
+    });
+
+    it('focuses the first invalid field on save', async () => {
+      render(<CompanyForm company={company} mode="self" />);
+      const street = within(desktopCard('direccion')).getByLabelText('Calle');
+
+      fireEvent.change(street, { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      await waitFor(() => expect(street).toHaveFocus());
+      expect(mockUpdateOwnCompany).not.toHaveBeenCalled();
     });
   });
 });

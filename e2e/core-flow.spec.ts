@@ -8,9 +8,8 @@ import {
 import {
   addComposerLine,
   createClientInComposer,
-  finishOnReview,
+  saveAndFinishComposer,
   openComposer,
-  saveComposer,
 } from './helpers/ticket-composer';
 
 const uniqueSuffix = () => Date.now().toString().slice(-8);
@@ -34,8 +33,7 @@ test.describe('Core business flow smoke', () => {
     await openComposer(page);
     await createClientInComposer(page, { name: clientName, phone: clientPhone });
     await addComposerLine(page, { quantity: 1, price: 150 });
-    const ticketId = await saveComposer(page);
-    await finishOnReview(page, ticketId, { mode: 'full' });
+    const { ticketId } = await saveAndFinishComposer(page, { mode: 'full' });
 
     await page.goto(`/tickets/${ticketId}`);
     // The status pill sits in the mobile app bar and, from md, in the header.

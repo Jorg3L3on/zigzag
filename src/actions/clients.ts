@@ -1,6 +1,7 @@
 'use server';
 
-import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { sqlFoldedContains } from '@/lib/search-text';
+import { and, count, desc, eq, isNull, or } from 'drizzle-orm';
 import { client } from '@/db/schema';
 import { db } from '@/lib/db';
 import {
@@ -50,6 +51,11 @@ export interface CreateClientData {
   company_id: number;
 }
 
+const pickDefined = <T extends Record<string, unknown>>(values: T): Partial<T> =>
+  Object.fromEntries(
+    Object.entries(values).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
+
 export interface UpdateClientData extends Partial<CreateClientData> {
   id: number;
 }
@@ -76,34 +82,31 @@ export async function getClients(params: GetClientsParams): Promise<{
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireTenantActionPermission(
+    const { companyId } = await requireTenantActionPermission(
       'clients.read',
       params.companyId ?? undefined,
     );
     const page = Math.max(params.page ?? 1, 1);
     const pageSize = Math.min(Math.max(params.pageSize ?? 20, 1), 100);
     const search = params.search?.trim();
-    const companyCondition =
-      params.companyId === null
-        ? isNull(client.company_id)
-        : eq(client.company_id, params.companyId);
+    const companyCondition = eq(client.company_id, companyId);
 
     const whereCondition = and(
       companyCondition,
       isNull(client.deleted_at),
       search
         ? or(
-            ilike(client.name, `%${search}%`),
-            ilike(client.email, `%${search}%`),
-            ilike(client.phone, `%${search}%`),
-            ilike(client.street, `%${search}%`),
-            ilike(client.exterior_number, `%${search}%`),
-            ilike(client.interior_number, `%${search}%`),
-            ilike(client.neighborhood, `%${search}%`),
-            ilike(client.city, `%${search}%`),
-            ilike(client.state, `%${search}%`),
-            ilike(client.postal_code, `%${search}%`),
-            ilike(client.country, `%${search}%`),
+            sqlFoldedContains(client.name, search),
+            sqlFoldedContains(client.email, search),
+            sqlFoldedContains(client.phone, search),
+            sqlFoldedContains(client.street, search),
+            sqlFoldedContains(client.exterior_number, search),
+            sqlFoldedContains(client.interior_number, search),
+            sqlFoldedContains(client.neighborhood, search),
+            sqlFoldedContains(client.city, search),
+            sqlFoldedContains(client.state, search),
+            sqlFoldedContains(client.postal_code, search),
+            sqlFoldedContains(client.country, search),
           )
         : undefined,
     );
@@ -148,14 +151,11 @@ export async function getClientsList(params: {
   errorType?: ActionErrorType;
 }> {
   try {
-    await requireTenantActionPermission(
+    const { companyId } = await requireTenantActionPermission(
       'clients.read',
       params.companyId ?? undefined,
     );
-    const companyCondition =
-      params.companyId === null
-        ? isNull(client.company_id)
-        : eq(client.company_id, params.companyId);
+    const companyCondition = eq(client.company_id, companyId);
 
     const whereCondition = and(companyCondition, isNull(client.deleted_at));
 
@@ -275,7 +275,22 @@ export async function updateClient(
         data.company_id ?? undefined,
       );
 
-    const { id, ...updateData } = data;
+    // Whitelist: never spread raw input into .set() (deleted_at, company_id, ...).
+    const { id } = data;
+    const updateData = pickDefined({
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      address: data.address,
+      street: data.street,
+      exterior_number: data.exterior_number,
+      interior_number: data.interior_number,
+      neighborhood: data.neighborhood,
+      city: data.city,
+      state: data.state,
+      postal_code: data.postal_code,
+      country: data.country,
+    });
     const existing = await db.query.client.findFirst({
       where: and(
         eq(client.id, id),
@@ -283,17 +298,20 @@ export async function updateClient(
         isNull(client.deleted_at),
       ),
     });
+    if (!existing) {
+      return buildActionError('CL006');
+    }
     // Names saved before the cap stay editable as they are; a changed name must fit.
     if (
       data.name !== undefined &&
       data.name.trim().length > CLIENT_NAME_MAX_LENGTH &&
-      data.name !== existing?.name
+      data.name !== existing.name
     ) {
       return buildActionError('CL008');
     }
     const [updated] = await db
       .update(client)
-      .set({ ...updateData, company_id: effectiveCompanyId })
+      .set(updateData)
       .where(
         and(
           eq(client.id, id),
@@ -303,18 +321,19 @@ export async function updateClient(
       )
       .returning();
 
-    if (updated) {
-      await recordResourceAudit(db, {
-        actor: context,
-        resourceType: 'client',
-        resourceId: id,
-        targetCompanyId: effectiveCompanyId,
-        action: 'updated',
-        before: existing,
-        after: updated,
-        source: 'action',
-      });
+    if (!updated) {
+      return buildActionError('CL006');
     }
+    await recordResourceAudit(db, {
+      actor: context,
+      resourceType: 'client',
+      resourceId: id,
+      targetCompanyId: effectiveCompanyId,
+      action: 'updated',
+      before: existing,
+      after: updated,
+      source: 'action',
+    });
 
     revalidatePath('/clients');
     return { success: true, data: updated };
@@ -349,18 +368,19 @@ export async function deleteClient(
       )
       .returning();
 
-    if (deleted) {
-      await recordResourceAudit(db, {
-        actor: context,
-        resourceType: 'client',
-        resourceId: id,
-        targetCompanyId: effectiveCompanyId,
-        action: 'deleted',
-        before: existing,
-        after: deleted,
-        source: 'action',
-      });
+    if (!deleted) {
+      return buildActionError('CL006');
     }
+    await recordResourceAudit(db, {
+      actor: context,
+      resourceType: 'client',
+      resourceId: id,
+      targetCompanyId: effectiveCompanyId,
+      action: 'deleted',
+      before: existing,
+      after: deleted,
+      source: 'action',
+    });
 
     await pauseSchedulesForClient(id, effectiveCompanyId);
 

@@ -152,6 +152,9 @@ export const {
               result: 'failed',
               email,
               reason: 'inactive_company',
+              // The account exists: tie the failure to its company so the
+              // operator console can count bursts per company (ZIG-I38).
+              targetCompanyId: row.company?.id ?? row.company_id ?? null,
               requestMeta,
             });
             return null;
@@ -164,6 +167,7 @@ export const {
               result: 'failed',
               email,
               reason: 'invalid_credentials',
+              targetCompanyId: row.company_id ?? null,
               requestMeta,
             });
             return null;

@@ -56,20 +56,53 @@ describe('TicketRowActions', () => {
     jest.restoreAllMocks();
   });
 
-  it('offers Llamar with a tel: link only when the client has a phone (ZIG-I18-8)', async () => {
+  it('names the folio people see, not the internal id, in every row action label', async () => {
     const user = userEvent.setup();
-    const { unmount } = render(
-      <TicketRowActions ticket={{ ...ticket, client_tel: '998 345 7712' }} canWrite />,
-    );
-    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
-    const call = await screen.findByRole('menuitem', { name: /llamar/i });
-    expect(call.closest('a')).toHaveAttribute('href', expect.stringMatching(/^tel:\+?\d+$/));
-    unmount();
+    const withFolio = { ...ticket, id: BigInt(1121), folio_prefix: 'R', folio_number: 60 };
+    render(<TicketRowActions ticket={withFolio} onDelete={jest.fn()} canWrite />);
+    await user.click(screen.getByRole('button', { name: 'Más acciones de R-0060' }));
+    expect(await screen.findByRole('menuitem', { name: 'Cobrar R-0060' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Descargar R-0060' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Eliminar R-0060' })).toBeInTheDocument();
+    expect(screen.queryByText(/1121/)).toBeNull();
+  });
 
-    render(<TicketRowActions ticket={{ ...ticket, client_tel: null }} canWrite />);
-    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
+  it('puts Terminar in the menu of an open ticket when the table passes its link (ZIG-33)', async () => {
+    const user = userEvent.setup();
+    render(
+      <TicketRowActions
+        ticket={{ ...ticket, finished: false }}
+        onDelete={jest.fn()}
+        canWrite
+       
+        finishHref="/tickets/7"
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Más acciones de #7' }));
+    const terminar = await screen.findByRole('menuitem', { name: 'Terminar #7' });
+    expect(terminar.closest('a')).toHaveAttribute('href', '/tickets/7');
+  });
+
+  it('has no Terminar without a finish link or once the ticket is finished', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<TicketRowActions ticket={{ ...ticket, finished: false }} canWrite />);
+    await user.click(screen.getByRole('button', { name: 'Más acciones de #7' }));
+    await screen.findByRole('menuitem', { name: /ver detalles/i });
+    expect(screen.queryByRole('menuitem', { name: /terminar/i })).toBeNull();
+    unmount();
+    render(<TicketRowActions ticket={ticket} canWrite finishHref="/tickets/7" />);
+    await user.click(screen.getByRole('button', { name: 'Más acciones de #7' }));
+    await screen.findByRole('menuitem', { name: /ver detalles/i });
+    expect(screen.queryByRole('menuitem', { name: /terminar/i })).toBeNull();
+  });
+
+  it('offers no Llamar, even when the client has a phone (ZIG-27)', async () => {
+    const user = userEvent.setup();
+    render(<TicketRowActions ticket={{ ...ticket, client_tel: '998 345 7712' }} canWrite />);
+    await user.click(screen.getByRole('button', { name: /más acciones de #7/i }));
     await screen.findByRole('menuitem', { name: /ver detalles/i });
     expect(screen.queryByRole('menuitem', { name: /llamar/i })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull();
   });
 
   it('shows Descargar ticket for finished tickets without a stored document', async () => {
@@ -77,11 +110,11 @@ describe('TicketRowActions', () => {
     render(<TicketRowActions ticket={ticket} companyId={1} />);
 
     await user.click(
-      screen.getByRole('button', { name: /más acciones del ticket 7/i }),
+      screen.getByRole('button', { name: /más acciones de #7/i }),
     );
 
     expect(
-      screen.getByRole('menuitem', { name: /descargar ticket 7/i }),
+      screen.getByRole('menuitem', { name: /descargar #7/i }),
     ).toBeInTheDocument();
     expect(screen.queryByText('Ver PDF')).not.toBeInTheDocument();
   });
@@ -91,10 +124,10 @@ describe('TicketRowActions', () => {
     render(<TicketRowActions ticket={ticket} companyId={3} />);
 
     await user.click(
-      screen.getByRole('button', { name: /más acciones del ticket 7/i }),
+      screen.getByRole('button', { name: /más acciones de #7/i }),
     );
     await user.click(
-      screen.getByRole('menuitem', { name: /descargar ticket 7/i }),
+      screen.getByRole('menuitem', { name: /descargar #7/i }),
     );
 
     await waitFor(() => {
@@ -116,11 +149,11 @@ describe('TicketRowActions', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: /más acciones del ticket 7/i }),
+      screen.getByRole('button', { name: /más acciones de #7/i }),
     );
     expect(screen.queryByText('Cobrar saldo')).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole('menuitem', { name: /cobrar el ticket 7/i }),
+      screen.getByRole('menuitem', { name: /cobrar #7/i }),
     );
     expect(
       screen.getByRole('heading', { name: /^cobrar$/i }),
@@ -137,7 +170,7 @@ describe('TicketRowActions', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: /más acciones del ticket 7/i }),
+      screen.getByRole('button', { name: /más acciones de #7/i }),
     );
     expect(
       screen.queryByRole('menuitem', { name: /^cobrar$/i }),
@@ -156,8 +189,8 @@ describe('TicketRowActions', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
-    await user.click(screen.getByRole('menuitem', { name: /eliminar ticket 7/i }));
+    await user.click(screen.getByRole('button', { name: /más acciones de #7/i }));
+    await user.click(screen.getByRole('menuitem', { name: /eliminar #7/i }));
 
     const sheet = await screen.findByRole('dialog', { name: '¿Eliminar el ticket #7?' });
     expect(sheet).toHaveTextContent('Cliente');
@@ -187,8 +220,8 @@ describe('TicketRowActions', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
-    await user.click(screen.getByRole('menuitem', { name: /eliminar ticket 7/i }));
+    await user.click(screen.getByRole('button', { name: /más acciones de #7/i }));
+    await user.click(screen.getByRole('menuitem', { name: /eliminar #7/i }));
     await user.click(await screen.findByRole('button', { name: 'Eliminar ticket' }));
 
     await waitFor(() => {
@@ -203,8 +236,8 @@ describe('TicketRowActions', () => {
     const user = userEvent.setup();
     render(<TicketRowActions ticket={ticket} canWrite={false} companyId={1} />);
 
-    await user.click(screen.getByRole('button', { name: /más acciones del ticket 7/i }));
+    await user.click(screen.getByRole('button', { name: /más acciones de #7/i }));
 
-    expect(screen.queryByRole('menuitem', { name: /eliminar ticket 7/i })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /eliminar #7/i })).toBeNull();
   });
 });

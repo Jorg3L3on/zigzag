@@ -1,41 +1,31 @@
+import { getWrittenGuides, guideHref } from '@/components/ayuda/guide-registry';
+import { AYUDA_PATH } from '@/lib/marketing-routes';
 import {
-  EMPRESA_GUIDE_LINK,
-  EXECUTIVE_SUMMARY_LINK,
-  getGuidesMenuHref,
-  getOnboardingGuidesForUser,
-  ONBOARDING_GUIDE_PATHS,
+  HELP_CENTER_LINK,
   OPERATOR_GUIDE_ANCHORS,
-  PUBLIC_ONBOARDING_GUIDE_LINKS,
 } from './onboarding-guides';
+import * as onboardingGuides from './onboarding-guides';
 
 describe('onboarding-guides', () => {
-  it('exposes investor and tenant guides on login', () => {
-    expect(PUBLIC_ONBOARDING_GUIDE_LINKS).toEqual([
-      EXECUTIVE_SUMMARY_LINK,
-      EMPRESA_GUIDE_LINK,
-    ]);
+  it('has one help link, to the /ayuda help centre', () => {
+    expect(HELP_CENTER_LINK.href).toBe(AYUDA_PATH);
+    expect(HELP_CENTER_LINK.href).toBe('/ayuda');
   });
 
-  it('scopes authenticated guides by company type', () => {
-    expect(getOnboardingGuidesForUser(false)).toEqual([EMPRESA_GUIDE_LINK]);
-    expect(getOnboardingGuidesForUser(true)).toEqual([
-      EXECUTIVE_SUMMARY_LINK,
-      EMPRESA_GUIDE_LINK,
-    ]);
-  });
-
-  it('routes the Guías menu to index for system users', () => {
-    expect(getGuidesMenuHref(false)).toBe(ONBOARDING_GUIDE_PATHS.empresa);
-    expect(getGuidesMenuHref(true)).toBe(ONBOARDING_GUIDE_PATHS.index);
-  });
-
-  it('exposes deep links into the operator guide', () => {
-    expect(OPERATOR_GUIDE_ANCHORS.miEmpresa).toBe(
-      `${ONBOARDING_GUIDE_PATHS.empresa}#paso-3`,
+  it('retires the executive summary and the static /guides paths (ZIG-I40-6)', () => {
+    const exported = JSON.stringify(onboardingGuides);
+    expect(exported).not.toMatch(/\/guides|resumen-ejecutivo|investor/);
+    expect(Object.keys(onboardingGuides)).not.toEqual(
+      expect.arrayContaining(['EXECUTIVE_SUMMARY_LINK']),
     );
-    expect(OPERATOR_GUIDE_ANCHORS.crearTicket).toBe(
-      `${ONBOARDING_GUIDE_PATHS.empresa}#paso-7`,
-    );
-    expect(OPERATOR_GUIDE_ANCHORS.facturaPdf).toContain('#paso-10');
+  });
+
+  it('points every checklist link at /ayuda or a written guide', () => {
+    const written = new Set(getWrittenGuides().map((guide) => guideHref(guide.slug)));
+    for (const href of Object.values(OPERATOR_GUIDE_ANCHORS)) {
+      expect(href === AYUDA_PATH || written.has(href)).toBe(true);
+    }
+    expect(OPERATOR_GUIDE_ANCHORS.crearTicket).toBe('/ayuda/crear-un-ticket');
+    expect(OPERATOR_GUIDE_ANCHORS.clientes).toBe('/ayuda/guardar-un-cliente');
   });
 });

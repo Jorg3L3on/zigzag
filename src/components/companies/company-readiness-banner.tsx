@@ -4,7 +4,10 @@ import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
 
 import { CompanyReadinessPanel } from '@/components/companies/company-readiness-panel';
-import type { CompanyReadinessAssessment } from '@/lib/company-readiness';
+import {
+  ownerReadinessGaps,
+  type CompanyReadinessAssessment,
+} from '@/lib/company-readiness';
 import { cn } from '@/lib/utils';
 
 /** One-line readiness status for the Datos tab; expands to the full panel. */
@@ -12,9 +15,10 @@ export const readinessHeadline = (assessment: CompanyReadinessAssessment) => {
   if (assessment.productionReady) {
     return 'Lista para operar';
   }
-  const [first, second, ...rest] = assessment.missingLabels;
+  // The status is the operator console's: never listed as the owner's to-do.
+  const [first, second, ...rest] = ownerReadinessGaps(assessment);
   if (!first) {
-    return 'Configuración pendiente';
+    return 'Lista; la activa el equipo de ZigZag';
   }
   const named = second ? `${first}, ${second}` : first;
   return rest.length > 0 ? `Falta: ${named} y ${rest.length} más` : `Falta: ${named}`;
@@ -59,7 +63,7 @@ export const CompanyReadinessBanner = ({
         />
       </button>
       <div id={detailId} hidden={!expanded} className="px-2 pb-2">
-        <CompanyReadinessPanel assessment={assessment} />
+        <CompanyReadinessPanel assessment={assessment} ownerView />
       </div>
     </div>
   );

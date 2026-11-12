@@ -1,5 +1,6 @@
 /**
- * Seed a dedicated perf-baseline tenant: 1k clients + 10k tickets (+ supporting rows).
+ * Seed a dedicated perf-baseline tenant: 1k clients + 10k tickets (+ supporting rows,
+ * one service line per ticket and one service schedule per client).
  *
  * Idempotent for the company named `__perf_baseline__` — re-running replaces that
  * company's clients/tickets/services/audit rows without touching other tenants.
@@ -20,8 +21,10 @@ import * as schema from '../src/db/schema';
 import {
   auditEvent,
   client,
+  clientServiceSchedule,
   company,
   service,
+  servicesTickets,
   ticket,
   ticketAuditEvent,
   user,
@@ -69,9 +72,15 @@ const wipePerfCompanyData = async (companyId: number) => {
       await db
         .delete(ticketAuditEvent)
         .where(inArray(ticketAuditEvent.ticket_id, chunk));
+      await db
+        .delete(servicesTickets)
+        .where(inArray(servicesTickets.ticket_id, chunk));
     }
   }
 
+  await db
+    .delete(clientServiceSchedule)
+    .where(eq(clientServiceSchedule.company_id, companyId));
   await db.delete(ticket).where(eq(ticket.company_id, companyId));
   await db.delete(client).where(eq(client.company_id, companyId));
   await db.delete(service).where(eq(service.company_id, companyId));
@@ -196,6 +205,53 @@ async function main() {
       ON c.idx = ((gs.g - 1) % ${CLIENT_COUNT})
   `);
 
+  // One line per ticket, services round-robin, so the schedule history query
+  // (tickets of a client with a line of a service) has real rows to scan.
+  console.log('Inserting one service line per ticket…');
+  await db.execute(sql`
+    WITH numbered_services AS (
+      SELECT id, price, row_number() OVER (ORDER BY id) - 1 AS idx
+      FROM "Service"
+      WHERE company_id = ${companyId} AND deleted_at IS NULL
+    )
+    INSERT INTO "ServicesTickets" (service_id, ticket_id, quantity, price)
+    SELECT s.id, t.id, 1, s.price
+    FROM "Ticket" AS t
+    JOIN numbered_services AS s ON s.idx = (t.id % ${SERVICE_COUNT})
+    WHERE t.company_id = ${companyId} AND t.deleted_at IS NULL
+  `);
+
+  // One schedule per client (ZIG-I30 agenda): due dates from 210 days ago to
+  // 210 days ahead, every 15th paused.
+  console.log(`Inserting ${CLIENT_COUNT} service schedules…`);
+  await db.execute(sql`
+    WITH numbered_clients AS (
+      SELECT id, row_number() OVER (ORDER BY id) - 1 AS idx
+      FROM "Client"
+      WHERE company_id = ${companyId} AND deleted_at IS NULL
+    ),
+    numbered_services AS (
+      SELECT id, row_number() OVER (ORDER BY id) - 1 AS idx
+      FROM "Service"
+      WHERE company_id = ${companyId} AND deleted_at IS NULL
+    )
+    INSERT INTO "ClientServiceSchedule" (
+      company_id, client_id, service_id, interval_value, interval_unit,
+      last_service_at, next_due_at, paused_at
+    )
+    SELECT
+      ${companyId},
+      c.id,
+      s.id,
+      6,
+      'month',
+      NOW() + (((c.idx * 37) % 420 - 210) || ' days')::interval - interval '6 months',
+      NOW() + (((c.idx * 37) % 420 - 210) || ' days')::interval,
+      CASE WHEN c.idx % 15 = 0 THEN NOW() ELSE NULL END
+    FROM numbered_clients AS c
+    JOIN numbered_services AS s ON s.idx = (c.idx % ${SERVICE_COUNT})
+  `);
+
   const actorUserId = await pickActorUserId();
   console.log(`Inserting ${AUDIT_COUNT} AuditEvent rows…`);
   await db.execute(sql`
@@ -262,7 +318,8 @@ async function main() {
       (SELECT count(*) FROM "Service" WHERE company_id = ${companyId} AND deleted_at IS NULL) AS services,
       (SELECT count(*) FROM "Ticket" WHERE company_id = ${companyId} AND deleted_at IS NULL) AS tickets,
       (SELECT count(*) FROM "AuditEvent" WHERE target_company_id = ${companyId}) AS audits,
-      (SELECT count(*) FROM "TicketAuditEvent" WHERE company_id = ${companyId}) AS ticket_audits
+      (SELECT count(*) FROM "TicketAuditEvent" WHERE company_id = ${companyId}) AS ticket_audits,
+      (SELECT count(*) FROM "ClientServiceSchedule" WHERE company_id = ${companyId} AND deleted_at IS NULL) AS schedules
   `);
 
   const row = (counts as unknown as { rows?: Record<string, string>[] }).rows?.[0]

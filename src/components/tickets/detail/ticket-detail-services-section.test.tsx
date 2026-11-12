@@ -34,7 +34,7 @@ const line = (id: number, name: string, materials = 0) => ({
 });
 
 describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
-  it('shows three rows with Editar and folds the rest behind Ver detalle con N materiales', async () => {
+  it('shows every service with Editar; Ver detalle opens all the materials (ZIG-I24)', async () => {
     const user = userEvent.setup();
     render(
       <TicketDetailServicesSection
@@ -49,10 +49,11 @@ describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
       'href',
       '/tickets/5/edit',
     );
+    // All four lines, not the first three.
     expect(screen.getByText(/Tres/)).toBeInTheDocument();
-    expect(screen.queryByText(/Cuatro/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Ver detalle con 4 materiales' }));
     expect(screen.getByText(/Cuatro/)).toBeInTheDocument();
+    expect(screen.queryByText(/Material 1.1/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ver detalle con 4 materiales' }));
     expect(screen.getByText(/Material 1.1/)).toBeInTheDocument();
   });
 
@@ -61,5 +62,28 @@ describe('TicketDetailServicesSection (ZIG-I13-4)', () => {
       <TicketDetailServicesSection ticketId={5} total={300} paid={300} services={[line(1, 'Uno')]} />,
     );
     expect(screen.queryByRole('link', { name: 'Editar servicios' })).toBeNull();
+  });
+
+  it('shows the ticket note under Nota on the phone (ZIG-I36-16)', () => {
+    render(
+      <TicketDetailServicesSection
+        ticketId={5}
+        total={300}
+        paid={0}
+        workNotes={'  Revisar la fuga en 15 días.\nCliente pide factura.  '}
+        services={[line(1, 'Uno')]}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Nota' })).toBeInTheDocument();
+    expect(screen.getByTestId('ticket-phone-note')).toHaveTextContent(
+      'Revisar la fuga en 15 días. Cliente pide factura.',
+    );
+  });
+
+  it('has no Nota block without a note', () => {
+    render(
+      <TicketDetailServicesSection ticketId={5} total={300} paid={0} workNotes="  " services={[line(1, 'Uno')]} />,
+    );
+    expect(screen.queryByRole('heading', { name: 'Nota' })).toBeNull();
   });
 });

@@ -1,48 +1,10 @@
 'use client';
 
 import type { Service } from '@/db/schema';
-import type { Column, ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { cn } from '@/lib/utils';
-
-function ServiceSortableHeader<TData>({
-  column,
-  label,
-  className,
-}: {
-  column: Column<TData>;
-  label: string;
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
-      )}
-    </Button>
-  );
-}
+import { ListSortableHeader, ListStatusPill } from '@/components/list-page';
 
 /** Default materials count; list rows carry `materials` since ZIG-I10. */
 export const serviceMaterialCount = (service: Service): number =>
@@ -55,6 +17,10 @@ export type ServicesColumnsOptions = {
   renderActions: (service: Service) => ReactNode;
 };
 
+/**
+ * The desktop table (from lg). Sorting is by header only; `ListTable` puts
+ * `aria-sort` on the th and right-aligns Precio from its meta (ZIG-I33).
+ */
 export const createServicesColumns = ({
   renderActions,
 }: ServicesColumnsOptions): ColumnDef<Service>[] => [
@@ -62,10 +28,16 @@ export const createServicesColumns = ({
     id: 'name',
     accessorKey: 'name',
     header: ({ column }) => (
-      <ServiceSortableHeader column={column} label="Nombre" />
+      <ListSortableHeader column={column} label="Nombre" />
     ),
+    // Up to two lines, the full name on hover (M-37).
     cell: ({ row }) => (
-      <span className="font-medium">{row.original.name}</span>
+      <span
+        className="line-clamp-2 font-medium [overflow-wrap:anywhere]"
+        title={row.original.name}
+      >
+        {row.original.name}
+      </span>
     ),
     sortingFn: (a, b) => {
       const na = a.original.name.toLocaleLowerCase();
@@ -76,11 +48,13 @@ export const createServicesColumns = ({
   {
     id: 'description',
     accessorKey: 'description',
+    // Below 1280px the description gives its room to Precio and ⋮ (ZIG-I27-2).
+    meta: { className: 'hidden xl:table-cell' },
     header: ({ column }) => (
-      <ServiceSortableHeader column={column} label="Descripción" />
+      <ListSortableHeader column={column} label="Descripción" />
     ),
     cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-md text-muted-foreground">
+      <span className="block truncate text-muted-foreground" title={row.original.description}>
         {row.original.description}
       </span>
     ),
@@ -93,26 +67,24 @@ export const createServicesColumns = ({
   {
     id: 'status',
     accessorFn: (row) => (row.deleted_at ? 1 : 0),
+    meta: { className: 'w-[112px]' },
     header: ({ column }) => (
-      <ServiceSortableHeader column={column} label="Estado" />
+      <ListSortableHeader column={column} label="Estado" />
     ),
-    cell: ({ row }) => (
-      <span
-        className={`inline-flex rounded-full px-2 py-1 text-caption font-medium ${
-          row.original.deleted_at
-            ? 'bg-destructive/10 text-destructive'
-            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100'
-        }`}
-      >
-        {row.original.deleted_at ? 'Eliminado' : 'Activo'}
-      </span>
-    ),
+    // Deleted stays red, as on the phone card (ZIG-I33 §6).
+    cell: ({ row }) =>
+      row.original.deleted_at ? (
+        <ListStatusPill tone="red">Eliminado</ListStatusPill>
+      ) : (
+        <ListStatusPill tone="emerald">Activo</ListStatusPill>
+      ),
   },
   {
     id: 'materials',
     accessorFn: (row) => serviceMaterialCount(row),
+    meta: { className: 'w-[120px]' },
     header: ({ column }) => (
-      <ServiceSortableHeader column={column} label="Materiales" />
+      <ListSortableHeader column={column} label="Materiales" />
     ),
     cell: ({ row }) => {
       const count = serviceMaterialCount(row.original);
@@ -126,23 +98,17 @@ export const createServicesColumns = ({
   {
     id: 'price',
     accessorFn: (row) => row.price,
+    meta: { className: 'w-[132px]', align: 'right' },
     header: ({ column }) => (
-      <ServiceSortableHeader
-        column={column}
-        label="Precio"
-        className="justify-end"
-      />
+      <ListSortableHeader column={column} label="Precio" align="right" />
     ),
-    cell: ({ row }) => (
-      <div className="text-right tabular-nums">
-        <FormattedCurrency amount={row.original.price} />
-      </div>
-    ),
+    cell: ({ row }) => <FormattedCurrency amount={row.original.price} />,
     sortingFn: (rowA, rowB) => rowA.original.price - rowB.original.price,
   },
   {
     id: 'actions',
     enableSorting: false,
+    meta: { className: 'w-[56px]' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
       <div

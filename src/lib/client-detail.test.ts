@@ -15,13 +15,19 @@ describe('summarizeClientBalance', () => {
       // Presupuestos never count.
       { document_kind: 'presupuesto', finished: true, total: 700, paid: 0 },
     ]);
-    expect(summary).toEqual({ balanceDue: 1100, dueTicketCount: 2, ticketCount: 4 });
+    expect(summary).toEqual({
+      balanceDue: 1100,
+      dueTicketCount: 2,
+      ticketCount: 4,
+      // The 900 still in progress is its own line, not Por cobrar (ZIG-I36-17).
+      inProgressDue: 900,
+    });
   });
 
   it('treats a missing document kind as a work ticket', () => {
     expect(
       summarizeClientBalance([{ finished: true, total: 250.5, paid: null }]),
-    ).toEqual({ balanceDue: 250.5, dueTicketCount: 1, ticketCount: 1 });
+    ).toEqual({ balanceDue: 250.5, dueTicketCount: 1, ticketCount: 1, inProgressDue: 0 });
   });
 
   it('ignores differences below one cent and rounds to cents', () => {
@@ -39,6 +45,7 @@ describe('summarizeClientBalance', () => {
       balanceDue: 0,
       dueTicketCount: 0,
       ticketCount: 0,
+      inProgressDue: 0,
     });
   });
 });

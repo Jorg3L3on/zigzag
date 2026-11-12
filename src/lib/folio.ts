@@ -88,16 +88,13 @@ export const normalizeFolioSearch = (value: string): string =>
   value.trim().replace(/[%_\\]/g, '');
 
 /**
- * The folio printed on a recibo. A work ticket converted from a presupuesto keeps
- * showing the presupuesto's P folio (ZIG-I17-5); otherwise it shows its own.
+ * The P folio of the presupuesto a work ticket came from, for the «Desde
+ * presupuesto» link and the PDF reference line. The ticket itself always shows
+ * its own R folio (ZIG-I26-2). Null when there is no source with a folio.
  */
-export const formatDisplayFolio = (
-  row: FolioParts & {
-    id?: bigint | number | string;
-    document_kind?: string | null;
-    source_presupuesto_folio?: FolioParts | null;
-  },
-): string =>
-  row.source_presupuesto_folio?.folio_number != null
-    ? formatDocumentFolio({ ...row.source_presupuesto_folio, document_kind: 'presupuesto' })
-    : formatDocumentFolio(row);
+export const formatSourcePresupuestoFolio = (
+  source: FolioParts | null | undefined,
+): string | null =>
+  source?.folio_number != null
+    ? formatDocumentFolio({ ...source, document_kind: 'presupuesto' })
+    : null;

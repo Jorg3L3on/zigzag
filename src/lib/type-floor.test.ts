@@ -11,6 +11,11 @@ import path from 'node:path';
 const SRC_DIR = path.join(process.cwd(), 'src');
 const SELF = path.relative(process.cwd(), __filename);
 const FORBIDDEN = /(?<![\w-])text-xs(?![\w-])|text-\[(10|11|13)px\]|text-\[0\.8rem\]/;
+/**
+ * The floor is for phones: a class behind md:, lg:, xl: or 2xl: only applies on wider
+ * screens, where the approved desktop canvases use 11 and 13 px (ZIG-31).
+ */
+const WIDE_SCREEN_CLASS = /(?<![\w-])(?:md|lg|xl|2xl):[^\s'"`]+/g;
 /** Decorative badges keep 12px. */
 const ALLOWLIST = new Set(['src/components/ui/badge.tsx']);
 const SCANNED = /\.(tsx?|css)$/;
@@ -31,7 +36,7 @@ describe('type floor guard', () => {
         readFileSync(file, 'utf8')
           .split('\n')
           .map((text, index) => ({ text, line: index + 1 }))
-          .filter(({ text }) => FORBIDDEN.test(text))
+          .filter(({ text }) => FORBIDDEN.test(text.replace(WIDE_SCREEN_CLASS, '')))
           .map(({ line, text }) => `${file}:${line}: ${text.trim().slice(0, 100)}`),
       );
     expect(offenders).toEqual([]);

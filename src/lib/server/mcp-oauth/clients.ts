@@ -10,9 +10,8 @@ import {
   isPublicTokenAuthMethod,
   isTrustedCimdHost,
   validateRedirectUri,
-  CHATGPT_JWKS_URI,
-  isChatGptCimdClientId,
 } from '@/lib/server/mcp-oauth/cimd';
+import { isAllowedDcrRedirectUri } from '@/lib/server/mcp-oauth/dcr-policy';
 import { hashOAuthSecret, verifyOAuthSecret } from '@/lib/server/mcp-oauth/tokens';
 
 export type ResolvedOAuthClient = {
@@ -109,6 +108,16 @@ export const resolveOAuthClient = async (
   return raced ? toResolvedClient(raced) : null;
 };
 
+/** True when client_id is a CIMD URL we have not stored yet (resolving it fetches). */
+export const isUnknownCimdClientId = async (clientId: string): Promise<boolean> => {
+  if (!isClientIdMetadataUrl(clientId)) return false;
+  const existing = await db.query.mcpOAuthClient.findFirst({
+    where: eq(mcpOAuthClient.client_id, clientId),
+    columns: { id: true },
+  });
+  return !existing;
+};
+
 export type DynamicClientRegistrationInput = {
   client_name?: string;
   redirect_uris: string[];
@@ -150,36 +159,22 @@ export const registerDynamicOAuthClient = async (
   };
 };
 
-export const resolveClientJwksUri = async (clientId: string): Promise<string | null> => {
-  const metadata = await fetchClientIdMetadataDocument(clientId);
-  if (metadata?.jwks_uri) return metadata.jwks_uri;
-  if (isChatGptCimdClientId(clientId)) return CHATGPT_JWKS_URI;
-  return null;
-};
-
-export const tokenClientIdMatchesCode = async (
+/**
+ * The client at the token endpoint must be the one the code was issued to.
+ * Only exception: ChatGPT rotates between CIMD URLs on its own trusted hosts.
+ * (A client whose redirect_uris merely include the code's redirect_uri used to
+ * pass too; micasa MIC-I5-1 removed that, and so does ZIG-38.)
+ */
+export const tokenClientIdMatchesCode = (
   tokenClientId: string,
   codeClientId: string,
-  codeRedirectUri: string,
-): Promise<boolean> => {
+): boolean => {
   if (tokenClientId === codeClientId) return true;
-
-  if (
+  return (
     isClientIdMetadataUrl(tokenClientId) &&
     isClientIdMetadataUrl(codeClientId) &&
     isTrustedCimdHost(tokenClientId) &&
     isTrustedCimdHost(codeClientId)
-  ) {
-    return true;
-  }
-
-  const tokenClient = await resolveOAuthClient(tokenClientId);
-  if (!tokenClient) return false;
-
-  return validateRedirectUri(
-    codeRedirectUri,
-    tokenClient.redirect_uris,
-    tokenClient.client_id,
   );
 };
 
@@ -187,7 +182,11 @@ export const assertRedirectUriAllowed = (
   client: ResolvedOAuthClient,
   redirectUri: string,
 ): void => {
-  if (!validateRedirectUri(redirectUri, client.redirect_uris, client.client_id)) {
+  // Rows stored before ZIG-38 may hold a non-https redirect: never send a code there.
+  if (
+    !isAllowedDcrRedirectUri(redirectUri) ||
+    !validateRedirectUri(redirectUri, client.redirect_uris, client.client_id)
+  ) {
     throw new Error('redirect_uri no autorizado para este cliente');
   }
 };

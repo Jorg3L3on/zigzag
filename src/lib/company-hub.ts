@@ -35,6 +35,15 @@ export const COMPANY_HUB_TABS: CompanyHubTab[] = [
   },
 ];
 
+/**
+ * Where the sidebar's Mi empresa link goes (ZIG-34): the first hub tab the
+ * user may open, in tab order, or null when none (the sidebar hides it).
+ */
+export const getCompanyHubEntryHref = (
+  can: (permission?: string) => boolean,
+): string | null =>
+  COMPANY_HUB_TABS.find((tab) => can(tab.requiredPermission))?.href ?? null;
+
 const isAtOrUnder = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
@@ -71,3 +80,16 @@ export const getCompanyHubSubpage = (
   }
   return null;
 };
+
+/**
+ * Props for `TripledResourceCard` on the hub pages: below lg the card stays, lg+
+ * drops its frame, header and padding (ZIG-I32), so the hub header is the
+ * only one. overflow-visible keeps the sticky asides working.
+ */
+export const COMPANY_HUB_CARD_DESKTOP_RESET = {
+  className:
+    // `!`: Card's hand-written shadow-soft and hover-lift win the cascade otherwise.
+    'lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-none lg:bg-transparent lg:shadow-none! lg:ring-0 lg:hover:transform-none! lg:hover:shadow-none!',
+  headerClassName: 'lg:hidden',
+  contentClassName: 'lg:p-0 lg:pt-0',
+} as const;

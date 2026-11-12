@@ -1,7 +1,7 @@
 'use server';
 
-import { formatDocumentFolio } from '@/lib/folio';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { formatDocumentFolio, normalizeFolioSearch, parseFolioSearch } from '@/lib/folio';
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -15,6 +15,10 @@ import {
 } from '@/db/schema';
 import { db } from '@/lib/db';
 import { createDocumentWithLines } from '@/lib/documents/create-document';
+import {
+  clientRequestBeforeInsert,
+  loadClientRequestDocument,
+} from '@/lib/documents/client-request';
 import {
   convertPresupuesto,
   PresupuestoNotConvertibleError,
@@ -58,7 +62,19 @@ import {
   catalogServiceIds,
   insertServiceLines,
 } from '@/lib/service-lines-server';
+import { sqlFoldedContains } from '@/lib/search-text';
 import { activeLineMaterialsWith } from '@/lib/line-materials-query';
+import { companyDay } from '@/lib/company-day';
+import {
+  presupuestoExpiresTodayCondition,
+  presupuestoStatusCondition,
+} from '@/lib/presupuestos-list-query';
+import {
+  statusesForPresupuestoView,
+  type PresupuestoListCounts,
+  type PresupuestoListSort,
+  type PresupuestoListView,
+} from '@/lib/presupuestos-list-views';
 import {
   buildPresupuestoDuplicateDraft,
   type PresupuestoDuplicateDraft,
@@ -69,7 +85,7 @@ const serviceLineSchema = serviceLineInputSchema;
 
 const presupuestoSchema = z.object({
   client_id: z.number().optional(),
-  client_name: z.string().min(1, 'El nombre del cliente es obligatorio').max(100),
+  client_name: z.string().min(1, 'El nombre del cliente es obligatorio'),
   client_tel: z.string().min(1, 'El teléfono del cliente es obligatorio').max(20),
   email: z
     .string()
@@ -189,6 +205,245 @@ export async function getPresupuestosList(
   }
 }
 
+/** A row of the desktop table (ZIG-I29-3): the phone item plus the work and the R folio. */
+export type PresupuestoTableItem = PresupuestoListItem & {
+  servicesSummary: string | null;
+  /** The first two conceptos and how many there are («A, B… +2»). */
+  servicesHead: string[];
+  servicesCount: number;
+  convertedTicketFolio: string | null;
+};
+
+export interface PaginatedPresupuestosData {
+  items: PresupuestoTableItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  counts: PresupuestoListCounts;
+}
+
+/** The columns the presupuestos list sorts by on the server (ZIG-I33-2). */
+export type PresupuestoListSortColumn = 'folio' | 'cliente' | 'emitido' | 'vence' | 'total';
+
+export type PresupuestoListColumnSort = {
+  column: PresupuestoListSortColumn;
+  direction: 'asc' | 'desc';
+};
+
+/** Whitelist: only these expressions reach ORDER BY; no text from the caller does. */
+const PRESUPUESTO_SORT_EXPRESSIONS: Record<PresupuestoListSortColumn, SQL> = {
+  folio: sql`${ticket.id}`,
+  cliente: sql`lower(${ticket.client_name})`,
+  emitido: sql`${ticket.ticket_date}`,
+  vence: sql`${ticket.expires_at}`,
+  total: sql`${ticket.total}`,
+};
+
+/** The orders of the old sort select (ZIG-I29-3), as column sorts. */
+const PRESUPUESTO_PRESET_SORTS: Record<PresupuestoListSort, PresupuestoListColumnSort> = {
+  vence: { column: 'vence', direction: 'asc' },
+  recientes: { column: 'emitido', direction: 'desc' },
+  total: { column: 'total', direction: 'desc' },
+};
+
+const hasKey = <T extends object>(record: T, key: unknown): key is keyof T =>
+  typeof key === 'string' && Object.prototype.hasOwnProperty.call(record, key);
+
+/**
+ * ORDER BY for one page. Nothing (or anything unknown) is «Vencen primero» as before;
+ * Vence breaks ties by the newest issued, and every sort ends with the id so equal
+ * values keep one order across pages. `vence asc`, `emitido desc` and `total desc`
+ * are exactly the old Vencen primero, Más recientes and Mayor total.
+ */
+const presupuestoListOrderBy = (
+  sort: PresupuestoListSort | PresupuestoListColumnSort | undefined,
+): SQL[] => {
+  let resolved = PRESUPUESTO_PRESET_SORTS.vence;
+  if (typeof sort === 'string') {
+    if (hasKey(PRESUPUESTO_PRESET_SORTS, sort)) resolved = PRESUPUESTO_PRESET_SORTS[sort];
+  } else if (sort && hasKey(PRESUPUESTO_SORT_EXPRESSIONS, sort.column)) {
+    resolved = { column: sort.column, direction: sort.direction === 'asc' ? 'asc' : 'desc' };
+  }
+  const direction = resolved.direction === 'asc' ? sql`asc` : sql`desc`;
+  return [
+    sql`${PRESUPUESTO_SORT_EXPRESSIONS[resolved.column]} ${direction} nulls last`,
+    ...(resolved.column === 'vence' ? [sql`${ticket.ticket_date} desc nulls last`] : []),
+    desc(ticket.id),
+  ];
+};
+
+/**
+ * Desktop presupuestos list (ZIG-I29-3): one page of a view with counts per
+ * state under the search and the issue dates. The state is computed in SQL
+ * with the rule of getPresupuestoStatus on the company day; the work is one
+ * aggregate over the page ids, like the tickets list.
+ */
+export async function getPresupuestosPaginated(params: {
+  companyId?: number | null;
+  view?: PresupuestoListView;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  /** A column sort from the header, or one of the old presets; default Vencen primero. */
+  sort?: PresupuestoListSort | PresupuestoListColumnSort;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  success: boolean;
+  data?: PaginatedPresupuestosData;
+  error?: string;
+  errorType?: ActionErrorType;
+}> {
+  try {
+    const { companyId: effectiveCompanyId } = await requireTicketRead(
+      params.companyId ?? undefined,
+    );
+
+    const page = Math.max(1, Math.floor(params.page ?? 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize ?? 25)));
+    const search = params.search?.trim();
+    const todayIso = companyDay(new Date()).iso;
+
+    const folioSearch = search ? parseFolioSearch(search) : null;
+    const searchCondition = search
+      ? or(
+          sqlFoldedContains(ticket.client_name, search),
+          sqlFoldedContains(ticket.client_tel, search),
+          // P-0004, p4 or 0004: the stored prefix plus the padded number, like tickets. A bare
+          // number matches the folio number exactly (below), not every id containing it.
+          sql`(coalesce(${ticket.folio_prefix}, 'P') || '-' || lpad(${ticket.folio_number}::text, 4, '0')) ILIKE ${`%${normalizeFolioSearch(search)}%`}`,
+          ...(folioSearch
+            ? [
+                and(
+                  eq(ticket.folio_number, folioSearch.number),
+                  folioSearch.prefix
+                    ? ilike(ticket.folio_prefix, `${folioSearch.prefix.replace(/[%_\\]/g, '')}%`)
+                    : undefined,
+                ),
+              ]
+            : []),
+        )
+      : undefined;
+
+    const scope = and(
+      eq(ticket.company_id, effectiveCompanyId),
+      isNull(ticket.deleted_at),
+      eq(ticket.document_kind, 'presupuesto'),
+      ...(searchCondition ? [searchCondition] : []),
+      ...(params.dateFrom ? [sql`${ticket.ticket_date} >= ${params.dateFrom}::timestamptz`] : []),
+      ...(params.dateTo ? [sql`${ticket.ticket_date} <= ${params.dateTo}::timestamptz`] : []),
+    );
+    const statuses = statusesForPresupuestoView(params.view ?? 'pendientes');
+    const viewCondition = statuses
+      ? or(...statuses.map((status) => presupuestoStatusCondition(status, todayIso)))
+      : undefined;
+    const where = viewCondition ? and(scope, viewCondition) : scope;
+
+    // Counts ignore the view so the tabs keep their numbers.
+    const [countRow] = await db
+      .select({
+        all: count(),
+        abierto: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('abierto', todayIso)})`,
+        vencido: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('vencido', todayIso)})`,
+        convertido: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('convertido', todayIso)})`,
+        cancelado: sql<number>`count(*) FILTER (WHERE ${presupuestoStatusCondition('cancelado', todayIso)})`,
+        venceHoy: sql<number>`count(*) FILTER (WHERE ${presupuestoExpiresTodayCondition(todayIso)})`,
+      })
+      .from(ticket)
+      .where(scope);
+    const counts: PresupuestoListCounts = {
+      all: Number(countRow?.all ?? 0),
+      abierto: Number(countRow?.abierto ?? 0),
+      vencido: Number(countRow?.vencido ?? 0),
+      convertido: Number(countRow?.convertido ?? 0),
+      cancelado: Number(countRow?.cancelado ?? 0),
+      venceHoy: Number(countRow?.venceHoy ?? 0),
+    };
+    const total = statuses
+      ? statuses.reduce((sum, status) => sum + counts[status], 0)
+      : counts.all;
+
+    const rows = await db
+      .select()
+      .from(ticket)
+      .where(where)
+      .orderBy(...presupuestoListOrderBy(params.sort))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+
+    const pageIds = rows.map((row) => row.id);
+    const summaries = pageIds.length
+      ? await db
+          .select({
+            ticket_id: servicesTickets.ticket_id,
+            summary: sql<string | null>`string_agg(coalesce(${servicesTickets.name}, ${service.name}), ', ' order by ${servicesTickets.id})`,
+            head: sql<string[] | null>`(array_agg(coalesce(${servicesTickets.name}, ${service.name}) order by ${servicesTickets.id}))[1:2]`,
+            lines: sql<number>`count(*)`,
+          })
+          .from(servicesTickets)
+          .innerJoin(ticket, eq(ticket.id, servicesTickets.ticket_id))
+          .leftJoin(service, eq(service.id, servicesTickets.service_id))
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              isNull(ticket.deleted_at),
+              inArray(servicesTickets.ticket_id, pageIds),
+              isNull(servicesTickets.deleted_at),
+            ),
+          )
+          .groupBy(servicesTickets.ticket_id)
+      : [];
+    const summaryById = new Map(summaries.map((row) => [String(row.ticket_id), row]));
+
+    const convertedIds = rows
+      .map((row) => row.converted_to_ticket_id)
+      .filter((value): value is bigint => value != null);
+    const converted = convertedIds.length
+      ? await db
+          .select({
+            id: ticket.id,
+            folio_number: ticket.folio_number,
+            folio_prefix: ticket.folio_prefix,
+            document_kind: ticket.document_kind,
+          })
+          .from(ticket)
+          .where(
+            and(
+              eq(ticket.company_id, effectiveCompanyId),
+              inArray(ticket.id, convertedIds),
+              // A deleted R ticket leaves no folio: the row offers no «Ver ticket».
+              isNull(ticket.deleted_at),
+            ),
+          )
+      : [];
+    const folioById = new Map(converted.map((row) => [String(row.id), formatDocumentFolio(row)]));
+
+    return {
+      success: true,
+      data: {
+        items: rows.map((row) => ({
+          ...toListItem(row),
+          servicesSummary: summaryById.get(String(row.id))?.summary ?? null,
+          servicesHead: summaryById.get(String(row.id))?.head ?? [],
+          servicesCount: Number(summaryById.get(String(row.id))?.lines ?? 0),
+          convertedTicketFolio:
+            row.converted_to_ticket_id != null
+              ? (folioById.get(String(row.converted_to_ticket_id)) ?? null)
+              : null,
+        })),
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        counts,
+      },
+    };
+  } catch (e) {
+    return handleCodedServerActionError('presupuestos.paginated-list', 'TC002', e);
+  }
+}
+
 const startOfDay = (value: Date): number => {
   const day = new Date(value);
   day.setHours(0, 0, 0, 0);
@@ -205,6 +460,8 @@ const createPresupuestoWithLinesSchema = z
     lines: z.array(composerServiceLineSchema).min(1).max(50),
     /** What the composer showed; audit only. The server always recomputes the total. */
     client_total: z.number().finite().optional(),
+    /** One per composer draft (ZIG-I35-1): a replay returns the document it created. */
+    client_request_id: z.string().uuid().optional(),
   })
   .refine(
     (value) =>
@@ -227,7 +484,7 @@ export async function createPresupuestoWithLines(
   input: CreatePresupuestoWithLinesInput,
 ): Promise<{
   success: boolean;
-  data?: { id: string; total: number; folio?: string };
+  data?: { id: string; total: number; folio?: string; replayed?: boolean };
   error?: string;
   errorType?: ActionErrorType;
   /** Which line and field the server rejected (validation failures). */
@@ -235,11 +492,19 @@ export async function createPresupuestoWithLines(
 }> {
   try {
     const validated = createPresupuestoWithLinesSchema.parse(input);
-    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
       validated.company_id,
     );
 
+    const requestScope = validated.client_request_id
+      ? { companyId: effectiveCompanyId, userId: context.userId, key: validated.client_request_id }
+      : null;
+    if (requestScope) {
+      const replayed = await loadClientRequestDocument(requestScope);
+      if (replayed) return { success: true, data: replayed };
+    }
+
+    assertTicketTotalWithinCap(calculateTicketTotal(validated.lines));
     await assertCompanyProductionReady(effectiveCompanyId);
 
     const created = await createDocumentWithLines(context, {
@@ -251,6 +516,12 @@ export async function createPresupuestoWithLines(
       workNotes: validated.work_notes,
       lines: validated.lines,
       clientTotal: validated.client_total,
+      ...(requestScope
+        ? {
+            audit: { extra: { client_request_id: requestScope.key } },
+            beforeInsert: clientRequestBeforeInsert(requestScope),
+          }
+        : {}),
     });
 
     invalidateCompanyCache(effectiveCompanyId, 'dashboard');
@@ -258,7 +529,12 @@ export async function createPresupuestoWithLines(
 
     return {
       success: true,
-      data: { id: String(created.id), total: created.total, folio: created.folio },
+      data: {
+        id: String(created.id),
+        total: created.total,
+        folio: created.folio,
+        ...(created.replayed ? { replayed: true } : {}),
+      },
     };
   } catch (error) {
     if (error instanceof CompanyProductionBlockedError) {
@@ -274,14 +550,94 @@ export async function createPresupuestoWithLines(
   }
 }
 
+/** The work ticket an accepted presupuesto became (ZIG-I29-1). */
+export type PresupuestoConvertedTicket = {
+  id: string;
+  folio: string;
+  finished: boolean;
+  total: number | null;
+  paid: number | null;
+  serviceCount: number;
+  materialCount: number;
+};
+
 export type PresupuestoDetailData = TicketRow & {
   client?: Client | null;
+  /** Who wrote it, for the desktop meta line. */
+  User?: { name: string | null } | null;
   services_tickets: Array<
     ServicesTicketsRow & {
       service: Service | null;
       materials?: TicketLineMaterialRow[];
     }
   >;
+  /** Work tickets and presupuestos of the same client (desktop Cliente card). */
+  client_document_counts?: { tickets: number; presupuestos: number } | null;
+  converted_ticket?: PresupuestoConvertedTicket | null;
+};
+
+const loadClientDocumentCounts = async (
+  companyId: number,
+  clientId: number,
+): Promise<{ tickets: number; presupuestos: number }> => {
+  const [row] = await db
+    .select({
+      tickets: sql<number>`count(*) FILTER (WHERE ${eq(ticket.document_kind, 'ticket')})`,
+      presupuestos: sql<number>`count(*) FILTER (WHERE ${eq(ticket.document_kind, 'presupuesto')})`,
+    })
+    .from(ticket)
+    .where(
+      and(
+        eq(ticket.company_id, companyId),
+        eq(ticket.client_id, clientId),
+        isNull(ticket.deleted_at),
+      ),
+    );
+  return {
+    tickets: Number(row?.tickets ?? 0),
+    presupuestos: Number(row?.presupuestos ?? 0),
+  };
+};
+
+const loadConvertedTicket = async (
+  companyId: number,
+  ticketId: bigint,
+): Promise<PresupuestoConvertedTicket | null> => {
+  const row = await db.query.ticket.findFirst({
+    where: and(
+      eq(ticket.id, ticketId),
+      eq(ticket.company_id, companyId),
+      eq(ticket.document_kind, 'ticket'),
+      isNull(ticket.deleted_at),
+    ),
+    columns: {
+      id: true,
+      folio_number: true,
+      folio_prefix: true,
+      document_kind: true,
+      finished: true,
+      total: true,
+      paid: true,
+    },
+    with: {
+      services_tickets: {
+        where: isNull(servicesTickets.deleted_at),
+        columns: { id: true },
+        with: activeLineMaterialsWith,
+      },
+    },
+  });
+  if (!row) return null;
+  const lines = (row.services_tickets ?? []) as Array<{ materials?: unknown[] }>;
+  return {
+    id: String(row.id),
+    folio: formatDocumentFolio(row),
+    finished: row.finished,
+    total: row.total,
+    paid: row.paid,
+    serviceCount: lines.length,
+    materialCount: lines.reduce((sum, line) => sum + (line.materials?.length ?? 0), 0),
+  };
 };
 
 /**
@@ -303,6 +659,7 @@ export async function getPresupuestoById(
       ),
       with: {
         client: true,
+        User: { columns: { name: true } },
         services_tickets: {
           where: isNull(servicesTickets.deleted_at),
           with: { service: true, ...activeLineMaterialsWith },
@@ -312,7 +669,20 @@ export async function getPresupuestoById(
     if (!row) {
       return buildActionError('TC008');
     }
-    return { success: true, data: row as PresupuestoDetailData };
+    const [clientCounts, convertedTicket] = await Promise.all([
+      row.client_id != null ? loadClientDocumentCounts(companyId, row.client_id) : null,
+      row.converted_to_ticket_id != null
+        ? loadConvertedTicket(companyId, row.converted_to_ticket_id)
+        : null,
+    ]);
+    return {
+      success: true,
+      data: {
+        ...row,
+        client_document_counts: clientCounts,
+        converted_ticket: convertedTicket,
+      } as PresupuestoDetailData,
+    };
   } catch (e) {
     return handleCodedServerActionError('presupuestos.get', 'TC003', e);
   }
@@ -376,6 +746,7 @@ export async function updatePresupuesto(
           );
         if (servicesToSync.length > 0) {
           await insertServiceLines(tx, {
+            actor: context,
             companyId: effectiveCompanyId,
             ticketId,
             lines: servicesToSync,
@@ -547,6 +918,127 @@ export async function convertPresupuestoToTicket(
       return buildActionError('TC009', undefined, 'validation');
     }
     return handleCodedServerActionError('presupuestos.convert', 'TC001', e);
+  }
+}
+
+/** Extender vigencia reaches at most this many days from today (company day). */
+const EXTEND_MAX_DAYS = 365;
+
+const extendVigenciaSchema = z.object({
+  id: z.number().int().positive(),
+  expires_at: z.coerce.date(),
+});
+
+/**
+ * Extender vigencia (ZIG-I29-2): moves `expires_at` of an open or expired
+ * presupuesto and records `presupuesto_extended` with the dates before and
+ * after. An expired one reads as Abierto again through getPresupuestoStatus;
+ * nothing else changes. Accepted or canceled ones answer TC012.
+ */
+export async function extendPresupuestoVigencia(
+  id: number,
+  expiresAt: Date | string,
+  companyId?: number | null,
+): Promise<{
+  success: boolean;
+  data?: PresupuestoListItem;
+  error?: string;
+  errorType?: ActionErrorType;
+  issues?: ValidationIssue[];
+}> {
+  try {
+    const validated = extendVigenciaSchema.parse({ id, expires_at: expiresAt });
+    const { context, companyId: effectiveCompanyId } = await requireTicketWrite(
+      companyId ?? undefined,
+    );
+    const ticketId = BigInt(validated.id);
+
+    const prior = await db.query.ticket.findFirst({
+      where: and(
+        eq(ticket.id, ticketId),
+        eq(ticket.company_id, effectiveCompanyId),
+        eq(ticket.document_kind, 'presupuesto'),
+        isNull(ticket.deleted_at),
+      ),
+    });
+    if (!prior) {
+      return buildActionError('TC008');
+    }
+    if (prior.canceled_at != null || prior.converted_to_ticket_id != null) {
+      return buildActionError('TC012', undefined, 'validation');
+    }
+    // Company days (America/Mexico_City), the day getPresupuestoStatus uses: not
+    // before today nor the issue date, so an open quote is never pushed into the
+    // past and an issue after 18:00 MX still counts as its own day; at most a year.
+    const nextDay = companyDay(validated.expires_at).iso;
+    const todayDay = companyDay(new Date()).iso;
+    const issueDay = prior.ticket_date ? companyDay(prior.ticket_date).iso : null;
+    const minDay = issueDay && issueDay > todayDay ? issueDay : todayDay;
+    const maxDay = companyDay(new Date(Date.now() + EXTEND_MAX_DAYS * 86_400_000)).iso;
+    if (nextDay < minDay || nextDay > maxDay) {
+      return {
+        ...buildActionError('TC009', undefined, 'validation'),
+        issues: [
+          {
+            path: ['expires_at'],
+            code: 'custom',
+            message:
+              nextDay < minDay
+                ? 'La vigencia no puede ser anterior a hoy ni a la fecha del presupuesto'
+                : 'La vigencia no puede pasar de un año',
+          },
+        ],
+      };
+    }
+
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(ticket)
+        .set({ expires_at: validated.expires_at, updated_at: new Date() })
+        .where(
+          and(
+            eq(ticket.id, ticketId),
+            eq(ticket.company_id, effectiveCompanyId),
+            isNull(ticket.deleted_at),
+            isNull(ticket.canceled_at),
+            isNull(ticket.converted_to_ticket_id),
+          ),
+        )
+        .returning();
+
+      if (row) {
+        await recordTicketAudit(
+          tx,
+          context,
+          ticketId,
+          effectiveCompanyId,
+          'presupuesto_extended',
+          {
+            before: { expires_at: prior.expires_at },
+            after: { expires_at: row.expires_at },
+          },
+        );
+      }
+
+      return row;
+    });
+
+    if (!updated) {
+      return buildActionError('TC012', undefined, 'validation');
+    }
+
+    invalidateCompanyCache(effectiveCompanyId, 'dashboard');
+    revalidatePath('/presupuestos');
+    revalidatePath(`/presupuestos/${validated.id}`);
+    return { success: true, data: toListItem(updated) };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return buildValidationActionError(e);
+    }
+    if (e instanceof AuthorizationError || e instanceof AuthenticationError) {
+      return handleServerActionError(e);
+    }
+    return handleCodedServerActionError('presupuestos.extend', 'TC004', e);
   }
 }
 

@@ -2,6 +2,9 @@
  * WhatsApp deep-link helpers (client-side `wa.me` only — no Business API).
  */
 
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { companyDay } from '@/lib/company-day';
 import {
   buildPaymentInfoLines,
   type CompanyPaymentInfo,
@@ -91,6 +94,86 @@ export const buildWhatsAppBalanceShare = (
     phone: input.phone,
     message: buildWhatsAppBalanceMessage(input),
   });
+
+export type WhatsAppStatementTicket = {
+  ticketId: string | number;
+  folio?: string | null;
+  /** Work date of the ticket; omitted from the line when missing. */
+  date?: Date | string | null;
+  balanceDue: number;
+};
+
+export type WhatsAppStatementShareInput = {
+  phone: string | null | undefined;
+  clientName: string | null | undefined;
+  tickets: WhatsAppStatementTicket[];
+  /** Sum of the saldos; computed from `tickets` when omitted. */
+  total?: number;
+  companyName?: string | null;
+  payment?: CompanyPaymentInfo | null;
+};
+
+/** `$1,210.00`: the statement always shows cents, like the receipt. */
+const statementAmount = (amount: number): string =>
+  `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const statementDate = (value: Date | string | null | undefined): string | null => {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return format(companyDay(date).date, 'd MMM yyyy', { locale: es }).replace('.', '');
+};
+
+/**
+ * Estado de cuenta (ZIG-I31-1): every ticket with a saldo of one client and
+ * the total in one message. One ticket reads as the per-ticket reminder.
+ */
+export const buildWhatsAppStatementMessage = (
+  input: Omit<WhatsAppStatementShareInput, 'phone'>,
+): string => {
+  if (input.tickets.length === 1) {
+    const [only] = input.tickets;
+    return buildWhatsAppBalanceMessage({
+      clientName: input.clientName,
+      ticketId: only.ticketId,
+      folio: only.folio,
+      balanceDue: only.balanceDue,
+      companyName: input.companyName,
+      payment: input.payment,
+    });
+  }
+
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+  const total =
+    input.total ?? input.tickets.reduce((sum, item) => sum + item.balanceDue, 0);
+  const lines = input.tickets.map((item) => {
+    const date = statementDate(item.date);
+    const label = documentLabel(item);
+    return `• ${date ? `${label} (${date})` : label}: ${statementAmount(item.balanceDue)}`;
+  });
+
+  // Canvas CobAcciones: one list with cents, the total and the usual closing line.
+  const message = [
+    `${intro} Tienes ${input.tickets.length} tickets con saldo pendiente:`,
+    ...lines,
+    `Total pendiente: ${statementAmount(total)}.`,
+    'Cuando puedas, por favor confirma el pago. ¡Gracias!',
+  ].join('\n');
+  return appendPaymentInfo(message, input.payment);
+};
+
+export const buildWhatsAppStatementShare = (
+  input: WhatsAppStatementShareInput,
+): WhatsAppShareResult | null =>
+  input.tickets.length === 0
+    ? null
+    : buildWhatsAppHref({
+        phone: input.phone,
+        message: buildWhatsAppStatementMessage(input),
+      });
 
 export type WhatsAppReceiptShareInput = {
   phone: string | null | undefined;
@@ -266,6 +349,54 @@ export const buildWhatsAppQuoteShare = (
     message: buildWhatsAppQuoteMessage(input),
   });
 
+/**
+ * Recordar por WhatsApp (ZIG-I29-1): the same quote, as a reminder that says
+ * when it expires, or that it already did and can be updated.
+ */
+export const buildWhatsAppQuoteReminderMessage = (
+  input: Omit<WhatsAppQuoteShareInput, 'phone'> & { now?: Date },
+): string => {
+  const total = formatTicketListAmount(input.total);
+  const company = input.companyName?.trim();
+  const intro = company
+    ? `Hola, te escribe ${company}.`
+    : 'Hola, te escribimos de ZigZag.';
+  const services = input.servicesSummary?.trim();
+  const servicesPart = services ? ` para ${services}` : '';
+  const validUntil = input.validUntil ? new Date(input.validUntil) : null;
+  const now = input.now ?? new Date();
+  let validityPart = '¿Te confirmamos?';
+  if (validUntil && !Number.isNaN(validUntil.getTime())) {
+    const date = validUntil.toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const expired =
+      new Date(validUntil).setHours(0, 0, 0, 0) < new Date(now).setHours(0, 0, 0, 0);
+    validityPart = expired
+      ? `Venció el ${date}; si te sigue interesando, lo actualizamos.`
+      : `Es válido hasta el ${date}. ¿Te confirmamos?`;
+  }
+
+  return [
+    intro,
+    `Te recordamos el presupuesto ${documentLabel(input)} por ${total}${servicesPart}.`,
+    validityPart,
+  ]
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+export const buildWhatsAppQuoteReminder = (
+  input: WhatsAppQuoteShareInput & { now?: Date },
+): WhatsAppShareResult | null =>
+  buildWhatsAppHref({
+    phone: input.phone,
+    message: buildWhatsAppQuoteReminderMessage(input),
+  });
+
 export type OfflineReceiptInput = {
   clientName: string | null | undefined;
   ticketId: string | number | null | undefined;
@@ -277,6 +408,8 @@ export type OfflineReceiptInput = {
   balanceDue: number;
   ticketDate?: Date | string | null;
   companyName?: string | null;
+  /** Same payment block as WhatsApp. Omitted lines stay out of the simple receipt. */
+  payment?: CompanyPaymentInfo | null;
 };
 
 /** Plain-text recibo for offline WhatsApp when branded PDF is unavailable. */
@@ -311,8 +444,12 @@ export const buildOfflineReceiptText = (input: OfflineReceiptInput): string => {
     `Total: ${formatTicketListAmount(input.total)}`,
     `Pagado: ${formatTicketListAmount(input.paid)}`,
     `Saldo: ${formatTicketListAmount(input.balanceDue)}`,
-    'Sin internet — recibo simple. El PDF oficial se envía cuando haya señal.',
   );
+  const paymentLines = buildPaymentInfoLines(input.payment);
+  if (input.balanceDue > 0 && paymentLines.length > 0) {
+    lines.push(...paymentLines);
+  }
+  lines.push('Sin internet — recibo simple. El PDF oficial se envía cuando haya señal.');
   return lines.join('\n');
 };
 

@@ -3,53 +3,85 @@
 import { formatDocumentFolio } from '@/lib/folio';
 import type { Ticket } from '@/actions/tickets';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Column } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ClientPhoneLink } from '@/components/client-phone-link';
 import { FormattedCurrency } from '@/components/formatted-currency';
-import { FormattedDate } from '@/components/formatted-date';
+import {
+  ListShortDate,
+  ListSortableHeader,
+  ListStatusPill,
+  type ListStatusTone,
+} from '@/components/list-page';
 import type { TicketListCollectPaymentResult } from '@/components/tickets/ticket-list-collect-payment-dialog';
-import { TicketListPaymentSummary } from '@/components/tickets/ticket-list-payment-summary';
-import { TicketRowActions } from '@/components/tickets/ticket-row-actions';
-import { getTicketBalanceDue, getTicketPaymentStatusSortRank } from '@/lib/ticket-payment-status';
-import { cn } from '@/lib/utils';
+import { TicketRowMenu } from '@/components/tickets/ticket-row-actions';
+import { hrefForTicketListRow } from '@/lib/ticket-list-navigation';
+import {
+  getTicketBalanceDue,
+  getTicketPaymentStatus,
+  getTicketPaymentStatusSortRank,
+} from '@/lib/ticket-payment-status';
+import { formatPhoneDisplay } from '@/lib/phone-links';
 
-function TicketSortableHeader<TData>({
-  column,
-  label,
-  className,
-}: {
-  column: Column<TData>;
-  label: string;
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
+export type TicketListEstadoLabel = 'Pagado' | 'Pago parcial' | 'Por cobrar' | 'En proceso';
 
+/**
+ * One-line estado. A ticket still in progress is En proceso when it would
+ * otherwise read Por cobrar (ZIG-I28-4).
+ */
+const PAYMENT_ESTADO_LABEL: Record<
+  ReturnType<typeof getTicketPaymentStatus>,
+  TicketListEstadoLabel
+> = {
+  paid: 'Pagado',
+  partial: 'Pago parcial',
+  pending: 'Por cobrar',
+};
+
+export const ticketListEstadoLabel = (
+  ticket: Pick<Ticket, 'finished' | 'total' | 'paid'>,
+): TicketListEstadoLabel => {
+  // Unfinished work reads En proceso whatever was paid in advance, like the detail pill.
+  if (!ticket.finished) {
+    return 'En proceso';
+  }
+  return PAYMENT_ESTADO_LABEL[getTicketPaymentStatus(ticket.total, ticket.paid)];
+};
+
+/**
+ * ZIG-I33 §6 tones: paid emerald, money still owed amber (the Por cobrar view's dot),
+ * work in progress slate.
+ */
+const ESTADO_TONE: Record<TicketListEstadoLabel, ListStatusTone> = {
+  Pagado: 'emerald',
+  'Pago parcial': 'amber',
+  'Por cobrar': 'amber',
+  'En proceso': 'slate',
+};
+
+const countWord = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+
+/** «3 servicios · 6 materiales» from data the ticket already carries (ZIG-I36-19). */
+export const ticketWorkLine = (
+  ticket: Pick<Ticket, 'services_count' | 'materials_count'>,
+): string | null => {
+  const parts = [
+    ticket.services_count ? countWord(ticket.services_count, 'servicio', 'servicios') : null,
+    ticket.materials_count ? countWord(ticket.materials_count, 'material', 'materiales') : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+};
+
+/** Em dash when the ticket is still En proceso or the saldo is already 0. */
+const TicketListSaldo = ({ ticket }: { ticket: Ticket }) => {
+  const balance = getTicketBalanceDue(ticket.total, ticket.paid);
+  if (!ticket.finished || balance <= 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
-      )}
-    </Button>
+    <span className="font-semibold tabular-nums">
+      <FormattedCurrency amount={balance} />
+    </span>
   );
-}
+};
 
 export type TicketsColumnsOptions = {
   onDelete: (id: number) => void;
@@ -59,6 +91,11 @@ export type TicketsColumnsOptions = {
   companyId?: number | null;
 };
 
+/**
+ * The desktop tickets table (ZIG-I33-2). Sorting is manual: the header asks the
+ * server (`getTicketsPaginated({ sort })`), so the sorting functions are gone and
+ * each column only says which way it sorts first.
+ */
 export const createTicketsColumns = ({
   onDelete,
   onDeleteFailed,
@@ -69,127 +106,175 @@ export const createTicketsColumns = ({
   {
     id: 'id',
     accessorFn: (row) => Number(row.id),
-    header: ({ column }) => (
-      <TicketSortableHeader column={column} label="Folio" />
-    ),
+    sortDescFirst: true,
+    // Widths follow the list's container, not the viewport: the sidebar takes 256px, and
+    // unsized columns split the row evenly (Cliente was ~110px at 1280, PR #610 review).
+    meta: { className: 'w-[6rem]' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Folio" />,
     cell: ({ row }) => (
-      <span className="tabular-nums">{formatDocumentFolio(row.original)}</span>
+      <span className="font-mono text-caption tabular-nums">
+        {formatDocumentFolio(row.original)}
+      </span>
     ),
   },
   {
     id: 'client_name',
     accessorKey: 'client_name',
-    header: ({ column }) => (
-      <TicketSortableHeader column={column} label="Cliente" />
-    ),
-    cell: ({ row }) => row.original.client_name ?? '—',
-    sortingFn: (a, b) => {
-      const na = (a.original.client_name ?? '').toLocaleLowerCase();
-      const nb = (b.original.client_name ?? '').toLocaleLowerCase();
-      return na.localeCompare(nb, 'es');
+    sortDescFirst: false,
+    // Takes what is left (about 330px at 1280 with the sidebar) until Trabajo shows; then
+    // 21rem, as wide as at 1280: client names win over Trabajo, as on the presupuestos table.
+    meta: { className: '@min-[75rem]:w-[21rem]' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Cliente" />,
+    cell: ({ row }) => {
+      const name = row.original.client_name?.trim() || '—';
+      const phone = row.original.client_tel?.trim();
+      const workLine = ticketWorkLine(row.original);
+      return (
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium leading-5" title={name}>
+            {name}
+          </p>
+          {phone ? (
+            <p className="truncate text-caption leading-4 tabular-nums text-muted-foreground">
+              {formatPhoneDisplay(phone) ?? phone}
+            </p>
+          ) : null}
+          {workLine ? (
+            // Only while Trabajo is hidden: from 75rem the counts sit under the services
+            // in Trabajo, where they belong (Jorge, 2026-11-11).
+            <p
+              className="truncate text-caption leading-4 text-muted-foreground @min-[75rem]:hidden"
+              data-testid="ticket-row-work"
+            >
+              {workLine}
+            </p>
+          ) : null}
+        </div>
+      );
     },
   },
   {
     id: 'client_tel',
     accessorKey: 'client_tel',
-    header: ({ column }) => (
-      <TicketSortableHeader column={column} label="Teléfono" />
-    ),
-    cell: ({ row }) => (
-      <ClientPhoneLink
-        phone={row.original.client_tel}
-        className="tabular-nums underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        textClassName="tabular-nums"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => event.stopPropagation()}
-      />
-    ),
-    sortingFn: (a, b) => {
-      const na = a.original.client_tel ?? '';
-      const nb = b.original.client_tel ?? '';
-      return na.localeCompare(nb, 'es', { numeric: true });
-    },
-  },
-  {
-    id: 'ticket_date',
-    accessorFn: (row) => row.ticket_date,
-    header: ({ column }) => (
-      <TicketSortableHeader column={column} label="Fecha" />
-    ),
-    cell: ({ row }) => <FormattedDate date={row.original.ticket_date} />,
-    sortingFn: (rowA, rowB) => {
-      const ta = rowA.original.ticket_date?.getTime();
-      const tb = rowB.original.ticket_date?.getTime();
-      if (ta == null && tb == null) return 0;
-      if (ta == null) return 1;
-      if (tb == null) return -1;
-      return ta - tb;
-    },
-  },
-  {
-    id: 'paymentRank',
-    accessorFn: (row) =>
-      getTicketPaymentStatusSortRank(row.total, row.paid),
-    size: 180,
-    minSize: 150,
-    header: ({ column }) => (
-      <TicketSortableHeader column={column} label="Estado" />
-    ),
-    cell: ({ row }) => (
-      <TicketListPaymentSummary
-        total={row.original.total}
-        paid={row.original.paid}
-      />
-    ),
-  },
-  {
-    id: 'total',
-    accessorFn: (row) => row.total ?? NaN,
-    size: 110,
-    header: ({ column }) => (
-      <TicketSortableHeader
-        column={column}
-        label="Total"
-        className="justify-end"
-      />
-    ),
-    cell: ({ row }) => (
-      <div className="text-right font-medium tabular-nums">
-        <FormattedCurrency amount={row.original.total} />
-      </div>
-    ),
-    sortingFn: (rowA, rowB) => {
-      const a = rowA.original.total ?? -Infinity;
-      const b = rowB.original.total ?? -Infinity;
-      return a - b;
-    },
-  },
-  {
-    // Hidden column: only the phone sort "Mayor saldo" reads it (ZIG-I18-9).
-    id: 'balance',
-    accessorFn: (row) => getTicketBalanceDue(row.total, row.paid),
+    sortDescFirst: false,
+    // Hidden: the number sits under the client. The column stays for the phone's Teléfono sort.
+    meta: { className: 'hidden' },
     header: () => null,
     cell: () => null,
     enableHiding: true,
   },
   {
+    id: 'services',
+    accessorFn: (row) => row.services_summary ?? '',
+    enableSorting: false,
+    // Only once Cliente keeps 21rem and Trabajo gets the canvas's 220px (75rem list, ~1504 with the sidebar).
+    meta: { className: 'hidden @min-[75rem]:table-cell' },
+    header: () => <span>Trabajo</span>,
+    cell: ({ row }) => {
+      const summary = row.original.services_summary?.trim();
+      // «1 servicio · 1 material» under the names (it sits under the client only
+      // while this column is hidden).
+      const workLine = ticketWorkLine(row.original);
+      const counts = workLine ? (
+        <p
+          className="truncate text-caption leading-4 text-muted-foreground"
+          data-testid="ticket-row-work-trabajo"
+        >
+          {workLine}
+        </p>
+      ) : null;
+      if (!summary) {
+        return (
+          <div className="min-w-0">
+            <span className="text-muted-foreground">Sin servicios todavía</span>
+            {counts}
+          </div>
+        );
+      }
+      // «A, B… +5»: the first two names, then how many more (canvas ListaA).
+      const head = row.original.services_head?.length ? row.original.services_head.join(', ') : summary;
+      const more = Math.max((row.original.services_count ?? 0) - 2, 0);
+      return (
+        <div className="min-w-0">
+          <span className="flex min-w-0 items-baseline gap-1 text-slate-600 md:text-[13px] dark:text-slate-300" title={summary}>
+            <span className="truncate">{head}</span>
+            {more > 0 ? <span className="shrink-0 text-muted-foreground/70">+{more}</span> : null}
+          </span>
+          {counts}
+        </div>
+      );
+    },
+  },
+  {
+    id: 'ticket_date',
+    accessorFn: (row) => row.ticket_date,
+    sortDescFirst: true,
+    meta: { className: 'hidden w-[6.5rem] @min-[48rem]:table-cell' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Fecha" />,
+    cell: ({ row }) => <ListShortDate date={row.original.ticket_date} />,
+  },
+  {
+    id: 'total',
+    accessorFn: (row) => row.total,
+    sortDescFirst: true,
+    meta: { className: 'w-[8.5rem]', align: 'right' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Total" align="right" />,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        <FormattedCurrency amount={row.original.total} />
+      </span>
+    ),
+  },
+  {
+    id: 'balance',
+    accessorFn: (row) => getTicketBalanceDue(row.total, row.paid),
+    sortDescFirst: true,
+    meta: { className: 'w-[8.5rem]', align: 'right' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Saldo" align="right" />,
+    cell: ({ row }) => <TicketListSaldo ticket={row.original} />,
+  },
+  {
+    id: 'paymentRank',
+    accessorFn: (row) => getTicketPaymentStatusSortRank(row.total, row.paid),
+    sortDescFirst: false,
+    meta: { className: 'w-[7.5rem]' },
+    header: ({ column }) => <ListSortableHeader column={column} label="Estado" />,
+    cell: ({ row }) => {
+      const label = ticketListEstadoLabel(row.original);
+      return (
+        <ListStatusPill tone={ESTADO_TONE[label]}>
+          <span data-testid="ticket-list-estado">{label}</span>
+        </ListStatusPill>
+      );
+    },
+  },
+  {
     id: 'actions',
     enableSorting: false,
-    size: 56,
+    enableHiding: false,
+    // Only ⋯ (ListRowMenu): no buttons on hover; Terminar, Cobrar and the PDF live in it (ZIG-33).
+    meta: { className: 'w-12' },
     header: () => <span className="sr-only">Acciones</span>,
     cell: ({ row }) => (
+      // The Cobrar and Eliminar dialogs are portals, but React bubbles their clicks
+      // through this cell: stop them here so they never open the row.
       <div
         className="flex justify-end"
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <TicketRowActions
+        <TicketRowMenu
           ticket={row.original}
           onDelete={onDelete}
           onDeleteFailed={onDeleteFailed}
           onPaymentApplied={onPaymentApplied}
           canWrite={canWrite}
           companyId={companyId}
+          finishHref={
+            row.original.services_summary?.trim()
+              ? hrefForTicketListRow(row.original, canWrite)
+              : undefined
+          }
         />
       </div>
     ),

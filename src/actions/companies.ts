@@ -228,12 +228,15 @@ type CompanyUpdateActor = Awaited<ReturnType<typeof requireActionAuth>>;
  * Shared company profile update: lifecycle transition + readiness validation,
  * persistence, and governance audit. Used by the system operator path
  * (`updateCompany`) and the tenant self-service path (`updateOwnCompany`).
+ * `keepStatus` ignores the submitted status: only the operator console
+ * changes a company's lifecycle (ZIG-I32).
  */
 async function performCompanyProfileUpdate(
   id: number,
   validatedData: CompanyFormData,
   authContext: CompanyUpdateActor,
   revalidate: string[],
+  options: { keepStatus?: boolean } = {},
 ): Promise<{
   success: boolean;
   data?: typeof company.$inferSelect;
@@ -256,7 +259,8 @@ async function performCompanyProfileUpdate(
         }
       : null;
 
-  const nextLifecycle = normalizeCompanyLifecycleStatus(validatedData.status);
+  const status = options.keepStatus ? existing.status : validatedData.status;
+  const nextLifecycle = normalizeCompanyLifecycleStatus(status);
   const transition = canTransitionCompanyLifecycle(
     existing.status,
     nextLifecycle,
@@ -283,7 +287,7 @@ async function performCompanyProfileUpdate(
     state: validatedData.state,
     country: validatedData.country,
     postal_code: validatedData.postal_code,
-    status: validatedData.status,
+    status,
     settings,
   };
 
@@ -309,7 +313,7 @@ async function performCompanyProfileUpdate(
       state: validatedData.state,
       country: validatedData.country,
       postal_code: validatedData.postal_code,
-      status: validatedData.status,
+      status,
       settings,
       updated_at: new Date(),
     })
@@ -374,10 +378,13 @@ export async function updateOwnCompany(data: CompanyFormData): Promise<{
     );
 
     const validatedData = companyFormSchema.parse(data);
-    return await performCompanyProfileUpdate(companyId, validatedData, context, [
-      '/company',
-      '/dashboard',
-    ]);
+    return await performCompanyProfileUpdate(
+      companyId,
+      validatedData,
+      context,
+      ['/company', '/dashboard'],
+      { keepStatus: true },
+    );
   } catch (e) {
     if (e instanceof z.ZodError) {
       return handleCodedServerActionError('company.update.validation', 'CO007', e);

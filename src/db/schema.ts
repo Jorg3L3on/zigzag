@@ -55,11 +55,20 @@ export type CompanySettingsJson = {
   folio_prefix_presupuesto?: string;
   /** Folio prefix of tickets/recibos (default R), applied to new documents only. */
   folio_prefix_ticket?: string;
-  /** Datos para pagar por transferencia (ZIG-I20-1): informational only, printed on the recibo and WhatsApp. */
+  /** Datos para pagar (ZIG-I20-1, ZIG-23): informational only, printed on the recibo and WhatsApp. */
   payment_bank?: string;
   payment_holder?: string;
+  /**
+   * Active method. Absent means CLABE (companies saved before ZIG-23).
+   * One method per company; the other numbers can stay stored and are not printed.
+   */
+  payment_kind?: 'clabe' | 'card' | 'account';
   /** 18 digits with a valid control digit (src/lib/company-payment-info.ts). */
   payment_clabe?: string;
+  /** 15–19 digits, Luhn. Deposit number only: never expiry or CVV. */
+  payment_card?: string;
+  /** 10–11 digits. */
+  payment_account?: string;
   /** One short line, e.g. "Manda tu comprobante por WhatsApp". */
   payment_note?: string;
 };
@@ -232,7 +241,7 @@ export const ticket = pgTable(
   {
     id: bigserial('id', { mode: 'bigint' }).primaryKey(),
     client_id: integer('client_id'),
-    client_name: varchar('client_name', { length: 100 }),
+    client_name: text('client_name'),
     client_tel: varchar('client_tel', { length: 20 }),
     work_notes: text('work_notes'),
     ticket_date: timestamp('ticket_date', { precision: 3, mode: 'date' }),

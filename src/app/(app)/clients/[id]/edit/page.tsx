@@ -63,15 +63,21 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
         </div>
       </header>
 
-      <TripledDashboardShell maxWidthClassName="max-w-2xl">
+      <TripledDashboardShell maxWidthClassName="max-w-2xl" contentClassName="lg:flex lg:flex-col">
         <TripledMobileAppBar
           title="Editar cliente"
           subtitle={result.data.name}
           backHref="/clients"
           className="mb-3"
         />
-        <ClientCreateShortcuts clientId={result.data.id} />
+        {/* From lg the shortcuts sit under the page title (ZIG-30). */}
+        <ClientCreateShortcuts
+          clientId={result.data.id}
+          className="lg:order-1 lg:mb-5 lg:flex"
+        />
         <TripledResourceCard
+          desktop="page"
+          contentClassName="lg:order-2"
           title="Información del cliente"
           description="Modifica la información del cliente."
           icon={<UserRoundCog className="size-5" aria-hidden />}

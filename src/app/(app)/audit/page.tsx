@@ -18,10 +18,12 @@ export default async function AuditPage() {
       <TripledPageHeader items={[{ label: 'Auditoría' }]} />
 
       <TripledDashboardShell>
+        {/* From lg the card dissolves and the list draws its own title row (ZIG-I33-8). */}
         <TripledResourceCard
+          desktop="title"
+          headerClassName="lg:hidden"
           title="Auditoría"
-          description="Registro unificado de actividad de la plataforma."
-          desktopDescription="Visible solo para usuarios de la empresa System."
+          description="Visible solo para usuarios de la empresa System."
           icon={<ClipboardList className="size-5" aria-hidden />}
         >
           <AuditList />

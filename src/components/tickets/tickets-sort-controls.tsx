@@ -19,7 +19,10 @@ type TicketsSortControlsProps = {
   id?: string;
   className?: string;
   triggerClassName?: string;
-  /** Three plain options for phones; the sheet and desktop keep the full list (ZIG-I18-9). */
+  /**
+   * Three plain options for phones; the sheet keeps the full list with long labels
+   * (ZIG-I18-9). Desktop sorts by the column headers, never here (ZIG-I33-2).
+   */
   variant?: 'full' | 'phone';
 };
 
@@ -31,8 +34,7 @@ export const TicketsSortControls = ({
   triggerClassName = 'h-11 w-full',
   variant = 'full',
 }: TicketsSortControlsProps) => {
-  const options =
-    variant === 'phone' ? TICKETS_PHONE_SORT_OPTIONS : TICKETS_MOBILE_SORT_OPTIONS;
+  const options = variant === 'phone' ? TICKETS_PHONE_SORT_OPTIONS : TICKETS_MOBILE_SORT_OPTIONS;
   const encoded = encodeSortingState(sorting);
   // A sort picked in the sheet that is not one of the three shows as "Otro orden".
   const mobileSortValue = options.some((opt) => opt.value === encoded) ? encoded : '';

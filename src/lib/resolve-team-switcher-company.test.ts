@@ -107,3 +107,52 @@ describe('teamSwitcherCompanyNeedsUpdate', () => {
     ).toBe(true);
   });
 });
+
+describe('resolveTeamSwitcherCompany with a non-authoritative list (ZIG-I37-6)', () => {
+  const zigzag = team(1, { name: 'ZigZag', is_system: true });
+  const chano = team(7, { name: 'SOLUCIONES CHANO' });
+
+  it('keeps a chosen company that the session seed does not contain', () => {
+    expect(
+      resolveTeamSwitcherCompany({
+        teams: [zigzag],
+        selectedCompany: chano,
+        sessionCompanyId: zigzag.id,
+        teamsAuthoritative: false,
+      }),
+    ).toEqual(chano);
+  });
+
+  it('may still fill an empty selection from the seed', () => {
+    expect(
+      resolveTeamSwitcherCompany({
+        teams: [zigzag],
+        selectedCompany: null,
+        sessionCompanyId: zigzag.id,
+        teamsAuthoritative: false,
+      }),
+    ).toEqual(zigzag);
+  });
+
+  it('keeps a valid choice once the real list arrives', () => {
+    expect(
+      resolveTeamSwitcherCompany({
+        teams: [zigzag, chano],
+        selectedCompany: chano,
+        sessionCompanyId: zigzag.id,
+        teamsAuthoritative: true,
+      }),
+    ).toEqual(chano);
+  });
+
+  it('falls back to the session company when the real list lacks the choice', () => {
+    expect(
+      resolveTeamSwitcherCompany({
+        teams: [zigzag, team(3)],
+        selectedCompany: chano,
+        sessionCompanyId: zigzag.id,
+        teamsAuthoritative: true,
+      }),
+    ).toEqual(zigzag);
+  });
+});

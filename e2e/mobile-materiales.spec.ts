@@ -80,7 +80,12 @@ test.describe('Materiales accessibility @375px (no save)', () => {
 
   test('Servicios material sheet and the composer material step', async ({ page }) => {
     await page.goto('/services/new');
+    // What is typed stays when the sheet opens: the page does not navigate (ZIG-I36-27).
+    const nameField = page.getByPlaceholder('Ej: Limpieza de oficinas');
+    await nameField.fill('Servicio con material');
     await page.getByRole('button', { name: 'Agregar material' }).click();
+    await expect(page).toHaveURL(/\/services\/new\/edit$/);
+    await expect(nameField).toHaveValue('Servicio con material');
     const serviceSheet = page.getByRole('dialog', { name: 'Agregar material' });
     await expect(serviceSheet).toBeVisible();
     await serviceSheet.getByRole('combobox', { name: 'Nombre del material' }).fill('Ga');
@@ -88,6 +93,8 @@ test.describe('Materiales accessibility @375px (no save)', () => {
     await expectNoSeriousViolations(page);
     await serviceSheet.getByRole('button', { name: 'Cancelar' }).click();
     await expect(serviceSheet).toBeHidden();
+    await expect(page).toHaveURL(/\/services\/new\/edit$/);
+    await expect(nameField).toHaveValue('Servicio con material');
 
     await page.goto('/presupuestos/create');
     await expect(page.getByRole('heading', { name: 'Cliente', exact: true })).toBeVisible({
@@ -182,7 +189,7 @@ test.describe('Materiales (mobile)', () => {
     await expect(sheet.getByTestId('composer-line-breakdown')).toHaveText(
       `Servicio ${money(3500)} Materiales ${money(890)}`,
     );
-    await sheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+    await sheet.getByRole('button', { name: /^Agregar al (ticket|presupuesto)$/ }).click();
     await expect(sheet).toBeHidden({ timeout: 10_000 });
     await expect(page.getByTestId('composer-total')).toHaveText(money(4390));
     await expectNoHorizontalOverflow(page);
@@ -191,15 +198,15 @@ test.describe('Materiales (mobile)', () => {
 
     const save = page.getByRole('button', { name: /^Guardar( presupuesto)?$/ }).first();
     await save.click();
-    await page.waitForURL(/\/presupuestos\/\d+\/listo$/, { timeout: 60_000 });
+    await page.waitForURL(/\/presupuestos\/\d+$/, { timeout: 60_000 });
     const presupuestoId = page.url().match(/\/presupuestos\/(\d+)/)?.[1];
 
-    // 3. Review: both materials under the line, total with materials.
-    await expect(page.getByTestId('review-total')).toHaveText(money(4390), {
+    // 3. The detail (no listo since ZIG-I24-4): both materials under the line, total with materials.
+    await expect(page.getByTestId('review-total').filter({ visible: true }).first()).toHaveText(money(4390), {
       timeout: 15_000,
     });
-    // Materials sit behind Ver los N servicios y M materiales (ZIG-I13-3).
-    await page.getByRole('button', { name: /^Ver los \d+ servicio/ }).click();
+    // Every concepto is listed; the fold opens the materials (ZIG-I24).
+    await page.getByRole('button', { name: 'Ver los 2 materiales' }).click();
     const reviewLines = page.getByRole('list', { name: LINES_LABEL });
     const reviewMaterials = reviewLines.getByRole('list', { name: /^Materiales/ });
     await expect(reviewMaterials.getByText(gas)).toBeVisible();
@@ -219,11 +226,11 @@ test.describe('Materiales (mobile)', () => {
     await expect(editLines.getByTestId('composer-line-row').first()).toContainText('2 materiales', {
       timeout: 15_000,
     });
-    await editLines.getByTestId('composer-line-row').first().click();
+    await editLines.getByTestId('composer-line-row').first().click({ position: { x: 12, y: 12 } });
     const editSheet = page.getByRole('dialog', { name: 'Editar servicio' });
     await expect(editSheet.getByText(gas)).toBeVisible();
     await editSheet.getByRole('button', { name: `Quitar ${inline}` }).click();
-    await editSheet.getByRole('button', { name: 'Agregar al ticket' }).click();
+    await editSheet.getByRole('button', { name: /^(Agregar al (ticket|presupuesto)|Guardar cambios)$/ }).click();
     await expect(editSheet).toBeHidden({ timeout: 10_000 });
     // 3500 + 570
     await expect(page.getByTestId('composer-total')).toHaveText(money(4070));

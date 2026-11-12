@@ -185,200 +185,216 @@ export function ConnectionsPanel({ mcpUrl, companies, whoami }: ConnectionsPanel
   };
 
   return (
-    <TripledDashboardShell maxWidthClassName="max-w-3xl">
+    <>
       <TripledPageHeader items={[{ label: 'Conexiones' }]} className="hidden md:flex" />
-      <TripledMobileAppBar
-        title="Conexiones"
-        subtitle="Agentes MCP y OAuth"
-        className="mb-3"
-      />
-      <TripledResourceCard
-        title="Conector MCP"
-        description="Conecta ChatGPT, Grok, Claude o Cursor a ZigZag."
-        icon={<Plug className="size-5" aria-hidden />}
-      >
-        <McpClientSetupCards mcpUrl={mcpUrl} whoami={whoami} />
-      </TripledResourceCard>
+      <TripledDashboardShell maxWidthClassName="max-w-3xl lg:max-w-[1200px]">
+        <TripledMobileAppBar
+          title="Conexiones"
+          subtitle="Agentes MCP y OAuth"
+          className="mb-3"
+        />
+        <div className="mb-5 hidden lg:block">
+          <h1 className="text-2xl font-semibold tracking-tight">Conexiones</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Conecta ChatGPT, Grok, Claude o Cursor a ZigZag con OAuth o una llave de agente.
+          </p>
+        </div>
+        {/* From lg: the setup on the left, keys and OAuth on a 360 px rail (ZIG-30). */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-6 lg:gap-y-4">
+          <TripledResourceCard
+            desktop="section"
+            className="lg:col-start-1 lg:row-span-3 lg:row-start-1"
+            title="Conector MCP"
+            description="Conecta ChatGPT, Grok, Claude o Cursor a ZigZag."
+            icon={<Plug className="size-5" aria-hidden />}
+          >
+            <McpClientSetupCards mcpUrl={mcpUrl} whoami={whoami} />
+          </TripledResourceCard>
 
-      <TripledResourceCard
-        title="Nueva llave de agente"
-        description="Prefijo zigzag_… — se muestra una sola vez."
-        icon={<KeyRound className="size-5" aria-hidden />}
-        className="mt-4"
-      >
-        <div className="space-y-4">
-          <Input
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
-            placeholder="Nombre (p. ej. Agente de soporte)"
-            aria-label="Nombre de la conexión"
-          />
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="new-allow-write"
-              checked={allowWrite}
-              onCheckedChange={(checked) => setAllowWrite(checked === true)}
-            />
-            <Label htmlFor="new-allow-write" className="text-sm font-normal">
-              Permitir escritura (crear tickets y cambiar estados)
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="new-allow-payments"
-              checked={allowPayments}
-              onCheckedChange={(checked) => setAllowPayments(checked === true)}
-            />
-            <Label htmlFor="new-allow-payments" className="text-sm font-normal">
-              Registrar pagos (el agente podrá marcar cobros)
-            </Label>
-          </div>
-          <div className="space-y-2 rounded-xl border border-border/60 p-3">
-            <p className="text-sm font-medium">Compañías autorizadas</p>
-            {companies.map((company) => (
-              <div key={company.id} className="flex items-center gap-2">
+          <TripledResourceCard
+            desktop="section"
+            title="Nueva llave de agente"
+            description="Prefijo zigzag_… — se muestra una sola vez."
+            icon={<KeyRound className="size-5" aria-hidden />}
+            className="mt-4 lg:col-start-2 lg:row-start-1 lg:mt-0"
+          >
+            <div className="space-y-4">
+              <Input
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                placeholder="Nombre (p. ej. Agente de soporte)"
+                aria-label="Nombre de la conexión"
+              />
+              <div className="flex items-center gap-2">
                 <Checkbox
-                  id={`new-company-${company.id}`}
-                  checked={selectedCompanyIds.includes(company.id)}
-                  onCheckedChange={(checked) =>
-                    handleToggleCompany(company.id, checked === true)
-                  }
+                  id="new-allow-write"
+                  checked={allowWrite}
+                  onCheckedChange={(checked) => setAllowWrite(checked === true)}
                 />
-                <Label htmlFor={`new-company-${company.id}`} className="text-sm font-normal">
-                  #{company.id} — {company.name}
+                <Label htmlFor="new-allow-write" className="text-sm font-normal">
+                  Permitir escritura (crear tickets y cambiar estados)
                 </Label>
               </div>
-            ))}
-          </div>
-          <p className="text-sm text-muted-foreground" data-testid="new-key-expiry">
-            Vence el {formatKeyExpiry(new Date(Date.now() + API_KEY_MAX_DAYS * 24 * 60 * 60 * 1000))}{' '}
-            (365 días). Después crea una llave nueva.
-          </p>
-          <Button
-            type="button"
-            onClick={handleCreateKey}
-            disabled={creating || selectedCompanyIds.length === 0}
-          >
-            {creating ? 'Creando…' : 'Crear llave'}
-          </Button>
-          {createdToken ? (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-              <p className="mb-2 font-medium">Copia este token ahora:</p>
-              <code className="block break-all">{createdToken}</code>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="new-allow-payments"
+                  checked={allowPayments}
+                  onCheckedChange={(checked) => setAllowPayments(checked === true)}
+                />
+                <Label htmlFor="new-allow-payments" className="text-sm font-normal">
+                  Registrar pagos (el agente podrá marcar cobros)
+                </Label>
+              </div>
+              <div className="space-y-2 rounded-xl border border-border/60 p-3">
+                <p className="text-sm font-medium">Compañías autorizadas</p>
+                {companies.map((company) => (
+                  <div key={company.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`new-company-${company.id}`}
+                      checked={selectedCompanyIds.includes(company.id)}
+                      onCheckedChange={(checked) =>
+                        handleToggleCompany(company.id, checked === true)
+                      }
+                    />
+                    <Label htmlFor={`new-company-${company.id}`} className="text-sm font-normal">
+                      #{company.id} — {company.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground" data-testid="new-key-expiry">
+                Vence el {formatKeyExpiry(new Date(Date.now() + API_KEY_MAX_DAYS * 24 * 60 * 60 * 1000))}{' '}
+                (365 días). Después crea una llave nueva.
+              </p>
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => copyToClipboard(createdToken, 'Token copiado')}
+                onClick={handleCreateKey}
+                disabled={creating || selectedCompanyIds.length === 0}
               >
-                <Copy className="mr-2 size-4" aria-hidden />
-                Copiar token
+                {creating ? 'Creando…' : 'Crear llave'}
               </Button>
-            </div>
-          ) : null}
-        </div>
-      </TripledResourceCard>
-
-      <TripledResourceCard
-        title="Llaves activas"
-        description={loading ? 'Cargando…' : `${activeKeys.length} conexión(es)`}
-        icon={<Sparkles className="size-5" aria-hidden />}
-        className="mt-4"
-      >
-        <div className="space-y-3">
-          {activeKeys.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay llaves activas.</p>
-          ) : (
-            activeKeys.map((key) => (
-              <div
-                key={key.id}
-                className="rounded-xl border border-border/60 p-3"
-                data-testid="api-key-card"
-              >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium">{key.name}</p>
-                    <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
-                      <PaymentsBadge scopes={key.scopes} />
-                      <Badge variant="outline">
-                        {key.allowed_company_ids.length} compañía(s)
-                      </Badge>
-                    </div>
-                    <div className="mt-1">
-                      <LastActivityLine activity={key.last_activity ?? null} />
-                    </div>
-                  </div>
+              {createdToken ? (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                  <p className="mb-2 font-medium">Copia este token ahora:</p>
+                  <code className="block break-all">{createdToken}</code>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => handleRevokeKey(key.id)}
+                    className="mt-2"
+                    onClick={() => copyToClipboard(createdToken, 'Token copiado')}
                   >
-                    <ShieldOff className="mr-2 size-4" aria-hidden />
-                    Revocar
+                    <Copy className="mr-2 size-4" aria-hidden />
+                    Copiar token
                   </Button>
                 </div>
-                <div className="mt-2 border-t border-border/60 pt-1">
-                  <McpActivityList kind="api_key" connectionId={key.id} />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </TripledResourceCard>
+              ) : null}
+            </div>
+          </TripledResourceCard>
 
-      <TripledResourceCard
-        title="Conexiones OAuth"
-        description="Clientes como ChatGPT Developer Mode"
-        icon={<Check className="size-5" aria-hidden />}
-        className="mt-4"
-      >
-        <div className="space-y-3">
-          {oauthGrants.filter((g) => g.revoked_at == null).length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay conexiones OAuth activas.</p>
-          ) : (
-            oauthGrants
-              .filter((grant) => grant.revoked_at == null)
-              .map((grant) => (
-                <div
-                  key={grant.id}
-                  className="rounded-xl border border-border/60 p-3"
-                  data-testid="oauth-grant-card"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium">{grant.client_name}</p>
-                      <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        <Badge variant="outline">
-                          {grant.allowed_company_ids.length} compañía(s)
-                        </Badge>
-                        <PaymentsBadge scopes={grant.scopes} />
+          <TripledResourceCard
+            desktop="section"
+            title="Llaves activas"
+            description={loading ? 'Cargando…' : `${activeKeys.length} conexión(es)`}
+            icon={<Sparkles className="size-5" aria-hidden />}
+            className="mt-4 lg:col-start-2 lg:row-start-2 lg:mt-0"
+          >
+            <div className="space-y-3">
+              {activeKeys.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay llaves activas.</p>
+              ) : (
+                activeKeys.map((key) => (
+                  <div
+                    key={key.id}
+                    className="rounded-xl border border-border/60 p-3"
+                    data-testid="api-key-card"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium">{key.name}</p>
+                        <p className="text-caption text-muted-foreground">{key.key_prefix}…</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <Badge variant="secondary">{scopesLabel(key.scopes)}</Badge>
+                          <PaymentsBadge scopes={key.scopes} />
+                          <Badge variant="outline">
+                            {key.allowed_company_ids.length} compañía(s)
+                          </Badge>
+                        </div>
+                        <div className="mt-1">
+                          <LastActivityLine activity={key.last_activity ?? null} />
+                        </div>
                       </div>
-                      <div className="mt-1">
-                        <LastActivityLine activity={grant.last_activity ?? null} />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRevokeKey(key.id)}
+                      >
+                        <ShieldOff className="mr-2 size-4" aria-hidden />
+                        Revocar
+                      </Button>
+                    </div>
+                    <div className="mt-2 border-t border-border/60 pt-1">
+                      <McpActivityList kind="api_key" connectionId={key.id} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </TripledResourceCard>
+
+          <TripledResourceCard
+            desktop="section"
+            title="Conexiones OAuth"
+            description="Clientes como ChatGPT Developer Mode"
+            icon={<Check className="size-5" aria-hidden />}
+            className="mt-4 lg:col-start-2 lg:row-start-3 lg:mt-0"
+          >
+            <div className="space-y-3">
+              {oauthGrants.filter((g) => g.revoked_at == null).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay conexiones OAuth activas.</p>
+              ) : (
+                oauthGrants
+                  .filter((grant) => grant.revoked_at == null)
+                  .map((grant) => (
+                    <div
+                      key={grant.id}
+                      className="rounded-xl border border-border/60 p-3"
+                      data-testid="oauth-grant-card"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-medium">{grant.client_name}</p>
+                          <p className="text-caption text-muted-foreground">{scopesLabel(grant.scopes)}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <Badge variant="outline">
+                              {grant.allowed_company_ids.length} compañía(s)
+                            </Badge>
+                            <PaymentsBadge scopes={grant.scopes} />
+                          </div>
+                          <div className="mt-1">
+                            <LastActivityLine activity={grant.last_activity ?? null} />
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeGrant(grant.id)}
+                        >
+                          Revocar
+                        </Button>
+                      </div>
+                      <div className="mt-2 border-t border-border/60 pt-1">
+                        <McpActivityList kind="oauth_grant" connectionId={grant.id} />
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRevokeGrant(grant.id)}
-                    >
-                      Revocar
-                    </Button>
-                  </div>
-                  <div className="mt-2 border-t border-border/60 pt-1">
-                    <McpActivityList kind="oauth_grant" connectionId={grant.id} />
-                  </div>
-                </div>
-              ))
-          )}
+                  ))
+              )}
+            </div>
+          </TripledResourceCard>
         </div>
-      </TripledResourceCard>
-    </TripledDashboardShell>
+      </TripledDashboardShell>
+    </>
   );
 }

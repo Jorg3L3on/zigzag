@@ -12,6 +12,16 @@ describe('operator console access guards', () => {
     expect(pageSource).toContain("requirePagePermission('companies.read')");
   });
 
+  it('requires the same guards on the company page layout (ZIG-I38-2)', () => {
+    const layoutSource = fs.readFileSync(
+      path.join(process.cwd(), 'src/app/(app)/operator-console/[id]/layout.tsx'),
+      'utf8',
+    );
+
+    expect(layoutSource).toContain('requireSystemPage');
+    expect(layoutSource).toContain("requirePagePermission('companies.read')");
+  });
+
   it('restricts operator summary API to system users', () => {
     const routeSource = fs.readFileSync(
       path.join(

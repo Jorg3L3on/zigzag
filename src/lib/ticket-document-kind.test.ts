@@ -5,6 +5,7 @@ import {
   isPresupuestoTicket,
   isWorkTicket,
   normalizeTicketDocumentKind,
+  PRESUPUESTO_STATUS_LABEL,
 } from '@/lib/ticket-document-kind';
 
 describe('ticket-document-kind', () => {
@@ -17,6 +18,10 @@ describe('ticket-document-kind', () => {
     expect(isWorkTicket('presupuesto')).toBe(false);
     expect(isPresupuestoTicket('presupuesto')).toBe(true);
     expect(normalizeTicketDocumentKind('weird')).toBe('ticket');
+  });
+
+  it('reads a converted presupuesto as Aceptado (ZIG-I24)', () => {
+    expect(PRESUPUESTO_STATUS_LABEL.convertido).toBe('Aceptado');
   });
 
   it('computes presupuesto status', () => {
@@ -71,5 +76,14 @@ describe('ticket-document-kind', () => {
     expect(
       isPresupuestoMutable({ document_kind: 'ticket' }, today),
     ).toBe(false);
+  });
+
+  it('counts the expiry day in the company zone, not the server one (ZIG-I29-3)', () => {
+    // Stored as Mexico City midnight (06:00 UTC), as the composer saves it.
+    const input = { document_kind: 'presupuesto', expires_at: new Date('2026-10-25T06:00:00Z') };
+    // 19:14 in Mexico City on the 25th is already the 26th in UTC.
+    expect(getPresupuestoStatus(input, new Date('2026-10-26T01:14:00Z'))).toBe('abierto');
+    expect(getPresupuestoStatus(input, new Date('2026-10-26T05:59:00Z'))).toBe('abierto');
+    expect(getPresupuestoStatus(input, new Date('2026-10-26T06:00:00Z'))).toBe('vencido');
   });
 });

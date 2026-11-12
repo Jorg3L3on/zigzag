@@ -2,6 +2,7 @@ import {
   COMPANY_FORM_SECTIONS_STORAGE_KEY,
   DEFAULT_COMPANY_FORM_SECTIONS,
   firstInvalidCompanyField,
+  listChangedCompanyFields,
   readCompanyFormSections,
   summarizeCompanyAddress,
   summarizeCompanyGeneral,
@@ -64,5 +65,15 @@ describe('company-form-sections', () => {
 
     window.localStorage.setItem(COMPANY_FORM_SECTIONS_STORAGE_KEY, '{not json');
     expect(readCompanyFormSections()).toEqual(DEFAULT_COMPANY_FORM_SECTIONS);
+  });
+
+  it('names the changed fields for the changes bar in form order (ZIG-I32-1)', () => {
+    expect(
+      listChangedCompanyFields({
+        city: true,
+        settings: { experience_mode: true, tagline: true, payment_bank: false },
+      }),
+    ).toEqual(['Lema o giro', 'Ciudad', 'Inicio']);
+    expect(listChangedCompanyFields({})).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -62,5 +62,79 @@ describe('SearchableSelect (ZIG-I12)', () => {
     await user.click(screen.getByRole('combobox'));
 
     expect(screen.getByPlaceholderText('Buscar…')).toHaveValue('');
+  });
+
+  it('moves with the arrow keys, rings the active option and picks with Enter (ZIG-I36 M-15)', async () => {
+    const user = userEvent.setup();
+    const onValueChange = jest.fn();
+    render(
+      <SearchableSelect
+        aria-label="Cliente"
+        options={options}
+        value=""
+        onValueChange={onValueChange}
+        searchPlaceholder="Buscar…"
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    const search = screen.getByRole('combobox', { name: 'Buscar…' });
+    // The search box takes focus one animation frame after opening; keys sent
+    // before that land on the body.
+    await waitFor(() => expect(search).toHaveFocus());
+    const rows = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(rows[0]).toHaveAttribute('data-active', 'true');
+    expect(search).toHaveAttribute('aria-activedescendant', rows[0].id);
+
+    await user.keyboard('{ArrowDown}');
+    expect(rows[1]).toHaveAttribute('data-active', 'true');
+    expect(rows[1].querySelector('button')?.className).toContain('ring-2');
+    expect(search).toHaveAttribute('aria-activedescendant', rows[1].id);
+
+    await user.keyboard('{ArrowDown}');
+    expect(rows[0]).toHaveAttribute('data-active', 'true');
+    await user.keyboard('{ArrowUp}{Enter}');
+    expect(onValueChange).toHaveBeenCalledWith('2');
+  });
+
+  it('dims the old list while a search runs and ignores taps on it (ZIG-I36 M-21)', async () => {
+    const user = userEvent.setup();
+    const onValueChange = jest.fn();
+    const { rerender } = render(
+      <SearchableSelect
+        aria-label="Cliente"
+        options={options}
+        value=""
+        onValueChange={onValueChange}
+        onSearchChange={() => {}}
+        isLoading
+        footerHint="Escribe para buscar entre los 1,000 clientes"
+      />,
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Cliente' }));
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).getByText('Buscando…')).toBeInTheDocument();
+    const rows = within(listbox).getAllByRole('option');
+    expect(rows).toHaveLength(2);
+    expect(rows[1].className).toContain('opacity-50');
+    expect(rows[1]).toHaveAttribute('aria-disabled', 'true');
+    await user.click(within(rows[1]).getByRole('button'));
+    await user.keyboard('{Enter}');
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Escribe para buscar/)).toBeNull();
+
+    rerender(
+      <SearchableSelect
+        aria-label="Cliente"
+        options={options}
+        value=""
+        onValueChange={onValueChange}
+        onSearchChange={() => {}}
+        footerHint="Escribe para buscar entre los 1,000 clientes"
+      />,
+    );
+    expect(screen.queryByText('Buscando…')).toBeNull();
+    expect(screen.getByText('Escribe para buscar entre los 1,000 clientes')).toBeInTheDocument();
   });
 });

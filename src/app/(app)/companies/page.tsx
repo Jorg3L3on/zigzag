@@ -26,10 +26,12 @@ export default async function CompaniesPage() {
       <TripledPageHeader items={[{ label: 'Empresas' }]} />
 
       <TripledDashboardShell>
+        {/* From lg the list draws its own title with the count, without the card (ZIG-I33). */}
         <TripledResourceCard
+          desktop="title"
+          headerClassName="lg:hidden"
           title="Empresas"
-          description="Contextos de trabajo del sistema."
-          desktopDescription="Administra las empresas disponibles en el sistema"
+          description="Administra las empresas disponibles en el sistema"
           icon={<Building2 className="size-5" aria-hidden />}
           action={
             canWriteCompanies ? (

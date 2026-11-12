@@ -23,6 +23,8 @@ export const ADVISORY_LOCK_NAMESPACE = {
   ticketFinish: 2,
   /** One MCP idempotency key per connection at a time (ZIG-I23-6). */
   mcpIdempotency: 3,
+  /** One composer client_request_id per company + user at a time (ZIG-I35-1). */
+  composerClientRequest: 4,
 } as const;
 
 export type AdvisoryLockNamespace =

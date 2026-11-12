@@ -5,18 +5,12 @@ export type OperatorAuditEventLike = {
   payload?: Record<string, unknown> | null;
 };
 
-const payloadMentionsEntitlementLimit = (
-  payload: Record<string, unknown> | null | undefined,
-): boolean => {
-  const serialized = JSON.stringify(payload ?? {}).toLowerCase();
-  return (
-    serialized.includes('co011') ||
-    serialized.includes('límite del plan') ||
-    serialized.includes('limite del plan') ||
-    serialized.includes('plan limit')
-  );
-};
-
+/**
+ * Events that can feed a security alert (ZIG-I38): failed sign-ins and denied
+ * permissions. A single one is shown as an alert-type event in Actividad, but
+ * the fleet only raises an alert on a burst (see operator-sign-in-burst.ts).
+ * «Límite de plan» is no longer detected by searching the payload text (E12).
+ */
 export const isOperatorIncidentEvent = (
   event: OperatorAuditEventLike,
 ): boolean => {
@@ -26,13 +20,10 @@ export const isOperatorIncidentEvent = (
   if (event.action === 'permission_denied') {
     return true;
   }
-  if (event.resource_type === 'auth' && event.result !== 'success') {
+  if (event.resource_type === 'auth' && event.result === 'failed') {
     return true;
   }
   if (event.resource_type === 'security' && event.result === 'denied') {
-    return true;
-  }
-  if (payloadMentionsEntitlementLimit(event.payload)) {
     return true;
   }
   return false;
@@ -43,15 +34,12 @@ export const operatorIncidentLabel = (
 ): string => {
   if (
     event.action === 'sign_in_failed' ||
-    (event.resource_type === 'auth' && event.result !== 'success')
+    (event.resource_type === 'auth' && event.result === 'failed')
   ) {
     return 'Inicio de sesión fallido';
   }
   if (event.action === 'permission_denied' || event.resource_type === 'security') {
     return 'Permiso denegado';
   }
-  if (payloadMentionsEntitlementLimit(event.payload)) {
-    return 'Límite de plan';
-  }
-  return 'Incidente operativo';
+  return 'Alerta';
 };

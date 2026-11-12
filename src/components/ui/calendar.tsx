@@ -120,6 +120,11 @@ function Calendar({
         },
       }}
       {...props}
+      labels={{
+        labelPrevious: () => "Mes anterior",
+        labelNext: () => "Mes siguiente",
+        ...props.labels,
+      }}
     />
   )
 }

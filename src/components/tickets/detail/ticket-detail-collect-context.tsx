@@ -14,6 +14,11 @@ type TicketCollectProviderProps = {
   total: number | null;
   paid: number | null;
   companyId: number | null;
+  /** Desktop dialog title and «Enviar recibo» after paying in full (ZIG-I31). */
+  folio?: string | null;
+  clientName?: string | null;
+  clientTel?: string | null;
+  companyName?: string | null;
   children: React.ReactNode;
 };
 
@@ -26,6 +31,10 @@ export const TicketCollectProvider = ({
   total,
   paid,
   companyId,
+  folio = null,
+  clientName = null,
+  clientTel = null,
+  companyName = null,
   children,
 }: TicketCollectProviderProps) => {
   const router = useRouter();
@@ -42,6 +51,10 @@ export const TicketCollectProvider = ({
         total={total}
         paid={paid}
         companyId={companyId}
+        folio={folio}
+        clientName={clientName}
+        clientTel={clientTel}
+        companyName={companyName}
         onPaymentApplied={() => router.refresh()}
       />
     </CollectContext.Provider>

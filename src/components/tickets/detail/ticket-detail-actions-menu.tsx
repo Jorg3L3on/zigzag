@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Download, MoreHorizontal, Pencil, Share2, Trash2 } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { WhatsAppIcon } from '@/components/ui/whatsapp-icon';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
 import { useReceiptShare } from '@/components/tickets/use-receipt-share';
 import { useCompany } from '@/contexts/company-context';
@@ -30,6 +31,7 @@ import {
   canDownloadTicketInvoice,
   canWriteTickets,
 } from '@/lib/tickets-rbac';
+import { cn } from '@/lib/utils';
 
 type TicketDetailActionsMenuProps = {
   ticketId: number;
@@ -41,13 +43,24 @@ type TicketDetailActionsMenuProps = {
   paid: number | null;
   paymentsCount: number;
   downloadFileName: string;
+  /**
+   * Header on desktop (ZIG-I24-3): from 1024px Editar servicios is an Editar
+   * button and Descargar PDF a PDF button next to ⋯, which keeps Duplicar and
+   * Eliminar, so the header is Cobrar / Compartir recibo · WhatsApp · PDF ·
+   * Editar · ⋯.
+   */
+  inlineFromLg?: boolean;
+  /** From lg only: Compartir recibo as the first ⋯ item (Jorge, 2026-11-11). */
+  shareFromLg?: boolean;
+  /** From lg only: the recibo on WhatsApp as a ⋯ item; null hides it. */
+  whatsAppHrefFromLg?: string | null;
   className?: string;
 };
 
 /**
  * ⋯ menu of the ticket detail (ZIG-I13-4): Editar servicios, Descargar PDF,
  * Duplicar ticket, Eliminar ticket. Lives in the app bar on mobile and in the
- * header actions on desktop.
+ * header actions on desktop, where `inlineFromLg` brings the first ones out.
  */
 export const TicketDetailActionsMenu = ({
   ticketId,
@@ -58,13 +71,16 @@ export const TicketDetailActionsMenu = ({
   paid,
   paymentsCount,
   downloadFileName,
+  inlineFromLg = false,
+  shareFromLg = false,
+  whatsAppHrefFromLg = null,
   className,
 }: TicketDetailActionsMenuProps) => {
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = React.useState(false);
-  const { download } = useReceiptShare({
+  const { download, share, sharing } = useReceiptShare({
     ticketId: String(ticketId),
     folio,
     downloadFileName,
@@ -104,25 +120,75 @@ export const TicketDetailActionsMenu = ({
   const canPdf = canDownloadTicketInvoice(can);
   const canWrite = canWriteTickets(can);
 
-  if (!canEditServices && !canPdf && !canWrite) return null;
+  const showShare = inlineFromLg && shareFromLg;
+  const showWhatsApp = inlineFromLg && Boolean(whatsAppHrefFromLg);
+  const shareItemsFromLg = showShare || showWhatsApp;
+
+  if (!canEditServices && !canPdf && !canWrite && !shareItemsFromLg) return null;
+
+  // Editar servicios and Descargar PDF are buttons from lg, so they leave the menu there.
+  const inlineItemClass = inlineFromLg ? 'lg:hidden' : undefined;
 
   return (
     <>
+      {inlineFromLg && canEditServices ? (
+        <Button
+          asChild
+          variant="outline"
+          className="hidden h-10 gap-2 rounded-xl text-sm font-medium lg:inline-flex"
+          data-testid="ticket-detail-inline-actions"
+        >
+          <Link href={`/tickets/${ticketId}/edit`} aria-label="Editar servicios">
+            <Pencil className="h-4 w-4" aria-hidden />
+            Editar
+          </Link>
+        </Button>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            // In the desktop header ⋯ matches the outline buttons next to it (ZIG-I37-4).
+            variant={inlineFromLg ? 'outline' : 'ghost'}
             size="icon"
-            className={className ?? 'h-11 w-11 shrink-0'}
+            // From lg Editar and PDF are buttons, so only Compartir recibo / WhatsApp /
+            // Duplicar / Eliminar stay in ⋯: without them the menu would open empty,
+            // so ⋯ goes too (ZIG-I37-4).
+            className={cn(
+              className ?? 'h-11 w-11 shrink-0',
+              inlineFromLg && !canWrite && !shareItemsFromLg && 'lg:hidden',
+            )}
             aria-label="Más acciones del ticket"
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          {showShare ? (
+            <DropdownMenuItem
+              className="hidden min-h-11 lg:flex"
+              disabled={sharing}
+              onSelect={() => void share(paid ?? 0)}
+            >
+              <Share2 className="mr-2 h-4 w-4" aria-hidden />
+              Compartir recibo
+            </DropdownMenuItem>
+          ) : null}
+          {showWhatsApp && whatsAppHrefFromLg ? (
+            <DropdownMenuItem asChild className="hidden min-h-11 lg:flex">
+              <a
+                href={whatsAppHrefFromLg}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="ticket-detail-whatsapp"
+              >
+                <WhatsAppIcon className="mr-2 h-4 w-4" aria-hidden />
+                WhatsApp
+              </a>
+            </DropdownMenuItem>
+          ) : null}
           {canEditServices ? (
-            <DropdownMenuItem asChild className="min-h-11">
+            <DropdownMenuItem asChild className={cn('min-h-11', inlineItemClass)}>
               <Link href={`/tickets/${ticketId}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" aria-hidden />
                 Editar servicios
@@ -130,13 +196,19 @@ export const TicketDetailActionsMenu = ({
             </DropdownMenuItem>
           ) : null}
           {canPdf ? (
-            <DropdownMenuItem className="min-h-11" onSelect={() => void download()}>
+            <DropdownMenuItem
+              className={cn('min-h-11', inlineItemClass)}
+              onSelect={() => void download()}
+            >
               <Download className="mr-2 h-4 w-4" aria-hidden />
               Descargar PDF
             </DropdownMenuItem>
           ) : null}
           {canWrite ? (
-            <DropdownMenuItem className="min-h-11" onSelect={() => void handleDuplicate()}>
+            <DropdownMenuItem
+              className="min-h-11"
+              onSelect={() => void handleDuplicate()}
+            >
               <Copy className="mr-2 h-4 w-4" aria-hidden />
               Duplicar ticket
             </DropdownMenuItem>

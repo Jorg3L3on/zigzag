@@ -7,6 +7,7 @@ import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { presentActionError } from '@/lib/network-awareness';
 import { fetchAndDeliverTicketInvoice } from '@/lib/ticket-invoice-download';
+import { useInvoiceDeliveryMode } from '@/hooks/use-invoice-delivery-mode';
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +34,7 @@ export function PDFDownloadButton({
   variant = 'outline',
 }: PDFDownloadButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const deliveryMode = useInvoiceDeliveryMode();
 
   const handleDownload = async () => {
     try {
@@ -41,6 +43,7 @@ export function PDFDownloadButton({
         ticketId,
         companyId,
         downloadFileName,
+        mode: deliveryMode,
       });
 
       if (result === 'shared') {

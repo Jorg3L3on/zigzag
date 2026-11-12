@@ -8,6 +8,7 @@ import { recordGovernanceAudit } from '@/lib/governance-audit';
 import { requireActionAuth, requireActionPermission } from '@/lib/security';
 import { bumpUserTokenVersion, revokeAgentAccessForUser } from '@/lib/session-revocation';
 import { compare, hash } from 'bcryptjs';
+import { guardUserWrite } from '@/lib/role-rank';
 
 jest.mock('@/lib/db', () => ({
   db: {
@@ -25,6 +26,7 @@ jest.mock('@/lib/session-revocation', () => ({
   revokeAgentAccessForUser: jest.fn(),
 }));
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
+jest.mock('@/lib/role-rank', () => ({ guardUserWrite: jest.fn(async () => null) }));
 jest.mock('@/lib/governance-audit', () => ({
   actionAuthToGovernanceActor: jest.fn(() => ({ userId: '1' })),
   recordGovernanceAudit: jest.fn(),
@@ -42,6 +44,7 @@ const mockCompare = compare as jest.Mock;
 const mockAudit = recordGovernanceAudit as jest.Mock;
 const mockBump = bumpUserTokenVersion as jest.Mock;
 const mockRevokeAgents = revokeAgentAccessForUser as jest.Mock;
+const mockGuard = guardUserWrite as jest.Mock;
 
 const member = {
   id: 20n,
@@ -126,6 +129,21 @@ describe('resetUserTemporaryPassword (ZIG-I18-11)', () => {
 
     expect(result.success).toBe(false);
     expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('asks guardUserWrite and refuses when it does (ZIG-I32 review)', async () => {
+    mockDb.query.user.findFirst.mockResolvedValue({ ...member, role_id: 1 });
+    mockGuard.mockResolvedValueOnce('US010');
+    mockUpdate();
+
+    const result = await resetUserTemporaryPassword(20n);
+
+    expect(mockGuard).toHaveBeenCalledWith(
+      expect.objectContaining({ target: expect.objectContaining({ id: 20n }), setsPassword: true }),
+    );
+    expect(result).toEqual(expect.objectContaining({ success: false, errorCode: 'US010' }));
+    expect(mockDb.update).not.toHaveBeenCalled();
+    expect(mockBump).not.toHaveBeenCalled();
   });
 
   it('refuses to reset yourself and an unknown user', async () => {

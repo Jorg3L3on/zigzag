@@ -7,8 +7,8 @@
  * - Recordatorios: service schedules overdue or due within DUE_SOON_DAYS
  */
 
-import { startOfDay } from 'date-fns';
 import type { CobranzaRow } from '@/lib/cobranza';
+import { companyDay } from '@/lib/company-day';
 import { classifyScheduleBucket } from '@/lib/schedule-buckets';
 import type { TechnicianDayTicket } from '@/lib/technician-day-queue';
 
@@ -135,12 +135,12 @@ export const pickDefaultDayQueueFilter = (
 ): DayQueueFilter =>
   DAY_QUEUE_FILTERS.find((filter) => counts[filter] > 0) ?? 'hoy';
 
-/** Whole days between a ticket's work date and today (0 for today). */
+/** Whole company-calendar days between a ticket's work date and today (0 for today). */
 export const daysLate = (ticketDate: string, today: Date = new Date()): number =>
   Math.max(
     0,
     Math.round(
-      (startOfDay(today).getTime() - startOfDay(new Date(ticketDate)).getTime()) /
+      (companyDay(today).date.getTime() - companyDay(new Date(ticketDate)).date.getTime()) /
         86_400_000,
     ),
   );

@@ -9,7 +9,7 @@ import {
   addCustomComposerLine,
   createClientInComposer,
   expectNoPageOverflow,
-  finishOnReview,
+  saveAndFinishComposer,
   openComposer,
   saveComposer,
 } from './helpers/ticket-composer';
@@ -32,6 +32,79 @@ for (const width of MOBILE_WIDTHS) {
       await ensureTenantCompany(page);
     });
 
+    // Read only: picks the client of the newest card, saves nothing (ZIG-I37-1).
+    test('Más filtros: searchable Cliente, its chip and the Por cobrar count follow it', async ({ page }) => {
+      await page.goto('/tickets');
+      const cards = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).filter({ visible: true });
+      await expect(cards.first()).toBeVisible({ timeout: 30_000 });
+      const name = (await cards.first().getByTestId('ticket-card-name').innerText()).trim();
+      const dueChip = page.getByRole('group', { name: 'Filtro de cobro' }).getByRole('button', { name: /^Por cobrar/ });
+      const dueOf = async () => Number(/· (\d+)/.exec(await dueChip.innerText())?.[1] ?? 0);
+      const dueBefore = await dueOf();
+
+      const more = page.getByTestId('list-mobile-controls').getByRole('button', { name: /^Más filtros/ });
+      await more.click();
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByText('Cliente, trabajo, fechas y orden')).toBeVisible();
+      const select = sheet.getByRole('combobox', { name: 'Filtrar por cliente' });
+      await expect(select).toHaveText(/Todos los clientes/);
+      const box = await select.boundingBox();
+      expect(box!.height, 'touch height').toBeGreaterThanOrEqual(44);
+      await select.click();
+      const searchBox = page.getByRole('combobox', { name: 'Buscar cliente…' });
+      await expect(searchBox).toBeFocused();
+      await searchBox.fill(name);
+      const option = page.getByRole('option').filter({ hasText: name }).first();
+      await expect(option).toBeVisible({ timeout: 15_000 });
+      // The open list stays inside what the person sees.
+      const vv = await page.evaluate(() => ({
+        w: window.visualViewport?.width ?? window.innerWidth,
+        h: window.visualViewport?.height ?? window.innerHeight,
+      }));
+      const optionBox = (await option.boundingBox())!;
+      expect(optionBox.x).toBeGreaterThanOrEqual(0);
+      expect(optionBox.x + optionBox.width).toBeLessThanOrEqual(vv.w + 1);
+      expect(optionBox.y + optionBox.height).toBeLessThanOrEqual(vv.h + 1);
+      await expectNoPageOverflow(page, 'sheet with the client list open');
+      await option.getByRole('button').click();
+
+      await expect(page).toHaveURL(/[?&]cliente=\d+/);
+      await expect(select).toContainText(name);
+      await sheet.getByRole('button', { name: 'Listo' }).click();
+      await expect(sheet).toBeHidden();
+      // The sheet counter counts it (the trigger is hidden from the tree while the sheet is open).
+      await expect(more).toHaveAccessibleName(/Más filtros \(1 activos\)/);
+
+      const chip = page.getByRole('button', { name: `Quitar filtro Cliente: ${name}` });
+      await expect(chip).toBeVisible({ timeout: 15_000 });
+      await expect(chip).toContainText(`Cliente: ${name}`);
+      // A tap target like the rest of the phone controls: at least 44px tall.
+      expect((await chip.boundingBox())!.height, 'chip touch height').toBeGreaterThanOrEqual(44);
+      await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+      const names = await cards.evaluateAll((els) =>
+        els.map((el) => el.querySelector('[data-testid="ticket-card-name"]')?.textContent?.trim() ?? ''),
+      );
+      expect(new Set(names), 'only that client').toEqual(new Set([name]));
+      await expect.poll(dueOf, { timeout: 15_000 }).toBeLessThanOrEqual(dueBefore);
+      await expectNoPageOverflow(page, 'filtered list');
+
+      // The chip's × drops it.
+      await chip.click();
+      await expect(page).not.toHaveURL(/[?&]cliente=/);
+      await expect(chip).toHaveCount(0);
+      await expect.poll(dueOf, { timeout: 15_000 }).toBe(dueBefore);
+
+      // So does Limpiar todos los filtros in the sheet.
+      await more.click();
+      await sheet.getByRole('combobox', { name: 'Filtrar por cliente' }).click();
+      await page.getByRole('combobox', { name: 'Buscar cliente…' }).fill(name);
+      await page.getByRole('option').filter({ hasText: name }).first().getByRole('button').click();
+      await expect(page).toHaveURL(/[?&]cliente=\d+/);
+      await sheet.getByRole('button', { name: 'Limpiar todos los filtros activos' }).click();
+      await expect(page).not.toHaveURL(/[?&]cliente=/);
+      await expect(sheet.getByRole('combobox', { name: 'Filtrar por cliente' })).toHaveText(/Todos los clientes/);
+    });
+
     test('compact cards, Por cobrar header, chips and search', async ({ page }) => {
       const suffix = `${Date.now()}`.slice(-8);
       const clientName = `Corporativo Inmobiliario Torres del Caribe ${suffix} Torre B Piso 14 Zona Hotelera`;
@@ -52,9 +125,10 @@ for (const width of MOBILE_WIDTHS) {
           await page.getByRole('option', { name: new RegExp(suffix) }).first().click();
         });
         await addCustomComposerLine(page, { name: 'Sustitución de sistema central', quantity: '1', price: '1300488.89' });
-        const id = await saveComposer(page);
+        const id = paid
+          ? (await saveAndFinishComposer(page, { mode: 'partial', amount: 500000 }, { send: false })).ticketId
+          : await saveComposer(page);
         ids.push(id);
-        if (paid) await finishOnReview(page, id, { mode: 'partial', amount: 500000 });
       }
 
       await page.goto('/tickets');
@@ -71,9 +145,8 @@ for (const width of MOBILE_WIDTHS) {
       await search.fill(suffix);
       await expect(page.getByText(`Búsqueda: ${suffix}`)).toBeVisible({ timeout: 15_000 });
 
-      // Header: Por cobrar sums the saldos of the filter (3 tickets: 1,300,488.89 × 3 − 500,000).
-      const header = page.getByTestId('tickets-balance-due').filter({ visible: true }).first();
-      await expect(header).toContainText('$3,401,466.67');
+      // No Por cobrar total above the list in any width (ZIG-I27-3); the chip keeps its count.
+      await expect(page.getByTestId('tickets-balance-due')).toHaveCount(0);
 
       const cards = page.getByRole('button', { name: /^(Ver|Editar) ticket \d+$/ }).filter({ visible: true });
       await expect(cards).toHaveCount(3, { timeout: 15_000 });
@@ -92,8 +165,9 @@ for (const width of MOBILE_WIDTHS) {
       }
       const partialCard = cards.filter({ hasText: 'Pago parcial' }).first();
       await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Pagado $500,000.00');
-      await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Saldo $800,488.89');
-      const openCard = cards.filter({ hasText: 'Pendiente de pago' }).first();
+      await expect(partialCard.getByTestId('ticket-payment-summary')).toContainText('Faltan $800,488.89');
+      // Unpaid fixtures are still unfinished: En proceso with the Total (ZIG-I36-17).
+      const openCard = cards.filter({ hasText: 'En proceso' }).first();
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('Total');
       await expect(openCard.getByTestId('ticket-payment-summary')).toContainText('$1,300,488.89');
       await expectNoPageOverflow(page, 'tickets list');
@@ -110,8 +184,9 @@ for (const width of MOBILE_WIDTHS) {
       await group.getByRole('button', { name: /^Por cobrar/ }).click();
       await expect(page).toHaveURL(/status=due/);
       await expect(group.getByRole('button', { name: /^Por cobrar/ })).toHaveAttribute('aria-pressed', 'true');
-      await expect(group.getByRole('button', { name: /^Por cobrar · 3$/ })).toBeVisible({ timeout: 15_000 });
-      await expect(cards).toHaveCount(3);
+      await expect(group.getByRole('button', { name: /^Por cobrar · 1$/ })).toBeVisible({ timeout: 15_000 });
+      // Por cobrar is finished work with a saldo: only the half-paid ticket (ZIG-I36-17).
+      await expect(cards).toHaveCount(1);
       await expect(search).toHaveValue(suffix);
 
       await group.getByRole('button', { name: 'Pagados' }).click();

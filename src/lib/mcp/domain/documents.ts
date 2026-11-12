@@ -20,6 +20,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { servicesTickets, ticket, ticketLineMaterial } from '@/db/schema';
+import { companyDay } from '@/lib/company-day';
 import { db } from '@/lib/db';
 import { loadDashboardDayQueueForCompany } from '@/lib/dashboard-day-queue-loader';
 import { loadDashboardMetricsForCompany } from '@/lib/dashboard-metrics-loader';
@@ -507,16 +508,16 @@ export type DocumentDetail = Awaited<ReturnType<typeof getAgentDocument>>;
 
 export const COMPANY_SUMMARY_QUEUE_LIMIT = 10;
 
-/** `YYYY-MM-DD` → midday UTC of that day, so local-day helpers land on it. */
+/** `YYYY-MM-DD` → midday UTC of that day, which is the same company calendar day. */
 const middayOfIsoDate = (value: string): Date => new Date(`${value}T12:00:00.000Z`);
-
-const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 export const getAgentCompanySummary = async (
   agent: Pick<AgentContext, 'companyId'>,
   input: { date?: string; now?: Date } = {},
 ) => {
-  const today = input.date ? middayOfIsoDate(input.date) : (input.now ?? new Date());
+  const today = companyDay(
+    input.date ? middayOfIsoDate(input.date) : (input.now ?? new Date()),
+  ).date;
 
   const [queue, metrics, presupuestos] = await Promise.all([
     loadDashboardDayQueueForCompany(agent.companyId, today, {
@@ -556,7 +557,7 @@ export const getAgentCompanySummary = async (
   };
 
   return {
-    date: toIsoDate(today),
+    date: companyDay(today).iso,
     queue: {
       counts: {
         hoy: queue.counts.hoy,

@@ -9,6 +9,7 @@ import {
   type FieldJobPayload,
   type LocalJob,
 } from '@/lib/field-jobs';
+import { FIELD_JOBS_CHANGED_EVENT } from '@/lib/field-jobs/events';
 
 export type UseFieldJobStoreState = {
   loading: boolean;
@@ -77,8 +78,14 @@ export const useFieldJobStore = (
   React.useEffect(() => {
     const signal: LoadSignal = { cancelled: false };
     void loadJobs(signal);
+    // A save offline or a flush elsewhere in the app (ZIG-I35).
+    const handleChanged = () => {
+      void loadJobs(signal);
+    };
+    window.addEventListener(FIELD_JOBS_CHANGED_EVENT, handleChanged);
     return () => {
       signal.cancelled = true;
+      window.removeEventListener(FIELD_JOBS_CHANGED_EVENT, handleChanged);
     };
   }, [loadJobs]);
 

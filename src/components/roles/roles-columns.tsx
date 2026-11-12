@@ -2,13 +2,9 @@
 
 import type { ReactNode } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Column } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import type { Company, Permission } from '@/db/schema';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { FormattedDate } from '@/components/formatted-date';
-import { cn } from '@/lib/utils';
+import { ListShortDate, ListSortableHeader } from '@/components/list-page';
 
 export type Role = {
   id: number;
@@ -21,59 +17,18 @@ export type Role = {
   }[];
 };
 
-function RoleSortableHeader<TData>({
-  column,
-  label,
-  className,
-}: {
-  column: Column<TData>;
-  label: string;
-  className?: string;
-}) {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        '-ml-2 h-7 max-w-full px-2 text-sm font-medium hover:bg-transparent',
-        className,
-      )}
-      onClick={column.getToggleSortingHandler()}
-      aria-sort={
-        sorted === 'asc'
-          ? 'ascending'
-          : sorted === 'desc'
-            ? 'descending'
-            : 'none'
-      }
-    >
-      {label}
-      {sorted === 'desc' ? (
-        <ArrowDown className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : sorted === 'asc' ? (
-        <ArrowUp className="ml-2 h-4 w-4 shrink-0" aria-hidden data-icon="inline-end"/>
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" aria-hidden data-icon="inline-end"/>
-      )}
-    </Button>
-  );
-}
-
 export type RolesColumnsOptions = {
   renderActions: (role: Role) => ReactNode;
 };
 
+/** The desktop table of the system roles list (ZIG-I33); phones draw cards. */
 export const createRolesColumns = ({
   renderActions,
 }: RolesColumnsOptions): ColumnDef<Role>[] => [
   {
     id: 'name',
     accessorKey: 'name',
-    header: ({ column }) => (
-      <RoleSortableHeader column={column} label="Nombre" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Nombre" />,
     cell: ({ row }) => (
       <span className="line-clamp-2 font-medium">{row.original.name}</span>
     ),
@@ -81,13 +36,12 @@ export const createRolesColumns = ({
       a.original.name.localeCompare(b.original.name, 'es', {
         sensitivity: 'base',
       }),
+    meta: { className: 'w-48' },
   },
   {
     id: 'companyName',
     accessorFn: (row) => row.company?.name ?? '',
-    header: ({ column }) => (
-      <RoleSortableHeader column={column} label="Empresa" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Empresa" />,
     cell: ({ row }) => (
       <span className="line-clamp-2">{row.original.company?.name ?? 'Sin empresa'}</span>
     ),
@@ -96,13 +50,12 @@ export const createRolesColumns = ({
       const nb = b.original.company?.name ?? '';
       return na.localeCompare(nb, 'es', { sensitivity: 'base' });
     },
+    meta: { className: 'w-40' },
   },
   {
     id: 'description',
     accessorFn: (row) => row.description ?? '',
-    header: ({ column }) => (
-      <RoleSortableHeader column={column} label="Descripción" />
-    ),
+    header: ({ column }) => <ListSortableHeader column={column} label="Descripción" />,
     cell: ({ row }) => (
       <span className="line-clamp-2">{row.original.description ?? '—'}</span>
     ),
@@ -115,15 +68,14 @@ export const createRolesColumns = ({
   {
     id: 'created_at',
     accessorFn: (row) => row.created_at,
-    header: ({ column }) => (
-      <RoleSortableHeader column={column} label="Creado" />
-    ),
-    cell: ({ row }) => <FormattedDate date={row.original.created_at} />,
+    header: ({ column }) => <ListSortableHeader column={column} label="Creado" />,
+    cell: ({ row }) => <ListShortDate date={row.original.created_at} />,
     sortingFn: (rowA, rowB) => {
       const ta = rowA.original.created_at?.getTime() ?? 0;
       const tb = rowB.original.created_at?.getTime() ?? 0;
       return ta - tb;
     },
+    meta: { className: 'w-28' },
   },
   {
     id: 'permissions',
@@ -131,7 +83,7 @@ export const createRolesColumns = ({
     header: 'Permisos',
     enableSorting: false,
     cell: ({ row }) => (
-      <div className="flex max-w-[20rem] flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1 py-2">
         {row.original.permissions.map(({ permission }) =>
           permission ? (
             <Badge key={permission.id} variant="secondary">
@@ -144,12 +96,9 @@ export const createRolesColumns = ({
   },
   {
     id: 'actions',
-    header: () => (
-      <span className="flex w-full justify-end text-sm font-medium">Acciones</span>
-    ),
+    header: () => <span className="sr-only">Acciones</span>,
     enableSorting: false,
-    cell: ({ row }) => (
-      <div className="flex justify-end">{renderActions(row.original)}</div>
-    ),
+    cell: ({ row }) => renderActions(row.original),
+    meta: { className: 'w-12' },
   },
 ];

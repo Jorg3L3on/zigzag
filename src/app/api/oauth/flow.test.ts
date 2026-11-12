@@ -56,7 +56,8 @@ const formRequest = (path: string, fields: Record<string, string>) =>
 const jsonRequest = (path: string, body: unknown) =>
   new NextRequest(`${ORIGIN}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Consent POST requires a same-origin Origin (ZIG-38).
+    headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
     body: JSON.stringify(body),
   });
 
@@ -424,5 +425,103 @@ describeWithLocalDb('MCP OAuth flow (real routes, local Postgres)', () => {
     });
     expect(loopback.status).toBe(201);
     fixture!.oauthClientIds.push(((await loopback.json()) as { client_id: string }).client_id);
+  });
+
+  describe('ZIG-38: fixes ported from micasa', () => {
+    it('PKCE is mandatory: a client_assertion does not replace code_verifier', async () => {
+      const { code, verifier } = await authorizeCode();
+      const withAssertion = await tokenPost(
+        formRequest('/api/oauth/token', {
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: REDIRECT_URI,
+          client_id: clientId,
+          client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+          client_assertion: 'eyJhbGciOiJSUzI1NiJ9.e30.sig',
+        }),
+      );
+      expect(withAssertion.status).toBe(400);
+      expect(await withAssertion.json()).toEqual(
+        expect.objectContaining({ error: 'invalid_request' }),
+      );
+
+      const wrongVerifier = await exchange(code, base64url(crypto.randomBytes(32)));
+      expect(wrongVerifier.status).toBe(400);
+      expect(await wrongVerifier.json()).toEqual(
+        expect.objectContaining({ error: 'invalid_grant' }),
+      );
+
+      // The code was not burned by the failed attempts.
+      expect((await exchange(code, verifier)).status).toBe(200);
+    });
+
+    it('another client with the same redirect_uri cannot redeem the code', async () => {
+      const other = await registerPost(
+        jsonRequest('/api/oauth/register', {
+          client_name: 'Jest other',
+          redirect_uris: [REDIRECT_URI],
+        }),
+      );
+      expect(other.status).toBe(201);
+      const otherId = ((await other.json()) as { client_id: string }).client_id;
+      fixture!.oauthClientIds.push(otherId);
+
+      const { code, verifier } = await authorizeCode();
+      const stolen = await tokenPost(
+        formRequest('/api/oauth/token', {
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: REDIRECT_URI,
+          client_id: otherId,
+          code_verifier: verifier,
+        }),
+      );
+      expect(stolen.status).toBe(400);
+      expect(await stolen.json()).toEqual(expect.objectContaining({ error: 'invalid_grant' }));
+    });
+
+    it('an access token for another resource is rejected at /api/mcp (RFC 8707)', async () => {
+      const { tokens } = await connect();
+      expect((await listCompanies(tokens.access_token)).status).toBe(200);
+
+      const grant = await grantFor(tokens.access_token);
+      await db
+        .update(mcpOAuthGrant)
+        .set({ resource: 'https://other.example.com/api/mcp' })
+        .where(eq(mcpOAuthGrant.id, grant.id));
+      expect((await listCompanies(tokens.access_token)).status).toBe(401);
+    });
+
+    it('/authorize answers invalid_target to the client for a foreign resource', async () => {
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        redirect_uri: REDIRECT_URI,
+        code_challenge: 'eE8NUuiNoV1Dt1KEKA6P16KeU5Rr3Pb36hP3bWFnjUQ',
+        code_challenge_method: 'S256',
+        state: 'jest-state',
+        resource: 'https://other.example.com/api/mcp',
+      });
+      const response = await authorizeGet(
+        new NextRequest(`${ORIGIN}/api/oauth/authorize?${params}`),
+      );
+      const location = new URL(response.headers.get('location')!);
+      expect(`${location.origin}${location.pathname}`).toBe(REDIRECT_URI);
+      expect(location.searchParams.get('error')).toBe('invalid_target');
+      expect(location.searchParams.get('state')).toBe('jest-state');
+    });
+
+    it('DCR rejects non-https client_uri and logo_uri', async () => {
+      const response = await registerPost(
+        jsonRequest('/api/oauth/register', {
+          redirect_uris: ['https://example.com/cb'],
+          client_uri: 'javascript:alert(1)',
+        }),
+      );
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual(
+        expect.objectContaining({ error: 'invalid_client_metadata' }),
+      );
+    });
   });
 });

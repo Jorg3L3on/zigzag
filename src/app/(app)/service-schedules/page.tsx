@@ -4,7 +4,7 @@ import {
   TripledPageHeader,
   TripledResourceCard,
 } from '@/components/tripled';
-import { ServiceSchedulesList } from '@/components/service-schedules/service-schedules-list';
+import { ServiceSchedulesView } from '@/components/service-schedules/service-schedules-view';
 import { requirePagePermission } from '@/lib/page-authz';
 import { SERVICE_SCHEDULES_READ_PERMISSION } from '@/lib/service-schedules-rbac';
 import { CalendarClock } from 'lucide-react';
@@ -30,13 +30,16 @@ export default async function ServiceSchedulesPage() {
       />
 
       <TripledDashboardShell>
+        {/* From lg the agenda draws its own title row; phones keep the card (ZIG-I30, ZIG-I33-5). */}
         <TripledResourceCard
+          className="lg:contents"
+          headerClassName="lg:hidden"
+          contentClassName="lg:bg-transparent lg:p-0 lg:pt-0"
           title="Recordatorios de servicio"
-          description="Clientes y servicios con próxima visita programada."
-          desktopDescription="Gestiona recordatorios por cliente y servicio"
+          description="Gestiona recordatorios por cliente y servicio"
           icon={<CalendarClock className="size-5" aria-hidden />}
         >
-          <ServiceSchedulesList />
+          <ServiceSchedulesView />
         </TripledResourceCard>
       </TripledDashboardShell>
     </>

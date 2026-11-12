@@ -67,7 +67,7 @@ describe('MCP OAuth well-known metadata', () => {
   it('service_documentation points at the public in-app guide on the request host', () => {
     const metadata = buildAuthorizationServerMetadata(buildRequest(LIVE_HOST));
 
-    expect(metadata.service_documentation).toBe(`https://${LIVE_HOST}/docs/mcp-connector`);
+    expect(metadata.service_documentation).toBe(`https://${LIVE_HOST}/ayuda/asistentes`);
   });
 
   it('WWW-Authenticate resource_metadata points at the request host', () => {

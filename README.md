@@ -11,23 +11,7 @@
 
 Multi-tenant ticket management built with **Next.js 16**, **Drizzle ORM**, and **PostgreSQL**.
 
-**[Live demo](https://zigzag-hazel.vercel.app)** · [Product guides](https://zigzag-hazel.vercel.app/guides/) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
-
-<p align="center">
-  <img src="docs/guides/images/empresa/01-dashboard.webp" alt="ZigZag dashboard with ticket metrics" width="880" />
-</p>
-
-## Screenshots
-
-| Tickets | Ticket detail | Mobile |
-| :-----: | :-----------: | :----: |
-| <img src="docs/guides/images/empresa/02-tickets.webp" alt="Tickets list" width="280" /> | <img src="docs/guides/images/empresa/06-detalle-ticket.webp" alt="Ticket detail" width="280" /> | <img src="docs/guides/images/empresa/12-mobile-tickets.webp" alt="Mobile tickets" width="160" /> |
-
-| Login | Invoice PDF | Service reminders |
-| :---: | :---------: | :---------------: |
-| <img src="docs/guides/images/empresa/00-login.webp" alt="Login" width="280" /> | <img src="docs/guides/images/empresa/10-factura-pdf.webp" alt="Server-generated invoice PDF" width="280" /> | <img src="docs/guides/images/empresa/07-recordatorios.webp" alt="Service reminders" width="280" /> |
-
-More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel.vercel.app/guides/) · source under [`docs/guides/`](docs/guides/).
+**[Live demo](https://zigzag-hazel.vercel.app)** · [Help centre](https://zigzag-hazel.vercel.app/ayuda) (in Spanish) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## Features
 
@@ -42,7 +26,7 @@ More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel
 
 ## MCP connector
 
-ZigZag runs an MCP server at `/api/mcp` (alias `/mcp`) so AI clients can read and prepare documents, clients and the catalog on a user's behalf. Setup cards per client live in **Settings → Conexiones**; the public guide is `/docs/mcp-connector` in the app (its tools table is generated from the server registry). Full reference: [`docs/mcp-connector.md`](docs/mcp-connector.md).
+ZigZag runs an MCP server at `/api/mcp` (alias `/mcp`) so AI clients can read and prepare documents, clients and the catalog on a user's behalf. Setup cards per client live in **Settings → Conexiones**; the public guide is `/ayuda/asistentes` in the help centre (its tools table is generated from the server registry; the old `/docs/mcp-connector` redirects there). Full reference: [`docs/mcp-connector.md`](docs/mcp-connector.md).
 
 | Client | Auth |
 |--------|------|

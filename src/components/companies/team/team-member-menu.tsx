@@ -23,6 +23,7 @@ type TeamMemberMenuProps = TeamMemberMenuHandlers & {
   member: TeamMember;
 };
 
+/** The phone card's ⋯; the desktop row uses `ListRowMenu` (teamRowMenuItems, ZIG-I33-6). */
 export const TeamMemberMenu = ({
   member,
   onEdit,
@@ -47,7 +48,7 @@ export const TeamMemberMenu = ({
         <Pencil className="mr-2 size-4" aria-hidden />
         Editar
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onChangeRole(member)}>
+      <DropdownMenuItem disabled={member.isSelf} onSelect={() => onChangeRole(member)}>
         <ShieldCheck className="mr-2 size-4" aria-hidden />
         Cambiar rol
       </DropdownMenuItem>

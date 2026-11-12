@@ -29,6 +29,8 @@ jest.mock('@/lib/server/mcp-oauth/grants', () => ({
 
 jest.mock('@/lib/server/mcp-oauth/config', () => ({
   getMcpResourceUrl: jest.fn(() => 'https://example.test/mcp'),
+  getOAuthIssuer: jest.fn(() => 'http://localhost'),
+  mcpResourcesMatch: jest.fn((a: string, b: string) => a === b),
   normalizeMcpResourceUrl: jest.fn(() => 'https://example.test/mcp'),
   parseScopeParam: jest.fn((scope?: string) =>
     scope ? scope.split(/\s+/).filter(Boolean) : ['read'],
@@ -70,10 +72,13 @@ const mockClient = {
   client_secret_hash: null,
 };
 
-const makeJsonRequest = (body: Record<string, unknown>) =>
+const makeJsonRequest = (
+  body: Record<string, unknown>,
+  headers: Record<string, string> = { Origin: 'http://localhost' },
+) =>
   new NextRequest('http://localhost/api/oauth/consent', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
 
@@ -88,6 +93,7 @@ const makeFormRequest = (fields: Record<string, string | string[]>) => {
   }
   return new NextRequest('http://localhost/api/oauth/consent', {
     method: 'POST',
+    headers: { Origin: 'http://localhost' },
     body: form,
   });
 };
@@ -193,5 +199,51 @@ describe('POST /api/oauth/consent', () => {
 
     expect(response.status).toBe(401);
     expect(mockCreateAuthorizationCode).not.toHaveBeenCalled();
+  });
+
+  describe('ZIG-38 hardening', () => {
+    it('answers 403 to a cross-site Origin and mints nothing', async () => {
+      const response = await POST(
+        makeJsonRequest(basePayload, { Origin: 'https://evil.example' }),
+      );
+      expect(response.status).toBe(403);
+      expect(mockCreateAuthorizationCode).not.toHaveBeenCalled();
+    });
+
+    it('answers 403 without Origin unless Sec-Fetch-Site is same-origin', async () => {
+      expect((await POST(makeJsonRequest(basePayload, {}))).status).toBe(403);
+      expect(
+        (await POST(makeJsonRequest(basePayload, { 'Sec-Fetch-Site': 'cross-site' }))).status,
+      ).toBe(403);
+      mockResolveOAuthClient.mockResolvedValue(mockClient);
+      mockCreateAuthorizationCode.mockResolvedValue('auth-code-123');
+      expect(
+        (await POST(makeJsonRequest(basePayload, { 'Sec-Fetch-Site': 'same-origin' }))).status,
+      ).toBe(200);
+    });
+
+    it('rejects a foreign resource with invalid_target', async () => {
+      mockResolveOAuthClient.mockResolvedValue(mockClient);
+      const response = await POST(
+        makeJsonRequest({ ...basePayload, resource: 'https://other.example/mcp' }),
+      );
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: 'invalid_target' });
+      expect(mockCreateAuthorizationCode).not.toHaveBeenCalled();
+    });
+
+    it('does not echo internal error messages', async () => {
+      mockResolveOAuthClient.mockResolvedValue(mockClient);
+      mockCreateAuthorizationCode.mockRejectedValue(
+        new Error('duplicate key value violates unique constraint "secret_idx"'),
+      );
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const response = await POST(makeJsonRequest(basePayload));
+      errorSpy.mockRestore();
+      expect(response.status).toBe(400);
+      const body = JSON.stringify(await response.json());
+      expect(body).not.toContain('secret_idx');
+      expect(body).toContain('No se pudo autorizar la conexión');
+    });
   });
 });

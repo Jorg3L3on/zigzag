@@ -16,15 +16,23 @@ import {
   sanitizeCompanyForAudit,
 } from '@/lib/governance-audit';
 import { revalidatePath } from 'next/cache';
+import { logger } from '@/lib/logger';
 import {
   requireActionAuth,
   requireActionPermission,
   requireSystemUser,
 } from '@/lib/security';
 
+/** The operator's reason, kept in the audit payload (ZIG-I38-7); trimmed, at most 500 characters. */
+const normalizeReason = (reason: string | null | undefined): string | null => {
+  const trimmed = typeof reason === 'string' ? reason.trim() : '';
+  return trimmed ? trimmed.slice(0, 500) : null;
+};
+
 export async function setCompanyLifecycleStatus(
   companyId: number,
   nextStatus: CompanyLifecycleStatus,
+  reason?: string | null,
 ): Promise<{
   success: boolean;
   data?: typeof company.$inferSelect;
@@ -47,6 +55,7 @@ export async function setCompanyLifecycleStatus(
 
     const validation = validateCompanyLifecycleChange(existing, nextStatus);
     if (!validation.allowed) {
+      logger.warn('support error code', { code: 'GN003' });
       return {
         ...buildActionError(
           'GN003',
@@ -71,6 +80,7 @@ export async function setCompanyLifecycleStatus(
       eventType: 'updated',
       before: sanitizeCompanyForAudit(existing),
       after: sanitizeCompanyForAudit(updated),
+      extra: { reason: normalizeReason(reason) },
     });
 
     revalidatePath('/companies');

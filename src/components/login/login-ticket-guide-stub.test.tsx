@@ -3,48 +3,29 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LoginTicketGuideStub } from '@/components/login/login-ticket-guide-stub';
-import {
-  EMPRESA_GUIDE_LINK,
-  EXECUTIVE_SUMMARY_LINK,
-  PUBLIC_ONBOARDING_GUIDE_LINKS,
-} from '@/lib/onboarding-guides';
+import { HELP_CENTER_LINK } from '@/lib/onboarding-guides';
 
 describe('LoginTicketGuideStub', () => {
-  it('is collapsed by default and expands to show public guides only', () => {
-    const onOpenGuide = jest.fn();
-    render(
-      <LoginTicketGuideStub
-        guides={PUBLIC_ONBOARDING_GUIDE_LINKS}
-        onOpenGuide={onOpenGuide}
-      />,
-    );
+  it('is collapsed by default and expands to show the help centre only', () => {
+    render(<LoginTicketGuideStub onOpenGuide={jest.fn()} />);
 
     const trigger = screen.getByRole('button', {
       name: /primera vez en zigzag/i,
     });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(
-      screen.queryByRole('button', { name: EXECUTIVE_SUMMARY_LINK.label }),
-    ).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(
-      screen.getByRole('button', { name: new RegExp(EXECUTIVE_SUMMARY_LINK.label) }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: new RegExp(EMPRESA_GUIDE_LINK.label) }),
-    ).toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Guías de inicio' });
+    const options = region.querySelectorAll('button');
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent(HELP_CENTER_LINK.label);
+    expect(screen.queryByText(/Resumen ejecutivo/)).not.toBeInTheDocument();
   });
 
-  it('opens a guide via the injected opener and collapses on Escape', () => {
+  it('opens /ayuda via the injected opener and collapses on Escape', () => {
     const onOpenGuide = jest.fn();
-    render(
-      <LoginTicketGuideStub
-        guides={PUBLIC_ONBOARDING_GUIDE_LINKS}
-        onOpenGuide={onOpenGuide}
-      />,
-    );
+    render(<LoginTicketGuideStub onOpenGuide={onOpenGuide} />);
 
     const trigger = screen.getByRole('button', {
       name: /primera vez en zigzag/i,
@@ -52,11 +33,9 @@ describe('LoginTicketGuideStub', () => {
     fireEvent.click(trigger);
 
     fireEvent.click(
-      screen.getByRole('button', {
-        name: new RegExp(EXECUTIVE_SUMMARY_LINK.label),
-      }),
+      screen.getByRole('button', { name: new RegExp(HELP_CENTER_LINK.label) }),
     );
-    expect(onOpenGuide).toHaveBeenCalledWith(EXECUTIVE_SUMMARY_LINK.href);
+    expect(onOpenGuide).toHaveBeenCalledWith('/ayuda');
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');

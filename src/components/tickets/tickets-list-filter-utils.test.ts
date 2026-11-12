@@ -82,7 +82,7 @@ describe('tickets-list-filter-utils', () => {
       to: new Date('2026-05-10T00:00:00Z'),
     };
 
-    expect(formatDateRangeLabel(undefined)).toBe('Fechas');
+    expect(formatDateRangeLabel(undefined)).toBe('Todas las fechas');
     expect(formatDateRangeLabel(range)).toContain('—');
     expect(
       ticketMatchesDateRange(new Date('2026-05-05T12:00:00Z'), range),

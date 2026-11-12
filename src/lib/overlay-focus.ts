@@ -33,5 +33,32 @@ export const focusInitialOverlayTarget = (
       element.tabIndex !== -1,
   );
 
-  candidates[0]?.focus();
+  // Content still loading has no control yet: focus the panel itself, as Radix would,
+  // so focus never stays on the row that opened it.
+  (candidates[0] ?? container).focus();
+};
+
+/**
+ * Remembers the control that was focused when an overlay without a Radix trigger
+ * opens, and gives focus back to it on close (WAI-ARIA dialog pattern). Call
+ * `remember()` while rendering the open overlay and pass `restore` to
+ * `onCloseAutoFocus`.
+ */
+export const createOverlayOpenerMemory = () => {
+  let opener: HTMLElement | null = null;
+  return {
+    remember: () => {
+      if (opener || typeof document === 'undefined') return;
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== document.body) opener = active;
+    },
+    restore: (event: Event) => {
+      const target = opener;
+      opener = null;
+      if (target?.isConnected) {
+        event.preventDefault();
+        target.focus();
+      }
+    },
+  };
 };

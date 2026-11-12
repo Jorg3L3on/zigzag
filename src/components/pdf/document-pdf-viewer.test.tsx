@@ -132,7 +132,7 @@ describe('DocumentPdfViewer', () => {
     renderViewer();
 
     expect(screen.getByTestId('pdf-viewer-embed')).toHaveAttribute(
-      'data',
+      'src',
       '/api/tickets/1069/invoice?disposition=inline&company_id=10',
     );
     expect(screen.queryByTestId('pdf-viewer-sticky-actions')).toBeNull();

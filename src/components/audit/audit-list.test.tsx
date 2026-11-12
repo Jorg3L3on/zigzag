@@ -1,8 +1,59 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AuditList } from '@/components/audit/audit-list';
 
 const replace = jest.fn();
+
+/** DesktopSwitch keeps one tree: the desktop one when the lg query matches. */
+const mockViewport = (desktop: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches: desktop && query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
+
+const failedSignIn = {
+  id: 1,
+  occurred_at: '2026-08-10T09:00:00.000Z',
+  actor_user_id: '7',
+  actor_name: 'Chano',
+  actor_company_id: 2,
+  actor_company_name: 'Acme',
+  target_company_id: 2,
+  target_company_name: 'Acme',
+  resource_type: 'auth',
+  resource_id: 'user@example.com',
+  action: 'sign_in_failed',
+  result: 'failed',
+  source: 'auth',
+  payload: { email: 'user@example.com', reason: 'throttled' },
+  request_meta: {
+    ip: '203.0.113.10',
+    userAgent: 'Mozilla/5.0 TestAgent',
+    route: '/login',
+    method: 'POST',
+    requestId: 'req-test-1234',
+  },
+};
+
+const mockEvents = (items: unknown[], nextCursor: number | null = null) => {
+  global.fetch = jest.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      success: true,
+      data: { items, nextCursor },
+    }),
+  })) as jest.Mock;
+};
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/audit',
@@ -31,6 +82,7 @@ jest.mock('@/actions/users', () => ({
 
 describe('AuditList', () => {
   beforeEach(() => {
+    mockViewport(false);
     replace.mockClear();
     global.fetch = jest.fn(async () => ({
       ok: true,
@@ -89,6 +141,10 @@ describe('AuditList', () => {
   it('shows labeled date filters without a resource id filter', async () => {
     render(<AuditList />);
 
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Abrir filtros/i }),
+    );
+
     expect(await screen.findByLabelText('Desde')).toBeInTheDocument();
     expect(screen.getByLabelText('Hasta')).toBeInTheDocument();
     expect(
@@ -124,6 +180,7 @@ describe('AuditList', () => {
     await userEvent.click(
       await screen.findByRole('button', { name: 'Limpiar todos los filtros' }),
     );
+    await userEvent.click(screen.getByRole('button', { name: /Abrir filtros/i }));
 
     expect(await screen.findByText('Todos los estatus')).toBeInTheDocument();
 
@@ -151,56 +208,101 @@ describe('AuditList', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows IP metadata when expanding an event with request_meta', async () => {
-    global.fetch = jest.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        success: true,
-        data: {
-          items: [
-            {
-              id: 1,
-              occurred_at: '2026-08-10T09:00:00.000Z',
-              actor_user_id: '7',
-              actor_name: 'Chano',
-              actor_company_id: 2,
-              actor_company_name: 'Acme',
-              target_company_id: 2,
-              target_company_name: 'Acme',
-              resource_type: 'auth',
-              resource_id: 'user@example.com',
-              action: 'sign_in_failed',
-              result: 'failed',
-              source: 'auth',
-              payload: { email: 'user@example.com', reason: 'throttled' },
-              request_meta: {
-                ip: '203.0.113.10',
-                userAgent: 'Mozilla/5.0 TestAgent',
-                route: '/login',
-                method: 'POST',
-                requestId: 'req-test-1234',
-              },
-            },
-          ],
-          nextCursor: null,
-        },
-      }),
-    })) as jest.Mock;
-
+  it('keeps the sheet Limpiar neutral, never red (f6ffafda)', async () => {
     render(<AuditList />);
 
-    expect(
-      await screen.findAllByText(/Inicio de sesión fallido/i),
-    ).not.toHaveLength(0);
+    await userEvent.click(
+      await screen.findByRole('button', { name: /Abrir filtros/i }),
+    );
 
-    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    const clear = await screen.findByRole('button', {
+      name: 'Limpiar todos los filtros activos',
+    });
+    expect(clear.className).not.toMatch(/destructive/);
+  });
 
-    expect(await screen.findAllByText('IP: 203.0.113.10')).not.toHaveLength(0);
-    expect(
-      screen.getAllByText(/UA: Mozilla\/5\.0 TestAgent/),
-    ).not.toHaveLength(0);
-    expect(
-      screen.getAllByText('Request ID: req-test-1234'),
-    ).not.toHaveLength(0);
+  describe('desktop (ZIG-I33-8)', () => {
+    beforeEach(() => {
+      mockViewport(true);
+    });
+
+    it('opens the event from the row, with no Detalle column', async () => {
+      mockEvents([failedSignIn]);
+      render(<AuditList />);
+
+      const table = await screen.findByRole('table', { name: 'Eventos de auditoría' });
+      expect(
+        within(table).queryByRole('columnheader', { name: 'Detalle' }),
+      ).not.toBeInTheDocument();
+      expect(within(table).queryByRole('button', { name: 'Ver' })).not.toBeInTheDocument();
+
+      const row = within(table).getByTestId('audit-row');
+      fireEvent.click(row);
+
+      // aria-expanded is not allowed on a table row (axe aria-conditional-attr); the open row is selected.
+      expect(row).toHaveAttribute('data-state', 'selected');
+      expect(await screen.findByText('IP: 203.0.113.10')).toBeInTheDocument();
+      expect(screen.getByText(/UA: Mozilla\/5\.0 TestAgent/)).toBeInTheDocument();
+      expect(screen.getByText('Request ID: req-test-1234')).toBeInTheDocument();
+
+      fireEvent.keyDown(row, { key: 'Enter' });
+      expect(row).not.toHaveAttribute('data-state');
+      expect(screen.queryByTestId('audit-row-detail')).not.toBeInTheDocument();
+    });
+
+    it('draws the result as a status pill', async () => {
+      mockEvents([failedSignIn]);
+      render(<AuditList />);
+
+      const table = await screen.findByRole('table', { name: 'Eventos de auditoría' });
+      expect(within(table).getByText('Fallido')).toHaveAttribute('data-tone', 'red');
+    });
+
+    it('tints a chosen preset like any selected filter', async () => {
+      render(<AuditList />);
+
+      const today = await screen.findByRole('button', { name: 'Hoy' });
+      expect(today).toHaveAttribute('aria-pressed', 'false');
+      expect(today.className).toMatch(/h-11/);
+      expect(today.className).toMatch(/rounded-full/);
+
+      await userEvent.click(today);
+
+      expect(today).toHaveAttribute('aria-pressed', 'true');
+      expect(today.className).toMatch(/bg-primary\/10/);
+      expect(today.className).not.toMatch(/bg-primary(\s|$)/);
+    });
+
+    it('keeps the URL filters in pills and the date range', async () => {
+      render(<AuditList />);
+
+      expect(
+        await screen.findByRole('combobox', { name: 'Filtrar por resultado' }),
+      ).toHaveTextContent('Denegado');
+      expect(
+        screen.getByRole('combobox', { name: 'Filtrar por tipo de recurso' }).className,
+      ).toMatch(/bg-primary\/10/);
+      expect(
+        screen.getByRole('button', { name: 'Filtrar por rango de fechas' }),
+      ).toHaveTextContent('1 may 2026 — 31 may 2026');
+      expect(
+        screen.getByRole('button', { name: 'Limpiar todos los filtros' }),
+      ).toBeInTheDocument();
+    });
+
+    it('counts the loaded events and loads more from the footer', async () => {
+      mockEvents([failedSignIn], 1);
+      render(<AuditList />);
+
+      await screen.findByRole('table', { name: 'Eventos de auditoría' });
+      expect(screen.getByTestId('list-footer')).toHaveTextContent('1 evento cargado');
+      expect(screen.getByText(/· 1 evento cargado\./)).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cargar más' }));
+      await waitFor(() => {
+        const urls = (global.fetch as jest.Mock).mock.calls.map((call) => call[0] as string);
+        expect(urls.some((url) => url.includes('cursor=1'))).toBe(true);
+      });
+    });
   });
 });

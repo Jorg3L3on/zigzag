@@ -179,7 +179,7 @@ test.describe('Mobile sticky navigation', () => {
         page,
       }) => {
         await page.goto('/clients');
-        // Tap the card's name area; Llamar and Anotar trabajo sit lower and stop propagation.
+        // Tap the card's name area; Anotar trabajo sits lower and stops propagation.
         const clientCard = page
           .getByRole('button', { name: /Abrir cliente/i })
           .first();

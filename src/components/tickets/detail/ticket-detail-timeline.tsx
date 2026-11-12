@@ -21,7 +21,7 @@ import { formatRelativeActivityTime } from '@/lib/format-relative-time';
 
 type TicketDetailTimelineProps = {
   entries: TicketAuditHistoryEntry[];
-  /** Folded on phones; the desktop side column starts open (ZIG-I13-4). */
+  /** Folded by default in every width; one copy at the end of the detail (ZIG-I27-5). */
   defaultOpen?: boolean;
   createdAt?: Date | null;
   updatedAt?: Date | null;
@@ -74,7 +74,7 @@ export const TicketDetailTimeline = ({
   const needsScroll = entries.length > ACTIVITY_VIEWPORT_ROWS;
 
   return (
-    <TicketDetailSectionCard aria-labelledby="ticket-timeline-heading">
+    <TicketDetailSectionCard id="ticket-timeline" aria-labelledby="ticket-timeline-heading">
       <h2 id="ticket-timeline-heading" className="text-base font-semibold tracking-tight">
         <button
           type="button"

@@ -8,6 +8,8 @@ import {
   DocumentSummaryRows,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
+import { TicketDetailDocument } from '@/components/tickets/detail/ticket-detail-document';
+import { DesktopSwitch } from '@/components/desktop-switch';
 import { Button } from '@/components/ui/button';
 import {
   TicketDetailSectionCard,
@@ -26,7 +28,8 @@ type ServiceLine = {
   price: number;
   service_id?: number | null;
   name?: string | null;
-  service: { name: string | null } | null;
+  description?: string | null;
+  service: { name: string | null; description?: string | null } | null;
   /** Active materials (ZIG-I10). */
   materials?: Array<{
     id: number;
@@ -42,6 +45,8 @@ type TicketDetailServicesSectionProps = {
   ticketId: number | bigint;
   total: number | null;
   paid: number | null;
+  finished?: boolean;
+  workNotes?: string | null;
   services: ServiceLine[];
 };
 
@@ -54,14 +59,17 @@ const detailToggleLabel = (_services: number, materials: number) =>
       : `Ver detalle con ${materials} materiales`;
 
 /**
- * Servicios as a compact summary (ZIG-I13-4): three recibo-style rows, Editar
- * (the one editor, phase 6) and "Ver detalle con N materiales". A settled
- * ticket cannot be edited.
+ * Servicios as a compact summary (ZIG-I13-4): every line recibo-style (Jorge
+ * asked to see them all, not the first three), each with its materials behind
+ * its own toggle, Editar (the one editor, phase 6) and "Ver detalle con N
+ * materiales" to open them all. A settled ticket cannot be edited.
  */
 export const TicketDetailServicesSection = ({
   ticketId,
   total,
   paid,
+  finished = false,
+  workNotes = null,
   services,
 }: TicketDetailServicesSectionProps) => {
   const { can } = usePermissions();
@@ -75,7 +83,10 @@ export const TicketDetailServicesSection = ({
         return {
           id: review.id,
           name: review.name,
+          description: review.description,
+          serviceId: review.serviceId,
           quantity: review.quantity,
+          price: review.price,
           amount: reviewLineAmount(review),
           materials: (review.materials ?? []).map((item) => ({
             id: item.id,
@@ -90,7 +101,7 @@ export const TicketDetailServicesSection = ({
     [services],
   );
 
-  return (
+  const card = (
     <TicketDetailSectionCard aria-labelledby="ticket-services-heading">
       <TicketDetailSectionHeading
         id="ticket-services-heading"
@@ -123,8 +134,47 @@ export const TicketDetailServicesSection = ({
           }
         />
       ) : (
-        <DocumentSummaryRows lines={rows} label="Servicios del ticket" toggleLabel={detailToggleLabel} />
+        <DocumentSummaryRows
+          lines={rows}
+          initialVisible={rows.length}
+          label="Servicios del ticket"
+          toggleLabel={detailToggleLabel}
+        />
       )}
+
+      {workNotes?.trim() ? (
+        <section className="mt-4 border-t border-border pt-3" aria-labelledby="ticket-phone-note-heading">
+          <h3 id="ticket-phone-note-heading" className="text-[15px] font-semibold">
+            Nota
+          </h3>
+          <p
+            className="mt-1 whitespace-pre-wrap text-sm text-foreground [overflow-wrap:anywhere]"
+            data-testid="ticket-phone-note"
+          >
+            {workNotes.trim()}
+          </p>
+        </section>
+      ) : null}
     </TicketDetailSectionCard>
+  );
+
+  if (services.length === 0) return card;
+
+  // The receipt from lg; never the phone card first on a desktop reload (ZIG-28).
+  return (
+    <DesktopSwitch
+      phone={card}
+      desktop={
+        <TicketDetailDocument
+          ticketId={id}
+          lines={rows}
+          total={total}
+          paid={paid}
+          finished={finished}
+          workNotes={workNotes}
+          canManage={canManage}
+        />
+      }
+    />
   );
 };

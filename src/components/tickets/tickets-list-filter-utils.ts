@@ -1,3 +1,4 @@
+import { matchesSearchText } from '@/lib/search-text';
 import type { Ticket } from '@/actions/tickets';
 import { endOfDay, format, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -31,7 +32,7 @@ export const ticketMatchesDateRange = (
 
 export const formatDateRangeLabel = (range: DateRange | undefined): string => {
   if (!range?.from) {
-    return 'Fechas';
+    return 'Todas las fechas';
   }
   if (!range.to) {
     return format(range.from, 'd MMM yyyy', { locale: es });
@@ -46,13 +47,11 @@ export const filterTickets = (
     'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
   >,
 ): Ticket[] => {
-  const search = filters.searchValue.toLowerCase().trim();
+  const search = filters.searchValue.trim();
   return tickets.filter((ticket) => {
     const matchesSearch =
       ticket.id.toString().includes(search) ||
-      (ticket.client_name ?? '').toLowerCase().includes(search) ||
-      (ticket.client_tel ?? '').toLowerCase().includes(search) ||
-      (ticket.email ?? '').toLowerCase().includes(search);
+      matchesSearchText([ticket.client_name, ticket.client_tel, ticket.email], search);
 
     if (!matchesSearch) {
       return false;
@@ -61,7 +60,7 @@ export const filterTickets = (
     if (filters.statusFilter !== 'all') {
       const paymentStatus = getTicketPaymentStatus(ticket.total, ticket.paid);
       if (filters.statusFilter === 'due') {
-        if (getTicketBalanceDue(ticket.total, ticket.paid) <= 0) {
+        if (!ticket.finished || getTicketBalanceDue(ticket.total, ticket.paid) <= 0) {
           return false;
         }
       } else if (paymentStatus !== filters.statusFilter) {
@@ -87,10 +86,13 @@ export const filterTickets = (
 export const countActiveFilters = (
   filters: Pick<
     TicketsFilterState,
-    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange' | 'clientId'
   >,
 ): number => {
   let n = 0;
+  if (filters.clientId) {
+    n += 1;
+  }
   if (filters.searchValue.trim()) {
     n += 1;
   }
@@ -109,23 +111,46 @@ export const countActiveFilters = (
 export const hasActiveTicketFilters = (
   filters: Pick<
     TicketsFilterState,
-    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange' | 'clientId'
   >,
 ): boolean => countActiveFilters(filters) > 0;
 
+/** The chosen client's chip: its name and how to drop it (ZIG-I37-1). */
+export type TicketClientChip = { name: string; onRemove: () => void };
+
 export const buildTicketFilterChips = (
   totalCount: number,
-  filteredCount: number,
+  _filteredCount: number,
   filters: Pick<
     TicketsFilterState,
-    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange'
+    'searchValue' | 'statusFilter' | 'finishedFilter' | 'dateRange' | 'clientId'
   >,
-) => [
+  client?: TicketClientChip | null,
+): Array<{
+  key: string;
+  label: string;
+  variant?: 'secondary';
+  onRemove?: () => void;
+  removeAriaLabel?: string;
+}> => [
   {
     key: 'count',
-    label: `${filteredCount} de ${totalCount} tickets`,
+    // «41 tickets» without a filter, «3 resultados» with one; never «1 de 1» (ZIG-I36 M-26).
+    label: hasActiveTicketFilters(filters)
+      ? `${totalCount} ${totalCount === 1 ? 'resultado' : 'resultados'}`
+      : `${totalCount} ${totalCount === 1 ? 'ticket' : 'tickets'}`,
     variant: 'secondary' as const,
   },
+  ...(filters.clientId && client
+    ? [
+        {
+          key: 'client',
+          label: `Cliente: ${client.name}`,
+          onRemove: client.onRemove,
+          removeAriaLabel: `Quitar filtro Cliente: ${client.name}`,
+        },
+      ]
+    : []),
   ...(filters.statusFilter !== 'all'
     ? [
         {
