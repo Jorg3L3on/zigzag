@@ -10,6 +10,7 @@ import {
   summaryToggleLabelFor,
   type DocumentSummaryLine,
 } from '@/components/documents/document-summary-rows';
+import { DOCUMENT_LINES_DENSITY_KEY } from '@/lib/document-lines-density';
 
 const makeLines = (count: number, materialsPerLine = 0): DocumentSummaryLine[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -123,6 +124,8 @@ describe('DocumentSummaryRows on desktop (ZIG-I28-1)', () => {
   });
 
   it('prints every line with its description and drops the fold toggle', () => {
+    // Detallado lists the material blocks; Compacto is the default (2026-11-11).
+    window.localStorage.setItem(DOCUMENT_LINES_DENSITY_KEY, 'detailed');
     render(
       <DocumentSummaryRows
         lines={[

@@ -12,16 +12,21 @@ describe('document lines density (ZIG-I28-1)', () => {
     window.localStorage.clear();
   });
 
-  it('defaults to Detallado and keeps Compacto across a fresh read', () => {
-    expect(readDocumentLinesDensity()).toBe('detailed');
-    expect(window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY)).toBeNull();
-
-    writeDocumentLinesDensity('compact');
-    expect(window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY)).toBe('compact');
+  it('defaults to Compacto and keeps Detallado across a fresh read', () => {
     expect(readDocumentLinesDensity()).toBe('compact');
+    expect(window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY)).toBeNull();
 
     writeDocumentLinesDensity('detailed');
-    expect(window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY)).toBeNull();
+    expect(window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY)).toBe('detailed');
     expect(readDocumentLinesDensity()).toBe('detailed');
+
+    writeDocumentLinesDensity('compact');
+    expect(window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY)).toBeNull();
+    expect(readDocumentLinesDensity()).toBe('compact');
+  });
+
+  it('reads the old stored Compacto value as Compacto', () => {
+    window.localStorage.setItem(DOCUMENT_LINES_DENSITY_KEY, 'compact');
+    expect(readDocumentLinesDensity()).toBe('compact');
   });
 });

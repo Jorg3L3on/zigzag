@@ -1,6 +1,7 @@
 export const DOCUMENT_LINES_DENSITY_KEY = 'zigzag:document-lines-density:v1';
 
-/** Detallado shows every material block. Compacto folds each line behind a chip. */
+/** Compacto (the default) folds each line behind a chip. Detallado shows every
+ * material block. */
 export type DocumentLinesDensity = 'detailed' | 'compact';
 
 const listeners = new Set<() => void>();
@@ -22,21 +23,21 @@ export const subscribeDocumentLinesDensity = (listener: () => void) => {
   };
 };
 
-/** Missing or unreadable storage is Detallado. */
+/** Missing or unreadable storage is Compacto, the default (Jorge, 2026-11-11). */
 export const readDocumentLinesDensity = (): DocumentLinesDensity => {
   try {
-    return window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY) === 'compact'
-      ? 'compact'
-      : 'detailed';
+    return window.localStorage.getItem(DOCUMENT_LINES_DENSITY_KEY) === 'detailed'
+      ? 'detailed'
+      : 'compact';
   } catch {
-    return 'detailed';
+    return 'compact';
   }
 };
 
 export const writeDocumentLinesDensity = (density: DocumentLinesDensity) => {
   try {
-    if (density === 'compact') {
-      window.localStorage.setItem(DOCUMENT_LINES_DENSITY_KEY, 'compact');
+    if (density === 'detailed') {
+      window.localStorage.setItem(DOCUMENT_LINES_DENSITY_KEY, 'detailed');
     } else {
       window.localStorage.removeItem(DOCUMENT_LINES_DENSITY_KEY);
     }

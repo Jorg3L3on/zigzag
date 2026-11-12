@@ -205,6 +205,7 @@ describe('DocumentLineRow receipt grid (ZIG-I28-1)', () => {
     render(
       <DocumentLineRow
         layout="receipt"
+        density="detailed"
         index={1}
         name="Instalación mini-split"
         description="Equipo de 1 tonelada en recámara"

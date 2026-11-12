@@ -6,12 +6,13 @@ import type { DocumentLinesDensity } from '@/lib/document-lines-density';
 import { cn } from '@/lib/utils';
 
 const OPTIONS: Array<{ value: DocumentLinesDensity; label: string }> = [
-  { value: 'detailed', label: 'Detallado' },
   { value: 'compact', label: 'Compacto' },
+  { value: 'detailed', label: 'Detallado' },
 ];
 
 /**
- * Detallado shows material blocks; Compacto folds each line behind a chip.
+ * Compacto (the default) folds each line behind a chip; Detallado shows material
+ * blocks.
  * The choice is stored per user (ZIG-I28-1).
  */
 export const DocumentLinesDensitySwitch = () => {

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Download, MoreHorizontal, Pencil, Share2, Trash2 } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { WhatsAppIcon } from '@/components/ui/whatsapp-icon';
 import { DeleteTicketSheet } from '@/components/tickets/delete-ticket-sheet';
 import { useReceiptShare } from '@/components/tickets/use-receipt-share';
 import { useCompany } from '@/contexts/company-context';
@@ -49,6 +50,10 @@ type TicketDetailActionsMenuProps = {
    * Editar · ⋯.
    */
   inlineFromLg?: boolean;
+  /** From lg only: Compartir recibo as the first ⋯ item (Jorge, 2026-11-11). */
+  shareFromLg?: boolean;
+  /** From lg only: the recibo on WhatsApp as a ⋯ item; null hides it. */
+  whatsAppHrefFromLg?: string | null;
   className?: string;
 };
 
@@ -67,13 +72,15 @@ export const TicketDetailActionsMenu = ({
   paymentsCount,
   downloadFileName,
   inlineFromLg = false,
+  shareFromLg = false,
+  whatsAppHrefFromLg = null,
   className,
 }: TicketDetailActionsMenuProps) => {
   const { can } = usePermissions();
   const { selectedCompany } = useCompany();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = React.useState(false);
-  const { download } = useReceiptShare({
+  const { download, share, sharing } = useReceiptShare({
     ticketId: String(ticketId),
     folio,
     downloadFileName,
@@ -113,7 +120,11 @@ export const TicketDetailActionsMenu = ({
   const canPdf = canDownloadTicketInvoice(can);
   const canWrite = canWriteTickets(can);
 
-  if (!canEditServices && !canPdf && !canWrite) return null;
+  const showShare = inlineFromLg && shareFromLg;
+  const showWhatsApp = inlineFromLg && Boolean(whatsAppHrefFromLg);
+  const shareItemsFromLg = showShare || showWhatsApp;
+
+  if (!canEditServices && !canPdf && !canWrite && !shareItemsFromLg) return null;
 
   // Editar servicios and Descargar PDF are buttons from lg, so they leave the menu there.
   const inlineItemClass = inlineFromLg ? 'lg:hidden' : undefined;
@@ -140,15 +151,42 @@ export const TicketDetailActionsMenu = ({
             // In the desktop header ⋯ matches the outline buttons next to it (ZIG-I37-4).
             variant={inlineFromLg ? 'outline' : 'ghost'}
             size="icon"
-            // From lg Editar and PDF are buttons, so only Duplicar / Eliminar stay in ⋯:
-            // without them the menu would open empty, so ⋯ goes too (ZIG-I37-4).
-            className={cn(className ?? 'h-11 w-11 shrink-0', inlineFromLg && !canWrite && 'lg:hidden')}
+            // From lg Editar and PDF are buttons, so only Compartir recibo / WhatsApp /
+            // Duplicar / Eliminar stay in ⋯: without them the menu would open empty,
+            // so ⋯ goes too (ZIG-I37-4).
+            className={cn(
+              className ?? 'h-11 w-11 shrink-0',
+              inlineFromLg && !canWrite && !shareItemsFromLg && 'lg:hidden',
+            )}
             aria-label="Más acciones del ticket"
           >
             <MoreHorizontal className="h-5 w-5" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          {showShare ? (
+            <DropdownMenuItem
+              className="hidden min-h-11 lg:flex"
+              disabled={sharing}
+              onSelect={() => void share(paid ?? 0)}
+            >
+              <Share2 className="mr-2 h-4 w-4" aria-hidden />
+              Compartir recibo
+            </DropdownMenuItem>
+          ) : null}
+          {showWhatsApp && whatsAppHrefFromLg ? (
+            <DropdownMenuItem asChild className="hidden min-h-11 lg:flex">
+              <a
+                href={whatsAppHrefFromLg}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="ticket-detail-whatsapp"
+              >
+                <WhatsAppIcon className="mr-2 h-4 w-4" aria-hidden />
+                WhatsApp
+              </a>
+            </DropdownMenuItem>
+          ) : null}
           {canEditServices ? (
             <DropdownMenuItem asChild className={cn('min-h-11', inlineItemClass)}>
               <Link href={`/tickets/${ticketId}/edit`}>

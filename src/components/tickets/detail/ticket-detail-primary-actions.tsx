@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Loader2, MessageCircle, Share2, Wallet } from 'lucide-react';
+import { Download, Loader2, Share2, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { TripledMobileStickyActionBar } from '@/components/tripled';
@@ -42,11 +42,12 @@ type TicketDetailPrimaryActionsProps = {
  * none here: the Finalizar panel owns it. The ⋯ menu sits in the app bar on
  * mobile and next to the button on desktop.
  *
- * Header from lg (ZIG-I37-4), per state:
+ * Header from lg (ZIG-I37-4; Compartir recibo and WhatsApp moved into ⋯ on
+ * Jorge's ask, 2026-11-11), per state:
  * - En proceso: Terminar ticket · Editar · ⋯
- * - Terminado con saldo: WhatsApp · PDF · Editar · ⋯ (no Cobrar: the «Saldo por
- *   cobrar» card holds the only desktop Cobrar; md–lg keeps it here)
- * - Pagado: Compartir recibo · WhatsApp · PDF · ⋯
+ * - Terminado con saldo: PDF · Editar · ⋯ (WhatsApp in ⋯; no Cobrar: the «Saldo
+ *   por cobrar» card holds the only desktop Cobrar; md–lg keeps it here)
+ * - Pagado: PDF · ⋯ (Compartir recibo and WhatsApp in ⋯)
  * Every button is h-10, rounded-xl, text-sm; ⋯ is a 40px outline square.
  */
 export const TicketDetailPrimaryActions = ({
@@ -79,8 +80,8 @@ export const TicketDetailPrimaryActions = ({
   const canShare = canPdf && finished;
   const { selectedCompany } = useCompany();
   const payment = useCompanyPaymentInfo();
-  // Desktop only (ZIG-I24): the recibo text on WhatsApp sits with the header
-  // actions; phones keep it in the Cobrar / WhatsApp tiles.
+  // Desktop only (ZIG-I24): the recibo text on WhatsApp is a ⋯ item from lg;
+  // phones keep it in the Cobrar / WhatsApp tiles.
   const whatsApp =
     placement === 'desktop' && canShare
       ? buildWhatsAppReceiptShare({
@@ -128,7 +129,8 @@ export const TicketDetailPrimaryActions = ({
   ) : canShare ? (
     <Button
       type="button"
-      className={cn(primaryClass, balanceOnlyBelowLg)}
+      // From lg Compartir recibo is a ⋯ item (Jorge, 2026-11-11).
+      className={cn(primaryClass, desktop && 'lg:hidden')}
       disabled={sharing}
       onClick={() => void share(paid ?? 0)}
     >
@@ -160,19 +162,6 @@ export const TicketDetailPrimaryActions = ({
         data-testid="ticket-detail-header-actions"
       >
         {primary}
-        {whatsApp ? (
-          <Button
-            asChild
-            variant="outline"
-            className="hidden h-10 gap-2 rounded-xl text-sm font-medium lg:inline-flex"
-            data-testid="ticket-detail-whatsapp"
-          >
-            <a href={whatsApp.href} target="_blank" rel="noopener noreferrer">
-              <MessageCircle className="h-4 w-4" aria-hidden />
-              WhatsApp
-            </a>
-          </Button>
-        ) : null}
         {canPdf && finished ? (
           <Button
             type="button"
@@ -201,6 +190,8 @@ export const TicketDetailPrimaryActions = ({
           paymentsCount={paymentsCount}
           downloadFileName={downloadFileName}
           inlineFromLg
+          shareFromLg={canShare && !hasBalance}
+          whatsAppHrefFromLg={whatsApp?.href ?? null}
           className="h-10 w-10 shrink-0 rounded-xl"
         />
       </div>

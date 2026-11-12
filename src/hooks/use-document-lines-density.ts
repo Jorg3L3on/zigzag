@@ -14,7 +14,7 @@ export const useDocumentLinesDensity = () => {
   const density = React.useSyncExternalStore(
     subscribeDocumentLinesDensity,
     readDocumentLinesDensity,
-    () => 'detailed' as const,
+    () => 'compact' as const,
   );
   const setDensity = React.useCallback((next: DocumentLinesDensity) => {
     writeDocumentLinesDensity(next);

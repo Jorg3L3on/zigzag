@@ -102,7 +102,7 @@ describe('TicketDetailDocument (ZIG-I28-2)', () => {
     expect(within(totals).getByText('$2,000.00')).toBeInTheDocument();
     expect(within(totals).getByText('Saldo por pagar')).toBeInTheDocument();
     expect(within(totals).getByTestId('ticket-document-balance')).toHaveTextContent('$6,700.00');
-    expect(screen.getByRole('button', { name: 'Detallado' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Compacto' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('hides Saldo por pagar once the ticket is fully paid', () => {
@@ -161,9 +161,9 @@ describe('TicketDetailDocument (ZIG-I28-2)', () => {
     expect(screen.getByText('Sin notas')).toBeInTheDocument();
   });
 
-  it('defaults the density switch to Detallado', () => {
+  it('defaults the density switch to Compacto', () => {
     renderDocument();
-    expect(screen.getByRole('button', { name: 'Detallado' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Compacto' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Compacto' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Detallado' })).toHaveAttribute('aria-pressed', 'false');
   });
 });

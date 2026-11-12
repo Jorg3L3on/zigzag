@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MessageCircle } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/ui/whatsapp-icon';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -182,7 +182,7 @@ export const TicketDetailClientCard = ({
                     aria-label="Escribir por WhatsApp"
                     data-testid="ticket-client-whatsapp"
                   >
-                    <MessageCircle className="h-4 w-4" aria-hidden />
+                    <WhatsAppIcon className="h-4 w-4" aria-hidden />
                   </a>
                 </Button>
               ) : null}
