@@ -44,7 +44,7 @@ export default async function McpConnectorDocsPage() {
 
   return (
     <MarketingShell>
-      <article className="mx-auto max-w-3xl px-4 py-12 text-base leading-relaxed sm:px-6 sm:py-16">
+      <article className="mx-auto w-full max-w-3xl min-w-0 px-4 py-12 text-base leading-relaxed sm:px-6 sm:py-16">
         <p className="font-[family-name:var(--font-marketing-mono)] text-sm font-medium tracking-[0.08em] uppercase text-[var(--pt-accent)]">
           <Link href="/" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
             ZigZag
