@@ -71,8 +71,8 @@ export type GuideContent = {
   description: string;
   intro: string;
   steps: GuideStep[];
-  /** Optional dashed note under the steps. */
-  note?: { title: string; body: string };
+  /** Optional dashed note under the steps; `offline` draws the no-signal icon, else an info icon. */
+  note?: { title: string; body: string; icon?: 'offline' };
   /** Preferred next guide; falls back to the next written one, then /ayuda. */
   next?: string;
 };
@@ -149,6 +149,7 @@ export const GUIDES: Guide[] = [
       ],
       note: {
         title: '¿No hay señal?',
+        icon: 'offline',
         body: 'Guárdalo igual. El ticket se queda en tu teléfono y se sube solo cuando vuelve la señal; hasta entonces no tiene folio.',
       },
       next: 'mandar-el-recibo-por-whatsapp',

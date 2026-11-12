@@ -36,7 +36,15 @@ const ArrowIcon = () => (
   </svg>
 );
 
-const NoteIcon = () => (
+const NOTE_ICON_PATHS = {
+  /** Wi-Fi crossed out, for the "no signal" notes. */
+  offline:
+    'M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 4-2.5M19 13a10 10 0 0 0-5-2.8M12 20h.01',
+  /** Circled "i", for every other note. */
+  info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5M12 8h.01',
+} as const;
+
+const NoteIcon = ({ icon }: { icon: keyof typeof NOTE_ICON_PATHS }) => (
   <svg
     viewBox="0 0 24 24"
     width="24"
@@ -49,7 +57,7 @@ const NoteIcon = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 4-2.5M19 13a10 10 0 0 0-5-2.8M12 20h.01" />
+    <path d={NOTE_ICON_PATHS[icon]} />
   </svg>
 );
 
@@ -126,7 +134,7 @@ export const GuidePage = ({ guide, whatsappHref }: GuidePageProps) => {
 
           {content.note ? (
             <aside className="flex items-start gap-3.5 rounded-[20px] border-[1.5px] border-dashed border-[var(--pt-ink)] px-[clamp(20px,2.6vw,28px)] py-5">
-              <NoteIcon />
+              <NoteIcon icon={content.note.icon ?? 'info'} />
               <p className="m-0">
                 <strong className="font-semibold">{content.note.title}</strong> {content.note.body}
               </p>
