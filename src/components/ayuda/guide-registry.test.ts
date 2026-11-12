@@ -14,6 +14,9 @@ const CONTENT: GuideContent = { description: 'd', intro: 'i', steps: [] };
 
 const written = (guide: Guide): Guide => ({ ...guide, content: CONTENT });
 
+/** The registry as if nothing were written yet, so these tests do not depend on which guides are. */
+const unwritten = (guide: Guide): Guide => ({ ...guide, content: undefined });
+
 describe('guide registry (ZIG-I40)', () => {
   it('has the sixteen guides with kebab-case slugs of their titles, unique', () => {
     expect(GUIDES).toHaveLength(16);
@@ -26,7 +29,7 @@ describe('guide registry (ZIG-I40)', () => {
   });
 
   it('shows a card only for written guides, and the connector only once its page is ready', () => {
-    const guides = [written(GUIDES[0]), GUIDES[1]];
+    const guides = [written(GUIDES[0]), unwritten(GUIDES[1])];
     expect(getHelpCards(guides, false).map((card) => card.key)).toEqual([GUIDES[0].slug]);
     const withConnector = getHelpCards(guides, true);
     expect(withConnector.map((card) => card.href)).toEqual([
@@ -56,7 +59,7 @@ describe('guide registry (ZIG-I40)', () => {
 
   it('topic links go to the first written guide of the topic, else /ayuda', () => {
     const guides = GUIDES.map((guide) =>
-      guide.slug === 'ver-quien-me-debe' ? written(guide) : guide,
+      guide.slug === 'ver-quien-me-debe' ? written(guide) : unwritten(guide),
     );
     expect(topicHref('cobro', guides)).toBe('/ayuda/ver-quien-me-debe');
     expect(topicHref('equipo', guides)).toBe('/ayuda');
@@ -64,7 +67,7 @@ describe('guide registry (ZIG-I40)', () => {
   });
 
   it('next guide: preferred if written, else the next written one, else none', () => {
-    const [a, b, c] = GUIDES;
+    const [a, b, c] = GUIDES.map(unwritten);
     const prefersC = { ...a, content: { ...CONTENT, next: c.slug } };
     expect(getNextGuide(a.slug, [prefersC, written(b), written(c)])?.slug).toBe(c.slug);
     expect(getNextGuide(a.slug, [prefersC, written(b), c])?.slug).toBe(b.slug);
