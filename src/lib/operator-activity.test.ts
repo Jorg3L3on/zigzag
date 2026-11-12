@@ -79,7 +79,9 @@ describe('Actividad helpers (ZIG-I38-5)', () => {
     );
     expect(params.get('target_company_id')).toBe('12');
     expect(params.get('from')).toBe('2026-11-04T12:00:00.000Z');
-    expect(params.get('to')).toBe(now.toISOString());
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    expect(params.get('to')).toBe(endOfToday.toISOString());
     expect(params.get('actor_user_id')).toBe('44');
     expect(params.get('action')).toBe('updated');
     expect(params.get('incidents_only')).toBe('1');

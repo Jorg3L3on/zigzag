@@ -134,7 +134,10 @@ export const buildActivityQuery = (
   const days = { '7d': 7, '30d': 30, '90d': 90, all: null }[filters.date];
   if (days != null) {
     params.set('from', new Date(now.getTime() - days * DAY_MS).toISOString());
-    params.set('to', now.toISOString());
+    // End of today, not «now»: an event stamped a moment ahead (clock skew) still shows.
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    params.set('to', endOfToday.toISOString());
   }
   if (filters.actorUserId) params.set('actor_user_id', filters.actorUserId);
   if (filters.action) params.set('action', filters.action);
