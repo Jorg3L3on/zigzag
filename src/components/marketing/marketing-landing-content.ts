@@ -130,9 +130,10 @@ export const LANDING_FINAL_CTA = {
   secondaryCta: { href: '#como-funciona', label: 'Ver cómo funciona' },
 } as const;
 
+/** Top bar section links. `minWidth` is the breakpoint where each one fits. */
 export const LANDING_NAV_LINKS = [
-  { href: '#problema', label: 'Problema' },
-  { href: '#como-funciona', label: 'Cómo funciona' },
-  { href: '#capacidades', label: 'Capacidades' },
-  { href: '#demo', label: 'Demo' },
+  { href: '#como-funciona', label: 'Cómo funciona', minWidth: 'md' },
+  { href: '#funciones', label: 'Funciones', minWidth: 'md' },
+  { href: '#asistentes', label: 'Asistentes IA', minWidth: 'lg' },
+  { href: '#preguntas', label: 'Preguntas', minWidth: 'lg' },
 ] as const;

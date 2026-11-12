@@ -27,7 +27,7 @@ const SCOPE_DESCRIPTIONS: Record<string, string> = {
 };
 
 const sectionTitle =
-  'font-[family-name:var(--font-marketing-display)] text-xl font-semibold tracking-tight text-[var(--mkt-ink)]';
+  'font-[family-name:var(--font-marketing-display)] text-xl font-extrabold tracking-[-0.03em] text-[var(--pt-ink)]';
 
 const requestMcpUrl = async (): Promise<string> => {
   const headerStore = await headers();
@@ -45,15 +45,15 @@ export default async function McpConnectorDocsPage() {
   return (
     <MarketingShell>
       <article className="mx-auto max-w-3xl px-4 py-12 text-base leading-relaxed sm:px-6 sm:py-16">
-        <p className="text-sm font-medium text-[var(--mkt-signal)]">
-          <Link href="/" className="hover:underline">
+        <p className="font-[family-name:var(--font-marketing-mono)] text-sm font-medium tracking-[0.08em] uppercase text-[var(--pt-accent)]">
+          <Link href="/" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
             ZigZag
           </Link>
         </p>
-        <h1 className="mt-3 font-[family-name:var(--font-marketing-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="mt-3 font-[family-name:var(--font-marketing-display)] text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
           Conector MCP
         </h1>
-        <p className="mt-4 text-[var(--mkt-muted)]">
+        <p className="mt-4 text-[var(--pt-body)]">
           Conecta ChatGPT, Grok, Claude o Cursor a tu cuenta de ZigZag para consultar y
           preparar presupuestos, tickets, recibos y clientes desde el chat. Cada conexión
           solo ve las compañías que tú autorizas.
@@ -63,10 +63,10 @@ export default async function McpConnectorDocsPage() {
           <h2 id="url" className={sectionTitle}>
             URL del conector
           </h2>
-          <p className="mt-3 break-all rounded-md border border-[var(--mkt-line-strong)] bg-[var(--mkt-foam)] px-3 py-2 font-mono text-sm">
+          <p className="mt-3 break-all rounded-md border border-[var(--pt-line-strong)] bg-[var(--pt-paper)] px-3 py-2 font-mono text-sm">
             {mcpUrl}
           </p>
-          <p className="mt-2 text-[var(--mkt-muted)]">
+          <p className="mt-2 text-[var(--pt-body)]">
             También responde en <span className="font-mono">/mcp</span>. Transporte Streamable
             HTTP; sin un token válido ninguna herramienta devuelve datos.
           </p>
@@ -79,20 +79,20 @@ export default async function McpConnectorDocsPage() {
           {MCP_CLIENTS.map((client) => (
             <div key={client.id} data-testid={`docs-client-${client.id}`}>
               <h3 className="text-lg font-semibold">{client.name}</h3>
-              <p className="mt-1 text-sm text-[var(--mkt-muted)]">{client.authLabel}</p>
+              <p className="mt-1 text-sm text-[var(--pt-body)]">{client.authLabel}</p>
               <ol className="mt-2 list-decimal space-y-1 pl-5">
                 {client.steps.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ol>
               {client.id === 'cursor' ? (
-                <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--mkt-foam)] p-3 font-mono text-sm">
+                <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--pt-paper)] p-3 font-mono text-sm">
                   {cursorMcpConfig(mcpUrl)}
                 </pre>
               ) : null}
             </div>
           ))}
-          <p className="text-[var(--mkt-muted)]">
+          <p className="text-[var(--pt-body)]">
             Las llaves <span className="font-mono">zigzag_…</span> se crean en ZigZag →
             Ajustes → Conexiones y se muestran una sola vez. Ahí mismo ves la última actividad
             de cada conexión y puedes revocarla.
@@ -103,28 +103,28 @@ export default async function McpConnectorDocsPage() {
           <h2 id="herramientas" className={sectionTitle}>
             Herramientas
           </h2>
-          <p className="mt-3 text-[var(--mkt-muted)]">
+          <p className="mt-3 text-[var(--pt-body)]">
             Llama <span className="font-mono">whoami</span> primero. Las herramientas de
             escritura piden confirmación en el cliente antes de ejecutarse.
           </p>
           {/* Phones get a stacked list; the table needs room for three columns. */}
           <ul className="mt-4 space-y-3 sm:hidden" data-testid="docs-tools-list">
             {catalog.tools.map((tool) => (
-              <li key={tool.name} className="border-b border-[var(--mkt-line)] pb-3">
+              <li key={tool.name} className="border-b border-[var(--pt-line)] pb-3">
                 <p className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-mono font-semibold">{tool.name}</span>
-                  <span className="text-sm text-[var(--mkt-muted)]">
+                  <span className="text-sm text-[var(--pt-body)]">
                     {tool.readOnly ? 'Lectura' : 'Escritura'}
                   </span>
                 </p>
-                <p className="text-sm text-[var(--mkt-muted)]">{tool.description}</p>
+                <p className="text-sm text-[var(--pt-body)]">{tool.description}</p>
               </li>
             ))}
           </ul>
           <div className="mt-4 hidden overflow-x-auto sm:block">
             <table className="w-full text-left text-sm" data-testid="docs-tools-table">
               <thead>
-                <tr className="border-b border-[var(--mkt-line-strong)]">
+                <tr className="border-b border-[var(--pt-line-strong)]">
                   <th className="py-2 pr-3 font-semibold">Herramienta</th>
                   <th className="py-2 pr-3 font-semibold">Tipo</th>
                   <th className="py-2 font-semibold">Qué hace</th>
@@ -132,15 +132,15 @@ export default async function McpConnectorDocsPage() {
               </thead>
               <tbody>
                 {catalog.tools.map((tool) => (
-                  <tr key={tool.name} className="border-b border-[var(--mkt-line)] align-top">
+                  <tr key={tool.name} className="border-b border-[var(--pt-line)] align-top">
                     <td className="py-2 pr-3">
                       <span className="font-mono">{tool.name}</span>
-                      <span className="block text-[var(--mkt-muted)]">{tool.title}</span>
+                      <span className="block text-[var(--pt-body)]">{tool.title}</span>
                     </td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       {tool.readOnly ? 'Lectura' : 'Escritura'}
                     </td>
-                    <td className="py-2 text-[var(--mkt-muted)]">{tool.description}</td>
+                    <td className="py-2 text-[var(--pt-body)]">{tool.description}</td>
                   </tr>
                 ))}
               </tbody>
@@ -154,7 +154,7 @@ export default async function McpConnectorDocsPage() {
                   <li key={prompt.name}>
                     <span className="font-mono">{prompt.name}</span>
                     {prompt.description ? (
-                      <span className="text-[var(--mkt-muted)]"> — {prompt.description}</span>
+                      <span className="text-[var(--pt-body)]"> — {prompt.description}</span>
                     ) : null}
                   </li>
                 ))}
@@ -171,7 +171,7 @@ export default async function McpConnectorDocsPage() {
             {MCP_OAUTH_SCOPES.map((scope) => (
               <li key={scope}>
                 <span className="font-mono font-semibold">{scope}</span>
-                <span className="text-[var(--mkt-muted)]">
+                <span className="text-[var(--pt-body)]">
                   {' '}
                   — {SCOPE_DESCRIPTIONS[scope] ?? ''}
                 </span>
@@ -184,7 +184,7 @@ export default async function McpConnectorDocsPage() {
           <h2 id="limites" className={sectionTitle}>
             Límites y seguridad
           </h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-[var(--mkt-muted)]">
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-[var(--pt-body)]">
             <li>Cada conexión elige sus compañías; sin compañías no ve nada.</li>
             <li>120 llamadas por minuto por conexión.</li>
             <li>

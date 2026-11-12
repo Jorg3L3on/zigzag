@@ -261,18 +261,76 @@ html[data-display-mode='standalone'] body {
   }
 }
 
-/* Marketing landing surface — scoped brand tokens + motion */
+/* Marketing surface, "Papel y tinta" (ZIG-I39): paper ground, ink type,
+   orange logo gradient. App pieces shown on it keep the app blue. */
 .marketing-surface {
-  --mkt-mist: #e6eef7;
-  --mkt-ink: #07182a;
-  --mkt-muted: #486074;
-  --mkt-signal: #1a6aef;
-  --mkt-signal-deep: #134fba;
-  --mkt-line: rgba(7, 24, 42, 0.1);
-  --mkt-line-strong: rgba(7, 24, 42, 0.18);
-  --mkt-teal: #0f766e;
-  --mkt-foam: #f4f8fc;
+  --pt-ground: #f4efe6;
+  --pt-paper: #fffdf8;
+  --pt-ink: #17140f;
+  --pt-body: #403a30;
+  --pt-muted: #6a6257;
+  --pt-accent: #b5361c;
+  --pt-pale: #e7dfd0;
+  --pt-line: rgba(23, 20, 15, 0.12);
+  --pt-line-strong: rgba(23, 20, 15, 0.22);
+  --pt-orange-from: #ffb224;
+  --pt-orange-to: #e8482e;
+  --pt-button-to: #f2702a;
+  --pt-app-blue: #2563eb;
+  /* Legacy aliases read by the old landing body until ZIG-I39 phase 7
+     rebuilds it; nothing new should use --mkt-*. */
+  --mkt-mist: var(--pt-ground);
+  --mkt-ink: var(--pt-ink);
+  --mkt-muted: var(--pt-muted);
+  --mkt-signal: var(--pt-app-blue);
+  --mkt-signal-deep: #1d4ed8;
+  --mkt-line: var(--pt-line);
+  --mkt-line-strong: var(--pt-line-strong);
+  --mkt-teal: var(--pt-accent);
+  --mkt-foam: var(--pt-paper);
   color-scheme: light;
+}
+
+.marketing-surface :is(a, button, input, select, summary, textarea):focus-visible {
+  outline: 3px solid var(--pt-app-blue);
+  outline-offset: 3px;
+}
+
+.marketing-surface .zz-btn {
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
+}
+
+.marketing-surface .zz-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-surface .zz-btn {
+    transition: none;
+  }
+
+  .marketing-surface .zz-btn:hover {
+    transform: none;
+  }
+}
+
+/* Torn-receipt edge: zigzag teeth on top and bottom (28px; -sm is 14px). */
+.zz-edge-y,
+.zz-edge-y-sm {
+  --zz-tooth: 28px;
+  -webkit-mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--zz-tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--zz-tooth) 51% repeat-x;
+  mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--zz-tooth) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--zz-tooth) 51% repeat-x;
+}
+
+.zz-edge-y-sm {
+  --zz-tooth: 14px;
 }
 
 .marketing-zigzag-grid {

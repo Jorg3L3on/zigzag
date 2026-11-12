@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MarketingLanding } from '@/components/marketing/marketing-landing';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import {
@@ -30,21 +30,32 @@ describe('MarketingLanding', () => {
     ).toBeInTheDocument();
     expect(document.getElementById('como-funciona')).toBeTruthy();
 
-    const loginLinks = screen.getAllByRole('link', { name: 'Iniciar sesión' });
-    expect(loginLinks.length).toBeGreaterThanOrEqual(2);
-    expect(loginLinks[0]).toHaveAttribute('href', '/login');
+    // The old landing body still has its own "Iniciar sesión" CTAs until phase 7.
+    const bodyLoginLinks = screen.getAllByRole('link', { name: 'Iniciar sesión' });
+    expect(bodyLoginLinks[0]).toHaveAttribute('href', '/login');
 
     const howLinks = screen.getAllByRole('link', { name: 'Ver cómo funciona' });
     expect(howLinks[0]).toHaveAttribute('href', '#como-funciona');
 
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    expect(within(nav).getByRole('link', { name: 'Entrar' })).toHaveAttribute(
+      'href',
+      '/login',
+    );
     expect(
-      screen.getByRole('link', { name: 'Aviso de privacidad' }),
+      within(nav).getByRole('link', { name: 'Pedir acceso' }),
+    ).toHaveAttribute('href', '#acceso');
+
+    const footer = screen.getByRole('navigation', { name: 'Pie de página' });
+    expect(
+      within(footer).getByRole('link', { name: 'Aviso de privacidad' }),
     ).toHaveAttribute('href', PRIVACY_PATH);
     expect(
-      screen.getByRole('link', { name: 'Términos y condiciones' }),
+      within(footer).getByRole('link', { name: 'Términos y condiciones' }),
     ).toHaveAttribute('href', TERMS_PATH);
-    expect(
-      screen.getByRole('link', { name: 'Guías de producto' }),
-    ).toHaveAttribute('href', ONBOARDING_GUIDE_PATHS.index);
+    expect(within(footer).getByRole('link', { name: 'Guías' })).toHaveAttribute(
+      'href',
+      ONBOARDING_GUIDE_PATHS.index,
+    );
   });
 });

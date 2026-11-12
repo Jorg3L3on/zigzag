@@ -41,8 +41,8 @@ test.describe('Public marketing landing', () => {
     await page.goto('/');
 
     await page
-      .getByRole('link', { name: 'Iniciar sesión' })
-      .first()
+      .getByRole('navigation', { name: 'Principal' })
+      .getByRole('link', { name: 'Entrar' })
       .click();
     await expect(page).toHaveURL(/\/login/);
 
