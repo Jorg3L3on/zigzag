@@ -11,16 +11,16 @@ const PlusIcon = () => (
 
 /** Phone dock (MobileBottomDock): Hoy, Tickets, +, Cobranza, Más, with one label ringed. */
 export const Dock = ({ ring }: { ring: DockLabel | null }) => (
-  <div className={`${APP_PIECE_CARD} flex items-center justify-around gap-1 rounded-full px-3 py-2.5 ${APP_MUTED}`}>
+  <div className={`${APP_PIECE_CARD} flex items-center justify-around gap-1 rounded-full px-2 py-2.5 ${APP_MUTED}`}>
     {(['Hoy', 'Tickets', null, 'Cobranza', 'Más'] as const).map((label) =>
       label === null ? (
-        <span key="plus" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white">
+        <span key="plus" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white">
           <PlusIcon />
         </span>
       ) : (
         <span
           key={label}
-          className={label === ring ? `rounded-full bg-[#DBEAFE] px-2.5 py-1.5 font-semibold text-[#0B1220] ${TOUCH_RING_SM}` : undefined}
+          className={label === ring ? `rounded-full bg-[#DBEAFE] px-2 py-1.5 font-semibold text-[#0B1220] ${TOUCH_RING_SM}` : undefined}
         >
           {label}
         </span>
