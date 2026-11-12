@@ -40,6 +40,7 @@ describe('operator tenant scope', () => {
   });
 
   it('builds operator console deep links', () => {
-    expect(operatorConsoleCompanyHref(9)).toBe('/operator-console?company=9');
+    expect(operatorConsoleCompanyHref(9)).toBe('/operator-console/9/resumen');
+    expect(operatorConsoleCompanyHref(9, 'acceso')).toBe('/operator-console/9/acceso');
   });
 });
