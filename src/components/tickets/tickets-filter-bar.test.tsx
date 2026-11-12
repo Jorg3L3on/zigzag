@@ -218,6 +218,13 @@ describe('TicketsDesktopToolbar (ZIG-I33-2)', () => {
     expect(terminado).toHaveTextContent('Todos los trabajos');
     expect(terminado.className).toContain('rounded-full');
     expect(terminado.className).not.toContain('bg-primary/10');
+    // Same height and text as the date pill from lg (SelectTrigger's lg:h-9 must lose).
+    const dates = screen.getByRole('button', { name: 'Filtrar por rango de fechas del ticket' });
+    for (const pill of [terminado, dates]) {
+      expect(pill).toHaveClass('h-11', 'px-4', 'text-base');
+      expect(pill).not.toHaveClass('lg:h-9');
+    }
+    expect(terminado).toHaveClass('lg:h-11');
     // ZIG-I37-1: every column always shows on Tickets.
     expect(screen.queryByRole('button', { name: /columnas/i })).not.toBeInTheDocument();
     // No clients.read, no Cliente filter.

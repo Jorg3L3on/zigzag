@@ -94,7 +94,11 @@ type ListFilterSelectProps<TValue extends string> = {
   className?: string;
 };
 
-/** A pill select for the desktop filter row, like Recordatorios. */
+/**
+ * A pill select for the desktop filter row, like Recordatorios. Same box as the
+ * date and Cliente pills: 44px, px-4, text-base. lg:h-11 beats SelectTrigger's
+ * lg:h-9, which left «Todos los trabajos» shorter than its neighbours.
+ */
 export const ListFilterSelect = <TValue extends string>({
   value,
   allValue,
@@ -106,7 +110,7 @@ export const ListFilterSelect = <TValue extends string>({
   <Select value={value} onValueChange={(next) => onChange(next as TValue)}>
     <SelectTrigger
       className={cn(
-        'h-11 w-auto min-w-[168px] gap-2 rounded-full',
+        'h-11 w-auto min-w-[168px] gap-2 rounded-full px-4 text-base lg:h-11',
         value !== allValue && FILTER_SELECTED_CLASS,
         className,
       )}
