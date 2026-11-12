@@ -7,6 +7,7 @@ import {
   topicHref,
   type WrittenGuide,
 } from '@/components/ayuda/guide-registry';
+import { GuideVideos } from '@/components/ayuda/guide-videos';
 import { HelpShell } from '@/components/ayuda/help-shell';
 import { GuidePiece } from '@/components/ayuda/pieces/guide-piece';
 import { AYUDA_PATH } from '@/lib/marketing-routes';
@@ -107,6 +108,8 @@ export const GuidePage = ({ guide, whatsappHref }: GuidePageProps) => {
               {content.intro}
             </p>
           </header>
+
+          {content.videos?.length ? <GuideVideos videos={content.videos} /> : null}
 
           <ol className="m-0 flex list-none flex-col gap-4 p-0" aria-label="Pasos">
             {content.steps.map((step, index) => (

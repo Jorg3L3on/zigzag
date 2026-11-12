@@ -328,6 +328,18 @@ export const GUIDES_PART_1_CONTENT: Partial<Record<string, GuideContent>> = {
       'Cómo hacer un presupuesto en ZigZag: cliente, vigencia, servicios, Guardar y compartirlo.',
     intro:
       'Un presupuesto es una cotización: lo que cobrarías antes de hacer el trabajo. No cuenta en Cobranza ni en Hoy hasta que lo conviertes en ticket.',
+    videos: [
+      {
+        youtubeId: 'eR3oeWtnx6A',
+        label: 'En la computadora',
+        title: 'Cómo crear un presupuesto en ZigZag desde tu computadora',
+      },
+      {
+        youtubeId: 'zZefkCT0Yj4',
+        label: 'En el celular',
+        title: 'Cómo crear un presupuesto en ZigZag desde tu celular',
+      },
+    ],
     steps: [
       {
         title: 'Toca + y elige Nuevo presupuesto',
