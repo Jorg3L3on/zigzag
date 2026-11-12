@@ -9,6 +9,8 @@ export const APP_PIECE_CARD =
 /** Orange ring around the control the step asks you to touch. */
 export const TOUCH_RING = 'shadow-[0_0_0_6px_rgba(242,112,42,0.35)]';
 export const TOUCH_RING_SM = 'shadow-[0_0_0_5px_rgba(242,112,42,0.35)]';
+/** Same ring on a dark surface (the phone home screen): at 35% it reads brown there. */
+export const TOUCH_RING_ON_DARK = 'shadow-[0_0_0_5px_rgba(242,112,42,0.85)]';
 
 export const APP_MUTED = 'text-[#556277]';
 

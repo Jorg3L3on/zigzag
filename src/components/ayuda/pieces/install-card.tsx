@@ -2,7 +2,7 @@ import { AppButton } from '@/components/ayuda/pieces/app-field';
 import {
   APP_MUTED,
   APP_PIECE_CARD,
-  TOUCH_RING,
+  TOUCH_RING_ON_DARK,
   TOUCH_RING_SM,
 } from '@/components/ayuda/pieces/app-look';
 
@@ -48,7 +48,7 @@ export const InstallCardPiece = ({ variant }: { variant: InstallCardVariant }) =
           <span key={slot} className="flex flex-col items-center gap-1.5 text-white">
             <span
               className={`flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-extrabold ${
-                slot === 1 ? `bg-[#2563EB] ${TOUCH_RING}` : 'bg-[#334155]'
+                slot === 1 ? `bg-[#2563EB] ${TOUCH_RING_ON_DARK}` : 'bg-[#334155]'
               }`}
             >
               {slot === 1 ? 'Z' : ''}

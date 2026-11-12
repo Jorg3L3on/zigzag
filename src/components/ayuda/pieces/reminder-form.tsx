@@ -57,7 +57,7 @@ export const ReminderFormPiece = ({
       <div
         role="group"
         aria-labelledby={labelId}
-        className={`flex flex-wrap gap-2 rounded-full ${ring === 'every' ? TOUCH_RING_SM : ''}`}
+        className={`flex flex-wrap gap-2 rounded-3xl ${ring === 'every' ? TOUCH_RING_SM : ''}`}
       >
         {CHIPS.map((chip) => {
           const pressed = chip.months === months;
