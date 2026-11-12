@@ -340,7 +340,7 @@ const ProfileCard = ({ summary, editHref }: { summary: CompanyOperatorSummary; e
       </ul>
       <p className="mt-3.5 text-caption text-muted-foreground">
         Es el requisito para activar una empresa. Lo completa el dueño en Mi empresa o tú desde{' '}
-        <Link href={editHref} className="text-primary hover:underline">
+        <Link href={editHref} className="text-primary underline underline-offset-2">
           Editar empresa
         </Link>
         .

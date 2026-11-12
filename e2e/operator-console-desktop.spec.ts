@@ -13,8 +13,16 @@ import { waitForSettledLayout } from './helpers/layout';
  * login. Read-only: nothing here changes a company, a person or a role.
  */
 
+/** The id of the app's selected company (the sidebar may refresh its logo, not its id). */
 const selectedCompany = (page: Page) =>
-  page.evaluate(() => window.localStorage.getItem('selectedCompany'));
+  page.evaluate(() => {
+    const raw = window.localStorage.getItem('selectedCompany');
+    try {
+      return raw ? (JSON.parse(raw) as { id?: number }).id ?? null : null;
+    } catch {
+      return null;
+    }
+  });
 
 const openFirstCompany = async (page: Page) => {
   await page.goto('/operator-console');

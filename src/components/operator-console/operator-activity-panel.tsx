@@ -113,7 +113,7 @@ const EventSentence = ({ row, companyId }: { row: OperatorActivityRow; companyId
             <span aria-hidden>·</span>
             <Link
               href={link.href}
-              className="text-primary hover:underline"
+              className="text-primary underline underline-offset-2"
               onClick={(event) => event.stopPropagation()}
             >
               {link.label}
