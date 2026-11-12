@@ -3,49 +3,33 @@ import {
   operatorIncidentLabel,
 } from '@/lib/operator-audit-incidents';
 
-describe('operator audit incidents', () => {
-  it('flags failed logins and permission denials', () => {
+describe('operator alert-type events', () => {
+  it('flags failed sign-ins and permission denials', () => {
     expect(
-      isOperatorIncidentEvent({
-        action: 'sign_in_failed',
-        result: 'failed',
-        resource_type: 'auth',
-      }),
+      isOperatorIncidentEvent({ action: 'sign_in_failed', result: 'failed', resource_type: 'auth' }),
     ).toBe(true);
     expect(
-      isOperatorIncidentEvent({
-        action: 'permission_denied',
-        result: 'denied',
-        resource_type: 'security',
-      }),
+      isOperatorIncidentEvent({ action: 'permission_denied', result: 'denied', resource_type: 'security' }),
     ).toBe(true);
     expect(
-      operatorIncidentLabel({
-        action: 'permission_denied',
-        result: 'denied',
-        resource_type: 'security',
-      }),
-    ).toBe('Permiso denegado');
+      operatorIncidentLabel({ action: 'sign_in_failed', result: 'failed', resource_type: 'auth' }),
+    ).toBe('Inicio de sesión fallido');
   });
 
-  it('flags entitlement limit denials from payload metadata', () => {
-    const event = {
-      action: 'updated',
-      result: 'denied',
-      resource_type: 'ticket',
-      payload: { errorCode: 'CO011', message: 'Límite del plan Starter alcanzado' },
-    };
-    expect(isOperatorIncidentEvent(event)).toBe(true);
-    expect(operatorIncidentLabel(event)).toBe('Límite de plan');
-  });
-
-  it('ignores routine successful audit events', () => {
+  it('no longer reads the payload text (E12)', () => {
     expect(
       isOperatorIncidentEvent({
         action: 'updated',
         result: 'success',
-        resource_type: 'client',
+        resource_type: 'ticket',
+        payload: { errorCode: 'CO011', message: 'Límite del plan' },
       }),
+    ).toBe(false);
+  });
+
+  it('ignores routine events', () => {
+    expect(
+      isOperatorIncidentEvent({ action: 'signed_in', result: 'success', resource_type: 'auth' }),
     ).toBe(false);
   });
 });

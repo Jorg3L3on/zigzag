@@ -119,6 +119,97 @@ export const ownerReadinessGaps = (assessment: CompanyReadinessAssessment): stri
     (_, index) => assessment.missing[index] !== 'lifecycle.active',
   );
 
+export type CompanyProfileGroupId = 'contact' | 'address' | 'fiscal';
+
+export type CompanyProfileItem = {
+  key: Exclude<CompanyReadinessRequirement, 'lifecycle.active'>;
+  label: string;
+  /** Field name in Editar empresa, used to deep-link «Completar». */
+  field: string;
+  done: boolean;
+};
+
+export type CompanyProfileGroup = {
+  id: CompanyProfileGroupId;
+  label: string;
+  items: CompanyProfileItem[];
+};
+
+export type CompanyProfileProgress = {
+  total: number;
+  done: number;
+  missing: number;
+  missingLabels: string[];
+  groups: CompanyProfileGroup[];
+};
+
+const PROFILE_GROUPS: {
+  id: CompanyProfileGroupId;
+  label: string;
+  items: { key: CompanyProfileItem['key']; field: string }[];
+}[] = [
+  {
+    id: 'contact',
+    label: 'Contacto',
+    items: [
+      { key: 'profile.name', field: 'name' },
+      { key: 'profile.email', field: 'email' },
+      { key: 'profile.phone', field: 'phone' },
+    ],
+  },
+  {
+    id: 'address',
+    label: 'Dirección',
+    items: [
+      { key: 'profile.street', field: 'street' },
+      { key: 'profile.exterior_number', field: 'exterior_number' },
+      { key: 'profile.neighborhood', field: 'neighborhood' },
+      { key: 'profile.city', field: 'city' },
+      { key: 'profile.state', field: 'state' },
+      { key: 'profile.country', field: 'country' },
+      { key: 'profile.postal_code', field: 'postal_code' },
+    ],
+  },
+  {
+    id: 'fiscal',
+    label: 'Datos fiscales',
+    items: [
+      { key: 'settings.rfc', field: 'rfc' },
+      { key: 'settings.default_currency', field: 'default_currency' },
+    ],
+  },
+];
+
+/**
+ * The operator console's view of readiness (ZIG-I38): only the 12 profile
+ * fields count as pending. The lifecycle status has its own column, so a
+ * suspended or archived company with a complete profile has 0 pending.
+ */
+export const assessCompanyProfile = (
+  company: Company,
+): CompanyProfileProgress => {
+  const gaps = new Set(listCompanyProfileGaps(company));
+  const groups = PROFILE_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    items: group.items.map((item) => ({
+      key: item.key,
+      field: item.field,
+      label: REQUIREMENT_LABELS[item.key],
+      done: !gaps.has(item.key),
+    })),
+  }));
+  const all = groups.flatMap((group) => group.items);
+  const missingItems = all.filter((item) => !item.done);
+  return {
+    total: all.length,
+    done: all.length - missingItems.length,
+    missing: missingItems.length,
+    missingLabels: missingItems.map((item) => item.label),
+    groups,
+  };
+};
+
 export const OWNER_STATUS_NOTE = 'Lo cambia el equipo de ZigZag.';
 
 export const companyProductionBlockedMessage = (
