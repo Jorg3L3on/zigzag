@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { relativeTime } from '@/components/settings/mcp-activity-row';
 import type { WhoamiByClient } from '@/lib/mcp/client-whoami';
 import { cursorMcpConfig, MCP_CLIENTS, type McpClientInfo } from '@/lib/mcp-clients';
+import { MCP_DOCS_PATH } from '@/lib/marketing-routes';
 
 const copyToClipboard = async (value: string, message: string) => {
   try {
@@ -120,8 +121,12 @@ export function McpClientSetupCards({ mcpUrl, whoami }: McpClientSetupCardsProps
       ))}
       <p className="text-sm text-muted-foreground">
         Guía completa:{' '}
-        <a href="/docs/mcp-connector" className="underline underline-offset-2">
-          /docs/mcp-connector
+        <a
+          href={MCP_DOCS_PATH}
+          className="inline-flex min-h-11 items-center underline underline-offset-2"
+          data-testid="mcp-docs-link"
+        >
+          Ayuda › Asistentes IA
         </a>
       </p>
     </div>

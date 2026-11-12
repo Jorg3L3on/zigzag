@@ -42,7 +42,7 @@ More walkthroughs (tenant + system operator): [live guides](https://zigzag-hazel
 
 ## MCP connector
 
-ZigZag runs an MCP server at `/api/mcp` (alias `/mcp`) so AI clients can read and prepare documents, clients and the catalog on a user's behalf. Setup cards per client live in **Settings → Conexiones**; the public guide is `/docs/mcp-connector` in the app (its tools table is generated from the server registry). Full reference: [`docs/mcp-connector.md`](docs/mcp-connector.md).
+ZigZag runs an MCP server at `/api/mcp` (alias `/mcp`) so AI clients can read and prepare documents, clients and the catalog on a user's behalf. Setup cards per client live in **Settings → Conexiones**; the public guide is `/ayuda/asistentes` in the help centre (its tools table is generated from the server registry; the old `/docs/mcp-connector` stays public until it redirects). Full reference: [`docs/mcp-connector.md`](docs/mcp-connector.md).
 
 | Client | Auth |
 |--------|------|

@@ -1,4 +1,4 @@
-import { AYUDA_PATH } from '@/lib/marketing-routes';
+import { AYUDA_PATH, MCP_DOCS_PATH } from '@/lib/marketing-routes';
 
 /**
  * Help centre guides (ZIG-I40): the ONE list behind the /ayuda cards, the
@@ -28,14 +28,14 @@ export const HELP_TOPICS: HelpTopic[] = [
   { key: 'asistentes', label: 'Asistentes IA' },
 ];
 
-/** Connector page for ChatGPT, Claude and Grok (built by its own ticket). */
-export const ASSISTANT_PAGE_PATH = `${AYUDA_PATH}/asistentes`;
+/** Connector page for ChatGPT, Claude, Grok and Cursor (ZIG-I40-5). */
+export const ASSISTANT_PAGE_PATH = MCP_DOCS_PATH;
 
 /**
- * Flip to true once /ayuda/asistentes exists: until then its card stays off
- * /ayuda (the top bar and topic links point at it regardless).
+ * /ayuda/asistentes exists (ZIG-I40-5): its card shows on /ayuda and it is in
+ * the sitemap. The top bar and topic links point at it regardless.
  */
-export const ASSISTANT_PAGE_READY = false;
+export const ASSISTANT_PAGE_READY = true;
 
 /** A rebuilt piece of the app shown next to a step (see `pieces/`). */
 export type GuidePiece =

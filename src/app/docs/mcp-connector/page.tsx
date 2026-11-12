@@ -1,14 +1,11 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
 import Link from 'next/link';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import { readMcpCatalog } from '@/lib/mcp/registry-catalog';
 import { cursorMcpConfig, MCP_CLIENTS } from '@/lib/mcp-clients';
 import { MARKETING_INDEXABLE_METADATA } from '@/lib/marketing-routes';
-import {
-  getMcpResourceUrl,
-  MCP_OAUTH_SCOPES,
-} from '@/lib/server/mcp-oauth/config';
+import { MCP_SCOPE_DESCRIPTIONS, requestMcpUrl } from '@/lib/mcp/connector-docs';
+import { MCP_OAUTH_SCOPES } from '@/lib/server/mcp-oauth/config';
 
 export const metadata: Metadata = {
   title: 'Conector MCP | ZigZag',
@@ -17,27 +14,8 @@ export const metadata: Metadata = {
   robots: MARKETING_INDEXABLE_METADATA,
 };
 
-/** Every scope a connection can hold; rows render only for scopes the server grants. */
-const SCOPE_DESCRIPTIONS: Record<string, string> = {
-  read: 'Leer compañías, documentos (presupuestos, tickets, recibos), clientes, catálogo y buscar. Siempre incluido.',
-  write:
-    'Crear y editar documentos y clientes, convertir presupuestos y cambiar estados. Solo si lo marcas al autorizar.',
-  payments:
-    'Registrar cobros en tickets terminados (register_payment) y crear tickets ya pagados. Apagado por defecto; se concede aparte de la escritura y nunca se agrega a una conexión existente. Sin reembolsos ni borrado de pagos.',
-};
-
 const sectionTitle =
   'font-[family-name:var(--font-marketing-display)] text-xl font-extrabold tracking-[-0.03em] text-[var(--pt-ink)]';
-
-const requestMcpUrl = async (): Promise<string> => {
-  const headerStore = await headers();
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
-  if (!host) return getMcpResourceUrl();
-  const proto =
-    headerStore.get('x-forwarded-proto') ??
-    (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
-  return `${proto}://${host}/api/mcp`;
-};
 
 export default async function McpConnectorDocsPage() {
   const [mcpUrl, catalog] = await Promise.all([requestMcpUrl(), readMcpCatalog()]);
@@ -173,7 +151,7 @@ export default async function McpConnectorDocsPage() {
                 <span className="font-mono font-semibold">{scope}</span>
                 <span className="text-[var(--pt-body)]">
                   {' '}
-                  — {SCOPE_DESCRIPTIONS[scope] ?? ''}
+                  — {MCP_SCOPE_DESCRIPTIONS[scope] ?? ''}
                 </span>
               </li>
             ))}
