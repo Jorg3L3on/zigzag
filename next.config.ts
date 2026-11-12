@@ -67,6 +67,8 @@ const nextConfig: NextConfig = {
               "frame-ancestors 'none'",
               "form-action 'self'",
               "object-src 'none'",
+              // Same-origin PDF viewers, plus the /ayuda video tutorials (ZIG-40).
+              "frame-src 'self' https://www.youtube-nocookie.com",
               scriptSrc,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",

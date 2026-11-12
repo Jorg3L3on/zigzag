@@ -66,10 +66,21 @@ export type GuideStep = {
   piece: GuidePiece;
 };
 
+/** A YouTube tutorial shown under the intro (ZIG-40). */
+export type GuideVideo = {
+  youtubeId: string;
+  /** Where it is shown being done: "En la computadora", "En el celular". */
+  label: string;
+  /** Accessible name of the player. */
+  title: string;
+};
+
 export type GuideContent = {
   /** Meta description for the page. */
   description: string;
   intro: string;
+  /** Video tutorials, shown between the intro and the steps. */
+  videos?: GuideVideo[];
   steps: GuideStep[];
   /** Optional dashed note under the steps; `offline` draws the no-signal icon, else an info icon. */
   note?: { title: string; body: string; icon?: 'offline' };
@@ -99,6 +110,18 @@ export const GUIDES: Guide[] = [
         'Cómo crear un ticket en ZigZag en cinco pasos: cliente, servicios, cómo te pagó y Guardar.',
       intro:
         'Un ticket es un trabajo: a quién se lo hiciste, qué le hiciste y cuánto te pagó. Se hace igual en el teléfono y en la computadora.',
+      videos: [
+        {
+          youtubeId: 'KFcDHh97038',
+          label: 'En la computadora',
+          title: 'Cómo crear un ticket en ZigZag desde tu computadora',
+        },
+        {
+          youtubeId: 'N5vZ_BiCITw',
+          label: 'En el celular',
+          title: 'Cómo crear un ticket en ZigZag desde tu celular',
+        },
+      ],
       steps: [
         {
           title: 'Toca el botón +',
