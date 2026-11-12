@@ -8,16 +8,18 @@ import {
   MARKETING_INDEXABLE_METADATA,
 } from '@/lib/marketing-routes';
 
+const LANDING_TITLE = 'ZigZag · Haz el trabajo, manda el recibo, cobra completo';
+const LANDING_DESCRIPTION =
+  'ZigZag lleva tus tickets, presupuestos y cobros desde el teléfono. Sabes quién te debe y cuánto, y mandas el recibo por WhatsApp antes de irte.';
+
 export const metadata: Metadata = {
   metadataBase: new URL(getMarketingSiteOrigin()),
-  title: 'ZigZag - Del ticket al cobro, en un solo flujo',
-  description:
-    'Plataforma multi-empresa en español para tickets de servicio, cobranza y recibos PDF. Lista para móvil.',
+  title: LANDING_TITLE,
+  description: LANDING_DESCRIPTION,
   robots: MARKETING_INDEXABLE_METADATA,
   openGraph: {
-    title: 'ZigZag - Del ticket al cobro, en un solo flujo',
-    description:
-      'Opera clientes, servicios, cobros y recibos PDF en una sola plataforma multi-empresa.',
+    title: LANDING_TITLE,
+    description: LANDING_DESCRIPTION,
     locale: 'es_MX',
     type: 'website',
   },
