@@ -14,7 +14,7 @@ test.describe('Help and first run (ZIG-I18-12)', () => {
     await page.getByRole('button', { name: /Más opciones de navegación/ }).click();
     const help = page.getByRole('link', { name: '¿Cómo se usa?' });
     await expect(help).toBeVisible();
-    await expect(help).toHaveAttribute('href', /guia-empresa/);
+    await expect(help).toHaveAttribute('href', '/ayuda');
     const box = await help.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   });

@@ -1,11 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
 import {
+  AYUDA_PATH,
   MCP_DOCS_PATH,
   PRIVACY_PATH,
   TERMS_PATH,
 } from '@/lib/marketing-routes';
-import { ONBOARDING_GUIDE_PATHS } from '@/lib/onboarding-guides';
 
 const renderShell = (showSectionNav?: boolean) =>
   render(
@@ -61,7 +61,7 @@ describe('MarketingShell', () => {
     const href = (name: string) =>
       within(footer).getByRole('link', { name }).getAttribute('href');
 
-    expect(href('Guías')).toBe(ONBOARDING_GUIDE_PATHS.index);
+    expect(href('Guías')).toBe(AYUDA_PATH);
     expect(href('Conector para asistentes IA')).toBe(MCP_DOCS_PATH);
     expect(href('Aviso de privacidad')).toBe(PRIVACY_PATH);
     expect(href('Términos y condiciones')).toBe(TERMS_PATH);

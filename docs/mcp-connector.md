@@ -2,7 +2,7 @@
 
 ZigZag expone un servidor [MCP](https://modelcontextprotocol.io) HTTP en `POST /api/mcp` para conectar agentes externos: **ChatGPT**, **Grok**, **Claude** y **Cursor** (o cualquier cliente MCP con Streamable HTTP). Las tools leen y preparan documentos (presupuestos, tickets, recibos), clientes y catálogo, y buscan con `search`/`fetch`.
 
-La guía pública vive en la app en **`/docs/mcp-connector`** (es la `service_documentation` que anuncia el servidor OAuth); su tabla de tools se genera del registro, así que siempre coincide con lo desplegado. En la app, **Ajustes → Conexiones** muestra una tarjeta por cliente con la URL, los pasos y el último `whoami` de ese cliente.
+La guía pública vive en la app en **`/ayuda/asistentes`** (la vieja `/docs/mcp-connector` redirige ahí; es la `service_documentation` que anuncia el servidor OAuth); su tabla de tools se genera del registro, así que siempre coincide con lo desplegado. En la app, **Ajustes → Conexiones** muestra una tarjeta por cliente con la URL, los pasos y el último `whoami` de ese cliente.
 
 ## URL del conector
 

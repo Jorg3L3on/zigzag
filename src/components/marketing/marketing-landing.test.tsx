@@ -1,8 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { MarketingLanding } from '@/components/marketing/marketing-landing';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
-import { PRIVACY_PATH, TERMS_PATH } from '@/lib/marketing-routes';
-import { ONBOARDING_GUIDE_PATHS } from '@/lib/onboarding-guides';
+import { AYUDA_PATH, PRIVACY_PATH, TERMS_PATH } from '@/lib/marketing-routes';
 
 describe('MarketingLanding', () => {
   it('renders the Papel y tinta sections in canvas order, CTAs and footer links', () => {
@@ -48,7 +47,7 @@ describe('MarketingLanding', () => {
     ).toHaveAttribute('href', TERMS_PATH);
     expect(within(footer).getByRole('link', { name: 'Guías' })).toHaveAttribute(
       'href',
-      ONBOARDING_GUIDE_PATHS.index,
+      AYUDA_PATH,
     );
   });
 });

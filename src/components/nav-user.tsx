@@ -6,8 +6,7 @@ import { disablePushOnThisDevice } from '@/lib/push-client';
 import { useRouter } from 'next/navigation';
 
 import {
-  EMPRESA_GUIDE_LINK,
-  getOnboardingGuidesForUser,
+  HELP_CENTER_LINK,
   HELP_GUIDE_LABEL,
   openOnboardingGuide,
 } from '@/lib/onboarding-guides';
@@ -20,9 +19,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -49,7 +45,6 @@ export function NavUser() {
   if (!session?.user) return null;
 
   const isSystemUser = session.user.company_is_system ?? false;
-  const guideLinks = getOnboardingGuidesForUser(isSystemUser);
 
   const user = {
     name: session.user.name || 'Usuario',
@@ -114,31 +109,12 @@ export function NavUser() {
                 <BadgeCheck className="mr-2 h-4 w-4" data-icon="inline-start" />
                 Cuenta
               </DropdownMenuItem>
-              {isSystemUser ? (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
-                    Guías
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {guideLinks.map((guide) => (
-                      <DropdownMenuItem
-                        key={guide.href}
-                        onClick={() => openOnboardingGuide(guide.href)}
-                      >
-                        {guide.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              ) : (
-                <DropdownMenuItem
-                  onClick={() => openOnboardingGuide(EMPRESA_GUIDE_LINK.href)}
-                >
-                  <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
-                  {HELP_GUIDE_LABEL}
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                onClick={() => openOnboardingGuide(HELP_CENTER_LINK.href)}
+              >
+                <BookOpen className="mr-2 h-4 w-4" data-icon="inline-start" />
+                {isSystemUser ? 'Guías' : HELP_GUIDE_LABEL}
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
