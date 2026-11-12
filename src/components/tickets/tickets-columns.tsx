@@ -140,7 +140,12 @@ export const createTicketsColumns = ({
             </p>
           ) : null}
           {workLine ? (
-            <p className="truncate text-caption leading-4 text-muted-foreground" data-testid="ticket-row-work">
+            // Only while Trabajo is hidden: from 75rem the counts sit under the services
+            // in Trabajo, where they belong (Jorge, 2026-11-11).
+            <p
+              className="truncate text-caption leading-4 text-muted-foreground @min-[75rem]:hidden"
+              data-testid="ticket-row-work"
+            >
               {workLine}
             </p>
           ) : null}
@@ -167,17 +172,36 @@ export const createTicketsColumns = ({
     header: () => <span>Trabajo</span>,
     cell: ({ row }) => {
       const summary = row.original.services_summary?.trim();
+      // «1 servicio · 1 material» under the names (it sits under the client only
+      // while this column is hidden).
+      const workLine = ticketWorkLine(row.original);
+      const counts = workLine ? (
+        <p
+          className="truncate text-caption leading-4 text-muted-foreground"
+          data-testid="ticket-row-work-trabajo"
+        >
+          {workLine}
+        </p>
+      ) : null;
       if (!summary) {
-        return <span className="text-muted-foreground">Sin servicios todavía</span>;
+        return (
+          <div className="min-w-0">
+            <span className="text-muted-foreground">Sin servicios todavía</span>
+            {counts}
+          </div>
+        );
       }
       // «A, B… +5»: the first two names, then how many more (canvas ListaA).
       const head = row.original.services_head?.length ? row.original.services_head.join(', ') : summary;
       const more = Math.max((row.original.services_count ?? 0) - 2, 0);
       return (
-        <span className="flex min-w-0 items-baseline gap-1 text-slate-600 md:text-[13px] dark:text-slate-300" title={summary}>
-          <span className="truncate">{head}</span>
-          {more > 0 ? <span className="shrink-0 text-muted-foreground/70">+{more}</span> : null}
-        </span>
+        <div className="min-w-0">
+          <span className="flex min-w-0 items-baseline gap-1 text-slate-600 md:text-[13px] dark:text-slate-300" title={summary}>
+            <span className="truncate">{head}</span>
+            {more > 0 ? <span className="shrink-0 text-muted-foreground/70">+{more}</span> : null}
+          </span>
+          {counts}
+        </div>
       );
     },
   },

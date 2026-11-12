@@ -136,6 +136,18 @@ describe('tickets collection columns (ZIG-I28-4)', () => {
     expect(screen.queryByTestId('ticket-payment-summary')).not.toBeInTheDocument();
   });
 
+  it('puts «N servicios · N materiales» in Trabajo when it shows, under the client only before (2026-11-11)', () => {
+    render(<TableHarness ticket={makeTicket({ services_count: 1, materials_count: 1 })} />);
+
+    const underClient = screen.getByTestId('ticket-row-work');
+    expect(underClient).toHaveTextContent('1 servicio · 1 material');
+    // Same breakpoint as the Trabajo column, so the counts never show twice or not at all.
+    expect(underClient).toHaveClass('@min-[75rem]:hidden');
+    const inTrabajo = screen.getByTestId('ticket-row-work-trabajo');
+    expect(inTrabajo).toHaveTextContent('1 servicio · 1 material');
+    expect(inTrabajo.parentElement).toHaveTextContent('Compresor, Mano de obra');
+  });
+
   it('sorts by every figure and name from the header and aligns money right (ZIG-I33-2)', () => {
     render(<TableHarness ticket={makeTicket()} />);
 

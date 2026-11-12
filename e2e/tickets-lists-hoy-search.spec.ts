@@ -57,7 +57,11 @@ test.describe('Tickets lists, Hoy and search (audit tenant)', () => {
 
   test('a desktop row says how many servicios and materiales', async ({ page }) => {
     await page.goto('/tickets');
-    const work = page.getByTestId('ticket-row-work').first();
+    // Under the client below 75rem of list, under the services in Trabajo from there.
+    const work = page
+      .locator('[data-testid="ticket-row-work"], [data-testid="ticket-row-work-trabajo"]')
+      .filter({ visible: true })
+      .first();
     await expect(work).toBeVisible();
     await expect(work).toContainText(/\d+ servicios?/);
   });
