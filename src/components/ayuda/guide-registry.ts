@@ -1,3 +1,5 @@
+import { GUIDES_PART_2_CONTENT } from '@/components/ayuda/guides/part-2';
+import type { GuidePiecePart2 } from '@/components/ayuda/pieces/part-2-pieces';
 import { AYUDA_PATH } from '@/lib/marketing-routes';
 
 /**
@@ -52,7 +54,8 @@ export type GuidePiece =
       /** What happens to the ticket for each option, read back under the chips. */
       explanations: Record<'full' | 'partial' | 'pending', string>;
     }
-  | { kind: 'save-bar'; countLabel: string; total: number; label: string };
+  | { kind: 'save-bar'; countLabel: string; total: number; label: string }
+  | GuidePiecePart2;
 
 export type GuideStep = {
   title: string;
@@ -219,6 +222,9 @@ export const GUIDES: Guide[] = [
     topic: 'equipo',
   },
 ];
+
+// Guides of ZIG-I40-4 keep their copy in guides/part-2.ts, attached by slug.
+for (const guide of GUIDES) guide.content ??= GUIDES_PART_2_CONTENT[guide.slug];
 
 export type WrittenGuide = Guide & { content: GuideContent };
 

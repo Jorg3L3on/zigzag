@@ -4,6 +4,7 @@ import AyudaGuideRoute, {
   generateMetadata,
   generateStaticParams,
 } from '@/app/ayuda/[slug]/page';
+import { getWrittenGuides, GUIDES } from '@/components/ayuda/guide-registry';
 
 const notFoundError = new Error('NEXT_NOT_FOUND');
 
@@ -20,7 +21,9 @@ const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
 describe('/ayuda/[slug] (ZIG-I40-2)', () => {
   it('is statically generated for written guides only', () => {
     expect(dynamicParams).toBe(false);
-    expect(generateStaticParams()).toEqual([{ slug: 'crear-un-ticket' }]);
+    expect(generateStaticParams()).toEqual(getWrittenGuides().map((guide) => ({ slug: guide.slug })));
+    expect(generateStaticParams()).toContainEqual({ slug: 'crear-un-ticket' });
+    expect(generateStaticParams()).toContainEqual({ slug: 'guardar-un-cliente' });
   });
 
   it('renders a written guide with its metadata', async () => {
@@ -32,7 +35,11 @@ describe('/ayuda/[slug] (ZIG-I40-2)', () => {
 
   it('calls notFound for an unknown slug and for a guide that is not written yet', async () => {
     await expect(AyudaGuideRoute(params('no-existe'))).rejects.toBe(notFoundError);
-    await expect(AyudaGuideRoute(params('ver-quien-me-debe'))).rejects.toBe(notFoundError);
-    expect(notFound).toHaveBeenCalledTimes(2);
+    // Once every guide is written there is no unwritten slug left to try.
+    const unwritten = GUIDES.find((guide) => !guide.content);
+    if (unwritten) {
+      await expect(AyudaGuideRoute(params(unwritten.slug))).rejects.toBe(notFoundError);
+    }
+    expect(notFound).toHaveBeenCalledTimes(unwritten ? 2 : 1);
   });
 });

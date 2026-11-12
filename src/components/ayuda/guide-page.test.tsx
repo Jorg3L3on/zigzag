@@ -99,7 +99,9 @@ describe('guide page: Crear un ticket (ZIG-I40-2)', () => {
   });
 
   it('without a next written guide, the button goes back to /ayuda', () => {
-    renderGuide();
+    // The last guide in the registry has no `next` and nothing written after it.
+    const last = getWrittenGuide('elegir-que-ve-cada-quien')!;
+    render(<GuidePage guide={last} whatsappHref={null} />);
     expect(screen.getByRole('link', { name: 'Ver todas las guías' })).toHaveAttribute('href', '/ayuda');
   });
 });

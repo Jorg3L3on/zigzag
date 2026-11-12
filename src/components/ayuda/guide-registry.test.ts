@@ -1,5 +1,7 @@
 import {
   ASSISTANT_PAGE_PATH,
+  getWrittenGuide,
+  getWrittenGuides,
   filterHelpCards,
   getHelpCards,
   getNextGuide,
@@ -56,7 +58,7 @@ describe('guide registry (ZIG-I40)', () => {
 
   it('topic links go to the first written guide of the topic, else /ayuda', () => {
     const guides = GUIDES.map((guide) =>
-      guide.slug === 'ver-quien-me-debe' ? written(guide) : guide,
+      guide.slug === 'ver-quien-me-debe' ? written(guide) : { ...guide, content: undefined },
     );
     expect(topicHref('cobro', guides)).toBe('/ayuda/ver-quien-me-debe');
     expect(topicHref('equipo', guides)).toBe('/ayuda');
@@ -69,5 +71,41 @@ describe('guide registry (ZIG-I40)', () => {
     expect(getNextGuide(a.slug, [prefersC, written(b), written(c)])?.slug).toBe(c.slug);
     expect(getNextGuide(a.slug, [prefersC, written(b), c])?.slug).toBe(b.slug);
     expect(getNextGuide(a.slug, [prefersC, b, c])).toBeNull();
+  });
+
+  it('every written guide has a card on /ayuda, and no card is hidden', () => {
+    const cards = getHelpCards(GUIDES, false);
+    expect(cards.map((card) => card.key)).toEqual(getWrittenGuides().map((guide) => guide.slug));
+    for (const guide of getWrittenGuides()) {
+      expect(cards.find((card) => card.key === guide.slug)?.href).toBe(`/ayuda/${guide.slug}`);
+    }
+  });
+
+  describe('part 2 guides (ZIG-I40-4)', () => {
+    const PART_2 = [
+      'guardar-un-cliente',
+      'armar-mi-lista-de-precios',
+      'programar-un-mantenimiento',
+      'instalar-zigzag-en-mi-telefono',
+      'trabajar-sin-senal',
+      'poner-el-texto-grande',
+      'invitar-a-mi-equipo',
+      'elegir-que-ve-cada-quien',
+    ];
+
+    it.each(PART_2)('%s is written, has a card, 3–6 steps and a piece on every step', (slug) => {
+      const guide = getWrittenGuide(slug);
+      expect(guide).not.toBeNull();
+      expect(getHelpCards().map((card) => card.key)).toContain(slug);
+      const { steps, next } = guide!.content;
+      expect(steps.length).toBeGreaterThanOrEqual(3);
+      expect(steps.length).toBeLessThanOrEqual(6);
+      for (const step of steps) {
+        expect(step.title.trim()).not.toBe('');
+        expect(step.body.trim()).not.toBe('');
+        expect(step.piece.kind).toBeTruthy();
+      }
+      if (next) expect(GUIDES.map((item) => item.slug)).toContain(next);
+    });
   });
 });
