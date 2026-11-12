@@ -4,7 +4,7 @@ import AyudaGuideRoute, {
   generateMetadata,
   generateStaticParams,
 } from '@/app/ayuda/[slug]/page';
-import { getWrittenGuides } from '@/components/ayuda/guide-registry';
+import { getWrittenGuides, GUIDES } from '@/components/ayuda/guide-registry';
 
 const notFoundError = new Error('NEXT_NOT_FOUND');
 
@@ -22,8 +22,13 @@ describe('/ayuda/[slug] (ZIG-I40-2)', () => {
   it('is statically generated for written guides only', () => {
     expect(dynamicParams).toBe(false);
     expect(generateStaticParams()).toEqual(getWrittenGuides().map(({ slug }) => ({ slug })));
+    expect(generateStaticParams()).toHaveLength(GUIDES.length);
     expect(generateStaticParams()).toEqual(
-      expect.arrayContaining([{ slug: 'crear-un-ticket' }, { slug: 'ver-quien-me-debe' }]),
+      expect.arrayContaining([
+        { slug: 'crear-un-ticket' },
+        { slug: 'ver-quien-me-debe' },
+        { slug: 'guardar-un-cliente' },
+      ]),
     );
   });
 
@@ -36,6 +41,7 @@ describe('/ayuda/[slug] (ZIG-I40-2)', () => {
 
   it('calls notFound for a slug that is not a written guide', async () => {
     await expect(AyudaGuideRoute(params('no-existe'))).rejects.toBe(notFoundError);
+    // Every guide is written (ZIG-I40-3 + ZIG-I40-4): only slugs outside the list 404.
     await expect(AyudaGuideRoute(params('asistentes'))).rejects.toBe(notFoundError);
     expect(notFound).toHaveBeenCalledTimes(2);
   });

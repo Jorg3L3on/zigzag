@@ -3,7 +3,7 @@ import { ExpiresAtFieldPiece } from '@/components/ayuda/pieces/expires-at-field'
 import { FinishTicketCardPiece } from '@/components/ayuda/pieces/finish-ticket-card';
 import { MaterialStepPiece } from '@/components/ayuda/pieces/material-step';
 import { MaterialsListPiece } from '@/components/ayuda/pieces/materials-list';
-import { CreateMenuPiece, DockTabPiece } from '@/components/ayuda/pieces/mobile-dock';
+import { DockTabPiece } from '@/components/ayuda/pieces/mobile-dock';
 import { PaymentSheetPiece } from '@/components/ayuda/pieces/payment-sheet';
 import { PresupuestoCardPiece } from '@/components/ayuda/pieces/presupuesto-card';
 import { ShareReceiptPiece } from '@/components/ayuda/pieces/share-receipt';
@@ -12,10 +12,12 @@ import type { ComponentProps, JSXElementConstructor } from 'react';
 
 type Spec<K extends string, C extends JSXElementConstructor<any>> = { kind: K } & ComponentProps<C>;
 
-/** Pieces of the ZIG-I40-3 guides (tickets, cobro, presupuestos). */
+/**
+ * Pieces of the ZIG-I40-3 guides (tickets, cobro, presupuestos). The Crear
+ * menu is the shared `create-menu` kind of part-2-pieces.ts.
+ */
 export type Part1PieceSpec =
   | Spec<'dock-tab', typeof DockTabPiece>
-  | Spec<'create-menu', typeof CreateMenuPiece>
   | Spec<'ticket-actions', typeof TicketActionsPiece>
   | Spec<'finish-ticket-card', typeof FinishTicketCardPiece>
   | Spec<'payment-sheet', typeof PaymentSheetPiece>
@@ -30,8 +32,6 @@ export const Part1Piece = ({ piece }: { piece: Part1PieceSpec }) => {
   switch (piece.kind) {
     case 'dock-tab':
       return <DockTabPiece {...piece} />;
-    case 'create-menu':
-      return <CreateMenuPiece {...piece} />;
     case 'ticket-actions':
       return <TicketActionsPiece {...piece} />;
     case 'finish-ticket-card':

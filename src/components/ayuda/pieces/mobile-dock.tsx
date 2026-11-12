@@ -1,12 +1,5 @@
-import { APP_MUTED, APP_PIECE_CARD, TOUCH_RING, TOUCH_RING_SM } from '@/components/ayuda/pieces/app-look';
+import { APP_MUTED, APP_PIECE_CARD, TOUCH_RING_SM } from '@/components/ayuda/pieces/app-look';
 
-/** Same titles and hints as MOBILE_CREATE_ACTIONS (lib/nav-items.ts). */
-const CREATE_ITEMS = [
-  { title: 'Nuevo ticket', hint: 'Cliente, servicios y recibo' },
-  { title: 'Nuevo presupuesto', hint: 'Cotiza y compártelo por WhatsApp' },
-] as const;
-
-export type PieceCreateItem = (typeof CREATE_ITEMS)[number]['title'];
 export type PieceDockTab = 'Tickets' | 'Cobranza';
 
 const PlusIcon = () => (
@@ -40,23 +33,5 @@ const Dock = ({ ring }: { ring: PieceDockTab | null }) => (
 export const DockTabPiece = ({ tab }: { tab: PieceDockTab }) => (
   <div aria-hidden className="flex w-full max-w-[340px] min-w-0 flex-col">
     <Dock ring={tab} />
-  </div>
-);
-
-/** The Crear menu the dock + opens, with one item ringed. */
-export const CreateMenuPiece = ({ item }: { item: PieceCreateItem }) => (
-  <div aria-hidden className="flex w-full max-w-[340px] min-w-0 flex-col items-center gap-3">
-    <div className={`${APP_PIECE_CARD} flex max-w-[260px] flex-col gap-1 p-1.5`}>
-      {CREATE_ITEMS.map((entry) => (
-        <span
-          key={entry.title}
-          className={`block rounded-xl px-3 py-2.5 ${entry.title === item ? `bg-[#EFF6FF] ${TOUCH_RING}` : ''}`}
-        >
-          <span className="block font-semibold">{entry.title}</span>
-          <span className={`block ${APP_MUTED}`}>{entry.hint}</span>
-        </span>
-      ))}
-    </div>
-    <Dock ring={null} />
   </div>
 );

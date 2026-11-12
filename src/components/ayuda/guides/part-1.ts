@@ -332,7 +332,7 @@ export const GUIDES_PART_1_CONTENT: Partial<Record<string, GuideContent>> = {
       {
         title: 'Toca + y elige Nuevo presupuesto',
         body: 'El + está en medio de la barra de abajo. En la computadora entra a Presupuestos y toca “Nuevo presupuesto”.',
-        piece: { kind: 'create-menu', item: 'Nuevo presupuesto' },
+        piece: { kind: 'create-menu', highlight: 'Nuevo presupuesto' },
       },
       {
         title: 'Elige al cliente',

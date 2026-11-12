@@ -1,5 +1,7 @@
 import type { Part1PieceSpec } from '@/components/ayuda/pieces/part-1-pieces';
 import { GUIDES_PART_1_CONTENT } from '@/components/ayuda/guides/part-1';
+import { GUIDES_PART_2_CONTENT } from '@/components/ayuda/guides/part-2';
+import type { GuidePiecePart2 } from '@/components/ayuda/pieces/part-2-pieces';
 import { AYUDA_PATH, MCP_DOCS_PATH } from '@/lib/marketing-routes';
 
 /**
@@ -55,7 +57,8 @@ export type GuidePiece =
       explanations: Record<'full' | 'partial' | 'pending', string>;
     }
   | { kind: 'save-bar'; countLabel: string; total: number; label: string }
-  | Part1PieceSpec;
+  | Part1PieceSpec
+  | GuidePiecePart2;
 
 export type GuideStep = {
   title: string;
@@ -225,6 +228,8 @@ export const GUIDES: Guide[] = [
 
 // ZIG-I40-3: tickets, cobro and presupuestos guides live in guides/part-1.ts.
 for (const guide of GUIDES) guide.content ??= GUIDES_PART_1_CONTENT[guide.slug];
+// Guides of ZIG-I40-4 keep their copy in guides/part-2.ts, attached by slug.
+for (const guide of GUIDES) guide.content ??= GUIDES_PART_2_CONTENT[guide.slug];
 
 export type WrittenGuide = Guide & { content: GuideContent };
 
