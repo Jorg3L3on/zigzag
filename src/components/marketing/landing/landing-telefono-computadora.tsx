@@ -51,15 +51,16 @@ const Dot = ({ tone }: { tone: keyof typeof DOT }) => (
 );
 
 /**
- * Desktop tickets screen. It keeps its 720px layout and crops on the right
- * inside its own overflow-hidden box, so narrow screens never scroll sideways.
+ * Desktop tickets screen. It keeps an 860px layout and crops on the right
+ * inside its own overflow-hidden box, so narrow screens never scroll sideways
+ * (860, not the canvas 720: at 720 the Cliente column shrank to nothing).
  */
 const DesktopMock = () => (
   <div
     data-testid="desktop-mock"
     className="min-w-0 flex-[1_1_520px] overflow-hidden rounded-[18px] border border-[var(--pt-line-strong)] bg-white shadow-[0_30px_60px_-34px_rgba(23,20,15,0.5)]"
   >
-    <div className="flex min-w-[720px] text-[12px] leading-[1.35] text-[#0B1220] md:text-[13px]">
+    <div className="flex min-w-[860px] text-[12px] leading-[1.35] text-[#0B1220] md:text-[13px]">
       <div className="flex w-[190px] shrink-0 flex-col gap-0.5 border-r border-[#E2E8F0] bg-[#FAFAFA] px-2.5 py-3.5">
         <div className="flex items-center gap-2 px-1.5 pt-1 pb-3">
           <span
@@ -145,11 +146,14 @@ const DesktopMock = () => (
 
 const PHONE_CARD = 'flex flex-col gap-[5px] rounded-[14px] border border-[#E2E8F0] bg-white px-3 py-2.5';
 
-/** Phone tickets list with the bottom dock. No status bar. */
+/**
+ * Phone tickets list with the bottom dock. No status bar. 248px wide (canvas
+ * 236): the dock labels stay at 12px on phones and need the extra room.
+ */
 const PhoneMock = () => (
   <div
     data-testid="phone-mock"
-    className="w-[236px] shrink-0 rounded-[34px] bg-[var(--pt-ink)] p-2 shadow-[0_30px_60px_-30px_rgba(23,20,15,0.55)]"
+    className="w-[248px] shrink-0 rounded-[34px] bg-[var(--pt-ink)] p-2 shadow-[0_30px_60px_-30px_rgba(23,20,15,0.55)]"
   >
     <div className="flex flex-col overflow-hidden rounded-[27px] bg-[#F1F5F9] text-[12px] leading-[1.35] text-[#0B1220]">
       <div className="border-b border-[#E2E8F0] bg-white px-3.5 pt-4 pb-2.5">
@@ -165,7 +169,7 @@ const PhoneMock = () => (
         <div className={PHONE_CARD}>
           <div className="flex items-baseline justify-between gap-2">
             <strong className="text-sm font-semibold">Hotel Riviera Dorada</strong>
-            <span className={`${FONT_MONO} text-[12px] text-[#556277]`}>R-0062</span>
+            <span className={`${FONT_MONO} shrink-0 text-[12px] text-[#556277]`}>R-0062</span>
           </div>
           <span className="flex items-center gap-1.5 text-[#556277]">
             <Dot tone="partial" />
@@ -182,7 +186,7 @@ const PhoneMock = () => (
         <div className={PHONE_CARD}>
           <div className="flex items-baseline justify-between gap-2">
             <strong className="text-sm font-semibold">Gimnasio FitPro</strong>
-            <span className={`${FONT_MONO} text-[12px] text-[#556277]`}>R-0060</span>
+            <span className={`${FONT_MONO} shrink-0 text-[12px] text-[#556277]`}>R-0060</span>
           </div>
           <span className="flex items-center gap-1.5 text-[#556277]">
             <Dot tone="paid" />
@@ -196,15 +200,15 @@ const PhoneMock = () => (
       </div>
       <div
         data-testid="phone-dock"
-        className="mx-2.5 mb-3 flex items-center justify-around rounded-full border border-[#E2E8F0] bg-white px-1.5 py-2 text-[#556277]"
+        className="mx-2 mb-3 flex items-center justify-between gap-1 rounded-full border border-[#E2E8F0] bg-white px-1.5 py-2 text-[#556277]"
       >
         <span>Hoy</span>
-        <span className="rounded-full bg-[#F1F5F9] px-2.5 py-[5px] font-semibold text-[#0B1220]">
+        <span className="rounded-full bg-[#F1F5F9] px-2 py-[5px] font-semibold text-[#0B1220]">
           Tickets
         </span>
         <span
           aria-hidden
-          className="flex size-[30px] items-center justify-center rounded-full border border-[#CBD5E1] text-[17px] text-[#0B1220]"
+          className="flex size-[26px] shrink-0 items-center justify-center rounded-full border border-[#CBD5E1] text-[17px] text-[#0B1220]"
         >
           +
         </span>
