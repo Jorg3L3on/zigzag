@@ -70,7 +70,7 @@ export const MCP_CLIENTS: McpClientInfo[] = [
     auth: 'bearer',
     authLabel: 'Llave de agente zigzag_… en el encabezado Authorization',
     steps: [
-      'Crea abajo una Nueva llave de agente y cópiala.',
+      'Crea una Nueva llave de agente en Ajustes › Conexiones y cópiala.',
       'En Cursor abre Settings → MCP → Add new MCP server (o edita ~/.cursor/mcp.json).',
       'Pega la configuración de abajo con tu llave en lugar de zigzag_…',
     ],
