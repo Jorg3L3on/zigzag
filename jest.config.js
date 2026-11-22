@@ -57,8 +57,12 @@ const withEsmDeps = async () => {
   const config = await createJestConfig(customJestConfig)();
   // Session token tests decode real Auth.js JWTs; those packages ship ESM only.
   // next/jest sets its own transformIgnorePatterns, so extend them here.
+  // The lookahead checks the whole path: with a pnpm layout the package sits under
+  // node_modules/.pnpm/<pkg>/node_modules/<pkg>, and a check on the first
+  // node_modules segment ignored it, so Node loaded the ESM outside Jest and it
+  // sometimes crashed with "AsyncLocalStorage accessed in runtime where it is not available".
   config.transformIgnorePatterns = [
-    '/node_modules/(?!(jose|@auth/core|next-auth)/)',
+    '^(?!.*/node_modules/(jose|@auth/core|next-auth)/).*/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ];
   return config;
