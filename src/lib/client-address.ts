@@ -51,3 +51,11 @@ export function formatClientAddressOneLine(
 
   return legacy;
 }
+
+/** Google Maps directions link for a client's address, or null without one. */
+export function buildDirectionsHref(client: Client): string | null {
+  // Only the country (the form's default) is not an address.
+  if (!formatClientAddressOneLine(client, { includeCountry: false })) return null;
+  const address = formatClientAddressOneLine(client);
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+}
