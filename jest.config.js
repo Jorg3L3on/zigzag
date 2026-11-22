@@ -1,4 +1,10 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import nextJest from 'next/jest.js';
+
+// Next only installs a global AsyncLocalStorage inside its own server runtime. In the
+// Jest main process it falls back to a fake whose run()/disable() throw, which crashed
+// the process after every suite had passed. Hand it the real one.
+globalThis.AsyncLocalStorage ??= AsyncLocalStorage;
 
 // Pin timezone so date-fns calendar helpers (isYesterday, differenceInCalendarDays)
 // are stable in CI across runner locales.
