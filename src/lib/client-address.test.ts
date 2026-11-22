@@ -106,3 +106,16 @@ describe('buildDirectionsHref', () => {
     ).toBeNull();
   });
 });
+
+describe('buildDirectionsHref without street', () => {
+  it('is null when only the country is set', () => {
+    expect(
+      buildDirectionsHref(
+        baseClient({
+          street: null, exterior_number: null, neighborhood: null, city: null,
+          state: null, postal_code: null, country: 'México', address: null,
+        }),
+      ),
+    ).toBeNull();
+  });
+});
