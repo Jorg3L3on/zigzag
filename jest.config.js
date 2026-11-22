@@ -1,4 +1,10 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import nextJest from 'next/jest.js';
+
+// Next only installs a global AsyncLocalStorage inside its own server runtime. In the
+// Jest main process it falls back to a fake whose run()/disable() throw, which crashed
+// the process after every suite had passed. Hand it the real one.
+globalThis.AsyncLocalStorage ??= AsyncLocalStorage;
 
 // Pin timezone so date-fns calendar helpers (isYesterday, differenceInCalendarDays)
 // are stable in CI across runner locales.
@@ -57,8 +63,12 @@ const withEsmDeps = async () => {
   const config = await createJestConfig(customJestConfig)();
   // Session token tests decode real Auth.js JWTs; those packages ship ESM only.
   // next/jest sets its own transformIgnorePatterns, so extend them here.
+  // The lookahead checks the whole path: with a pnpm layout the package sits under
+  // node_modules/.pnpm/<pkg>/node_modules/<pkg>, and a check on the first
+  // node_modules segment ignored it, so Node loaded the ESM outside Jest and it
+  // sometimes crashed with "AsyncLocalStorage accessed in runtime where it is not available".
   config.transformIgnorePatterns = [
-    '/node_modules/(?!(jose|@auth/core|next-auth)/)',
+    '^(?!.*/node_modules/(jose|@auth/core|next-auth)/).*/node_modules/',
     '^.+\\.module\\.(css|sass|scss)$',
   ];
   return config;
