@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ClipboardList, MessageCircle, Pencil, Ticket } from 'lucide-react';
+import { ClipboardList, MapPin, MessageCircle, Pencil, Ticket } from 'lucide-react';
 
 import type { Client } from '@/actions/clients';
 import { Button } from '@/components/ui/button';
-import { formatClientAddressOneLine } from '@/lib/client-address';
-import { formatPhoneDisplay } from '@/lib/phone-links';
+import { buildDirectionsHref, formatClientAddressOneLine } from '@/lib/client-address';
+import { formatPhoneDisplay, normalizePhoneForTel } from '@/lib/phone-links';
 import { cn } from '@/lib/utils';
 import { buildWhatsAppHref } from '@/lib/whatsapp-share';
 
@@ -75,6 +75,8 @@ export const ClientDetailHeader = ({
 }: ClientDetailHeaderProps) => {
   const address = formatClientAddressOneLine(client);
   const phone = formatPhoneDisplay(client.phone);
+  const telHref = normalizePhoneForTel(client.phone);
+  const directionsHref = buildDirectionsHref(client);
   const whatsapp = buildWhatsAppHref({
     phone: client.phone,
     message: `Hola ${client.name.trim()}, te escribimos desde tu proveedor de servicio.`,
@@ -116,9 +118,30 @@ export const ClientDetailHeader = ({
       <div className={cn('min-w-0', CLIENT_RAIL_CARD_CLASS, detailsClassName)}>
         <h2 className={cn(CLIENT_RAIL_LABEL_CLASS, 'hidden lg:mb-3 lg:block')}>Datos</h2>
         <dl className="grid gap-3 sm:grid-cols-2 @min-[60rem]:grid-cols-1">
-          <Detail label="Teléfono">{phone || '—'}</Detail>
+          <Detail label="Teléfono">
+            {phone && telHref ? (
+              <a href={`tel:${telHref}`} className="underline underline-offset-2">
+                {phone}
+              </a>
+            ) : (
+              phone || '—'
+            )}
+          </Detail>
           <Detail label="Correo">{client.email?.trim() || '—'}</Detail>
-          <Detail label="Dirección">{address || '—'}</Detail>
+          <Detail label="Dirección">
+            {address || '—'}
+            {directionsHref ? (
+              <a
+                href={directionsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 flex min-h-11 w-fit items-center gap-1.5 text-sm font-medium underline underline-offset-2"
+              >
+                <MapPin className="h-4 w-4" aria-hidden />
+                Cómo llegar
+              </a>
+            ) : null}
+          </Detail>
           <Detail label="Documento">{client.document?.trim() || '—'}</Detail>
         </dl>
       </div>

@@ -74,3 +74,35 @@ describe('formatClientAddressOneLine', () => {
     ).toBe('Calle Legacy 12');
   });
 });
+
+import { buildDirectionsHref } from '@/lib/client-address';
+
+describe('buildDirectionsHref', () => {
+  it('uses the full address from the parts', () => {
+    const href = buildDirectionsHref(baseClient())!;
+    const url = new URL(href);
+    expect(url.origin + url.pathname).toBe('https://www.google.com/maps/dir/');
+    expect(url.searchParams.get('destination')).toBe(
+      'Av. Reforma #100, Centro, CDMX, CDMX, CP 06600, México',
+    );
+  });
+  it('uses the free text address when there are no parts', () => {
+    const href = buildDirectionsHref(
+      baseClient({
+        street: null, exterior_number: null, neighborhood: null, city: null,
+        state: null, postal_code: null, country: null, address: 'Calle 5 & 6, Mérida',
+      }),
+    )!;
+    expect(new URL(href).searchParams.get('destination')).toBe('Calle 5 & 6, Mérida');
+  });
+  it('is null without an address', () => {
+    expect(
+      buildDirectionsHref(
+        baseClient({
+          street: null, exterior_number: null, neighborhood: null, city: null,
+          state: null, postal_code: null, country: null, address: null,
+        }),
+      ),
+    ).toBeNull();
+  });
+});
